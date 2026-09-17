@@ -5,7 +5,7 @@ description: 将 workbuddy2api-panel 中的 CodeBuddy 成长任务能力（任�
 status: completed
 owner: tnnevol
 targetVersion: 5.4.0
-lastVerified: 2026-09-16
+lastVerified: 2026-09-17
 ---
 
 # FNOS-005 CodeBuddy 成长任务移植与仓库内 DSH 开发环境

@@ -91,45 +91,64 @@ export function accountRiskHeaders(identity: RiskIdentity): Record<string, strin
 }
 
 /**
- * 连续上报之间的间隔。
+ * 节流间隔的**单一可调来源**。
  *
- * 来源口径（对齐其 Python 脚本实测的 1.05s）：`chat_5` 逐条补报、夜间补足、
- * 任务项之间都要按这个节奏发送。一次性连发会被上游按异常流量处理（受理但不
- * 计分，或直接限流）。
+ * 为什么做成可变对象而不是一组 `const`：这些数字是**实测出来的上游节奏**，
+ * 不是逻辑常量——集成测试要跑完整条链路（报名 → 多次上报 → 有界回读 → 领奖）
+ * 时，真等 1.05s × N + 3s × 4 会让单个用例跑十几秒，而等待本身不是被测对象。
+ * 来源项目同样把 `reportGap` / `claimPollGap` 做成可置 0 的变量（见其
+ * `internal/panel/autotask.go` 的注释「测试可置 0」）。
+ *
+ * 生产路径一律使用这里的默认值；测试可以整体置 0（见 `tests` 里的用法）。
  */
-export const REPORT_GAP_MS = 1_050
+export const growthThrottle = {
+  /**
+   * 连续上报之间的间隔。来源口径（其 Python 脚本实测的 1.05s）：`chat_5`
+   * 逐条补报、夜间补足、任务项之间都按这个节奏。一次性连发会被上游按异常
+   * 流量处理（受理但不计分，或直接限流）。
+   */
+  reportGapMs: 1_050,
+  /**
+   * `template_5` 五组模板事件之间的间隔。比通用上报间隔短：来源把模板链作为
+   * **五个独立的批量上报**发送（每组自带一条完整 chat 链），组间取 300ms。
+   */
+  templateGapMs: 300,
+  /**
+   * 专家召唤链之间的间隔。来源实测 6s 时三账号成功率 100%。一次「召唤 +
+   * 真实对话 + 使用事件」是完整一组，组间必须留足。
+   */
+  expertSummonGapMs: 6_000,
+  /**
+   * 账号之间的执行间隔。成长任务不是纯读请求：每个账号会依次打出多次上报与
+   * 真实对话，来源对批量路径明确按账号限速（其调度器取 800ms）。
+   */
+  accountGapMs: 800,
+  /** `accept`（报名）批量提交的批间间隔（同 1.05s 口径）。 */
+  acceptGapMs: 1_050,
+  /**
+   * 达标回读的轮询间隔。
+   *
+   * 上游计分是**异步**的：行为事件上报后进度要数秒才刷新（来源实测
+   * `Model_chat` 对话完成后立即回读仍是 0/1，约 5–8 秒后才变 1/1）。一次性
+   * 回读会把「还没计分」误判成「没完成」而跳过自动领奖，因此必须轮询等待。
+   * 取 3s 与来源一致（其 `claimPollGap`）。
+   */
+  pollGapMs: 3_000,
+} as const
 
 /**
- * `template_5` 五组模板事件之间的间隔。
+ * 把全部节流间隔置为 0（仅供测试）。
  *
- * 比通用上报间隔短：来源把模板链作为**五个独立的批量上报**发送（每组自带一条
- * 完整 chat 链），组间取 300ms——一次性把五组成一包发出去反而不计满 5/5。
+ * 测试必须能跑完整条链路而不把时间花在等待上；间隔本身由
+ * `growth-risk-control.spec.ts` 直接断言默认值，因此置 0 不会让「口径忘了配」
+ * 这类回归漏网。
  */
-export const TEMPLATE_GAP_MS = 300
+export function disableGrowthThrottleForTests(): void {
+  for (const key of Object.keys(growthThrottle) as Array<keyof typeof growthThrottle>) {
+    ;(growthThrottle as Record<string, number>)[key] = 0
+  }
+}
 
-/**
- * 专家召唤链之间的间隔。
- *
- * 来源实测：6s 时三账号成功率 100%（8s 亦为 100%，更短的间隔成功率下降）。
- * 一次「召唤 + 真实对话 + 使用事件」是完整一组，组间必须留足这个间隔。
- */
-export const EXPERT_SUMMON_GAP_MS = 6_000
-
-/**
- * 账号之间的执行间隔。
- *
- * 成长任务不是纯读请求：每个账号会依次打出多次上报与真实对话。来源对批量
- * 路径明确按账号限速（其调度器取 800ms），避免多账号同时开工把上游打成
- * 瞬时峰值。只用于**批量**遍历，单账号操作不需要。
- */
-export const ACCOUNT_GAP_MS = 800
-
-/**
- * `accept`（报名）批量提交的批间间隔。
- *
- * 来源口径同样是 1.05s：报名虽不产生进度，但连发同样属于异常流量形态。
- */
-export const ACCEPT_GAP_MS = 1_050
 
 /** 可取消的等待；`signal` 已中止时立即抛出。 */
 export function wait(ms: number, signal?: AbortSignal): Promise<void> {

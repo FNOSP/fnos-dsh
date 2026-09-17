@@ -2,7 +2,7 @@
 
 import { CODEBUDDY_ENDPOINT } from '../contracts/constants.ts'
 import type { CodeBuddyIdentity } from './codebuddy.ts'
-import { ACCEPT_GAP_MS, accountRiskHeaders, wait } from './risk-headers.ts'
+import { accountRiskHeaders, growthThrottle, wait } from './risk-headers.ts'
 
 const TASKS_BASE = `${CODEBUDDY_ENDPOINT}/v2/activity/growth/tasks`
 const CLAIM_BASE = 'https://www.workbuddy.cn/activity/growth/tasks'
@@ -230,7 +230,7 @@ export async function acceptGrowthTasks(
       method: 'POST',
       body: JSON.stringify({ task_codes: codes }),
     }, signal)
-    if (start + batch < taskCodes.length) await wait(ACCEPT_GAP_MS, signal)
+    if (start + batch < taskCodes.length) await wait(growthThrottle.acceptGapMs, signal)
   }
 }
 

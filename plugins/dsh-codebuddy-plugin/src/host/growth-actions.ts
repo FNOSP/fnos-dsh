@@ -4,10 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { CODEBUDDY_ENDPOINT } from '../contracts/constants.ts'
 import type { CodeBuddyIdentity } from './codebuddy.ts'
 import {
-  EXPERT_SUMMON_GAP_MS,
-  REPORT_GAP_MS,
-  TEMPLATE_GAP_MS,
   accountRiskHeaders,
+  growthThrottle,
   stableDeviceId,
   wait,
   DESKTOP_USER_AGENT,
@@ -616,8 +614,9 @@ async function runExpertBatch(
   let completed = 0
   let failed = 0
   let lastError: string | undefined
-  for (const expert of target) {
+  for (let index = 0; index < target.length; index += 1) {
     if (completed >= count) break
+    const expert = target[index] as MarketExpert
     try {
       await reportDesktopEvents(identity, expertSummonEvents(expert), signal)
       const real = await runExpertChat(identity, expert.expertId, signal)
@@ -640,7 +639,9 @@ async function runExpertBatch(
       failed += 1
       lastError = error instanceof Error ? error.message : String(error)
     }
-    if (completed < count) await wait(EXPERT_SUMMON_GAP_MS, signal)
+    // 只在「确实还会再试下一个专家」时限速：最后一个尝试之后（或已达目标数）
+    // 再等 6s 只会白白拖慢结果返回，失败时尤其明显。
+    if (completed < count && index < target.length - 1) await wait(growthThrottle.expertSummonGapMs, signal)
   }
   if (completed === 0 && lastError !== undefined) throw new Error(`expert usage chain failed: ${lastError}`)
   return failed === 0
@@ -703,21 +704,21 @@ export async function runGrowthTaskAction(
       const remaining = Math.max(0, goal - current)
       for (let index = 0; index < remaining; index += 1) {
         await report(identity, 'chat_request_send', signal)
-        if (index + 1 < remaining) await wait(REPORT_GAP_MS, signal)
+        if (index + 1 < remaining) await wait(growthThrottle.reportGapMs, signal)
       }
       return { supported: true, message: `reported ${remaining} chat activity event(s)` }
     }
     case 'first_buddy':
       // 前置上报解锁（`buddy/first` 要求当日活跃）→ 间隔 → 同意协议 → 领养。
       await report(identity, 'chat_request_send', signal)
-      await wait(REPORT_GAP_MS, signal)
+      await wait(growthThrottle.reportGapMs, signal)
       await postGrowth(identity, '/activity/growth/buddy/agreement', { agree: true }, signal)
       await postGrowth(identity, '/activity/growth/buddy/first', {}, signal)
       return { supported: true, message: 'reported unlock and adopted the first Buddy' }
     case 'Model_chat_GLM5.2':
       // 真实对话（判据最直接的证据）→ 间隔 → 对齐模型的上报。
       await runShortChat(identity, 'glm-5.2', signal)
-      await wait(REPORT_GAP_MS, signal)
+      await wait(growthThrottle.reportGapMs, signal)
       await report(identity, 'chat_request_send', signal, 'glm-5.2', 'GLM-5.2')
       return { supported: true, message: 'completed a GLM-5.2 chat and reported it' }
     case 'RichMeow_Chat': {
@@ -783,7 +784,7 @@ export async function runGrowthTaskAction(
           },
           { eventCode: 'template_used', template_id: template.id, task_mode: 'working' },
         ], signal)
-        if (index + 1 < remaining) await wait(TEMPLATE_GAP_MS, signal)
+        if (index + 1 < remaining) await wait(growthThrottle.templateGapMs, signal)
       }
       return { supported: true, message: `reported ${remaining} template usage event(s)` }
     }
@@ -852,7 +853,7 @@ export async function runGrowthTaskAction(
       for (let index = 0; index < remaining; index += 1) {
         await runShortChat(identity, 'glm-5.2', signal)
         await report(identity, 'chat_request_send', signal, 'glm-5.2', 'GLM-5.2')
-        if (index + 1 < remaining) await wait(REPORT_GAP_MS, signal)
+        if (index + 1 < remaining) await wait(growthThrottle.reportGapMs, signal)
       }
       return { supported: true, message: `completed ${remaining} night chat(s) and reported them` }
     }
