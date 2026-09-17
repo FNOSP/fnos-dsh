@@ -1,0 +1,40 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "lib/**"],
+      "env": ["NODE_ENV"]
+    },
+    "build:app": {
+      "cache": false
+    },
+    "dev": {
+      "dependsOn": ["^dev"],
+      "cache": false,
+      "persistent": true,
+      "interruptible": true
+    },
+    "//#dev:web": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["DSH_HOME"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "//#lint": {
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "check": {
+      "dependsOn": ["build", "^typecheck"],
+      "outputs": []
+    }
+  }
+}

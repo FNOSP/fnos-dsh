@@ -1,0 +1,9 @@
+{
+  "**/*.{json,jsonc}": "eslint --fix",
+  "apps/**/wizard/*": "eslint --no-warn-ignored",
+  "apps/**/app/ui/config": "eslint --no-warn-ignored",
+  "apps/**/app/**/*.{js,mjs,cjs}": "eslint --no-warn-ignored --fix",
+  "apps/**/cmd/*": "eslint --no-warn-ignored --fix",
+  "**/*.sh": "eslint --no-warn-ignored --fix",
+  "{packages,plugins,tooling,docs,scripts}/**/*.{ts,tsx,mts,cts,vue}": "eslint --fix"
+}

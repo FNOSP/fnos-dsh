@@ -1,0 +1,197 @@
+name: Build FPK & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Tag to rebuild and publish
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+# 推送 v* tag 后先创建草稿 Release，再调用可复用 workflow 构建并上传 FPK，最后由 changelogithub 生成说明并发布 Release。
+jobs:
+  prepare-release:
+    name: Create draft release
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+
+      - id: create_release
+        name: Create or reset draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          PRERELEASE=false
+          case "$TAG" in
+            *-rc*|*-beta*|*-alpha*) PRERELEASE=true ;;
+          esac
+
+          get_draft_release_id() {
+            gh api --paginate "repos/${REPOSITORY}/releases?per_page=100" \
+              --jq '.[] | select(.tag_name == env.TAG and .draft == true) | .id' \
+              | head -n 1 \
+              || true
+          }
+
+          get_published_release_id() {
+            gh api "repos/${REPOSITORY}/releases/tags/${TAG}" 2>/dev/null \
+              | jq -r '.id // empty' \
+              || true
+          }
+
+          get_release_id() {
+            local draft_id
+            draft_id="$(get_draft_release_id)"
+            if [ -n "$draft_id" ]; then
+              echo "$draft_id"
+            else
+              get_published_release_id
+            fi
+          }
+
+          ensure_draft_release() {
+            RELEASE_ID="$(get_release_id)"
+            if [ -n "$RELEASE_ID" ]; then
+              gh api --method PATCH "repos/${REPOSITORY}/releases/${RELEASE_ID}" \
+                -F draft=true \
+                -F prerelease="$PRERELEASE" >/dev/null
+            else
+              RELEASE_ID="$(gh api --method POST "repos/${REPOSITORY}/releases" \
+                -f tag_name="$TAG" \
+                -F draft=true \
+                -F prerelease="$PRERELEASE" \
+                --jq '.id' 2>/dev/null)" || return 1
+            fi
+            [ -n "$RELEASE_ID" ]
+          }
+
+          for ATTEMPT in 1 2 3 4 5; do
+            if ensure_draft_release && [ -n "$RELEASE_ID" ]; then
+              echo "release_id=${RELEASE_ID}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ "$ATTEMPT" -eq 5 ]; then
+              echo "ERROR: unable to create or update the draft release after ${ATTEMPT} attempts" >&2
+              exit 1
+            fi
+            DELAY=$((ATTEMPT * 15))
+            echo "Release API failed; retrying in ${DELAY}s (attempt ${ATTEMPT}/5)" >&2
+            sleep "$DELAY"
+          done
+
+  build-dsh:
+    name: Build DeepSeek Harness FPK
+    needs: prepare-release
+    uses: ./.github/workflows/build-dsh-fn.yml
+    with:
+      release_tag: ${{ inputs.release_tag || github.ref_name }}
+      release_id: ${{ needs.prepare-release.outputs.release_id }}
+    secrets: inherit
+
+  publish-release:
+    name: Publish release
+    needs: [prepare-release, build-dsh]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.release_tag || github.ref }}
+
+      - name: Setup Node.js 24 for release tasks
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Setup pnpm 11
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+
+      - name: Install release task dependencies
+        run: pnpm install --filter @tnnevol/fn-os-apps-cli --frozen-lockfile
+
+      # changelogithub 是成功 Release body 的唯一来源，避免与 workflow 自定义说明互相覆盖。
+      - name: Generate release notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+          RUNNER_TEMP: ${{ runner.temp }}
+        run: pnpm run release:notes -- --to "$RELEASE_TAG" --output "$RUNNER_TEMP/release-notes.md"
+
+      - name: Publish existing release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+          RUNNER_TEMP: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+
+          PRERELEASE=false
+          case "$TAG" in
+            *-rc*|*-beta*|*-alpha*) PRERELEASE=true ;;
+          esac
+
+          gh api --method PATCH "repos/${REPOSITORY}/releases/${RELEASE_ID}" \
+            -F name="$TAG" \
+            -F body="$(cat "$RUNNER_TEMP/release-notes.md")" \
+            -F draft=false \
+            -F prerelease="$PRERELEASE" \
+            >/dev/null
+          echo "Published release ${TAG} using existing release ${RELEASE_ID}."
+
+  report-failure:
+    name: Report failed release
+    if: ${{ always() && (needs.prepare-release.result != 'success' || needs.build-dsh.result != 'success' || needs.publish-release.result != 'success') }}
+    needs: [prepare-release, build-dsh, publish-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update draft release with failure status
+        if: ${{ needs.prepare-release.result == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PREPARE_RESULT: ${{ needs.prepare-release.result }}
+          DSH_RESULT: ${{ needs.build-dsh.result }}
+          PUBLISH_RESULT: ${{ needs.publish-release.result }}
+        run: |
+          set -euo pipefail
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## ❌ fnOS Apps ${TAG} 构建未完成
+
+          FPK 构建或 Release 发布流程失败，当前 Release 保持草稿状态。请查看 [GitHub Actions 运行日志](${RUN_URL}) 后重试。
+
+          | 阶段 | 状态 |
+          |------|------|
+          | 创建草稿 Release | ${PREPARE_RESULT} |
+          | 构建 DeepSeek Harness | ${DSH_RESULT} |
+          | 发布 Release | ${PUBLISH_RESULT} |
+          EOF
+
+          gh api --method PATCH "repos/${REPOSITORY}/releases/${RELEASE_ID}" \
+            -F draft=true >/dev/null
+
+      - name: Log failure when draft release was not created
+        if: ${{ needs.prepare-release.result != 'success' }}
+        run: |
+          echo "The draft release could not be created; no Release body can be updated."

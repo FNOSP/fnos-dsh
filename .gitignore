@@ -1,0 +1,65 @@
+# fnOS 打包产物
+*.fpk
+
+# Claude Code 配置
+.claude/
+.agents/
+
+# OS 临时文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器/IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志文件
+*.log
+
+# 环境变量文件（可能包含密钥）
+.env
+.env.*
+
+# 临时脚本
+tmp/
+.qwen
+.qoder
+
+# Node.js 依赖
+node_modules/
+
+# Node.js 构建产物
+lib/
+
+# Turbo 本地缓存
+.turbo/
+
+# fn-deepseek-harness 在 CI 构建时生成的 DSH native 依赖
+apps/fn-deepseek-harness/app/dsh-version
+apps/fn-deepseek-harness/app/node-pty-version
+apps/fn-deepseek-harness/app/node-pty-versions
+apps/fn-deepseek-harness/app/native/node-pty/
+# fnOS gateway bundle and install helper are generated from packages/fnos-gateway before FPK build
+apps/fn-deepseek-harness/app/gateway-proxy.mjs
+apps/fn-deepseek-harness/app/rolldown-runtime-*.mjs
+apps/fn-deepseek-harness/app/scripts/install-callback-helper.mjs
+# Optional local DSH plugin bundle is generated immediately before FPK build
+apps/fn-deepseek-harness/app/bundled-dsh-plugins/
+# VitePress 构建产物
+docs/.vitepress/cache/
+docs/.vitepress/.temp/
+docs/.vitepress/dist/
+
+# DSH 运行时状态（含凭据），不属于本仓库
+data/
+
+.pnpm-store
+.dsh-worktrees
+# 本地 DSH_HOME（profile、凭据、会话），由 `pnpm run start` 的 DSH Web 使用
+.dsh/

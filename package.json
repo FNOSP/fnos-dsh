@@ -1,0 +1,49 @@
+{
+  "name": "fn-os-apps",
+  "type": "module",
+  "version": "5.4.1",
+  "private": true,
+  "packageManager": "pnpm@11.16.0",
+  "description": "飞牛 fnOS 应用 Monorepo",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.16.0"
+  },
+  "scripts": {
+    "start": "pnpm exec fn-apps-cli start",
+    "build": "pnpm exec fn-apps-cli build",
+    "version": "pnpm exec fn-apps-cli version",
+    "typecheck": "turbo run typecheck",
+    "lint": "eslint .",
+    "docs:preview": "vitepress preview docs",
+    "test": "turbo run test",
+    "check": "pnpm exec fn-apps-cli check",
+    "publish": "pnpm exec fn-apps-cli publish",
+    "release:notes": "pnpm exec fn-apps-cli release:notes",
+    "prepare": "lefthook install",
+    "dev:web": "pnpm exec dsh web --no-open --port 3150"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "catalog:",
+    "@commitlint/cli": "catalog:",
+    "@commitlint/config-conventional": "catalog:",
+    "@deepseek-ai/dsh": "catalog:",
+    "@deepseek-ai/dsh-llm-pi-ai": "catalog:dsh",
+    "@eslint-react/eslint-plugin": "catalog:",
+    "@miletorix/vitepress-image-viewer": "catalog:",
+    "@tnnevol/fn-os-apps-cli": "workspace:*",
+    "@types/node": "catalog:",
+    "@wasm-fmt/shfmt": "catalog:",
+    "eslint": "catalog:",
+    "eslint-plugin-react-refresh": "catalog:",
+    "globals": "catalog:",
+    "jsonc-eslint-parser": "catalog:",
+    "lefthook": "catalog:",
+    "lint-staged": "catalog:",
+    "tsx": "catalog:",
+    "turbo": "catalog:",
+    "vitepress": "catalog:",
+    "vitepress-plugin-d2": "catalog:",
+    "vitest": "catalog:"
+  }
+}
