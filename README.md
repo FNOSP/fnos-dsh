@@ -1,158 +1,82 @@
-# fnOS Apps
+# fnos dsh
 
-飞牛 fnOS 应用 Monorepo，包含上架到 fnOS 应用商店的第三方应用打包。
+飞牛的 DeepSeek Harness 应用生态项目，原[fn-os-apps](https://github.com/tnnevol/fn-os-apps)项目不在维护。
 
-## 项目结构
+## 项目架构
+
+pnpm workspace 加 Turbo 的 monorepo。产物有两类，一个是 fnOS 应用包，另一个是能独立装进任意 DSH 客户端的插件。
 
 ```
-.
-├── apps/
-│   └── fn-deepseek-harness/        # DeepSeek Harness - 插件化智能代理(原生应用)
-├── plugins/                        # Agent 插件 workspace
-├── .github/workflows/              # CI: FPK 构建与 Release 发布
-├── docs/                           # VitePress 项目文档
-├── package.json                    # 项目版本与开发脚本
-├── .gitignore
-└── README.md
+apps/fn-deepseek-harness/   fnOS 应用包，manifest、生命周期脚本、向导、网关入口
+packages/fnos-gateway/      网关代理，构建时输出到应用的 app/ 目录
+packages/dsh-semi-ui/       共享的 Semi Design 组件，插件复用
+plugins/                    DSH 插件，各自独立发版
+tooling/fn-os-apps-cli/     仓库 CLI，统一 start / build / version / check
+docs/                       VitePress 文档站
 ```
 
-## 项目应用
+插件由 `plugins/*/package.json` 动态发现，加新插件不用改 CLI。应用要装哪些插件写在 `apps/fn-deepseek-harness/app/published-dsh-plugins.json` 里，安装时按精确版本装。
 
-| 应用                                                      | 显示名称         | 说明                                                                |
-| --------------------------------------------------------- | ---------------- | ------------------------------------------------------------------- |
-| [fn-deepseek-harness](apps/fn-deepseek-harness/README.md) | DeepSeek Harness | DeepSeek AI 开源的插件化智能代理工具，通过 Web UI 提供 dsh 操作界面 |
+## 开发
 
-## 测试与安装
-
-### 项目文档
+需要 Node 24 和 pnpm 11。
 
 ```bash
 pnpm install
-pnpm run start -- --docs
 ```
 
-生产构建使用 `pnpm run build -- --docs`，构建结果位于 `docs/.vitepress/dist/`。
-
-### 本地快速安装（开发阶段推荐）
+日常开发用 `pnpm run start`，可以只起需要的部分。
 
 ```bash
-# 在 fnOS 设备上，进入应用目录直接安装
-cd /path/to/<appname>
-appcenter-cli install-local
+pnpm run start -- --docs            # 文档站，http://localhost:9876
+pnpm run start -- --plugin fnos     # 单个插件的 watch 构建
+pnpm run start -- --web             # DSH Web，http://127.0.0.1:3150
 ```
 
-### 通过 fpk 文件安装
+不带参数会弹多选。`--web` 启动前会先把仓库里的插件链进本地 profile，所以第一次会慢一些。
+
+构建分三类。
 
 ```bash
-appcenter-cli install-fpk <appname>.fpk
-
-# 带环境变量静默安装
-appcenter-cli install-fpk <appname>.fpk --env config.env
+pnpm run build -- --plugin fnos                     # 构建插件
+pnpm run build -- --docs                            # 构建文档
+pnpm run build -- --fpk --app fn-deepseek-harness   # 构建 FPK
 ```
 
-### 手动安装模式（用于分发测试）
+FPK 构建先编译网关再调 fnpack，产物在 `apps/fn-deepseek-harness/fn-deepseek-harness.fpk`。要不要把 node-pty native 文件和插件归档打进包里，用 `--bundle-dsh-native` 和 `--bundle-dsh-plugins` 控制，不给参数就交互询问。
+
+改完代码跑一遍检查。
 
 ```bash
-# 开启手动安装入口
-appcenter-cli manual-install enable
-
-# 关闭
-appcenter-cli manual-install disable
+pnpm run check -- --all
 ```
 
-### 查看日志
+### 版本更新
 
-```bash
-# 日志路径
-cat /var/apps/<appname>/var/info.log
-
-# 应用管理
-appcenter-cli list
-appcenter-cli start <appname>
-appcenter-cli stop <appname>
-```
-
-## 版本发布
-
-通过 GitHub Actions 自动完成 FPK 构建和 Release 发布。项目版本工具位于 `tooling/fn-os-apps-cli` workspace，通过 `fn-apps-cli` CLI 使用 `bumpp` 维护项目/FPK 版本；插件版本由 CLI 直接更新并提交。
-
-### Tag 命名规范
-
-```
-v<版本号>
-```
-
-| Tag 示例     | 版本                |
-| ------------ | ------------------- |
-| `v4.0.0`     | 4.0.0               |
-| `v4.1.0-rc1` | 4.1.0-rc1（预发布） |
-
-### 发布步骤
-
-1. **代码变更并推送**
-
-```bash
-git add apps/
-git commit -m "feat: 更新多个应用"
-git push origin main
-```
-
-2. **推送版本 Tag 触发发布**
+项目版本和插件版本分开走。项目版本由 `bumpp` 处理，会更新根 `package.json`、`packages/*/package.json`、`apps/*/manifest` 和文档里的版本示例，然后建一条提交加 `v<版本号>` tag。
 
 ```bash
 pnpm run version -- project patch
-git push origin main && git push origin v<版本号>
 ```
 
-`version` 使用 `bumpp` 更新根 `package.json`、`packages/*/package.json`、与项目版本匹配的 `apps/*/manifest` 和 README 中的版本示例，然后创建项目提交和 `v<版本号>` Tag。插件版本不会被项目版本命令修改。
-
-插件需要单独指定目标插件维护版本：
+插件版本只改目标插件的 `package.json`。如果这个插件在发布清单里，清单里的版本一起同步。
 
 ```bash
 pnpm run version -- plugin fnos patch
-pnpm run version -- plugin codex patch
-pnpm run version -- plugin showcase patch
 ```
 
-插件版本命令支持多选插件；多选时一次性修改所有选中插件，只生成一条合并提交，不创建 Git Tag。若插件出现在 `apps/fn-deepseek-harness/app/published-dsh-plugins.json`，其清单版本会与插件 `package.json` 同步更新。
+两条命令都能加 `--no-commit --no-tag`，只改文件不提交。tag 推上去之后 GitHub Actions 会构建 FPK 并发布 Release。
 
-3. **GitHub Actions 自动执行**
+### 项目文档
 
-- **prepare-release** — 创建草稿 Release
-- **build-dsh** — 构建 `fn-deepseek-harness` FPK，文件名格式 `fn-deepseek-harness-v4.0.0.fpk`
-- **release** — 生成中文 Release 文案 → 发布 GitHub Release，附带 `.fpk` 包
+文档站是 VitePress，源文件在 `docs/`。
 
-单个应用也可以在自己的目录中执行 `./build` 构建。`fn-deepseek-harness` 的构建脚本默认自动递增 patch 版本。
+```bash
+pnpm run start -- --docs     # 本地预览，带热更新
+pnpm run build -- --docs     # 生产构建，输出到 docs/.vitepress/dist/
+```
 
-## 上架应用
-
-上架流程：
-
-1. 加入飞牛粉丝群（[fnos.com](https://fnnas.com/) 二维码）→ 联系社区主理人加入 **应用中心开发者先锋交流群**
-2. 提交基础信息完成认证（个人/企业信息、代表作品、技术栈等）
-3. 获取官方文档 → 创建应用 → 提交审核 → 上架
-
-> 开发者后台即将上线，在此之前通过群内专员协助完成内测和上架。
-
-## manifest 字段参考
-
-| 字段                         | 必填 | 说明                             | 示例                    |
-| ---------------------------- | ---- | -------------------------------- | ----------------------- |
-| `appname`                    | 是   | 应用唯一标识                     | `fn-deepseek-harness`   |
-| `version`                    | 是   | 版本号，格式 `x[.y[.z]][-build]` | `3.2.14`                |
-| `display_name`               | 是   | 显示名称                         | `DeepSeek Harness`      |
-| `desc`                       | 是   | 应用描述（支持 HTML）            | 功能说明                |
-| `platform`                   | 是   | 架构，`x86` / `arm` / `all`      | `x86`                   |
-| `source`                     | 是   | 应用来源                         | `thirdparty`            |
-| `maintainer`                 | -    | 原始维护者                       | GitHub ID               |
-| `maintainer_url`             | -    | 原始项目地址                     | URL                     |
-| `distributor`                | -    | 分发者                           | GitHub ID               |
-| `distributor_url`            | -    | 分发者主页                       | URL                     |
-| `service_port`               | -    | 服务端口                         | `4396`                  |
-| `os_min_version`             | -    | 最低 fnOS 版本                   | `0.9.27`                |
-| `desktop_uidir`              | -    | UI 目录名                        | `ui`                    |
-| `desktop_applaunchname`      | -    | 桌面启动项                       | `<appname>.Application` |
-| `disable_authorization_path` | -    | 禁用目录授权                     | `true`                  |
+页面里有 D2 图，本地要看图得装 d2，没装的话图渲染不出来，其余内容正常。
 
 ## 开发资源
 
