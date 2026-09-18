@@ -175,14 +175,14 @@ dsh --profile web --dump-config | grep -n -C 3 'dsh-fnos'
 # 交互多选：Harness 插件 / 项目文档 / DSH Web
 pnpm run start
 
-# 直接启动本地 DSH Web（固定 3150 端口）
+# 直接启动本地 DSH Web（固定 8070 端口）
 pnpm run start -- --web
 
 # 需要手工检查仓库内 profile 时，自行指定同一个 DSH_HOME
 DSH_HOME="$PWD/.dsh" pnpm exec dsh --profile web --dump-config
 ```
 
-本地 DSH Web 固定使用 `3150`，与 FPK 网关占用的 `127.0.0.1:3080` 区分，两者可在同一台开发机同时运行。三类目标可以任意组合：`start` 把「Harness 插件」「项目文档」和 DSH Web 一起交给**同一个 `turbo watch`**，各自作为一行任务显示在同一个 TUI 里。DSH Web 因此是 Turbo 的根任务 `//#dev:web`，而不是 Turbo 之外另起的第二个前台进程——后者会把终端从 TUI 手里抢走。`.dsh/` 属于本地运行状态，已在 `.gitignore` 中排除。
+本地 DSH Web 固定使用 `8070`，与 FPK 网关占用的 `127.0.0.1:3080` 区分，两者可在同一台开发机同时运行。三类目标可以任意组合：`start` 把「Harness 插件」「项目文档」和 DSH Web 一起交给**同一个 `turbo watch`**，各自作为一行任务显示在同一个 TUI 里。DSH Web 因此是 Turbo 的根任务 `//#dev:web`，而不是 Turbo 之外另起的第二个前台进程——后者会把终端从 TUI 手里抢走。`.dsh/` 属于本地运行状态，已在 `.gitignore` 中排除。
 
 文档服务的 `dev` 任务标记为 `interactive`，这样它的快捷键仍然可用：在 TUI 中按 `i` 把键盘交给该任务，按 `Ctrl+z` 交还给 Turbo；VitePress 自己的 `h`（帮助）和 `r`（重启）因此照常工作。Turbo 不允许在没有终端界面的情况下运行 interactive 任务，所以 `start` 按是否有 TTY 决定文档服务的运行位置：有 TTY 时它进入 `turbo watch`（保留 TUI 与快捷键），没有 TTY 时（CI、管道、后台任务）直接启动 `vitepress dev`，而不是让整条命令报 `Cannot run interactive task` 失败。
 
@@ -231,7 +231,7 @@ pnpm run build -- --docs
 pnpm run docs:preview
 ```
 
-`start` 是开发服务的唯一根入口；交互选择完成后，CLI 通过 Turbo 的 `dev` 任务统一启动插件和 `docs` workspace 的 VitePress 服务，文档开发端口固定为 `9876`。修改 `docs/` 下的 Markdown 后，VitePress 会自动更新页面。D2 图需要系统可执行文件 `d2`；如果它不在 `PATH`，可通过 `D2_BIN=/path/to/d2` 指定。D2 暂不可用时，文档服务会保留原始 D2 代码块而不会启动失败。
+`start` 是开发服务的唯一根入口；交互选择完成后，CLI 通过 Turbo 的 `dev` 任务统一启动插件和 `docs` workspace 的 VitePress 服务，文档开发端口固定为 `8876`。修改 `docs/` 下的 Markdown 后，VitePress 会自动更新页面。D2 图需要系统可执行文件 `d2`；如果它不在 `PATH`，可通过 `D2_BIN=/path/to/d2` 指定。D2 暂不可用时，文档服务会保留原始 D2 代码块而不会启动失败。
 
 ## 根脚本与 Turbo
 

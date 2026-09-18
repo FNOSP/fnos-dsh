@@ -21,7 +21,7 @@
     "publish": "pnpm exec fn-apps-cli publish",
     "release:notes": "pnpm exec fn-apps-cli release:notes",
     "prepare": "lefthook install",
-    "dev:web": "pnpm exec dsh web --no-open --port 3150"
+    "dev:web": "pnpm exec dsh web --no-open --port 8070"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",

@@ -95,7 +95,7 @@ lastVerified: 2026-09-17
 | FNOS-005-09 | P1 | 执行状态持久化 | 执行中状态写入宿主，刷新页面后按钮仍保持 loading，直到宿主报告结束 | <Badge type="tip" text="已完成" /> |
 | FNOS-005-10 | P1 | 任务执行日志抽屉 | 点「完成任务」或单项「完成」都展开底部抽屉（占下半屏、上半屏磨砂），用终端风格逐条展示日志；点下即显示该任务日志；全量执行时单项按钮禁用 | <Badge type="tip" text="已完成" /> |
 | FNOS-005-11 | P1 | 仓库内安装 DSH CLI | 在仓库根执行 `pnpm install` 后，`node_modules/.bin/dsh --version` 输出与根依赖一致的版本，无需全局安装 | <Badge type="tip" text="已完成" /> |
-| FNOS-005-12 | P1 | start 增加本地 DSH Web 启动目标 | 执行 `pnpm run start` 可在交互多选中选择「DSH Web」，或用 `pnpm run start -- --web` 直接启动；本地端口固定 3150 | <Badge type="tip" text="已完成" /> |
+| FNOS-005-12 | P1 | start 增加本地 DSH Web 启动目标 | 执行 `pnpm run start` 可在交互多选中选择「DSH Web」，或用 `pnpm run start -- --web` 直接启动；本地端口固定 8070 | <Badge type="tip" text="已完成" /> |
 | FNOS-005-13 | P1 | 本地 DSH_HOME 指向仓库根 .dsh | 启动后的 profile、凭据和会话位于 `<仓库根>/.dsh`，`$HOME/.dsh` 不被本次启动写入 | <Badge type="tip" text="已完成" /> |
 | FNOS-005-14 | P1 | 仓库插件内置进本地 profile | 启动本地 DSH Web 时自动把仓库插件链接进 `.dsh` profile，无需手工 `dsh plugin add`；`@tnnevol/dsh-fnos` 不内置 | <Badge type="tip" text="已完成" /> |
 | FNOS-005-15 | P1 | 单账号「一键完成」与跨账号执行互斥 | 账号信息弹框「成长任务」Tab 的刷新按钮旁新增「一键完成」，只跑该账号全部可自动化任务；该账号在跑时账号管理页的「完成任务」（全账号）按钮禁用，其他账号的单项「完成」与本按钮保持可点 | <Badge type="tip" text="已完成" /> |
@@ -144,9 +144,9 @@ lastVerified: 2026-09-17
 - DSH Web 与「Harness 插件」「项目文档」可以任意组合同时启动，并始终保留 Turbo 的 TUI：三者由 `start` 交给**同一个 `turbo watch`**，DSH Web 作为仓库根任务 `//#dev:web` 与 `dev` 并列显示在同一个 TUI 中。不得为了让两者共存而关闭 TUI，也不得在 Turbo 之外另起第二个前台进程。
 - 启动命令必须在子进程环境中注入 `DSH_HOME=<仓库根>/.dsh`，并清除从调用者继承的 DSH 会话身份（`DSH_SESSION_ID`、`DSH_SHELL`、`DSH_WEB_URL`），使本地实例是独立进程而不是当前会话的嵌套视图。
 - `HOME` 不做改写：系统级工具缓存（npm、pnpm、编辑器等）继续使用开发者账号的默认位置，只有 DSH 自有状态被收敛到仓库内。
-- 本地 DSH Web 固定使用 3150 端口，与 FPK 网关固定的 `127.0.0.1:3080` 区分；两者可以在同一台开发机上同时运行。
+- 本地 DSH Web 固定使用 8070 端口，与 FPK 网关固定的 `127.0.0.1:3080` 区分；两者可以在同一台开发机上同时运行。
 - 启动使用仓库 `node_modules/.bin/dsh`，不依赖全局 `dsh`；本地 CLI 缺失时报可诊断错误并提示先执行 `pnpm install`。
-- 未选择 DSH Web 时的行为不变：插件与文档仍由 `turbo watch dev` 统一调度，文档端口仍为 9876。
+- 未选择 DSH Web 时的行为不变：插件与文档仍由 `turbo watch dev` 统一调度，文档端口仍为 8876。
 - `.dsh/` 只保存本地运行状态，不提交到版本库；其中的凭据权限由 DSH 自身维护。
 - DSH 的原生依赖（node-pty、koffi）在仓库安装中使用包内预编译产物，因此 `pnpm-workspace.yaml` 显式拒绝其安装脚本，`pnpm install` 保持非交互且不要求本机编译工具链。
 - 本地 DSH 开发环境只涉及仓库开发工具链，不修改 FPK 应用、网关、插件运行时行为，也不改变 FPK 中 dsh CLI 的私有安装策略。
@@ -261,9 +261,9 @@ lastVerified: 2026-09-17
 ### FNOS-005-12 验收条件
 
 - `FNOS-005-12-AC-01`：`pnpm run start` 的启动多选包含「DSH Web」，选择后 DSH Web 在本机可访问。
-- `FNOS-005-12-AC-02`：`pnpm run start -- --web` 直接启动 DSH Web，输出的访问地址端口为 3150。
+- `FNOS-005-12-AC-02`：`pnpm run start -- --web` 直接启动 DSH Web，输出的访问地址端口为 8070。
 - `FNOS-005-12-AC-03`：同时选择 DSH Web 与「Harness 插件」/「项目文档」时三者一起启动，并显示在同一个 Turbo TUI 中（各占一行）；DSH Web 与文档服务分别可访问。
-- `FNOS-005-12-AC-04`：未选择 DSH Web 时，插件 watch 与文档服务仍按原路径由 `turbo watch dev` 启动，文档端口保持 9876。
+- `FNOS-005-12-AC-04`：未选择 DSH Web 时，插件 watch 与文档服务仍按原路径由 `turbo watch dev` 启动，文档端口保持 8876。
 
 ### FNOS-005-13 验收条件
 
@@ -315,7 +315,7 @@ lastVerified: 2026-09-17
 | 执行状态持久化 | <Badge type="tip" text="已完成" /> | 运行态落盘宿主，刷新后恢复 loading | 已完成；实现、测试和构建通过 |
 | 任务执行日志抽屉 | <Badge type="tip" text="已完成" /> | 底部 SideSheet（50vh、上半屏磨砂）+ 终端风格日志（深底亮字、分字段着色）；日志区内部滚动；含「查看日志」按钮 | 已完成；实现、测试和通过构建 |
 | 仓库内安装 DSH CLI | <Badge type="tip" text="已完成" /> | 根依赖声明与 FPK 同版本的 `@deepseek-ai/dsh`，补声明 pnpm 布局下不可解析的 `dsh-llm-pi-ai`，原生依赖安装脚本显式拒绝 | 已完成；本机安装、启动与版本核对通过 |
-| start 增加本地 DSH Web 启动目标 | <Badge type="tip" text="已完成" /> | `--web` 与交互多选新增「DSH Web」，固定 3150 端口，与 Turbo watch 目标互斥 | 已完成；本机启动、端口与组合拒绝均实测通过 |
+| start 增加本地 DSH Web 启动目标 | <Badge type="tip" text="已完成" /> | `--web` 与交互多选新增「DSH Web」，固定 8070 端口，与 Turbo watch 目标互斥 | 已完成；本机启动、端口与组合拒绝均实测通过 |
 | 本地 DSH_HOME 指向仓库根 .dsh | <Badge type="tip" text="已完成" /> | 子进程注入 `DSH_HOME=<仓库根>/.dsh`，清除继承的 DSH 会话身份，`.dsh/` 加入忽略规则 | 已完成；profile 落点与忽略规则实测通过 |
 | 仓库插件内置进本地 profile | <Badge type="tip" text="已完成" /> | 启动前用 Turbo 构建并经 DSH CLI 链接；已在 bundle 中的跳过；排除 `@tnnevol/dsh-fnos` | 已完成；清空 `.dsh` 后全流程实测通过，二次启动幂等 |
 | 单账号「一键完成」与跨账号互斥 | <Badge type="tip" text="已完成" /> | 弹框内刷新左侧新增「一键完成」；宿主改按账号加锁，运行中禁用全账号按钮与该账号单项按钮，其他账号不受影响 | 已完成；实现与构建通过，账号级互斥与禁用范围由单测守住 |
@@ -357,3 +357,5 @@ lastVerified: 2026-09-17
 | 2026-09-16 | FNOS-005 验收完成 | FNOS-005-01 至 FNOS-005-14 全部功能均已验证通过，需求状态与验收记录确认完成 |
 | 2026-09-17 | 新增 FNOS-005-15 | 弹框「成长任务」Tab 的刷新左侧新增单账号「一键完成」；宿主由全局单队列改为按账号互斥，使「该账号在跑时禁用全账号按钮、其他账号不受影响」可真实成立（否则其他账号可点但会被宿主拒绝） |
 | 2026-09-17 | 新增 FNOS-005-16 | 逐条比对来源 `workbuddy2api-panel` 后补齐风控与判据差异：指纹头族（`X-CodeBuddy-Request`/`X-Machine-ID`/`X-Session-ID`/桌面 UA）、上报与召唤链节流、`expert_actual_use` 必须 JOIN 真实 chat requestId、桌面链完整事件载荷；并明确「按账号回读真实状态、未达标如实汇报」的语义 |
+| 2026-09-18 | 本地 DSH Web 端口改为 8070 | 原 3150 与开发者本机其它常用服务冲突概率高，按用户要求固定为 8070；FPK 网关的 `127.0.0.1:3080` 区分关系不变。文档服务端口仍为 9876 |
+| 2026-09-18 | 文档服务端口改为 8876 | 按用户要求把 VitePress 开发端口从 9876 改为 8876；与 DSH Web 的 8070、FPK 网关的 3080 均不冲突 |

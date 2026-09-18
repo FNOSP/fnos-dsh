@@ -158,9 +158,9 @@ lastVerified: 2026-09-17
 | 任务 ID | 对应验收 | 实现内容 | 验收 |
 | --- | --- | --- | --- |
 | PLAN-FNOS-005-T12-01 | FNOS-005-12-AC-01 | `StartSelection` 增加 `web`，`askStartSelection` 多选加入「DSH Web」条目 | 交互多选出现三个目标，选择 DSH Web 后命令启动 |
-| PLAN-FNOS-005-T12-02 | FNOS-005-12-AC-02 | 注册 `start --web`，参数模式直接进入 DSH Web 分支；端口固定 3150，与 FPK 网关的 `127.0.0.1:3080` 区分 | `pnpm run start -- --web` 输出 `http://127.0.0.1:3150/?token=…` |
-| PLAN-FNOS-005-T12-03 | FNOS-005-12-AC-03 | DSH Web 实现为 Turbo 根任务 `//#dev:web`（`persistent` + `passThroughEnv: ["DSH_HOME"]`），与 `dev` 一起交给同一个 `turbo watch`，保留 TUI 且各占一行 | `pnpm run start -- --web --docs` 在同一个 TUI 中同时起 3150 与 9876 |
-| PLAN-FNOS-005-T12-04 | FNOS-005-12-AC-04 | 未选择 DSH Web 时保持原路径：`turbo watch dev` 统一调度插件与文档，文档端口仍为 9876 | `pnpm run start -- --docs` 仅启动 watch |
+| PLAN-FNOS-005-T12-02 | FNOS-005-12-AC-02 | 注册 `start --web`，参数模式直接进入 DSH Web 分支；端口固定 8070，与 FPK 网关的 `127.0.0.1:3080` 区分 | `pnpm run start -- --web` 输出 `http://127.0.0.1:8070/?token=…` |
+| PLAN-FNOS-005-T12-03 | FNOS-005-12-AC-03 | DSH Web 实现为 Turbo 根任务 `//#dev:web`（`persistent` + `passThroughEnv: ["DSH_HOME"]`），与 `dev` 一起交给同一个 `turbo watch`，保留 TUI 且各占一行 | `pnpm run start -- --web --docs` 在同一个 TUI 中同时起 8070 与 8876 |
+| PLAN-FNOS-005-T12-04 | FNOS-005-12-AC-04 | 未选择 DSH Web 时保持原路径：`turbo watch dev` 统一调度插件与文档，文档端口仍为 8876 | `pnpm run start -- --docs` 仅启动 watch |
 
 ### P1：本地 DSH_HOME 指向仓库根 .dsh
 
@@ -191,14 +191,14 @@ lastVerified: 2026-09-17
 1. 选择 DSH Web 后，CLI 先解析应在本地 profile 中启用的仓库插件（当前为 Codex Auth、Semi UI 总览、CodeBuddy）。
 2. 通过 `turbo run build` 构建这些插件：profile 经包 `exports` 解析入口，入口指向 git 忽略的 `lib/`，没有产物时 `dsh plugin add` 会链到一个无法加载的包。
 3. 读取本地 profile 清单，逐插件判断是否已 `link:<插件目录>` 且已列入 `dsh.profile.bundles`；未满足的先打印 `Linking <包名> into web profile`，再执行 `dsh plugin --profile web add <插件目录>`。
-4. 全部就绪后启动 `dsh web --no-open --port 3150`。首次启动的 profile 由 DSH CLI 自动初始化；插件的最小运行依赖（如 CodeBuddy 的 `echarts`、`nanostores`）由 pnpm 装在 profile 目录内。
+4. 全部就绪后启动 `dsh web --no-open --port 8070`。首次启动的 profile 由 DSH CLI 自动初始化；插件的最小运行依赖（如 CodeBuddy 的 `echarts`、`nanostores`）由 pnpm 装在 profile 目录内。
 5. 重复启动时不再链接、不再安装，插件产物变更由 `start` 的插件 watch 或重新构建生效。
 6. `@tnnevol/dsh-fnos` 始终不进入本地 profile：它注册 fnOS 设置命名空间、fnOS JS SDK 桥和网关前缀路由，脱离 fnOS 宿主无可用能力。
 
 ### 详细交互：本地 DSH Web
 
-1. 开发者执行 `pnpm run start`，CLI 弹出启动多选，条目依次为「Harness 插件」「项目文档」「DSH Web」；DSH Web 的提示文案说明它使用仓库根 `.dsh` 作为 `DSH_HOME` 并监听 3150。
-2. 只选择「DSH Web」并确认后，CLI 先按上一节把仓库插件链接进本地 profile，再解析仓库 `node_modules/.bin/dsh`，以仓库根为工作目录启动 `dsh web --no-open --port 3150`。
+1. 开发者执行 `pnpm run start`，CLI 弹出启动多选，条目依次为「Harness 插件」「项目文档」「DSH Web」；DSH Web 的提示文案说明它使用仓库根 `.dsh` 作为 `DSH_HOME` 并监听 8070。
+2. 只选择「DSH Web」并确认后，CLI 先按上一节把仓库插件链接进本地 profile，再解析仓库 `node_modules/.bin/dsh`，以仓库根为工作目录启动 `dsh web --no-open --port 8070`。
 3. DSH Web 就绪后在终端打印带 token 的访问地址；终端保持被该进程占用，`Ctrl+C` 结束本地 Web。
 4. 直接执行 `pnpm run start -- --web` 跳过询问，行为与第 2、3 步一致。
 5. DSH Web 可与「Harness 插件」「项目文档」同时选中：三者由同一个 `turbo watch` 调度，DSH Web 作为 `//#dev:web` 与 `dev` 并列显示在同一个 TUI 中。
@@ -262,7 +262,7 @@ lastVerified: 2026-09-17
 | P1 执行状态持久化 | <Badge type="tip" text="已完成" /> | 运行态落盘宿主，刷新后仍为 loading，结束后解除 |
 | P1 任务执行日志抽屉 | <Badge type="tip" text="已完成" /> | 底部抽屉半屏 + 磨砂蒙层；日志内部滚动；含常驻「查看日志」按钮 |
 | P1 仓库内安装 DSH CLI | <Badge type="tip" text="已完成" /> | 根依赖与 FPK 同版本；`pnpm install` 非交互完成 |
-| P1 start 增加本地 DSH Web 启动目标 | <Badge type="tip" text="已完成" /> | `--web` 与交互多选可用；固定 3150；与 Turbo watch 目标互斥 |
+| P1 start 增加本地 DSH Web 启动目标 | <Badge type="tip" text="已完成" /> | `--web` 与交互多选可用；固定 8070；与 Turbo watch 目标互斥 |
 | P1 本地 DSH_HOME 指向仓库根 .dsh | <Badge type="tip" text="已完成" /> | 启动注入 `DSH_HOME`；profile 落在仓库内；`.dsh/` 不进入版本库 |
 | P1 仓库插件内置进本地 profile | <Badge type="tip" text="已完成" /> | 先构建再经 DSH CLI 链接；已在 bundle 中的跳过；排除 `@tnnevol/dsh-fnos` |
 | P1 单账号「一键完成」与跨账号互斥 | <Badge type="tip" text="已完成" /> | 弹框内刷新左侧新增按钮；宿主按账号加锁；运行中禁用全账号按钮与该账号单项按钮，其他账号不受影响 |
@@ -302,3 +302,5 @@ lastVerified: 2026-09-17
 | 2026-09-15 | 仓库插件内置进本地 profile | 新增 T14：启动 DSH Web 前先用 Turbo 构建、再经 `dsh plugin --profile web add` 把仓库插件链接进本地 profile，使新克隆的检出目录也能直接进入带插件的 DSH Web；按用户要求排除 `@tnnevol/dsh-fnos` |
 | 2026-09-17 | 新增 T15：单账号「一键完成」与按账号互斥 | 用户要求弹框内提供单账号一键完成、且该账号在跑时禁用账号管理页「完成任务」而其他账号不禁用。原实现是单一全局 `growthTasksGuard`，其他账号按钮虽可点但会被宿主判重拒绝——因此必须把宿主改成按账号加锁（T15-02），否则「其他账号不禁用」只是表面成立。运行态模型随之从单个 `mode/accountId` 升级为账号集合（T15-03） |
 | 2026-09-17 | 新增 T16：风控指纹对齐与「跑完但没完成」修复 | 用户反馈「任务跑完了但实际没跑完，要到弹框里一个个点」。逐条比对来源后确认两类差异：① 出站指纹与节流未对齐（缺 `X-CodeBuddy-Request`/`X-Machine-ID`/`X-Session-ID`、上报间隔与账号限速缺失），未对齐时上游可能受理但静默不计分；② 部分判据与来源不一致（专家类自造 requestId 不计数、`Expert_lighthouse` 的 mode/type/cost 形态、桌面链字段集不足）。同时把「动作已发送」与「任务已完成」在结果与日志里彻底分开（T16-05） |
+| 2026-09-18 | 本地 DSH Web 端口改为 8070 | 按用户要求把 T12-02 的固定端口从 3150 改为 8070；`package.json#dev:web`、CLI 启动提示、README 与相关文档同步更新。FPK 网关 `127.0.0.1:3080` 与文档服务 9876 不变 |
+| 2026-09-18 | 文档服务端口改为 8876 | 按用户要求把 VitePress 开发端口从 9876 改为 8876；T12-03/T12-04 的验收端口同步更新 |

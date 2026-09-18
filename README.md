@@ -28,9 +28,9 @@ pnpm install
 日常开发用 `pnpm run start`，可以只起需要的部分。
 
 ```bash
-pnpm run start -- --docs            # 文档站，http://localhost:9876
+pnpm run start -- --docs            # 文档站，http://localhost:8876
 pnpm run start -- --plugin fnos     # 单个插件的 watch 构建
-pnpm run start -- --web             # DSH Web，http://127.0.0.1:3150
+pnpm run start -- --web             # DSH Web，http://127.0.0.1:8070
 ```
 
 不带参数会弹多选。`--web` 启动前会先把仓库里的插件链进本地 profile，所以第一次会慢一些。
