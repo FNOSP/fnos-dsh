@@ -14,5 +14,6 @@ export const projectVersionFiles = [
   'packages/**/package.json',
   'apps/**/manifest',
   'docs/development/manifest.md',
+  'docs/apps/fn-deepseek-harness.md',
   'README.md',
 ]

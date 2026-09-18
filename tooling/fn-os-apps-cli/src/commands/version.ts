@@ -157,7 +157,13 @@ async function alignProjectVersionTextFiles(version: string): Promise<void> {
 }
 
 /**
- * 同步应用文档页「应用版本」表格行，避免发版后文档版本过期。
+ * 在 bumpp 之前把应用文档页的版本行对齐到当前版本。
+ *
+ * 必须在 versionBump 之前执行：release 提交由 bumpp 在其内部创建，bump
+ * 之后的文件改动进不了提交，会遗留在工作区。先对齐到当前版本，bumpp 的
+ * 文本替换（当前版本串 → 新版本）才能命中该行，并把它纳入 release 提交
+ * 与 tag。路径必须同时出现在 projectVersionFiles 清单里，否则 bumpp 不会
+ * 处理它。
  */
 async function syncAppDocVersion(version: string): Promise<void> {
   const absolutePath = join(repositoryRoot, 'docs/apps/fn-deepseek-harness.md')
@@ -346,10 +352,12 @@ async function versionProject(
   const tagPrefix = 'v'
 
   // bumpp intentionally skips text files whose version differs from the root
-  // version. Keep the Harness Manifest and the documentation example in the
-  // same version set so project/FPK releases update them as well.
+  // version. Keep the Harness Manifest, the documentation example and the app
+  // doc version row in the same version set so project/FPK releases update
+  // them as well.
   await alignProjectVersionPackageFiles(current.version)
   await alignProjectVersionTextFiles(current.version)
+  await syncAppDocVersion(current.version)
 
   const result = await versionBump({
     cwd: repositoryRoot,
@@ -362,10 +370,6 @@ async function versionProject(
     ignoreScripts: true,
     confirm: options.confirm,
   })
-  // 应用文档页的版本行在 bump 之后精确替换，不放进 bumpp 的文件清单：
-  // bumpp 对文本文件是全局替换当前版本串，文档正文一旦出现相同版本号
-  // （如「5.4.1 修复了…」）会被连带改掉。
-  await syncAppDocVersion(result.newVersion)
   outro(`${current.name}: ${result.currentVersion} -> ${result.newVersion}`)
 }
 
