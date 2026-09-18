@@ -110,4 +110,4 @@ appcenter-cli stop <appname>
 - [Manifest 配置](./manifest)
 - [权限与入口](./permissions)
 - [用户向导](./wizard)
-- [开发环境与脚本](./environment-and-scripts)
+- [开发环境](./environment)

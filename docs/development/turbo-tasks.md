@@ -1,6 +1,6 @@
-# Package 任务与 Turbo
+# Turbo 任务
 
-本页说明仓库中“入口 `package.json`、`fn-apps-cli` CLI、Turbo 和 workspace package 任务”的分工与调用顺序。修改根脚本、`turbo.json` 或包内任务时，先确认是否破坏了这条链路。
+本页说明「入口 `package.json`、`fn-apps-cli` CLI、Turbo 和 workspace package 任务」的分工与调用顺序。修改根脚本、`turbo.json` 或包内任务时，先确认是否破坏了这条链路。
 
 ## 四层职责
 
@@ -8,10 +8,10 @@
 | --- | --- | --- |
 | 用户入口 | 根 `package.json` | 提供稳定、简短的 `start`、`build`、`check`、`version` 等命令；不重复实现包任务 |
 | 任务路由 | `tooling/fn-os-apps-cli/` | `program.ts` 暴露 Commander 实例，各 `commands/*.ts` 注册命令并实现 action，处理交互提示、参数解析、文档构建、版本维护和 Turbo 调用 |
-| 任务编排 | `turbo.json` | 声明 `build`、`start`（内部调度 `dev`）、`typecheck`、`test`、`check` 的依赖、缓存和输出 |
+| 任务编排 | `turbo.json` | 声明 `build`、`dev`、`typecheck`、`test`、`check` 的依赖、缓存和输出 |
 | 实际任务 | 各 workspace 的 `package.json` | 执行 `tsdown`、`tsc`、`vitest` 等包自己的任务 |
 
-根脚本是入口，不是实现层。例如：
+根脚本是入口，不是实现层：
 
 ```json
 {
@@ -24,11 +24,9 @@
 }
 ```
 
-## Turbo 任务调度步骤
+## 调度过程
 
-每次 CLI 调用 Turbo 后，Turbo 不会简单地按目录顺序执行脚本，而是先解析过滤范围和 workspace 依赖，再按任务图调度。以 `check` 为例，`build`、`typecheck` 和 `test` 会按照 `turbo.json` 中的依赖关系执行；没有依赖关系的就绪任务可以并行运行。
-
-下方流程图使用 Mermaid 的 `flowchart TD` 自动布局：主流程从上到下，分支从分叉节点向两侧平铺，不手工固定行列。菱形节点表示状态选择，边上的「是/否」「命中/未命中」表示不同分支。这样既保留了具体命令、依赖和状态，又让布局随任务图自动调整。
+每次 CLI 调用 Turbo 后，Turbo 不会按目录顺序执行脚本，而是先解析过滤范围和 workspace 依赖，再按任务图调度。以 `check` 为例，`build`、`typecheck` 和 `test` 会按 `turbo.json` 中的依赖关系执行；没有依赖关系的就绪任务可以并行。
 
 ```mermaid
 flowchart TD
@@ -51,7 +49,7 @@ flowchart TD
   restore --> summary
 ```
 
-对应本仓库的 `turbo.json`：
+## turbo.json 关键约定
 
 - `build` 通过 `^build` 先调度 workspace 依赖的构建。
 - `dev` 通过 `^dev` 先完成依赖包的 `dev`；被依赖包用 `persistent: false` 做一次性构建，插件自身保持常驻并在 `interruptible: true` 下随依赖变化重启。
@@ -65,7 +63,7 @@ flowchart TD
 - 全局 `ui` 设置为 `tui`；多任务并行时使用终端任务面板分别查看日志，避免不同任务的输出混合在同一条流中。
 - 交互命令会先完成所有主选项和子选项询问，再统一启动已选任务，避免任务执行期间继续等待输入。
 
-## 各 Turbo 任务步骤
+## 各任务步骤
 
 ### `build`
 
@@ -118,15 +116,9 @@ flowchart TD
 
 ### `start`
 
-`start` 是用户可见的开发启动入口；CLI 先让用户选择插件、文档和/或本地 DSH Web，再把它们一次性交给**同一个 `turbo watch`**：插件与文档走 `dev`，DSH Web 走仓库根任务 `//#dev:web`，因此三类任务都显示在同一个 TUI 中。启动 DSH Web 前会先把仓库插件链接进本地 profile（这一步用 `turbo run build` 构建插件），并以仓库根 `.dsh` 作为 `DSH_HOME`。
+`start` 是用户可见的开发启动入口。CLI 先让用户选择插件、文档和/或本地 DSH Web，再把它们一次性交给**同一个 `turbo watch`**：插件与文档走 `dev`，DSH Web 走仓库根任务 `//#dev:web`，因此三类任务都显示在同一个 TUI 中。
 
-三类目标共用同一个 `turbo watch`，因此始终保留 TUI：DSH Web 是仓库根任务 `//#dev:web`，与 `dev`（插件、文档）一起交给同一个 watch 进程，各自占用 TUI 中的一行。这里不能把 DSH Web 放到 Turbo 之外另起进程——它会占住终端，把 TUI 挤掉。
-
-`//#dev:web` 需要两组特殊配置：`persistent: true`（常驻任务）和 `passThroughEnv: ["DSH_HOME"]`。后者必须显式声明，因为 Turbo 严格模式只把已声明的变量传给任务，未声明时 `DSH_HOME` 会被剥掉，本地 DSH Web 会退回用户主目录下的 `~/.dsh`。
-
-文档服务的 `dev` 在 `docs/turbo.json` 中标记 `interactive: true`，让 TUI 能把键盘交给它（TUI 中按 `i` 交互、`Ctrl+z` 返回），VitePress 的 `h`/`r` 快捷键因此可用。Turbo 拒绝在没有终端界面时运行 interactive 任务，所以 `start` 按 TTY 选择文档服务的运行位置：有 TTY 时进入 `turbo watch`，没有时（CI、管道、后台任务）直接启动 `vitepress dev`，避免整条命令因 `Cannot run interactive task` 失败。文档与插件共用 `dev` 任务名，因此文档只作为 `dev` 的 `--filter` 出现而不写成显式 `包#任务`：显式任务名会把该包重新拉进范围，裸 `dev` 随即再匹配一次，VitePress 会被启动两遍。
-
-插件不能与 `dsh-semi-ui` 同时启动：插件 bundle 需要解析 `@tnnevol/dsh-semi-ui/lib/index.js`，如果两边并行 `tsdown`，`dsh-semi-ui` 的 `clean`（默认删除 `lib/`）会让插件侧解析失败并报 `Could not resolve '@tnnevol/dsh-semi-ui'`。因此 `turbo.json` 的 `dev` 使用 `dependsOn: ["^dev"]`：被依赖包的 `dev` 是一次性构建（在 `packages/dsh-semi-ui/turbo.json` 覆盖 `persistent: false`），先完成；插件自己的 `dev` 仍是常驻 `tsdown --watch`，并在 `interruptible: true` 下于依赖变化时被 `turbo watch` 重启。
+三类目标共用同一个 `turbo watch`，因此始终保留 TUI。这里不能把 DSH Web 放到 Turbo 之外另起进程——它会占住终端，把 TUI 挤掉。启动前的 profile 链接逻辑见[本地 DSH Web](./local-dsh-web)。
 
 ```mermaid
 flowchart TD
@@ -210,26 +202,6 @@ flowchart TD
   status -->|否| fail
 ```
 
-### `test`
-
-`test` 同样由根脚本直接调用 Turbo，并先等待 `test` 完成。
-
-```mermaid
-flowchart TD
-  command["pnpm run test"]
-  turbo["turbo run test --filter=目标包"]
-  depGraph["读取 test 任务图"]
-  unit["dependsOn：先完成 test"]
-  run["执行 package.json 的 test"]
-  status{"测试通过？"}
-  result["是：返回成功"]
-  fail["否：返回非零状态"]
-
-  command --> turbo --> depGraph --> unit --> run --> status
-  status -->|是| result
-  status -->|否| fail
-```
-
 ### `check`
 
 `check` 与 `build` 一样由 `fn-apps-cli` 先处理多选目标，再并行执行直接检查和 Turbo 检查。
@@ -275,84 +247,6 @@ flowchart TD
   status -->|否| fail
 ```
 
-## 其他 CLI 命令步骤
-
-非 Turbo 任务也沿用相同的表达方式：根命令进入 `fn-apps-cli`，命令模块负责交互和参数分支，最后执行实际工具并汇总状态。
-
-### `version`
-
-```mermaid
-flowchart TD
-  command["pnpm run version"]
-  cli["fn-apps-cli version"]
-  area{"维护区域？"}
-  project["项目 / FPK"]
-  plugin["harness 插件"]
-  pluginSelect["选择具体 harness 插件"]
-  release["选择版本号与发布选项"]
-  files["更新项目版本文件"]
-  pluginFile["更新 harness 插件 package.json"]
-  published["同步 published-dsh-plugins.json"]
-  commit["git commit"]
-  bumpp["bumpp：提交与创建 Tag"]
-  status{"版本维护成功？"}
-  result["是：返回成功"]
-  fail["否：返回非零状态"]
-
-  command --> cli --> area
-  area -->|项目| project
-  area -->|harness 插件| plugin
-  project --> release --> files --> bumpp
-  plugin --> pluginSelect --> release
-  release --> pluginFile
-  release --> published
-  pluginFile --> commit
-  published --> commit
-  bumpp --> status
-  status -->|是| result
-  status -->|否| fail
-```
-
-### `release:notes`
-
-```mermaid
-flowchart TD
-  command["pnpm run release:notes"]
-  cli["fn-apps-cli release:notes"]
-  tag["读取 GITHUB_REF_NAME"]
-  prerelease{"预发布 Tag？"}
-  flag["补充 --prerelease"]
-  changelog["执行 changelogithub"]
-  github["创建或更新 GitHub Release"]
-  status{"Release 成功？"}
-  result["是：返回成功"]
-  fail["否：返回非零状态"]
-
-  command --> cli --> tag --> prerelease
-  prerelease -->|是| flag
-  prerelease -->|否| changelog
-  flag --> changelog --> github --> status
-  status -->|是| result
-  status -->|否| fail
-```
-
-### `build:gateway`
-
-```mermaid
-flowchart TD
-  command["fn-apps-cli build:gateway"]
-  cli["命令模块 action"]
-  turbo["turbo run build:app --filter=@tnnevol/fnos-gateway"]
-  gateway["执行 Gateway package.json 的 build:app"]
-  status{"Gateway 构建成功？"}
-  result["是：返回成功"]
-  fail["否：返回非零状态"]
-
-  command --> cli --> turbo --> gateway --> status
-  status -->|是| result
-  status -->|否| fail
-```
-
 ## 检查任务交互
 
 执行 `pnpm run check` 会进入多选提示；Agent、CI 或提交脚本应使用参数避免交互：
@@ -364,7 +258,7 @@ pnpm run check -- --packages --plugins
 pnpm run check -- --all
 ```
 
-下图展示一次 `--all` 检查的主要交互。SDD 和文档检查由 CLI 直接处理，包检查统一交给一次 Turbo 调度；Turbo 根据依赖图先构建共享包，再执行各包的 `check`。
+下图展示一次 `--all` 检查的主要交互。SDD 和文档检查由 CLI 直接处理，包检查统一交给一次 Turbo 调度。
 
 ```mermaid
 sequenceDiagram
@@ -477,11 +371,9 @@ pnpm run check -- --all
 pnpm run build -- --docs
 ```
 
-相关页面：
+## 相关页面
 
-- [开发环境与脚本](./environment-and-scripts)
-- [Manifest 配置](./manifest)
-- [生命周期脚本](./lifecycle)
-- [权限与入口](./permissions)
-- [用户向导](./wizard)
-- [仓库结构](/guide/repository-structure)
+- [命令与脚本](./commands-and-scripts)
+- [CLI 命令参考](./cli-commands)
+- [插件开发](./plugin-development)
+- [GitHub Workflow](./github-workflows)

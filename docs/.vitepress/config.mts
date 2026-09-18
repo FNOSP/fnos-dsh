@@ -89,21 +89,49 @@ const guideItems = [
   { text: 'SDD 模式转换报告', link: '/guide/sdd-transition-report' }
 ]
 
+// 开发指南按主题分组：环境与工具、应用开发、插件开发、任务与构建、协作与规范。
+// 单页承担三个以上互不相关主题、或篇幅超过约 300 行时按主题拆分。
 const developmentSidebar = [
   {
     text: '开始使用',
     items: guideItems
   },
   {
-    text: '开发指南',
+    text: '环境与工具',
     items: [
-      { text: '开发环境与脚本', link: '/development/environment-and-scripts' },
-      { text: 'Package 任务与 Turbo', link: '/development/package-tasks-and-turbo' },
-      { text: 'GitHub Workflow', link: '/development/github-workflows' },
+      { text: '开发环境', link: '/development/environment' },
+      { text: '命令与脚本', link: '/development/commands-and-scripts' }
+    ]
+  },
+  {
+    text: '应用开发',
+    items: [
+      { text: '应用结构', link: '/development/app-structure' },
       { text: 'Manifest 配置', link: '/development/manifest' },
       { text: '生命周期脚本', link: '/development/lifecycle' },
       { text: '权限与入口', link: '/development/permissions' },
-      { text: '用户向导', link: '/development/wizard' },
+      { text: '用户向导', link: '/development/wizard' }
+    ]
+  },
+  {
+    text: '插件开发',
+    items: [
+      { text: '插件开发', link: '/development/plugin-development' },
+      { text: '本地 DSH Web', link: '/development/local-dsh-web' }
+    ]
+  },
+  {
+    text: '任务与构建',
+    items: [
+      { text: 'Turbo 任务', link: '/development/turbo-tasks' },
+      { text: 'CLI 命令参考', link: '/development/cli-commands' }
+    ]
+  },
+  {
+    text: '协作与规范',
+    items: [
+      { text: '路径与编码', link: '/development/conventions' },
+      { text: 'GitHub Workflow', link: '/development/github-workflows' },
       { text: '贡献指南', link: '/contributing' }
     ]
   },
@@ -231,7 +259,7 @@ export default withMermaid(defineConfig({
     },
     version: packageJson.version,
     nav: [
-      { text: '开发指南', link: '/development/environment-and-scripts' },
+      { text: '开发指南', link: '/development/environment' },
       { text: '应用文档', link: '/apps/' },
       { text: '需求清单', link: '/requirements/' },
       { text: '详细计划', link: '/plans/' }

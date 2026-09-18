@@ -123,5 +123,5 @@ fnpack build
 - [Manifest 配置](./manifest)
 - [生命周期脚本](./lifecycle)
 - [权限与入口](./permissions)
-- [开发环境与脚本](./environment-and-scripts)
-- [Package 任务与 Turbo](./package-tasks-and-turbo)
+- [开发环境](./environment)
+- [Turbo 任务](./turbo-tasks)

@@ -1,10 +1,10 @@
 # Manifest 配置
 
-`apps/<appname>/manifest` 是 fnOS 应用的基础清单，使用对齐的 INI 风格键值格式。它描述应用身份、版本、平台、桌面入口和运行约束；应用目录、`app/ui/config`、`config/`、`wizard/` 和生命周期脚本必须与 Manifest 保持一致。
+`apps/<appname>/manifest` 是 fnOS 应用的基础清单，使用对齐的 INI 风格键值格式。它描述应用身份、版本、平台、桌面入口和运行约束。应用目录、`app/ui/config`、`config/`、`wizard/` 和生命周期脚本必须与 Manifest 保持一致。
 
 > 新建或重建应用前，先查阅 [`fnnas-docs` Skill](https://github.com/tnnevol/skills/tree/main/skills/fnnas-docs) 和飞牛应用开放平台文档。本文是本仓库的维护约定，不替代平台对字段的最新定义。
 
-## 文件位置和格式
+## 文件格式
 
 ```text
 apps/<appname>/
@@ -15,7 +15,7 @@ apps/<appname>/
 └── wizard/
 ```
 
-示例（字段之间使用空格对齐，不要改成 JSON）：
+示例（字段之间使用空格对齐，**不要改成 JSON**）：
 
 ```ini
 appname               = fn-deepseek-harness
@@ -57,6 +57,8 @@ install_dep_apps      = nodejs_v24
 
 ## 与其他配置的对应关系
 
+Manifest 里的关键字段必须在别处真实成立，否则安装后才会暴露问题：
+
 | Manifest | 对应文件 | 需要保持一致的内容 |
 | --- | --- | --- |
 | `desktop_uidir` | `app/ui/` | UI 目录存在且包含入口资源 |
@@ -66,24 +68,7 @@ install_dep_apps      = nodejs_v24
 | `os_min_version` | 测试记录 | 在最低版本设备上完成基础验证 |
 | `version` | 发布 Tag、FPK | FPK、升级说明和仓库版本保持一致 |
 
-## 版本管理
-
-项目/FPK 版本和插件版本分开维护。Manifest 属于项目/FPK 版本范围时使用：
-
-```bash
-pnpm run version -- project patch
-pnpm run version -- project minor
-```
-
-只维护某个 Harness 插件时，不要让插件版本流程隐式修改应用 Manifest：
-
-```bash
-pnpm run version -- plugin fnos patch
-```
-
-需要只修改文件、不创建提交和 Tag 时追加 `--no-commit --no-tag`。版本变更前后都要检查对应的升级兼容和回滚说明。
-
-## 修改后的验证
+## 提交前检查
 
 ```bash
 # 检查 Manifest 与目录、入口和资源
@@ -94,7 +79,7 @@ cd apps/<appname>
 fnpack build
 ```
 
-提交前至少确认：
+逐项确认：
 
 - `appname`、应用目录名、桌面入口 ID 没有拼写漂移。
 - `version` 是合法版本号，并符合项目或 FPK 的版本策略。
@@ -105,10 +90,9 @@ fnpack build
 
 最终应在测试 NAS 上通过应用中心完成安装、启动、停止、升级和卸载验证；本地 `fnpack build` 只证明清单和包结构可以构建。
 
-相关页面：
+## 相关页面
 
-- [开发环境与脚本](./environment-and-scripts)
+- [应用结构](./app-structure)
 - [生命周期脚本](./lifecycle)
 - [权限与入口](./permissions)
 - [用户向导](./wizard)
-- [Package 任务与 Turbo](./package-tasks-and-turbo)

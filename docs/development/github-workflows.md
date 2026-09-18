@@ -258,8 +258,8 @@ pnpm run check -- --all
 
 ## 相关文档
 
-- [开发环境与脚本](./environment-and-scripts)
-- [Package 任务与 Turbo](./package-tasks-and-turbo)
+- [开发环境](./environment)
+- [Turbo 任务](./turbo-tasks)
 - [CI 构建](../build/ci)
 - [版本管理](../build/versioning)
 - [发布流程](../build/release)

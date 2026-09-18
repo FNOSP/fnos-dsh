@@ -23,8 +23,8 @@ features:
     details: 仓库维护的 DSH 插件和共享 UI 包，可装进任意 DSH 客户端。
     link: /plugins/
   - title: 开发指南
-    details: 从 Manifest、生命周期、权限和用户向导，到 package 任务与 Turbo 编排。
-    link: /development/environment-and-scripts
+    details: 从环境准备、应用结构、插件开发，到 Turbo 任务与协作规范。
+    link: /development/environment
   - title: 构建发布
     details: 用 Turbo、fnpack、bumpp 和 GitHub Actions 完成打包与发布。
     link: /build/fnpack

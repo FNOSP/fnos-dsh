@@ -113,5 +113,5 @@ appcenter-cli start <appname>
 - [Manifest 配置](./manifest)
 - [生命周期脚本](./lifecycle)
 - [用户向导](./wizard)
-- [开发环境与脚本](./environment-and-scripts)
-- [Package 任务与 Turbo](./package-tasks-and-turbo)
+- [开发环境](./environment)
+- [Turbo 任务](./turbo-tasks)
