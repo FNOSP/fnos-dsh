@@ -1,9 +1,11 @@
 ---
-title: DSH Semi UI 总览
+title: DSH Semi UI 组件总览
 description: 在 DSH 中集中检查共享 Semi Design 组件及主题状态。
 ---
 
-# DSH Semi UI 总览
+# DSH Semi UI 组件总览
+
+本页介绍**运行时展示插件**：安装后可在 DSH 内检查共享组件的真实交互与主题效果，与文档站的[组件预览](./semi-ui)互补。
 
 `@tnnevol/dsh-semi-ui-showcase` 是 `@tnnevol/dsh-semi-ui` 的组件总览插件。它只使用共享包公开导出的组件，不维护第二套主题样式。
 

@@ -13,12 +13,12 @@ hero:
       link: /guide/quick-start
     - theme: alt
       text: 浏览应用
-      link: /apps/
+      link: /apps/fn-deepseek-harness
 
 features:
   - title: 应用文档
     details: DeepSeek Harness 在飞牛 fnOS 上的打包、安装和运行说明。
-    link: /apps/
+    link: /apps/fn-deepseek-harness
   - title: Harness 插件
     details: 仓库维护的 DSH 插件和共享 UI 包，可装进任意 DSH 客户端。
     link: /plugins/

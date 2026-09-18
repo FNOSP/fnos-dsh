@@ -53,22 +53,26 @@ const configureMarkdown = (md: Parameters<NonNullable<Parameters<typeof defineCo
 }
 
 const appItems = [
-  { text: '应用总览', link: '/apps/' },
-  { text: 'DeepSeek Harness', link: '/apps/fn-deepseek-harness' }
+  { text: 'DeepSeek Harness', link: '/apps/fn-deepseek-harness' },
+  { text: '应用适配说明', link: '/apps/adaptation' }
 ]
 
-// Harness 插件作为「应用文档」下的子模块；`/plugins/` 路由仍可直达，
-// 因此两处 sidebar 复用同一组条目，避免出现两份需要同步维护的菜单。
+// 三个 Semi UI 条目的性质不同，命名需能区分：
+// 「共享包」可被插件依赖，另两个分别是文档站预览页与运行时展示插件。
 const pluginItems = [
   { text: '插件总览', link: '/plugins/' },
   { text: 'dsh-fnos', link: '/plugins/dsh-fnos' },
   { text: 'dsh-codex-auth', link: '/plugins/dsh-codex-auth' },
-  { text: 'dsh-codebuddy', link: '/plugins/dsh-codebuddy' },
-  { text: 'DSH Semi UI', link: '/plugins/dsh-semi-ui' },
-  { text: 'Semi UI 组件总览', link: '/plugins/semi-ui' },
-  { text: 'DSH Semi UI 总览', link: '/plugins/dsh-semi-ui-showcase' }
+  { text: 'dsh-codebuddy', link: '/plugins/dsh-codebuddy' }
 ]
 
+const sharedUiItems = [
+  { text: 'DSH Semi UI 共享包', link: '/plugins/dsh-semi-ui' },
+  { text: '组件预览（文档站）', link: '/plugins/semi-ui' },
+  { text: '组件总览（展示插件）', link: '/plugins/dsh-semi-ui-showcase' }
+]
+
+// `/apps/` 与 `/plugins/` 路由共用同一组条目，避免维护两份菜单。
 const appSidebar = [
   {
     text: '应用文档',
@@ -77,6 +81,10 @@ const appSidebar = [
   {
     text: 'Harness 插件',
     items: pluginItems
+  },
+  {
+    text: '共享 UI',
+    items: sharedUiItems
   }
 ]
 
@@ -260,7 +268,7 @@ export default withMermaid(defineConfig({
     version: packageJson.version,
     nav: [
       { text: '开发指南', link: '/development/environment' },
-      { text: '应用文档', link: '/apps/' },
+      { text: '应用文档', link: '/apps/fn-deepseek-harness' },
       { text: '需求清单', link: '/requirements/' },
       { text: '详细计划', link: '/plans/' }
     ],
@@ -283,7 +291,7 @@ export default withMermaid(defineConfig({
       provider: 'local'
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/tnnevol/fn-os-apps' }
+      { icon: 'github', link: 'https://github.com/FNOSP/fnos-dsh' }
     ],
     footer: {
       message: '基于 VitePress 构建',

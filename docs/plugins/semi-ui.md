@@ -1,13 +1,15 @@
 ---
-title: DSH Semi UI 组件总览
-description: 使用 VitePress 预览 DSH 主题下的 Semi Design 共享组件及交互状态。
+title: DSH Semi UI 组件预览
+description: 在文档站中预览 DSH 主题下的 Semi Design 共享组件及交互状态。
 ---
 
 <script setup lang="ts">
 import SemiUiPreview from '../components/SemiUiPreview.vue'
 </script>
 
-# DSH Semi UI 组件总览
+# DSH Semi UI 组件预览
+
+本页是**文档站内的静态预览**，用于在不安装插件的情况下查看共享组件在 DSH 主题下的样子。要在 DSH 运行环境中检查真实交互，请安装[组件总览展示插件](./dsh-semi-ui-showcase)。
 
 `@tnnevol/dsh-semi-ui` 是 DSH 插件共用的 Semi Design 组件层。下面的页面由 VitePress 构建，交互状态与插件中使用的组件保持同一套 DSH 主题语义。
 
