@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { SRC, srcPath  } from './paths.ts'
 
 /**
  * 关闭自动切换开关后的行为边界。
@@ -10,7 +11,7 @@ import { readFileSync } from 'node:fs'
  *  2. 开关关闭后**轮询是否真的停了**？   → 停。
  *  3. 是否存在**两个轮询**（host + 管理面板）？ → 只有一个，客户端那个只读。
  */
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 const SERVICE = readFileSync(`${ROOT}/host/auth-service.ts`, 'utf8')
 const ADAPTER = readFileSync(`${ROOT}/host/adapter.ts`, 'utf8')
 const USAGE_STATUS = readFileSync(`${ROOT}/components/CodeBuddyUsageStatus.tsx`, 'utf8')
@@ -29,7 +30,7 @@ describe('① 开关关闭后被动换号也不生效', () => {
   it('autoSwitch 取值来自 host 的当前开关状态（而非客户端本地值）', () => {
     // 客户端 localStorage 不再作为权威（见 auto-prefs-authority.spec.ts）。
     const INDEX_HOST = readFileSync(
-      '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/index.ts',
+      srcPath('index.ts'),
       'utf8',
     )
     expect(INDEX_HOST).toMatch(/autoSwitch: \(\) => auth\.autoSwitch/)

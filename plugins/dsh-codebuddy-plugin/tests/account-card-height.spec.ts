@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { srcPath  } from './paths.ts'
 
 /**
  * 账号卡片必须**等高**——拉取不到账户数据时也不能塌下去。
@@ -21,7 +22,7 @@ import { readFileSync } from 'node:fs'
  *   children**、不额外包一层 div，所以卡片内容确实是 `.semi-card-body` 的直接子元素。
  */
 const SCSS = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/accounts.scss',
+  srcPath('styles/accounts.scss'),
   'utf8',
 )
 
@@ -29,7 +30,7 @@ describe('两个「拉取不到数据」的分支都走等高状态块', () => {
   // 卡片实现已迁到 ui/account-card.tsx（`AccountCardImpl`）。本组断言的状态
   // 块、tooltip 包裹、expired 标签都从该文件读。
   const CARD = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/account-card.tsx',
+    srcPath('client/ui/account-card.tsx'),
     'utf8',
   )
 
@@ -99,15 +100,15 @@ describe('改动不外溢到其它卡片网格', () => {
 
 describe('账号卡片的套餐行只展示名称与到期日', () => {
   const CARD = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/account-card.tsx',
+    srcPath('client/ui/account-card.tsx'),
     'utf8',
   )
   const RESOURCE_ROW = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/resource-row.tsx',
+    srcPath('client/ui/resource-row.tsx'),
     'utf8',
   )
   const INDEX_SCSS = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/accounts.scss',
+    srcPath('styles/accounts.scss'),
     'utf8',
   )
   /** 卡片内的套餐行（概览，最多两行）。 */

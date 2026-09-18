@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { srcPath  } from './paths.ts'
 import {
   CODEBUDDY_CLI_VERSION,
   CODEBUDDY_CLIENT_ENDPOINTS,
@@ -115,7 +116,7 @@ describe('账号条目记录客户端', () => {
 
 describe('添加账号弹框的客户端选择', () => {
   const MODAL = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/components/AddAccountModal.tsx',
+    srcPath('components/AddAccountModal.tsx'),
     'utf8',
   )
 
@@ -198,7 +199,7 @@ describe('token 解析对字段命名的容忍', () => {
 describe('登录失败会反馈给用户', () => {
   it('runLogin 失败原因写入本次握手条目（不是实例字段，避免并发串台）', () => {
     const src = readFileSync(
-      '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/host/auth-service.ts',
+      srcPath('host/auth-service.ts'),
       'utf8',
     )
     expect(src).toMatch(/pendingEntry\.failure = error instanceof Error/)
@@ -206,7 +207,7 @@ describe('登录失败会反馈给用户', () => {
 
   it('pollLogin 把失败与「仍在等待」区分开', () => {
     const src = readFileSync(
-      '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/host/auth-service.ts',
+      srcPath('host/auth-service.ts'),
       'utf8',
     )
     // 返回体带 error 即表示不必再轮询。

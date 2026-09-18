@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { srcPath  } from './paths.ts'
 
 /**
  * 用量分布与模型排行：**按工作区 / 按模型** 维度切换。
@@ -13,19 +14,19 @@ import { readFileSync } from 'node:fs'
  * 之前只是两个面板各用其一。
  */
 const PANEL = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/panel.tsx', 'utf8',
+  srcPath('client/panel.tsx'), 'utf8',
 )
 const DIM_TOGGLE = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/dimension-toggle.tsx', 'utf8',
+  srcPath('client/ui/dimension-toggle.tsx'), 'utf8',
 )
 const SCSS = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/token-panel.scss', 'utf8',
+  srcPath('styles/token-panel.scss'), 'utf8',
 )
 const LOCALES_EN = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/locales/en.ts', 'utf8',
+  srcPath('client/locales/en.ts'), 'utf8',
 )
 const LOCALES_ZH = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/locales/zh.ts', 'utf8',
+  srcPath('client/locales/zh.ts'), 'utf8',
 )
 
 describe('DimensionToggle：结构与交互', () => {
@@ -172,7 +173,7 @@ describe('数据源：不需要动 host', () => {
   it('TokenStats 同时聚合 workspaces 与 models（两维度数据早已就绪）', () => {
     // 面板共享类型集中在 types/client/panel-types.d.ts。
     const TYPES = readFileSync(
-      '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/types/client/panel-types.d.ts',
+      srcPath('types/client/panel-types.d.ts'),
       'utf8',
     )
     expect(TYPES).toMatch(/workspaces: Array<\{ name: string, path\?: string, total: number/)

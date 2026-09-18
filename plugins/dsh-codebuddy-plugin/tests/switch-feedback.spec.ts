@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { SRC } from './paths.ts'
 
 /**
  * 账号切换的**进行中反馈**。
@@ -26,7 +27,7 @@ import { readFileSync } from 'node:fs'
  * Button 在 `loading && !disabled` 时走 IconButton 分支渲染转圈图标，**不会**
  * 自动禁用按钮，因此两个 prop 必须都给。
  */
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 const SECTION = readFileSync(`${ROOT}/components/CodeBuddySection.tsx`, 'utf8')
 const LOCALES_ZH = readFileSync(`${ROOT}/client/locales/zh.ts`, 'utf8')
 const LOCALES_EN = readFileSync(`${ROOT}/client/locales/en.ts`, 'utf8')

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { srcPath, PNPM_STORE  } from './paths.ts'
 
 /**
  * 后台面板的布局必须用 **Semi Layout 组件**表达，不自建 HTML 容器。
@@ -20,25 +21,25 @@ import { join } from 'node:path'
  * 另外 Layout 系列渲染语义化标签：Header→<header>、Content→<main>、Sider→<aside>。
  */
 const PANEL = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/panel.tsx',
+  srcPath('client/panel.tsx'),
   'utf8',
 )
 /** Semi layout 的 CSS：用于确认 box-sizing 前提（width:100% + padding 不溢出）。 */
 const SEMI_LAYOUT_CSS = (() => {
-  const pnpm = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/node_modules/.pnpm'
+  const pnpm = PNPM_STORE
   const dir = readdirSync(pnpm).find(d => d.startsWith('@douyinfe+semi-foundation@'))
   if (dir === undefined) throw new Error('未找到 semi-foundation')
   return join(pnpm, dir, 'node_modules/@douyinfe/semi-foundation/lib/es/layout/layout.css')
 })()
 
 const PANEL_SCSS = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/panel-shell.scss',
+  srcPath('styles/panel-shell.scss'),
   'utf8',
 )
 
 /** Token 页样式（token-updated / 窄屏覆盖等已随拆分迁出 panel-shell.scss）。 */
 const TOKEN_SCSS = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/token-panel.scss',
+  srcPath('styles/token-panel.scss'),
   'utf8',
 )
 
@@ -186,7 +187,7 @@ describe('内容区顶部留白', () => {
 
 describe('导航分隔：只靠背景分层，不加线', () => {
   const SHELL = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/panel-shell.scss',
+    srcPath('styles/panel-shell.scss'),
     'utf8',
   )
 

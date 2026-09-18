@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { SRC } from './paths.ts'
 
 /**
  * 目录约定：与同仓库的兄弟插件（codex-auth / fnos）保持一致。
@@ -23,7 +24,7 @@ import { join } from 'node:path'
  * 这组用例守住三件事：① 分层不被重新打散；② client 侧不引用 host；
  * ③ 协议常量不在两端各定义一份（这是本项目真实踩过的坑）。
  */
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 
 function filesUnder(dir: string): string[] {
   const out: string[] = []

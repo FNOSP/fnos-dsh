@@ -12,6 +12,7 @@ import {
 } from '../src/host/storage.ts'
 import { CODEBUDDY_ENDPOINT, CODEBUDDY_ENDPOINT_EXTERNAL } from '../src/contracts/constants.ts'
 import type { CodeBuddyAccountEntry, CodeBuddyStorage } from '../src/host/storage.ts'
+import { srcPath  } from './paths.ts'
 
 let workdir: string | undefined
 
@@ -251,7 +252,7 @@ describe('重新登录不应改变账号的客户端身份', () => {
   it('host 侧按「是否显式指定」分支，而不是看 fresh.client 是否为空', async () => {
     const { readFileSync } = await import('node:fs')
     const src = readFileSync(
-      '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/host/auth-service.ts',
+      srcPath('host/auth-service.ts'),
       'utf8',
     )
     // 必须基于 options.client 判断（fresh.client 恒有值，看它永远为真）。

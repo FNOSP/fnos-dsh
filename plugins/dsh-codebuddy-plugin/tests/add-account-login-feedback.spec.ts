@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { startLoginPolling } from '../src/client/login-polling.ts'
+import { SRC } from './paths.ts'
 
 /**
  * 「添加 CodeBuddy 账号」弹框的登录反馈闭环。
@@ -16,7 +17,7 @@ import { startLoginPolling } from '../src/client/login-polling.ts'
  * 也对无法在 node 环境渲染的 JSX 接线做文本扫描——两类分开标注。
  */
 
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 const MODAL = readFileSync(`${ROOT}/components/AddAccountModal.tsx`, 'utf8')
 const PANEL = readFileSync(`${ROOT}/client/panel.tsx`, 'utf8')
 const SECTION = readFileSync(`${ROOT}/components/CodeBuddySection.tsx`, 'utf8')

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { srcPath  } from './paths.ts'
 
 /**
  * 各管理页必须保持挂载（keep-alive），切回时不重新拉取。
@@ -12,7 +13,7 @@ import { readFileSync } from 'node:fs'
  * 这类缺陷在纯逻辑测试里看不出来（数据层完全正常），只能靠结构断言守住。
  */
 const panel = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/panel.tsx',
+  srcPath('client/panel.tsx'),
   'utf8',
 )
 

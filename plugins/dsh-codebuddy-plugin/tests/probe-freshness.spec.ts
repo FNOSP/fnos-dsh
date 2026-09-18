@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { formatProbeAge, STALE_HINT_AFTER_MS } from '../src/client/format-time.ts'
+import { srcPath  } from './paths.ts'
 
 /**
  * 额度数据的「新鲜度」展示。
@@ -59,11 +60,11 @@ describe('formatProbeAge：分档文案', () => {
 
 describe('面板接线', () => {
   const CARD = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/account-card.tsx',
+    srcPath('client/ui/account-card.tsx'),
     'utf8',
   )
   const TYPES = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/types/client/panel-types.d.ts',
+    srcPath('types/client/panel-types.d.ts'),
     'utf8',
   )
 
@@ -90,7 +91,7 @@ describe('面板接线', () => {
 
 describe('host 侧透出', () => {
   const SERVICE = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/host/auth-service.ts',
+    srcPath('host/auth-service.ts'),
     'utf8',
   )
 

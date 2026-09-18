@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { decodeDepartment, identityRows } from '../src/client/identity.ts'
+import { srcPath  } from './paths.ts'
 
 const LABELS = {
   uid: 'UID',
@@ -67,7 +68,7 @@ describe('identityRows', () => {
 
 describe('面板弹框展示完整账户信息', () => {
   const PANEL = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/account-resources-modal.tsx',
+    srcPath('client/ui/account-resources-modal.tsx'),
     'utf8',
   )
 
@@ -142,7 +143,7 @@ describe('面板弹框展示完整账户信息', () => {
 
 describe('主机侧 payload 带上身份明细', () => {
   const SERVICE = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/host/auth-service.ts',
+    srcPath('host/auth-service.ts'),
     'utf8',
   )
 
@@ -160,7 +161,7 @@ describe('主机侧 payload 带上身份明细', () => {
 
 describe('企业账号的账户信息字段', () => {
   const PANEL = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/account-resources-modal.tsx',
+    srcPath('client/ui/account-resources-modal.tsx'),
     'utf8',
   )
   const modal = (): string => PANEL.slice(PANEL.indexOf('export function AccountResourcesModalImpl'))
@@ -185,7 +186,7 @@ describe('企业账号的账户信息字段', () => {
 
   it('主机侧 payload 带上 endpoint', () => {
     const SERVICE = readFileSync(
-      '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/host/auth-service.ts',
+      srcPath('host/auth-service.ts'),
       'utf8',
     )
     expect(SERVICE).toContain('endpoint: item.endpoint')

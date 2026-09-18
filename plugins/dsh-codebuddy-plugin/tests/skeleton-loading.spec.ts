@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { dirname } from 'node:path'
 import { createElement } from 'react'
 import { readFileSync } from 'node:fs'
+import { srcPath  } from './paths.ts'
 
 /**
  * 首次加载的骨架必须真的渲染出内容。
@@ -63,7 +64,7 @@ describe('面板骨架的实现方式', () => {
   // 骨架实现已迁到 ui/loading-shared.tsx（AccountsSkeleton / TokensSkeleton
   // 由 `<DshSkeleton ... placeholder={(...) }>` 组成；占位内容各自与真实结构对齐）。
   const shared = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/loading-shared.tsx',
+    srcPath('client/ui/loading-shared.tsx'),
     'utf8',
   )
 

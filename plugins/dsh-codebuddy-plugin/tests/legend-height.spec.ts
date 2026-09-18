@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as echarts from 'echarts'
 import { readFileSync } from 'node:fs'
+import { srcPath  } from './paths.ts'
 
 /**
  * 「Token 与调用趋势」图例：每个 item（输入/输出/缓存读/缓存写）至少 20px 高。
@@ -18,7 +19,7 @@ import { readFileSync } from 'node:fs'
  */
 const NAMES = ['输入', '输出', '缓存读', '缓存写']
 const CHART = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/token-usage-chart.tsx',
+  srcPath('client/ui/token-usage-chart.tsx'),
   'utf8',
 )
 

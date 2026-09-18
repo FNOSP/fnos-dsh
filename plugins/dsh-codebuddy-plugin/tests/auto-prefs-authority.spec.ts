@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { SRC } from './paths.ts'
 
 /**
  * 自动开关配置的权威来源必须是 **Host**。
@@ -12,7 +13,7 @@ import { readFileSync } from 'node:fs'
  *
  * 现在改为「读 Host → 写本地 store」，并有 hasStoredPrefs 区分老用户升级路径。
  */
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 const SECTION = readFileSync(`${ROOT}/components/CodeBuddySection.tsx`, 'utf8')
 // 三个 auto* 偏好的同步封装已迁到 hooks/use-auto-prefs.ts（`useAutoPrefs`）。
 // 读取原文件以验证「挂载时读 Host」+「subscribeUsagePref 中只同步 host」两个不变量。

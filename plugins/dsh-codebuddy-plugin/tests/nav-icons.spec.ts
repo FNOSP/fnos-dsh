@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { srcPath, PNPM_STORE  } from './paths.ts'
 
 /**
  * 左侧菜单必须用**彩色**图标。
@@ -13,10 +14,10 @@ import { readFileSync } from 'node:fs'
  * 这正是要避免的。
  */
 const PANEL = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/panel.tsx',
+  srcPath('client/panel.tsx'),
   'utf8',
 )
-const LAB_ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/node_modules/.pnpm'
+const LAB_ROOT = PNPM_STORE
   + '/@douyinfe+semi-icons-lab@2.90.2_react-dom@18.3.1_react@18.3.1__react@18.3.1'
   + '/node_modules/@douyinfe/semi-icons-lab'
 

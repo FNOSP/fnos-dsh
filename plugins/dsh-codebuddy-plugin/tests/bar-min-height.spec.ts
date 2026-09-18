@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { srcPath, repo  } from './paths.ts'
 
 /**
  * 趋势图每段柱体要有最小高度。
@@ -12,7 +13,7 @@ import { readFileSync } from 'node:fs'
  * 这里同时核对选项名与 ECharts 类型定义——写错名字不会报错，只会被静默忽略。
  */
 const CHART = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/token-usage-chart.tsx',
+  srcPath('client/ui/token-usage-chart.tsx'),
   'utf8',
 )
 
@@ -37,7 +38,7 @@ describe('趋势图柱体最小高度', () => {
 
   it('选项名与 ECharts 类型定义一致（拼错会被静默忽略）', () => {
     const types = readFileSync(
-      '/Users/tnnevol/workspace/fn-packages/fn-os-apps/node_modules/.pnpm/echarts@6.1.0/node_modules/echarts/types/dist/shared.d.ts',
+      repo('node_modules/.pnpm/echarts@6.1.0/node_modules/echarts/types/dist/shared.d.ts'),
       'utf8',
     )
     expect(types).toContain('barMinHeight?: number')

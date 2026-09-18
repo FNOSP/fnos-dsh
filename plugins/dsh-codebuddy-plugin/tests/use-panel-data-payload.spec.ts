@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { SRC } from './paths.ts'
 
 /**
  * `usePanelData` 发出的 RPC 请求必须带 `payload` 字段。
@@ -23,7 +24,7 @@ import { readFileSync } from 'node:fs'
  * 因此这里不测「调用有没有发生」，而是直接把**信封序列化后是否含 payload 键**
  * 固定下来，并同时守住「本地类型不得把 payload 放宽成可选」这条前提。
  */
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 const HOOK = readFileSync(`${ROOT}/client/hooks/use-panel-data.ts`, 'utf8')
 const RPC_TYPE = readFileSync(`${ROOT}/types/client/rpc.d.ts`, 'utf8')
 

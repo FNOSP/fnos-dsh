@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
+import { SRC } from './paths.ts'
 
 /**
  * 成长任务 UI 的位置与状态约束。
@@ -11,7 +12,7 @@ import { existsSync, readFileSync } from 'node:fs'
  *  - 运行态落盘宿主，刷新后仍恢复 loading；
  *  - 刷新按钮在成长任务 Tab 内部。
  */
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 const PANEL = readFileSync(`${ROOT}/client/panel.tsx`, 'utf8')
 const MODAL = readFileSync(`${ROOT}/client/ui/account-resources-modal.tsx`, 'utf8')
 const LIST = readFileSync(`${ROOT}/client/ui/growth-task-list.tsx`, 'utf8')

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { SRC } from './paths.ts'
 
 /**
  * CodeBuddy 用量图标的接线。
@@ -12,7 +13,7 @@ import { describe, expect, it } from 'vitest'
  * `auto-switch-toggle.spec.ts` 里有断言盯着它是只读的。这里补的是「它必须在
  * 供应商判断之后」。
  */
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 const STATUS = readFileSync(`${ROOT}/components/CodeBuddyUsageStatus.tsx`, 'utf8')
 const PROPS = readFileSync(`${ROOT}/types/components/CodeBuddyUsageStatus.d.ts`, 'utf8')
 const INDEX = readFileSync(`${ROOT}/client/index.tsx`, 'utf8')

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { srcPath  } from './paths.ts'
 
 /**
  * 时间范围选择器：**完全使用 Semi 原生样式**，不做任何外观覆盖。
@@ -14,15 +15,15 @@ import { readFileSync } from 'node:fs'
  * 正常产物，原生样式下渲染正常，不该强制 display:none。
  */
 const TOGGLE = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/range-toggle.tsx',
+  srcPath('client/ui/range-toggle.tsx'),
   'utf8',
 )
 const SCSS = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/token-panel.scss',
+  srcPath('styles/token-panel.scss'),
   'utf8',
 )
 const INDEX_SCSS = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/index.scss',
+  srcPath('styles/index.scss'),
   'utf8',
 )
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { SRC } from './paths.ts'
 
 /**
  * 风控指纹与节流口径（FNOS-005-16）。
@@ -13,7 +14,7 @@ import { readFileSync } from 'node:fs'
  * 因此它们断言的是「头与间隔是否与来源一致」，而不是「有没有发请求」——
  * 后者在错误实现里同样是 true（这正是问题长期存在的原因）。
  */
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 const RISK = readFileSync(`${ROOT}/host/risk-headers.ts`, 'utf8')
 const ACTIONS = readFileSync(`${ROOT}/host/growth-actions.ts`, 'utf8')
 const TASKS = readFileSync(`${ROOT}/host/growth-tasks.ts`, 'utf8')

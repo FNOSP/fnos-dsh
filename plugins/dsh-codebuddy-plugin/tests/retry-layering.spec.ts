@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { SRC } from './paths.ts'
 
 /**
  * 内层与外层重试的**职责划分**。
@@ -13,7 +14,7 @@ import { readFileSync } from 'node:fs'
  * `RATE_LIMIT` 或自己做等待，两层会对同一错误各重试一遍，最坏变成
  * 「内层次数 × 外层 6 次」的远端请求。
  */
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 const ADAPTER = readFileSync(`${ROOT}/host/adapter.ts`, 'utf8')
 
 describe('内层只负责换账号，不重复外层的等待与重试', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { srcPath  } from './paths.ts'
 
 /**
  * 主动切换周期的间隔。
@@ -12,7 +13,7 @@ import { readFileSync } from 'node:fs'
  * 每次探测都是一次远端往返。
  */
 const SERVICE = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/host/auth-service.ts',
+  srcPath('host/auth-service.ts'),
   'utf8',
 )
 

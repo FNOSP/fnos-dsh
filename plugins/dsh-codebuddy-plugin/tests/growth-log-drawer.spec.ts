@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { SRC, repo } from './paths.ts'
 
 /**
  * 任务执行日志抽屉（方案 A：底部 SideSheet + CodeHighlight）。
@@ -11,13 +12,13 @@ import { readFileSync } from 'node:fs'
  *  4. 点「完成任务」自动展开抽屉；
  *  5. 面板仍有手动入口，跑完可回看。
  */
-const ROOT = '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src'
+const ROOT = SRC
 const DRAWER = readFileSync(`${ROOT}/client/ui/growth-run-drawer.tsx`, 'utf8')
 const PANEL = readFileSync(`${ROOT}/client/panel.tsx`, 'utf8')
 const STORE = readFileSync(`${ROOT}/client/store/growth-run.ts`, 'utf8')
 const HOST_RUN = readFileSync(`${ROOT}/host/growth-run.ts`, 'utf8')
 const COMPONENTS = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/packages/dsh-semi-ui/src/components.ts',
+  repo('packages/dsh-semi-ui/src/components.ts'),
   'utf8',
 )
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { srcPath  } from './paths.ts'
 
 /**
  * 「添加账号」入口的位置约束。
@@ -12,15 +13,15 @@ import { readFileSync } from 'node:fs'
  * 列表为空时只把卡片网格换成空状态。
  */
 const PANEL = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/panel.tsx',
+  srcPath('client/panel.tsx'),
   'utf8',
 )
 const INDEX_SCSS = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/accounts.scss',
+  srcPath('styles/accounts.scss'),
   'utf8',
 )
 const LAYOUT_SCSS = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/panel-shell.scss',
+  srcPath('styles/panel-shell.scss'),
   'utf8',
 )
 
@@ -34,12 +35,12 @@ const accountsBody = ((): string => {
 
 /** hooks/use-auto-prefs.ts 中的 useAutoPrefs 函数体（包含三个 auto* 偏好的同步）。 */
 const HOOK = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/hooks/use-auto-prefs.ts',
+  srcPath('client/hooks/use-auto-prefs.ts'),
   'utf8',
 )
 /** components/CodeBuddySection.tsx（设置页组件，store 来源之一）。 */
 const SECTION = readFileSync(
-  '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/components/CodeBuddySection.tsx',
+  srcPath('components/CodeBuddySection.tsx'),
   'utf8',
 )
 
@@ -108,7 +109,7 @@ describe('骨架与真实结构对齐', () => {
     // 实现迁到 ui/loading-shared.tsx（`AccountsSkeleton`）。从该文件取整段函数体：
     // 起点 `export function AccountsSkeleton`，到下一个 `\nexport ` 或文件末尾。
     const shared = readFileSync(
-      '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/loading-shared.tsx',
+      srcPath('client/ui/loading-shared.tsx'),
       'utf8',
     )
     const start = shared.indexOf('export function AccountsSkeleton')
@@ -185,7 +186,7 @@ describe('自动签到 / 自动旅行开关只在管理面板', () => {
 
   it('两个开关组件仍被导出（不是删了实现只留引用）', () => {
     const TOGGLES = readFileSync(
-      '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/auto-toggles.tsx',
+      srcPath('client/ui/auto-toggles.tsx'),
       'utf8',
     )
     expect(TOGGLES).toContain('export function AutoCheckinToggleImpl')
@@ -214,7 +215,7 @@ describe('自动切换开启时隐藏「设为当前账号」', () => {
   // 卡片渲染已迁到 ui/account-card.tsx（`AccountCardImpl`）。条件 / 菜单由
   // 该文件持有；AccountsPage 仅通过 prop `autoSwitch` 传入开关状态。
   const CARD = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/ui/account-card.tsx',
+    srcPath('client/ui/account-card.tsx'),
     'utf8',
   )
 
@@ -241,7 +242,7 @@ describe('面板与设置页的开关保持同步', () => {
   // 保留三个开关的订阅 / host 同步形态。AccountsPage 本体通过 `useAutoPrefs`
   // 读取展示值（`autoCheckin: autoCheckinOn` 等），不再自行订阅。
   const HOOK = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/hooks/use-auto-prefs.ts',
+    srcPath('client/hooks/use-auto-prefs.ts'),
     'utf8',
   )
   const hookBody = ((): string => {
@@ -278,7 +279,7 @@ describe('面板与设置页的开关保持同步', () => {
 
 describe('添加账号弹框内选择框的左间距', () => {
   const INDEX = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/styles/add-account-modal.scss',
+    srcPath('styles/add-account-modal.scss'),
     'utf8',
   )
 
@@ -298,11 +299,11 @@ describe('添加账号弹框内选择框的左间距', () => {
 
 describe('管理面板订阅账号代际', () => {
   const PANEL = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/panel.tsx',
+    srcPath('client/panel.tsx'),
     'utf8',
   )
   const EPOCH = readFileSync(
-    '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/store/account-epoch.ts',
+    srcPath('client/store/account-epoch.ts'),
     'utf8',
   )
 
@@ -320,7 +321,7 @@ describe('管理面板订阅账号代际', () => {
 
   it('代际由宿主广播驱动（三条切换路径都广播）', () => {
     const INDEX = readFileSync(
-      '/Users/tnnevol/workspace/fn-packages/fn-os-apps/plugins/dsh-codebuddy-plugin/src/client/index.tsx',
+      srcPath('client/index.tsx'),
       'utf8',
     )
     expect(INDEX).toContain("remote.$on('llm/adapters-updated'")
