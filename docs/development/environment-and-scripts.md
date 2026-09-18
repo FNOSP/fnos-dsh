@@ -53,7 +53,6 @@ pnpm exec fn-apps-cli build:gateway
 | Node.js | 24，最低 `>=24.0.0` | `.nvmrc`、根 `package.json#engines` |
 | pnpm | `>=11.16.0`，项目固定 `11.16.0` | 根 `package.json#packageManager`、CI |
 | [fnpack](https://developer.fnnas.com/docs/cli/fnpack/) | 本地 `1.2.3`；CI 构建 Workflow 当前使用 `1.2.1` | 本机 `PATH`、`.github/workflows/build-*.yml` |
-| [D2](https://d2lang.com/tour/install/) | `0.7.1`，仅文档流程图需要 | 本机 `PATH`、文档 Workflow |
 | [dsh](https://github.com/deepseek-ai/deepseek-harness) | 与插件兼容声明和锁定版本一致（当前 `0.1.5-rc.2`） | 根 `package.json`、`pnpm-lock.yaml` |
 
 初始化环境：
@@ -65,7 +64,7 @@ node --version
 pnpm --version
 ```
 
-调整 Node.js、pnpm、fnpack 或 D2 版本时，同时检查 `.nvmrc`、根 `package.json`、相关 Workflow 和本页。CI 的 fnpack 版本目前与本地版本不同，不要在未同步 Workflow 的情况下自行假定两者一致。
+调整 Node.js、pnpm、fnpack 或 dsh 版本时，同时检查 `.nvmrc`、根 `package.json`、相关 Workflow 和本页。CI 的 fnpack 版本目前与本地版本不同，不要在未同步 Workflow 的情况下自行假定两者一致。
 
 ## FPK 应用开发
 
@@ -216,11 +215,9 @@ pnpm run check -- --packages --plugins
 
 ## 文档开发
 
-文档由 VitePress 构建，流程图由 `vitepress-plugin-d2` 处理。构建包含 D2 代码块的文档前，确保 `d2 version` 可执行：
+文档由 VitePress 构建，流程图与时序图由 `vitepress-mermaid-plugin` 处理，图表在浏览器端渲染，无需安装额外系统工具：
 
 ```bash
-d2 version
-
 # 启动文档开发服务
 pnpm run start -- --docs
 
@@ -231,7 +228,7 @@ pnpm run build -- --docs
 pnpm run docs:preview
 ```
 
-`start` 是开发服务的唯一根入口；交互选择完成后，CLI 通过 Turbo 的 `dev` 任务统一启动插件和 `docs` workspace 的 VitePress 服务，文档开发端口固定为 `8876`。修改 `docs/` 下的 Markdown 后，VitePress 会自动更新页面。D2 图需要系统可执行文件 `d2`；如果它不在 `PATH`，可通过 `D2_BIN=/path/to/d2` 指定。D2 暂不可用时，文档服务会保留原始 D2 代码块而不会启动失败。
+`start` 是开发服务的唯一根入口；交互选择完成后，CLI 通过 Turbo 的 `dev` 任务统一启动插件和 `docs` workspace 的 VitePress 服务，文档开发端口固定为 `8876`。修改 `docs/` 下的 Markdown 后，VitePress 会自动更新页面。Mermaid 图使用 ` ```mermaid ` 代码块，渲染结果会自动跟随明暗主题切换。
 
 ## 根脚本与 Turbo
 

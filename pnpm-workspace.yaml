@@ -51,7 +51,16 @@ catalog:
   tsdown: ^0.22.2
   typescript: ^5.9.3
   vitepress: 1.6.4
-  vitepress-plugin-d2: 1.1.0
+  vitepress-mermaid-plugin: 3.0.0
+  mermaid: ^11.12.0
+  # vitepress-mermaid-plugin 在 vite.optimizeDeps.include 里硬编码了这几个包名。
+  # pnpm 严格隔离布局下 Mermaid 的传递依赖不会提升到 docs 根，必须显式声明，
+  # 否则 dev 模式报 "Failed to resolve dependency: cytoscape / debug / ..."。
+  '@braintree/sanitize-url': ^7.1.2
+  cytoscape: ^3.34.0
+  cytoscape-cose-bilkent: ^4.1.0
+  debug: ^4.4.3
+  fastdom: 1.0.12
   vitest: ^4.1.8
   commander: 14.0.1
 
@@ -177,6 +186,3 @@ minimumReleaseAgeExclude:
   - '@deepseek-ai/dsh-util-values@0.1.5-rc.2'
   - '@deepseek-ai/dsh-util-workspace-path@0.1.5-rc.2'
   - '@deepseek-ai/dsh-workspace@0.1.5-rc.2'
-
-patchedDependencies:
-  vitepress-plugin-d2@1.1.0: patches/vitepress-plugin-d2@1.1.0.patch

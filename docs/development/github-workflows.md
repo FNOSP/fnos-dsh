@@ -10,74 +10,70 @@
 - Pull Request 或手动触发质量链路，检查 SDD、文档、共享包和 harness 插件。
 - `v*` Tag 或手动触发文档部署链路，构建并部署 VitePress。
 
-```d2
-direction: down
+```mermaid
+flowchart TD
+  tag["推送 v* Tag"]
+  releaseWorkflow[".github/workflows/build-release.yml"]
+  prepare["prepare-release：创建或重置草稿 Release"]
+  dsh["build-dsh：可复用 Workflow"]
+  publish["publish-release：上传完成并生成 Release 说明"]
+  releaseStatus{"发布链路成功？"}
+  releaseDone["是：发布 Release"]
+  releaseFailure["否：report-failure 保留失败草稿"]
 
-tag: "推送 v* Tag"
-releaseWorkflow: ".github/workflows/build-release.yml"
-prepare: "prepare-release：创建或重置草稿 Release"
-dsh: "build-dsh：可复用 Workflow"
-publish: "publish-release：上传完成并生成 Release 说明"
-releaseStatus: {
-  label: "发布链路成功？"
-  shape: diamond
-}
-releaseDone: "是：发布 Release"
-releaseFailure: "否：report-failure 保留失败草稿"
+  tag --> releaseWorkflow --> prepare
+  prepare --> dsh
+  dsh --> publish
+  publish --> releaseStatus
+  releaseStatus -->|是| releaseDone
+  releaseStatus -->|否| releaseFailure
+  prepare -->|失败| releaseFailure
+  dsh -->|失败| releaseFailure
 
-qualityTrigger: "Pull Request / workflow_dispatch"
-sddWorkflow: ".github/workflows/sdd-check.yml"
-sddRun: "pnpm run check -- --all"
-sddDone: "SDD、文档、包和 harness 插件检查完成"
+  qualityTrigger["Pull Request / workflow_dispatch"]
+  sddWorkflow[".github/workflows/sdd-check.yml"]
+  sddRun["pnpm run check -- --all"]
+  sddDone["SDD、文档、包和 harness 插件检查完成"]
 
-docsTrigger: "v* Tag / workflow_dispatch"
-docsWorkflow: ".github/workflows/deploy-docs.yml"
-docsRun: "pnpm exec fn-apps-cli build --docs"
-pages: "上传 Pages artifact → 部署 GitHub Pages"
+  qualityTrigger --> sddWorkflow --> sddRun --> sddDone
 
-tag -> releaseWorkflow -> prepare
-prepare -> dsh
-dsh -> publish
-publish -> releaseStatus
-releaseStatus -> releaseDone: 是
-releaseStatus -> releaseFailure: 否
-prepare -> releaseFailure: 失败
-dsh -> releaseFailure: 失败
+  docsTrigger["v* Tag / workflow_dispatch"]
+  docsWorkflow[".github/workflows/deploy-docs.yml"]
+  docsRun["pnpm exec fn-apps-cli build --docs"]
+  pages["上传 Pages artifact → 部署 GitHub Pages"]
 
-qualityTrigger -> sddWorkflow -> sddRun -> sddDone
-docsTrigger -> docsWorkflow -> docsRun -> pages
+  docsTrigger --> docsWorkflow --> docsRun --> pages
 ```
 
 ## 两个发布 Job 的时序
 
 `prepare-release` 完成后，`build-dsh` 作为可复用 Workflow 执行；它完成后 `publish-release` 才会继续。
 
-```d2
-shape: sequence_diagram
+```mermaid
+sequenceDiagram
+  participant github as GitHub Actions
+  participant prepare as prepare-release<br/>创建或重置草稿 Release
+  participant dsh as build-dsh<br/>可复用 Workflow
+  participant gateway as build:gateway<br/>构建 fnOS Gateway
+  participant native as prepare_dsh<br/>准备 DSH native
+  participant dshBuild as build<br/>构建 Harness FPK + 上传
+  participant publish as publish-release<br/>等待构建 Job
+  participant notes as pnpm run release:notes<br/>调用 changelogithub
+  participant release as GitHub Release
 
-github: GitHub Actions
-prepare: "prepare-release\n创建或重置草稿 Release"
-dsh: "build-dsh\n可复用 Workflow"
-gateway: "build:gateway\n构建 fnOS Gateway"
-native: "prepare_dsh\n准备 DSH native"
-dshBuild: "build\n构建 Harness FPK + 上传"
-publish: "publish-release\n等待构建 Job"
-notes: "pnpm run release:notes\n调用 changelogithub"
-release: GitHub Release
-
-github -> prepare: push v* Tag
-prepare -> github: release_id
-prepare -> dsh: workflow_call(release_tag, release_id)
-dsh -> gateway: fn-apps-cli build:gateway
-gateway -> dsh: Gateway bundle
-dsh -> native: prepare-dsh-native.sh
-native -> dsh: resolved DSH_VERSION
-dsh -> dshBuild: fn-apps-cli build --fpk
-dshBuild -> dsh: FPK asset uploaded
-dsh -> publish: completed
-publish -> notes: assets 全部上传后
-notes -> release: changelogithub 执行完成
-release -> github: 发布 Release
+  github->>prepare: push v* Tag
+  prepare->>github: release_id
+  prepare->>dsh: workflow_call(release_tag, release_id)
+  dsh->>gateway: fn-apps-cli build:gateway
+  gateway->>dsh: Gateway bundle
+  dsh->>native: prepare-dsh-native.sh
+  native->>dsh: resolved DSH_VERSION
+  dsh->>dshBuild: fn-apps-cli build --fpk
+  dshBuild->>dsh: FPK asset uploaded
+  dsh->>publish: completed
+  publish->>notes: assets 全部上传后
+  notes->>release: changelogithub 执行完成
+  release->>github: 发布 Release
 ```
 
 ### `changelogithub` 的执行时机
@@ -95,37 +91,30 @@ Release 日志不是在 `build-dsh-fn.yml` 中生成的，而是在 `build-relea
 
 ### `build-dsh-fn.yml` 内部步骤
 
-```d2
-direction: down
+```mermaid
+flowchart TD
+  workflow["build-dsh-fn.yml"]
+  checkout["checkout"]
+  tooling["Node 24 + pnpm 11"]
+  install["安装 fnos-gateway... 与 CLI 依赖"]
+  gateway["fn-apps-cli build:gateway"]
+  native["prepare-dsh-native.sh"]
+  nativeStatus{"DSH_VERSION 已解析？"}
+  fnpack["安装 fnpack 1.2.1"]
+  build["fn-apps-cli build --fpk --app fn-deepseek-harness"]
+  rename["重命名并附加 DSH_VERSION"]
+  upload["上传 Harness FPK 到 Release"]
+  status{"上传成功？"}
+  done["是：构建完成"]
+  nativeFail["否：native 准备失败"]
+  uploadFail["否：重试 5 次后失败"]
 
-workflow: "build-dsh-fn.yml"
-checkout: "checkout"
-tooling: "Node 24 + pnpm 11"
-install: "安装 fnos-gateway... 与 CLI 依赖"
-gateway: "fn-apps-cli build:gateway"
-native: "prepare-dsh-native.sh"
-nativeStatus: {
-  label: "DSH_VERSION 已解析？"
-  shape: diamond
-}
-fnpack: "安装 fnpack 1.2.1"
-build: "fn-apps-cli build --fpk --app fn-deepseek-harness"
-rename: "重命名并附加 DSH_VERSION"
-upload: "上传 Harness FPK 到 Release"
-status: {
-  label: "上传成功？"
-  shape: diamond
-}
-done: "是：构建完成"
-nativeFail: "否：native 准备失败"
-uploadFail: "否：重试 5 次后失败"
-
-workflow -> checkout -> tooling -> install -> gateway -> native -> nativeStatus
-nativeStatus -> fnpack: 是
-nativeStatus -> nativeFail: 否
-fnpack -> build -> rename -> upload -> status
-status -> done: 是
-status -> uploadFail: 否
+  workflow --> checkout --> tooling --> install --> gateway --> native --> nativeStatus
+  nativeStatus -->|是| fnpack
+  nativeStatus -->|否| nativeFail
+  fnpack --> build --> rename --> upload --> status
+  status -->|是| done
+  status -->|否| uploadFail
 ```
 
 `build-dsh-fn.yml` 只接受 `workflow_call`，不会自行响应 push；它必须由 `build-release.yml` 传入 `release_tag` 和 `release_id`。
@@ -134,85 +123,75 @@ status -> uploadFail: 否
 
 下图只展示运行时真正读取或调用的边界：Workflow 调用 CLI，CLI 再调用 Turbo、VitePress、fnpack 或包内脚本；应用的 `manifest` 决定是否进入 FPK 矩阵。
 
-```d2
-direction: right
+```mermaid
+flowchart LR
+  subgraph workflows["GitHub Workflows"]
+    release[".github/workflows/build-release.yml"]
+    dsh[".github/workflows/build-dsh-fn.yml"]
+    docs[".github/workflows/deploy-docs.yml"]
+    sdd[".github/workflows/sdd-check.yml"]
+  end
 
-workflows: {
-  label: "GitHub Workflows"
-  release: ".github/workflows/build-release.yml"
-  dsh: ".github/workflows/build-dsh-fn.yml"
-  docs: ".github/workflows/deploy-docs.yml"
-  sdd: ".github/workflows/sdd-check.yml"
-}
+  subgraph repo["仓库入口与配置"]
+    rootPackage["package.json"]
+    lockfile["pnpm-lock.yaml"]
+    turbo["turbo.json"]
+    docsConfig["docs/.vitepress/config.mts"]
+  end
 
-repo: {
-  label: "仓库入口与配置"
-  rootPackage: "package.json"
-  lockfile: "pnpm-lock.yaml"
-  turbo: "turbo.json"
-  docsConfig: "docs/.vitepress/config.mts"
-}
+  subgraph cli["fn-apps-cli CLI"]
+    program["tooling/fn-os-apps-cli/src/program.ts"]
+    commands["tooling/fn-os-apps-cli/src/commands/*.ts"]
+    build["build / build:gateway"]
+    check["check"]
+    releaseNotes["release:notes"]
+  end
 
-cli: {
-  label: "fn-apps-cli CLI"
-  program: "tooling/fn-os-apps-cli/src/program.ts"
-  commands: "tooling/fn-os-apps-cli/src/commands/*.ts"
-  build: "build / build:gateway"
-  check: "check"
-  release: "release:notes"
-}
+  subgraph packages["Workspace packages"]
+    gateway["packages/fnos-gateway"]
+    sharedUi["packages/dsh-semi-ui"]
+    harnessPlugins["plugins/* harness 插件"]
+  end
 
-packages: {
-  label: "Workspace packages"
-  gateway: "packages/fnos-gateway"
-  sharedUi: "packages/dsh-semi-ui"
-  harnessPlugins: "plugins/* harness 插件"
-}
+  subgraph apps["FPK 应用"]
+    manifests["apps/*/manifest"]
+    harnessApp["apps/fn-deepseek-harness"]
+  end
 
-apps: {
-  label: "FPK 应用"
-  manifests: "apps/*/manifest"
-  harnessApp: "apps/fn-deepseek-harness"
-}
+  subgraph tools["外部工具与发布服务"]
+    fnpack["fnpack 1.2.1（CI）"]
+    native[".github/scripts/prepare-dsh-native.sh"]
+    nativeConfig[".github/config/dsh-native-0.1.5-rc.2.env"]
+    github["GitHub Release / Pages API"]
+  end
 
-tools: {
-  label: "外部工具与发布服务"
-  fnpack: "fnpack 1.2.1（CI）"
-  d2: "D2 0.7.1"
-  native: ".github/scripts/prepare-dsh-native.sh"
-  nativeConfig: ".github/config/dsh-native-0.1.5-rc.2.env"
-  github: "GitHub Release / Pages API"
-}
+  release -->|workflow_call| dsh
+  release --> releaseNotes
+  dsh -->|build:gateway + FPK| build
+  dsh --> gateway
+  dsh --> native
+  dsh --> nativeConfig
+  dsh --> harnessApp
+  dsh --> fnpack
+  dsh -->|上传 FPK| github
+  docs -->|--docs| build
+  docs --> docsConfig
+  docs -->|Pages| github
+  sdd -->|--all| check
+  sdd --> docsConfig
+  sdd --> rootPackage
+  sdd --> lockfile
+  sdd --> harnessPlugins
+  sdd --> manifests
 
-workflows.release -> workflows.dsh: workflow_call
-workflows.release -> cli.release
-workflows.dsh -> cli.build: build:gateway + FPK
-workflows.dsh -> packages.gateway
-workflows.dsh -> tools.native
-workflows.dsh -> tools.nativeConfig
-workflows.dsh -> apps.harnessApp
-workflows.dsh -> tools.fnpack
-workflows.dsh -> tools.github: 上传 FPK
-workflows.docs -> cli.build: --docs
-workflows.docs -> repo.docsConfig
-workflows.docs -> tools.d2
-workflows.docs -> tools.github: Pages
-workflows.sdd -> cli.check: --all
-workflows.sdd -> repo.docsConfig
-workflows.sdd -> tools.d2
-workflows.sdd -> repo.rootPackage
-workflows.sdd -> repo.lockfile
-workflows.sdd -> packages.harnessPlugins
-workflows.sdd -> apps.manifests
-
-cli.build -> repo.turbo
-cli.build -> packages.sharedUi: ^build
-cli.build -> packages.gateway: build:app
-cli.check -> repo.turbo
-cli.check -> packages.sharedUi
-cli.check -> packages.harnessPlugins
-repo.turbo -> packages.sharedUi
-repo.turbo -> packages.harnessPlugins
+  build --> turbo
+  build -->|^build| sharedUi
+  build -->|build:app| gateway
+  check --> turbo
+  check --> sharedUi
+  check --> harnessPlugins
+  turbo --> sharedUi
+  turbo --> harnessPlugins
 ```
 
 ## 各 Workflow 的职责
@@ -221,8 +200,8 @@ repo.turbo -> packages.harnessPlugins
 | --- | --- | --- | --- |
 | `build-release.yml` | 推送 `v*` Tag | 创建草稿 Release、调用 FPK 构建、发布 Release | `github.ref_name`、Release ID |
 | `build-dsh-fn.yml` | 仅 `workflow_call` | 构建 Gateway、准备 DSH native、构建 Harness FPK | `release_tag`、`release_id`、native 配置 |
-| `deploy-docs.yml` | `v*` Tag / 手动 | 构建 VitePress 并部署 GitHub Pages | D2、`DOCS_BASE=/` |
-| `sdd-check.yml` | Pull Request / 手动 | 执行完整 SDD、文档、包和 harness 插件检查 | 变更路径、D2 |
+| `deploy-docs.yml` | `v*` Tag / 手动 | 构建 VitePress 并部署 GitHub Pages | `DOCS_BASE=/` |
+| `sdd-check.yml` | Pull Request / 手动 | 执行完整 SDD、文档、包和 harness 插件检查 | 变更路径 |
 
 ## 发布链路
 
@@ -256,10 +235,9 @@ pnpm run release:notes
 
 ## 文档与 SDD 链路
 
-文档和 SDD Workflow 都需要 D2，因为页面包含 `d2` 代码块：
+文档和 SDD Workflow 都会构建 VitePress，因此页面里的 Mermaid 图会一并渲染：
 
 ```bash
-d2 version
 pnpm run build -- --docs
 pnpm run check -- --all
 ```
@@ -274,7 +252,7 @@ pnpm run check -- --all
 - [ ] 可复用 Workflow 的输入、输出和 `needs` 关系保持一致。
 - [ ] FPK 构建继续通过 `fn-apps-cli` 和 `fnpack`，不在 Workflow 中复制 CLI 逻辑。
 - [ ] 版本、DSH native 和 fnpack 版本来源与配置文件保持一致。
-- [ ] 文档或 D2 改动通过 `pnpm run build -- --docs`。
+- [ ] 文档或 Mermaid 图改动通过 `pnpm run build -- --docs`。
 - [ ] 提交前运行 `pnpm run check -- --all`。
 - [ ] 不把 `.fpk`、native 临时目录或 GitHub Token 写入仓库。
 
