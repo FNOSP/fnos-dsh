@@ -2,11 +2,11 @@
 layout: home
 
 hero:
-  text: 三方飞牛应用 by tnnevol
-  tagline: 从应用使用到 Native / Docker 应用构建的一站式指南
+  text: 飞牛 DeepSeek Harness 应用与插件
+  tagline: 在飞牛 fnOS 上打包和运行 DeepSeek Harness，同时维护可装进任意 DSH 客户端的插件与工具
   image:
-    src: /icons/site-icon.png
-    alt: 三方飞牛应用图标
+    src: /icons/dsh-logo.svg
+    alt: DeepSeek Harness 图标
   actions:
     - theme: brand
       text: 快速开始
@@ -16,13 +16,16 @@ hero:
       link: /apps/
 
 features:
-  - title: 应用目录
-    details: 查看仓库中各个 fnOS 应用的功能、依赖、安装方式和项目链接。
+  - title: 应用文档
+    details: DeepSeek Harness 在飞牛 fnOS 上的打包、安装和运行说明。
     link: /apps/
+  - title: Harness 插件
+    details: 仓库维护的 DSH 插件和共享 UI 包，可装进任意 DSH 客户端。
+    link: /plugins/
   - title: 开发指南
-    details: 从 Manifest、生命周期、权限和用户向导，到 package 任务与 Turbo 编排的完整开发指南。
+    details: 从 Manifest、生命周期、权限和用户向导，到 package 任务与 Turbo 编排。
     link: /development/environment-and-scripts
   - title: 构建发布
-    details: 使用 Turbo、fnpack、bumpp 和 GitHub Actions 完成任务编排与打包发布。
+    details: 用 Turbo、fnpack、bumpp 和 GitHub Actions 完成打包与发布。
     link: /build/fnpack
 ---

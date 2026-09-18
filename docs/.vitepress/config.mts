@@ -68,7 +68,43 @@ const appItems = [
   { text: 'DeepSeek Harness', link: '/apps/fn-deepseek-harness' }
 ]
 
+// Harness 插件作为「应用文档」下的子模块；`/plugins/` 路由仍可直达，
+// 因此两处 sidebar 复用同一组条目，避免出现两份需要同步维护的菜单。
+const pluginItems = [
+  { text: '插件总览', link: '/plugins/' },
+  { text: 'dsh-fnos', link: '/plugins/dsh-fnos' },
+  { text: 'dsh-codex-auth', link: '/plugins/dsh-codex-auth' },
+  { text: 'dsh-codebuddy', link: '/plugins/dsh-codebuddy' },
+  { text: 'DSH Semi UI', link: '/plugins/dsh-semi-ui' },
+  { text: 'Semi UI 组件总览', link: '/plugins/semi-ui' },
+  { text: 'DSH Semi UI 总览', link: '/plugins/dsh-semi-ui-showcase' }
+]
+
+const appSidebar = [
+  {
+    text: '应用文档',
+    items: appItems
+  },
+  {
+    text: 'Harness 插件',
+    items: pluginItems
+  }
+]
+
+// 「开始使用」并入「开发指南」作为首个子模块；`/guide/` 路由仍可直达，
+// 因此该路由复用同一组 sidebar，避免出现两份需要同步维护的菜单。
+const guideItems = [
+  { text: '快速开始', link: '/guide/quick-start' },
+  { text: '仓库结构', link: '/guide/repository-structure' },
+  { text: 'SDD 维护规范', link: '/guide/sdd-workflow' },
+  { text: 'SDD 模式转换报告', link: '/guide/sdd-transition-report' }
+]
+
 const developmentSidebar = [
+  {
+    text: '开始使用',
+    items: guideItems
+  },
   {
     text: '开发指南',
     items: [
@@ -163,86 +199,47 @@ const plansSidebar = [
   }
 ]
 
-const testCasesSidebar = [
-  {
-    text: '测试用例',
-    items: [
-      { text: '规范', link: '/test-cases/' },
-      { text: 'FNOS-002 测试用例明细', link: '/test-cases/FNOS-002-test-cases' }
-    ]
-  }
-]
+// 项目内置的 DeepSeek Harness 图标，供标签 favicon、导航栏 logo 和首页 hero 图共用。
+const DSH_LOGO = '/icons/dsh-logo.svg'
 
 export default defineConfig({
   lang: 'zh-CN',
-  title: 'fnOS Apps',
-  description: '飞牛 fnOS 应用开发、构建与使用文档。',
+  title: 'fnOS DeepSeek Harness',
+  description: '飞牛 fnOS 的 DeepSeek Harness 应用与 DSH 插件开发文档。',
   base,
   vite: {
     server: {
-      port: 9876
+      port: 8876
     }
   },
-  head: [['link', { rel: 'icon', href: `${base}icons/site-icon.png` }]],
+  head: [['link', { rel: 'icon', href: `${base}icons/dsh-logo.svg` }]],
   cleanUrls: true,
   lastUpdated: true,
   markdown: {
     config: configureMarkdown
   },
   themeConfig: {
-    siteTitle: 'fnOS Apps',
+    siteTitle: 'fnOS DeepSeek Harness',
     logo: {
-      src: '/icons/site-icon.png',
-      alt: '三方飞牛应用'
+      src: DSH_LOGO,
+      alt: 'DeepSeek Harness'
     },
     version: packageJson.version,
     nav: [
-      { text: '开始使用', link: '/guide/quick-start' },
-      { text: '应用文档', link: '/apps/' },
-      { text: 'Harness 插件', link: '/plugins/' },
       { text: '开发指南', link: '/development/environment-and-scripts' },
+      { text: '应用文档', link: '/apps/' },
       { text: '需求清单', link: '/requirements/' },
-      { text: '详细计划', link: '/plans/' },
-      { text: '测试用例', link: '/test-cases/' }
+      { text: '详细计划', link: '/plans/' }
     ],
     sidebar: {
-      '/guide/': [
-        {
-          text: '开始使用',
-          items: [
-            { text: '快速开始', link: '/guide/quick-start' },
-            { text: '仓库结构', link: '/guide/repository-structure' },
-            { text: 'SDD 维护规范', link: '/guide/sdd-workflow' },
-            { text: 'SDD 模式转换报告', link: '/guide/sdd-transition-report' }
-          ]
-        }
-      ],
-      '/apps/': [
-        {
-          text: '应用文档',
-          items: appItems
-        }
-      ],
-      '/plugins/': [
-        {
-          text: 'Harness 插件',
-          items: [
-            { text: '插件总览', link: '/plugins/' },
-            { text: 'dsh-fnos', link: '/plugins/dsh-fnos' },
-            { text: 'dsh-codex-auth', link: '/plugins/dsh-codex-auth' },
-            { text: 'dsh-codebuddy', link: '/plugins/dsh-codebuddy' },
-            { text: 'DSH Semi UI', link: '/plugins/dsh-semi-ui' },
-            { text: 'Semi UI 组件总览', link: '/plugins/semi-ui' },
-            { text: 'DSH Semi UI 总览', link: '/plugins/dsh-semi-ui-showcase' }
-          ]
-        }
-      ],
+      '/guide/': developmentSidebar,
+      '/apps/': appSidebar,
+      '/plugins/': appSidebar,
       '/development/': developmentSidebar,
       '/build/': developmentSidebar,
       '/troubleshooting': developmentSidebar,
       '/requirements/': requirementsSidebar,
       '/plans/': plansSidebar,
-      '/test-cases/': testCasesSidebar,
       '/contributing': developmentSidebar
     },
     outline: {

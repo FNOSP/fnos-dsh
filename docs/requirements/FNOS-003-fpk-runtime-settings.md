@@ -19,7 +19,7 @@ lastVerified: 2026-09-12
 
 ## 需求背景与目标
 
-目前仓库内 15 个应用都已提供 `cmd/main`、`cmd/config_init`、`cmd/config_callback` 与 `cmd/uninstall_callback`，其中 11 个已提供 `wizard/config`。没有 `wizard/config` 时，用户无法在 fnOS 的“应用设置”中修改应用运行参数；已有安装向导的配置也可能与运行时配置分散，导致字段、默认值和校验规则不一致。剩余未提供 `wizard/config` 的 4 个应用经审计均无运行参数（Shell 工具与 Docker 一次性参数），按需求边界不新增空配置页。
+目前仓库内维护 `fn-deepseek-harness` 一个 FPK 应用，它已提供 `cmd/main`、`cmd/config_init`、`cmd/config_callback` 与 `cmd/uninstall_callback`。没有 `wizard/config` 时，用户无法在 fnOS 的“应用设置”中修改应用运行参数；已有安装向导的配置也可能与运行时配置分散，导致字段、默认值和校验规则不一致。
 
 本需求同时承接 FNOS-002 已实现但尚未完成目标环境验收的工作：DSH FPK 内置插件包与发布清单版本对齐、安装/升级/回滚保留配置、网关完整代理场景，以及 Codex 动态模型目录的目标环境验收；原 FNOS-002-06 的 CodeBuddy 需求与计划内容也整体迁入本需求，但该插件不依赖 fnOS——它只依赖 DSH 的插件接缝，任一 DSH 客户端（Web、桌面、其它发行形态）均可使用，因此其验收在 DSH 客户端完成，不绑定 NAS。
 
@@ -27,7 +27,7 @@ lastVerified: 2026-09-12
 
 ## 需求目标
 
-- 为目标应用提供 `wizard/config`，在应用设置中展示可修改的运行参数。
+- 为 `fn-deepseek-harness` 提供 `wizard/config`，在应用设置中展示可修改的运行参数。
 - 运行配置与 `wizard/install` 中对应的运行字段保持名称、类型、默认值和校验规则一致。
 - 保存后通过 `cmd/config_callback` 使配置生效；`cmd/main` 继续负责启动、停止和状态维护。
 - 一次性安装参数不出现在运行设置中；不需要运行配置的应用不增加空设置页。
@@ -43,7 +43,7 @@ lastVerified: 2026-09-12
 
 | 模块 | 目录或入口 | 职责 |
 | --- | --- | --- |
-| FPK 应用 | `apps/*/manifest`、`wizard/install`、`wizard/config` | 声明安装配置和可持续修改的运行配置 |
+| FPK 应用 | `apps/fn-deepseek-harness/manifest`、`wizard/install`、`wizard/config` | 声明安装配置和可持续修改的运行配置 |
 | 生命周期脚本 | `cmd/main`、`cmd/config_init`、`cmd/config_callback` | 读取 `wizard_*` 环境变量，管理进程并应用配置变更 |
 | 开发文档 | `docs/development`、应用文档 | 记录字段来源、脚本关系和验证方式 |
 | 构建与验证 | FPK 构建脚本、测试目录、目标 NAS | 验证设置展示、保存生效和升级保留配置 |
@@ -53,7 +53,7 @@ lastVerified: 2026-09-12
 
 | 编号 | 优先级 | 功能 | 用户行为 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-003-01 | P1 | 运行设置入口 | 在应用中心打开应用设置，可看到目标应用的运行参数配置 | <Badge type="tip" text="已完成" /> |
+| FNOS-003-01 | P1 | 运行设置入口 | 在应用中心打开应用设置，可看到 `fn-deepseek-harness` 的运行参数配置 | <Badge type="tip" text="已完成" /> |
 | FNOS-003-02 | P1 | 安装与运行配置一致 | 安装时与运行时使用同一套字段契约，修改后字段值能被生命周期脚本读取 | <Badge type="tip" text="已完成" /> |
 | FNOS-003-03 | P1 | 配置变更生效 | 用户保存配置后，应用按约定重载或重启服务，并能看到新的运行状态 | <Badge type="tip" text="已完成" /> |
 | FNOS-003-04 | P1 | 一次性配置边界 | 仅安装阶段使用的路径、初始化选项和迁移参数不出现在运行设置中 | <Badge type="tip" text="已完成" /> |
@@ -71,13 +71,12 @@ lastVerified: 2026-09-12
 
 ## 交互和行为约束
 
-- 目标应用的“应用设置”只展示真实可运行时修改的字段；没有此类字段的应用不新增 `wizard/config`。
-- `wizard/config` 的字段名按**应用形态**分两类，两类都要求与 `wizard/install` 中的同义字段同名、同默认值、同校验：
+- `fn-deepseek-harness` 的“应用设置”只展示真实可运行时修改的字段。
+- `wizard/config` 的字段名要求与 `wizard/install` 中的同义字段同名、同默认值、同校验：
   - **Native 应用**（自行读取环境变量）：使用稳定的 `wizard_*` 前缀，例如 `wizard_host`、`wizard_port`、`wizard_trusted_hosts`。
-  - **Docker 应用**（由 `app/docker/docker-compose.yaml` 直接引用）：沿用 compose 已引用的裸名（如 `DB_TYPE`、`APP_PORT`、`SQL_DSN`），不为统一前缀而改写已发布应用的变量名。
 - 保存由 fnOS 统一提交；保存成功后调用 `cmd/config_callback`，由脚本决定安全重载或重启，不在 Client 侧伪造状态。
 - `cmd/main` 负责 `start`、`stop`、`status`；`cmd/config_callback` 负责配置保存后的应用变更，两者职责不能互相替代。
-- `cmd/config_callback` 不得保持占位：Native 应用要按约定重载或重启进程；Docker 应用要显式记录“由 appcenter 依据新环境变量重建容器”的生效路径，并在文档与验收中说明。
+- `cmd/config_callback` 不得保持占位：Native 应用要按约定重载或重启进程，并在文档与验收中说明生效路径。
 - `ctl_stop=false` 的应用仍不显示应用中心的启停控制；这与是否提供运行设置是两个独立条件。
 - 密码、Token 等敏感值按 fnOS 配置类型处理，不在普通日志和页面中回显。
 - DSH FPK 的监听地址只允许 `127.0.0.1`：`0.0.0.0` 选项显示为「暂不支持」并禁用；可信访问地址必填，填写的是打开 NAS Web 的 host 或 host:port，不得填 DSH 自身监听端口。
@@ -91,7 +90,7 @@ lastVerified: 2026-09-12
 
 ## 不在本次范围内
 
-- 不为所有应用机械复制 `wizard/install`，不为没有运行参数的应用增加空配置页。
+- 不机械复制 `wizard/install`，不为没有运行参数的应用增加空配置页。
 - 不修改 fnOS 应用中心的设置页面或生命周期协议。
 - 不改变应用业务功能、数据目录、权限模型和已有安装迁移策略。
 - 不把 `ctl_stop` 的启停按钮行为与运行设置入口合并。
@@ -101,10 +100,10 @@ lastVerified: 2026-09-12
 
 ### P1 验收条件
 
-- 选定的目标应用在应用设置中显示对应的运行参数，字段类型、默认值和校验结果正确。
+- `fn-deepseek-harness` 在应用设置中显示对应的运行参数，字段类型、默认值和校验结果正确。
 - 保存后 `cmd/config_callback` 收到新值并按应用约定使服务生效；`cmd/main status` 返回真实状态。
 - 重启或升级应用后，运行配置和用户数据保留；一次性安装参数不会被错误覆盖。
-- 没有运行参数的应用不出现空的运行设置；`ctl_stop=false` 的应用不因此新增启停控制。
+- `fn-deepseek-harness` 的运行设置不出现空配置页；`ctl_stop=false` 时也不因此新增启停控制。
 - 完成 FPK 构建和真实 NAS 安装验证后，需求状态才能改为已完成。
 - DSH FPK 中内置插件版本与 `published-dsh-plugins.json` 一致，安装、升级、回滚和插件加载不丢失用户配置。
 - DSH 网关的 HTTP、SSE、WebSocket、权限、并发、异常恢复场景在目标 NAS 验收通过。
@@ -126,7 +125,7 @@ lastVerified: 2026-09-12
 
 | 阶段 | 状态 | 当前范围 | 下一步 |
 | --- | --- | --- | --- |
-| P1 运行设置统一 | <Badge type="tip" text="已完成" /> | 11 个应用已提供 `wizard/config`；4 个无运行参数的应用已确认不纳入；展示、保存、回调和目标环境验证全部通过 | 无 |
+| P1 运行设置统一 | <Badge type="tip" text="已完成" /> | `fn-deepseek-harness` 已提供 `wizard/config`；展示、保存、回调和目标环境验证全部通过 | 无 |
 | FNOS-002 遗留 DSH 验收 | <Badge type="tip" text="已完成" /> | FPK、网关、插件管理面板和 Codex 遗留场景全部完成目标环境验收 | 无 |
 | P1 CodeBuddy 多账号与管理面板 | <Badge type="tip" text="已完成" /> | 多账号、双客户端登录、自动切换、签到、旅行、资源包台账、Token ECharts 面板及需求 002/003 全部验收通过 | 无 |
 | CodeBuddy 需求 002/003 | <Badge type="tip" text="已完成" /> | 自动切换开启时隐藏所有手动切换入口；添加账号登录在途时禁用整表单并在指定结局解除 | 无 |

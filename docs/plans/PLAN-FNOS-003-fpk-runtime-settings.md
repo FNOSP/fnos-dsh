@@ -20,7 +20,7 @@ lastVerified: 2026-09-12
 
 ## 计划目标
 
-为确实存在可修改运行参数的 FPK 应用建立 `wizard/config`，复用安装向导中的运行字段契约，并在保存后通过 `cmd/config_callback` 安全应用变更。全量审计已完成：15 个应用中 11 个已提供 `wizard/config`，4 个（`fn-nvm`、`fn-ohmyzsh`、`fn-uv`、`fn-xiaoya-only`）无运行参数，不新增空配置页。
+为 `fn-deepseek-harness` 建立 `wizard/config`，复用安装向导中的运行字段契约，并在保存后通过 `cmd/config_callback` 安全应用变更。
 
 本计划不修改 fnOS 平台协议，不把 `cmd/main` 改造成配置处理器，也不把一次性安装参数暴露为运行设置。FNOS-002 遗留验收只修复验证中发现的集成问题，不重新实现已经落地的插件和网关功能。
 
@@ -32,8 +32,8 @@ v5.3.1 之后落地的实现一并纳入本计划：应用设置本体（`FNOS-0
 
 | 模块 | 计划入口 | 实现责任 |
 | --- | --- | --- |
-| 应用清单 | `apps/*/manifest`、`wizard/install` | 盘点运行字段、安装字段、默认值和校验规则 |
-| 运行设置 | 目标应用 `wizard/config` | 为可修改运行参数生成 fnOS 应用设置表单 |
+| 应用清单 | `apps/fn-deepseek-harness/manifest`、`wizard/install` | 盘点运行字段、安装字段、默认值和校验规则 |
+| 运行设置 | `apps/fn-deepseek-harness/wizard/config` | 为可修改运行参数生成 fnOS 应用设置表单 |
 | 生命周期 | `cmd/main`、`cmd/config_init`、`cmd/config_callback` | 读取配置、维护状态、保存后重载或重启 |
 | FPK 构建 | 应用构建脚本和根 `build` CLI 入口 | 打包配置文件并验证安装产物 |
 | 文档与测试 | `docs/`、应用测试目录 | 记录选择依据并验证设置、升级和 NAS 行为 |
@@ -54,16 +54,14 @@ v5.3.1 之后落地的实现一并纳入本计划：应用设置本体（`FNOS-0
       detail: '应用中心「应用设置」中的运行配置；仅展示审计确认的运行字段',
       variant: 'primary',
       children: [
-        { label: 'Native 应用', detail: '字段名以 wizard_* 为前缀，脚本直接读取' },
-        { label: 'Docker 应用', detail: '沿用 compose 裸名（如 DB_TYPE / APP_PORT），由 compose 引用' }
+        { label: 'Native 应用', detail: '字段名以 wizard_* 为前缀，脚本直接读取' }
       ]
     },
     {
       label: '生效路径',
       detail: '保存后由 fnOS 触发 cmd/config_callback，应用按形态决定如何应用新配置',
       children: [
-        { label: 'Native：重载/重启', detail: 'cmd/main 重读 wizard_* 后 start / status' },
-        { label: 'Docker：容器重建', detail: 'appcenter 用新环境变量重建容器' }
+        { label: 'Native：重载/重启', detail: 'cmd/main 重读 wizard_* 后 start / status' }
       ]
     }
   ]"
@@ -74,7 +72,7 @@ v5.3.1 之后落地的实现一并纳入本计划：应用设置本体（`FNOS-0
   :steps="[
     { label: '① 用户在应用中心编辑运行配置', detail: '修改 wizard/config 字段并保存', variant: 'primary' },
     { label: '② fnOS 写回 wizard_* 环境变量', detail: '取消则不提交，旧值保留' },
-    { label: '③ cmd/config_callback 执行', detail: 'Native 重载/重启；Docker 由 appcenter 重建容器', variant: 'success' },
+    { label: '③ cmd/config_callback 执行', detail: '重载或重启应用进程', variant: 'success' },
     { label: '④ cmd/main status 校验新状态', detail: 'PID 健康、应用就绪', variant: 'success' },
     { label: '⑤ 失败保留旧配置并展示错误', detail: '不伪造成功；凭据和工作目录不删除', variant: 'warning' },
     { label: '⑥ 升级/回滚保留运行配置与用户数据', detail: '一次性安装参数不会被覆盖' }
@@ -89,12 +87,12 @@ v5.3.1 之后落地的实现一并纳入本计划：应用设置本体（`FNOS-0
 
 状态：<Badge type="tip" text="已完成" />
 
-审计结论：15 个应用全部提供 `cmd/main`、`cmd/config_init`、`cmd/config_callback`、`cmd/uninstall_callback`；11 个已提供 `wizard/config`；`fn-nvm`、`fn-ohmyzsh`、`fn-uv` 为 Shell/CLI 工具（`ctl_stop=false`，无守护进程），`fn-xiaoya-only` 仅在安装向导收集一次性账号凭据，四者均无运行参数，不纳入。
+审计结论：`fn-deepseek-harness` 已提供 `cmd/main`、`cmd/config_init`、`cmd/config_callback`、`cmd/uninstall_callback` 和 `wizard/config`，其运行参数（监听地址、监听端口、可信访问地址、npm 镜像源）均可通过应用设置修改。
 
 | 任务 ID | 实现内容 | 验收 |
 | --- | --- | --- |
-| PLAN-FNOS-003-A01 | 盘点所有 `apps/*` 的 `wizard/install`、`wizard/config`、`cmd/main`、`cmd/config_init`、`cmd/config_callback` 和 `ctl_stop` | 形成应用配置审计表 |
-| PLAN-FNOS-003-A02 | 区分运行参数、一次性安装参数和不可配置参数，确定目标应用清单 | 每个应用有纳入/不纳入理由 |
+| PLAN-FNOS-003-A01 | 盘点 `apps/fn-deepseek-harness` 的 `wizard/install`、`wizard/config`、`cmd/main`、`cmd/config_init`、`cmd/config_callback` 和 `ctl_stop` | 形成应用配置审计表 |
+| PLAN-FNOS-003-A02 | 区分运行参数、一次性安装参数和不可配置参数 | 每类字段有纳入/不纳入理由 |
 | PLAN-FNOS-003-A03 | 对目标字段确认变量名、类型、默认值、选项、校验和敏感信息处理 | 字段契约可被安装与运行脚本共同消费 |
 
 ### P1：运行设置与脚本接入
@@ -103,10 +101,10 @@ v5.3.1 之后落地的实现一并纳入本计划：应用设置本体（`FNOS-0
 
 | 任务 ID | 实现内容 | 验收 |
 | --- | --- | --- |
-| PLAN-FNOS-003-R01 | 为目标应用新增或补齐 `wizard/config`，只加入审计确认的运行字段 | 应用设置显示正确字段，不出现一次性参数 |
-| PLAN-FNOS-003-R02 | 让 `wizard/install` 与 `wizard/config` 的运行字段保持契约一致；Native 用 `wizard_*`，Docker 沿用 compose 裸名 | 安装后读取值与设置保存后的读取值一致 |
+| PLAN-FNOS-003-R01 | 为 `fn-deepseek-harness` 新增或补齐 `wizard/config`，只加入审计确认的运行字段 | 应用设置显示正确字段，不出现一次性参数 |
+| PLAN-FNOS-003-R02 | 让 `wizard/install` 与 `wizard/config` 的运行字段保持契约一致；使用 `wizard_*` 前缀 | 安装后读取值与设置保存后的读取值一致 |
 | PLAN-FNOS-003-R03 | 检查 `cmd/main`、`cmd/config_init` 和 `cmd/config_callback` 的读取和生效逻辑 | 保存后安全重载/重启，状态可查询 |
-| PLAN-FNOS-003-R04 | 补齐 `cmd/config_callback` 的真实生效逻辑：Native 重载/重启，Docker 明确记录 appcenter 重建容器路径 | 回调不再是占位；改配置后行为与文档一致，且不产生重复进程 |
+| PLAN-FNOS-003-R04 | 补齐 `cmd/config_callback` 的真实生效逻辑：重载或重启进程 | 回调不再是占位；改配置后行为与文档一致，且不产生重复进程 |
 | PLAN-FNOS-003-R05 | DSH FPK 运行参数约束：`0.0.0.0` 置灰标注暂不支持，可信访问地址必填且不填 DSH 端口 | 无法选择 `0.0.0.0`；填 3080 时校验拒绝；保存后按新配置重启且状态正确 |
 
 ### P1：构建与目标环境验证
@@ -116,8 +114,8 @@ v5.3.1 之后落地的实现一并纳入本计划：应用设置本体（`FNOS-0
 | 任务 ID | 实现内容 | 验收 |
 | --- | --- | --- |
 | PLAN-FNOS-003-V01 | 执行应用级检查并构建 FPK | FPK 包含正确的 `wizard/config` 和脚本 |
-| PLAN-FNOS-003-V02 | 在 NAS 安装、修改、保存、重启和升级目标应用 | 配置生效且用户数据保留 |
-| PLAN-FNOS-003-V03 | 更新应用开发文档和导航，记录未纳入应用的原因 | 文档、菜单和实际能力一致 |
+| PLAN-FNOS-003-V02 | 在 NAS 安装、修改、保存、重启和升级 `fn-deepseek-harness` | 配置生效且用户数据保留 |
+| PLAN-FNOS-003-V03 | 更新应用开发文档和导航 | 文档、菜单和实际能力一致 |
 
 ### P1：FNOS-002 遗留 DSH 集成验收
 
@@ -165,7 +163,7 @@ v5.3.1 之后落地的实现一并纳入本计划：应用设置本体（`FNOS-0
 
 ### P1：应用设置运行配置流程
 
-1. 用户在 fnOS 应用中心打开目标应用的“应用设置”。
+1. 用户在 fnOS 应用中心打开 `fn-deepseek-harness` 的“应用设置”。
 2. fnOS 根据 `wizard/config` 展示运行字段；首次打开显示已保存值或字段默认值。
 3. 用户修改字段并统一点击保存；取消则不提交变更。
 4. fnOS 保存成功后触发 `cmd/config_callback`，脚本检查应用状态并执行约定的重载或重启。
@@ -191,7 +189,7 @@ v5.3.1 之后落地的实现一并纳入本计划：应用设置本体（`FNOS-0
 
 | 项目 | 风险或决策 | 处理方式 |
 | --- | --- | --- |
-| 应用选择 | 并非所有应用都有可运行时修改的参数 | 先审计，按字段用途决定是否增加 `wizard/config` |
+| 应用选择 | 运行参数与一次性安装参数容易混淆 | 先审计，按字段用途决定是否加入 `wizard/config` |
 | 安装与运行配置 | 直接复制可能暴露一次性字段或造成默认值漂移 | 只复用运行字段，建立字段契约检查 |
 | 生命周期 | `cmd/main` 和 `cmd/config_callback` 职责不同 | main 只管生命周期，callback 只处理保存后的变更 |
 | 启停控制 | `ctl_stop=false` 与运行设置无直接关系 | 两套能力分别按 manifest 语义验证 |
@@ -201,8 +199,8 @@ v5.3.1 之后落地的实现一并纳入本计划：应用设置本体（`FNOS-0
 
 ### 脚本和应用级检查
 
-- 检查目标应用的 `wizard/config` 字段与 `wizard/install` 运行字段一致。
-- 对目标应用执行现有 typecheck、shell lint、单元测试和构建命令。
+- 检查 `fn-deepseek-harness` 的 `wizard/config` 字段与 `wizard/install` 运行字段一致。
+- 对应用执行现有 typecheck、shell lint、单元测试和构建命令。
 - 执行：
 
 ```bash
@@ -226,7 +224,6 @@ pnpm --filter @tnnevol/dsh-codebuddy run build
 - 修改并保存字段，确认 `cmd/config_callback` 执行且应用运行参数已更新。
 - 验证应用停止、启动、状态查询和配置回调不会创建重复进程。
 - 升级后确认运行配置、用户数据、凭据和工作目录保留。
-- 对未纳入目标清单的应用确认没有新增空的运行设置入口。
 - 在 DSH 客户端完成 CodeBuddy 多账号添加、切换、签到、额度/有效期查看和自动切换验证，并确认 Token 统计图表与本地会话日志一致（该插件不依赖 fnOS）。
 
 ## 参考资料
@@ -244,8 +241,8 @@ pnpm --filter @tnnevol/dsh-codebuddy run build
 
 | 阶段 | 状态 | 完成条件 |
 | --- | --- | --- |
-| P0 应用配置审计 | <Badge type="tip" text="已完成" /> | 所有应用完成运行字段与一次性字段分类 |
-| P1 运行设置与脚本接入 | <Badge type="tip" text="已完成" /> | 目标应用设置可展示、保存并由回调生效 |
+| P0 应用配置审计 | <Badge type="tip" text="已完成" /> | 运行字段与一次性字段分类完成 |
+| P1 运行设置与脚本接入 | <Badge type="tip" text="已完成" /> | 应用设置可展示、保存并由回调生效 |
 | P1 FPK 与 NAS 验证 | <Badge type="tip" text="已完成" /> | FPK 安装、升级和真实 NAS 验收通过 |
 | FNOS-002 遗留 DSH 集成验收 | <Badge type="tip" text="已完成" /> | FPK、网关与 Codex 遗留场景完成目标环境验收并回写 FNOS-002（CodeBuddy 与 fnOS 无关，改在 DSH 客户端验收） |
 | P1 CodeBuddy 多账号与管理面板 | <Badge type="tip" text="已完成" /> | 多账号、自动切换、签到、额度/有效期和 Token ECharts 面板及需求 002/003 全部验收通过 |

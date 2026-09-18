@@ -374,3 +374,28 @@
     overflow-x: auto;
   }
 }
+
+/*
+ * 首页 hero 图使用项目内置的 `dsh-logo.svg`。VitePress 只给 `.image-src` 设
+ * `max-width/max-height`，图片不会被放大：原 512×512 的 PNG 会撑到断点上限，
+ * 而 50×50 的 SVG 只会显示 50px。这里显式给出与各断点上限一致的宽高，
+ * 让新图保持原图的视觉尺寸。
+ */
+.VPHero .image-src {
+  width: 192px;
+  height: 192px;
+}
+
+@media (min-width: 640px) {
+  .VPHero .image-src {
+    width: 256px;
+    height: 256px;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHero .image-src {
+    width: 320px;
+    height: 320px;
+  }
+}
