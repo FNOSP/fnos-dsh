@@ -18,4 +18,4 @@ dsh plugin --profile web add @tnnevol/dsh-semi-ui-showcase@0.1.5-rc.2
 - 覆盖按钮、图标、下拉、级联、树、弹窗、进度、加载和提示等组件
 - 检查浅色、深色和系统三种主题下的组件状态和浮层表现
 
-更完整的说明见线上文档：<https://fnapps-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase>
+更完整的说明见线上文档：<https://fndsh-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase>

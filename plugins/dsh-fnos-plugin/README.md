@@ -19,4 +19,4 @@ dsh plugin --profile web add @tnnevol/dsh-fnos@0.1.5-rc.2
 - 在应用中打开：把文件、链接丢进对应的 fnOS 应用
 - 把 DSH 页面标题同步到 fnOS 应用窗口
 
-更完整的说明见线上文档：<https://fnapps-doc.tnnevol.cn/plugins/dsh-fnos>
+更完整的说明见线上文档：<https://fndsh-doc.tnnevol.cn/plugins/dsh-fnos>

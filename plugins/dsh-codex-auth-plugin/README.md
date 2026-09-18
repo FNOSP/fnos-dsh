@@ -19,4 +19,4 @@ dsh plugin --profile web add @tnnevol/dsh-codex-auth@0.1.5-rc.2
 - 对话输入区右侧显示当前 Codex 模型的用量状态，可展开看剩余额度和重置时间
 - 读取并在模型选择器里展示 Codex 模型目录
 
-更完整的说明见线上文档：<https://fnapps-doc.tnnevol.cn/plugins/dsh-codex-auth>
+更完整的说明见线上文档：<https://fndsh-doc.tnnevol.cn/plugins/dsh-codex-auth>

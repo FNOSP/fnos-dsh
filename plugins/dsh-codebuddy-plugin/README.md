@@ -19,4 +19,4 @@ dsh plugin --profile web add @tnnevol/dsh-codebuddy@0.1.5-rc.2
 - 对话输入区右侧实时显示额度余量
 - 登录、账号信息和用量偏好都在 Web 界面里调整，改完即时生效
 
-更完整的说明见线上文档：<https://fnapps-doc.tnnevol.cn/plugins/dsh-codebuddy>
+更完整的说明见线上文档：<https://fndsh-doc.tnnevol.cn/plugins/dsh-codebuddy>
