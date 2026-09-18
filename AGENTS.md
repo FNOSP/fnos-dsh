@@ -6,11 +6,24 @@
 
 **技术栈**：fnOS Native 和 Docker 应用规范（bash 生命周期脚本 + JSON 配置；Docker 应用额外使用 docker-compose），非传统前后端项目。
 
----
+当前应用：`apps/fn-deepseek-harness`（Native）。仓库暂无 Docker 应用。
 
-## Agent 开发指南
+## 文档索引
 
-### 官方文档
+改动前先读对应页面，细节以文档站为准，本文只保留 Agent 开工所需的约束。
+
+| 内容 | 入口 |
+| --- | --- |
+| 开发环境与命令入口 | [`docs/development/environment.md`](docs/development/environment.md)、[`commands-and-scripts.md`](docs/development/commands-and-scripts.md) |
+| 应用结构、构建与设备验证 | [`docs/development/app-structure.md`](docs/development/app-structure.md) |
+| Manifest、生命周期、权限、向导 | [`docs/development/manifest.md`](docs/development/manifest.md)、[`lifecycle.md`](docs/development/lifecycle.md)、[`permissions.md`](docs/development/permissions.md)、[`wizard.md`](docs/development/wizard.md) |
+| 插件开发与本地 DSH Web | [`docs/development/plugin-development.md`](docs/development/plugin-development.md)、[`local-dsh-web.md`](docs/development/local-dsh-web.md) |
+| Turbo 任务与 CLI 命令 | [`docs/development/turbo-tasks.md`](docs/development/turbo-tasks.md)、[`cli-commands.md`](docs/development/cli-commands.md) |
+| 编码约定、Workflow、贡献 | [`docs/development/conventions.md`](docs/development/conventions.md)、[`github-workflows.md`](docs/development/github-workflows.md)、[`docs/contributing.md`](docs/contributing.md) |
+| 打包、版本、CI、发布 | [`docs/build/fnpack.md`](docs/build/fnpack.md)、[`versioning.md`](docs/build/versioning.md)、[`ci.md`](docs/build/ci.md)、[`release.md`](docs/build/release.md) |
+| 仓库结构、SDD 规范、排错 | [`docs/guide/repository-structure.md`](docs/guide/repository-structure.md)、[`sdd-workflow.md`](docs/guide/sdd-workflow.md)、[`docs/troubleshooting.md`](docs/troubleshooting.md) |
+
+## 官方文档
 
 涉及飞牛应用开发相关问题时，优先使用 [`fnnas-docs` Skill](https://github.com/tnnevol/skills/tree/main/skills/fnnas-docs) 查阅官方文档：
 
@@ -19,9 +32,32 @@
 pnpx skills add tnnevol/skills --skill fnnas-docs -g -y
 ```
 
-该 skill 覆盖了 manifest 配置、权限管理、入口配置、Docker/Native 构建、向导配置、网关认证、CLI 工具等完整开发文档。
+该 skill 覆盖 manifest 配置、权限管理、入口配置、Docker/Native 构建、向导配置、网关认证和 CLI 工具。
 
-### SDD 维护模式
+## 常用命令
+
+```bash
+# 环境
+nvm use && pnpm install
+
+# 开发服务（交互多选：插件 / 文档 / 本地 DSH Web）
+pnpm run start
+
+# 构建（交互多选：插件 / FPK / 文档）
+pnpm run build
+
+# 检查；完整门禁
+pnpm run check -- --all
+pnpm run build -- --docs
+
+# 版本
+pnpm run version -- project patch
+pnpm run version -- plugin fnos patch
+```
+
+设备上的验证需在 fnOS 真机执行 `appcenter-cli install-local`。
+
+## SDD 维护模式
 
 本仓库采用轻量规格驱动开发（SDD）维护模式：
 
@@ -32,6 +68,8 @@ pnpx skills add tnnevol/skills --skill fnnas-docs -g -y
 - 提交前运行 `pnpm run check -- --all` 和与改动相关的构建/测试；文档改动还需运行 `pnpm run build -- --docs` 与 `git diff --check`。
 
 完整流程见 [`docs/guide/sdd-workflow.md`](docs/guide/sdd-workflow.md)。
+
+## 硬性约束
 
 ### 禁止绝对路径
 
@@ -48,122 +86,21 @@ pnpx skills add tnnevol/skills --skill fnnas-docs -g -y
 
 测试读取源码做断言时同样用运行时解析，不写死路径。被忽略的目录（`node_modules/`、`.turbo/`、`docs/.vitepress/dist`）不在约束范围内；描述该规则本身时用占位写法（`/Users/<name>/...`）不算违规。
 
-完整说明见 [`docs/guide/sdd-workflow.md` 的编码边界](docs/guide/sdd-workflow.md#编码边界)。
+完整说明见 [`docs/development/conventions.md`](docs/development/conventions.md)。
 
-### DSH 插件插槽开发约定
+### DSH 插件插槽
 
 开发 DSH Client 插件时，先检查目标 Slot 的现有条目和 `priority`。列表插槽中相同 `id` 不能使用相同优先级，否则会导致插件加载失败。尤其注意 `conversation.composer.dock` 的内置会话步骤统计条目使用 `id: 'stats'`、`priority: 0`；需要置换它时必须使用不同优先级（例如 `priority: -1`，较低优先级生效），仅新增内容则使用自有 `id`，不要占用 `stats`。
 
-### 创建新应用
+### 文档站
 
-```bash
-cd apps
-# Native 应用
-fnpack create <appname>
+应用与插件说明只维护 `docs/` 下的文档站页面，不同步维护 `apps/*/README.md`、`plugins/*/README.md` 或 `docs/apps/`、`docs/plugins/` 下的重复内容。
 
-# Docker 应用
-fnpack create <appname> --template docker
-```
-
-创建后需编辑以下文件：
-
-| 文件                             | 说明                                                   |
-| -------------------------------- | ------------------------------------------------------ |
-| `manifest`                       | 应用标识、版本号、显示名称、描述                       |
-| `app/docker/docker-compose.yaml` | 容器镜像、端口映射、数据卷                             |
-| `app/ui/config`                  | 桌面入口配置（JSON）                                   |
-| `cmd/main`                       | 容器启停与状态检查                                     |
-| `config/privilege`               | 运行权限（username/groupname 使用 `docker-<appname>`） |
-| `ICON.PNG` / `ICON_256.PNG`      | 64×64 和 256×256 图标                                  |
-
-### 修改应用配置
-
-直接编辑对应 `apps/<appname>/` 目录下的文件：
-
-| 修改目标        | 文件                             |
-| --------------- | -------------------------------- |
-| 应用基本信息    | `manifest`                       |
-| Native 服务代码/运行入口 | `app/`、`cmd/main`                         |
-| Docker 容器配置          | `app/docker/docker-compose.yaml`           |
-| 桌面入口                 | `app/ui/config`                            |
-| 应用资源                 | `config/resource`                          |
-| 运行权限                 | `config/privilege`                         |
-| 生命周期脚本             | `cmd/`                                     |
-
-### 卸载开发流程
-
-为应用添加 `wizard/uninstall` 向导，让用户在卸载时选择保留或删除数据，并在 `cmd/uninstall_callback` 中根据 `wizard_data_action` 环境变量执行对应逻辑。
-
-具体表单项类型和脚本流程参见 [`fnnas-docs` Skill](https://github.com/tnnevol/skills/tree/main/skills/fnnas-docs) 中的**用户向导**文档。
-
-### 本地测试
-
-需要在飞牛 fnOS 设备上执行：
-
-```bash
-cd apps/<appname>
-appcenter-cli install-local
-```
-
-### fnpack 打包
-
-**官方下载地址**：[飞牛 fnpack](https://developer.fnnas.com/docs/cli/fnpack/)
-**当前版本**：1.2.3
-
-```bash
-# macOS Apple Silicon
-chmod +x fnpack-1.2.3-darwin-arm64
-sudo mv fnpack-1.2.3-darwin-arm64 /usr/local/bin/fnpack
-
-# Linux x86
-chmod +x fnpack-1.2.3-linux-amd64
-sudo mv fnpack-1.2.3-linux-amd64 /usr/local/bin/fnpack
-```
-
-打包命令：
-
-```bash
-cd apps/<appname>
-fnpack build
-# 输出 <appname>.fpk
-
-# 支持自动递增版本的应用，也可使用应用目录中的构建包装脚本
-./build
-```
-
-### 版本发布
-
-版本任务统一从根 `package.json` 进入，由 `fn-apps-cli` CLI 执行。首次运行会询问维护项目/FPK还是指定插件，也可直接指定区域：
-
-```bash
-pnpm run version
-pnpm run version -- project patch
-pnpm run version -- plugin fnos patch
-```
-
-项目/FPK版本使用 `v<版本号>` Tag；插件版本只创建提交，不生成 Git Tag。可追加 `--no-commit` 只修改文件，默认不会自动 push。构建任务同样从根脚本进入：
-
-```bash
-pnpm run build
-pnpm run build -- --fpk --app fn-deepseek-harness
-pnpm run build -- --plugin fnos
-```
-
-推送项目 Tag 后 GitHub Actions 通过根脚本构建 FPK，并使用 `changelogithub` 生成 Release 日志。
-
-### CI/CD
-
-- **配置文件**：[.github/workflows/build-release.yml](.github/workflows/build-release.yml)
-- **Tag 格式**：项目为 `v<版本号>`；插件版本只生成提交，不创建 Git Tag
-- **任务编排**：`turbo.json` 与根 `package.json`
-- **版本与 Release 工具**：`tooling/fn-os-apps-cli` workspace，CLI 命令为 `fn-apps-cli`
-
----
+开发指南按主题分组：环境与工具、应用开发、插件开发、任务与构建、协作与规范。单页承担三个以上互不相关主题、或篇幅超过约 300 行时按主题拆分，并更新全部交叉引用与侧边栏配置。
 
 ## 注意事项
 
-- 每个应用**独立版本管理**，不要强行统一版本号
-- `manifest` 为 INI 格式，字段对齐靠空格，不要随意修改格式
-- `config/privilege` 中 `username`/`groupname` 使用 `docker-<appname>` 前缀
-- 入口配置（`app/ui/config`）根据应用形态选择 `type: "url"` 或 `type: "iframe"`，Native 网关应用可以使用 iframe
-- 不要编造项目中不存在的资源链接
+- `manifest` 为 INI 格式，字段对齐靠空格，不要改成 JSON。
+- 权限配置使用 `defaults.run-as: "package"` 与 `username`，不要写 `docker-<appname>` 前缀（那是 Docker 应用形态的做法，本仓库当前应用是 Native）。
+- 入口配置（`app/ui/config`）根据应用形态选择 `type: "url"` 或 `type: "iframe"`；Native 网关应用可使用 iframe。
+- 不要编造项目中不存在的资源链接。

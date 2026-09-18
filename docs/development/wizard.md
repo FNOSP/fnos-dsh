@@ -87,7 +87,7 @@ wizard_port
 
 ## 卸载数据选择
 
-推荐让用户明确选择数据动作，并由 `cmd/uninstall_callback` 执行对应逻辑：
+推荐让用户明确选择数据动作，并由 `cmd/uninstall_callback` 读取 `wizard_data_action` 环境变量执行对应逻辑：
 
 ```text
 用户选择“保留数据” → 停止服务 → 删除运行文件 → 保留持久化目录

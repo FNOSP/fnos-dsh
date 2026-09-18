@@ -6,6 +6,16 @@
 
 本项目本地开发使用 [fnpack 1.2.3](https://developer.fnnas.com/docs/cli/fnpack/)。请从官方页面下载适合开发机的版本，并将可执行文件放入 `PATH`。
 
+```bash
+# macOS Apple Silicon
+chmod +x fnpack-1.2.3-darwin-arm64
+sudo mv fnpack-1.2.3-darwin-arm64 /usr/local/bin/fnpack
+
+# Linux x86
+chmod +x fnpack-1.2.3-linux-amd64
+sudo mv fnpack-1.2.3-linux-amd64 /usr/local/bin/fnpack
+```
+
 验证安装：
 
 ```bash

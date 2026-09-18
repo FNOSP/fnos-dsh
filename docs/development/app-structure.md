@@ -2,6 +2,8 @@
 
 `apps/*` 目录是 fnOS 应用的打包输入，由 `manifest` 和生命周期脚本定义。普通开发机负责构建，真实行为必须在 fnOS 设备上验证。
 
+仓库当前只有 `apps/fn-deepseek-harness` 一个 Native 应用，**没有 Docker 应用**。下文标注 Docker 的位置仅在新增该形态应用时适用。
+
 ## 创建应用
 
 :::warning 创建或重建应用前
@@ -16,6 +18,8 @@ fnpack create <app-name> --template docker
 ```
 
 不得删除模板文件或目录；在模板基础上修改 `manifest`、`app/`、`cmd/`、`config/` 和 `wizard/`。
+
+创建后按形态编辑：Native 应用改 `app/`、`cmd/main`、`config/privilege`；Docker 应用还需编辑 `app/docker/docker-compose.yaml`（镜像、端口映射、数据卷）。图标为 `ICON.PNG`（64×64）与 `ICON_256.PNG`（256×256）。
 
 :::
 
