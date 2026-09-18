@@ -20,7 +20,7 @@
 | `pnpm run release:notes` | 使用 `changelogithub` 生成 Release 说明 | 否 |
 | `pnpm run typecheck` | 通过 Turbo 执行所有包的类型检查 | 否 |
 | `pnpm run test` | 通过 Turbo 执行单元测试 | 否 |
-| `pnpm run docs:preview` | 预览已经构建好的 VitePress 站点 | 否 |
+| `pnpm run docs:preview` | 预览已经构建好的 VitePress 站点（端口 4173） | 否 |
 
 另有仅供 CI 或网关构建使用的入口：
 
@@ -41,11 +41,11 @@ pnpm run start -- --docs
 # 构建文档
 pnpm run build -- --docs
 
-# 预览已经构建好的站点
+# 预览已经构建好的站点（端口 4173，需先执行 build -- --docs）
 pnpm run docs:preview
 ```
 
-`start` 是开发服务的唯一根入口；CLI 通过 Turbo 的 `dev` 任务统一启动插件和 `docs` workspace 的 VitePress 服务。修改 `docs/` 下的 Markdown 后页面自动更新。
+`start` 是开发服务的唯一根入口；CLI 通过 Turbo 的 `dev` 任务统一启动插件和 `docs` workspace 的 VitePress 服务。修改 `docs/` 下的 Markdown 后页面自动更新。`docs:preview` 与 `start` 无关，它用静态方式伺服 `docs/.vitepress/dist` 的构建产物，端口固定为 4173，不受 `vite.server.port` 配置影响。
 
 Mermaid 图使用 ` ```mermaid ` 代码块，渲染结果跟随明暗主题自动切换。注意 `graph` 是 Mermaid 保留字，不能用作节点 id。
 

@@ -1,6 +1,6 @@
 # CodeBuddy
 
-`@tnnevol/dsh-codebuddy` 为 DSH 接入腾讯 CodeBuddy 模型目录，通过浏览器 OAuth 登录，无需 API Key。当前插件版本为 `0.1.5-rc.2`，适配 DSH `0.1.5-rc.2`。
+`@tnnevol/dsh-codebuddy` 为 DSH 接入腾讯 CodeBuddy 模型目录，通过浏览器 OAuth 登录，无需 API Key。当前版本见[插件总览](/plugins/)，适配 DSH `0.1.5-rc.2`。
 
 ## 账户信息弹框
 

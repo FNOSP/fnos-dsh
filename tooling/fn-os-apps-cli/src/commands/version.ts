@@ -14,6 +14,7 @@ import { readPackageInfo } from '../core/package.js'
 import { askPlugin, askReleaseArea, type ReleaseArea } from '../ui/prompts.js'
 
 const publishedDshPluginsPath = 'apps/fn-deepseek-harness/app/published-dsh-plugins.json'
+const pluginIndexDocPath = 'docs/plugins/index.md'
 const projectVersionPackageFiles = [
   'docs/package.json',
 ]
@@ -155,6 +156,17 @@ async function alignProjectVersionTextFiles(version: string): Promise<void> {
   }
 }
 
+/**
+ * 同步应用文档页「应用版本」表格行，避免发版后文档版本过期。
+ */
+async function syncAppDocVersion(version: string): Promise<void> {
+  const absolutePath = join(repositoryRoot, 'docs/apps/fn-deepseek-harness.md')
+  if (!existsSync(absolutePath)) return
+  const content = await readFile(absolutePath, 'utf8')
+  const updated = content.replace(/^(\| 应用版本 \| `)[^`]+(` \|)$/m, `$1${version}$2`)
+  if (updated !== content) await writeFile(absolutePath, updated)
+}
+
 async function alignProjectVersionPackageFiles(version: string): Promise<void> {
   for (const relativePath of projectVersionPackageFiles) {
     const packageInfo = await readJson(relativePath)
@@ -184,6 +196,22 @@ async function syncPublishedPluginVersion(pluginName: string, version: string): 
   return changed
 }
 
+/**
+ * 同步插件总览文档表格中的版本号，避免插件发版后文档版本过期。
+ * 只替换「包名 | 版本」表格行中的版本列，不触碰正文中的兼容性基线描述。
+ */
+async function syncPluginIndexDocVersion(pluginName: string, version: string): Promise<boolean> {
+  const absolutePath = join(repositoryRoot, pluginIndexDocPath)
+  if (!existsSync(absolutePath)) return false
+  const content = await readFile(absolutePath, 'utf8')
+  const quoted = '`'
+  const pattern = new RegExp(`(\\| ${quoted}${pluginName}${quoted} \\| ${quoted})[^${quoted}]+(${quoted})`)
+  const updated = content.replace(pattern, `$1${version}$2`)
+  if (updated === content) return false
+  await writeFile(absolutePath, updated)
+  return true
+}
+
 function runGit(args: string[]): void {
   const result = spawnSync('git', args, { cwd: repositoryRoot, encoding: 'utf8' })
   if (result.error !== undefined) throw result.error
@@ -209,13 +237,16 @@ async function writePluginRelease(
 ): Promise<number> {
   const changedPaths = targets.map(target => target.path)
   let syncedCount = 0
+  let docSynced = false
   for (const [index, target] of targets.entries()) {
     await updatePackageVersion(target.path, newVersion)
     const pkg = packages[index]
     if (pkg !== undefined && await syncPublishedPluginVersion(pkg.name, newVersion)) syncedCount += 1
+    if (pkg !== undefined && await syncPluginIndexDocVersion(pkg.name, newVersion)) docSynced = true
   }
 
   if (syncedCount > 0) changedPaths.push(publishedDshPluginsPath)
+  if (docSynced) changedPaths.push(pluginIndexDocPath)
   if (!noCommit) {
     runGit(['add', '--', ...changedPaths])
     const subject = targets.length === 1
@@ -331,6 +362,10 @@ async function versionProject(
     ignoreScripts: true,
     confirm: options.confirm,
   })
+  // 应用文档页的版本行在 bump 之后精确替换，不放进 bumpp 的文件清单：
+  // bumpp 对文本文件是全局替换当前版本串，文档正文一旦出现相同版本号
+  // （如「5.4.1 修复了…」）会被连带改掉。
+  await syncAppDocVersion(result.newVersion)
   outro(`${current.name}: ${result.currentVersion} -> ${result.newVersion}`)
 }
 
