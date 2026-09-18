@@ -1,10 +1,10 @@
 # fnos dsh
 
-飞牛的 DeepSeek Harness 应用生态项目，原[fn-os-apps](https://github.com/tnnevol/fn-os-apps)项目不在维护。
+飞牛 DeepSeek Harness 应用生态项目。原[fn-os-apps](https://github.com/tnnevol/fn-os-apps)项目不在维护DeepSeek Harness应用。
 
 ## 项目架构
 
-pnpm workspace 加 Turbo 的 monorepo。产物有两类，一个是 fnOS 应用包，另一个是能独立装进任意 DSH 客户端的插件。
+pnpm workspace 加 Turbo 的 monorepo。产物有两类，一个是 fnOS 应用包，另一个是能独立装进任意 DSH 客户端的插件（fnos 插件除外）。
 
 ```
 apps/fn-deepseek-harness/   fnOS 应用包，manifest、生命周期脚本、向导、网关入口
