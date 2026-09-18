@@ -51,7 +51,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "check": "pnpm run typecheck && pnpm run test",
     "prepublishOnly": "pnpm run check",
-    "publish:rc": "pnpm publish --tag rc --access public",
+    "publish:next": "pnpm publish --tag next --access public",
     "test": "vitest run --config vitest.config.ts"
   },
   "dsh": {

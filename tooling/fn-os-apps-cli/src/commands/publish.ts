@@ -26,13 +26,13 @@ export async function runPublish(args: string[]): Promise<void> {
   for (const target of targets) {
     const packageDirectory = join(repositoryRoot, dirname(target.path))
     console.log(`\nPublishing npm package: ${target.label}`)
-    await runCommand('pnpm', ['run', 'publish:rc'], packageDirectory)
+    await runCommand('pnpm', ['run', 'publish:next'], packageDirectory)
   }
 }
 
 program
   .command('publish')
-  .description('Publish selected DSH plugins to npm using the rc dist-tag')
+  .description('Publish selected DSH plugins to npm using the next dist-tag')
   .option('--plugin [plugin]', 'publish one plugin, or prompt for plugins')
   .action(async (options: OptionValues) => {
     const args: string[] = []

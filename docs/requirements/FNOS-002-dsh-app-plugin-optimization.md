@@ -32,7 +32,7 @@ DSH 在 fnOS 中运行后，还有几处使用体验需要调整。Codex 登录�
 - 由 fnOS 插件管理三方插件 API URL 反代配置，网关监听配置并将匹配的绝对 URL 请求改写到统一网关下的 DSH 服务。
 - DSH 运行时、插件兼容性和 `@deepseek-ai/dsh-*` 依赖基线为 `0.1.2-rc.1`；当前项目版本为 `5.3.1`，插件自身发布版本为 `0.1.2-rc.1.3`，并保留用户数据与配置。
 - 将版本发布逻辑放入独立 `tooling/fn-os-apps-cli` pnpm workspace，通过 `fn-apps-cli` CLI 使用 `bumpp` 维护项目/FPK 版本；插件版本不得被项目或 FPK 版本命令隐式修改。插件版本更新直接修改选中插件的 `package.json`，交互式版本选择支持 bumpp 风格的 `custom ...` 自定义版本输入；若插件存在于 `published-dsh-plugins.json` 则同步清单版本，多选时仅生成一条合并提交，不创建插件 Git Tag。
-- 通过 `fn-apps-cli publish` 交互选择一个或多个 DSH 插件，并在所有选择完成后统一使用 `rc` dist-tag 发布 npm 包。
+- 通过 `fn-apps-cli publish` 交互选择一个或多个 DSH 插件，并在所有选择完成后统一使用 `next` dist-tag 发布 npm 包。
 - 修复 fnOS 聊天输入框授权路径选择器的多选行为，连续选择多个文件或目录时全部生成引用。
 - 引入 Turbo 统一包任务编排；根 `package.json` 提供统一任务入口，`tooling/fn-os-apps-cli` 通过 `fn-apps-cli` CLI 暴露任务，全部使用 TypeScript 与 tsdown。
 - 通过 `@clack/prompts` 在版本、构建和启动时询问目标区域；构建支持多选 FPK 和文档，并自动处理 DSH 网关和插件的 dsh-semi-ui 依赖。共享包不作为顶层构建选项，只由依赖它的主包通过 Turbo 自动编译。
@@ -141,7 +141,7 @@ DSH 在 fnOS 中运行后，还有几处使用体验需要调整。Codex 登录�
 - NAS TreeSelect 可连续选择多个文件或目录，父子路径作为独立引用全部插入；面板打开期间删除本次引用会立即取消对应 Tree 勾选，历史引用不会进入当前选择状态。
 - 项目/FPK 版本命令通过 `bumpp` 运行，插件版本命令直接修改选中插件的 `package.json`；插件交互提示提供 `patch`、`minor`、`major`、`prerelease` 和 `custom ...` 版本选项，且自定义版本必须是有效的 SemVer；若插件存在于 `published-dsh-plugins.json` 则同步对应清单版本，不发生跨类别版本联动；多选插件时一次性更新所有选中插件及相关清单，仅生成一条提交，不创建插件 Git Tag。
 - 根任务入口、workflow 调用和包任务名称保持一致；Release 日志由 `changelogithub` 根据 Conventional Commits 自动生成。
-- `pnpm run publish` 可交互选择一个或多个 DSH 插件，完成全部询问后统一使用 `rc` dist-tag 发布 npm 包。
+- `pnpm run publish` 可交互选择一个或多个 DSH 插件，完成全部询问后统一使用 `next` dist-tag 发布 npm 包。
 - Semi UI 总览插件可正常安装和卸载；点击入口可进入独立总览路由，浏览器前进、后退和刷新有效，组件在浅色、深色主题下显示正常。
 - 新网关兼容 HTTP、WebSocket、SSE、插件 API 和静态资源，产物位于 FPK 的 `app` 目录，并在真实 fnOS 统一网关入口完成验证。
 - Bridge 可作为独立 JS 文件完成语法检查和单元测试；生成的单文件网关不包含未替换占位符，也不依赖 NAS 上不存在的 Bridge 源文件。
@@ -207,3 +207,4 @@ DSH 在 fnOS 中运行后，还有几处使用体验需要调整。Codex 登录�
 | 2026-09-15 | 恢复文档服务的终端快捷键 | `docs` 包的 `dev` 标记 `interactive: true`，TUI 可用 `i` 把键盘交给该任务、`Ctrl+z` 返回，VitePress 的 `h`/`r` 快捷键恢复可用；因 Turbo 拒绝在无终端界面时运行 interactive 任务，`start` 无 TTY 时改为直接启动 `vitepress dev`，避免整条命令报 `Cannot run interactive task` 失败 |
 | 2026-09-15 | 修正 Turbo 任务配置缺陷 | 按 Turborepo 规范审计 `turbo.json` 并修复四处缺陷：`check` 把 `typecheck`/`test:unit` 与包内 `check` 脚本重复调度（同一 vitest 跑两遍）、`test` 与 `test:unit` 串联重复执行、`lint` 是匹配空集的死配置（ESLint 只有根配置，改为根任务 `//#lint`）、`build` 未声明 `NODE_ENV` 导致不同环境共用缓存；`docs` 包新增包级 `turbo.json`，把 `outputs` 修正为 `.vitepress/dist/**` 并用 `$TURBO_EXTENDS$` 追加 `D2_BIN`（原 `dist/**` 让 Turbo 报 `no output files found`，文档产物既不入缓存也无法恢复） |
 | 2026-09-15 | 支持插件自定义版本 | `pnpm run version` 选择插件后，版本提示增加 bumpp 风格的 `custom ...` 选项，输入有效 SemVer 后更新选中插件并同步已发布插件清单 |
+| 2026-09-18 | npm 发布 dist-tag 改为 next | 插件包虽以预览版本号发布，但 npm dist-tag 从 `rc` 改为 `next`，与社区惯例一致；4 个插件的 `publish:rc` 脚本改名为 `publish:next`（`--tag next`），CLI 调用与命令描述同步更新。线上已存在的 `rc` 标签保持不动 |

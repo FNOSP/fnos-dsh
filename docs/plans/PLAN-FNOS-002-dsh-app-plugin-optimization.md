@@ -479,7 +479,7 @@ SSE 路由由网关自身处理，不转发到 DSH。它经过 fnOS 统一网关
 | PLAN-FNOS-002-TT-07 | 增加唯一根 `start` 入口，交互选择插件 Turbo watch 或 VitePress 文档服务；插件启动自动包含共享 UI 依赖并保持持续监听 | <Badge type="tip" text="已完成" /> |
 | PLAN-FNOS-002-TT-08 | 将 SDD、文档、共享包和插件检查统一收敛到 `fn-apps-cli check`，支持交互选择和 `--sdd`、`--docs`、`--packages`、`--plugins`、`--all` 参数 | <Badge type="tip" text="已完成" /> |
 | PLAN-FNOS-002-TT-09 | 重构开发指南全部子菜单，补充应用开发配置说明、统一任务操作手册，以及 `package.json` 入口、CLI、Turbo、workspace package 和 GitHub Workflow 的流程图与依赖关系图 | <Badge type="tip" text="已完成" /> |
-| PLAN-FNOS-002-TT-10 | 增加 `fn-apps-cli publish` npm 发布入口，交互选择一个或多个 DSH 插件，在所有询问完成后统一调用插件 `publish:rc` 脚本 | <Badge type="tip" text="已完成" /> |
+| PLAN-FNOS-002-TT-10 | 增加 `fn-apps-cli publish` npm 发布入口，交互选择一个或多个 DSH 插件，在所有询问完成后统一调用插件 `publish:next` 脚本 | <Badge type="tip" text="已完成" /> |
 
 ### 版本与发布工具（本地实现）
 
@@ -844,3 +844,4 @@ CodeBuddy 插件的检查命令与测试覆盖要求已迁入 [PLAN-FNOS-003](/p
 | 2026-09-15 | 恢复文档服务的终端快捷键 | `docs/turbo.json` 为 `dev` 增加 `interactive: true`，由 TUI 的「interact with task」转发键盘；`start` 按 TTY 决定文档服务经 `turbo watch` 还是直接 `vitepress dev`，避免无 TTY 时 interactive 任务硬失败 |
 | 2026-09-15 | 修正 Turbo 任务配置缺陷 | 按 Turborepo 规范修订 `T01` 的 `turbo.json`：`check` 去掉与包内 `check` 脚本重复的 `typecheck`/`test:unit` 依赖（改为 `build` + `^typecheck`，保留依赖包类型检查覆盖）、`test` 不再串联 `test:unit`、`lint` 改为根任务 `//#lint`、`build` 声明 `NODE_ENV`；新增 `docs/turbo.json` 修正 VitePress 产物路径并继承根 `env` 后追加 `D2_BIN` |
 | 2026-09-15 | 支持插件自定义版本 | 插件版本提示增加 bumpp 风格的 `custom ...` 选项，使用文本提示输入并校验有效 SemVer，再同步插件包和已发布插件清单 |
+| 2026-09-18 | npm 发布 dist-tag 改为 next | `TT-10` 的发布入口由 `rc` dist-tag 改为 `next`：4 个插件的 `publish:rc` 脚本改名为 `publish:next`，CLI 的 `publish` 命令调用与描述同步；需求 FNOS-002 的目标与验收表述一并更新 |
