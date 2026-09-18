@@ -9,12 +9,12 @@
   "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-fnos.html",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tnnevol/fn-os-apps.git",
+    "url": "git+https://github.com/FNOSP/fnos-dsh.git",
     "directory": "plugins/dsh-fnos-plugin"
   },
   "documentation": "https://fnapps-doc.tnnevol.cn/plugins/dsh-fnos",
   "bugs": {
-    "url": "https://github.com/tnnevol/fn-os-apps/issues"
+    "url": "https://github.com/FNOSP/fnos-dsh/issues"
   },
   "publishConfig": {
     "access": "public"

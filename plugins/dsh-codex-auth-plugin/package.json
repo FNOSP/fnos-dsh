@@ -9,12 +9,12 @@
   "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-codex-auth.html",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tnnevol/fn-os-apps.git",
+    "url": "git+https://github.com/FNOSP/fnos-dsh.git",
     "directory": "plugins/dsh-codex-auth-plugin"
   },
   "documentation": "https://fnapps-doc.tnnevol.cn/plugins/dsh-codex-auth",
   "bugs": {
-    "url": "https://github.com/tnnevol/fn-os-apps/issues"
+    "url": "https://github.com/FNOSP/fnos-dsh/issues"
   },
   "publishConfig": {
     "access": "public"

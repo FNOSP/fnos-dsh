@@ -111,5 +111,5 @@ dsh web --no-open
 ## 链接
 
 - [npm](https://www.npmjs.com/package/@tnnevol/dsh-codex-auth)
-- [源码](https://github.com/tnnevol/fn-os-apps/tree/main/plugins/dsh-codex-auth-plugin)
-- [问题反馈](https://github.com/tnnevol/fn-os-apps/issues)
+- [源码](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-codex-auth-plugin)
+- [问题反馈](https://github.com/FNOSP/fnos-dsh/issues)

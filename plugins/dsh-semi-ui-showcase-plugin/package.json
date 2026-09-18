@@ -13,7 +13,7 @@
   "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase.html",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tnnevol/fn-os-apps.git",
+    "url": "git+https://github.com/FNOSP/fnos-dsh.git",
     "directory": "plugins/dsh-semi-ui-showcase-plugin"
   },
   "exports": {

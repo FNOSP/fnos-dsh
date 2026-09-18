@@ -161,8 +161,8 @@ dsh web --no-open
 ## 链接
 
 - [npm](https://www.npmjs.com/package/@tnnevol/dsh-fnos)
-- [源码](https://github.com/tnnevol/fn-os-apps/tree/main/plugins/dsh-fnos-plugin)
+- [源码](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-fnos-plugin)
 - [fnOS JS SDK](https://developer.fnnas.com/)
 - [需求清单](/requirements/FNOS-001-dsh-fnos-adaptation)
 - [实现计划](/plans/PLAN-FNOS-001-dsh-fnos-adaptation)
-- [问题反馈](https://github.com/tnnevol/fn-os-apps/issues)
+- [问题反馈](https://github.com/FNOSP/fnos-dsh/issues)

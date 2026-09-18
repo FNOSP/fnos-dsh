@@ -1,6 +1,6 @@
 # fnos dsh
 
-飞牛 DeepSeek Harness 应用生态项目。原[fn-os-apps](https://github.com/tnnevol/fn-os-apps)项目不在维护DeepSeek Harness应用。
+飞牛 DeepSeek Harness 应用生态项目。原[fn-os-apps](https://github.com/tnnevol/fn-os-apps)项目不再维护 DeepSeek Harness 应用。
 
 ## 项目架构
 
@@ -76,7 +76,7 @@ pnpm run start -- --docs     # 本地预览，带热更新
 pnpm run build -- --docs     # 生产构建，输出到 docs/.vitepress/dist/
 ```
 
-页面里有 D2 图，本地要看图得装 d2，没装的话图渲染不出来，其余内容正常。
+页面里的流程图和时序图用 Mermaid，在浏览器端渲染，不需要额外安装系统工具。
 
 ## 开发资源
 

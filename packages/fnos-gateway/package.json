@@ -9,10 +9,10 @@
     "access": "public"
   },
   "license": "AGPL-3.0-only",
-  "homepage": "https://github.com/tnnevol/fn-os-apps/tree/main/packages/fnos-gateway",
+  "homepage": "https://github.com/FNOSP/fnos-dsh/tree/main/packages/fnos-gateway",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tnnevol/fn-os-apps.git",
+    "url": "git+https://github.com/FNOSP/fnos-dsh.git",
     "directory": "packages/fnos-gateway"
   },
   "exports": {

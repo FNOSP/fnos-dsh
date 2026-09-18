@@ -1,8 +1,10 @@
-# DSH Semi UI
+# DSH Semi UI 共享包
 
 `@tnnevol/dsh-semi-ui` 是插件工作空间内部的共享 UI 包。它封装 Semi Design 组件，并把组件颜色、边框、圆角、浮层和选中状态映射到 DSH 主题变量。
 
-它不是 DSH 运行时插件，不需要加入 `dsh.profile.bundles`。当前工作空间版本为 `5.3.1`，尚未单独发布到 npm。
+它是**被插件依赖的包**，不是 DSH 运行时插件，不需要加入 `dsh.profile.bundles`。当前工作空间版本为 `5.3.1`，尚未单独发布到 npm。
+
+想先看组件效果，可以打开文档站的[组件预览](./semi-ui)（无需安装），或安装[组件总览展示插件](./dsh-semi-ui-showcase)在 DSH 中检查真实交互。
 
 ## 为什么单独维护
 
@@ -50,6 +52,6 @@ pnpm --filter @tnnevol/dsh-semi-ui run check
 
 ## 链接
 
-- [源码](https://github.com/tnnevol/fn-os-apps/tree/main/packages/dsh-semi-ui)
+- [源码](https://github.com/FNOSP/fnos-dsh/tree/main/packages/dsh-semi-ui)
 - [Semi Design](https://semi.design/zh-CN/)
-- [问题反馈](https://github.com/tnnevol/fn-os-apps/issues)
+- [问题反馈](https://github.com/FNOSP/fnos-dsh/issues)

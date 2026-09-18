@@ -10,7 +10,7 @@ const version = computed(() => (theme.value as { version?: string }).version)
   <a
     v-if="version"
     class="docs-version"
-    href="https://github.com/tnnevol/fn-os-apps/releases"
+    href="https://github.com/FNOSP/fnos-dsh/releases"
     target="_blank"
     rel="noreferrer"
     :aria-label="`查看版本 ${version}`"
