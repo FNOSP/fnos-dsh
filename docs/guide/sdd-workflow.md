@@ -68,6 +68,43 @@ description: fnOS Apps Monorepo 的需求、计划、实现、验证和发布维
 
 状态变化必须追加到需求或计划的变更记录，不能只修改徽章。
 
+## 编码边界
+
+以下是仓库级的硬性约束，适用于所有受版本管理的文件。违反这些约束的改动不应提交，Agent 和协作者都必须遵守。
+
+### 禁止绝对路径
+
+**不得在受版本管理的文件中写入开发者本机绝对路径**，包括 `/Users/<name>/...`、`/home/<name>/...`、Windows 盘符路径，以及指向其他检出的路径。
+
+这类路径只在写入它的机器和检出目录下成立：换机器、换目录或仓库改名后立即失效；若指向其他检出，本仓库的检查结果还会随那个仓库的状态变化，表现为「时好时坏」而看不出原因。
+
+按场景选择替代方式：
+
+| 场景 | 做法 | 示例 |
+| --- | --- | --- |
+| 同包或相邻模块 | 相对导入 | `import { x } from '../src/foo.ts'` |
+| 跨 workspace 引用 | 包名别名，由 `workspace:*` 解析 | `import { y } from '@tnnevol/dsh-semi-ui'` |
+| 需要绝对路径定位文件 | 基于当前模块位置运行时解析 | 见下 |
+| fnOS 应用脚本 | 平台提供的环境变量 | `${TRIM_PKGVAR}`、`${TRIM_APPDEST}` |
+
+测试中读取源码做结构断言时，用运行时解析而不是写死路径：
+
+```ts
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const here = dirname(fileURLToPath(import.meta.url))
+const srcPath = (...segments: string[]) => join(here, '..', 'src', ...segments)
+```
+
+配置文件可直接用 `import.meta.dirname`（Node 20.11+，本项目 Node 24 满足）。
+
+例外与边界：
+
+- 被忽略的目录（`node_modules/`、`.turbo/`、`docs/.vitepress/dist`）不在约束范围内。
+- 描述该规则本身时不可避免要写出被禁形态；判据以真实用户名为准，占位写法（`/Users/<name>/...`）属说明性文本，不算违规。
+- 文档中作为外部示例的绝对路径不受限，但不要使用真实个人主目录。
+
 ## PR 检查清单
 
 - [ ] 已填写变更类型、需求编号和计划编号；纯文档/格式变更已说明豁免原因。
@@ -77,6 +114,7 @@ description: fnOS Apps Monorepo 的需求、计划、实现、验证和发布维
 - [ ] 涉及 fnOS 权限、宿主、FPK 安装或升级的功能已记录真实 NAS 验收状态。
 - [ ] 已说明数据影响、敏感信息、升级兼容和回滚方式。
 - [ ] 需求、计划和验证记录中的链接与追踪 ID有效。
+- [ ] 没有引入本机绝对路径；路径定位使用相对路径、包名别名或运行时解析（见[编码边界](#禁止绝对路径)）。
 
 ## 例外规则
 

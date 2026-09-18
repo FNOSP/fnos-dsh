@@ -213,6 +213,12 @@ pnpm run check -- --packages --plugins
 
 插件的 `build`、`typecheck`、`test` 和 `check` 写在各自的 `package.json`。Turbo 会根据 workspace 依赖先处理 `@tnnevol/dsh-semi-ui`，不要在根脚本中手工复制依赖步骤。
 
+## 路径写法
+
+受版本管理的文件不得写入本机绝对路径，路径定位使用相对导入、包名别名或运行时解析（`import.meta.url` / `import.meta.dirname`）；fnOS 应用脚本使用 `${TRIM_*}` 平台变量。
+
+规则全文、例外情形与各场景示例见[编码边界](../guide/sdd-workflow#编码边界)。
+
 ## 文档开发
 
 文档由 VitePress 构建，流程图与时序图由 `vitepress-mermaid-plugin` 处理，图表在浏览器端渲染，无需安装额外系统工具：

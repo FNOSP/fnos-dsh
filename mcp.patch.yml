@@ -9,7 +9,7 @@
 # 与 Claude Code / Codex 的命名形态一致。
 #
 # 让本文件被 DSH 客户端实际加载（二选一）：
-#   1) 启动 web 时叠加本文件：  dsh web --patch /Users/tnnevol/workspace/fn-packages/fn-os-apps/mcp.patch.yml
+#   1) 在仓库根启动 web 时叠加本文件：  dsh web --patch ./mcp.patch.yml
 #   2) 把下面这条 insert 直接加进本机 profile 的 cordis.patch.yml
 #      （当前 web 会话的 user 层：$DSH_HOME/profiles/web/cordis.patch.yml）
 - insert:

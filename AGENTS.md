@@ -33,6 +33,23 @@ pnpx skills add tnnevol/skills --skill fnnas-docs -g -y
 
 完整流程见 [`docs/guide/sdd-workflow.md`](docs/guide/sdd-workflow.md)。
 
+### 禁止绝对路径
+
+受版本管理的文件**不得写入开发者本机绝对路径**（`/Users/<name>/...`、`/home/<name>/...`、Windows 盘符），也不要指向其他检出。这类路径只在写入它的机器和检出目录下成立，换机器或换目录后立即失效；指向其他检出时，本仓库的检查结果还会随那个仓库的状态变化。
+
+按场景选择替代方式：
+
+| 场景 | 做法 |
+| --- | --- |
+| 同包或相邻模块 | 相对导入，如 `../src/foo.ts` |
+| 跨 workspace 引用 | 包名别名，如 `@tnnevol/dsh-semi-ui` |
+| 需要绝对路径定位文件 | 基于 `import.meta.url` / `import.meta.dirname` 运行时解析 |
+| fnOS 应用脚本 | 平台变量 `${TRIM_PKGVAR}`、`${TRIM_APPDEST}` |
+
+测试读取源码做断言时同样用运行时解析，不写死路径。被忽略的目录（`node_modules/`、`.turbo/`、`docs/.vitepress/dist`）不在约束范围内；描述该规则本身时用占位写法（`/Users/<name>/...`）不算违规。
+
+完整说明见 [`docs/guide/sdd-workflow.md` 的编码边界](docs/guide/sdd-workflow.md#编码边界)。
+
 ### DSH 插件插槽开发约定
 
 开发 DSH Client 插件时，先检查目标 Slot 的现有条目和 `priority`。列表插槽中相同 `id` 不能使用相同优先级，否则会导致插件加载失败。尤其注意 `conversation.composer.dock` 的内置会话步骤统计条目使用 `id: 'stats'`、`priority: 0`；需要置换它时必须使用不同优先级（例如 `priority: -1`，较低优先级生效），仅新增内容则使用自有 `id`，不要占用 `stats`。
