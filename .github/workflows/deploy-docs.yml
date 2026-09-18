@@ -7,9 +7,10 @@ on:
     paths:
       - 'docs/**'
       - '.github/workflows/deploy-docs.yml'
-    tags:
-      - 'v*'
   workflow_dispatch:
+# 不监听 v* tag：github-pages 环境的部署分支策略只允许 main，tag 触发的
+# 部署会被拒；且文档内容在 release 提交与 main 上一致，tag 发布的 FPK
+# 构建由 build-release.yml 负责。
 
 permissions:
   contents: read
