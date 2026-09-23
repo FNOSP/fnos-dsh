@@ -1,85 +1,105 @@
-# fnos dsh
+# fnOS DSH
 
-飞牛 DeepSeek Harness 应用生态项目。原[fn-os-apps](https://github.com/tnnevol/fn-os-apps)项目不再维护 DeepSeek Harness 应用。
+<p align="center">
+  <img src="docs/public/icons/dsh-logo.svg" alt="DeepSeek Harness Logo" width="128">
+</p>
 
-## 项目架构
+[![GitHub](https://img.shields.io/badge/GitHub-FNOSP%2Ffnos--dsh-181717?logo=github&logoColor=white)](https://github.com/FNOSP/fnos-dsh)
+[![GitHub stars](https://img.shields.io/github/stars/FNOSP/fnos-dsh?style=flat-square)](https://github.com/FNOSP/fnos-dsh/stargazers)
+[![License](https://img.shields.io/github/license/FNOSP/fnos-dsh?style=flat-square)](LICENSE)
 
-pnpm workspace 加 Turbo 的 monorepo。产物有两类，一个是 fnOS 应用包，另一个是能独立装进任意 DSH 客户端的插件（fnos 插件除外）。
+![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js&logoColor=white)
+![pnpm](https://img.shields.io/badge/pnpm-11.16%2B-F69220?logo=pnpm&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Turborepo](https://img.shields.io/badge/Turborepo-monorepo-000000?logo=turborepo&logoColor=white)
+![VitePress](https://img.shields.io/badge/VitePress-646CFF?logo=vite&logoColor=white)
+![Semi Design](https://img.shields.io/badge/Semi%20Design-UI-1664FF)
+![fnOS](https://img.shields.io/badge/fnOS-Native-1677FF)
 
-```
-apps/fn-deepseek-harness/   fnOS 应用包，manifest、生命周期脚本、向导、网关入口
-packages/fnos-gateway/      网关代理，构建时输出到应用的 app/ 目录
-packages/dsh-semi-ui/       共享的 Semi Design 组件，插件复用
-plugins/                    DSH 插件，各自独立发版
-tooling/fn-os-apps-cli/     仓库 CLI，统一 start / build / version / check
-docs/                       VitePress 文档站
-```
+飞牛 fnOS 上的 DeepSeek Harness 应用与插件生态项目。
 
-插件由 `plugins/*/package.json` 动态发现，加新插件不用改 CLI。应用要装哪些插件写在 `apps/fn-deepseek-harness/app/published-dsh-plugins.json` 里，安装时按精确版本装。
+## 项目简介
 
-## 开发
+本项目用于将 DeepSeek Harness 适配并打包为可安装的 fnOS 应用，同时维护可独立安装到 DSH 客户端的插件和配套工具。
 
-需要 Node 24 和 pnpm 11。
+项目面向两类场景：
+
+- 在飞牛 fnOS 上安装和运行 DeepSeek Harness
+- 为 DSH 客户端开发、构建和发布扩展插件
+
+## 核心能力
+
+- 提供 DeepSeek Harness 的 fnOS Native 应用适配
+- 支持 fnOS 应用的安装、升级、卸载和运行时管理
+- 提供 fnOS 网关代理和 DSH Web 运行环境适配
+- 支持 DSH 客户端插件及共享 UI 组件开发
+- 提供本地 DSH Web、插件和文档开发能力
+- 通过统一 CLI 管理检查、构建、版本和发布流程
+
+## 技术栈
+
+| 类型 | 技术 |
+| --- | --- |
+| 包管理 | pnpm Workspace |
+| Monorepo | Turborepo |
+| 开发语言 | TypeScript、Shell |
+| 构建工具 | tsdown、Vite、fnpack |
+| 文档 | VitePress、Mermaid |
+| UI | Semi Design |
+| 应用形态 | fnOS Native |
+| 运行环境 | Node.js 24、pnpm 11 |
+
+## 快速开始
+
+### 环境要求
+
+- Node.js 24 或更高版本
+- pnpm 11.16 或更高版本
+
+### 安装依赖
 
 ```bash
+nvm use
 pnpm install
 ```
 
-日常开发用 `pnpm run start`，可以只起需要的部分。
+### 启动开发环境
 
 ```bash
-pnpm run start -- --docs            # 文档站，http://localhost:8876
-pnpm run start -- --plugin fnos     # 单个插件的 watch 构建
-pnpm run start -- --web             # DSH Web，http://127.0.0.1:8070
+pnpm run start
 ```
 
-不带参数会弹多选。`--web` 启动前会先把仓库里的插件链进本地 profile，所以第一次会慢一些。
-
-构建分三类。
+也可以按需启动文档站、插件或本地 DSH Web：
 
 ```bash
-pnpm run build -- --plugin fnos                     # 构建插件
-pnpm run build -- --docs                            # 构建文档
-pnpm run build -- --fpk --app fn-deepseek-harness   # 构建 FPK
+pnpm run start -- --docs
+pnpm run start -- --plugin fnos
+pnpm run start -- --web
 ```
 
-FPK 构建先编译网关再调 fnpack，产物在 `apps/fn-deepseek-harness/fn-deepseek-harness.fpk`。要不要把 node-pty native 文件和插件归档打进包里，用 `--bundle-dsh-native` 和 `--bundle-dsh-plugins` 控制，不给参数就交互询问。
-
-改完代码跑一遍检查。
+### 构建与检查
 
 ```bash
+pnpm run build -- --plugin fnos
+pnpm run build -- --fpk --app fn-deepseek-harness
 pnpm run check -- --all
 ```
 
-### 版本更新
+## 文档
 
-项目版本和插件版本分开走。项目版本由 `bumpp` 处理，会更新根 `package.json`、`packages/*/package.json`、`apps/*/manifest` 和文档里的版本示例，然后建一条提交加 `v<版本号>` tag。
+- [快速开始](docs/guide/quick-start.md)
+- [开发环境](docs/development/environment.md)
+- [应用开发](docs/development/app-structure.md)
+- [插件开发](docs/development/plugin-development.md)
+- [构建与打包](docs/build/fnpack.md)
+- [版本与发布](docs/build/release.md)
 
-```bash
-pnpm run version -- project patch
-```
-
-插件版本只改目标插件的 `package.json`。如果这个插件在发布清单里，清单里的版本一起同步。
-
-```bash
-pnpm run version -- plugin fnos patch
-```
-
-两条命令都能加 `--no-commit --no-tag`，只改文件不提交。tag 推上去之后 GitHub Actions 会构建 FPK 并发布 Release。
-
-### 项目文档
-
-文档站是 VitePress，源文件在 `docs/`。
+本地预览文档站：
 
 ```bash
-pnpm run start -- --docs     # 本地预览，带热更新
-pnpm run build -- --docs     # 生产构建，输出到 docs/.vitepress/dist/
+pnpm run start -- --docs
 ```
 
-页面里的流程图和时序图用 Mermaid，在浏览器端渲染，不需要额外安装系统工具。
+## 开源协议
 
-## 开发资源
-
-- [飞牛开发者官网](https://developer.fnnas.com/)
-- [fnpack 下载](https://developer.fnnas.com/docs/cli/fnpack/)
-- [通用 CGI 网关集合](https://github.com/FNOSP/fnosAppCenterCgiCollection)
+[GNU Affero General Public License v3.0](LICENSE)
