@@ -1,7 +1,9 @@
 # fnOS DSH
 
 <p align="center">
-  <img src="docs/public/icons/dsh-logo.svg" alt="DeepSeek Harness Logo" width="128">
+  <img src="docs/public/icons/dsh-logo.svg" alt="DeepSeek Harness Logo" width="112">
+  <strong>&nbsp;&times;&nbsp;</strong>
+  <img src="https://avatars.githubusercontent.com/u/243178325?s=128&amp;v=4" alt="GitHub Logo" width="112">
 </p>
 
 [![GitHub](https://img.shields.io/badge/GitHub-FNOSP%2Ffnos--dsh-181717?logo=github&logoColor=white)](https://github.com/FNOSP/fnos-dsh)
