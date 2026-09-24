@@ -88,13 +88,17 @@ const appSidebar = [
   }
 ]
 
-// 「开始使用」并入「开发指南」作为首个子模块；`/guide/` 路由仍可直达，
-// 因此该路由复用同一组 sidebar，避免出现两份需要同步维护的菜单。
-const guideItems = [
+// 「开始使用」和「章程规范」并入「开发指南」作为前两个子模块；`/guide/`、
+// `/charter/` 路由仍可直达，因此复用同一组 sidebar，避免出现重复菜单。
+const gettingStartedItems = [
   { text: '快速开始', link: '/guide/quick-start' },
-  { text: '仓库结构', link: '/guide/repository-structure' },
-  { text: 'SDD 维护规范', link: '/guide/sdd-workflow' },
-  { text: 'SDD 模式转换报告', link: '/guide/sdd-transition-report' }
+  { text: '仓库结构', link: '/guide/repository-structure' }
+]
+
+const charterItems = [
+  { text: 'SDD 维护规范', link: '/charter/sdd-workflow' },
+  { text: 'SDD 模式转换报告', link: '/charter/sdd-transition-report' },
+  { text: '目录结构规范', link: '/charter/directory-structure' }
 ]
 
 // 开发指南按主题分组：环境与工具、应用开发、插件开发、任务与构建、协作与规范。
@@ -102,7 +106,11 @@ const guideItems = [
 const developmentSidebar = [
   {
     text: '开始使用',
-    items: guideItems
+    items: gettingStartedItems
+  },
+  {
+    text: '章程规范',
+    items: charterItems
   },
   {
     text: '环境与工具',
@@ -274,6 +282,7 @@ export default withMermaid(defineConfig({
     ],
     sidebar: {
       '/guide/': developmentSidebar,
+      '/charter/': developmentSidebar,
       '/apps/': appSidebar,
       '/plugins/': appSidebar,
       '/development/': developmentSidebar,

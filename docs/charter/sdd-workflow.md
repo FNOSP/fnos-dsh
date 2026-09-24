@@ -11,6 +11,7 @@ description: fnOS Apps Monorepo 的需求、计划、实现、验证和发布维
 
 | 内容 | 唯一维护入口 |
 | --- | --- |
+| 目录结构规范 | `docs/charter/directory-structure.md` |
 | 需求规格 | `docs/requirements/` |
 | 实施计划 | `docs/plans/` |
 | 真实环境验收证据 | `docs/validation/` |

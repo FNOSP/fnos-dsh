@@ -64,7 +64,7 @@ description: fnOS Apps Monorepo 从代码优先维护转换为规格驱动开发
 
 ### 已完成的第一阶段转换
 
-- 新增 [`SDD 维护规范`](/guide/sdd-workflow)，明确需求、计划、实现、验证、发布和例外规则。
+- 新增 [`SDD 维护规范`](/charter/sdd-workflow)，明确需求、计划、实现、验证、发布和例外规则。
 - 新增 `tooling/fn-os-apps-cli/src/sdd/checker.ts`，由 `fn-apps-cli check --sdd` 检查 SDD 文档结构、元信息、编号唯一性和内部链接。
 - 新增统一 `fn-apps-cli check` 命令，支持交互选择或使用 `--sdd`、`--docs`、`--packages`、`--plugins`、`--all` 参数。
 - 新增 PR 模板、`sdd-check.yml` 和 `docs/validation/README.md`。
@@ -73,7 +73,7 @@ description: fnOS Apps Monorepo 从代码优先维护转换为规格驱动开发
 
 ### P0：统一维护规则
 
-1. 已在 `AGENTS.md` 和 `docs/guide/sdd-workflow.md` 中明确全仓库 SDD 流程，并要求所有新功能、用户可见行为、权限、数据格式、网关和插件契约变更关联需求编号。
+1. 已在 `AGENTS.md` 和 `docs/charter/sdd-workflow.md` 中明确全仓库 SDD 流程，并要求所有新功能、用户可见行为、权限、数据格式、网关和插件契约变更关联需求编号。
 2. 采用以下变更分类，避免把所有小改动都强制写成完整需求：
 
    | 变更类型 | 必需产物 |
@@ -170,7 +170,7 @@ PR 模板至少要求填写：变更类型、需求编号、计划编号、验�
 | 用户文档 | `docs/apps/`、`docs/plugins/`、`docs/guide/` | 已规定 `docs/` 为规范入口，需持续避免重复维护 |
 | 验收证据 | `docs/validation/README.md` | 已有统一记录模板，真实 NAS 记录待补齐 |
 | 变更门禁 | `.github/workflows/sdd-check.yml`、`docs/contributing.md` | 已有 PR 级 SDD、文档和插件检查 |
-| 维护约束 | `AGENTS.md`、`docs/guide/sdd-workflow.md` | 已有 SDD 变更分类、必需产物和例外规则 |
+| 维护约束 | `AGENTS.md`、`docs/charter/sdd-workflow.md` | 已有 SDD 变更分类、必需产物和例外规则 |
 
 ## 5. 建议的目标目录
 
@@ -180,8 +180,11 @@ docs/
 ├── plans/              # 已进入实施的计划
 ├── validation/         # 真实 NAS/发布环境验收证据
 ├── decisions/          # 仅记录跨需求的架构决策，可选
-└── guide/
-    └── sdd-workflow.md # 批准后的长期维护规范
+├── charter/            # 项目维护章程与 SDD 规范
+│   ├── directory-structure.md
+│   ├── sdd-workflow.md
+│   └── sdd-transition-report.md
+└── guide/              # 开始使用、仓库结构和排错
 
 tooling/
 └── fn-os-apps-cli/

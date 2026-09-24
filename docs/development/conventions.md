@@ -61,6 +61,6 @@ Mermaid 图使用 ` ```mermaid ` 代码块。注意 `graph` 是 Mermaid 的保�
 
 ## 相关页面
 
-- [SDD 维护规范](../guide/sdd-workflow)
+- [SDD 维护规范](../charter/sdd-workflow)
 - [贡献指南](/contributing)
 - [开发环境](./environment)

@@ -1,10 +1,16 @@
 # fnOS DSH
 
-<p align="center">
-  <img src="docs/public/icons/dsh-logo.svg" alt="DeepSeek Harness Logo" width="112">
-  <strong>&nbsp;&times;&nbsp;</strong>
-  <img src="https://avatars.githubusercontent.com/u/243178325?s=128&amp;v=4" alt="GitHub Logo" width="112">
-</p>
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="https://avatars.githubusercontent.com/u/243178325?s=128&amp;v=4" alt="GitHub Logo" width="112">
+    </td>
+    <td align="center">&nbsp;&nbsp;&middot;&nbsp;&nbsp;</td>
+    <td align="center">
+      <img src="docs/public/icons/dsh-logo.svg" alt="DeepSeek Harness Logo" width="112">
+    </td>
+  </tr>
+</table>
 
 [![GitHub](https://img.shields.io/badge/GitHub-FNOSP%2Ffnos--dsh-181717?logo=github&logoColor=white)](https://github.com/FNOSP/fnos-dsh)
 [![GitHub stars](https://img.shields.io/github/stars/FNOSP/fnos-dsh?style=flat-square)](https://github.com/FNOSP/fnos-dsh/stargazers)

@@ -301,7 +301,7 @@ call(channel: string, endpoint: string, payload: unknown, signal?: AbortSignal)
 ```
 
 相关文档：
-- `docs/guide/sdd-workflow.md` — SDD 维护模式（本仓库要求先更新 `docs/requirements/`，再在 `docs/plans/` 建计划）
+- `docs/charter/sdd-workflow.md` — SDD 维护模式（本仓库要求先更新 `docs/requirements/`，再在 `docs/plans/` 建计划）
 - `docs/plans/PLAN-FNOS-00X-*.md` — 既有计划格式（frontmatter + 表格 + FlowGrid）
 - `AGENTS.md` — 仓库开发约定
 
