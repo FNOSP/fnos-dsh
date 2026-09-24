@@ -191,7 +191,7 @@ DSH 0.1.5-rc.2 发布包
 | PLAN-FNOS-004-T12-04 | FNOS-004-09-AC-04 | 工作目录未知或为空时不渲染入口；SDK 未就绪、非 web carrier 或调用失败时给出可见失败提示，不回退到 DSH 原生打开逻辑，不预检插件自己的授权目录列表 | 无工作目录时不出现入口；调用失败有可见提示且不产生未处理异常 |
 | PLAN-FNOS-004-T12-05 | FNOS-004-09-AC-06 | 补单元测试：iframe 框架判定、遮蔽注册的 id 与 priority、工作目录判定、SDK 调用与失败分支；更新插件文档 | fnOS 插件 typecheck、测试和构建通过；文档记录入口位置、可用能力和边界 |
 | PLAN-FNOS-004-T12-06 | FNOS-004-09-AC-07 / AC-08 | 插件静态资源改由插件自己的路由提供：插件在 DSH 注册 `/fnos-plugins/static/dsh-fnos` 前缀路由，只按固定资源名映射读取包内文件并返回，拒绝路径穿越；网关把 `/fnos-plugins/static` 加入 `builtinPaths`，使浏览器 bridge 自动补上应用前缀 | 客户端以该 URL 引用图标可正常加载；资源缺失返回 404；路由不读取 fnOS 宿主目录，也不放宽既有图片补前缀规则 |
-| PLAN-FNOS-004-T12-07 | FNOS-004-09-AC-09 / AC-10 | 对齐官方头部布局：两个条目的 `priority`/`order` 取值集中到 `header-utility-seats.ts`（文件入口 order -10、Session log order 0），并在 `index.ts` 里展开使用；Session log 触发控件改为 28px 圆形纯图标按钮（透明、无边框、15px 字形），菜单项带图标 | 左右顺序为「文件入口在左、Session log 在右」且不随注册先后改变；顺序测试用真实 `SlotCore` 驱动，把 order 打平会使测试失败；按钮不带可见文案与边框 |
+| PLAN-FNOS-004-T12-07 | FNOS-004-09-AC-09 / AC-10 | 对齐官方头部布局：两个条目的 `priority`/`order` 取值集中到 `header-utility-seats.ts`（文件入口 order -10、会话日志 order 0），并在 `index.ts` 里展开使用；会话日志触发控件改为 28px 圆形纯图标按钮（透明、无边框、15px 字形），菜单项带图标 | 左右顺序为「文件入口在左、会话日志在右」且不随注册先后改变；顺序测试用真实 `SlotCore` 驱动，把 order 打平会使测试失败；按钮不带可见文案与边框 |
 | PLAN-FNOS-004-T12-08 | FNOS-004-09-AC-11 | 修复「导出到 NAS」的上游取数：原实现调 `ctx.get('apiProxy').downloads.sessionLog(...)`，而全仓与上游 DSH 都没有该服务的提供方，取值恒为 `undefined`、必然 503。改为宿主向本机 loopback 请求 DSH 自己的 `/api/session.export`，并转发当前浏览器的 `dsh-auth-*` Cookie 完成 browser-session 认证（`includeDescendants=true`），复用既有流式写入与失败清理 | 导出成功写入目标目录并返回 201；绑定 `0.0.0.0` 时回落到 loopback；上游 4xx 与会话不存在可区分；Cookie 缺失或认证失败时能明确报错；不再出现 `ctx.get('apiProxy')` 调用 |
 | PLAN-FNOS-004-T12-09 | FNOS-004-07-AC-09 / AC-10 | 内置捆绑插件改为每次安装强制以 FPK 归档覆盖：在 `install_callback` 中新增 `force_install_bundled_plugin`，若 profile 已有该插件则先通过 DSH CLI `remove`，再以同一 spec `add`；不触碰 pnpm 内部状态文件，保留 profile 的依赖与 bundle 记录 | 版本号不变但归档内容变化时，profile 中的副本仍被替换为归档内容；重复执行幂等；CLI 失败时生命周期返回非零并输出错误 |
 | PLAN-FNOS-004-T12-10 | FNOS-004-09-AC-12 / AC-13 | 适配 DSH 的 presented-file 打开动作：客户端在 fnOS iframe 内包装 `fetch`，把 `/api/present.host` 报为可用、把 `/api/present.open` 改走网关到插件的 `/fnos-plugins/present/resolve`，由宿主按 Session 事件、工作区与文件系统校验出真实路径后再调用 fnOS SDK `openFile`/`openFileManager`；`/fnos-plugins/present` 加入网关内置前缀；tooltip 改为动态模板 | 不再出现 409 `Host desktop unavailable`；解析、路径校验和打开失败时可重试；非 fnOS 环境与非 present 请求完全保持原行为 |
@@ -448,7 +448,7 @@ git diff --check
 | 2026-09-13 | 完成 FNOS-004-08 | `T11-01` 至 `T11-06` 落地（`35f0e70`）：新增 `@deepseek-ai/dsh-client-ui-session` 类型依赖与座位标准套件导入，`CODEX_PROVIDER` 移至 `contracts/`，显隐合取收敛为纯函数；`AC-01` 经 DSH 客户端浏览器实测通过，`AC-02`/`AC-03`/`AC-04` 待补人工复现 |
 | 2026-09-13 | 纳入 FNOS-004-09 | 增加 fnOS 原生文件入口计划（`T12-01` 至 `T12-05`）：在 fnOS iframe 内以同 `id`、更低 `priority` 遮蔽官方「打开应用」，用 Semi UI 还原锚点与下拉菜单，并以 fnOS JS SDK 的 `openFileManager` 打开会话工作目录；预览与编辑器因只支持文件路径而不在本轮范围 |
 | 2026-09-13 | 补充 FNOS-004-09 静态资源方案 | 新增 `T12-06`：插件静态资源不再内联，改由插件注册 `/fnos-plugins/static/dsh-fnos` 路由返回包内资源，网关把 `/fnos-plugins/static` 加入内置前缀；不读取 fnOS 宿主静态目录，也不放宽既有图片补前缀规则 |
-| 2026-09-13 | 补充 FNOS-004-09 头部布局任务 | 新增 `T12-07`：对齐官方左右顺序并把顺序取值集中可测；Session log 改为纯图标按钮 |
+| 2026-09-13 | 补充 FNOS-004-09 头部布局任务 | 新增 `T12-07`：对齐官方左右顺序并把顺序取值集中可测；会话日志改为纯图标按钮 |
 | 2026-09-13 | 修复 FNOS-004-09「导出到 NAS」上游取数 | 新增 `T12-08`：数据源由不存在的 `apiProxy` 注入服务改为回源 `/api/session.export` |
 | 2026-09-13 | 新增 FNOS-004-07 内置插件强制覆盖 | 新增 `T12-09`：捆绑插件每次安装按 FPK 归档覆盖（不比较版本），并约束删除路径的推导与校验 |
 | 2026-09-14 | 内置 CodeBuddy RPC 频道进网关 | 新增 `T05-05`：把内置插件的浏览器同级路由 `/codebuddy` 加入网关内置前缀，用户无需在设置页手工登记；补充 `FNOS-004-02-AC-06` |

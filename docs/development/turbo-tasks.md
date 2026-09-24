@@ -359,7 +359,7 @@ sequenceDiagram
 3. 新增任务后同步在 `turbo.json` 声明 `dependsOn`、`outputs`、`cache` 或 `persistent`。
 4. workspace 依赖必须真实写入包的 `dependencies` 或 `devDependencies`，否则 `^build`、`^dev` 无法推导依赖顺序。
 5. 共享包作为依赖参与 `dev` 时必须是一次性任务：`persistent: false` 且在包内 `turbo.json` 覆盖，否则 `^dev` 会因「persistent task cannot be depended on」报错，或与消费方并行写入 `lib/**`。
-6. `package.json` 和 Workflow 中使用 `turbo run`；持续开发使用 `turbo watch`。
+6. `package.json` 和工作流中使用 `turbo run`；持续开发使用 `turbo watch`。
 7. 同一类检查尽量通过一次 Turbo 调度传入多个 filter，避免共享依赖被多个 Turbo 进程重复执行。
 
 ## 常用验证
@@ -376,4 +376,4 @@ pnpm run build -- --docs
 - [命令与脚本](./commands-and-scripts)
 - [CLI 命令参考](./cli-commands)
 - [插件开发](./plugin-development)
-- [GitHub Workflow](./github-workflows)
+- [GitHub 工作流](./github-workflows)

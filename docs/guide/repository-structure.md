@@ -1,10 +1,16 @@
 # 仓库结构
 
+本页提供仓库拓扑速览；目录归属、新增目录和文件放置规则以[目录结构规范](../charter/directory-structure)为准。
+
 ```text
 .
 ├── apps/                  # fnOS 应用源码与打包配置
 ├── plugins/               # Agent 插件 workspace
 ├── docs/                  # VitePress 文档源文件与文档 workspace 包
+│   ├── charter/           # 项目维护章程与 SDD 规范
+│   ├── requirements/      # 正式需求规格
+│   ├── plans/             # 已进入实施的计划
+│   └── validation/        # 真实环境验收证据
 ├── .github/workflows/     # GitHub Actions 构建与发布流程
 ├── tooling/
 │   └── fn-os-apps-cli/    # fn-apps-cli CLI：版本、构建和 Release 工具
@@ -30,7 +36,7 @@
 
 具体文件以应用类型和功能为准。新增文件时应保留 fnpack 模板要求的基础结构。
 
-## Agent 插件目录
+## Agent（智能体）插件目录
 
 `plugins/*` 是 Agent 插件的 pnpm workspace。通用插件默认使用 `agent-plugin-<name>` 命名；面向特定生态的插件可以保留生态名称，例如 `@tnnevol/dsh-codex-auth`。每个子目录可以维护插件源码、构建配置、测试和 Cordis bundle patch。面向用户的插件说明统一维护在 `docs/`，不再以 `plugins/*/README.md` 作为更新入口。
 

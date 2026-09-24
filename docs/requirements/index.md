@@ -38,7 +38,7 @@ FNOS-###-需求主题.md
 - 编号前缀使用需求主编号 `FNOS-###`，并在项目范围内保持唯一、连续。
 - 需求主题使用简短、明确的中文或英文短语，概括需求的核心对象和目标；英文或多词名称使用短横线连接。
 - 名称概括需求目标，不使用“修改”“临时”“test”等无法表达范围的名称。
-- 日期不写入文件名前缀，需求正式确认或开始记录的日期保留在 Frontmatter 和元信息表中。
+- 日期不写入文件名前缀，需求正式确认或开始记录的日期保留在前置元数据和元信息表中。
 
 示例：
 
@@ -47,7 +47,7 @@ docs/requirements/FNOS-001-dsh-fnos-adaptation.md
 docs/requirements/FNOS-002-dsh-workspace-access.md
 ~~~
 
-### Frontmatter、标题和元信息
+### 前置元数据、标题和元信息
 
 文档必须包含 title 和 description，一级标题与 title 保持一致：
 

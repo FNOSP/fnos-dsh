@@ -83,7 +83,7 @@ esac
 卸载：读取用户选择 → 停止进程 → uninstall_callback → 清理或保留数据
 ```
 
-升级脚本需要兼容旧版本实际存在的目录和字段；卸载脚本应区分“删除应用运行文件”和“删除用户数据”。涉及应用配置的变更，应同时更新 [用户向导](./wizard) 和 [Manifest 配置](./manifest)。
+升级脚本需要兼容旧版本实际存在的目录和字段；卸载脚本应区分“删除应用运行文件”和“删除用户数据”。涉及应用配置的变更，应同时更新 [用户向导](./wizard) 和 [Manifest 清单配置](./manifest)。
 
 ## 验证
 
@@ -107,7 +107,7 @@ appcenter-cli stop <appname>
 
 相关页面：
 
-- [Manifest 配置](./manifest)
+- [Manifest 清单配置](./manifest)
 - [权限与入口](./permissions)
 - [用户向导](./wizard)
 - [开发环境](./environment)

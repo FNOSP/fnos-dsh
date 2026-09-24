@@ -1,8 +1,8 @@
-# GitHub Workflow
+# GitHub 工作流
 
 本页说明 `.github/workflows/` 当前有效的 GitHub Actions，以及它们与仓库文件、包和外部工具的依赖关系。
 
-## Workflow 总览
+## 工作流总览
 
 当前自动化分成三条路径：
 
@@ -15,7 +15,7 @@ flowchart TD
   tag["推送 v* Tag"]
   releaseWorkflow[".github/workflows/build-release.yml"]
   prepare["prepare-release：创建或重置草稿 Release"]
-  dsh["build-dsh：可复用 Workflow"]
+  dsh["build-dsh：可复用工作流"]
   publish["publish-release：上传完成并生成 Release 说明"]
   releaseStatus{"发布链路成功？"}
   releaseDone["是：发布 Release"]
@@ -45,19 +45,19 @@ flowchart TD
   docsTrigger --> docsWorkflow --> docsRun --> pages
 ```
 
-## 两个发布 Job 的时序
+## 两个发布任务的时序
 
-`prepare-release` 完成后，`build-dsh` 作为可复用 Workflow 执行；它完成后 `publish-release` 才会继续。
+`prepare-release` 完成后，`build-dsh` 作为可复用工作流执行；它完成后 `publish-release` 才会继续。
 
 ```mermaid
 sequenceDiagram
   participant github as GitHub Actions
   participant prepare as prepare-release<br/>创建或重置草稿 Release
-  participant dsh as build-dsh<br/>可复用 Workflow
+  participant dsh as build-dsh<br/>可复用工作流
   participant gateway as build:gateway<br/>构建 fnOS Gateway
   participant native as prepare_dsh<br/>准备 DSH native
   participant dshBuild as build<br/>构建 Harness FPK + 上传
-  participant publish as publish-release<br/>等待构建 Job
+  participant publish as publish-release<br/>等待构建任务
   participant notes as pnpm run release:notes<br/>调用 changelogithub
   participant release as GitHub Release
 
@@ -78,11 +78,11 @@ sequenceDiagram
 
 ### `changelogithub` 的执行时机
 
-Release 日志不是在 `build-dsh-fn.yml` 中生成的，而是在 `build-release.yml` 的 `publish-release` Job 中执行。具体顺序是：
+Release 日志不是在 `build-dsh-fn.yml` 中生成的，而是在 `build-release.yml` 的 `publish-release` 任务中执行。具体顺序是：
 
 1. `prepare-release` 创建或重置草稿 Release，并输出 `release_id`。
 2. `build-dsh` 构建并上传 Harness FPK。
-3. 构建 Job 成功后，`publish-release` 开始发布任务；成功路径不再写入自定义 Release `name/body`。
+3. 构建任务成功后，`publish-release` 开始发布任务；成功路径不再写入自定义 Release `name/body`。
 4. `publish-release` 设置 Node.js / pnpm，安装 CLI 依赖。
 5. 执行 `pnpm run release:notes`，由 `fn-apps-cli release:notes` 调用 `changelogithub`，生成并写入完整 Release `name/body`。
 6. Release 日志生成完成后，GitHub Release 才会被发布；失败路径只把诊断信息写入 Actions Summary，并保留草稿。
@@ -119,13 +119,13 @@ flowchart TD
 
 `build-dsh-fn.yml` 只接受 `workflow_call`，不会自行响应 push；它必须由 `build-release.yml` 传入 `release_tag` 和 `release_id`。
 
-## Workflow 与文件、包的依赖关系
+## 工作流与文件、包的依赖关系
 
-下图只展示运行时真正读取或调用的边界：Workflow 调用 CLI，CLI 再调用 Turbo、VitePress、fnpack 或包内脚本；应用的 `manifest` 决定是否进入 FPK 矩阵。
+下图只展示运行时真正读取或调用的边界：工作流调用 CLI，CLI 再调用 Turbo、VitePress、fnpack 或包内脚本；应用的 `manifest` 决定是否进入 FPK 矩阵。
 
 ```mermaid
 flowchart LR
-  subgraph workflows["GitHub Workflows"]
+  subgraph workflows["GitHub 工作流"]
     release[".github/workflows/build-release.yml"]
     dsh[".github/workflows/build-dsh-fn.yml"]
     docs[".github/workflows/deploy-docs.yml"]
@@ -194,9 +194,9 @@ flowchart LR
   turbo --> harnessPlugins
 ```
 
-## 各 Workflow 的职责
+## 各工作流的职责
 
-| Workflow | 触发方式 | 主要职责 | 关键输入 |
+| 工作流 | 触发方式 | 主要职责 | 关键输入 |
 | --- | --- | --- | --- |
 | `build-release.yml` | 推送 `v*` Tag | 创建草稿 Release、调用 FPK 构建、发布 Release | `github.ref_name`、Release ID |
 | `build-dsh-fn.yml` | 仅 `workflow_call` | 构建 Gateway、准备 DSH native、构建 Harness FPK | `release_tag`、`release_id`、native 配置 |
@@ -235,7 +235,7 @@ pnpm run release:notes
 
 ## 文档与 SDD 链路
 
-文档和 SDD Workflow 都会构建 VitePress，因此页面里的 Mermaid 图会一并渲染：
+文档和 SDD 工作流都会构建 VitePress，因此页面里的 Mermaid 图会一并渲染：
 
 ```bash
 pnpm run build -- --docs
@@ -244,13 +244,13 @@ pnpm run check -- --all
 
 - `deploy-docs.yml` 构建 `docs/.vitepress/dist`，上传后由 `deploy-pages` 发布。
 - `sdd-check.yml` 对 Pull Request 的指定路径执行完整 `check --all`。
-- 只修改 `apps/**` 时，仍会触发 SDD Workflow，因为它在路径过滤器中；FPK 的真实安装行为还必须在 fnOS 设备上验收。
+- 只修改 `apps/**` 时，仍会触发 SDD 工作流，因为它在路径过滤器中；FPK 的真实安装行为还必须在 fnOS 设备上验收。
 
-## 修改 Workflow 的检查清单
+## 修改工作流的检查清单
 
 - [ ] 新增或修改触发器后，更新本页的触发条件和总览图。
-- [ ] 可复用 Workflow 的输入、输出和 `needs` 关系保持一致。
-- [ ] FPK 构建继续通过 `fn-apps-cli` 和 `fnpack`，不在 Workflow 中复制 CLI 逻辑。
+- [ ] 可复用工作流的输入、输出和 `needs` 关系保持一致。
+- [ ] FPK 构建继续通过 `fn-apps-cli` 和 `fnpack`，不在工作流中复制 CLI 逻辑。
 - [ ] 版本、DSH native 和 fnpack 版本来源与配置文件保持一致。
 - [ ] 文档或 Mermaid 图改动通过 `pnpm run build -- --docs`。
 - [ ] 提交前运行 `pnpm run check -- --all`。

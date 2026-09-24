@@ -39,7 +39,7 @@ DSH 在 fnOS 中运行后，还有几处使用体验需要调整。Codex 登录�
 - 通过 `changelogithub` 在项目 Tag 发布时生成 Release 日志，移除 workflow 内手写日志生成逻辑。
 - 优化 `@tnnevol/fn-os-apps-cli` 目录结构：由独立的 `program.ts` 暴露 Commander `program` 实例，各 `commands/*.ts` 模块注册命令并实现 `action`，`src/index.ts` 统一加载并解析命令。
 - 根目录通过唯一的 `start` 入口统一启动插件开发 watch 和 VitePress 文档开发服务，插件启动自动包含共享 UI 依赖。
-- 开发指南菜单覆盖 FPK 应用配置、生命周期、权限、用户向导、环境脚本、任务编排和 GitHub Workflow；以流程图和依赖关系图说明根 `package.json`、入口 CLI、Turbo、workspace package 与 CI Workflow 之间的调用关系。
+- 开发指南菜单覆盖 FPK 应用配置、生命周期、权限、用户向导、环境脚本、任务编排和 GitHub 工作流；以流程图和依赖关系图说明根 `package.json`、入口 CLI、Turbo、workspace package 与 CI 工作流之间的调用关系。
 
 ## 涉及范围
 

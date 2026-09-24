@@ -1,4 +1,4 @@
-# Manifest 配置
+# Manifest 清单配置
 
 `apps/<appname>/manifest` 是 fnOS 应用的基础清单，使用对齐的 INI 风格键值格式。它描述应用身份、版本、平台、桌面入口和运行约束。应用目录、`app/ui/config`、`config/`、`wizard/` 和生命周期脚本必须与 Manifest 保持一致。
 

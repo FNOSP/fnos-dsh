@@ -18,7 +18,7 @@ git push origin main
 git push origin v<版本号>
 ```
 
-推送 `v*` Tag 后，Actions 会自动开始构建。构建失败时，优先查看 `build-dsh` Job 的 `Build fn-deepseek-harness FPK` 步骤和 fnpack 输出。
+推送 `v*` Tag 后，Actions 会自动开始构建。构建失败时，优先查看 `build-dsh` 任务的 `Build fn-deepseek-harness FPK` 步骤和 fnpack 输出。
 
 ## 新增应用检查
 
@@ -28,4 +28,4 @@ git push origin v<版本号>
 - 应用目录不依赖本地未提交文件。
 - 生命周期脚本具有正确的执行权限。
 - 所有构建依赖都能在 GitHub Actions 环境中获取。
-- 在 `build-release.yml` 中接入新的构建 Job；`build-dsh-fn.yml` 只服务 `fn-deepseek-harness`。
+- 在 `build-release.yml` 中接入新的构建任务；`build-dsh-fn.yml` 只服务 `fn-deepseek-harness`。

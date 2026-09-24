@@ -230,7 +230,7 @@ pnpm --filter @tnnevol/dsh-codebuddy run build
 
 | 能力 | 用途 | 参考资料 |
 | --- | --- | --- |
-| fnOS Manifest | `wizard/install`、`wizard/config` 和 `ctl_stop` 配置契约 | [fnOS Manifest 配置](https://developer.fnnas.com/docs/core-concepts/manifest) |
+| fnOS Manifest 清单 | `wizard/install`、`wizard/config` 和 `ctl_stop` 配置契约 | [fnOS Manifest 清单配置](https://developer.fnnas.com/docs/core-concepts/manifest) |
 | fnOS 应用框架 | `cmd/main`、`cmd/config_callback` 生命周期职责 | [fnOS 应用框架](https://developer.fnnas.com/docs/core-concepts/framework) |
 | fnOS Wizard | 安装与应用设置字段定义 | [fnOS Wizard 配置](https://developer.fnnas.com/docs/core-concepts/wizard) |
 | fnOS 环境变量 | `TRIM_*` 路径和配置变量使用约束 | [fnOS 环境变量](https://developer.fnnas.com/docs/core-concepts/environment-variables) |

@@ -478,7 +478,7 @@ SSE 路由由网关自身处理，不转发到 DSH。它经过 fnOS 统一网关
 | PLAN-FNOS-002-TT-06 | 为 `@tnnevol/fn-os-apps-cli` 暴露 `fn-apps-cli` bin，根 `package.json` 的业务任务统一通过 `pnpm exec fn-apps-cli` 调用，workspace 更名为 `tooling/fn-os-apps-cli` | <Badge type="tip" text="已完成" /> |
 | PLAN-FNOS-002-TT-07 | 增加唯一根 `start` 入口，交互选择插件 Turbo watch 或 VitePress 文档服务；插件启动自动包含共享 UI 依赖并保持持续监听 | <Badge type="tip" text="已完成" /> |
 | PLAN-FNOS-002-TT-08 | 将 SDD、文档、共享包和插件检查统一收敛到 `fn-apps-cli check`，支持交互选择和 `--sdd`、`--docs`、`--packages`、`--plugins`、`--all` 参数 | <Badge type="tip" text="已完成" /> |
-| PLAN-FNOS-002-TT-09 | 重构开发指南全部子菜单，补充应用开发配置说明、统一任务操作手册，以及 `package.json` 入口、CLI、Turbo、workspace package 和 GitHub Workflow 的流程图与依赖关系图 | <Badge type="tip" text="已完成" /> |
+| PLAN-FNOS-002-TT-09 | 重构开发指南全部子菜单，补充应用开发配置说明、统一任务操作手册，以及 `package.json` 入口、CLI、Turbo、workspace package 和 GitHub 工作流的流程图与依赖关系图 | <Badge type="tip" text="已完成" /> |
 | PLAN-FNOS-002-TT-10 | 增加 `fn-apps-cli publish` npm 发布入口，交互选择一个或多个 DSH 插件，在所有询问完成后统一调用插件 `publish:next` 脚本 | <Badge type="tip" text="已完成" /> |
 
 ### 版本与发布工具（本地实现）

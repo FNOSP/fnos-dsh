@@ -120,7 +120,7 @@ fnpack build
 
 相关页面：
 
-- [Manifest 配置](./manifest)
+- [Manifest 清单配置](./manifest)
 - [生命周期脚本](./lifecycle)
 - [权限与入口](./permissions)
 - [开发环境](./environment)

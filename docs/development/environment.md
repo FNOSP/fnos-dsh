@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | Node.js | 24，最低 `>=24.0.0` | `.nvmrc`、根 `package.json#engines` |
 | pnpm | `>=11.16.0`，项目固定 `11.16.0` | 根 `package.json#packageManager`、CI |
-| [fnpack](https://developer.fnnas.com/docs/cli/fnpack/) | 本地 `1.2.3`；CI 构建 Workflow 当前使用 `1.2.1` | 本机 `PATH`、`.github/workflows/build-*.yml` |
+| [fnpack](https://developer.fnnas.com/docs/cli/fnpack/) | 本地 `1.2.3`；CI 构建工作流当前使用 `1.2.1` | 本机 `PATH`、`.github/workflows/build-*.yml` |
 | [dsh](https://github.com/deepseek-ai/deepseek-harness) | 与插件兼容声明和锁定版本一致（当前 `0.1.5-rc.2`） | 根 `package.json`、`pnpm-lock.yaml` |
 
 ## 初始化
@@ -47,10 +47,10 @@ pnpm exec lefthook install
 
 - `.nvmrc`
 - 根 `package.json` 的 `engines`、`packageManager`、catalog
-- 相关 Workflow
+- 相关工作流
 - 本页的版本表
 
-CI 的 fnpack 版本目前与本地版本**不一致**，不要在未同步 Workflow 的情况下自行假定两者相同。
+CI 的 fnpack 版本目前与本地版本**不一致**，不要在未同步工作流的情况下自行假定两者相同。
 
 ## 相关页面
 

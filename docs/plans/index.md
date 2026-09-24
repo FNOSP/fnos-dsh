@@ -36,7 +36,7 @@ docs/requirements/FNOS-001-dsh-fnos-adaptation.md
 docs/plans/PLAN-FNOS-001-dsh-fnos-adaptation.md
 ~~~
 
-### Frontmatter、标题和元信息
+### 前置元数据、标题和元信息
 
 文档必须包含 title 和 description，一级标题与 title 保持一致：
 

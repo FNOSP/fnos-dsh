@@ -74,7 +74,7 @@ fnOS 桌面
 | PLAN-FNOS-001-T11-01 | FNOS-001-11 | 使用输入区公开插槽、授权路径路由和 `ReferenceCodec` 插入 NAS 引用 | <Badge type="tip" text="已完成验证" /> |
 | PLAN-FNOS-001-T12-01 | FNOS-001-12 | 装饰 `workspaces.openPath()`，fnOS iframe 调用 `TrimApp.openFile()` | <Badge type="tip" text="已完成验证" /> |
 | PLAN-FNOS-001-T13-01 | FNOS-001-13 | 监听 `document.title`，通过 `setTitle()` 更新 fnOS 宿主标题 | <Badge type="tip" text="已完成验证" /> |
-| PLAN-FNOS-001-T15-01 | FNOS-001-15 | Session log 保留电脑下载，并支持流式写入授权 NAS 目录 | <Badge type="tip" text="已完成验证" /> |
+| PLAN-FNOS-001-T15-01 | FNOS-001-15 | 会话日志保留电脑下载，并支持流式写入授权 NAS 目录 | <Badge type="tip" text="已完成验证" /> |
 
 ## 详细交互
 
@@ -108,7 +108,7 @@ DSH 内容输入框
 - 输入引用支持多选、移除和真实路径去重，不上传或复制文件。
 - 取消面板不修改工作区和输入文本，Host 路由失败不影响普通文本输入。
 
-### P1 文件、标题和 Session log
+### P1 文件、标题和会话日志
 
 ```text
 点击 DSH 文件路径
@@ -117,7 +117,7 @@ DSH 内容输入框
 
 DSH 标题变化 → setTitle(document.title)
 
-Session log
+会话日志
   ├─ 导出到电脑 → DSH 原生下载
   └─ 导出到 NAS → 选择授权目录 → Host 流式写入 ZIP
 ```
@@ -165,7 +165,7 @@ pnpm --filter @tnnevol/dsh-codex-auth run build
 
 - 构建 FPK，确认 Scope、发布清单和安装脚本正确，包内没有未发布插件源码。
 - 验证全新安装、升级、重复启动和插件自动加载，不覆盖用户 profile。
-- 在真实 NAS 验证 iframe、网关、SSE、主题、授权目录、工作区、输入引用、文件打开、标题和 Session log 导出。
+- 在真实 NAS 验证 iframe、网关、SSE、主题、授权目录、工作区、输入引用、文件打开、标题和会话日志导出。
 - 运行 `pnpm run check -- --sdd` 和 `pnpm run build -- --docs`。
 
 ### 升级和回滚

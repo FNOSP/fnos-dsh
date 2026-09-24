@@ -110,7 +110,7 @@ appcenter-cli start <appname>
 
 相关页面：
 
-- [Manifest 配置](./manifest)
+- [Manifest 清单配置](./manifest)
 - [生命周期脚本](./lifecycle)
 - [用户向导](./wizard)
 - [开发环境](./environment)

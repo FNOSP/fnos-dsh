@@ -1,6 +1,6 @@
 <AppIcon name="fn-deepseek-harness" alt="DeepSeek Harness 图标" />
 
-# DeepSeek Harness
+# DeepSeek Harness 应用
 
 在飞牛 fnOS 上以应用形式运行 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)，通过 NAS Web 的统一网关打开 dsh Web UI，不需要对外开放端口。
 

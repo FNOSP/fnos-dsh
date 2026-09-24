@@ -3,13 +3,13 @@
 ## 修改流程
 
 1. 从 `main` 创建分支。
-2. 按 [SDD 维护规范](/guide/sdd-workflow) 判断是否需要更新需求和计划。
+2. 按 [SDD 维护规范](/charter/sdd-workflow) 判断是否需要更新需求和计划。
 3. 修改对应应用、插件或文档。
 4. 运行与改动相关的校验，包括 `pnpm run check -- --all`。
 5. 使用 Conventional Commits 创建提交。
 6. 推送分支并提交 Pull Request，填写仓库 PR 检查清单。
 
-## Commit 规范
+## 提交规范
 
 本仓库使用 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/) 规范，提交信息由提交钩子自动校验：
 
@@ -85,5 +85,5 @@ git diff --check
 ## 相关页面
 
 - [路径与编码](/development/conventions)
-- [SDD 维护规范](/guide/sdd-workflow)
+- [SDD 维护规范](/charter/sdd-workflow)
 - [命令与脚本](/development/commands-and-scripts)
