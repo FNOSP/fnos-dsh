@@ -1434,11 +1434,19 @@ export class CodeBuddyAuthService {
     this.pending.set(handshake.state, pending)
     // 握手无论成败、一旦落定就回收该条目，避免被用户放弃的登录
     // 让这张表无界增长。
+    //
+    // `finally()` 返回的是一个**新** promise，它会带着与 `pending.promise`
+    // 相同的拒绝原因一起拒绝。这里只 `void` 掉它、没人处理——一旦 `runLogin`
+    // 的拒绝逃出来（目前它内部 try/catch 全兜住，但那是它的实现细节，不是
+    // 本处的契约），dsh 的 fail-loud 策略会直接 `process.exit(1)`，整个宿主
+    // 进程连同所有会话一起死掉。与 `session.ts` 的两处同构写法保持一致：
+    // 只吞掉这个派生 promise 的拒绝，`pending.promise` 本身的拒绝仍照常
+    // 交给 `pollLogin` 的 `await` 处理。
     void pending.promise.finally(() => {
       if (this.pending.get(handshake.state) === pending) {
         this.pending.delete(handshake.state)
       }
-    })
+    }).catch(() => undefined)
     return { authUrl: handshake.authUrl, state: handshake.state }
   }
 

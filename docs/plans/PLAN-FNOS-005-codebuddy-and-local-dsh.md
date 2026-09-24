@@ -233,6 +233,17 @@ lastVerified: 2026-09-17
 | PLAN-FNOS-005-T16-04 | FNOS-005-16-AC-04 | 桌面链事件载荷补全为来源的完整字段集（`agent_task_created` 能力标志组、`chat_message_response` token 与 `finishReason`、`chat_request_response` 成功态、`codebuddy.*` 关联键）；`skill_1` 的 `finishReason` 用 `tool_calls` | 载荷字段集与来源一致，不用最小字段集 |
 | PLAN-FNOS-005-T16-05 | FNOS-005-16-AC-06/07 | 执行结束后按账号回读真实任务状态：未达标写 `pending` + 进度（区分零进度与做了一半），「动作已发送」不汇报为「已完成」；失败原因分类可见；未完成数计入结果，单账号失败不阻断其他账号 | 日志与结果如实反映未完成项 |
 
+### P1：异常未捕获加固
+
+状态：<Badge type="tip" text="已完成" />
+
+| 任务 ID | 对应验收 | 实现内容 | 验收 |
+| --- | --- | --- | --- |
+| PLAN-FNOS-005-T17-01 | FNOS-005-17-AC-01/02 | 修掉 `host/auth-service.ts` 中 `startLogin` 的 `void pending.promise.finally(...)`：补 `.catch(() => undefined)` 吞掉派生 promise 的拒绝，与 `session.ts:233`/`session.ts:531` 两处同构写法统一；保留 `pending.promise` 自身拒绝交给 `pollLogin` 的 `await` | 断言无未处理拒绝逃逸；条目仍在落定后被回收 |
+| PLAN-FNOS-005-T17-02 | FNOS-005-17-AC-03/04 | 客户端新增 `guardRpc`：把连接层 `call` 的传输拒绝（不可达、断连、非 2xx、`rpcId` 不匹配）收敛为 `{ ok: false, error: { code: 'transport', details: { channel, endpoint } } }`；在 `client/index.tsx` **唯一**取 `ctx.connection.rpc` 处接入 | 成功信封与服务端失败信封原样透传；四参数（含 `AbortSignal`）原样转发 |
+| PLAN-FNOS-005-T17-03 | FNOS-005-17-AC-05 | 登录轮询在底层拒绝下不再静默停摆：循环继续到自身截止时间并如实回调 `onTimeout` | 虚拟时钟下推进到截止，`onTimeout` 被调用且无未处理拒绝 |
+| PLAN-FNOS-005-T17-04 | FNOS-005-17-AC-06 | 新增 `tests/login-pending-retention.spec.ts` 与 `tests/rpc-transport-guard.spec.ts`；后者含源码结构断言（`ctx.get('connection')` 只出现一次且被 `guardRpc` 包住），补上「删掉接线仍然全绿」的测试盲区 | 两处修复分别用 mutation 验证：回退修复即测试失败 |
+
 ### 详细交互：单账号「一键完成」
 
 1. 用户在账号管理页点账号卡片打开「账户信息」弹框，切到「成长任务」Tab。
@@ -304,3 +315,4 @@ lastVerified: 2026-09-17
 | 2026-09-17 | 新增 T16：风控指纹对齐与「跑完但没完成」修复 | 用户反馈「任务跑完了但实际没跑完，要到弹框里一个个点」。逐条比对来源后确认两类差异：① 出站指纹与节流未对齐（缺 `X-CodeBuddy-Request`/`X-Machine-ID`/`X-Session-ID`、上报间隔与账号限速缺失），未对齐时上游可能受理但静默不计分；② 部分判据与来源不一致（专家类自造 requestId 不计数、`Expert_lighthouse` 的 mode/type/cost 形态、桌面链字段集不足）。同时把「动作已发送」与「任务已完成」在结果与日志里彻底分开（T16-05） |
 | 2026-09-18 | 本地 DSH Web 端口改为 8070 | 按用户要求把 T12-02 的固定端口从 3150 改为 8070；`package.json#dev:web`、CLI 启动提示、README 与相关文档同步更新。FPK 网关 `127.0.0.1:3080` 与文档服务 9876 不变 |
 | 2026-09-18 | 文档服务端口改为 8876 | 按用户要求把 VitePress 开发端口从 9876 改为 8876；T12-03/T12-04 的验收端口同步更新 |
+| 2026-09-21 | 新增 T17：异常未捕获加固 | 用户要求修复插件异常未捕获问题。排查确认为两类：① 宿主侧只有一处漏守卫（`startLogin` 的 `void pending.promise.finally(...)`），`session.ts` 两处同构写法都带了 `.catch`，唯独这处没有——漏点在 dsh 的 fail-loud 下会 `process.exit(1)`，当前因 `runLogin` 内部全捕获而属「随时被重构引爆的哑雷」；② 客户端成片同类风险：连接层 `call` 声明为 `Promise<RpcResult<T>>` 却在传输失败时拒绝，而约 30 处调用点只判 `result.ok`，导致 `await` 之后的收尾被整段跳过（按钮永久 loading）与未处理拒绝，故在唯一取 rpc 处加 `guardRpc` 收敛而非逐点防御。两处修复均以 mutation 验证用例有效性；并补源码结构断言，堵住「删掉接线测试仍全绿」的盲区 |

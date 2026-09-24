@@ -23,6 +23,7 @@ import { bumpAccountEpoch } from './store/account-epoch.ts'
 import { en, zh } from './locales/index.ts'
 
 import type { ConnectionRpc } from './rpc.ts'
+import { guardRpc } from './rpc.ts'
 
 /** 本插件文案的设置命名空间。 */
 const NS = 'settings.codebuddy'
@@ -45,7 +46,12 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-codebuddy-plugin: locale')
 
   const t = ctx.locale.bind(NS) as CodeBuddySectionProps['t']
-  const rpc = (ctx.get('connection') as { rpc: ConnectionRpc }).rpc
+  // 连接层的 `call` 声明为 `Promise<RpcResult<T>>`（结果信封），但它在传输失败时
+  // 会**拒绝**：主机不可达、socket 断开、非 2xx、rpcId 不匹配都会抛出。各处
+  // 调用点只判 `result.ok`，因此那类失败会静默跳过 `setLoading(false)` 之类的
+  // 收尾（按钮永久转圈），或变成没人看的未处理拒绝。在唯一取 rpc 的地方收敛成
+  // 「永不拒绝」，把声明好的契约补回来——见 `guardRpc` 的实现注释。
+  const rpc = guardRpc((ctx.get('connection') as { rpc: ConnectionRpc }).rpc)
   // 输入框指示器在存在 timer service 时按其刷新；DSH client 为此暴露了
   // `ctx.timer`。回退到本地 timer shim，让指示器在最小化组合下也能工作。
   const timer = (ctx.get('timer') as TimerService | undefined) ?? {

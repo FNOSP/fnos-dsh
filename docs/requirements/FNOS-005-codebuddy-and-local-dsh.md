@@ -136,6 +136,7 @@ lastVerified: 2026-09-17
 - 判据必须与来源一致：专家类任务（`expert_5`、`Expert_team_use_3`、`Expert_lighthouse`）的 `expert_actual_use` 必须 JOIN 一次**真实对话**返回的服务端 `requestId`，自造 requestId 不计数；桌面链事件载荷按来源的完整字段集发送，不用最小字段集。
 - **「跑完」不等于「完成」**：任务动作返回成功（HTTP 200）只说明上报被受理，上游计分是异步的。执行结束后必须按账号回读真实任务状态，把仍未达标（`current < target`）的任务如实写成 `pending` 并计入结果，不得把「动作已发送」汇报成「任务已完成」。宿主日志必须让人能分辨「没开始做」「做了一半」「已完成」。
 - 报告失败的账号要给出可见原因（凭据过期、任务不存在、动作未移植、上游报错、未达标分别不同），不静默吞掉。
+- **异常必须被捕获，不得逃逸成未处理拒绝**：宿主侧任何逃逸的 `unhandledRejection` 都会触发 dsh 的 fail-loud 直接 `process.exit(1)`，代价是整个进程与全部会话，而不是一次操作失败——因此「丢弃派生 promise」时必须自行吞掉其拒绝，周期与后台任务一律走带 `catch` 的包装。客户端侧不得依赖调用点各自防御：连接层的 `call` 声明为结果信封却会在传输失败时拒绝，取用点必须收敛成「永不拒绝」，否则失败会静默跳过收尾（按钮永久 loading）或变成无人观察的未处理拒绝。
 
 ### 本地 DSH 开发环境
 
@@ -300,6 +301,15 @@ lastVerified: 2026-09-17
 - `FNOS-005-16-AC-07`：全账号与单账号执行的结果都按账号给出可见结论（已领奖 / 已达标未领奖 / 未达标 / 动作未移植 / 上游报错 / 凭据过期），并统计未完成数；任一账号失败不阻断其他账号。
 - `FNOS-005-16-AC-08`：移植后插件 typecheck、单元测试与构建全部通过；新增/修订的测试覆盖账号级互斥、禁用范围、指纹头、节流间隔与「未达标如实汇报」。
 
+### FNOS-005-17 验收条件
+
+- `FNOS-005-17-AC-01`：宿主侧**不得存在未处理的 promise 拒绝**。凡「丢弃派生 promise」（`void p.finally(...)` / `void p.then(...)`）之处，必须自行吞掉该派生的拒绝（`.catch(() => undefined)`）：`finally()` 返回的是新 promise，会带着与源 promise 相同的拒绝原因一起拒绝，源 promise 的拒绝由调用方处理不等于派生那个也有人管。dsh 的 fail-loud 策略对 `unhandledRejection` 直接 `process.exit(1)`，一条逃逸即整个宿主进程连同全部会话终止。
+- `FNOS-005-17-AC-02`：`startLogin` 的 pending 登记路径（`host/auth-service.ts`）与 `session.ts` 的两处同构写法保持同一守卫形态；`pending.promise` 自身的拒绝仍交给 `pollLogin` 的 `await` 处理，不因加固而被吞掉。
+- `FNOS-005-17-AC-03`：客户端取 `ctx.connection.rpc` 的**唯一**入口必须经「永不拒绝」适配（`guardRpc`）。连接层 `call` 声明为 `Promise<RpcResult<T>>` 却在传输失败（主机不可达、socket 断开、非 2xx、`rpcId` 不匹配）时拒绝，与全客户端「只判 `result.ok`」的写法相悖；该适配把拒绝收敛为 `{ ok: false, error: { code: 'transport' } }`，使 `await` 之后的收尾语句（`setLoading(false)`、`setBusyId(undefined)`、重入标志复位）不被整段跳过，浮动调用不再产生未处理拒绝。
+- `FNOS-005-17-AC-04`：成功信封与服务端自有的失败信封**原样透传**，不得被该适配改写或包装；`call` 的四个参数（含 `AbortSignal`）原样转发。
+- `FNOS-005-17-AC-05`：登录轮询（`startLoginPolling`）在底层调用拒绝时不得静默停摆——循环须继续到自身截止时间并如实回调 `onTimeout`，而不是在第一跳就消失且三个回调都不触发。
+- `FNOS-005-17-AC-06`：加固后插件 typecheck、单元测试与构建全部通过；两处修复各有行为用例守住，且「接线」本身由源码结构断言守住（删掉适配即测试失败）。
+
 ### 状态看板
 
 | 阶段 | 状态 | 当前范围 | 下一步 |
@@ -320,6 +330,7 @@ lastVerified: 2026-09-17
 | 仓库插件内置进本地 profile | <Badge type="tip" text="已完成" /> | 启动前用 Turbo 构建并经 DSH CLI 链接；已在 bundle 中的跳过；排除 `@tnnevol/dsh-fnos` | 已完成；清空 `.dsh` 后全流程实测通过，二次启动幂等 |
 | 单账号「一键完成」与跨账号互斥 | <Badge type="tip" text="已完成" /> | 弹框内刷新左侧新增「一键完成」；宿主改按账号加锁，运行中禁用全账号按钮与该账号单项按钮，其他账号不受影响 | 已完成；实现与构建通过，账号级互斥与禁用范围由单测守住 |
 | 风控指纹对齐与「跑完但没完成」修复 | <Badge type="tip" text="已完成" /> | 对齐来源指纹头族与节流间隔；专家类任务改用真实 chat requestId；桌面链补全事件载荷；执行后按账号回读并如实汇报未达标项 | 已完成；实现与构建通过，动作契约与汇报语义由单测守住 |
+| 异常未捕获加固 | <Badge type="tip" text="已完成" /> | 修掉 `startLogin` 中 `void p.finally(...)` 漏掉的派生拒绝（会经 fail-loud 终止整个宿主进程）；客户端在唯一取 rpc 处收敛为「永不拒绝」，消除静默跳过收尾与未处理拒绝 | 已完成；两处均有行为用例，接线由源码结构断言守住，mutation 验证可捕获 |
 
 ## 变更记录
 
@@ -359,3 +370,4 @@ lastVerified: 2026-09-17
 | 2026-09-17 | 新增 FNOS-005-16 | 逐条比对来源 `workbuddy2api-panel` 后补齐风控与判据差异：指纹头族（`X-CodeBuddy-Request`/`X-Machine-ID`/`X-Session-ID`/桌面 UA）、上报与召唤链节流、`expert_actual_use` 必须 JOIN 真实 chat requestId、桌面链完整事件载荷；并明确「按账号回读真实状态、未达标如实汇报」的语义 |
 | 2026-09-18 | 本地 DSH Web 端口改为 8070 | 原 3150 与开发者本机其它常用服务冲突概率高，按用户要求固定为 8070；FPK 网关的 `127.0.0.1:3080` 区分关系不变。文档服务端口仍为 9876 |
 | 2026-09-18 | 文档服务端口改为 8876 | 按用户要求把 VitePress 开发端口从 9876 改为 8876；与 DSH Web 的 8070、FPK 网关的 3080 均不冲突 |
+| 2026-09-21 | 新增 FNOS-005-17 | 用户要求修复插件异常未捕获问题。排查确认宿主侧只有一处漏守卫：`startLogin` 的 `void pending.promise.finally(...)` 未吞掉派生 promise 的拒绝，而 `session.ts` 的两处同构写法都带了 `.catch(() => undefined)`；该漏点在 dsh 的 fail-loud 下会 `process.exit(1)`（当前因 `runLogin` 内部全捕获而未触发，属随时会被重构引爆的哑雷）。客户端侧则是成片的同类风险：连接层 `call` 声明为结果信封却在传输失败时拒绝，而全部调用点只判 `result.ok`，导致收尾语句被跳过（按钮永久 loading）与未处理拒绝；在唯一取 rpc 处加 `guardRpc` 收敛。两条守卫均有行为用例，接线由源码结构断言守住 |
