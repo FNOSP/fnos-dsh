@@ -100,4 +100,10 @@ describe('bundled plugin install', () => {
     expect(output).toContain(`add:file:${archive}`)
     expect(output).not.toContain('dsh-fnos@1.0.0')
   })
+
+  it('pins the DSH npm install to a pre-2026-09-22 registry snapshot to avoid transitive dep drift', async () => {
+    const source = await readFile(scriptPath, 'utf8')
+    expect(source).toMatch(/DSH_NPM_BEFORE="\$\{DSH_NPM_BEFORE:-2026-09-20\}"/u)
+    expect(source).toMatch(/install "\$\{DSH_PACKAGE\}@\$\{DSH_VERSION\}" -g --ignore-scripts "--before=\$\{DSH_NPM_BEFORE\}"/u)
+  })
 })
