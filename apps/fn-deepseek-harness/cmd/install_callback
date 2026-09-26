@@ -14,6 +14,16 @@ DSH_VERSION="0.1.5-rc.2"
 PNPM_VERSION="11.7.0"
 PNPM_BIN="${NPM_CONFIG_PREFIX}/bin/pnpm"
 DSH_VERSION_FILE="${APP_DEST}/dsh-version"
+# Pin the npm registry snapshot used when installing the DSH package.
+# On 2026-09-22 upstream released @deepseek-ai/dsh-base@0.1.5-rc.3, which
+# tightened the @deepseek-ai/cordis peer from ^4.0.2 to 4.0.2. npm 11+ resolves
+# the loose ^4.0.2 from the FPK-pinned rc.2 to the freshly published 4.0.4,
+# which forces 43 transitive packages (including dsh-attachment-local and
+# dsh-sandbox-local) to be nested under dsh-base. The path checks in this
+# script and the Cordis plugin resolver both then break. Pinning the registry
+# snapshot to before that release restores the tree shape the FPK was tested
+# against. Override via DSH_NPM_BEFORE=<date> when bumping DSH_VERSION.
+DSH_NPM_BEFORE="${DSH_NPM_BEFORE:-2026-09-20}"
 DSH_INSTALL_CALLBACK_HELPER="${APP_DEST}/scripts/install-callback-helper.mjs"
 DSH_PUBLISHED_PLUGIN_MANIFEST="${APP_DEST}/published-dsh-plugins.json"
 DSH_BUNDLED_PLUGIN_DIRECTORY="${APP_DEST}/bundled-dsh-plugins"
@@ -352,8 +362,8 @@ main() {
         else
             log_info "No usable local ${DSH_PACKAGE}@${DSH_VERSION}; installing the required version."
         fi
-        log_info "Installing ${DSH_PACKAGE}@${DSH_VERSION} globally from ${NPM_REGISTRY}..."
-        if ! "${NPM_BIN}" install "${DSH_PACKAGE}@${DSH_VERSION}" -g --ignore-scripts; then
+        log_info "Installing ${DSH_PACKAGE}@${DSH_VERSION} globally from ${NPM_REGISTRY} (registry snapshot before ${DSH_NPM_BEFORE})..."
+        if ! "${NPM_BIN}" install "${DSH_PACKAGE}@${DSH_VERSION}" -g --ignore-scripts "--before=${DSH_NPM_BEFORE}"; then
             fail_install "Failed to install ${DSH_PACKAGE}@${DSH_VERSION} from ${NPM_REGISTRY}"
         fi
         NPM_GLOBAL_ROOT="$(global_package_root)"

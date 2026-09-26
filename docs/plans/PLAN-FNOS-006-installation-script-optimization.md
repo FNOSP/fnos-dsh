@@ -1,12 +1,12 @@
 ---
 id: PLAN-FNOS-006
 title: PLAN-FNOS-006 安装脚本与安装流程优化
-description: 实施 FNOS-006-01 至 FNOS-006-07，将安装阶段 Node.js 逻辑整理为 TypeScript helper，保留 node-pty、attachment、插件安装和失败恢复行为，并修复 CodeBuddy 流式中止导致 DSH 进程退出的问题。
+description: 实施 FNOS-006-01 至 FNOS-006-08，将安装阶段 Node.js 逻辑整理为 TypeScript helper，保留 node-pty、attachment、插件安装和失败恢复行为，修复 CodeBuddy 流式中止导致 DSH 进程退出的问题，并在 DSH 全局安装时锁定 npm registry 时间窗避免传递依赖漂移。
 status: planned
 owner: tnnevol
 planDate: 2026-09-16
 targetVersion: 5.5.0
-lastVerified: 2026-09-16
+lastVerified: 2026-09-26
 ---
 
 # PLAN-FNOS-006 安装脚本与安装流程优化
@@ -16,7 +16,7 @@ lastVerified: 2026-09-16
 | 计划编号 | PLAN-FNOS-006 |
 | 计划日期 | 2026-09-16 |
 | 对应需求 | [FNOS-006 安装脚本与安装流程优化](/requirements/FNOS-006-installation-script-optimization) |
-| 本轮功能 | `FNOS-006-01` 至 `FNOS-006-07`：统一安装辅助入口、瘦身安装回调、收敛 node-pty 和 attachment 流程、明确权限边界、校验构建产物，并保障 CodeBuddy 思考中停止会话 |
+| 本轮功能 | `FNOS-006-01` 至 `FNOS-006-08`：统一安装辅助入口、瘦身安装回调、收敛 node-pty 和 attachment 流程、明确权限边界、校验构建产物、保障 CodeBuddy 思考中停止会话，并在 DSH 全局安装时锁定 npm registry 时间窗 |
 | 适用应用 | `fn-deepseek-harness` |
 | 计划状态 | <Badge type="info" text="规划中" /> |
 
@@ -128,6 +128,16 @@ packages/fnos-gateway/src/install-callback-helper/index.ts
 - 端到端中止复现通过：思考中停止会话后流以 `AbortError` 干净结束，DSH 进程继续运行。
 - 真实使用环境已确认「思考中停止会话不再导致 DSH 客户端服务停止」。
 
+### P0：DSH 全局安装锁定 npm registry 时间窗
+
+状态：<Badge type="info" text="规划中" />
+
+| 任务 ID | 对应验收 | 实现内容 | 验收 |
+| --- | --- | --- | --- |
+| PLAN-FNOS-006-T06-01 | FNOS-006-08 | 在 `cmd/install_callback` 的 DSH `npm install -g` 调用中加 `--before=${DSH_NPM_BEFORE}`，默认 `2026-09-20`；新引入 `DSH_NPM_BEFORE` 常量并允许通过环境变量覆盖 | 安装回归后 npm 全局根顶层包数从 119 回到 240，`dsh-base` 锁回 `0.1.5-rc.2`，`@deepseek-ai/dsh-attachment-local`、`@deepseek-ai/dsh-sandbox-local` 出现在顶层 `node_modules` |
+| PLAN-FNOS-006-T06-02 | FNOS-006-08 | 在 `bundled-plugin-install.spec.ts` 中增加 install_callback 源码包含 `DSH_NPM_BEFORE` 与 `--before=${DSH_NPM_BEFORE}` 的正则断言 | `pnpm --filter @tnnevol/fnos-gateway run test` 通过 |
+| PLAN-FNOS-006-T06-03 | FNOS-006-08 | 在真实 fnOS NAS 完成新装、重复安装与升级回归 | `has_required_dsh` 检查通过；DSH Web 在 127.0.0.1:3080 正常启动；`/var/log/apps/fn-deepseek-harness.log` 不再出现 `plugin tree failed to load` 或 `failed to load`；关联 issue FNOSP/fnos-dsh#4 与 #2 |
+
 ### P1：回归验证与发布
 
 状态：<Badge type="info" text="规划中" />
@@ -205,6 +215,7 @@ pnpm --filter @tnnevol/dsh-codebuddy build
 | P0 node-pty 与 attachment 流程 | <Badge type="info" text="规划中" /> | 原有功能迁移并通过回归测试 |
 | P0 安装回调瘦身 | <Badge type="tip" text="已完成" /> | `node -e` 清零、旧脚本移除、权限交由 `run-as=package` |
 | P0 CodeBuddy 流式中止稳定性 | <Badge type="tip" text="已完成" /> | 代码、812 项插件测试、构建、端到端中止复现和真实环境验证均通过 |
+| P0 DSH 全局安装锁定 npm registry 时间窗 | <Badge type="info" text="规划中" /> | `--before=${DSH_NPM_BEFORE}` 加入 install_callback；回归测试覆盖；真实 NAS 新装、重复安装与升级验收 |
 | P1 回归验证与发布 | <Badge type="info" text="规划中" /> | 全量检查、FPK 构建和真实 NAS 验收通过 |
 
 ## 变更记录
@@ -215,3 +226,4 @@ pnpm --filter @tnnevol/dsh-codebuddy build
 | 2026-09-16 | 增加 PLAN-FNOS-006-T05-01 至 T05-03：将 CodeBuddy 思考中停止会话的 SSE 中止、刷新/目录读取和周期任务 rejection 收口纳入 P0；本地 812 项测试和端到端中止验证通过，待真实 NAS 验收。 |
 | 2026-09-16 | T05 阶段验收通过：CodeBuddy 流式中止稳定性在真实使用环境确认，思考中停止会话不再导致 DSH 客户端服务停止；阶段状态改为“已完成”。 |
 | 2026-09-16 | T01、T03 阶段完成：统一安装辅助入口与简化安装回调完成，helper 模块化编译产物落地（19 KB/425 行，未知子命令退出码 1），回调 `node -e` 计数为 0 且不再处理身份切换；阶段状态改为“已完成”。 |
+| 2026-09-26 | 增加 PLAN-FNOS-006-T06-01 至 T06-03：DSH 全局安装锁定 npm registry 时间窗；用于修复 2026-09-22 上游 `@deepseek-ai/dsh-base@0.1.5-rc.3` 发布后 npm peer 漂移导致 install_callback 路径检查与 Cordis 解析失败的问题；与 issue FNOSP/fnos-dsh#4、#2 同根因 |

@@ -5,7 +5,7 @@ description: 统一安装阶段的辅助脚本和构建入口，减少 Shell 与
 status: planned
 owner: tnnevol
 targetVersion: 5.5.0
-lastVerified: 2026-09-16
+lastVerified: 2026-09-26
 ---
 
 # FNOS-006 安装脚本与安装流程优化
@@ -58,6 +58,7 @@ lastVerified: 2026-09-16
 | FNOS-006-05 | P1 | 安装环境与权限边界清晰 | 安装脚本不自行切换用户，DSH 由 fnOS 包用户运行 | <Badge type="info" text="规划中" /> |
 | FNOS-006-06 | P1 | 构建产物和安装检查 | FPK 中存在固定路径的 helper，缺失时安装回调给出明确错误 | <Badge type="info" text="规划中" /> |
 | FNOS-006-07 | P0 | CodeBuddy 流式中止稳定性 | CodeBuddy 模型思考过程中停止会话只中断当前请求，DSH 客户端服务继续运行 | <Badge type="tip" text="已完成" /> |
+| FNOS-006-08 | P0 | DSH 全局安装锁定 npm registry 时间窗 | 在 `cmd/install_callback` 安装 DSH 时通过 `--before=${DSH_NPM_BEFORE}` 固定 npm registry 快照，避免 2026-09-22 上游发布 `@deepseek-ai/dsh-base@0.1.5-rc.3` 导致 cordis peer 收紧、`npm install -g` 将 43 个传递包嵌套到 `dsh-base` 之下的树形漂移；install_callback 的顶层路径检查与 Cordis 插件解析同时恢复 | <Badge type="info" text="规划中" /> |
 
 ## 交互和行为约束
 
@@ -125,6 +126,14 @@ lastVerified: 2026-09-16
 - `pnpm exec fn-apps-cli build -- --fpk --app fn-deepseek-harness --bundle-dsh-plugins` 通过，并确认 FPK 中包含编译后的 helper。
 - 在真实 fnOS NAS 上完成新装、重复安装、升级和失败恢复验证后，需求状态才能改为“已完成”。
 
+### FNOS-006-08 验收条件
+
+- `cmd/install_callback` 的 DSH `npm install -g` 命令行包含 `--before=${DSH_NPM_BEFORE}`；`DSH_NPM_BEFORE` 默认 `2026-09-20`，可通过同名环境变量覆盖。
+- 安装后 npm 全局根的 `@deepseek-ai/dsh-attachment-local`、`@deepseek-ai/dsh-base`、`@deepseek-ai/dsh-sandbox-local` 出现在顶层 `node_modules` 而非嵌套在 `dsh-base/node_modules` 下。
+- 安装后 `dsh-base` 实际版本与 `@deepseek-ai/dsh@0.1.5-rc.2` 在 2026-09-22 之前发布的传递依赖一致（`dsh-base@0.1.5-rc.2`）。
+- `packages/fnos-gateway/tests/bundled-plugin-install.spec.ts` 增加 install_callback 源码包含 `DSH_NPM_BEFORE` 与 `--before=${DSH_NPM_BEFORE}` 的正则断言。
+- 在真实 fnOS NAS 上以 `--before=${DSH_NPM_BEFORE}` 安装后，DSH Web 在 127.0.0.1:3080 正常启动；`/var/log/apps/fn-deepseek-harness.log` 不再出现 `plugin tree failed to load` 或 `failed to load` 关键字。
+
 ### FNOS-006-07 验收条件
 
 - CodeBuddy SSE reader 在上游响应中止或读取失败时，消费者被唤醒并收到可处理的错误。
@@ -150,6 +159,7 @@ lastVerified: 2026-09-16
 | FNOS-006-02 安装回调瘦身 | <Badge type="tip" text="已完成" /> | 移除内联 Node 模板与旧脚本，只保留流程编排 | 已完成；`node -e` 计数为 0，权限改由 `run-as=package` 提供 |
 | FNOS-006-03 至 FNOS-006-06 | <Badge type="info" text="规划中" /> | node-pty 与 attachment 流程、权限边界、构建与安装检查 | 按 PLAN-FNOS-006 的 T02 至 T04 实施并完成 NAS 验收 |
 | FNOS-006-07 CodeBuddy 流式中止稳定性 | <Badge type="tip" text="已完成" /> | SSE 中止、账号刷新、目录读取和周期任务的 rejection 收口 | 已完成；代码、测试、构建和真实环境验证均通过 |
+| FNOS-006-08 DSH 全局安装锁定 npm registry 时间窗 | <Badge type="info" text="规划中" /> | 在 `install_callback` 中为 DSH 全局安装加 `--before`；新增回归测试覆盖；按 PLAN-FNOS-006 的 T06 实施并完成 NAS 验收 | 待 T06 任务完成后调整 |
 
 ## 不在本次范围内
 
@@ -168,3 +178,4 @@ lastVerified: 2026-09-16
 | 2026-09-16 | 增加 FNOS-006-07 | 记录 CodeBuddy 思考中停止会话的 SSE 中止、刷新和周期任务 rejection 收口要求；本地测试已通过，待目标环境验证 |
 | 2026-09-16 | FNOS-006-07 验收通过 | 代码、回归测试、构建与真实环境「思考中停止会话」验证均通过，功能状态改为“已完成”并补充状态看板 |
 | 2026-09-16 | FNOS-006-01、02 完成 | 安装辅助入口统一与安装回调瘦身已完成：helper 模块化编译产物落地，回调 `node -e` 清零、旧脚本移除、权限交由 `run-as=package` |
+| 2026-09-26 | 新增 FNOS-006-08 | 登记 npm 全局安装传递依赖漂移修复：`install_callback` 在 DSH `npm install -g` 上加 `--before=${DSH_NPM_BEFORE}` 锁定 2026-09-22 之前的 registry 快照；与 issue #4、#2 同根因 |
