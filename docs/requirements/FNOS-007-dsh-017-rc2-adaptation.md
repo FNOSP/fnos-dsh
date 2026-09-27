@@ -87,11 +87,11 @@ lastVerified: 2026-09-24
 | CodeBuddy 插件 | `plugins/dsh-codebuddy-plugin`、`compatibility.json` | 迁移 `dsh-llm` 角色化消息模型、工具结果与图片请求目标接缝 |
 | Semi UI 插件 | `packages/dsh-semi-ui`、`plugins/dsh-semi-ui-showcase-plugin` | 适配共享 UI 组件、客户端插槽和 renderer 契约 |
 | FPK 应用 | `apps/fn-deepseek-harness/{manifest,cmd,app,config}` | DSH 版本、插件清单、安装/升级回调与运行身份 |
-| 构建与发布 | `tooling/fn-os-apps-cli`、`.github/config`、`.github/scripts`、`.github/workflows` | 版本常量、native 构建输入文件和 FPK 产物校验 |
+| 构建与发布 | `tooling/fnos-dsh-cli`、`.github/config`、`.github/scripts`、`.github/workflows` | 版本常量、native 构建输入文件和 FPK 产物校验 |
 | 会话兼容 | 上游 `session-format-v3-to-v4` 迁移边界 | 验证插件不假设 V3 会话结构，用户既有会话仍可读取 |
 | 文档与测试 | `docs/`、各插件 `tests/` | 记录迁移差异、契约断言和验证证据 |
 | 文档站渲染 | `docs/package.json`、`docs/.vitepress/{config.mts,theme/}` | 用 `vitepress-mermaid-renderer` 替换旧构建期 Mermaid 插件，移除其 CJS 依赖链并在客户端主题中接入 |
-| 三方市场插件 | `app/published-dsh-plugins.json`、`tooling/fn-os-apps-cli`、`docs/{apps,plugins}/` | 把 `dshmarket` 固定版本由 `1.46.1` 升到 `1.65.1`，同步构建校验常量与文档中的当前值 |
+| 三方市场插件 | `app/published-dsh-plugins.json`、`tooling/fnos-dsh-cli`、`docs/{apps,plugins}/` | 把 `dshmarket` 固定版本由 `1.46.1` 升到 `1.65.1`，同步构建校验常量与文档中的当前值 |
 
 仓库内开发宿主不在本需求的改动范围内：`catalog` 顶层的 `@deepseek-ai/dsh`（供根 `package.json`、`pnpm exec dsh` 与 `pnpm run dev:web` 使用）保持当前版本；`.dsh/` 下的本地 profile 属本地运行状态，不由本需求升级。这两处服务于开发工具链，不是 FPK 运行时，其版本通路与 `catalogs.dsh.*`、`cmd/install_callback` 相互独立。
 

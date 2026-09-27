@@ -52,8 +52,8 @@ lastVerified: 2026-09-24
 | CodeBuddy 插件 | `plugins/dsh-codebuddy-plugin` | `dsh-llm` 角色化消息模型、工具结果与 `ImageRequestTarget` 迁移 |
 | Semi UI 共享包 | `packages/dsh-semi-ui`、`plugins/dsh-semi-ui-showcase-plugin` | 共享组件、客户端插槽、renderer 与 theme 契约迁移 |
 | FPK 应用（手写源） | `apps/fn-deepseek-harness/{cmd,manifest,config,wizard}`、`app/published-dsh-plugins.json`、`app/ui/` | DSH 版本常量、安装/升级回调、运行身份、发布清单与入口配置 |
-| FPK 应用（生成产物） | `apps/fn-deepseek-harness/app/{gateway-proxy.mjs,rolldown-runtime-*.mjs,scripts/install-callback-helper.mjs,bundled-dsh-plugins/,native/,dsh-version,node-pty-version*}` | 不直接编辑；由 `packages/fnos-gateway/tsdown.app.config.ts` 与 `tooling/fn-os-apps-cli` 构建流程生成 |
-| 构建与发布 | `tooling/fn-os-apps-cli`、`.github/config`、`.github/scripts`、`.github/workflows` | 构建校验常量、native 构建输入文件与 CI 工作流对齐 |
+| FPK 应用（生成产物） | `apps/fn-deepseek-harness/app/{gateway-proxy.mjs,rolldown-runtime-*.mjs,scripts/install-callback-helper.mjs,bundled-dsh-plugins/,native/,dsh-version,node-pty-version*}` | 不直接编辑；由 `packages/fnos-gateway/tsdown.app.config.ts` 与 `tooling/fnos-dsh-cli` 构建流程生成 |
+| 构建与发布 | `tooling/fnos-dsh-cli`、`.github/config`、`.github/scripts`、`.github/workflows` | 构建校验常量、native 构建输入文件与 CI 工作流对齐 |
 | 文档与测试 | `docs/`、各插件 `tests/`、`packages/dsh-semi-ui/tests` | 记录迁移差异、peer 兼容性断言与验证证据 |
 | 文档站渲染 | `docs/package.json`、`docs/.vitepress/config.mts`、`docs/.vitepress/theme/index.ts` | 用 `vitepress-mermaid-renderer` 替换构建期 Mermaid 插件，移除其 CJS 依赖链，在客户端主题中接入并中文化工具栏 |
 
@@ -65,12 +65,12 @@ lastVerified: 2026-09-24
 | --- | --- |
 | `app/gateway-proxy.mjs`、`app/rolldown-runtime-*.mjs` | `packages/fnos-gateway/tsdown.app.config.ts`（入口 `src/cli.ts` 与 `src/install-callback-helper/index.ts`） |
 | `app/scripts/install-callback-helper.mjs` | 同上（入口 `src/install-callback-helper/index.ts`） |
-| `app/bundled-dsh-plugins/*.tgz` | `tooling/fn-os-apps-cli` 的 `--bundle-dsh-plugins`（对 `plugins/*` 执行 `pnpm pack`） |
+| `app/bundled-dsh-plugins/*.tgz` | `tooling/fnos-dsh-cli` 的 `--bundle-dsh-plugins`（对 `plugins/*` 执行 `pnpm pack`） |
 | `app/native/node-pty/`、`app/dsh-version`、`app/node-pty-version*` | `.github/scripts/prepare-dsh-native.sh` 与构建流程的 `--bundle-dsh-native` |
 
 其中网关代理与安装辅助逻辑的**唯一源码位置是 `packages/fnos-gateway/src/`**：`attachment-patch.ts`、`node-pty.ts`、`dsh-web-args.ts`、`dsh-runtime-env.ts` 等改动都改这里，`app/` 下的 `.mjs` 会随构建重新生成。
 
-以下是**手写源文件**（受版本管理），可直接编辑：`cmd/*`、`manifest`、`config/*`、`wizard/*`、`app/ui/config`、`app/published-dsh-plugins.json`。`published-dsh-plugins.json` 虽然位于 `app/`，但它是人工维护的发布清单（`fn-apps-cli version -- plugin` 会同步其中的插件版本），不是构建产物。
+以下是**手写源文件**（受版本管理），可直接编辑：`cmd/*`、`manifest`、`config/*`、`wizard/*`、`app/ui/config`、`app/published-dsh-plugins.json`。`published-dsh-plugins.json` 虽然位于 `app/`，但它是人工维护的发布清单（`fnos-dsh-cli version -- plugin` 会同步其中的插件版本），不是构建产物。
 
 `FNOS-007-02` 只通过修正插件的 `peerDependencies` 声明来通过门禁，不预置 `compatibility.json` 豁免记录，也不在安装回调里写入 `dsh plugin allow-version`。`FNOS-007-03` 的 Host 迁移与 `FNOS-007-09` 的 Client 迁移分别对应同一功能的两端，不合并为一次改动。`FNOS-007-08` 不实现会话迁移器，只验证插件侧假设和读取路径。`FNOS-007-11` 只改文档站渲染，与 DSH 基线和插件接缝相互独立，不阻塞也不依赖其它阶段，已在第一期完成。
 
@@ -177,7 +177,7 @@ flowchart TD
 
 | 任务 ID | 对应验收 | 实现内容 | 验收 |
 | --- | --- | --- | --- |
-| PLAN-FNOS-007-T05-01 | FNOS-007-07-AC-01、FNOS-007-07-AC-02 | 更新 `tooling/fn-os-apps-cli` 的 DSH 版本常量与 native 配置路径，重命名 `.github/config/dsh-native-*.env` 并按新依赖树核对 node-pty 与 Node.js 版本；同步构建脚本、CI 工作流与开发文档中的引用 | 构建校验常量、native 配置文件名和安装回调三者一致；`pnpm run build -- --plugin <name>` 与 `--fpk` 成功 |
+| PLAN-FNOS-007-T05-01 | FNOS-007-07-AC-01、FNOS-007-07-AC-02 | 更新 `tooling/fnos-dsh-cli` 的 DSH 版本常量与 native 配置路径，重命名 `.github/config/dsh-native-*.env` 并按新依赖树核对 node-pty 与 Node.js 版本；同步构建脚本、CI 工作流与开发文档中的引用 | 构建校验常量、native 配置文件名和安装回调三者一致；`pnpm run build -- --plugin <name>` 与 `--fpk` 成功 |
 | PLAN-FNOS-007-T05-02 | FNOS-007-07-AC-04、FNOS-007-07-AC-05 | 同步 `published-dsh-plugins.json` 与内置归档的插件精确版本；确认 `dshmarket` 仍不进入内置目录；确认构建校验在版本、native 配置、锁文件、插件清单或捆绑包元数据任一不一致时拒绝发布 | 清单与归档元数据一致；不一致时构建失败 |
 | PLAN-FNOS-007-T05-03 | FNOS-007-07-AC-03 | 在真实 NAS 安装新 FPK，确认应用私有 `${TRIM_PKGHOME}/.npm-global/bin/dsh --version` 输出 `0.1.7-rc.2`，DSH Web 可经 fnOS 网关打开 | 版本正确；Web 可访问；插件正常加载 |
 | PLAN-FNOS-007-T05-04 | FNOS-007-08-AC-01 至 FNOS-007-08-AC-04 | 用 `0.1.5-rc.2` 期间产生的旧会话验证升级后仍可正常加载与导出；确认插件不实现会话迁移器、不改写用户会话文件、不假设工具结果位于内容块中 | 旧会话可加载、可导出；插件侧无格式假设 |
@@ -204,7 +204,7 @@ flowchart TD
 
 | 任务 ID | 对应验收 | 实现内容 | 验收 |
 | --- | --- | --- | --- |
-| PLAN-FNOS-007-T09-01 | FNOS-007-12-AC-01 至 FNOS-007-12-AC-03 | 把 `dshmarket` 固定版本由 `1.46.1` 升到 `1.65.1`：同步 `published-dsh-plugins.json`、构建校验常量 `DSHMARKET_VERSION` 与 `docs/apps/`、`docs/plugins/` 中的当前值；`fn-os-apps-cli` 源码常量改动后重新生成 `lib/index.mjs` 产物（不直接编辑该产物）；确认新版本 peer 在 `0.1.5-rc.2` 与 `0.1.7-rc.2` 上均兼容 | 四处当前值一致；构建校验通过；清单以换行结尾；不使用浮动 dist-tag |
+| PLAN-FNOS-007-T09-01 | FNOS-007-12-AC-01 至 FNOS-007-12-AC-03 | 把 `dshmarket` 固定版本由 `1.46.1` 升到 `1.65.1`：同步 `published-dsh-plugins.json`、构建校验常量 `DSHMARKET_VERSION` 与 `docs/apps/`、`docs/plugins/` 中的当前值；`fnos-dsh-cli` 源码常量改动后重新生成 `lib/index.mjs` 产物（不直接编辑该产物）；确认新版本 peer 在 `0.1.5-rc.2` 与 `0.1.7-rc.2` 上均兼容 | 四处当前值一致；构建校验通过；清单以换行结尾；不使用浮动 dist-tag |
 | PLAN-FNOS-007-T09-02 | FNOS-007-12-AC-04、FNOS-007-12-AC-05 | 确认真实 NAS 上 `dshmarket` 仍不进入 FPK 内置目录、由 DSH CLI 以精确版本安装，已安装用户跳过且保留原有版本与配置；核对 FNOS-004 需求与计划正文未被修改 | 安装/升级行为与策略不变；已完成文档的 diff 为空 |
 
 ### P1：验收、回滚与文档
@@ -489,5 +489,5 @@ flowchart TD
 | 2026-09-24 | 上游依据由 rc.1 更新为 rc.2 并进入实施：checkout 已推进到 `dsh-v0.1.7-rc.2`（`477b4f4`），registry `next` 同步指向 rc.2。逐文件比对确认本计划涉及的全部破坏性接缝在 rc.1 与 rc.2 之间一致，rc.1 的差异分析继续适用；文档编号、适配依据与版本引用一并改为 rc.2 |
 | 2026-09-24 | 按用户决定改为分两期实施：第一期只完成阶段七（文档站 Mermaid 渲染器替换）与 `0.1.7-rc.2` 接缝差异分析；阶段一至六标记为第二期，暂不升级工程内 DSH CLI、不重建本地 profile 的 `link:` 插件、不迁移插件源码接缝。分期原因是三条版本通路耦合，同时推进会让当前开发所依赖的 DSH Web 会话失效 |
 | 2026-09-24 | 落成第二期任务明细并新增阶段八（网关与安装回调适配）：补齐本次差异核对发现的六项遗漏——`attachment-patch` 附件根目录锚点在上游 `d911a7b422` 后失效（`0.1.7-rc.1` 起匹配数为 0，会导致安装硬失败，列为阻断项）、附件新增共享缓存目录、`sharp` 依赖就位、`ui-theme` 偏好改为 `Volatile` 配置字段后 `dsh-fnos` 的读取路径、`dsh-fnos` 客户端 `inject` 服务核对、客户端输入与触发器契约补齐 |
-| 2026-09-24 | 明确源文件与生成产物的边界 | `app/` 下的 `gateway-proxy.mjs`、`rolldown-runtime-*.mjs`、`scripts/install-callback-helper.mjs`、`bundled-dsh-plugins/`、`native/` 与版本文件均为构建产物，不得直接编辑；网关与安装辅助逻辑只改 `packages/fnos-gateway/src/`，产物由 `tsdown.app.config.ts` 与 `fn-apps-cli` 重新生成。`published-dsh-plugins.json`、`cmd/*`、`manifest`、`config/*`、`wizard/*` 为手写源文件 |
-| 2026-09-27 | 新增 T09-01：dshmarket 固定版本升级到 1.65.1 | 清单、构建校验常量与文档当前值三处同步到 `1.65.1`，`fn-os-apps-cli` 源码常量改动后重新生成 `lib/index.mjs` 产物；按 SDD 规范该变更落在当前开发中的本计划，未回改状态为 `已完成` 的 FNOS-004 |
+| 2026-09-24 | 明确源文件与生成产物的边界 | `app/` 下的 `gateway-proxy.mjs`、`rolldown-runtime-*.mjs`、`scripts/install-callback-helper.mjs`、`bundled-dsh-plugins/`、`native/` 与版本文件均为构建产物，不得直接编辑；网关与安装辅助逻辑只改 `packages/fnos-gateway/src/`，产物由 `tsdown.app.config.ts` 与 `fnos-dsh-cli` 重新生成。`published-dsh-plugins.json`、`cmd/*`、`manifest`、`config/*`、`wizard/*` 为手写源文件 |
+| 2026-09-27 | 新增 T09-01：dshmarket 固定版本升级到 1.65.1 | 清单、构建校验常量与文档当前值三处同步到 `1.65.1`，`fnos-dsh-cli` 源码常量改动后重新生成 `lib/index.mjs` 产物；按 SDD 规范该变更落在当前开发中的本计划，未回改状态为 `已完成` 的 FNOS-004 |
