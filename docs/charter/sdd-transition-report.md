@@ -17,8 +17,8 @@ description: fnOS Apps Monorepo 从代码优先维护转换为规格驱动开发
 
 ### 已具备的 SDD 基础
 
-- [`docs/requirements/index.md`](/requirements/) 已定义需求与计划边界、功能编号、优先级、状态和验收规则。
-- [`docs/plans/index.md`](/plans/) 已定义计划结构、实现范围、交互、风险、测试、发布和回滚要求。
+- [`docs/charter/requirements-spec.md`](/charter/requirements-spec) 已定义需求与计划边界、功能编号、优先级、状态和验收规则。
+- [`docs/charter/plans-spec.md`](/charter/plans-spec) 已定义计划结构、影响分析、迁移设计、任务、验证、发布和回滚要求。
 - [FNOS-001 需求](/requirements/FNOS-001-dsh-fnos-adaptation) 与 [PLAN-FNOS-001 计划](/plans/PLAN-FNOS-001-dsh-fnos-adaptation) 已形成一对需求/计划文档。
 - DSH 插件包已经提供 `typecheck`、`test`、`build` 和 `check` 脚本，插件侧具备较好的实现验证基础。
 - 文档站已有 `pnpm run build -- --docs`，贡献指南已有 `git diff --check` 和文档构建要求。
@@ -45,17 +45,17 @@ description: fnOS Apps Monorepo 从代码优先维护转换为规格驱动开发
 
 ## 2. 转换后的目标工作流
 
-```text
-提出变更
-  ├─ 文档/依赖/发布类低风险变更：登记变更说明并直接校验
-  └─ 行为/权限/交互/数据/架构变更：
-       ├─ 更新或新增需求规格
-       ├─ 评审范围、优先级和验收条件
-       ├─ 建立实施计划和任务追踪
-       ├─ 编码并补齐单元/契约/构建验证
-       ├─ 在真实 fnOS NAS 完成目标环境验收
-       ├─ 回写需求、计划和验收证据
-       └─ 关联发布版本、回滚方式和变更记录
+```mermaid
+flowchart TD
+  change["提出变更"] --> type{"变更类型"}
+  type -->|文档、依赖、发布低风险| direct["登记变更说明并直接校验"]
+  type -->|行为、权限、交互、数据、架构| requirement["更新或新增需求规格"]
+  requirement --> review["评审范围、优先级和验收条件"]
+  review --> plan["建立实施计划和任务追踪"]
+  plan --> implementation["编码并补齐单元、契约和构建验证"]
+  implementation --> nas["在真实 fnOS NAS 完成目标环境验收"]
+  nas --> evidence["回写需求、计划和验收证据"]
+  evidence --> release["关联发布版本、回滚方式和变更记录"]
 ```
 
 核心规则是：规格描述“做什么以及什么结果算完成”，计划描述“怎么做以及如何验证”，代码和测试不能替代规格，目标环境验收不能被本地构建结果替代。
@@ -82,7 +82,7 @@ description: fnOS Apps Monorepo 从代码优先维护转换为规格驱动开发
    | 现有功能行为修复 | 原需求变更记录 + 计划调整；影响较大时新增需求 |
    | 安全、依赖、构建或发布变更 | 变更说明 + 风险/回滚 + 对应校验 |
    | 仅文档、格式或内部重命名 | 变更说明 + 文档/静态校验 |
-3. 明确规范入口：需求以 `docs/requirements/` 为准，计划以 `docs/plans/` 为准，应用和插件面向用户说明以 `docs/` 为准；历史 README 不再作为规格来源。
+3. 明确规范入口：需求规范以 `docs/charter/requirements-spec.md` 为准，计划规范以 `docs/charter/plans-spec.md` 为准，实际需求和计划分别保存在 `docs/requirements/` 与 `docs/plans/`，应用和插件面向用户说明以 `docs/` 为准；历史 README 不再作为规格来源。
 4. 保留现有需求和计划的变更记录，不通过删除旧条目隐藏方案变化。
 
 ### P0：补齐可追踪 ID
@@ -164,8 +164,8 @@ PR 模板至少要求填写：变更类型、需求编号、计划编号、验�
 
 | 目标 SDD 产物 | 当前文件/目录 | 结论 |
 | --- | --- | --- |
-| 需求规范 | `docs/requirements/index.md`、`docs/requirements/FNOS-001-dsh-fnos-adaptation.md` | 已具备元数据、验收规则和功能编号 |
-| 实施计划 | `docs/plans/index.md`、`docs/plans/PLAN-FNOS-001-dsh-fnos-adaptation.md` | 已具备元数据和 P0/P1 追踪矩阵 |
+| 需求规范 | `docs/charter/requirements-spec.md`、`docs/requirements/index.md` | 规范与当前需求清单已分离 |
+| 实施计划 | `docs/charter/plans-spec.md`、`docs/plans/index.md` | 规范与当前计划清单已分离 |
 | 代码实现 | `plugins/*`、`apps/*` | 插件级验证和根级统一入口均已具备 |
 | 用户文档 | `docs/apps/`、`docs/plugins/`、`docs/guide/` | 已规定 `docs/` 为规范入口，需持续避免重复维护 |
 | 验收证据 | `docs/validation/README.md` | 已有统一记录模板，真实 NAS 记录待补齐 |
@@ -182,6 +182,8 @@ docs/
 ├── decisions/          # 仅记录跨需求的架构决策，可选
 ├── charter/            # 项目维护章程与 SDD 规范
 │   ├── directory-structure.md
+│   ├── requirements-spec.md
+│   ├── plans-spec.md
 │   ├── sdd-workflow.md
 │   └── sdd-transition-report.md
 └── guide/              # 开始使用、仓库结构和排错

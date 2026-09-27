@@ -96,6 +96,8 @@ const gettingStartedItems = [
 
 const charterItems = [
   { text: 'SDD 维护规范', link: '/charter/sdd-workflow' },
+  { text: '需求文档规范', link: '/charter/requirements-spec' },
+  { text: '计划文档规范', link: '/charter/plans-spec' },
   { text: 'SDD 模式转换报告', link: '/charter/sdd-transition-report' },
   { text: '目录结构规范', link: '/charter/directory-structure' }
 ]
@@ -169,7 +171,7 @@ const requirementsSidebar = [
   {
     text: '需求清单',
     items: [
-      { text: '规范', link: '/requirements/' },
+      { text: '需求清单', link: '/requirements/' },
       {
         text: 'FNOS-001 DSH 飞牛 NAS 适配',
         link: '/requirements/FNOS-001-dsh-fnos-adaptation'
@@ -206,7 +208,7 @@ const plansSidebar = [
   {
     text: '详细计划',
     items: [
-      { text: '规范', link: '/plans/' },
+      { text: '计划清单', link: '/plans/' },
       {
         text: 'PLAN-FNOS-001 DSH 飞牛 NAS 适配',
         link: '/plans/PLAN-FNOS-001-dsh-fnos-adaptation'
@@ -268,10 +270,26 @@ export default defineConfig({
     },
     version: packageJson.version,
     nav: [
-      { text: '开发指南', link: '/development/environment' },
-      { text: '应用文档', link: '/apps/fn-deepseek-harness' },
-      { text: '需求清单', link: '/requirements/' },
-      { text: '详细计划', link: '/plans/' }
+      {
+        text: '开发指南',
+        link: '/development/environment',
+        activeMatch: '^/(guide|charter|development|build|troubleshooting|contributing)(/|$)'
+      },
+      {
+        text: '应用文档',
+        link: '/apps/fn-deepseek-harness',
+        activeMatch: '^/(apps|plugins)(/|$)'
+      },
+      {
+        text: '需求清单',
+        link: '/requirements/',
+        activeMatch: '^/requirements(/|$)'
+      },
+      {
+        text: '详细计划',
+        link: '/plans/',
+        activeMatch: '^/plans(/|$)'
+      }
     ],
     sidebar: {
       '/guide/': developmentSidebar,

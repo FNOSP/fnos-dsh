@@ -12,6 +12,8 @@ description: fnOS Apps Monorepo 的需求、计划、实现、验证和发布维
 | 内容 | 唯一维护入口 |
 | --- | --- |
 | 目录结构规范 | `docs/charter/directory-structure.md` |
+| 需求文档规范 | `docs/charter/requirements-spec.md` |
+| 计划文档规范 | `docs/charter/plans-spec.md` |
 | 需求规格 | `docs/requirements/` |
 | 实施计划 | `docs/plans/` |
 | 真实环境验收证据 | `docs/validation/` |
@@ -33,18 +35,37 @@ description: fnOS Apps Monorepo 的需求、计划、实现、验证和发布维
 
 ## 标准流程
 
-```text
-提出变更
-  ├─ 记录或新增需求规格
-  ├─ 评审范围、优先级和验收条件
-  ├─ 建立对应实施计划和任务追踪
-  ├─ 编码并补齐测试/构建验证
-  ├─ 在目标 fnOS NAS 完成功能验收
-  ├─ 写入验收证据并回写需求/计划状态
-  └─ 关联版本、变更记录和回滚方式
+```mermaid
+flowchart TD
+  change["提出变更"] --> requirement["记录或新增需求规格"]
+  requirement --> review["评审范围、优先级和验收条件"]
+  review --> plan["建立实施计划和任务追踪"]
+  plan --> implementation["编码并补齐测试/构建验证"]
+  implementation --> nas["在目标 fnOS NAS 完成功能验收"]
+  nas --> evidence["写入验收证据并回写需求/计划状态"]
+  evidence --> release["关联版本、变更记录和回滚方式"]
 ```
 
 未进入计划的 P2、后续计划和未确认能力不得出现在当前计划的阶段任务、详细交互、完成状态或测试清单中。
+
+## 文档图示规范
+
+需求、计划和章程文档中的流程图、关系图、时序图、状态图和依赖图统一使用 `mermaid` fenced code block，由 `vitepress-mermaid-renderer` 在文档站中渲染。
+
+```mermaid
+flowchart LR
+  requirement["需求"] --> plan["计划"] --> validation["验证"]
+```
+
+规范要求：
+
+- 不使用 `text` 代码块、ASCII 箭头或手工拼接字符串表达流程和关系。
+- Mermaid 图前后应保留等价的文字说明，不能只依赖渲染后的 SVG 传达关键语义。
+- Mermaid 代码块统一使用语言标记 `mermaid`，由当前 VitePress 主题和 `vitepress-mermaid-renderer` 处理。
+- 状态变化必须使用 `stateDiagram-v2`，多方或异步交互必须使用 `sequenceDiagram`；两者同时发生时必须同时提供两种图。
+- 既有功能发生变化时，在图中的节点、边或 `Note` 使用可见前缀 `变更点：`，并链接原需求、功能和验收编号。
+- 目录树、命令示例、配置片段和原始数据不是关系图，可以继续使用 `text` 或对应语言代码块。
+- Mermaid 配置保持默认 `securityLevel: 'strict'`；不为了渲染不可信内容而放宽安全级别。
 
 ## 追踪 ID
 
