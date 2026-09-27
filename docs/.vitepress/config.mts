@@ -194,6 +194,10 @@ const requirementsSidebar = [
         text: 'FNOS-006 安装脚本与安装流程优化',
         link: '/requirements/FNOS-006-installation-script-optimization'
       },
+      {
+        text: 'FNOS-007 DSH 0.1.7-rc.2 适配',
+        link: '/requirements/FNOS-007-dsh-017-rc2-adaptation'
+      },
     ]
   }
 ]
@@ -226,6 +230,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-006 安装脚本与安装流程优化',
         link: '/plans/PLAN-FNOS-006-installation-script-optimization'
+      },
+      {
+        text: 'PLAN-FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复',
+        link: '/plans/PLAN-FNOS-007-dsh-017-rc2-adaptation'
       },
     ]
   }

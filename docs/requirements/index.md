@@ -161,5 +161,6 @@ description: DeepSeek Harness 在飞牛 fnOS 中的应用、插件和 NAS 能力
 | FNOS-004 | [DSH 0.1.5-rc.2 适配与 FPK 运行修复](/requirements/FNOS-004-dsh-015-rc2-adaptation) | 已完成 |
 | FNOS-005 | [CodeBuddy 成长任务移植与仓库内 DSH 开发环境](/requirements/FNOS-005-codebuddy-and-local-dsh)（含仓库内 dsh CLI、本地 DSH Web 与 `.dsh`） | 已完成 |
 | FNOS-006 | [安装脚本与安装流程优化](/requirements/FNOS-006-installation-script-optimization)（统一安装辅助入口、收敛 node-pty 与 attachment 流程） | 规划中 |
+| FNOS-007 | [DSH 0.1.7-rc.2 适配与插件错误修复](/requirements/FNOS-007-dsh-017-rc2-adaptation)（依赖基线升级、插件接缝迁移与兼容性门禁） | 规划中 |
 
 当前未发现其他明确的历史待开发需求未登记到需求文档中。新增需求先登记在对应需求文档，确认进入实施后再同步到详细计划；整合完成后，旧的拆分编号不再作为现行需求编号使用。
