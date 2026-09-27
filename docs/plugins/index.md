@@ -39,7 +39,7 @@ DSH 运行时和插件兼容性基线为 `0.1.5-rc.2`；运行时插件的发布
 
 ```sh
 dsh plugin --profile web add @tnnevol/dsh-fnos@0.1.5-rc.2
-dsh plugin --profile web add dshmarket@1.46.1
+dsh plugin --profile web add dshmarket@1.65.1
 dsh --profile web --dump-config
 ```
 

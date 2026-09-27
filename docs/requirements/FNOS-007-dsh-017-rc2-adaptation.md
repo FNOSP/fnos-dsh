@@ -91,6 +91,7 @@ lastVerified: 2026-09-24
 | 会话兼容 | 上游 `session-format-v3-to-v4` 迁移边界 | 验证插件不假设 V3 会话结构，用户既有会话仍可读取 |
 | 文档与测试 | `docs/`、各插件 `tests/` | 记录迁移差异、契约断言和验证证据 |
 | 文档站渲染 | `docs/package.json`、`docs/.vitepress/{config.mts,theme/}` | 用 `vitepress-mermaid-renderer` 替换旧构建期 Mermaid 插件，移除其 CJS 依赖链并在客户端主题中接入 |
+| 三方市场插件 | `app/published-dsh-plugins.json`、`tooling/fn-os-apps-cli`、`docs/{apps,plugins}/` | 把 `dshmarket` 固定版本由 `1.46.1` 升到 `1.65.1`，同步构建校验常量与文档中的当前值 |
 
 仓库内开发宿主不在本需求的改动范围内：`catalog` 顶层的 `@deepseek-ai/dsh`（供根 `package.json`、`pnpm exec dsh` 与 `pnpm run dev:web` 使用）保持当前版本；`.dsh/` 下的本地 profile 属本地运行状态，不由本需求升级。这两处服务于开发工具链，不是 FPK 运行时，其版本通路与 `catalogs.dsh.*`、`cmd/install_callback` 相互独立。
 
@@ -109,6 +110,7 @@ lastVerified: 2026-09-24
 | FNOS-007-09 | P1 | 插件设置页与图标资源适配 | 授权目录设置卡片在新设置页框架中仍可见可用；会话头部与模型选择图标正常显示 | <Badge type="info" text="规划中" /> |
 | FNOS-007-10 | P1 | 升级、回滚与真实 NAS 验收 | 升级保留用户数据，失败可回滚；真实 NAS 记录完整证据 | <Badge type="info" text="规划中" /> |
 | FNOS-007-11 | P1 | 文档站点 Mermaid 渲染器替换 | 文档站图表照常渲染，并新增缩放、拖拽、重置、复制源码、下载、全屏与明暗主题跟随；文档包不再依赖旧的构建期插件及其 CJS 依赖链 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-12 | P1 | 升级 `dshmarket` 固定版本到 1.65.1 | 新用户安装后 profile 中获得 `dshmarket@1.65.1` 且市场入口可用；已安装用户跳过安装、保留原有版本与配置 | <Badge type="warning" text="待完成" /> |
 
 ## 交互和行为约束
 
@@ -122,7 +124,7 @@ lastVerified: 2026-09-24
 - FPK 运行时版本由 `apps/fn-deepseek-harness/cmd/install_callback` 的 `DSH_VERSION` 与构建 CLI 的版本常量独立声明，不读取 `catalog` 顶层条目。这是交付 `0.1.7-rc.2` 运行时的正式通路。
 - 四个运行时插件（`@tnnevol/dsh-codex-auth`、`@tnnevol/dsh-codebuddy`、`@tnnevol/dsh-fnos`、`@tnnevol/dsh-semi-ui-showcase`）的发布版本与 DSH 运行时基线保持同一版本号，便于用户和安装器对照；`dshPluginApi.version` 仍单独声明运行时兼容基线，二者分别由 `compatibility.json` 和 `package.json` 承载。
 - 插件版本号与 DSH 运行时版本号相同不代表插件可以独立于 `compatibility.json` 演进：任何后续升级都必须同时更新 `package.json`、`compatibility.json`、发布清单和本节版本约束。
-- FPK 清单中的所有自动安装插件必须填写精确的 `version`，捆绑包的 `package.json` 版本必须与清单一致；`bundled` 中的 `dshmarket` 周期内固定版本不变，不因 DSH 升级而漂移。
+- FPK 清单中的所有自动安装插件必须填写精确的 `version`，捆绑包的 `package.json` 版本必须与清单一致。`dshmarket` 的固定版本在本需求内由 `1.46.1` 升级为 `1.65.1`（本需求是当前开发中的需求，按[已完成的需求和计划不再变更](/charter/sdd-workflow#已完成的需求和计划不再变更)在该变更写入这里，不回改已完成的 FNOS-004）；该版本仍是精确版本，不使用 `latest`、`next` 或其他浮动 dist-tag。
 - 已确认的上游破坏性变更必须在插件侧完成等价迁移，包括：
   - `dsh-llm`：`Message` 由接口改为按角色区分的联合类型别名；`ToolResultBlock` 从内容块中移除，工具结果改由 `role: 'tool'` 的消息连同 `toolCallId` 与 `isError` 承载；`createSystemMessage(text, plugin)` 变为单参数；`AssistantProvenance` 改名为 `AssistantProviderMetadata`；`GenerateOptions.messages` 放宽为 `RequestMessage[]`；`BlockAssembler.message()` 的来源参数变为必填。
   - `dsh-llm` 图片卸载：`RequestImageOffloadPolicy`、`offloadRequestImagesWithPolicy()`、`offloadedImagePrefixCount()` 被移除，改为 `LlmImageRequestBudget`、`requiredImageOffload()`、`projectOffloadedImages()`，并以 `IMAGE_OFFLOAD_REQUIRED` 错误码表示超预算。
@@ -158,7 +160,7 @@ lastVerified: 2026-09-24
 - 不追踪 `0.1.6-alpha.*`、`0.1.7-alpha.*`、`0.1.5-rc.3` 或后续 rc/正式版；它们另开需求。
 - 不修改 DSH 官方源码，不向上游提交补丁，也不在本仓库内维护上游包的分叉副本。
 - 不把 `dsh plugin allow-version` 的版本豁免作为正式交付手段，也不为用户预置 `compatibility.json` 豁免记录。
-- 不升级 `dshmarket` 的固定版本，不改变「已安装则跳过」的非破坏性策略。
+- 不改变 `dshmarket` 的「已安装则跳过」非破坏性策略：版本号虽从 `1.46.1` 升到 `1.65.1`，但安装器仍只在 profile 中不存在该插件时安装，已安装用户保留原版本与配置，不覆盖、不降级、不卸载。
 - 不新增与 DSH 适配无关的插件功能，不重构 CodeBuddy 的多账号、签到、额度与统计策略，不重构 Codex 的登录与模型刷新策略。
 - 不修改 fnOS 平台权限模型、网关路径规则、授权目录 ACL 行为或应用入口配置形态。
 - 不为迁移到新设置页框架而重新设计设置界面：`dsh-fnos` 授权目录卡片的字段、文案、按钮和保存行为按现有实现迁移，不新增设置项。
@@ -223,7 +225,7 @@ lastVerified: 2026-09-24
 - `FNOS-007-07-AC-01`：`pnpm run build -- --plugin <name>` 与 `pnpm run build -- --fpk --app fn-deepseek-harness` 成功；构建校验使用的 DSH 版本常量、native 配置文件名和安装回调三者一致。
 - `FNOS-007-07-AC-02`：native 构建输入文件按新基线命名并被构建脚本、CI 工作流和文档同步引用；node-pty 与 Node.js 版本与目标 tag 的依赖树一致。
 - `FNOS-007-07-AC-03`：FPK 安装后应用私有 `${TRIM_PKGHOME}/.npm-global/bin/dsh --version` 输出 `0.1.7-rc.2`，DSH Web 可经 fnOS 网关打开。
-- `FNOS-007-07-AC-04`：`published-dsh-plugins.json` 与 `app/bundled-dsh-plugins/*.tgz` 的插件名和精确版本一致；`dshmarket` 仍不进入内置目录，固定版本不变。
+- `FNOS-007-07-AC-04`：`published-dsh-plugins.json` 与 `app/bundled-dsh-plugins/*.tgz` 的插件名和精确版本一致；`dshmarket` 仍不进入内置目录，其固定版本与构建校验常量、FNOS-004 记录的当前值三者一致。
 - `FNOS-007-07-AC-05`：构建校验在版本、native 配置、锁文件、插件清单或捆绑包元数据任一不一致时拒绝发布。
 - `FNOS-007-07-AC-06`：安装回调对 `@deepseek-ai/dsh-attachment-local` 的源码补丁与目标版本编译产物匹配：每处锚点各匹配且仅匹配一次，补丁可重复执行且幂等，`attachment root` 与新增的 `cacheRoot` 都落在 `${TRIM_PKGVAR}` 下的应用私有路径内。锚点被上游改动时以非零退出并给出可定位错误，不得产出半补丁状态。
 - `FNOS-007-07-AC-07`：`apps/fn-deepseek-harness/app/` 下的生成产物（`gateway-proxy.mjs`、`rolldown-runtime-*.mjs`、`scripts/install-callback-helper.mjs`、`bundled-dsh-plugins/`、`native/` 与版本文件）不被直接编辑；网关与安装辅助逻辑的改动只落在 `packages/fnos-gateway/src/`，产物经构建重新生成且内容与源码一致。
@@ -263,6 +265,14 @@ lastVerified: 2026-09-24
 - `FNOS-007-11-AC-07`：仓库内不再存在指向旧插件 `vitepress-mermaid-plugin` 的现行文档描述。
 - `FNOS-007-11-AC-08`：`pnpm run check -- --sdd`、`pnpm run build -- --docs` 和 `git diff --check` 通过。
 
+### FNOS-007-12 验收条件
+
+- `FNOS-007-12-AC-01`：`published-dsh-plugins.json` 的 `bundled` 中 `dshmarket` 版本为 `1.65.1`，与构建校验常量 `DSHMARKET_VERSION`、`docs/apps/fn-deepseek-harness.md` 与 `docs/plugins/index.md` 中的当前值一致；文件以换行结尾。
+- `FNOS-007-12-AC-02`：构建校验在清单与常量不一致时仍然拒绝发布；清单、常量与文档一致时校验通过，FPK 构建不被阻断。
+- `FNOS-007-12-AC-03`：`dshmarket@1.65.1` 的 DSH peer 要求在 `0.1.5-rc.2` 与 `0.1.7-rc.2` 上均判定为兼容，不使用 `latest`、`next` 或其他浮动 dist-tag。
+- `FNOS-007-12-AC-04`：`dshmarket` 仍不进入 FPK 内置目录，安装阶段由 DSH CLI 以精确版本安装；已安装用户跳过安装并保留原有版本与配置，不覆盖、不降级、不卸载。
+- `FNOS-007-12-AC-05`：本次版本变更记录在 FNOS-007（当前开发中的需求）内，未修改状态为 `已完成` 的 FNOS-004 的需求与计划正文。
+
 ### 状态看板
 
 | 阶段 | 状态 | 当前范围 | 下一步 |
@@ -272,6 +282,7 @@ lastVerified: 2026-09-24
 | FPK 与新会话格式 | <Badge type="info" text="规划中" /> | 构建常量、native 输入、安装回调与旧会话读取 | 更新构建常量与 native 输入 |
 | 升级、回滚与验收 | <Badge type="info" text="规划中" /> | 用户数据保留、回滚路径与真实 NAS 证据 | 本地回归后进入真实 NAS 验收 |
 | 文档 Mermaid 渲染器替换 | <Badge type="tip" text="已完成" /> | 依赖替换、主题接入、工具栏中文化、图表与构建验证 | 无；已完成 |
+| dshmarket 固定版本升级 | <Badge type="warning" text="待完成" /> | 清单、构建校验常量与文档当前值同步到 `1.65.1` | 真实 NAS 安装/升级验证后回写状态 |
 
 ## 变更记录
 
@@ -284,3 +295,4 @@ lastVerified: 2026-09-24
 | 2026-09-24 | 确认目标版本与范围边界 | 目标版本暂定 `5.6.0`；`dshmarket` 固定版本、fnOS 权限模型、网关路径规则和会话文件内容不在本次改动范围 |
 | 2026-09-24 | 修复全屏工具栏缺失（FNOS-007-11-AC-09） | 接入时只配置了 `desktop` 与 `mobile` 两组，未配置 `fullscreen` 组，于是回退到渲染器默认值——该默认只启用 `toggleFullscreen`，导致进入全屏后缩放、重置、复制与下载全部消失，只剩缩放比例和退出图标。现显式配置 `fullscreen` 组；已在真实浏览器中验证开发与生产构建下的全屏缩放、重置与退出恢复 |
 | 2026-09-27 | 全屏容器改为铺满视口（FNOS-007-11-AC-10） | 按需求把全屏尺寸从渲染器硬编码的 `min(94vw, 1200px)` × `min(90vh, 860px)` 覆盖为 `100vw` × `100vh`，并去掉圆角、边框与投影以避免四角悬空描边。渲染器只提供控件类设计令牌、没有尺寸令牌，故在 `custom.css` 覆盖类选择器并用 `body` 前缀提高权重（不用 `!important`）。实测四种视口与明暗主题下容器矩形均为 `[0,0,W,H]`、占比 100% × 100%、无横向溢出；缩放、重置、复制、拖拽与退出恢复全部正常 |
+| 2026-09-27 | 新增 FNOS-007-12：dshmarket 升级到 1.65.1 | 按用户决定把 `dshmarket` 固定版本由 `1.46.1` 升级为 `1.65.1`，同步发布清单、构建校验常量与插件/应用文档中的当前值。原文「固定版本不变」的表述改为「在本需求内升级」，并保留「已安装则跳过、不覆盖用户版本」的策略。按 SDD 规范，该变更记入当前开发中的本需求，未回改状态为 `已完成` 的 FNOS-004 |
