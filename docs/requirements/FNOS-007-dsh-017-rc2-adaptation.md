@@ -49,6 +49,7 @@ lastVerified: 2026-09-27
 | FNOS-007-10 | P1 | 升级、回滚和真实环境验收 | 升级保留数据，失败可恢复，真实 NAS 有完整证据 | <Badge type="info" text="规划中" /> |
 | FNOS-007-11 | P1 | 文档站 Mermaid 渲染器替换 | 图表可渲染、缩放、拖拽、复制、下载、全屏并跟随主题 | <Badge type="tip" text="已完成" /> |
 | FNOS-007-12 | P1 | dshmarket 精确版本升级 | 新用户获得 `dshmarket@1.65.1`，已安装用户不被覆盖 | <Badge type="warning" text="待完成" /> |
+| FNOS-007-13 | P0 | attachment-local 运行时依赖和持久化补丁 | 新用户安装 FPK 时 `@deepseek-ai/dsh-attachment-local` 可被精确定位、校验并完成 `${TRIM_PKGVAR}` 补丁；不再出现“installed DSH dependency does not provide” | <Badge type="info" text="规划中" /> |
 
 ## 既有功能变更关系
 
@@ -93,6 +94,10 @@ sequenceDiagram
 - 工具调用和工具结果必须保持调用关系，不能因消息模型变化丢失工具结果。
 - 文档站图表继续使用 `mermaid` 代码块，由统一的渲染器接管；图表语义不因渲染器替换而改变。
 - `dshmarket` 使用精确版本；已安装用户不被自动覆盖、降级或卸载。
+- FPK 安装回调需要从应用私有 DSH 依赖树解析 `@deepseek-ai/dsh-attachment-local`。目标 DSH 中该包由 `@deepseek-ai/dsh-base` 以生产依赖提供，可能位于嵌套 `node_modules`，因此回调不能假设它一定位于 DSH CLI 包的顶层路径，也不能把 CLI 的 `devDependencies` 当作运行时来源；安装、版本校验和 `TRIM_PKGVAR` 持久化补丁必须使用与 `DSH_VERSION` 对齐的精确版本。
+- DSH `0.1.5-rc.2` 升级到 `0.1.7-rc.2` 时，目标依赖树中的 `node-pty` 版本保持 `1.2.0-beta.15`，Node.js 主版本保持 24，`node-gyp` 保持 `11.0.0`；本需求不把 node-pty 版本升级作为独立适配项。
+- 虽然 node-pty 版本不变，FPK native 产物仍必须按目标 DSH 基线重新生成并验证：native 配置中的 DSH 版本、锁文件、`node-pty` 版本、`app/node-pty-versions` 和 `app/native/node-pty/<version>/` 必须一致，不能只复用未经目标基线验证的旧 `pty.node`。
+- 如果后续 DSH 依赖树或人工配置把 node-pty 升级到其他版本，必须另行完成 node-gyp 编译、native bundle、安装回调版本校验和真实 NAS 的有/无 g++ 两条路径验收；本需求不默认为该变化提供兼容性。
 
 ## 不在本次范围内
 
@@ -151,6 +156,10 @@ sequenceDiagram
 - `FNOS-007-07-AC-02`：native 依赖和安装回调与目标运行时一致。
 - `FNOS-007-07-AC-03`：真实 NAS 安装后网关和 DSH Web 可访问。
 - `FNOS-007-07-AC-04`：版本、锁文件、清单或产物不一致时构建拒绝发布。
+- `FNOS-007-07-AC-05`：FPK 安装前后，应用私有 DSH 运行时依赖树中可解析出与 `DSH_VERSION` 对齐的 `@deepseek-ai/dsh-attachment-local` 生产依赖；该依赖可以是嵌套安装，安装回调不依赖 DSH CLI 包的顶层路径或 `devDependencies`。
+- `FNOS-007-07-AC-06`：`attachment-local` 包名和精确版本校验通过后，`${TRIM_PKGVAR}` 持久化补丁可执行且幂等；包缺失、版本不一致或安装失败时以可诊断的非零状态终止，不留下半补丁状态。
+- `FNOS-007-07-AC-05`：目标 DSH `0.1.7-rc.2` 依赖树和仓库锁文件中的 `node-pty` 均为 `1.2.0-beta.15`，Node.js 主版本为 24、`node-gyp` 为 `11.0.0`；Linux FPK 构建重新执行 native 准备流程，产出匹配版本目录下的 `pty.node`、可选 `spawn-helper` 和 `node-pty-versions`，安装回调能按版本清单注入并校验 native 文件。
+- `FNOS-007-07-AC-06`：node-pty 版本不变不代表跳过 native 验证；FPK 至少完成“内置 native 且 NAS 无 g++”路径验证，并保留“未内置 native 且 NAS 有 g++”路径作为回退验证；若 node-pty 版本发生变化，构建校验必须暴露版本不一致而不是静默复用旧产物。
 
 ### FNOS-007-08
 
@@ -184,6 +193,13 @@ sequenceDiagram
 - `FNOS-007-12-AC-02`：版本不一致时构建拒绝发布。
 - `FNOS-007-12-AC-03`：新用户获得精确版本 `dshmarket@1.65.1`。
 - `FNOS-007-12-AC-04`：已安装用户跳过安装并保留原版本和配置。
+
+### FNOS-007-13
+
+- `FNOS-007-13-AC-01`：对目标 DSH `0.1.7-rc.2` 的生产安装进行检查时，能从应用私有 DSH 依赖树（包括 `dsh-base` 的嵌套依赖目录）解析 `@deepseek-ai/dsh-attachment-local`，不再因只检查顶层路径而误报缺失。
+- `FNOS-007-13-AC-02`：安装回调读取到的包名和版本与 `DSH_VERSION` 对齐后才执行补丁；日志不再出现 `The installed DSH dependency does not provide @deepseek-ai/dsh-attachment-local`。
+- `FNOS-007-13-AC-03`：`attachment-local` 的生产依赖（包括图片处理所需的可选 native 依赖）在目标架构上可安装或明确失败；安装失败不删除旧运行时和用户数据。
+- `FNOS-007-13-AC-04`：附件根目录、共享缓存和耐久边界仍位于 `${TRIM_PKGVAR}` 下；补丁重复执行、包缺失和版本不一致均有自动化覆盖。
 
 ## 完成状态
 

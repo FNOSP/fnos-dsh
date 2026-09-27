@@ -16,7 +16,7 @@ lastVerified: 2026-09-27
 | 计划编号 | PLAN-FNOS-007 |
 | 计划日期 | 2026-09-24 |
 | 对应需求 | [FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复](/requirements/FNOS-007-dsh-017-rc2-adaptation) |
-| 本轮功能 | FNOS-007-01 至 FNOS-007-12；FNOS-007-11 已完成，其余进入后续实施阶段 |
+| 本轮功能 | FNOS-007-01 至 FNOS-007-13；FNOS-007-11 已完成，其余进入后续实施阶段 |
 | 上游依据 | 本地 Harness checkout 的 `dsh-v0.1.7-rc.2`，以目标 tag 的源码、类型和构建结果为准 |
 | 计划状态 | <Badge type="info" text="规划中" /> |
 
@@ -40,6 +40,7 @@ lastVerified: 2026-09-27
 | 领域 | 当前实现 | 目标实现 | 影响 |
 | --- | --- | --- | --- |
 | DSH 运行时 | `0.1.5-rc.2` | `0.1.7-rc.2` | catalog、lockfile、安装回调、构建常量和 FPK 运行时 |
+| FPK native | `node-pty@1.2.0-beta.15`、Node.js 24、`node-gyp@11.0.0` | node-pty 版本保持不变，按目标 DSH 基线重新生成并验证 native 产物 | native 配置、锁文件、`pty.node`、`spawn-helper`、版本清单和安装回调必须一致 |
 | 插件门禁 | 旧版本 peer 可被接受 | 新版本 peer 通过安装和启动门禁 | 四个插件的 peer 和兼容性声明 |
 | Host 设置 | 旧设置服务读写 | 新设置描述、更新和版本校验 | `dsh-fnos` Host、配置迁移和失败回滚 |
 | Client 设置 | 旧设置作用域 | 新配置表单 | 主题、授权目录卡片和输入引用 |
@@ -91,7 +92,7 @@ sequenceDiagram
 | FNOS-007-04、05 | CodeBuddy/Codex Auth serializer、图片请求和凭据模块 | 工具结果、图片内容、凭据、模型目录 | 工具调用、图片、登录、用量和配置回归 | DSH 客户端 |
 | FNOS-007-06 | Semi UI 共享包和总览插件 | 组件、主题和卸载状态 | 构建、渲染、主题和卸载测试 | DSH 客户端 |
 | FNOS-007-07、08 | FPK manifest、生命周期、网关、native、会话读取边界 | FPK 运行时、旧会话、网关和插件归档 | FPK 构建、安装、旧会话导出 | 真实 NAS |
-| FNOS-007-10、12 | 安装/升级流程、发布清单和 dshmarket 校验 | 用户配置、已安装插件版本 | 幂等、回滚、精确版本和 NAS 证据 | 真实 NAS |
+| FNOS-007-10、12、13 | 安装/升级流程、发布清单、attachment-local 和 dshmarket 校验 | 用户配置、已安装插件版本、附件持久化目录 | 幂等、回滚、精确版本、补丁和 NAS 证据 | 真实 NAS |
 | FNOS-007-11 | `docs/package.json`、VitePress config/theme | 文档图表渲染方式 | 全部 Mermaid 图表和文档构建 | 浏览器、文档构建 |
 
 ## 源文件与生成产物边界
@@ -200,8 +201,12 @@ sequenceDiagram
 | PLAN-FNOS-007-T05-02 | FNOS-007-07-AC-04 | 建立版本、锁文件、native、清单和捆绑包元数据的一致性门禁 | 不一致时构建失败 |
 | PLAN-FNOS-007-T05-03 | FNOS-007-07-AC-03 | 在真实 NAS 安装新 FPK，验证运行时版本、网关和 DSH Web | NAS 安装启动证据 |
 | PLAN-FNOS-007-T05-04 | FNOS-007-08-AC-01 至 03 | 使用旧会话验证打开和导出，确认插件不实现自有迁移器 | 会话回归和文件不变断言 |
+| PLAN-FNOS-007-T05-05 | FNOS-007-07-AC-02、05、06 | 核对目标 `dsh-v0.1.7-rc.2` checkout 与本仓库锁文件仍使用 `node-pty@1.2.0-beta.15`、Node.js 24 和 `node-gyp@11.0.0`；更新 native 配置中的 DSH 基线和文件名后，在 Linux 构建机重新执行 `prepare-dsh-native.sh`，验证 `pty.node`、可选 `spawn-helper`、`app/node-pty-versions` 与安装回调版本校验一致 | 内置 native 且 NAS 无 g++ 的安装路径通过；未内置 native 且 NAS 有 g++ 的回退路径通过；版本不一致时构建或安装明确失败 |
 | PLAN-FNOS-007-T08-01 | FNOS-007-07-AC-02 | 修复附件补丁锚点，验证三处锚点单次匹配、幂等和应用私有路径 | 目标包样本、失败锚点和回归测试 |
 | PLAN-FNOS-007-T08-02 | FNOS-007-07-AC-02 | 确认新增图片依赖的 FPK 就位方式和 native 处理边界 | 目标架构图片处理可用 |
+| PLAN-FNOS-007-T08-03 | FNOS-007-07-AC-05、06；FNOS-007-13-AC-01、02 | 复现日志中的生产安装路径，确认目标 DSH 的 `dsh-base` 生产依赖把 `@deepseek-ai/dsh-attachment-local` 放在应用私有依赖树的嵌套目录；把安装回调从固定顶层路径改为受边界约束的依赖树解析，再执行包名/版本校验和 `TRIM_PKGVAR` 补丁 | 干净安装中嵌套包可解析；不再出现缺少 attachment-local 的误报；版本不一致时明确失败 |
+| PLAN-FNOS-007-T08-04 | FNOS-007-13-AC-03、04 | 验证 `attachment-local` 的 `sharp` 等生产依赖在目标架构可安装，补丁对附件根目录、共享缓存和耐久边界生效且重复执行幂等 | 自动化补丁测试、生产依赖安装测试和失败回滚证据 |
+| PLAN-FNOS-007-T08-05 | FNOS-007-10-AC-01、03、05；FNOS-007-13-AC-03 | 在真实 NAS 验证新装、升级失败恢复和重复执行：应用私有 DSH 运行时包含 attachment-local，附件功能可用，用户数据和旧运行时可恢复 | NAS 新装/升级/失败回滚证据；不修改已完成需求/计划 |
 
 ### T06：升级、回滚和目标环境验收
 
@@ -308,7 +313,7 @@ git diff --check
 | T02 设置、插槽和图标 | 规划中 | FNOS-007-03、09 |
 | T03 LLM、图片和 Codex | 规划中 | FNOS-007-04、05 |
 | T04 共享 UI | 规划中 | FNOS-007-06 |
-| T05/T08 FPK、网关、会话和 native | 规划中 | FNOS-007-07、08 |
+| T05/T08 FPK、网关、会话、native 和 attachment-local | 规划中 | FNOS-007-07、08、13；node-pty 版本不变但 native 产物和 attachment-local 生产依赖需按目标基线验收 |
 | T06 升级、回滚和 NAS | 规划中 | FNOS-007-10 |
 | T07 Mermaid 渲染器 | 已完成 | FNOS-007-11 |
 | T09 dshmarket | 待完成 | FNOS-007-12 |
@@ -320,3 +325,5 @@ git diff --check
 | 2026-09-24 | 建立 PLAN-FNOS-007 | 纳入 DSH 0.1.7-rc.2 适配、插件接缝、FPK、会话和验收任务。 |
 | 2026-09-27 | 纳入 dshmarket 任务 | 在当前开发计划中同步 dshmarket 精确版本升级，不修改已完成计划正文。 |
 | 2026-09-27 | 重整计划边界 | 删除需求正文复制，补充当前/目标设计、影响矩阵、迁移方案、状态图、时序图、任务、验证和变更点规则。 |
+| 2026-09-27 | 明确 node-pty 适配边界 | 确认 DSH `0.1.5-rc.2 → 0.1.7-rc.2` 的目标依赖树仍为 `node-pty@1.2.0-beta.15`、Node.js 24、`node-gyp@11.0.0`；本需求不升级 node-pty 版本，但要求按新 DSH 基线重建 native 产物并验证有/无 g++ 两条安装路径。 |
+| 2026-09-27 | 新增 attachment-local 安装阻断项 | 根据 `fnos-dsh-log-issues-02.txt` 确认三次安装均在 node-pty 成功后因回调找不到顶层 `@deepseek-ai/dsh-attachment-local` 终止；目标 `0.1.7-rc.2` 的 `dsh-base` 仍以生产依赖提供该包，但它可能嵌套安装，纳入 FNOS-007-13，要求安装回调解析应用私有依赖树后再执行持久化补丁。 |
