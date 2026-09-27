@@ -28,7 +28,7 @@
     "@commitlint/cli": "catalog:",
     "@commitlint/config-conventional": "catalog:",
     "@deepseek-ai/dsh": "catalog:",
-    "@deepseek-ai/dsh-llm-pi-ai": "catalog:dsh",
+    "@deepseek-ai/dsh-llm-pi-ai": "catalog:development-dsh",
     "@eslint-react/eslint-plugin": "catalog:",
     "@miletorix/vitepress-image-viewer": "catalog:",
     "@tnnevol/fnos-dsh-cli": "workspace:*",

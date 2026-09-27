@@ -154,6 +154,10 @@ catalogs:
     vitest:
       specifier: ^4.1.8
       version: 4.1.10
+  development-dsh:
+    '@deepseek-ai/dsh-llm-pi-ai':
+      specifier: 0.1.5-rc.2
+      version: 0.1.5-rc.2
   dsh:
     '@deepseek-ai/dsh-agent-default-model':
       specifier: 0.1.7-rc.2
@@ -272,7 +276,7 @@ importers:
         specifier: 'catalog:'
         version: 0.1.5-rc.2(b3ebe80550913ee01e13fac663fe004c)
       '@deepseek-ai/dsh-llm-pi-ai':
-        specifier: 0.1.5-rc.2
+        specifier: catalog:development-dsh
         version: 0.1.5-rc.2(60f69d85b7b7c18ea90fc9c2ff8d17ce)
       '@eslint-react/eslint-plugin':
         specifier: 'catalog:'

@@ -17,7 +17,8 @@ describe('FNOS-007 DSH baseline', () => {
     }
     const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
     expect(rootPackage.devDependencies['@deepseek-ai/dsh']).toBe('catalog:')
-    expect(rootPackage.devDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('0.1.5-rc.2')
+    expect(rootPackage.devDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('catalog:development-dsh')
+    expect(workspace).toMatch(/development-dsh:\s*\n\s+'@deepseek-ai\/dsh-llm-pi-ai':\s*0\.1\.5-rc\.2/u)
     expect(workspace).toMatch(/'@deepseek-ai\/dsh':\s*0\.1\.5-rc\.2/u)
     expect(workspace).toMatch(/'@deepseek-ai\/dsh-llm-pi-ai':\s*0\.1\.7-rc\.2/u)
   })
