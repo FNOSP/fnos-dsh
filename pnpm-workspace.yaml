@@ -51,16 +51,10 @@ catalog:
   tsdown: ^0.22.2
   typescript: ^5.9.3
   vitepress: 1.6.4
-  vitepress-mermaid-plugin: 3.0.0
-  mermaid: ^11.12.0
-  # vitepress-mermaid-plugin 在 vite.optimizeDeps.include 里硬编码了这几个包名。
-  # pnpm 严格隔离布局下 Mermaid 的传递依赖不会提升到 docs 根，必须显式声明，
-  # 否则 dev 模式报 "Failed to resolve dependency: cytoscape / debug / ..."。
-  '@braintree/sanitize-url': ^7.1.2
-  cytoscape: ^3.34.0
-  cytoscape-cose-bilkent: ^4.1.0
-  debug: ^4.4.3
-  fastdom: 1.0.12
+  # Mermaid 图由 vitepress-mermaid-renderer 在客户端渲染。该包把 `mermaid`
+  # 与 `vue` 声明为 peer dependency，由 pnpm 自动安装；它的依赖链由 Vite
+  # 按 ESM 正常解析，不再需要在 optimizeDeps 中逐项列出 CJS 传递依赖。
+  vitepress-mermaid-renderer: 1.2.2
   vitest: ^4.1.8
   commander: 14.0.1
 

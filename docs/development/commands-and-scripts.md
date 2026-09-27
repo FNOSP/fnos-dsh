@@ -32,7 +32,7 @@ pnpm exec fn-apps-cli build:gateway
 
 ## 文档开发
 
-文档由 VitePress 构建，流程图与时序图由 `vitepress-mermaid-plugin` 在浏览器端渲染，不需要安装额外系统工具。
+文档由 VitePress 构建，流程图与时序图由 `vitepress-mermaid-renderer` 在浏览器端渲染，不需要安装额外系统工具。
 
 ```bash
 # 启动文档开发服务（端口 8876）

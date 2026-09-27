@@ -426,3 +426,30 @@
     height: 320px;
   }
 }
+
+/*
+ * Mermaid 全屏（`fullscreenMode: 'dialog'`）的容器尺寸由渲染器硬编码为
+ * `min(94vw, 1200px)` × `min(90vh, 860px)`，并带 1px 边框与 0.75rem 圆角。
+ * 两个上限让全屏在大屏上留下大片空白（1920×1080 下宽度仅占 63%，左右各空
+ * 360px）。渲染器只暴露 17 个控件类设计令牌，没有尺寸令牌，因此只能覆盖类选择器。
+ *
+ * 这里改成真正的全幅：占满 100vw × 100vh，并去掉圆角、边框与投影，
+ * 否则四角会留下悬空的圆角描边。渲染器用
+ * `top/left: 50%` + `translate(-50%, -50%)` 居中，配合满宽高即精确覆盖视口。
+ * 渲染器在开启全屏时会设 `body { overflow: hidden }`，滚动条消失，
+ * 因此 100vw 不会因滚动条产生横向溢出。
+ *
+ * 渲染器的 `@media (width<=768px)` 也命中同一类，但权重低于这里带 `body`
+ * 前缀的规则，移动端无需再写断点。渲染器在运行时把样式表 append 到 <head>，
+ * 与站点样式优先级相同但位置更靠后，所以用 `body` 前缀提高一级权重取胜，
+ * 避免使用 `!important`。
+ */
+body .mermaid-container.dialog-fullscreen-active {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}

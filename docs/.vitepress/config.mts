@@ -1,5 +1,4 @@
 import { defineConfig } from 'vitepress'
-import { withMermaid } from 'vitepress-mermaid-plugin'
 import packageJson from '../package.json'
 
 const repositoryName = process.env.GITHUB_REPOSITORY?.split('/')[1] || 'fn-os-apps'
@@ -235,8 +234,9 @@ const plansSidebar = [
 // 项目内置的 DeepSeek Harness 图标，供标签 favicon、导航栏 logo 和首页 hero 图共用。
 const DSH_LOGO = '/icons/dsh-logo.svg'
 
-// Mermaid 图由 vitepress-mermaid-plugin 在客户端渲染，并自动跟随明暗主题切换。
-export default withMermaid(defineConfig({
+// Mermaid 图由 vitepress-mermaid-renderer 在客户端主题中挂载，并自动跟随明暗主题切换；
+// 这里不再需要构建期插件，配置保持纯 VitePress。
+export default defineConfig({
   lang: 'zh-CN',
   title: 'fnOS DeepSeek Harness',
   description: '飞牛 fnOS 的 DeepSeek Harness 应用与 DSH 插件开发文档。',
@@ -244,21 +244,6 @@ export default withMermaid(defineConfig({
   vite: {
     server: {
       port: 8876
-    },
-    // Mermaid 及其依赖链含 CommonJS 代码（fastdom 及其 extensions），需要让
-    // Vite 预构建整条链，否则 dev 模式报 "does not provide an export named
-    // 'default'"。mermaid 必须一起列出，否则内联的 CJS 不会被转换。
-    optimizeDeps: {
-      include: [
-        'mermaid',
-        'fastdom',
-        'fastdom/extensions/fastdom-promised.js',
-        'dayjs',
-        'debug',
-        'cytoscape',
-        'cytoscape-cose-bilkent',
-        '@braintree/sanitize-url'
-      ]
     }
   },
   head: [['link', { rel: 'icon', href: `${base}icons/dsh-logo.svg` }]],
@@ -311,7 +296,5 @@ export default withMermaid(defineConfig({
       next: '下一页'
     },
     lastUpdatedText: '最后更新'
-  },
-  // 亮色主题在此设置；深色主题由插件自动切换。
-  mermaid: {}
-}))
+  }
+})
