@@ -5,7 +5,7 @@ on:
     paths:
       - 'AGENTS.md'
       - 'docs/**'
-      - 'tooling/fn-os-apps-cli/**'
+      - 'tooling/fnos-dsh-cli/**'
       - 'package.json'
       - 'commitlint.config.mjs'
       - '.lintstagedrc.json'

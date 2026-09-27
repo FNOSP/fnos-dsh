@@ -280,9 +280,9 @@ importers:
       '@miletorix/vitepress-image-viewer':
         specifier: 'catalog:'
         version: 1.3.2(vue@3.5.41(typescript@5.9.3))
-      '@tnnevol/fn-os-apps-cli':
+      '@tnnevol/fnos-dsh-cli':
         specifier: workspace:*
-        version: link:tooling/fn-os-apps-cli
+        version: link:tooling/fnos-dsh-cli
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1
@@ -729,7 +729,7 @@ importers:
         specifier: 'catalog:'
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.103.1)(tsx@4.23.13)(yaml@2.9.0))
 
-  tooling/fn-os-apps-cli:
+  tooling/fnos-dsh-cli:
     dependencies:
       '@clack/prompts':
         specifier: 'catalog:'

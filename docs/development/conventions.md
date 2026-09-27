@@ -49,7 +49,7 @@ const srcPath = (...segments: string[]) => join(here, '..', 'src', ...segments)
 
 新增测试应优先放入对应 workspace 的 `tests/`，按被测模块组织文件；不要把跨 workspace 的测试复制到根目录，也不要把测试混入 `apps/` 下的 fnOS 应用目录。
 
-`tooling/fn-os-apps-cli` 遵循同一 `tests/` + Vitest 布局，但它是仓库工具 workspace，不计入上述六个可发布包。`docs` 是 VitePress 文档 workspace，不承担 TypeScript 单元测试。应用目录是 fnOS 打包输入，主要通过 `pnpm run check -- --all`、脚本语法检查、JSON 校验和设备上的 `install-local` 验证，而不是强行引入 Vitest。
+`tooling/fnos-dsh-cli` 遵循同一 `tests/` + Vitest 布局，但它是仓库工具 workspace，不计入上述六个可发布包。`docs` 是 VitePress 文档 workspace，不承担 TypeScript 单元测试。应用目录是 fnOS 打包输入，主要通过 `pnpm run check -- --all`、脚本语法检查、JSON 校验和设备上的 `install-local` 验证，而不是强行引入 Vitest。
 
 根目录通过 Turbo 执行 `pnpm test`。只有确实需要构建前置产物的 workspace（例如 `packages/fnos-gateway`）才在 `pretest` 中生成测试所需 bridge；新增前置步骤应说明原因并保持可重复执行。
 

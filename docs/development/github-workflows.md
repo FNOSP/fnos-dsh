@@ -39,7 +39,7 @@ flowchart TD
 
   docsTrigger["v* Tag / workflow_dispatch"]
   docsWorkflow[".github/workflows/deploy-docs.yml"]
-  docsRun["pnpm exec fn-apps-cli build --docs"]
+  docsRun["pnpm exec fnos-dsh-cli build --docs"]
   pages["上传 Pages artifact → 部署 GitHub Pages"]
 
   docsTrigger --> docsWorkflow --> docsRun --> pages
@@ -64,11 +64,11 @@ sequenceDiagram
   github->>prepare: push v* Tag
   prepare->>github: release_id
   prepare->>dsh: workflow_call(release_tag, release_id)
-  dsh->>gateway: fn-apps-cli build:gateway
+  dsh->>gateway: fnos-dsh-cli build:gateway
   gateway->>dsh: Gateway bundle
   dsh->>native: prepare-dsh-native.sh
   native->>dsh: resolved DSH_VERSION
-  dsh->>dshBuild: fn-apps-cli build --fpk
+  dsh->>dshBuild: fnos-dsh-cli build --fpk
   dshBuild->>dsh: FPK asset uploaded
   dsh->>publish: completed
   publish->>notes: assets 全部上传后
@@ -84,7 +84,7 @@ Release 日志不是在 `build-dsh-fn.yml` 中生成的，而是在 `build-relea
 2. `build-dsh` 构建并上传 Harness FPK。
 3. 构建任务成功后，`publish-release` 开始发布任务；成功路径不再写入自定义 Release `name/body`。
 4. `publish-release` 设置 Node.js / pnpm，安装 CLI 依赖。
-5. 执行 `pnpm run release:notes`，由 `fn-apps-cli release:notes` 调用 `changelogithub`，生成并写入完整 Release `name/body`。
+5. 执行 `pnpm run release:notes`，由 `fnos-dsh-cli release:notes` 调用 `changelogithub`，生成并写入完整 Release `name/body`。
 6. Release 日志生成完成后，GitHub Release 才会被发布；失败路径只把诊断信息写入 Actions Summary，并保留草稿。
 
 成功路径不再通过 `gh api` 写入自定义 Release `name` 或 `body`，避免与 `changelogithub` 的完整更新结果产生覆盖或拼接耦合。失败信息属于运行诊断，写入 `$GITHUB_STEP_SUMMARY`，不作为 Release 日志内容。
@@ -97,11 +97,11 @@ flowchart TD
   checkout["checkout"]
   tooling["Node 24 + pnpm 11"]
   install["安装 fnos-gateway... 与 CLI 依赖"]
-  gateway["fn-apps-cli build:gateway"]
+  gateway["fnos-dsh-cli build:gateway"]
   native["prepare-dsh-native.sh"]
   nativeStatus{"DSH_VERSION 已解析？"}
   fnpack["安装 fnpack 1.2.1"]
-  build["fn-apps-cli build --fpk --app fn-deepseek-harness"]
+  build["fnos-dsh-cli build --fpk --app fn-deepseek-harness"]
   rename["重命名并附加 DSH_VERSION"]
   upload["上传 Harness FPK 到 Release"]
   status{"上传成功？"}
@@ -139,9 +139,9 @@ flowchart LR
     docsConfig["docs/.vitepress/config.mts"]
   end
 
-  subgraph cli["fn-apps-cli CLI"]
-    program["tooling/fn-os-apps-cli/src/program.ts"]
-    commands["tooling/fn-os-apps-cli/src/commands/*.ts"]
+  subgraph cli["fnos-dsh-cli CLI"]
+    program["tooling/fnos-dsh-cli/src/program.ts"]
+    commands["tooling/fnos-dsh-cli/src/commands/*.ts"]
     build["build / build:gateway"]
     check["check"]
     releaseNotes["release:notes"]
@@ -220,7 +220,7 @@ git push origin v<版本号>
 `build-dsh-fn.yml` 的顺序不能省略：
 
 1. 安装 Gateway 和 FPK 构建依赖。
-2. 执行 `pnpm exec fn-apps-cli build --fpk --app fn-deepseek-harness --bundle-dsh-native --skip-bundle-dsh-plugins`，由构建流程先编译 Gateway，再按 `.github/config/dsh-native-0.1.5-rc.2.env` 准备并内置 native 依赖。
+2. 执行 `pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --bundle-dsh-native --skip-bundle-dsh-plugins`，由构建流程先编译 Gateway，再按 `.github/config/dsh-native-0.1.5-rc.2.env` 准备并内置 native 依赖。
 3. 按 Release Tag 和 DSH 版本重命名并上传 FPK。
 
 ### 3. 发布 Release
@@ -250,7 +250,7 @@ pnpm run check -- --all
 
 - [ ] 新增或修改触发器后，更新本页的触发条件和总览图。
 - [ ] 可复用工作流的输入、输出和 `needs` 关系保持一致。
-- [ ] FPK 构建继续通过 `fn-apps-cli` 和 `fnpack`，不在工作流中复制 CLI 逻辑。
+- [ ] FPK 构建继续通过 `fnos-dsh-cli` 和 `fnpack`，不在工作流中复制 CLI 逻辑。
 - [ ] 版本、DSH native 和 fnpack 版本来源与配置文件保持一致。
 - [ ] 文档或 Mermaid 图改动通过 `pnpm run build -- --docs`。
 - [ ] 提交前运行 `pnpm run check -- --all`。

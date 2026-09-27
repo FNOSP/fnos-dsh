@@ -1,13 +1,13 @@
 # Turbo 任务
 
-本页说明「入口 `package.json`、`fn-apps-cli` CLI、Turbo 和 workspace package 任务」的分工与调用顺序。修改根脚本、`turbo.json` 或包内任务时，先确认是否破坏了这条链路。
+本页说明「入口 `package.json`、`fnos-dsh-cli` CLI、Turbo 和 workspace package 任务」的分工与调用顺序。修改根脚本、`turbo.json` 或包内任务时，先确认是否破坏了这条链路。
 
 ## 四层职责
 
 | 层级 | 位置 | 职责 |
 | --- | --- | --- |
 | 用户入口 | 根 `package.json` | 提供稳定、简短的 `start`、`build`、`check`、`version` 等命令；不重复实现包任务 |
-| 任务路由 | `tooling/fn-os-apps-cli/` | `program.ts` 暴露 Commander 实例，各 `commands/*.ts` 注册命令并实现 action，处理交互提示、参数解析、文档构建、版本维护和 Turbo 调用 |
+| 任务路由 | `tooling/fnos-dsh-cli/` | `program.ts` 暴露 Commander 实例，各 `commands/*.ts` 注册命令并实现 action，处理交互提示、参数解析、文档构建、版本维护和 Turbo 调用 |
 | 任务编排 | `turbo.json` | 声明 `build`、`dev`、`typecheck`、`test`、`check` 的依赖、缓存和输出 |
 | 实际任务 | 各 workspace 的 `package.json` | 执行 `tsdown`、`tsc`、`vitest` 等包自己的任务 |
 
@@ -16,10 +16,10 @@
 ```json
 {
   "scripts": {
-    "build": "pnpm exec fn-apps-cli build",
-    "check": "pnpm exec fn-apps-cli check",
-    "publish": "pnpm exec fn-apps-cli publish",
-    "start": "pnpm exec fn-apps-cli start"
+    "build": "pnpm exec fnos-dsh-cli build",
+    "check": "pnpm exec fnos-dsh-cli check",
+    "publish": "pnpm exec fnos-dsh-cli publish",
+    "start": "pnpm exec fnos-dsh-cli start"
   }
 }
 ```
@@ -79,7 +79,7 @@ pnpm run build -- --docs
 ```mermaid
 flowchart TD
   command["pnpm run build"]
-  cli["fn-apps-cli build"]
+  cli["fnos-dsh-cli build"]
   select{"构建目标？"}
   plugins["harness 插件：多选目标"]
   fpk["FPK：多选应用"]
@@ -123,7 +123,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   command["pnpm run start"]
-  cli["fn-apps-cli start"]
+  cli["fnos-dsh-cli start"]
   select{"启动目标？（可多选）"}
   plugins["harness 插件：选择目标"]
   docs["文档：VitePress"]
@@ -164,7 +164,7 @@ flowchart TD
 
 ### `typecheck`
 
-`typecheck` 由根脚本直接调用 Turbo，不经过 `fn-apps-cli` 交互层。
+`typecheck` 由根脚本直接调用 Turbo，不经过 `fnos-dsh-cli` 交互层。
 
 ```mermaid
 flowchart TD
@@ -204,12 +204,12 @@ flowchart TD
 
 ### `check`
 
-`check` 与 `build` 一样由 `fn-apps-cli` 先处理多选目标，再并行执行直接检查和 Turbo 检查。
+`check` 与 `build` 一样由 `fnos-dsh-cli` 先处理多选目标，再并行执行直接检查和 Turbo 检查。
 
 ```mermaid
 flowchart TD
   command["pnpm run check"]
-  cli["fn-apps-cli check"]
+  cli["fnos-dsh-cli check"]
   select{"检查目标？（可多选）"}
   sdd["SDD：需求、计划和链接"]
   docs["文档：VitePress"]
@@ -264,7 +264,7 @@ pnpm run check -- --all
 sequenceDiagram
   participant developer as 开发者
   participant root as 根 package.json
-  participant cli as fn-apps-cli CLI
+  participant cli as fnos-dsh-cli CLI
   participant checker as SDD checker
   participant vitepress as VitePress
   participant turbo as Turbo
@@ -273,7 +273,7 @@ sequenceDiagram
   participant plugins as harness 插件
 
   developer->>root: pnpm run check -- --all
-  root->>cli: pnpm exec fn-apps-cli check --all
+  root->>cli: pnpm exec fnos-dsh-cli check --all
   cli->>checker: 校验需求、计划和链接
   cli->>vitepress: 构建 docs
   cli->>turbo: pnpm exec turbo run check --filter=./packages/* --filter=./plugins/*
@@ -302,13 +302,13 @@ CLI 将目标插件转换为 Turbo filter。由于插件在自己的 `package.js
 sequenceDiagram
   participant developer as 开发者
   participant root as 根 package.json
-  participant cli as fn-apps-cli CLI
+  participant cli as fnos-dsh-cli CLI
   participant turbo as Turbo
   participant semi as dsh-semi-ui
   participant plugin as dsh-fnos
 
   developer->>root: pnpm run build -- --plugin fnos
-  root->>cli: pnpm exec fn-apps-cli build --plugin fnos
+  root->>cli: pnpm exec fnos-dsh-cli build --plugin fnos
   cli->>turbo: turbo run build --filter=dsh-fnos...
   turbo->>semi: package.json build
   turbo->>plugin: package.json build
@@ -335,13 +335,13 @@ pnpm run start -- --docs
 sequenceDiagram
   participant developer as 开发者
   participant root as 根 package.json
-  participant cli as fn-apps-cli CLI
+  participant cli as fnos-dsh-cli CLI
   participant turbo as Turbo
   participant semi as dsh-semi-ui
   participant plugin as dsh-fnos
 
   developer->>root: pnpm run start -- --plugin fnos
-  root->>cli: pnpm exec fn-apps-cli start --plugin fnos
+  root->>cli: pnpm exec fnos-dsh-cli start --plugin fnos
   cli->>turbo: turbo watch dev --filter=dsh-fnos...
   turbo->>semi: 先执行一次性 tsdown（persistent: false）
   semi->>turbo: lib/** 就绪

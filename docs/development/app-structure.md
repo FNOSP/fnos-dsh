@@ -20,7 +20,7 @@ flowchart TB
   end
 
   subgraph toolchain["构建工具链"]
-    cli["tooling/fn-os-apps-cli"]
+    cli["tooling/fnos-dsh-cli"]
     turbo["Turbo"]
     gatewayBuild["Gateway build:app"]
     fnpack["fnpack build"]

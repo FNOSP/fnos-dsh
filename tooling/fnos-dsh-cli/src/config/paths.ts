@@ -12,6 +12,7 @@ export const projectVersionFiles = [
   'package.json',
   'docs/package.json',
   'packages/**/package.json',
+  'tooling/fnos-dsh-cli/package.json',
   'apps/**/manifest',
   'docs/development/manifest.md',
   'docs/apps/fn-deepseek-harness.md',

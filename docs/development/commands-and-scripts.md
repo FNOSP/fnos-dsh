@@ -1,12 +1,12 @@
 # 命令与脚本
 
-日常开发从根目录的 `pnpm run ...` 进入。根 `package.json` 是稳定入口，`tooling/fn-os-apps-cli` 中的 Commander 负责注册和分发命令。
+日常开发从根目录的 `pnpm run ...` 进入。根 `package.json` 是稳定入口，`tooling/fnos-dsh-cli` 中的 Commander 负责注册和分发命令。
 
 ## 先记住三件事
 
 1. **根命令优先**：不要手写 `cd` 和任务编排，根脚本已经封装好。
 2. **应用用 fnpack**：`apps/*` 没有统一的 Node.js workspace 任务，FPK 构建由 `fnpack` 完成。
-3. **插件用 fn-apps-cli**：harness 插件的构建、检查和 watch 由 `fn-apps-cli` 调度，Turbo 负责依赖顺序和缓存。
+3. **插件用 fnos-dsh-cli**：harness 插件的构建、检查和 watch 由 `fnos-dsh-cli` 调度，Turbo 负责依赖顺序和缓存。
 
 ## 命令地图
 
@@ -25,7 +25,7 @@
 另有仅供 CI 或网关构建使用的入口：
 
 ```bash
-pnpm exec fn-apps-cli build:gateway
+pnpm exec fnos-dsh-cli build:gateway
 ```
 
 各命令的分支与调度细节见 [Turbo 任务](./turbo-tasks) 和 [CLI 命令参考](./cli-commands)。
@@ -74,7 +74,7 @@ pnpm run check -- --all
 
 - 根目录的 `pnpm run dev`：根脚本不再提供该入口，请使用 `pnpm run start`。
 - 根目录自定义 `bump` 脚本：已废弃，请使用 `pnpm run version`。
-- 历史的 `fnos-gateway build:fpk`：已移除，请用 `pnpm exec fn-apps-cli build:gateway` 构建 Gateway，再走 FPK 模式构建应用。
+- 历史的 `fnos-gateway build:fpk`：已移除，请用 `pnpm exec fnos-dsh-cli build:gateway` 构建 Gateway，再走 FPK 模式构建应用。
 
 :::
 

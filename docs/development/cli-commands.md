@@ -1,6 +1,6 @@
 # CLI 命令参考
 
-非 Turbo 任务沿用相同的表达方式：根命令进入 `fn-apps-cli`，命令模块负责交互和参数分支，最后执行实际工具并汇总状态。
+非 Turbo 任务沿用相同的表达方式：根命令进入 `fnos-dsh-cli`，命令模块负责交互和参数分支，最后执行实际工具并汇总状态。
 
 各命令的调度图见下。Turbo 相关任务的完整说明见 [Turbo 任务](./turbo-tasks)。
 
@@ -11,7 +11,7 @@
 ```mermaid
 flowchart TD
   command["pnpm run version"]
-  cli["fn-apps-cli version"]
+  cli["fnos-dsh-cli version"]
   area{"维护区域？"}
   project["项目 / FPK"]
   plugin["harness 插件"]
@@ -40,7 +40,7 @@ flowchart TD
   status -->|否| fail
 ```
 
-项目/FPK 版本更新根 `package.json`、`docs/package.json`、`packages/**/package.json`、应用 `manifest` 和文档中的版本示例，默认创建提交和 `v<版本号>` Tag。插件版本只更新指定插件的 `package.json`，若插件在发布清单中则同步清单版本，默认只创建提交、不创建 Tag。
+项目/FPK 版本更新根 `package.json`、`docs/package.json`、`packages/**/package.json`、`tooling/fnos-dsh-cli/package.json`、应用 `manifest` 和文档中的版本示例，默认创建提交和 `v<版本号>` Tag。插件版本只更新指定插件的 `package.json`，若插件在发布清单中则同步清单版本，默认只创建提交、不创建 Tag。
 
 两者都不会自动 push。完整流程见[版本管理](../build/versioning)。
 
@@ -51,7 +51,7 @@ flowchart TD
 ```mermaid
 flowchart TD
   command["pnpm run release:notes"]
-  cli["fn-apps-cli release:notes"]
+  cli["fnos-dsh-cli release:notes"]
   tag["读取 GITHUB_REF_NAME"]
   prerelease{"预发布 Tag？"}
   flag["补充 --prerelease"]
@@ -75,7 +75,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  command["fn-apps-cli build:gateway"]
+  command["fnos-dsh-cli build:gateway"]
   cli["命令模块 action"]
   turbo["turbo run build:app --filter=@tnnevol/fnos-gateway"]
   gateway["执行 Gateway package.json 的 build:app"]

@@ -1,10 +1,10 @@
 # 版本管理
 
-版本命令由根目录 `fn-apps-cli` CLI 暴露，实现在 `tooling/fn-os-apps-cli` workspace。项目/FPK 版本通过 [`bumpp`](https://github.com/antfu-collective/bumpp) 管理；插件版本由 CLI 直接更新并提交。项目/FPK 版本与插件版本是相互独立的两套发布流程，插件不会被项目版本命令隐式修改。
+版本命令由根目录 `fnos-dsh-cli` CLI 暴露，实现在 `tooling/fnos-dsh-cli` workspace。项目/FPK 版本通过 [`bumpp`](https://github.com/antfu-collective/bumpp) 管理；插件版本由 CLI 直接更新并提交。项目/FPK 版本与插件版本是相互独立的两套发布流程，插件不会被项目版本命令隐式修改。
 
 ## 项目与 FPK 版本
 
-项目版本命令更新根 `package.json`、文档包 `docs/package.json`、`packages/*/package.json`、应用 `manifest` 和 README 版本引用，并创建项目 Tag。文档站点的版本徽标从文档包自身的 `package.json` 读取：
+项目版本命令更新根 `package.json`、文档包 `docs/package.json`、`packages/*/package.json`、`tooling/fnos-dsh-cli/package.json`、应用 `manifest` 和 README 版本引用，并创建项目 Tag。CLI workspace 包与项目版本保持一致，避免版本命令升级项目后工具包仍停留在旧版本。文档站点的版本徽标从文档包自身的 `package.json` 读取：
 
 ```bash
 pnpm run version -- project patch

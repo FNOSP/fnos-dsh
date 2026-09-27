@@ -46,7 +46,7 @@ jobs:
       - name: Build documentation
         env:
           DOCS_BASE: /
-        run: pnpm exec fn-apps-cli build --docs
+        run: pnpm exec fnos-dsh-cli build --docs
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

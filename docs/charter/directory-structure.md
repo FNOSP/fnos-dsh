@@ -109,7 +109,7 @@ plugins/<plugin-name>/
 
 ## 内部工具目录：`tooling/`
 
-内部工具按工具名称建立 workspace，例如 `tooling/fn-os-apps-cli/`。
+内部工具按工具名称建立 workspace，例如 `tooling/fnos-dsh-cli/`。
 
 ```text
 tooling/<tool-name>/

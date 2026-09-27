@@ -49,7 +49,7 @@ git -c core.hooksPath=/dev/null -c commit.gpgsign=false commit -m "..."
 | `plugins/dsh-semi-ui-showcase-plugin` | 27 | 2 | 39 | 无 components/contracts/host |
 | `packages/dsh-semi-ui` | 4 | 2 | 4 | 测试覆盖最薄 |
 | `packages/fnos-gateway` | 19 | 11 | 33 | 反向断言仅 7 条 |
-| `tooling/fn-os-apps-cli` | 22 | 1 | 5 | 测试覆盖最薄 |
+| `tooling/fnos-dsh-cli` | 22 | 1 | 5 | 测试覆盖最薄 |
 | ~~`plugins/dsh-codebuddy-plugin`~~ | 85 | 47 | 554 | **本次跳过**（已清理完毕） |
 
 **基线全绿**（已实测，修复后必须仍全绿）：
@@ -102,7 +102,7 @@ cd <workspace> && PATH=~/.nvm/versions/node/v24.17.0/bin:$PATH \
 | `plugins/dsh-fnos-plugin` | 8 |
 | `plugins/dsh-semi-ui-showcase-plugin` | 3 |
 | `packages/fnos-gateway` | 2 |
-| `tooling/fn-os-apps-cli` | 1 |
+| `tooling/fnos-dsh-cli` | 1 |
 | `packages/dsh-semi-ui` | **0** ✅ |
 
 > 统计口径提示：`npx eslint plugins packages tooling` 的**纯文本**汇总行会给出与 JSON 不同的数字（实测 36 vs 45）。**以 `-f json` 逐个 workspace 统计为准**，否则会漏算。

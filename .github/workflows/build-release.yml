@@ -123,7 +123,7 @@ jobs:
           version: 11.16.0
 
       - name: Install release task dependencies
-        run: pnpm install --filter @tnnevol/fn-os-apps-cli --frozen-lockfile
+        run: pnpm install --filter @tnnevol/fnos-dsh-cli --frozen-lockfile
 
       # changelogithub 是成功 Release body 的唯一来源，避免与 workflow 自定义说明互相覆盖。
       - name: Generate release notes

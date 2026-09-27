@@ -43,7 +43,7 @@ jobs:
       # 只需要网关和 CLI：FPK 不再内置插件，因此不构建插件包，也不装它们的
       # workspace 依赖 `@tnnevol/dsh-semi-ui`。
       - name: Install repository build dependencies
-        run: pnpm install --filter @tnnevol/fnos-gateway... --filter @tnnevol/fn-os-apps-cli --frozen-lockfile
+        run: pnpm install --filter @tnnevol/fnos-gateway... --filter @tnnevol/fnos-dsh-cli --frozen-lockfile
 
       - name: Install fnpack
         run: |

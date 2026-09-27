@@ -1,11 +1,11 @@
 {
-  "name": "@tnnevol/fn-os-apps-cli",
+  "name": "@tnnevol/fnos-dsh-cli",
   "type": "module",
-  "version": "0.0.0",
+  "version": "5.4.3",
   "private": true,
-  "description": "Release, build and repository maintenance CLI for fn-os-apps.",
+  "description": "Release, build and repository maintenance CLI for fnOS DSH.",
   "bin": {
-    "fn-apps-cli": "lib/index.mjs"
+    "fnos-dsh-cli": "lib/index.mjs"
   },
   "engines": {
     "node": ">=24.0.0"

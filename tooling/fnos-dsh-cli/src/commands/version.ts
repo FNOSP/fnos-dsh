@@ -17,6 +17,7 @@ const publishedDshPluginsPath = 'apps/fn-deepseek-harness/app/published-dsh-plug
 const pluginIndexDocPath = 'docs/plugins/index.md'
 const projectVersionPackageFiles = [
   'docs/package.json',
+  'tooling/fnos-dsh-cli/package.json',
 ]
 const projectVersionTextFiles = [
   'apps/fn-deepseek-harness/manifest',

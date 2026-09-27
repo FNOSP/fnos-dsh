@@ -13,7 +13,7 @@
 │   └── validation/        # 真实环境验收证据
 ├── .github/workflows/     # GitHub Actions 构建与发布流程
 ├── tooling/
-│   └── fn-os-apps-cli/    # fn-apps-cli CLI：版本、构建和 Release 工具
+│   └── fn-os-apps-cli/    # fnos-dsh-cli CLI：版本、构建和 Release 工具
 ├── turbo.json             # Turbo 任务依赖与缓存配置
 ├── package.json           # 统一任务入口、项目版本和 Node/pnpm 约束
 ├── README.md              # 项目简介

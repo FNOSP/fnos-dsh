@@ -14,7 +14,7 @@ const rawArgs = process.argv.slice(2)
 const argv = normalizeArgs(rawArgs.length === 0 ? ['build'] : rawArgs)
 
 try {
-  await program.parseAsync([process.execPath, process.argv[1] ?? 'fn-apps-cli', ...argv])
+  await program.parseAsync([process.execPath, process.argv[1] ?? 'fnos-dsh-cli', ...argv])
 } catch (error) {
   if (error instanceof CommanderError && ['commander.helpDisplayed', 'commander.version'].includes(error.code)) {
     process.exitCode = error.exitCode
