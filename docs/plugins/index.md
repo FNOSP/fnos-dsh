@@ -14,11 +14,12 @@
 
 | 包名 | 版本 | 适用场景 | 文档 | 源码 |
 | --- | --- | --- | --- | --- |
-| `@tnnevol/dsh-codex-auth` | `0.1.5-rc.2` | 使用 ChatGPT 账号登录 Codex，并把模型、用量和图片输入能力接入 DSH | [Codex 身份验证](/plugins/dsh-codex-auth) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-codex-auth-plugin) |
-| `@tnnevol/dsh-codebuddy` | `0.1.5-rc.2.3` | 使用腾讯 CodeBuddy 多账号登录，接入模型目录、额度和 Token 统计 | [CodeBuddy](/plugins/dsh-codebuddy) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-codebuddy-plugin) |
-| `@tnnevol/dsh-fnos` | `0.1.5-rc.2` | 在 fnOS 中补充主题、授权目录、NAS 文件访问和会话日志导出 | [fnOS](/plugins/dsh-fnos) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-fnos-plugin) |
+| `@tnnevol/dsh-codex-auth` | `0.1.7-rc.2` | 使用 ChatGPT 账号登录 Codex，并把模型、用量和图片输入能力接入 DSH | [Codex 身份验证](/plugins/dsh-codex-auth) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-codex-auth-plugin) |
+| `@tnnevol/dsh-codebuddy` | `0.1.7-rc.2` | 使用腾讯 CodeBuddy 多账号登录，接入模型目录、额度和 Token 统计 | [CodeBuddy](/plugins/dsh-codebuddy) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-codebuddy-plugin) |
+| `@tnnevol/dsh-fnos` | `0.1.7-rc.2` | 在 fnOS 中补充主题、授权目录、NAS 文件访问和会话日志导出 | [fnOS](/plugins/dsh-fnos) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-fnos-plugin) |
+| `@tnnevol/dsh-semi-ui-showcase` | `0.1.7-rc.2` | 展示 Semi UI 共享组件、主题和交互状态 | [Semi UI 总览](/plugins/dsh-semi-ui-showcase) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-semi-ui-showcase-plugin) |
 
-DSH 运行时和插件兼容性基线为 `0.1.5-rc.2`；运行时插件的发布版本与该基线同号，CodeBuddy 因独立修复再递增一位（`0.1.5-rc.2.3`）。手动安装请使用精确版本，不使用 `latest`、`next` 或范围版本。
+DSH 运行时和四个运行时插件的发布版本与兼容性基线统一为 `0.1.7-rc.2`。手动安装请使用精确版本，不使用 `latest`、`next` 或范围版本。
 
 `dsh-fnos` 是 [DeepSeek Harness 应用适配](/apps/adaptation)的核心部分，负责 DSH 与 fnOS 之间的系统集成。
 
@@ -38,7 +39,7 @@ DSH 运行时和插件兼容性基线为 `0.1.5-rc.2`；运行时插件的发布
 在其他 DSH 环境中可以手动安装：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-fnos@0.1.5-rc.2
+dsh plugin --profile web add @tnnevol/dsh-fnos@0.1.7-rc.2
 dsh plugin --profile web add dshmarket@1.65.1
 dsh --profile web --dump-config
 ```
@@ -47,7 +48,7 @@ dsh --profile web --dump-config
 
 ## 兼容要求
 
-- DSH：`0.1.5-rc.2`
+- DSH：`0.1.7-rc.2`
 - Node.js：`^22.19.0` 或 `>=24.0.0`
 - fnOS 专用能力：需要在 fnOS 应用 iframe 中运行
 - 问题反馈：[GitHub Issues](https://github.com/FNOSP/fnos-dsh/issues)

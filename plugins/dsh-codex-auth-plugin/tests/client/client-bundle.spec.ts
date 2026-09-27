@@ -30,7 +30,7 @@ describe('dsh-codex-auth-plugin client artifact', () => {
       if (specifier === 'react-dom') return {}
       if (specifier === 'react/jsx-runtime') return ReactJsxRuntime
       if (specifier === '@deepseek-ai/dsh-client-ui-primitives') {
-        return { IconChevronDownOutline14: () => null }
+        return { IconChevronDownOutlineRegular: () => null }
       }
       throw new Error(`unexpected client external: ${specifier}`)
     })

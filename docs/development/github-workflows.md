@@ -161,7 +161,7 @@ flowchart LR
   subgraph tools["外部工具与发布服务"]
     fnpack["fnpack 1.2.1（CI）"]
     native[".github/scripts/prepare-dsh-native.sh"]
-    nativeConfig[".github/config/dsh-native-0.1.5-rc.2.env"]
+    nativeConfig[".github/config/dsh-native-0.1.7-rc.2.env"]
     github["GitHub Release / Pages API"]
   end
 
@@ -220,7 +220,7 @@ git push origin v<版本号>
 `build-app.yml` 的顺序不能省略：
 
 1. 安装 Gateway 和 FPK 构建依赖。
-2. 执行 `pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --bundle-dsh-native --skip-bundle-dsh-plugins`，由构建流程先编译 Gateway，再按 `.github/config/dsh-native-0.1.5-rc.2.env` 准备并内置 native 依赖。
+2. 执行 `pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --bundle-dsh-native --skip-bundle-dsh-plugins`，由构建流程先编译 Gateway，再按 `.github/config/dsh-native-0.1.7-rc.2.env` 准备并内置 native 依赖。
 3. 按 Release Tag 和 DSH 版本重命名并上传 FPK。
 
 ### 3. 发布 Release

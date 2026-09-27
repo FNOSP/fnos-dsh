@@ -23,7 +23,7 @@ import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots
 // Type-only: 拉入 ui-session 对 GlobalStandardProps/SessionStandardProps 的合并，
 // `useSessions` 与 `sessionId` 才有类型（否则座位标准套件解析成空对象）。
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import { IconChevronDownOutline14, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutlineRegular, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FnosFileManagerIcon } from './FnosFileManagerIcon.tsx'
 import { isEmbeddedFnosFrame } from '../client/services/sdk-carrier.ts'
@@ -156,7 +156,7 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
             aria-label={t('openInFnosMenu')}
             onClick={() => { setOpen(value => !value) }}
           >
-            <IconChevronDownOutline14 size={11} />
+            <IconChevronDownOutlineRegular size={11} />
           </button>
         </div>
       )}

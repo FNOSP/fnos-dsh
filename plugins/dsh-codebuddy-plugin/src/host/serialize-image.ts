@@ -14,8 +14,8 @@
  */
 
 import { LlmError, requestImageHandleText } from '@deepseek-ai/dsh-llm'
-import type { ContentBlock, GenerateOptions, ImageAttachmentAccessResolver, Message } from '@deepseek-ai/dsh-llm'
-import type { AttachmentStore, ImageAttachmentRef, ImageRequestPolicy, RequestImageAttachment } from '@deepseek-ai/dsh-attachment'
+import type { ContentBlock, GenerateOptions, ImageAttachmentAccessResolver, RequestMessage } from '@deepseek-ai/dsh-llm'
+import type { AttachmentStore, ImageAttachmentRef, ImageRequestTarget, RequestImageAttachment } from '@deepseek-ai/dsh-attachment'
 import { boundToolCallId, buildWireRequest, flattenText } from './serialize.ts'
 import type { WireContent, WireMessage, WirePart, WireRequest } from './types.ts'
 
@@ -23,21 +23,21 @@ import type { WireContent, WireMessage, WirePart, WireRequest } from './types.ts
 export type { WireRequest }
 
 /** 聊天路由使用的确切请求图像策略（字节/像素）。 */
-const REQUEST_IMAGE_POLICY: ImageRequestPolicy = {
+const REQUEST_IMAGE_TARGET: ImageRequestTarget = {
   // 保持 harness 默认的保守限制，避免超大截图把请求撑到超过 CodeBuddy 自己的
   // IDE 客户端会发送的规模。
-  maxPixels: 4_000_000,
+  width: 2_000,
+  height: 2_000,
   maxBytes: 8 * 1024 * 1024,
 }
 
 /** 任一块列表在任意嵌套深度携带持久图像时为 true。 */
 function listHasImage(blocks: readonly ContentBlock[]): boolean {
-  return blocks.some(block => block.type === 'image'
-    || block.type === 'tool-result' && listHasImage(block.content))
+  return blocks.some(block => block.type === 'image')
 }
 
 /** 单条消息是否在任意嵌套深度携带图像。 */
-function messageHasImage(message: Message): boolean {
+function messageHasImage(message: RequestMessage): boolean {
   return listHasImage(message.content)
 }
 
@@ -45,7 +45,6 @@ function messageHasImage(message: Message): boolean {
 function collectRefs(blocks: readonly ContentBlock[], refs: ImageAttachmentRef[]): void {
   for (const block of blocks) {
     if (block.type === 'image') refs.push(block.attachment)
-    else if (block.type === 'tool-result') collectRefs(block.content, refs)
   }
 }
 
@@ -76,9 +75,6 @@ async function contentParts(
       })
       continue
     }
-    if (block.type === 'tool-result') {
-      parts.push(...await contentParts(block.content, versions, resolveImageAccess))
-    }
   }
   return parts
 }
@@ -90,7 +86,7 @@ function compactParts(parts: WirePart[]): WireContent {
 }
 
 /** 序列化一条 assistant 回合（重放的工具调用共用同一个 id 绑定）。 */
-function serializeAssistant(message: Message): WireMessage {
+function serializeAssistant(message: Extract<RequestMessage, { role: 'assistant' }>): WireMessage {
   const text = flattenText(message.content)
   const reasoning = message.content
     .filter(block => block.type === 'reasoning')
@@ -122,13 +118,14 @@ function serializeAssistant(message: Message): WireMessage {
  * @returns 带内联 `image_url` 分片的有序线缆消息。
  */
 export async function serializeMessagesWithImages(
-  messages: readonly Message[],
+  messages: readonly RequestMessage[],
   attachments: AttachmentStore,
   resolveImageAccess: ImageAttachmentAccessResolver | undefined,
 ): Promise<WireMessage[]> {
-  // 拒绝 OpenAI 兼容历史无法承载的图像角色。
+  // OpenAI 兼容历史无法承载 system/assistant/developer 图像；tool 图像会
+  // 在紧随其后的 user 消息中承载，避免丢失工具返回的视觉结果。
   for (const message of messages) {
-    if (message.role !== 'user' && messageHasImage(message)) {
+    if (!['user', 'tool'].includes(message.role) && messageHasImage(message)) {
       throw new LlmError(
         `CodeBuddy cannot represent an image in an in-history ${message.role} message`,
         'UNSUPPORTED_CONTENT',
@@ -142,7 +139,7 @@ export async function serializeMessagesWithImages(
   }
   const versions = new Map<ImageAttachmentRef['attachmentId'], RequestImageAttachment>()
   await Promise.all(refs.map(async ref => {
-    versions.set(ref.attachmentId, await attachments.readImageRequest(ref, REQUEST_IMAGE_POLICY))
+    versions.set(ref.attachmentId, await attachments.readImageRequest(ref, REQUEST_IMAGE_TARGET))
   }))
 
   const wire: WireMessage[] = []
@@ -167,40 +164,33 @@ export async function serializeMessagesWithImages(
       wire.push(serializeAssistant(message))
       continue
     }
-    const regular = message.content.filter(block => block.type !== 'tool-result')
-    const toolResults = message.content.filter(block => block.type === 'tool-result')
-    const regularParts = await contentParts(regular, versions, resolveImageAccess)
-    const content = compactParts(regularParts)
-    const contentEmpty = typeof content === 'string' ? content.length === 0 : content.length === 0
-    if (!contentEmpty || toolResults.length === 0) {
-      flushToolImages()
-      wire.push({ role: 'user', content })
-    }
-    // 嵌在工具结果里的图像被推迟进一条 user 消息，使 `role: 'tool'` 条目保持
-    // 纯字符串（OpenAI 线缆约束）。
-    const toolImageParts: WirePart[] = []
-    for (const result of toolResults) {
-      const resultParts = await contentParts(result.content, versions, resolveImageAccess)
+    if (message.role === 'tool') {
+      const resultParts = await contentParts(message.content, versions, resolveImageAccess)
       const resultText = resultParts.filter(part => part.type === 'text')
         .map(part => (part as { type: 'text', text: string }).text).join('')
       const hasToolImage = resultParts.some(part => part.type === 'image_url')
-      if (hasToolImage) {
-        toolImageParts.push(...resultParts.filter(part => part.type === 'image_url'))
-      }
+      if (hasToolImage) pendingToolImages.push(...resultParts.filter(part => part.type === 'image_url'))
       wire.push({
         role: 'tool',
-        tool_call_id: boundToolCallId(result.toolCallId as unknown as string),
+        tool_call_id: boundToolCallId(message.toolCallId as unknown as string),
         content: resultText.length > 0 ? resultText : '(no output)',
       })
+      continue
     }
-    if (toolImageParts.length > 0) pendingToolImages = toolImageParts
+    const regularParts = await contentParts(message.content, versions, resolveImageAccess)
+    const content = compactParts(regularParts)
+    const contentEmpty = typeof content === 'string' ? content.length === 0 : content.length === 0
+    if (!contentEmpty || message.role === 'user') {
+      flushToolImages()
+      wire.push({ role: message.role === 'developer' ? 'system' : 'user', content })
+    }
   }
   flushToolImages()
   return wire
 }
 
 /** 请求至少携带一个持久图像块时为 true。 */
-export function hasRequestImages(messages: readonly Message[]): boolean {
+export function hasRequestImages(messages: readonly RequestMessage[]): boolean {
   return messages.some(message => messageHasImage(message))
 }
 

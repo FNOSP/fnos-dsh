@@ -18,7 +18,7 @@ lastVerified: 2026-09-27
 | 对应需求 | [FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复](/requirements/FNOS-007-dsh-017-rc2-adaptation) |
 | 本轮功能 | FNOS-007-01 至 FNOS-007-14；FNOS-007-11、FNOS-007-14 已完成，其余进入后续实施阶段 |
 | 上游依据 | 本地 Harness checkout 的 `dsh-v0.1.7-rc.2`，以目标 tag 的源码、类型和构建结果为准 |
-| 计划状态 | <Badge type="info" text="规划中" /> |
+| 计划状态 | <Badge type="warning" text="本地实现与自动化验证完成，待 Linux/native 和真实 NAS" /> |
 
 ## 计划目标
 
@@ -31,7 +31,7 @@ lastVerified: 2026-09-27
 | 阶段 | 对应功能 | 内容 | 状态 |
 | --- | --- | --- | --- |
 | 第一期 | FNOS-007-11 | 文档站 Mermaid 渲染器替换和图表交互验收 | <Badge type="tip" text="已完成" /> |
-| 第二期 | FNOS-007-01 至 10、12、13、14 | 依赖基线、插件接缝、FPK、会话、升级、attachment-local、dshmarket 和 workflow 验收 | <Badge type="info" text="规划中" /> |
+| 第二期 | FNOS-007-01 至 10、12、13、14 | 依赖基线、插件接缝、FPK、会话、升级、attachment-local、dshmarket 和 workflow 验收 | <Badge type="warning" text="本地完成，待 Linux/native 与真实 NAS" /> |
 
 分期原因：插件源码接缝、FPK 运行时和本地开发宿主存在独立版本通路。先完成差异分析，再在不破坏当前开发宿主的前提下切换 FPK 运行时。
 
@@ -201,7 +201,7 @@ sequenceDiagram
 | PLAN-FNOS-007-T05-02 | FNOS-007-07-AC-04 | 建立版本、锁文件、native、清单和捆绑包元数据的一致性门禁 | 不一致时构建失败 |
 | PLAN-FNOS-007-T05-03 | FNOS-007-07-AC-03 | 在真实 NAS 安装新 FPK，验证运行时版本、网关和 DSH Web | NAS 安装启动证据 |
 | PLAN-FNOS-007-T05-04 | FNOS-007-08-AC-01 至 03 | 使用旧会话验证打开和导出，确认插件不实现自有迁移器 | 会话回归和文件不变断言 |
-| PLAN-FNOS-007-T05-05 | FNOS-007-07-AC-02、05、06 | 核对目标 `dsh-v0.1.7-rc.2` checkout 与本仓库锁文件仍使用 `node-pty@1.2.0-beta.15`、Node.js 24 和 `node-gyp@11.0.0`；更新 native 配置中的 DSH 基线和文件名后，在 Linux 构建机重新执行 `prepare-dsh-native.sh`，验证 `pty.node`、可选 `spawn-helper`、`app/node-pty-versions` 与安装回调版本校验一致 | 内置 native 且 NAS 无 g++ 的安装路径通过；未内置 native 且 NAS 有 g++ 的回退路径通过；版本不一致时构建或安装明确失败 |
+| PLAN-FNOS-007-T05-05 | FNOS-007-07-AC-02、07、08 | 核对目标 `dsh-v0.1.7-rc.2` checkout 与本仓库锁文件仍使用 `node-pty@1.2.0-beta.15`、Node.js 24 和 `node-gyp@11.0.0`；更新 native 配置中的 DSH 基线和文件名后，在 Linux 构建机重新执行 `prepare-dsh-native.sh`，验证 `pty.node`、可选 `spawn-helper`、`app/node-pty-versions` 与安装回调版本校验一致 | 内置 native 且 NAS 无 g++ 的安装路径通过；未内置 native 且 NAS 有 g++ 的回退路径通过；版本不一致时构建或安装明确失败 |
 | PLAN-FNOS-007-T08-01 | FNOS-007-07-AC-02 | 修复附件补丁锚点，验证三处锚点单次匹配、幂等和应用私有路径 | 目标包样本、失败锚点和回归测试 |
 | PLAN-FNOS-007-T08-02 | FNOS-007-07-AC-02 | 确认新增图片依赖的 FPK 就位方式和 native 处理边界 | 目标架构图片处理可用 |
 | PLAN-FNOS-007-T08-03 | FNOS-007-07-AC-05、06；FNOS-007-13-AC-01、02 | 复现日志中的生产安装路径，确认目标 DSH 的 `dsh-base` 生产依赖把 `@deepseek-ai/dsh-attachment-local` 放在应用私有依赖树的嵌套目录；把安装回调从固定顶层路径改为受边界约束的依赖树解析，再执行包名/版本校验和 `TRIM_PKGVAR` 补丁 | 干净安装中嵌套包可解析；不再出现缺少 attachment-local 的误报；版本不一致时明确失败 |
@@ -315,14 +315,14 @@ git diff --check
 
 | 阶段 | 状态 | 对应功能 |
 | --- | --- | --- |
-| T01 版本基线和插件门禁 | 规划中 | FNOS-007-01、02 |
-| T02 设置、插槽和图标 | 规划中 | FNOS-007-03、09 |
-| T03 LLM、图片和 Codex | 规划中 | FNOS-007-04、05 |
-| T04 共享 UI | 规划中 | FNOS-007-06 |
-| T05/T08 FPK、网关、会话、native 和 attachment-local | 规划中 | FNOS-007-07、08、13；node-pty 版本不变但 native 产物和 attachment-local 生产依赖需按目标基线验收 |
-| T06 升级、回滚和 NAS | 规划中 | FNOS-007-10 |
+| T01 版本基线和插件门禁 | 本地完成，待 NAS | FNOS-007-01、02 |
+| T02 设置、插槽和图标 | 本地完成，待客户端/NAS | FNOS-007-03、09 |
+| T03 LLM、图片和 Codex | 本地完成，待真实客户端 | FNOS-007-04、05 |
+| T04 共享 UI | 本地完成，待真实客户端 | FNOS-007-06 |
+| T05/T08 FPK、网关、会话、native 和 attachment-local | 本地完成，待 Linux/native 与 NAS | FNOS-007-07、08、13；node-pty 版本不变但 native 产物和 attachment-local 生产依赖需按目标基线验收 |
+| T06 升级、回滚和 NAS | 待真实 NAS | FNOS-007-10 |
 | T07 Mermaid 渲染器 | 已完成 | FNOS-007-11 |
-| T09 dshmarket | 待完成 | FNOS-007-12 |
+| T09 dshmarket | 本地完成，待 NAS | FNOS-007-12 |
 | T10 FPK workflow 命名 | 已完成 | FNOS-007-14 |
 
 ## 变更记录
@@ -335,3 +335,4 @@ git diff --check
 | 2026-09-27 | 明确 node-pty 适配边界 | 确认 DSH `0.1.5-rc.2 → 0.1.7-rc.2` 的目标依赖树仍为 `node-pty@1.2.0-beta.15`、Node.js 24、`node-gyp@11.0.0`；本需求不升级 node-pty 版本，但要求按新 DSH 基线重建 native 产物并验证有/无 g++ 两条安装路径。 |
 | 2026-09-27 | 新增 attachment-local 安装阻断项 | 根据 `fnos-dsh-log-issues-02.txt` 确认三次安装均在 node-pty 成功后因回调找不到顶层 `@deepseek-ai/dsh-attachment-local` 终止；目标 `0.1.7-rc.2` 的 `dsh-base` 仍以生产依赖提供该包，但它可能嵌套安装，纳入 FNOS-007-13，要求安装回调解析应用私有依赖树后再执行持久化补丁。 |
 | 2026-09-27 | 新增 FPK workflow 命名功能 | 将可复用 FPK workflow 从 `build-dsh-fn.yml` 统一重命名为 `build-app.yml`，只调整文件名和现行引用，不修改构建、native 或 Release 上传行为。 |
+| 2026-09-27 | 完成 FNOS-007 本地实现 | 完成 FPK 0.1.7 版本链路、四插件接缝、四插件归档、SettingsForms/ConfigForms、CodeBuddy role-tool/image、attachment-local 嵌套解析与幂等补丁；本地全量 check 和文档/FPK（跳过 native）构建通过，Linux native 与真实 NAS 保持待验收。 |

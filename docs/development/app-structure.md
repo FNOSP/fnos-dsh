@@ -82,7 +82,7 @@ flowchart LR
 ```
 
 - 访问路径只有一条：统一网关按 `gatewayPrefix` 把请求转发到 `TRIM_APPDEST/app.sock`，由 `gateway-proxy.mjs` 校验前缀后代理给只监听回环地址的 `dsh` Web 进程。
-- `cmd/` 脚本负责安装阶段准备 Node.js 运行时、DSH、pnpm 与插件，启动阶段拉起 `dsh` 和 `gateway-proxy.mjs` 两个进程；安装期按 `published-dsh-plugins.json` 拉取 `dsh-fnos`、`dsh-codex-auth`、`dsh-codebuddy`。
+- `cmd/` 脚本负责安装阶段准备 Node.js 运行时、DSH、pnpm 与插件，启动阶段拉起 `dsh` 和 `gateway-proxy.mjs` 两个进程；安装期按 `published-dsh-plugins.json` 拉取 `dsh-fnos`、`dsh-codex-auth`、`dsh-codebuddy` 和 `dsh-semi-ui-showcase`。
 - 会话、配置和工作区落在 `TRIM_PKGHOME` 与 `@appshare`；这些 `TRIM_*` 路径只在 fnOS 生命周期中可靠存在，所以运行期行为必须在设备上验证（见下文「在 fnOS 上验证」）。
 
 适配层的完整链路（权限、主题、文件访问等）见[应用适配说明](../apps/adaptation)，脚本与回调的调用顺序见[生命周期脚本](./lifecycle)。

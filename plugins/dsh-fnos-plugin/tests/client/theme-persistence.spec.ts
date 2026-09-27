@@ -1,10 +1,10 @@
-import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { describe, expect, it, vi } from 'vitest'
 import { createThemePersistence } from '../../src/client/services/theme-persistence.ts'
 import type { FnosSettings } from '../../src/contracts/theme-contract.ts'
 
-function makeScope(initial: Partial<SettingsScopeSnapshot<FnosSettings>> = {}) {
-  let snapshot: SettingsScopeSnapshot<FnosSettings> = {
+function makeScope(initial: Partial<ConfigFormSnapshot<FnosSettings>> = {}) {
+  let snapshot: ConfigFormSnapshot<FnosSettings> = {
     status: 'ready',
     value: undefined,
     base: undefined,
@@ -14,14 +14,14 @@ function makeScope(initial: Partial<SettingsScopeSnapshot<FnosSettings>> = {}) {
     mode: 'host',
     ...initial,
   }
-  const set = vi.fn(() => Promise.resolve())
-  const unset = vi.fn(() => Promise.resolve())
-  const scope: SettingsScope<FnosSettings> = {
+  const set = vi.fn(() => Promise.resolve(true))
+  const unset = vi.fn(() => Promise.resolve(true))
+  const scope: ConfigForm<FnosSettings> = {
     getSnapshot: () => snapshot,
     subscribe: () => () => {},
     set,
     unset,
-    mutate: vi.fn(() => Promise.resolve()),
+    mutate: vi.fn(() => Promise.resolve(true)),
   }
   return {
     scope,
@@ -60,7 +60,7 @@ describe('fnOS theme persistence', () => {
   it('coalesces repeated writes while the settings request is pending', () => {
     let resolve!: () => void
     const host = makeScope()
-    host.set.mockImplementation(() => new Promise<void>(done => { resolve = done }))
+    host.set.mockImplementation(() => new Promise<boolean>(done => { resolve = () => done(true) }))
     const persistence = createThemePersistence(host.scope)
     persistence.sync('system', 'dark')
     persistence.sync('system', 'dark')
@@ -71,7 +71,7 @@ describe('fnOS theme persistence', () => {
   it('does not resend after a request resolves before the snapshot updates', async () => {
     let resolve!: () => void
     const host = makeScope()
-    host.set.mockImplementation(() => new Promise<void>(done => { resolve = done }))
+    host.set.mockImplementation(() => new Promise<boolean>(done => { resolve = () => done(true) }))
     const persistence = createThemePersistence(host.scope)
 
     persistence.sync('system', 'dark')

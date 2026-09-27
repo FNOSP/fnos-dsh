@@ -4,13 +4,13 @@
 
 - 架构：x86
 - 运行时：`nodejs_v24`
-- DSH：`0.1.5-rc.2`
+- DSH：`0.1.7-rc.2`
 - Web 入口：`/app/fn-deepseek-harness`
 
 ## 功能
 
 - DSH Web 界面和 fnOS 文件入口
-- CodeBuddy、Codex Auth 等插件集成
+- CodeBuddy、Codex Auth、fnOS 和 Semi UI Showcase 插件集成
 - CodeBuddy 成长任务、任务中心和执行日志
 - NAS 目录授权、文件引用和会话日志导出
 - 第三方插件 API 反向代理

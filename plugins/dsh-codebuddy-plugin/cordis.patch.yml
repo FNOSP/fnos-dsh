@@ -5,7 +5,7 @@
 # no change to the `llm` row — this plugin injects the `llm` service and calls
 # `ctx.llm.registerAdapter()` when it activates.
 #
-# dsh 0.1.5-rc.2's connection RPC registrar resolves the route owner from the
+# dsh 0.1.7-rc.2's connection RPC registrar resolves the route owner from the
 # Connection service context. Give that service the Web server dependency so
 # its public `connection.rpc.handle()` API can mount plugin-owned channels.
 - id: connection

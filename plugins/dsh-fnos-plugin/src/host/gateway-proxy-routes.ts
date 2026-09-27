@@ -3,7 +3,6 @@ import { dirname, join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import type { SettingsScope } from '@deepseek-ai/dsh-settings'
 import { FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
 import type { FnosSettings } from '../contracts/theme-contract.ts'
 
@@ -28,13 +27,20 @@ async function writeDocument(file: string, document: GatewayProxyPathsDocument):
   await rename(temporary, file)
 }
 
-export function registerGatewayProxyRoutes(ctx: Context, settings: SettingsScope<FnosSettings>): void {
+export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: string): void {
+  const settings = ctx.settings
+  const readSettings = (): FnosSettings => {
+    const descriptor = settings.describe().find(row => row.ns === settingsNamespace)
+    return descriptor?.value as FnosSettings ?? {}
+  }
   const file = gatewayProxyPathsFile()
   if (file !== undefined) {
     const sync = (value: FnosSettings): Promise<void> => writeDocument(file, { version: 1, paths: normalizeGatewayProxyPaths(value.gatewayProxyPaths ?? []) ?? [] })
     ctx.effect(() => {
-      void sync(settings.get()).catch(error => { console.error('[dsh-fnos] unable to initialize gateway proxy paths', error) })
-      return settings.watch(async next => { await sync(next) })
+      void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to initialize gateway proxy paths', error) })
+      return ctx.on('settings/document-updated', namespace => {
+        if (namespace === settingsNamespace) void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to mirror gateway proxy paths', error) })
+      })
     }, 'dsh-fnos: gateway proxy path settings mirror')
   }
   ctx.effect(() => ctx.webServer.register({
@@ -44,14 +50,14 @@ export function registerGatewayProxyRoutes(ctx: Context, settings: SettingsScope
       if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
       const file = gatewayProxyPathsFile()
       if (file === undefined) return send(res, 503, { error: 'fnos-gateway-config-unavailable' })
-      if (req.method === 'GET') return send(res, 200, { version: 1, paths: normalizeGatewayProxyPaths(settings.get().gatewayProxyPaths ?? []) ?? [] })
+      if (req.method === 'GET') return send(res, 200, { version: 1, paths: normalizeGatewayProxyPaths(readSettings().gatewayProxyPaths ?? []) ?? [] })
       if (req.method !== 'PUT') return send(res, 405, { error: 'method-not-allowed' })
       const paths = validateGatewayProxyPaths(await body(req))
       if (paths === undefined) return send(res, 400, { error: 'invalid-gateway-proxy-paths' })
       const document: GatewayProxyPathsDocument = { version: 1, paths }
       const previous = await readDocument(file)
       await writeDocument(file, document)
-      try { await settings.update({ gatewayProxyPaths: paths }) }
+      try { await settings.update(settingsNamespace, { gatewayProxyPaths: paths }) }
       catch (error) { await writeDocument(file, previous); throw error }
       send(res, 200, document)
     },

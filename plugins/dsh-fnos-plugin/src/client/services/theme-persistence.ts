@@ -1,10 +1,10 @@
 /** Persist the resolved fnOS theme without changing DSH's theme preference. */
 
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { DshThemePreference } from '../../host/theme-bootstrap.ts'
 import { FNOS_SYSTEM_THEME_FIELD, type FnosSettings, type FnosTheme } from '../../contracts/theme-contract.ts'
 
-export function createThemePersistence(scope: SettingsScope<FnosSettings>) {
+export function createThemePersistence(scope: ConfigForm<FnosSettings>) {
   let pendingOperation: string | undefined
   // Keep the last successful request suppressed until the bound settings
   // snapshot catches up. A settings mutation can resolve before its next

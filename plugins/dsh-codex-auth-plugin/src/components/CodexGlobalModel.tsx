@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type { ModelCatalogModel, ModelProviderGroup } from '@deepseek-ai/dsh-api-session-controller/types'
-import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconChevronDownOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DshButton, DshCascader } from '@tnnevol/dsh-semi-ui'
 import type { CodexAuthLocaleKey } from '../client/locales.ts'
 import { CODEX_GLOBAL_MODEL_PATH } from '../contracts/auth-paths.ts'
@@ -49,7 +49,7 @@ interface ChoiceOption {
 
 function ChevronDown() {
   return (
-    <span aria-hidden="true" className="dsh-codex-global-model-chevron"><IconChevronDownOutline14 size={14} /></span>
+    <span aria-hidden="true" className="dsh-codex-global-model-chevron"><IconChevronDownOutlineRegular size={14} /></span>
   )
 }
 

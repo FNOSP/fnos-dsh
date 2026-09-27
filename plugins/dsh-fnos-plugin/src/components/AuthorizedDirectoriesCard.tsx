@@ -26,7 +26,7 @@ type LoadState =
   | { status: 'ready'; directories: AuthorizedDirectory[] }
   | { status: 'error'; directories: AuthorizedDirectory[]; code?: string }
 
-export type AuthorizedDirectoriesCardProps = PropsRuntime<'settings.plugin.item'> & {
+export type AuthorizedDirectoriesCardProps = PropsRuntime<'settings.plugins.tab'> & {
   t: Translate
 }
 

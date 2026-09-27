@@ -9,7 +9,7 @@
  */
 
 import { contentHasImage, LlmError } from '@deepseek-ai/dsh-llm'
-import type { ContentBlock, GenerateOptions, Message } from '@deepseek-ai/dsh-llm'
+import type { ContentBlock, GenerateOptions, RequestMessage } from '@deepseek-ai/dsh-llm'
 import type { WireMessage, WireRequest, WireTool } from './types.ts'
 
 /** 拼接一条消息的文本块。 */
@@ -62,7 +62,7 @@ function assertSupportedContent(blocks: readonly ContentBlock[], supportsImages:
 }
 
 /** 序列化一条 assistant 回合：文本、重放的推理与工具调用。 */
-function serializeAssistant(message: Message): WireMessage {
+function serializeAssistant(message: Extract<RequestMessage, { role: 'assistant' }>): WireMessage {
   const text = flattenText(message.content)
   const reasoning = message.content
     .filter(block => block.type === 'reasoning')
@@ -95,13 +95,13 @@ function serializeAssistant(message: Message): WireMessage {
  * @returns 线缆消息；每个工具结果各自展开成一条独立条目。
  */
 export function serializeMessages(
-  messages: readonly Message[],
+  messages: readonly RequestMessage[],
   supportsImages: boolean,
 ): WireMessage[] {
   const wire: WireMessage[] = []
   for (const message of messages) {
     assertSupportedContent(message.content, supportsImages)
-    if (message.role === 'system') {
+    if (message.role === 'system' || message.role === 'developer') {
       wire.push({ role: 'system', content: flattenText(message.content) })
       continue
     }
@@ -109,19 +109,16 @@ export function serializeMessages(
       wire.push(serializeAssistant(message))
       continue
     }
-    const toolResults = message.content.filter(block => block.type === 'tool-result')
-    const text = flattenText(message.content)
-    if (text.length > 0 || toolResults.length === 0) {
-      wire.push({ role: 'user', content: text })
-    }
-    for (const result of toolResults) {
+    if (message.role === 'tool') {
       wire.push({
         role: 'tool',
-        tool_call_id: boundToolCallId(result.toolCallId as unknown as string),
+        tool_call_id: boundToolCallId(message.toolCallId as unknown as string),
         // 空输出在线缆上也需要一些内容。
-        content: flattenText(result.content) || '(no output)',
+        content: flattenText(message.content) || '(no output)',
       })
+      continue
     }
+    wire.push({ role: 'user', content: flattenText(message.content) })
   }
   return wire
 }

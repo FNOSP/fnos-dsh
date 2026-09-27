@@ -4,10 +4,10 @@
 
 ## 安装
 
-插件发布在 npm，要求 DSH `0.1.5-rc.2` 。安装命令：
+插件发布在 npm，要求 DSH `0.1.7-rc.2` 。安装命令：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-semi-ui-showcase@0.1.5-rc.2
+dsh plugin --profile web add @tnnevol/dsh-semi-ui-showcase@0.1.7-rc.2
 ```
 
 装完重启 Web profile 即可。

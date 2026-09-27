@@ -81,7 +81,8 @@ describe('dsh-fnos package contract', () => {
 
   it('keeps the fnOS settings card after the built-in keyed cards', async () => {
     const source = await readFile(new URL('../../src/client/index.ts', import.meta.url), 'utf8')
-    expect(source).toMatch(/key:\s*'dsh-fnos-authorized-directories'[\s\S]{0,160}priority:\s*100/u)
+    expect(source).toMatch(/id:\s*'dsh-fnos-authorized-directories'[\s\S]{0,220}order:\s*100/u)
+    expect(source).toContain("ctx.slots.inject('settings.plugins.tab'")
     expect(source).toContain("ctx.slots.inject('sidebar.footer.action'")
     expect(source).toContain("id: 'dsh-fnos-web-restart'")
     expect(source).toContain('installFnosBrowserRefreshShortcut')
@@ -167,7 +168,7 @@ describe('dsh-fnos package contract', () => {
     expect(index).toMatch(/ctx\.slots\.register\(\{\s*\.\.\.FNOS_SESSION_LOG_SEAT,/u)
     expect(index).toContain('FnosSessionLogHeaderAction')
     expect(action).toContain('Menu')
-    expect(action).toContain('IconEllipsisOutline16')
+    expect(action).toContain('IconEllipsisOutlineRegular')
     // 触发按钮是纯图标：不带文案、不带边框。它打开「导出到电脑 / 导出到 NAS」
     // 两项菜单，`Ellipsis` 才表示「还有更多操作」。
     expect(action).not.toContain('DshIconDownload')
@@ -175,8 +176,8 @@ describe('dsh-fnos package contract', () => {
     expect(action).not.toContain('DshDropdown')
     expect(action).not.toContain('dsh-fnos-session-log-button-icon')
     // 菜单项自带图标，与官方 session-log-export 一致。
-    expect(action).toContain('<IconDownloadOutline16 />')
-    expect(action).toContain('<IconFolderOpenOutline16 />')
+    expect(action).toContain('<IconDownloadOutlineRegular />')
+    expect(action).toContain('<IconFolderOpenOutlineRegular />')
     expect(action).toContain('aria-haspopup="menu"')
     // 文案只出现在 aria-label 上（无障碍需要），不作为可见文字渲染。
     expect(action).toContain("aria-label={t('sessionLog')}")
@@ -345,7 +346,7 @@ describe('dsh-fnos package contract', () => {
     expect(action).toContain('selection="fill"')
     expect(action).toContain('aria-haspopup="menu"')
     expect(action).toContain('aria-expanded={open}')
-    expect(action).toContain('IconChevronDownOutline14')
+    expect(action).toContain('IconChevronDownOutlineRegular')
 
     // 左半按钮用 fnOS 文件管理器的真实图标，由插件自己的静态路由提供。
     expect(action).toContain('FnosFileManagerIcon')
@@ -397,24 +398,25 @@ describe('dsh-fnos package contract', () => {
     const compatibility = JSON.parse(await readFile(new URL('../../compatibility.json', import.meta.url), 'utf8')) as {
       dshPluginApi: { version: string, packages: string[] }
     }
-    expect(compatibility.dshPluginApi.version).toBe('0.1.5-rc.2')
+    expect(compatibility.dshPluginApi.version).toBe('0.1.7-rc.2')
     expect(compatibility.dshPluginApi.packages).toEqual([
       '@deepseek-ai/dsh-api-remotes',
-      '@deepseek-ai/dsh-session',
-      '@deepseek-ai/dsh-session-log-export',
-      '@deepseek-ai/dsh-client-ui-theme',
-      '@deepseek-ai/dsh-client-ui-settings',
       '@deepseek-ai/dsh-client-locale',
+      '@deepseek-ai/dsh-client-ui-commands',
       '@deepseek-ai/dsh-client-ui-conversation',
       '@deepseek-ai/dsh-client-ui-input-trigger',
       '@deepseek-ai/dsh-client-ui-primitives',
       '@deepseek-ai/dsh-client-ui-renderer',
-      '@deepseek-ai/dsh-client-ui-workspace',
+      '@deepseek-ai/dsh-client-ui-session',
+      '@deepseek-ai/dsh-client-ui-settings',
       '@deepseek-ai/dsh-client-ui-settings-plugins',
       '@deepseek-ai/dsh-client-ui-sidebar',
       '@deepseek-ai/dsh-client-ui-slots',
-      '@deepseek-ai/dsh-client-ui-session',
+      '@deepseek-ai/dsh-client-ui-theme',
+      '@deepseek-ai/dsh-client-ui-workspace',
       '@deepseek-ai/dsh-host-webserver',
+      '@deepseek-ai/dsh-session',
+      '@deepseek-ai/dsh-session-log-export',
       '@deepseek-ai/dsh-settings',
       '@deepseek-ai/schemastery',
     ])

@@ -62,15 +62,12 @@ describe('CodeBuddy request serialization', () => {
     },
     {
       id: 'b' as never,
-      role: 'user',
+      role: 'tool',
+      toolCallId: longId as never,
+      source: { kind: 'tool', callId: longId as never },
       content: [
-        {
-          type: 'tool-result',
-          toolCallId: longId as never,
-          content: [{ type: 'text', text: 'found' }],
-        },
+        { type: 'text', text: 'found' },
       ],
-      source: { kind: 'tool' } as never,
     },
   ]
 
@@ -111,15 +108,12 @@ describe('CodeBuddy request serialization', () => {
       },
       {
         id: 'b' as never,
-        role: 'user',
+        role: 'tool',
+        toolCallId: shortId as never,
+        source: { kind: 'tool', callId: shortId as never },
         content: [
-          {
-            type: 'tool-result',
-            toolCallId: shortId as never,
-            content: [{ type: 'text', text: 'found' }],
-          },
+          { type: 'text', text: 'found' },
         ],
-        source: { kind: 'tool' } as never,
       },
     ]
     const options = { provider: 'codebuddy', model: 'x', messages } as GenerateOptions

@@ -1,5 +1,5 @@
-import { chmod, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { chmod, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 
 export type JsonObject = Record<string, unknown>
 
@@ -26,6 +26,30 @@ export async function readJsonStrict(path: string): Promise<JsonObject> {
   const value = asJsonObject(JSON.parse(await readFile(path, 'utf8')))
   if (value === undefined) throw new Error(`Expected a JSON object at ${path}`)
   return value
+}
+
+/** Resolve a package from an application-private dependency tree, including nested pnpm/npm installs. */
+export async function findPackageDirectory(root: string, packageName: string): Promise<string | undefined> {
+  let manifest: JsonObject | undefined
+  try {
+    manifest = await readJson(join(root, 'package.json'))
+  } catch {
+    manifest = undefined
+  }
+  if (manifest?.name === packageName) return root
+
+  let entries
+  try {
+    entries = await readdir(root, { withFileTypes: true })
+  } catch {
+    return undefined
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name === '.bin') continue
+    const found = await findPackageDirectory(join(root, entry.name), packageName)
+    if (found !== undefined) return found
+  }
+  return undefined
 }
 
 async function fileMode(path: string, fallback: number): Promise<number> {

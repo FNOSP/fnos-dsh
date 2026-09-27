@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { IconDownloadOutline16, IconEllipsisOutline16, IconFolderOpenOutline16, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DshIconFolder, DshModal, DshTree } from '@tnnevol/dsh-semi-ui'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
@@ -155,8 +155,8 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
   const nasExportEnabled = selectedDirectory !== undefined && !loading
   // 与官方 session-log-export 一致：菜单项自带图标，触发按钮不带文字。
   const menuItems: MenuItem[] = [
-    { id: 'computer', label: t('sessionLogExportComputer'), icon: <IconDownloadOutline16 /> },
-    { id: 'nas', label: t('sessionLogExportNas'), icon: <IconFolderOpenOutline16 /> },
+    { id: 'computer', label: t('sessionLogExportComputer'), icon: <IconDownloadOutlineRegular /> },
+    { id: 'nas', label: t('sessionLogExportNas'), icon: <IconFolderOpenOutlineRegular /> },
   ]
 
   return (
@@ -181,7 +181,7 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
             aria-expanded={open}
             onClick={() => { setOpen(value => !value) }}
           >
-            <IconEllipsisOutline16 />
+            <IconEllipsisOutlineRegular />
           </button>
         )}
       />

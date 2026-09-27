@@ -4,10 +4,10 @@
 
 ## 安装
 
-插件随 `fn-deepseek-harness` 自动安装。其他 DSH 环境手动安装，要求 DSH `0.1.5-rc.2` ：
+插件随 `fn-deepseek-harness` 自动安装。其他 DSH 环境手动安装，要求 DSH `0.1.7-rc.2` ：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-fnos@0.1.5-rc.2
+dsh plugin --profile web add @tnnevol/dsh-fnos@0.1.7-rc.2
 ```
 
 装完重启 Web profile 即可。主题、文件授权和 fnOS 应用交互需要在 fnOS 的 iframe 里运行，普通浏览器只能用不依赖系统 SDK 的那部分界面。

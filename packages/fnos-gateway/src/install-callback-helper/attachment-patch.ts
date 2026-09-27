@@ -4,7 +4,7 @@ import { readJsonStrict } from './common.ts'
 import { createLogger, fail } from './logger.ts'
 
 const logger = createLogger('dsh-attachment-local-patch')
-const PATCH_MARKER = 'fnOS patch: attachment-local uses TRIM_PKGVAR boundary v1'
+const PATCH_MARKER = 'fnOS patch: attachment-local uses TRIM_PKGVAR boundary v2'
 
 function replaceOnce(source: string, before: string, after: string, label: string): string {
   const count = source.split(before).length - 1
@@ -75,14 +75,26 @@ async function ensureDurableHome(path) {
 }`,
     'durability boundary',
   )
-  source = replaceOnce(
-    source,
-    'this.root = resolve(join(resolveDshHome(config.dshHome), "attachments", "v1"));',
-    `/* ${PATCH_MARKER} */
+  const targetConstructor = `\t\tconst dshHome = resolveDshHome(config.dshHome);
+\t\tthis.root = join(dshHome, "attachments", "v1");
+\t\tthis.cacheRoot = dshCachePath({ dshHome }, "attachments");`
+  const patchedConstructor = `/* ${PATCH_MARKER} */
+\t\tconst attachmentHome = process.env.TRIM_PKGVAR || config.dshHome;
+\t\tconst dshHome = resolveDshHome(attachmentHome);
+\t\tthis.root = join(dshHome, "attachments", "v1");
+\t\tthis.cacheRoot = dshCachePath({ dshHome }, "attachments");`
+  if (source.includes(targetConstructor)) {
+    source = replaceOnce(source, targetConstructor, patchedConstructor, 'attachment root and cache')
+  } else {
+    source = replaceOnce(
+      source,
+      'this.root = resolve(join(resolveDshHome(config.dshHome), "attachments", "v1"));',
+      `/* ${PATCH_MARKER} */
 \tconst attachmentHome = process.env.TRIM_PKGVAR || config.dshHome
 \tthis.root = resolve(join(resolveDshHome(attachmentHome), "attachments", "v1"));`,
-    'attachment root',
-  )
+      'attachment root',
+    )
+  }
 
   await atomicWrite(indexPath, source)
   logger.info(`Patched @deepseek-ai/dsh-attachment-local@${String(packageJson.version)}; attachment root and durability boundary use TRIM_PKGVAR.`)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { serializeRequestWithImages, hasRequestImages } from '../src/host/serialize-image.ts'
-import type { GenerateOptions, Message } from '@deepseek-ai/dsh-llm'
+import type { GenerateOptions, Message, RequestMessage } from '@deepseek-ai/dsh-llm'
 import type { AttachmentStore, ImageAttachmentRef, RequestImageAttachment } from '@deepseek-ai/dsh-attachment'
 
 const pngBytes = new Uint8Array([1, 2, 3, 4])
@@ -74,5 +74,26 @@ describe('CodeBuddy image request serialization', () => {
   it('detects image-bearing history', () => {
     expect(hasRequestImages([imageMessage])).toBe(true)
     expect(hasRequestImages([{ ...imageMessage, content: [{ type: 'text', text: 'no image' }] }])).toBe(false)
+  })
+
+  it('keeps tool result images as a following user image message', async () => {
+    const toolMessage: RequestMessage = {
+      id: 'tool-result-1' as never,
+      role: 'tool',
+      toolCallId: 'call-1' as never,
+      content: [
+        { type: 'text', text: 'chart generated' },
+        { type: 'image', attachment: imageRef },
+      ],
+      source: { kind: 'tool' } as never,
+    }
+    const options = { provider: 'codebuddy', model: 'm', messages: [toolMessage] } as GenerateOptions
+    const request = await serializeRequestWithImages(options, makeStore(), undefined)
+
+    expect(request.messages).toHaveLength(2)
+    expect(request.messages[0]).toMatchObject({ role: 'tool', tool_call_id: 'call-1' })
+    expect(request.messages[0]!.content).toContain('chart generated')
+    expect(request.messages[1]).toMatchObject({ role: 'user' })
+    expect((request.messages[1]!.content as Array<{ type: string }>).some(part => part.type === 'image_url')).toBe(true)
   })
 })

@@ -37,19 +37,19 @@ lastVerified: 2026-09-27
 
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-007-01 | P0 | DSH 运行基线升级 | 应用运行在 `0.1.7-rc.2`，用户可以完成安装和启动 | <Badge type="info" text="规划中" /> |
-| FNOS-007-02 | P0 | 插件兼容性门禁升级 | 四个插件可以安装，启动后不会被禁用 | <Badge type="info" text="规划中" /> |
-| FNOS-007-03 | P0 | fnOS 插件设置兼容 | 主题、授权目录和网关路径设置继续可读写 | <Badge type="info" text="规划中" /> |
-| FNOS-007-04 | P0 | CodeBuddy 工具和图片能力兼容 | 多轮工具对话和图片输入按模型能力正常处理 | <Badge type="info" text="规划中" /> |
-| FNOS-007-05 | P0 | Codex Auth 能力兼容 | 登录、凭据、模型目录、用量和图片输入继续可用 | <Badge type="info" text="规划中" /> |
-| FNOS-007-06 | P1 | Semi UI 和总览插件兼容 | 共享组件和总览页面可以打开、切换主题和卸载 | <Badge type="info" text="规划中" /> |
-| FNOS-007-07 | P0 | FPK 和运行时交付对齐 | FPK 可以构建、安装、启动，内置插件版本一致 | <Badge type="info" text="规划中" /> |
-| FNOS-007-08 | P0 | 旧会话兼容 | 升级后旧会话可以打开和导出 | <Badge type="info" text="规划中" /> |
-| FNOS-007-09 | P1 | 设置页和图标资源兼容 | 设置卡片、会话入口和模型图标正常显示 | <Badge type="info" text="规划中" /> |
-| FNOS-007-10 | P1 | 升级、回滚和真实环境验收 | 升级保留数据，失败可恢复，真实 NAS 有完整证据 | <Badge type="info" text="规划中" /> |
+| FNOS-007-01 | P0 | DSH 运行基线升级 | 应用运行在 `0.1.7-rc.2`，用户可以完成安装和启动 | <Badge type="warning" text="本地完成，待 NAS" /> |
+| FNOS-007-02 | P0 | 插件兼容性门禁升级 | 四个插件可以安装，启动后不会被禁用 | <Badge type="warning" text="本地完成，待 NAS" /> |
+| FNOS-007-03 | P0 | fnOS 插件设置兼容 | 主题、授权目录和网关路径设置继续可读写 | <Badge type="warning" text="本地完成，待 NAS" /> |
+| FNOS-007-04 | P0 | CodeBuddy 工具和图片能力兼容 | 多轮工具对话和图片输入按模型能力正常处理 | <Badge type="warning" text="本地完成，待客户端/NAS" /> |
+| FNOS-007-05 | P0 | Codex Auth 能力兼容 | 登录、凭据、模型目录、用量和图片输入继续可用 | <Badge type="warning" text="本地完成，待客户端/NAS" /> |
+| FNOS-007-06 | P1 | Semi UI 和总览插件兼容 | 共享组件和总览页面可以打开、切换主题和卸载 | <Badge type="warning" text="本地完成，待客户端/NAS" /> |
+| FNOS-007-07 | P0 | FPK 和运行时交付对齐 | FPK 可以构建、安装、启动，内置插件版本一致 | <Badge type="warning" text="本地完成，待 Linux/native 与 NAS" /> |
+| FNOS-007-08 | P0 | 旧会话兼容 | 升级后旧会话可以打开和导出 | <Badge type="warning" text="本地完成，待旧会话/NAS" /> |
+| FNOS-007-09 | P1 | 设置页和图标资源兼容 | 设置卡片、会话入口和模型图标正常显示 | <Badge type="warning" text="本地完成，待客户端/NAS" /> |
+| FNOS-007-10 | P1 | 升级、回滚和真实环境验收 | 升级保留数据，失败可恢复，真实 NAS 有完整证据 | <Badge type="info" text="待 NAS" /> |
 | FNOS-007-11 | P1 | 文档站 Mermaid 渲染器替换 | 图表可渲染、缩放、拖拽、复制、下载、全屏并跟随主题 | <Badge type="tip" text="已完成" /> |
 | FNOS-007-12 | P1 | dshmarket 精确版本升级 | 新用户获得 `dshmarket@1.65.1`，已安装用户不被覆盖 | <Badge type="warning" text="待完成" /> |
-| FNOS-007-13 | P0 | attachment-local 运行时依赖和持久化补丁 | 新用户安装 FPK 时 `@deepseek-ai/dsh-attachment-local` 可被精确定位、校验并完成 `${TRIM_PKGVAR}` 补丁；不再出现“installed DSH dependency does not provide” | <Badge type="info" text="规划中" /> |
+| FNOS-007-13 | P0 | attachment-local 运行时依赖和持久化补丁 | 新用户安装 FPK 时 `@deepseek-ai/dsh-attachment-local` 可被精确定位、校验并完成 `${TRIM_PKGVAR}` 补丁；不再出现“installed DSH dependency does not provide” | <Badge type="warning" text="本地完成，待 NAS" /> |
 | FNOS-007-14 | P1 | FPK 构建 workflow 命名统一 | 可复用 FPK 构建 workflow 使用 `.github/workflows/build-app.yml`，发布 workflow 可以正常调用 | <Badge type="tip" text="已完成" /> |
 
 ## 既有功能变更关系
@@ -159,8 +159,8 @@ sequenceDiagram
 - `FNOS-007-07-AC-04`：版本、锁文件、清单或产物不一致时构建拒绝发布。
 - `FNOS-007-07-AC-05`：FPK 安装前后，应用私有 DSH 运行时依赖树中可解析出与 `DSH_VERSION` 对齐的 `@deepseek-ai/dsh-attachment-local` 生产依赖；该依赖可以是嵌套安装，安装回调不依赖 DSH CLI 包的顶层路径或 `devDependencies`。
 - `FNOS-007-07-AC-06`：`attachment-local` 包名和精确版本校验通过后，`${TRIM_PKGVAR}` 持久化补丁可执行且幂等；包缺失、版本不一致或安装失败时以可诊断的非零状态终止，不留下半补丁状态。
-- `FNOS-007-07-AC-05`：目标 DSH `0.1.7-rc.2` 依赖树和仓库锁文件中的 `node-pty` 均为 `1.2.0-beta.15`，Node.js 主版本为 24、`node-gyp` 为 `11.0.0`；Linux FPK 构建重新执行 native 准备流程，产出匹配版本目录下的 `pty.node`、可选 `spawn-helper` 和 `node-pty-versions`，安装回调能按版本清单注入并校验 native 文件。
-- `FNOS-007-07-AC-06`：node-pty 版本不变不代表跳过 native 验证；FPK 至少完成“内置 native 且 NAS 无 g++”路径验证，并保留“未内置 native 且 NAS 有 g++”路径作为回退验证；若 node-pty 版本发生变化，构建校验必须暴露版本不一致而不是静默复用旧产物。
+- `FNOS-007-07-AC-07`：目标 DSH `0.1.7-rc.2` 依赖树和仓库锁文件中的 `node-pty` 均为 `1.2.0-beta.15`，Node.js 主版本为 24、`node-gyp` 为 `11.0.0`；Linux FPK 构建重新执行 native 准备流程，产出匹配版本目录下的 `pty.node`、可选 `spawn-helper` 和 `node-pty-versions`，安装回调能按版本清单注入并校验 native 文件。
+- `FNOS-007-07-AC-08`：node-pty 版本不变不代表跳过 native 验证；FPK 至少完成“内置 native 且 NAS 无 g++”路径验证，并保留“未内置 native 且 NAS 有 g++”路径作为回退验证；若 node-pty 版本发生变化，构建校验必须暴露版本不一致而不是静默复用旧产物。
 
 ### FNOS-007-08
 
@@ -216,7 +216,7 @@ sequenceDiagram
 | 插件接缝和 UI 兼容 | 规划中 | FNOS-007-03 至 06、09 |
 | FPK、会话、升级和验收 | 规划中 | FNOS-007-07、08、10 |
 | 文档站 Mermaid 渲染器 | 已完成 | FNOS-007-11，保留历史验收结果 |
-| dshmarket 版本升级 | 待完成 | FNOS-007-12 |
+| dshmarket 版本升级 | 本地完成，待 NAS | FNOS-007-12 |
 | FPK workflow 命名统一 | 已完成 | FNOS-007-14 |
 
 ## 变更记录
@@ -226,3 +226,4 @@ sequenceDiagram
 | 2026-09-24 | 新增 FNOS-007 | 建立 DSH `0.1.7-rc.2` 适配需求。 |
 | 2026-09-27 | 纳入 dshmarket 版本升级 | 将 `dshmarket` 精确版本升级纳入当前开发中的 FNOS-007，不修改已完成需求。 |
 | 2026-09-27 | 重整需求边界 | 删除技术实现、源码路径和迁移步骤，保留功能、用户结果和验收条件；详细实现转入 PLAN-FNOS-007。 |
+| 2026-09-27 | 完成本地实现和自动化验证 | 四插件、FPK 版本门禁、设置/消息/UI 接缝、嵌套 attachment-local 解析和幂等补丁已实现；本地证据见 [`FNOS-007-local-automated-2026-09-27`](/validation/FNOS-007-local-automated-2026-09-27)，Linux native 与真实 NAS 验收仍未冒充完成。 |

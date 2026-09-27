@@ -4,15 +4,19 @@
   "plugins": [
     {
       "name": "@tnnevol/dsh-codebuddy",
-      "version": "0.1.5-rc.2.3"
+      "version": "0.1.7-rc.2"
     },
     {
       "name": "@tnnevol/dsh-codex-auth",
-      "version": "0.1.5-rc.2"
+      "version": "0.1.7-rc.2"
     },
     {
       "name": "@tnnevol/dsh-fnos",
-      "version": "0.1.5-rc.2"
+      "version": "0.1.7-rc.2"
+    },
+    {
+      "name": "@tnnevol/dsh-semi-ui-showcase",
+      "version": "0.1.7-rc.2"
     }
   ],
   "bundled": [

@@ -16,13 +16,19 @@ import { askBuildSelection, askBundleDshNative, askBundleDshPlugins, askFpkApps,
 const DSH_APP_NAME = 'fn-deepseek-harness'
 const DSH_PUBLISHED_PLUGIN_MANIFEST = 'app/published-dsh-plugins.json'
 const DSH_BUNDLED_PLUGIN_DIRECTORY = 'app/bundled-dsh-plugins'
-const DSH_VERSION = '0.1.5-rc.2'
+const DSH_VERSION = '0.1.7-rc.2'
 const PNPM_VERSION = '11.7.0'
 const DSHMARKET_VERSION = '1.65.1'
-const DSH_NATIVE_CONFIG = '.github/config/dsh-native-0.1.5-rc.2.env'
+const DSH_NATIVE_CONFIG = '.github/config/dsh-native-0.1.7-rc.2.env'
 const DSH_NATIVE_PREP_SCRIPT = '.github/scripts/prepare-dsh-native.sh'
 const DSH_NATIVE_BUNDLE_DIRECTORY = 'app/native/node-pty'
 const DSH_NATIVE_VERSION_FILES = ['app/dsh-version', 'app/node-pty-versions'] as const
+const DSH_RUNTIME_PLUGIN_VERSIONS = new Map([
+  ['@tnnevol/dsh-codebuddy', DSH_VERSION],
+  ['@tnnevol/dsh-codex-auth', DSH_VERSION],
+  ['@tnnevol/dsh-fnos', DSH_VERSION],
+  ['@tnnevol/dsh-semi-ui-showcase', DSH_VERSION],
+])
 
 type PublishedDshPluginManifest = {
   plugins?: Array<{ name?: unknown, version?: unknown }>
@@ -94,8 +100,17 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
       throw new Error(`Published DSH plugin must use an exact version at ${manifestPath} (index ${index})`)
     }
   }
+  if (manifest.plugins.length !== DSH_RUNTIME_PLUGIN_VERSIONS.size) {
+    throw new Error(`Published DSH plugin manifest must contain exactly the four FNOS-007 runtime plugins: ${manifestPath}`)
+  }
+  for (const [name, version] of DSH_RUNTIME_PLUGIN_VERSIONS) {
+    const plugin = manifest.plugins.find(candidate => candidate?.name === name)
+    if (plugin?.version !== version) {
+      throw new Error(`The published DSH plugin manifest must pin ${name}@${version}: ${manifestPath}`)
+    }
+  }
   // Codex must stay bundled: the registry only carries builds whose DSH
-  // baseline predates 0.1.5-rc.2, and installing one of those breaks Web
+  // baseline predates 0.1.7-rc.2, and installing one of those breaks Web
   // startup on the missing `settingsNamespace` export. Keep the removal
   // guard inverted so a manifest edit cannot silently drop it again.
   const codex = manifest.plugins.find(plugin => typeof plugin?.name === 'string' && plugin.name.includes('codex'))
@@ -132,7 +147,10 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
     throw new Error('install_callback must not create the dsh CLI wrapper; the app does not expose a public dsh command')
   }
   const nativeConfig = await readFile(join(repositoryRoot, DSH_NATIVE_CONFIG), 'utf8')
-  if (!nativeConfig.includes(`DSH_VERSION="${DSH_VERSION}"`)) {
+  if (!nativeConfig.includes(`DSH_VERSION="${DSH_VERSION}"`) ||
+      !nativeConfig.includes('NODE_MAJOR="24"') ||
+      !nativeConfig.includes('NODE_PTY_VERSION="1.2.0-beta.15"') ||
+      !nativeConfig.includes('NODE_GYP_VERSION="11.0.0"')) {
     throw new Error(`Native build config is not aligned with DSH ${DSH_VERSION}`)
   }
   const resource = await readFile(join(repositoryRoot, 'apps', app.name, 'config/resource'), 'utf8')

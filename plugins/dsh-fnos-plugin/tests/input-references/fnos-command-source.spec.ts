@@ -50,7 +50,7 @@ describe('fnOS /fn input trigger source', () => {
       list,
     )
     expect(command.name).toBe('fn')
-    expect(await command.description()).toBe('选择授权路径')
+    expect(await command.description?.()).toBe('选择授权路径')
     const popup = command.ui as PopupSelectSpec
     const options = await popup.options({ sessionId: 'session' as never }, new AbortController().signal)
     expect(options[0]).toMatchObject({ label: 'apps/', detail: '存储空间1/apps' })

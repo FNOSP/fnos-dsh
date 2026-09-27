@@ -3,6 +3,7 @@
 import { Command, CommanderError } from 'commander'
 import {
   bundledPluginVersion,
+  findPackageDirectory,
   packageField,
   persistPnpmStoreDir,
   profileDependencyVersion,
@@ -44,6 +45,16 @@ export function createProgram(): Command {
     .description('Read a package.json version')
     .argument('<package-path>')
     .action(path => packageField(path, 'version'))
+
+  program
+    .command('find-package')
+    .description('Find a package directory inside an application-private dependency tree')
+    .argument('<root>')
+    .argument('<package-name>')
+    .action(async (root, packageName) => {
+      const directory = await findPackageDirectory(root, packageName)
+      if (directory !== undefined) process.stdout.write(directory)
+    })
 
   program
     .command('profile-dependency-version')

@@ -2,11 +2,12 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
+import type {} from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 import { registerAuthorizedDirectoryRoutes } from './host/authorized-directories.ts'
 import { FNOS_AUTHORIZED_DIRECTORIES_SETTINGS_NAMESPACE } from './contracts/authorized-directories-contract.ts'
 import { injectCachedFnosTheme, type DshThemePreference } from './host/theme-bootstrap.ts'
-import { FNOS_GATEWAY_PROXY_PATHS_FIELD, FNOS_SYSTEM_THEME_FIELD, isFnosTheme, type FnosSettings, type FnosTheme } from './contracts/theme-contract.ts'
+import { FNOS_GATEWAY_PROXY_PATHS_FIELD, FNOS_SYSTEM_THEME_FIELD, isFnosTheme, type FnosTheme } from './contracts/theme-contract.ts'
 import { registerGatewayProxyRoutes } from './host/gateway-proxy-routes.ts'
 import { registerStaticAssetRoute } from './host/static-assets.ts'
 import { registerPresentedPathRoute } from './host/presented-open.ts'
@@ -16,19 +17,26 @@ export const name = '@tnnevol/dsh-fnos'
 
 /** Settings back the fnOS card and the cached pre-plugin theme bootstrap. */
 export const FnosSettingsSchema = z.object({
-  [FNOS_SYSTEM_THEME_FIELD]: z.union(['light', 'dark']),
-  [FNOS_GATEWAY_PROXY_PATHS_FIELD]: z.array(z.string()),
+  [FNOS_SYSTEM_THEME_FIELD]: z.union(['light', 'dark']).volatile(),
+  [FNOS_GATEWAY_PROXY_PATHS_FIELD]: z.array(z.string()).default([]).volatile(),
 })
+export interface Config {
+  [FNOS_SYSTEM_THEME_FIELD]?: FnosTheme
+  [FNOS_GATEWAY_PROXY_PATHS_FIELD]: string[]
+}
 export const FNOS_AUTHORIZED_DIRECTORIES_SETTINGS_NS = FNOS_AUTHORIZED_DIRECTORIES_SETTINGS_NAMESPACE
 const DSH_THEME_SETTINGS_NS = 'ui-theme'
+const DSH_SETTINGS_ENTRY_ID = 'dsh-fnos'
 
 /** Host services required to register the fnOS settings namespace and Web routes. */
 export const inject = ['webServer', 'settings']
 
-export function apply(ctx: Context): void {
-  const settings = ctx.settings.register(FNOS_AUTHORIZED_DIRECTORIES_SETTINGS_NS, FnosSettingsSchema)
+export function apply(ctx: Context, config: Config): void {
+  ctx.inject(['settings'], child => {
+    child.effect(() => child.settings.configure({ auto: false }, ctx.fiber))
+  })
   registerAuthorizedDirectoryRoutes(ctx)
-  registerGatewayProxyRoutes(ctx, settings)
+  registerGatewayProxyRoutes(ctx, DSH_SETTINGS_ENTRY_ID)
   registerStaticAssetRoute(ctx)
   registerPresentedPathRoute(ctx)
   ctx.inject(['webServer'], httpCtx => {
@@ -36,7 +44,7 @@ export function apply(ctx: Context): void {
       () => httpCtx.webServer.tapIndex(html => injectCachedFnosTheme(
         html,
         readDshThemePreference(ctx),
-        readCachedFnosTheme(ctx),
+        readCachedFnosTheme(config),
       )),
       'dsh-fnos: cached fnOS theme bootstrap',
     )
@@ -44,15 +52,14 @@ export function apply(ctx: Context): void {
 }
 
 function readDshThemePreference(ctx: Context): DshThemePreference {
-  const section = ctx.settings.get(DSH_THEME_SETTINGS_NS) as { preference?: unknown } | undefined
+  const section = ctx.settings.describe().find(row => row.ns === DSH_THEME_SETTINGS_NS)?.value as { preference?: unknown } | undefined
   return section?.preference === 'light' || section?.preference === 'dark' || section?.preference === 'system'
     ? section.preference
     : 'system'
 }
 
-function readCachedFnosTheme(ctx: Context): FnosTheme | null {
-  const section = ctx.settings.get(FNOS_AUTHORIZED_DIRECTORIES_SETTINGS_NS) as FnosSettings | undefined
-  return isFnosTheme(section?.[FNOS_SYSTEM_THEME_FIELD]) ? section[FNOS_SYSTEM_THEME_FIELD] : null
+function readCachedFnosTheme(config: Config): FnosTheme | null {
+  return isFnosTheme(config[FNOS_SYSTEM_THEME_FIELD]) ? config[FNOS_SYSTEM_THEME_FIELD] : null
 }
 
 export {
