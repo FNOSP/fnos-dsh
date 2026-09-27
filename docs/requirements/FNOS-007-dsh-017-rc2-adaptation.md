@@ -1,7 +1,7 @@
 ---
 id: FNOS-007
 title: FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复
-description: 将 DSH 应用与仓库内四个插件升级到 0.1.7-rc.2，保证插件、设置、会话、FPK 和文档站功能在升级后可用。
+description: 将 DSH 应用与仓库内四个插件升级到 0.1.7-rc.2，保证插件、设置、会话、终端、FPK 和文档站功能在升级后可用。
 status: planned
 owner: tnnevol
 targetVersion: 5.6.0
@@ -16,7 +16,7 @@ lastVerified: 2026-09-27
 | 提出日期 | 2026-09-24 |
 | 需求状态 | <Badge type="info" text="规划中" /> |
 | 关联计划 | [PLAN-FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复](/plans/PLAN-FNOS-007-dsh-017-rc2-adaptation) |
-| 适用范围 | fnOS 应用、四个 DSH 插件、FPK 运行时和文档站 |
+| 适用范围 | fnOS 应用、四个 DSH 插件、终端、FPK 运行时和文档站 |
 
 ## 需求背景
 
@@ -31,7 +31,10 @@ lastVerified: 2026-09-27
 - fnOS 应用能够构建、安装、启动、升级和回滚。
 - 插件原有的设置、工具调用、图片输入、模型目录和用量能力保持可用。
 - 文档站 Mermaid 图表继续可读，并支持既定的交互能力。
-- `dshmarket` 以精确版本安装，已安装用户的版本和配置不被覆盖。
+- `dshmarket` 首次安装和版本不一致时统一使用 `.npmrc` 配置的 npm 源安装目标精确版本；同版本安装保持幂等。
+- fnOS 网关适配 DSH `0.1.7-rc.2` 的文档目录相对路径和认证 Cookie 作用域。
+- 用户可以在 fnOS 上正常使用 DSH `0.1.7-rc.2` 提供的侧边栏终端：打开即得到可用 Shell，不需要用户自行排查默认 Shell。
+- 终端进程的运行身份和继承环境对用户可预期，不因应用以专用账号运行而出现身份或环境错位。
 
 ## 功能列表
 
@@ -51,6 +54,7 @@ lastVerified: 2026-09-27
 | FNOS-007-12 | P1 | dshmarket 精确版本升级 | 新用户获得 `dshmarket@1.65.1`，已安装用户不被覆盖 | <Badge type="warning" text="待完成" /> |
 | FNOS-007-13 | P0 | attachment-local 运行时依赖和持久化补丁 | 新用户安装 FPK 时 `@deepseek-ai/dsh-attachment-local` 可被精确定位、校验并完成 `${TRIM_PKGVAR}` 补丁；不再出现“installed DSH dependency does not provide” | <Badge type="warning" text="本地完成，待 NAS" /> |
 | FNOS-007-14 | P1 | FPK 构建 workflow 命名统一 | 可复用 FPK 构建 workflow 使用 `.github/workflows/build-app.yml`，发布 workflow 可以正常调用 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-15 | P1 | 应用用户下的终端可用性 | 用户在 fnOS 应用内打开侧边栏终端即可得到可用 Shell，并能看到与 DSH 服务一致的运行身份和工作目录 | <Badge type="warning" text="待完成" /> |
 
 ## 既有功能变更关系
 
@@ -87,6 +91,31 @@ sequenceDiagram
 
 如果升级或插件启动失败，用户数据不能被自动删除；回滚要求由计划文档定义。
 
+## 终端可用性交互
+
+应用以专用应用账号运行，该账号没有交互式登录能力。终端面板的可用性因此需要在应用侧补齐默认 Shell，用户才可能得到可用结果。终端打开的成功路径和失败路径如下：
+
+```mermaid
+sequenceDiagram
+  participant User as 用户
+  participant Client as 终端面板
+  participant Host as DSH 服务
+  participant Shell as 终端进程
+  User->>Client: 打开终端
+  Client->>Host: 请求终端环境
+  Note over Host,Shell: 变更点：默认 Shell 由宿主账号登录 Shell 改为可用交互式 Shell
+  Host->>Shell: 以应用账号启动终端
+  alt 默认 Shell 可用
+    Shell-->>Client: 返回可交互终端
+    Client-->>User: 可以执行命令
+  else 默认 Shell 不可用
+    Shell-->>Client: 进程立即退出
+    Client-->>User: 终端不可用，需要人工排查
+  end
+```
+
+上图的变更点表示终端相对于既有版本的变化位置：原约定是默认 Shell 直接取宿主账号的登录 Shell，在专用应用账号下该值不可用；新约定是应用为终端提供可用的交互式 Shell，使用户打开终端即可用。变更不改变终端的运行身份，也不涉及 fnOS 权限模型调整。
+
 ## 行为约束
 
 - 升级后的插件安装和启动不能依赖用户预先授予版本豁免。
@@ -94,11 +123,14 @@ sequenceDiagram
 - 不支持图片的模型必须明确拒绝图片输入，不能静默丢弃。
 - 工具调用和工具结果必须保持调用关系，不能因消息模型变化丢失工具结果。
 - 文档站图表继续使用 `mermaid` 代码块，由统一的渲染器接管；图表语义不因渲染器替换而改变。
-- `dshmarket` 使用精确版本；已安装用户不被自动覆盖、降级或卸载。
+- `dshmarket` 与 `plugins` 使用相同的版本收敛规则：缺失时安装清单版本，版本不一致时升级或降级到清单版本，同版本时保持不变；安装源统一读取由 `wizard_npm_registry` 写入的 `.npmrc`，未配置时使用 npm 官方源。
 - FPK 安装回调需要从应用私有 DSH 依赖树解析 `@deepseek-ai/dsh-attachment-local`。目标 DSH 中该包由 `@deepseek-ai/dsh-base` 以生产依赖提供，可能位于嵌套 `node_modules`，因此回调不能假设它一定位于 DSH CLI 包的顶层路径，也不能把 CLI 的 `devDependencies` 当作运行时来源；安装、版本校验和 `TRIM_PKGVAR` 持久化补丁必须使用与 `DSH_VERSION` 对齐的精确版本。
 - DSH `0.1.5-rc.2` 升级到 `0.1.7-rc.2` 时，目标依赖树中的 `node-pty` 版本保持 `1.2.0-beta.15`，Node.js 主版本保持 24，`node-gyp` 保持 `11.0.0`；本需求不把 node-pty 版本升级作为独立适配项。
 - 虽然 node-pty 版本不变，FPK native 产物仍必须按目标 DSH 基线重新生成并验证：native 配置中的 DSH 版本、锁文件、`node-pty` 版本、`app/node-pty-versions` 和 `app/native/node-pty/<version>/` 必须一致，不能只复用未经目标基线验证的旧 `pty.node`。
 - 如果后续 DSH 依赖树或人工配置把 node-pty 升级到其他版本，必须另行完成 node-gyp 编译、native bundle、安装回调版本校验和真实 NAS 的有/无 g++ 两条路径验收；本需求不默认为该变化提供兼容性。
+- fnOS 应用以专用应用账号运行，该账号不是可登录账号；终端必须仍然工作，不能因为宿主账号没有交互式登录能力而导致终端不可用。
+- 终端进程以应用账号运行，不提升到 root，也不切换到 NAS 普通用户；终端继承的环境变量以 DSH 服务进程为准，环境差异必须在计划中显式声明，不能靠用户猜测。
+- 终端的可用性不得依赖用户手动修正默认 Shell 等前置操作；用户在应用内打开终端就应当得到可用结果。
 
 ## 不在本次范围内
 
@@ -161,6 +193,7 @@ sequenceDiagram
 - `FNOS-007-07-AC-06`：`attachment-local` 包名和精确版本校验通过后，`${TRIM_PKGVAR}` 持久化补丁可执行且幂等；包缺失、版本不一致或安装失败时以可诊断的非零状态终止，不留下半补丁状态。
 - `FNOS-007-07-AC-07`：目标 DSH `0.1.7-rc.2` 依赖树和仓库锁文件中的 `node-pty` 均为 `1.2.0-beta.15`，Node.js 主版本为 24、`node-gyp` 为 `11.0.0`；Linux FPK 构建重新执行 native 准备流程，产出匹配版本目录下的 `pty.node`、可选 `spawn-helper` 和 `node-pty-versions`，安装回调能按版本清单注入并校验 native 文件。
 - `FNOS-007-07-AC-08`：node-pty 版本不变不代表跳过 native 验证；FPK 至少完成“内置 native 且 NAS 无 g++”路径验证，并保留“未内置 native 且 NAS 有 g++”路径作为回退验证；若 node-pty 版本发生变化，构建校验必须暴露版本不一致而不是静默复用旧产物。
+- `FNOS-007-07-AC-09`：网关代理 DSH `0.1.7-rc.2` 时，入口跳转、文档目录相对资源、API/WebSocket 路径和认证 Cookie 均保持在应用挂载前缀内；上游 `Path=/` Cookie 不得扩散到 NAS 根路径。
 
 ### FNOS-007-08
 
@@ -193,7 +226,8 @@ sequenceDiagram
 - `FNOS-007-12-AC-01`：发布清单、构建校验常量和当前文档中的 `dshmarket` 版本均为 `1.65.1`。
 - `FNOS-007-12-AC-02`：版本不一致时构建拒绝发布。
 - `FNOS-007-12-AC-03`：新用户获得精确版本 `dshmarket@1.65.1`。
-- `FNOS-007-12-AC-04`：已安装用户跳过安装并保留原版本和配置。
+- `FNOS-007-12-AC-04`：已安装 `dshmarket` 与清单版本一致时跳过安装并保留配置；版本不一致时按清单版本升级或降级，不执行卸载后重装。
+- `FNOS-007-12-AC-05`：`plugins` 与 `bundled/dshmarket` 的 registry 安装都使用同一份 `.npmrc`；`wizard_npm_registry` 有值时使用该源，未配置时使用 `https://registry.npmjs.org/`。
 
 ### FNOS-007-13
 
@@ -208,6 +242,14 @@ sequenceDiagram
 - `FNOS-007-14-AC-02`：`build-release.yml` 使用 `./.github/workflows/build-app.yml` 调用构建 workflow；当前发布文档和 workflow 配置不再引用旧文件名 `build-dsh-fn.yml`。
 - `FNOS-007-14-AC-03`：workflow 重命名不改变 DSH native、FPK 构建、版本化产物命名和 Release 上传流程。
 
+### FNOS-007-15
+
+- `FNOS-007-15-AC-01`：应用运行在专用应用账号下时，用户在应用内打开侧边栏终端即可得到可交互 Shell，不再出现账号不可用提示。
+- `FNOS-007-15-AC-02`：终端不需要用户在打开前手动切换 Shell 或修改系统级设置；首次打开即得到可用结果。
+- `FNOS-007-15-AC-03`：终端进程的运行身份与应用服务身份一致，且不提升为 root、不切换为 NAS 普通用户。
+- `FNOS-007-15-AC-04`：终端继承的工作目录与环境变量与 DSH 服务保持一致；确需存在的差异在面向用户的文档中显式说明。
+- `FNOS-007-15-AC-05`：终端在真实 NAS 上可以完成打开、执行命令和关闭；应用重启后终端仍然可用。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -218,6 +260,7 @@ sequenceDiagram
 | 文档站 Mermaid 渲染器 | 已完成 | FNOS-007-11，保留历史验收结果 |
 | dshmarket 版本升级 | 本地完成，待 NAS | FNOS-007-12 |
 | FPK workflow 命名统一 | 已完成 | FNOS-007-14 |
+| 应用用户下的终端可用性 | 待完成 | FNOS-007-15 |
 
 ## 变更记录
 
@@ -227,3 +270,6 @@ sequenceDiagram
 | 2026-09-27 | 纳入 dshmarket 版本升级 | 将 `dshmarket` 精确版本升级纳入当前开发中的 FNOS-007，不修改已完成需求。 |
 | 2026-09-27 | 重整需求边界 | 删除技术实现、源码路径和迁移步骤，保留功能、用户结果和验收条件；详细实现转入 PLAN-FNOS-007。 |
 | 2026-09-27 | 完成本地实现和自动化验证 | 四插件、FPK 版本门禁、设置/消息/UI 接缝、嵌套 attachment-local 解析和幂等补丁已实现；本地证据见 [`FNOS-007-local-automated-2026-09-27`](/validation/FNOS-007-local-automated-2026-09-27)，Linux native 与真实 NAS 验收仍未冒充完成。 |
+| 2026-09-27 | 补充 DSH 0.1.7 网关挂载适配 | 对齐官方文档目录相对路径代理契约，增加认证 Cookie 的应用挂载路径隔离，并补充网关回归测试。 |
+| 2026-09-27 | 统一 dshmarket registry 与版本收敛规则 | `dshmarket` 与普通 `plugins` 均使用 `.npmrc` 的 npm 源；版本不一致时按清单版本升级或降级，同版本保持幂等。 |
+| 2026-09-27 | 纳入终端可用性 | 新增 FNOS-007-15：DSH `0.1.7-rc.2` 提供终端能力，但应用以专用应用账号运行，需保证用户在 fnOS 内打开终端即可得到可用 Shell，且终端身份与环境对用户可预期。 |

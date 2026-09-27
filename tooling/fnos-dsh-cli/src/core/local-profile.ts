@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { dshHomeDirectory, repositoryRoot } from '../config/paths.js'
 import { pluginTargets, type PluginTarget } from '../config/targets.js'
@@ -6,6 +6,7 @@ import { runRepoDsh, runTurbo } from './turbo.js'
 
 /** Profile the local development instance boots; matches `dsh web`. */
 const DEV_PROFILE = 'web'
+const LOCAL_DSH_VERSION = '0.1.7-rc.2'
 
 /**
  * Plugins that live in this repository but are not linked into the local
@@ -26,6 +27,10 @@ export const localProfilePlugins: PluginTarget[] = pluginTargets
 type ProfileManifest = {
   dependencies?: Record<string, string>
   dsh?: { profile?: { bundles?: string[] } }
+}
+
+type LinkedPluginManifest = ProfileManifest & {
+  peerDependencies?: Record<string, string>
 }
 
 function profileDirectory(): string {
@@ -49,6 +54,32 @@ function manifestCarriesPlugin(manifest: ProfileManifest, target: PluginTarget, 
   const spec = manifest.dependencies?.[target.name]
   if (spec !== `link:${directory}`) return false
   return (manifest.dsh?.profile?.bundles ?? []).includes(target.name)
+}
+
+/**
+ * Local source manifests use pnpm's catalog aliases, but a standalone DSH
+ * profile cannot resolve workspace catalogs while checking plugin peers. Keep
+ * the repository manifests catalog-based and normalize only the profile's
+ * installed link copy to the current runtime version.
+ */
+async function normalizeLinkedPluginManifest(directory: string, target: PluginTarget): Promise<void> {
+  const packageJsonPath = join(directory, 'node_modules', ...target.name.split('/'), 'package.json')
+  let manifest: LinkedPluginManifest
+  try {
+    manifest = JSON.parse(await readFile(packageJsonPath, 'utf8')) as LinkedPluginManifest
+  } catch {
+    return
+  }
+  const peerDependencies = manifest.peerDependencies
+  if (peerDependencies === undefined) return
+  let changed = false
+  for (const [name, range] of Object.entries(peerDependencies)) {
+    if (name.startsWith('@deepseek-ai/dsh') && range === 'catalog:dsh') {
+      peerDependencies[name] = LOCAL_DSH_VERSION
+      changed = true
+    }
+  }
+  if (changed) await writeFile(packageJsonPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
 }
 
 /**
@@ -76,8 +107,10 @@ export async function ensureLocalProfilePlugins(pluginFilter?: string): Promise<
   const manifest = await readProfileManifest(directory)
   for (const target of targets) {
     const source = pluginDirectory(target)
-    if (manifest !== undefined && manifestCarriesPlugin(manifest, target, source)) continue
-    console.log(`Linking ${target.name} into ${DEV_PROFILE} profile`)
-    await runRepoDsh(['plugin', '--profile', DEV_PROFILE, 'add', source])
+    if (manifest === undefined || !manifestCarriesPlugin(manifest, target, source)) {
+      console.log(`Linking ${target.name} into ${DEV_PROFILE} profile`)
+      await runRepoDsh(['plugin', '--profile', DEV_PROFILE, 'add', source])
+    }
+    await normalizeLinkedPluginManifest(directory, target)
   }
 }

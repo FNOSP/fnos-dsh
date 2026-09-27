@@ -45,4 +45,18 @@ describe('gateway response headers', () => {
       'x-accel-buffering': 'no',
     })
   })
+
+  it('scopes upstream root cookies to the fnOS application mount', () => {
+    const headers = copyResponseHeaders({
+      'set-cookie': [
+        'dsh-auth-loopback=session; Path=/; HttpOnly; SameSite=Strict',
+        'unrelated=value; Path=/other; HttpOnly',
+      ],
+    }, { ...baseOptions, rewriteBody: false, eventStream: false })
+
+    expect(headers['set-cookie']).toEqual([
+      'dsh-auth-loopback=session; Path=/app/fn-deepseek-harness/; HttpOnly; SameSite=Strict',
+      'unrelated=value; Path=/other; HttpOnly',
+    ])
+  })
 })

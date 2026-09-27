@@ -57,7 +57,37 @@ async function runShell(root: string, body: string): Promise<string> {
   return execFileSync('/bin/bash', [harness], { encoding: 'utf8' })
 }
 
+async function runPublishedPluginInstall(root: string, currentVersion: string, currentSpec = ''): Promise<string> {
+  const manifest = join(root, 'published-dsh-plugins.json')
+  await writeFile(manifest, JSON.stringify({ version: 1, plugins: [], bundled: [{ name: 'dshmarket', version: '1.65.1' }] }))
+  const harness = join(root, 'published-harness.sh')
+  const prelude = [
+    '#!/bin/bash',
+    `DSH_PROFILE_DIRECTORY=${JSON.stringify(join(root, 'profile'))}`,
+    `DSH_BUNDLED_PLUGIN_DIRECTORY=${JSON.stringify(join(root, 'bundled'))}`,
+    `DSH_PUBLISHED_PLUGIN_MANIFEST=${JSON.stringify(manifest)}`,
+    'fail_install() { printf "FAIL:%s\\n" "$1"; exit 99; }',
+    'log_info() { :; }',
+    'validate_plugin_spec() { :; }',
+    'run_install_callback_helper() { [ "$1" = bundled-plugin-version ] && printf "1.65.1"; }',
+    `installed_plugin_version() { [ "$1" = dshmarket ] && printf ${JSON.stringify(currentVersion)}; }`,
+    `profile_dependency_version() { [ "$1" = dshmarket ] && printf ${JSON.stringify(currentSpec)}; }`,
+    'run_dsh_plugin() { printf "%s:%s\\n" "$1" "$2"; }',
+    await functionSource('install_published_dsh_plugins'),
+    'install_published_dsh_plugins',
+  ].join('\n')
+  await writeFile(harness, prelude)
+  return execFileSync('/bin/bash', [harness], { encoding: 'utf8' })
+}
+
 describe('bundled plugin install', () => {
+  it('persists the selected npm registry before installing registry plugins', async () => {
+    const source = await readFile(scriptPath, 'utf8')
+    const main = source.slice(source.indexOf('main() {'))
+    expect(main.indexOf('persist_npm_registry')).toBeGreaterThanOrEqual(0)
+    expect(main.indexOf('install_published_dsh_plugins')).toBeGreaterThan(main.indexOf('persist_npm_registry'))
+  })
+
   it('uses force install for bundled archives instead of the version-match skip', async () => {
     const source = await readFile(scriptPath, 'utf8')
     expect(source).toMatch(/force_install_bundled_plugin "\$\{plugin_name\}" "\$\{plugin_version\}" "\$\{bundled_plugin\}" "\$\{current_version\}"/u)
@@ -99,5 +129,26 @@ describe('bundled plugin install', () => {
 
     expect(output).toContain(`add:file:${archive}`)
     expect(output).not.toContain('dsh-fnos@1.0.0')
+  })
+
+  it('installs dshmarket from the manifest when it is missing', async () => {
+    const root = await makeProfile()
+    const output = await runPublishedPluginInstall(root, '')
+
+    expect(output).toContain('add:dshmarket@1.65.1')
+  })
+
+  it('updates dshmarket when the installed version differs from the manifest', async () => {
+    const root = await makeProfile()
+    const output = await runPublishedPluginInstall(root, '1.64.0')
+
+    expect(output).toContain('add:dshmarket@1.65.1')
+  })
+
+  it('keeps dshmarket when the installed version already matches', async () => {
+    const root = await makeProfile()
+    const output = await runPublishedPluginInstall(root, '1.65.1')
+
+    expect(output).toBe('')
   })
 })

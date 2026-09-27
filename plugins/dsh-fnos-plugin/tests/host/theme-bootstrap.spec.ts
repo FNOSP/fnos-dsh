@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cachedFnosThemeForBoot, injectCachedFnosTheme, isDshThemePreference } from '../../src/host/theme-bootstrap.ts'
+import { cachedFnosThemeForBoot, cachedFnosThemeFromConfig, injectCachedFnosTheme, isDshThemePreference } from '../../src/host/theme-bootstrap.ts'
 
 const html = '<body><script>const preference = "system"\nconst systemDark = preference === \'system\'</script><main /></body>'
 
@@ -17,6 +17,11 @@ describe('fnOS theme bootstrap', () => {
     expect(cachedFnosThemeForBoot('light', 'dark')).toBeNull()
     expect(cachedFnosThemeForBoot('dark', 'light')).toBeNull()
     expect(cachedFnosThemeForBoot('system', 'unknown')).toBeNull()
+  })
+
+  it('treats an omitted Host plugin config as no cached theme', () => {
+    expect(cachedFnosThemeFromConfig(undefined)).toBeNull()
+    expect(cachedFnosThemeFromConfig({ systemTheme: 'dark' })).toBe('dark')
   })
 
   it('rewrites the official bootstrap preference without touching explicit DSH themes', () => {

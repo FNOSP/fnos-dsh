@@ -34,6 +34,9 @@ export function addGatewayPrefix(path: string, gatewayPrefix: string): string {
 
 export function rewriteLocation(value: unknown, gatewayPrefix: string): unknown {
   if (typeof value !== 'string') return value
+  if (gatewayPrefix && value.startsWith('./')) {
+    return addGatewayPrefix('/' + value.slice(2), gatewayPrefix)
+  }
   return value.startsWith('/') && !value.startsWith('//') ? addGatewayPrefix(value, gatewayPrefix) : value
 }
 

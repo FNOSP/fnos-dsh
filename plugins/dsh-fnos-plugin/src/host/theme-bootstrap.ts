@@ -4,6 +4,11 @@ import { isFnosTheme, type FnosTheme } from '../contracts/theme-contract.ts'
 
 export type DshThemePreference = FnosTheme | 'system'
 
+/** Read the optional Host plugin config without assuming the loader supplied one. */
+export function cachedFnosThemeFromConfig(config: { systemTheme?: unknown } | undefined): FnosTheme | null {
+  return isFnosTheme(config?.systemTheme) ? config.systemTheme : null
+}
+
 /** Third-party theme ids are runtime-only and must not touch fnOS settings. */
 export function isDshThemePreference(value: unknown): value is DshThemePreference {
   return value === 'light' || value === 'dark' || value === 'system'

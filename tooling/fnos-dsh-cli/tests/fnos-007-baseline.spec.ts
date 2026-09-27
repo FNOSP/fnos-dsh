@@ -11,16 +11,26 @@ const pluginDirectories = [
 ]
 
 describe('FNOS-007 DSH baseline', () => {
-  it('keeps the development host DSH CLI boundary separate from the FPK catalog', async () => {
+  it('synchronizes the development host DSH CLI with the FPK catalog', async () => {
     const rootPackage = JSON.parse(await readFile(new URL('../../../package.json', import.meta.url), 'utf8')) as {
       devDependencies: Record<string, string>
     }
     const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
     expect(rootPackage.devDependencies['@deepseek-ai/dsh']).toBe('catalog:')
-    expect(rootPackage.devDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('catalog:development-dsh')
-    expect(workspace).toMatch(/development-dsh:\s*\n\s+'@deepseek-ai\/dsh-llm-pi-ai':\s*0\.1\.5-rc\.2/u)
-    expect(workspace).toMatch(/'@deepseek-ai\/dsh':\s*0\.1\.5-rc\.2/u)
+    expect(rootPackage.devDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('catalog:dsh')
+    expect(workspace).toMatch(/'@deepseek-ai\/dsh':\s*0\.1\.7-rc\.2/u)
     expect(workspace).toMatch(/'@deepseek-ai\/dsh-llm-pi-ai':\s*0\.1\.7-rc\.2/u)
+  })
+
+  it('keeps source plugin peer ranges on the shared DSH catalog', async () => {
+    for (const directory of pluginDirectories.filter(value => value !== 'dsh-fnos-plugin')) {
+      const manifest = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as {
+        peerDependencies: Record<string, string>
+      }
+      for (const [name, range] of Object.entries(manifest.peerDependencies)) {
+        if (name.startsWith('@deepseek-ai/dsh')) expect(range, `${directory}:${name}`).toBe('catalog:dsh')
+      }
+    }
   })
 
   it('declares 0.1.7-rc.2 in every runtime plugin compatibility manifest', async () => {

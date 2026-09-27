@@ -222,15 +222,21 @@ install_published_dsh_plugins() {
         fi
     done < <(run_install_callback_helper published-plugins "${DSH_PUBLISHED_PLUGIN_MANIFEST}")
 
-    local dshmarket_version
+    local dshmarket_version dshmarket_target_version dshmarket_spec
+    dshmarket_target_version="$(run_install_callback_helper bundled-plugin-version "${DSH_PUBLISHED_PLUGIN_MANIFEST}" dshmarket)"
+    [ -n "${dshmarket_target_version}" ] || fail_install "dshmarket is missing from the plugin manifest"
+    validate_plugin_spec "${dshmarket_target_version}"
     dshmarket_version="$(installed_plugin_version dshmarket)"
-    if [ -n "${dshmarket_version}" ]; then
-        log_info "Keeping installed dshmarket@${dshmarket_version}; the third-party plugin is install-once and non-destructive."
+    dshmarket_spec="$(profile_dependency_version dshmarket)"
+    if [ -z "${dshmarket_version}" ]; then
+        run_dsh_plugin add "dshmarket@${dshmarket_target_version}" ||
+            fail_install "Unable to install dshmarket@${dshmarket_target_version} with the dsh CLI"
+    elif [ "${dshmarket_version}" != "${dshmarket_target_version}" ] || [[ "${dshmarket_spec}" == link:* ]]; then
+        log_info "Updating dshmarket from ${dshmarket_version} to ${dshmarket_target_version} with the dsh CLI."
+        run_dsh_plugin add "dshmarket@${dshmarket_target_version}" ||
+            fail_install "Unable to update dshmarket to ${dshmarket_target_version} with the dsh CLI"
     else
-        dshmarket_version="$(run_install_callback_helper bundled-plugin-version "${DSH_PUBLISHED_PLUGIN_MANIFEST}" dshmarket)"
-        [ -n "${dshmarket_version}" ] || fail_install "dshmarket is missing from the plugin manifest"
-        run_dsh_plugin add "dshmarket@${dshmarket_version}" ||
-            fail_install "Unable to install dshmarket@${dshmarket_version} with the dsh CLI"
+        log_info "Keeping installed dshmarket@${dshmarket_version}; exact version already matches."
     fi
 }
 

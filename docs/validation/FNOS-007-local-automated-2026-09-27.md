@@ -14,14 +14,14 @@ status: partial
 
 | 范围 | 结果 |
 | --- | --- |
-| DSH 基线、开发宿主边界、四插件兼容清单、FPK 清单和 native 输入 | `tooling/fnos-dsh-cli/tests/fnos-007-baseline.spec.ts` 通过，5 条；根开发宿主仍固定 `0.1.5-rc.2`，FPK catalog 为 `0.1.7-rc.2`。 |
+| DSH 基线、开发宿主同步、四插件兼容清单、FPK 清单和 native 输入 | `tooling/fnos-dsh-cli/tests/fnos-007-baseline.spec.ts` 通过；根开发宿主 DSH CLI、`dsh-llm-pi-ai` 和 FPK catalog 统一为 `0.1.7-rc.2`。 |
 | fnOS 插件 | typecheck；23 个测试文件 / 125 条通过。覆盖 SettingsForms、ConfigForms、settings tab、主题、授权目录、网关设置、图标和 `/fn` 引用。 |
 | CodeBuddy | typecheck；67 个测试文件 / 881 条通过。覆盖 role tool、工具调用 ID/错误标记、推理重放、图片目标和工具结果图片。 |
 | Codex Auth | typecheck；15 个测试文件 / 75 条通过。 |
 | Semi UI 与 Showcase | 共享 UI 3 个测试文件 / 6 条通过；Showcase 2 个测试文件 / 39 条通过。 |
-| Gateway 与安装辅助 | typecheck；15 个测试文件 / 58 条通过。覆盖嵌套 attachment-local 解析、0.1.7 补丁锚点、幂等、失败不写半成品、node-pty 生命周期、网关、WebSocket 和 DSH Web 生命周期。 |
+| Gateway 与安装辅助 | typecheck；15 个测试文件 / 65 条通过。覆盖嵌套 attachment-local 解析、0.1.7 补丁锚点、幂等、失败不写半成品、node-pty 生命周期、网关、入口相对跳转、WebSocket、DSH Web 生命周期、挂载 Cookie Path 隔离和 dshmarket registry/版本收敛。 |
 | 构建 | 四个插件、共享 UI、Gateway 和 CLI build 通过；`pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-native --bundle-dsh-plugins` 通过，FPK 内含四个 0.1.7 插件归档；`pnpm run build -- --docs` 通过。 |
-| dshmarket | 发布清单、构建门禁和当前文档均固定 `1.65.1`；已安装版本的保留逻辑未改变。 |
+| dshmarket | 发布清单、构建门禁和当前文档均固定 `1.65.1`；registry 安装统一复用 `.npmrc`，缺失安装、版本不一致升级/降级、同版本幂等均有 shell 回归覆盖。 |
 | attachment-local | 安装回调从应用私有 DSH 依赖树递归解析嵌套包，校验包名和与 `DSH_VERSION` 对齐的精确版本，再对 `${TRIM_PKGVAR}` 应用原子、幂等补丁。 |
 
 ## 尚待真实环境执行

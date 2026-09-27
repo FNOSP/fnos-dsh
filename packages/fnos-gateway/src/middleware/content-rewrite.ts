@@ -12,7 +12,12 @@ export function rewriteHtml(body: Buffer, gatewayPrefix: string, bridgeScript: s
   )
 
   const base = '<base href="' + gatewayBaseHref(gatewayPrefix) + '">'
-  if (!/<base\b[^>]*>/i.test(html)) {
+  if (/<base\b[^>]*>/i.test(html)) {
+    html = html.replace(
+      /<base\s+href\s*=\s*["']\.\/["'][^>]*>/i,
+      base,
+    )
+  } else {
     html = /<head\b[^>]*>/i.test(html)
       ? html.replace(/(<head\b[^>]*>)/i, '$1' + base)
       : base + html

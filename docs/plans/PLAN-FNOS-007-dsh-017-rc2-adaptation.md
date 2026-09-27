@@ -16,7 +16,7 @@ lastVerified: 2026-09-27
 | 计划编号 | PLAN-FNOS-007 |
 | 计划日期 | 2026-09-24 |
 | 对应需求 | [FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复](/requirements/FNOS-007-dsh-017-rc2-adaptation) |
-| 本轮功能 | FNOS-007-01 至 FNOS-007-14；FNOS-007-11、FNOS-007-14 已完成，其余进入后续实施阶段 |
+| 本轮功能 | FNOS-007-01 至 FNOS-007-15；FNOS-007-11、FNOS-007-14 已完成，其余进入后续实施阶段 |
 | 上游依据 | 本地 Harness checkout 的 `dsh-v0.1.7-rc.2`，以目标 tag 的源码、类型和构建结果为准 |
 | 计划状态 | <Badge type="warning" text="本地实现与自动化验证完成，待 Linux/native 和真实 NAS" /> |
 
@@ -32,8 +32,9 @@ lastVerified: 2026-09-27
 | --- | --- | --- | --- |
 | 第一期 | FNOS-007-11 | 文档站 Mermaid 渲染器替换和图表交互验收 | <Badge type="tip" text="已完成" /> |
 | 第二期 | FNOS-007-01 至 10、12、13、14 | 依赖基线、插件接缝、FPK、会话、升级、attachment-local、dshmarket 和 workflow 验收 | <Badge type="warning" text="本地完成，待 Linux/native 与真实 NAS" /> |
+| 第三期 | FNOS-007-15 | 应用专用账号下的终端可用性适配 | <Badge type="warning" text="待实施" /> |
 
-分期原因：插件源码接缝、FPK 运行时和本地开发宿主存在独立版本通路。先完成差异分析，再在不破坏当前开发宿主的前提下切换 FPK 运行时。
+分期原因：插件源码接缝、FPK 运行时和本地开发宿主需要统一到同一目标基线，先完成差异分析，再同步切换运行时与开发工具链。
 
 ## 当前实现与目标设计
 
@@ -47,7 +48,9 @@ lastVerified: 2026-09-27
 | LLM 消息 | 工具结果作为旧内容块处理 | 按角色处理工具结果 | CodeBuddy 多轮工具调用和图片输入 |
 | 图片请求 | 旧图片策略和字段 | 新图片目标和尺寸字段 | CodeBuddy、Codex Auth 图片能力 |
 | 会话 | 旧格式假设 | 兼容新格式读取 | 旧会话打开和导出，不实现自有迁移器 |
+| 网关挂载 | 旧版根路径资源和认证转发 | 文档目录相对路径、入口跳转和挂载 Cookie 隔离 | fnOS iframe 下的静态资源、API、WebSocket 与认证边界 |
 | 文档图表 | 构建期 Mermaid 插件 | 客户端 `vitepress-mermaid-renderer` | 依赖链、主题、工具栏和可访问性 |
+| 终端 Shell | 默认 Shell 取宿主账号登录 Shell；应用专用账号的登录 Shell 为 `/usr/sbin/nologin`，终端启动即退出 | 应用为终端进程提供可用的交互式 Shell 默认值 | 应用启动脚本的环境导出；不影响终端运行身份和 fnOS 权限模型 |
 
 ### 既有功能状态变更
 
@@ -94,6 +97,7 @@ sequenceDiagram
 | FNOS-007-07、08 | FPK manifest、生命周期、网关、native、会话读取边界 | FPK 运行时、旧会话、网关和插件归档 | FPK 构建、安装、旧会话导出 | 真实 NAS |
 | FNOS-007-10、12、13 | 安装/升级流程、发布清单、attachment-local 和 dshmarket 校验 | 用户配置、已安装插件版本、附件持久化目录 | 幂等、回滚、精确版本、补丁和 NAS 证据 | 真实 NAS |
 | FNOS-007-11 | `docs/package.json`、VitePress config/theme | 文档图表渲染方式 | 全部 Mermaid 图表和文档构建 | 浏览器、文档构建 |
+| FNOS-007-15 | `apps/fn-deepseek-harness/cmd/main` 的环境导出段 | 终端进程默认 Shell、终端继承环境 | 启动脚本环境断言、终端打开和命令执行回归 | 真实 NAS |
 
 ## 源文件与生成产物边界
 
@@ -142,7 +146,7 @@ sequenceDiagram
 
 ### T05/T08：FPK、网关和会话
 
-- FPK 运行时由安装回调和构建常量对齐到 `0.1.7-rc.2`，开发宿主的顶层 DSH CLI 和本地 profile 不在本计划内升级。
+- FPK 运行时、开发宿主顶层 DSH CLI 和本地 `.dsh` profile 统一对齐到 `0.1.7-rc.2`；不再保留开发宿主与 FPK 的版本分叉。
 - `attachment-patch` 只修改 `packages/fnos-gateway/src/` 的源码，锚点必须匹配一次，补丁必须幂等，路径必须位于应用私有目录。
 - 旧会话只做读取和导出验证，不实现本仓库自己的格式迁移器，不改写用户会话文件。
 
@@ -156,7 +160,111 @@ sequenceDiagram
 ### T09：dshmarket
 
 - 发布清单、构建校验常量和用户文档当前值统一到 `1.65.1`。
-- DSH CLI 使用精确版本安装；已安装用户跳过安装，不覆盖、不降级、不卸载。
+- `plugins` 与 `bundled/dshmarket` 的 registry 安装统一使用 `wizard_npm_registry` 写入的 `.npmrc`；未配置时使用 npm 官方源。缺失时安装清单版本，版本不一致时升级或降级，同版本时跳过并保留配置。
+
+### T11：应用专用账号下的终端可用性
+
+对应需求 FNOS-007-15。
+
+#### 当前实现与目标实现
+
+| 领域 | 当前实现 | 目标实现 | 迁移影响 |
+| --- | --- | --- | --- |
+| 终端默认 Shell | DSH 侧默认 Shell 解析顺序为进程环境变量 `SHELL`，其次宿主账号登录 Shell。应用启动脚本未导出 `SHELL`，于是取到应用专用账号的登录 Shell `/usr/sbin/nologin`，终端进程启动后立即退出并打印账号不可用提示 | 应用启动脚本为 DSH 服务进程导出可用的交互式 Shell，使终端默认 Shell 解析到 `/bin/bash` | `cmd/main` 的环境导出段；不改变终端运行身份，不涉及 `config/privilege`、`config/resource`、`manifest` 或 `config` 入口字段 |
+| 终端环境变量 | 侧边栏终端以 DSH 服务进程环境为底，其中 `HOME` 被应用启动脚本覆盖为应用共享目录；`DSH_*` 命名空间在向子进程传递时统一剥离，因此终端内没有 `DSH_HOME` | 保持 `HOME` 语义不变；是否向终端补充 `DSH_HOME` 由本任务一并决定并在用户文档中说明 | 只在明确需要用户终端直接调用 `dsh` CLI 时补充；模型侧工具不依赖该变量 |
+| 终端面板可见性 | 侧边栏终端随 Web 应用无条件挂载，入口存在但打开即失败 | 入口存在且打开即可用 | 不引入开关，不改变入口形态 |
+
+#### 变更原因与用户可观察结果
+
+DSH `0.1.7-rc.2` 新增了面向用户的侧边栏终端。该终端按“进程环境变量 `SHELL` → 宿主账号登录 Shell”的顺序解析默认 Shell。fnOS 应用以专用应用账号运行，该账号在系统中不可登录（登录 Shell 为 `/usr/sbin/nologin`），且应用启动脚本只导出了 `PATH`、`DSH_HOME`、`HOME` 和 npm 相关变量，从未导出 `SHELL`。因此终端会以不可登录的 Shell 启动，进程立即退出，用户在终端面板只看到一行账号不可用提示。
+
+```mermaid
+stateDiagram-v2
+  [*] --> Mounted: 终端入口已挂载
+  Mounted --> Spawning: 用户打开终端
+  Spawning --> Unusable: 变更点：默认 Shell 解析到不可登录账号
+  Unusable --> [*]: 用户看到账号不可用提示
+  Spawning --> Usable: 变更点：应用导出可用交互式 Shell
+  Usable --> Running: Shell 进入交互状态
+  Running --> Closed: 用户关闭终端
+  Closed --> [*]
+```
+
+图中的 `变更点：` 表示本任务改变的两处状态转换：原约定下打开终端直接落到不可用状态；新约定下打开终端进入可用状态。终端的挂载方式、入口形态和运行身份均不改变。
+
+```mermaid
+sequenceDiagram
+  participant User as 用户
+  participant Client as 终端面板
+  participant Host as DSH 服务
+  participant App as 应用启动脚本
+  participant Shell as 终端进程
+  App->>Host: 原约定：只导出 PATH、DSH_HOME、HOME 和 npm 变量
+  User->>Client: 打开终端
+  Client->>Host: 请求终端环境
+  Note over Host,Shell: 变更点：默认 Shell 来自应用账号登录 Shell，无法交互
+  Host->>Shell: 以不可登录 Shell 启动终端
+  Shell-->>Client: 进程立即退出
+  Client-->>User: 显示账号不可用提示
+  Note over App,Shell: 变更点：应用为终端导出可用交互式 Shell
+  App->>Host: 新约定：额外导出 SHELL
+  User->>Client: 再次打开终端
+  Client->>Host: 请求终端环境
+  Host->>Shell: 以可用交互式 Shell 启动终端
+  Shell-->>Client: 返回可交互终端
+  Client-->>User: 可以执行命令
+```
+
+变更原因：宿主的应用账号模型与通用 Linux 交互式账号不同，上游默认值在该环境下不可用。用户可观察结果是：修复前打开终端得到账号不可用提示；修复后打开终端直接得到可交互 Shell，且 `id` 显示的身份仍是应用账号，不会提升为 root 或切换为 NAS 普通用户。
+
+#### 环境变量一致性事实
+
+供实施和验证依据，避免把差异当成缺陷：
+
+| 变量 | 侧边栏终端 | 模型侧命令工具 | 说明 |
+| --- | --- | --- | --- |
+| 运行身份 | 应用账号 | 应用账号 | 两条通路都不做身份切换 |
+| `HOME` | 应用启动脚本覆盖后的值 | 同左 | 由 `cmd/main` 的 `HOME` 导出决定，与账号登录目录不同 |
+| `SHELL` | 未导出即为不可登录值 | 不读取该变量 | 本任务补齐 |
+| `DSH_HOME` | 未设置 | 由模型侧环境注入机制提供 | `DSH_*` 命名空间在向子进程传递时被统一剥离，故终端内不继承 |
+| 沙箱 | 不施加沙箱约束 | 受会话沙箱模式约束 | 由上游产品设计决定，本任务不改变 |
+
+#### 影响范围
+
+| 需求功能 | 源码和配置 | 用户数据/运行时 | 测试和证据 | 目标环境 |
+| --- | --- | --- | --- | --- |
+| FNOS-007-15 | `apps/fn-deepseek-harness/cmd/main` 的环境导出段；如需向用户说明则同步 `docs/` 对应说明页 | 终端进程默认 Shell、终端继承环境 | 启动脚本环境断言、终端打开与命令执行回归 | 真实 NAS |
+
+#### 设计决策
+
+| 决策项 | 选择 | 被否决方案 | 原因 |
+| --- | --- | --- | --- |
+| 默认 Shell 的修复位置 | 在应用启动脚本导出 `SHELL` | 修改 DSH 上游默认 Shell 解析逻辑 | 仓库约束不修改 DSH 官方源码；上游已提供环境变量接缝 |
+| 备选实现 | 需要时在 DSH profile 的补丁层为终端控制器配置显式 Shell 配置字段 | 直接把应用账号的登录 Shell 改成可用 Shell | 修改系统账号属于宿主级变更，会影响应用账号的安全语义，且超出应用交付边界 |
+| 模型侧六个终端工具是否纳入 | 不纳入 | 一并交付终端工具 | 该能力未随 npm 发行包提供，当前基线无法通过配置开启；如需提供须由上游发布或另行交付包 |
+
+#### 任务
+
+| 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
+| --- | --- | --- | --- | --- |
+| PLAN-FNOS-007-T11-01 | FNOS-007-15-AC-01、02 | 在 `cmd/main` 的环境导出段为 DSH 服务进程导出可用交互式 Shell 默认值 | 确认目标 NAS 存在该 Shell 路径 | 启动脚本环境断言；真实 NAS 打开终端不再出现账号不可用提示 |
+| PLAN-FNOS-007-T11-02 | FNOS-007-15-AC-03 | 断言终端运行身份为应用账号，且不提升权限、不切换用户 | T11-01 | 终端内查看身份与进程属主，确认与应用服务一致 |
+| PLAN-FNOS-007-T11-03 | FNOS-007-15-AC-04、05 | 核对终端继承的工作目录与环境变量，决定是否补充 `DSH_HOME`，并把必须保留的差异写入说明页 | T11-01 | 终端内环境与工作目录核对；应用重启后终端仍可用 |
+| PLAN-FNOS-007-T11-04 | FNOS-007-15-AC-05 | 在真实 NAS 记录终端打开、命令执行、关闭和应用重启后的证据 | T11-01 至 T11-03 | `docs/validation/` 记录可追溯 |
+
+#### 风险与回滚
+
+| 风险/事实 | 影响 | 决策和验证 |
+| --- | --- | --- |
+| 应用账号登录 Shell 在未来 fnOS 版本变化 | 终端默认 Shell 可能再次不可用 | 以环境变量显式导出，不依赖账号登录 Shell，降低对宿主实现变化的敏感度 |
+| 向终端补充 `DSH_HOME` 可能改变用户既有脚本行为 | 用户脚本读取到此前不存在的变量 | 仅在确认需要用户终端直接调用 CLI 时补充，并在说明页写明显式差异 |
+| 环境导出变更影响其它子进程 | 依赖旧 `SHELL` 值的脚本行为变化 | 导出值是标准交互式 Shell，属于通用兼容值；通过应用启动和终端回归验证 |
+| 回滚 | — | 移除新增导出行即可回到原行为；不涉及数据、凭据、会话或授权目录变更 |
+
+#### 说明
+
+- 侧边栏终端不施加会话沙箱约束、模型侧命令工具受会话沙箱约束，这一差异由上游产品设计决定，本任务不改变，仅在说明页中如实描述。
+- 模型侧终端工具相关能力因发行包缺失不在本任务范围；需求 FNOS-007-15 只覆盖用户可见的侧边栏终端可用性。
 
 ## 分阶段任务
 
@@ -202,6 +310,7 @@ sequenceDiagram
 | PLAN-FNOS-007-T05-03 | FNOS-007-07-AC-03 | 在真实 NAS 安装新 FPK，验证运行时版本、网关和 DSH Web | NAS 安装启动证据 |
 | PLAN-FNOS-007-T05-04 | FNOS-007-08-AC-01 至 03 | 使用旧会话验证打开和导出，确认插件不实现自有迁移器 | 会话回归和文件不变断言 |
 | PLAN-FNOS-007-T05-05 | FNOS-007-07-AC-02、07、08 | 核对目标 `dsh-v0.1.7-rc.2` checkout 与本仓库锁文件仍使用 `node-pty@1.2.0-beta.15`、Node.js 24 和 `node-gyp@11.0.0`；更新 native 配置中的 DSH 基线和文件名后，在 Linux 构建机重新执行 `prepare-dsh-native.sh`，验证 `pty.node`、可选 `spawn-helper`、`app/node-pty-versions` 与安装回调版本校验一致 | 内置 native 且 NAS 无 g++ 的安装路径通过；未内置 native 且 NAS 有 g++ 的回退路径通过；版本不一致时构建或安装明确失败 |
+| PLAN-FNOS-007-T05-06 | FNOS-007-07-AC-09 | 对齐官方 `0.1.7-rc.2` 的文档目录相对路径挂载契约：入口 `./` 跳转、静态资源/API/WebSocket 前缀和 `Set-Cookie: Path=/` 的应用目录收窄 | 网关请求头、响应头、路径重写和真实挂载回归测试 |
 | PLAN-FNOS-007-T08-01 | FNOS-007-07-AC-02 | 修复附件补丁锚点，验证三处锚点单次匹配、幂等和应用私有路径 | 目标包样本、失败锚点和回归测试 |
 | PLAN-FNOS-007-T08-02 | FNOS-007-07-AC-02 | 确认新增图片依赖的 FPK 就位方式和 native 处理边界 | 目标架构图片处理可用 |
 | PLAN-FNOS-007-T08-03 | FNOS-007-07-AC-05、06；FNOS-007-13-AC-01、02 | 复现日志中的生产安装路径，确认目标 DSH 的 `dsh-base` 生产依赖把 `@deepseek-ai/dsh-attachment-local` 放在应用私有依赖树的嵌套目录；把安装回调从固定顶层路径改为受边界约束的依赖树解析，再执行包名/版本校验和 `TRIM_PKGVAR` 补丁 | 干净安装中嵌套包可解析；不再出现缺少 attachment-local 的误报；版本不一致时明确失败 |
@@ -230,8 +339,8 @@ sequenceDiagram
 
 | 任务 ID | 对应验收 | 实施内容 | 验证 |
 | --- | --- | --- | --- |
-| PLAN-FNOS-007-T09-01 | FNOS-007-12-AC-01 至 03 | 同步发布清单、构建常量和文档当前值到 `1.65.1`，确认 peer 兼容和精确版本安装 | 构建校验和版本一致性检查 |
-| PLAN-FNOS-007-T09-02 | FNOS-007-12-AC-04 | 在真实 NAS 验证已安装用户跳过安装并保留版本和配置 | 安装/升级证据，确认已完成需求正文未被修改 |
+| PLAN-FNOS-007-T09-01 | FNOS-007-12-AC-01 至 03、05 | 同步发布清单、构建常量和文档当前值到 `1.65.1`，并确认所有 registry 安装都读取同一份 `.npmrc`，默认使用 npm 官方源 | 构建校验、源配置和版本一致性检查 |
+| PLAN-FNOS-007-T09-02 | FNOS-007-12-AC-04 | 按普通 `plugins` 规则处理 dshmarket：缺失安装、版本不一致升级/降级、同版本幂等保留 | 自动化 shell 回归和真实 NAS 安装/升级证据 |
 
 ### T10：FPK 构建 workflow 命名
 
@@ -260,8 +369,10 @@ sequenceDiagram
 | LLM 消息角色变化 | 工具调用可能返回 400 | T03 保留调用 ID 配对并做真实请求回归 |
 | 会话格式升级 | 旧会话可能打不开 | 由上游负责迁移，本仓库只验证读取和导出 |
 | 安装补丁锚点变化 | FPK 安装硬失败 | T08 使用目标编译产物样本和单次匹配断言 |
-| 当前开发宿主版本独立 | 迁移会中断本地开发 | FPK 通路先行，开发宿主和本地 profile 另行安排 |
+| 开发宿主与 FPK 同步升级 | 根 CLI 和本地 profile 需要跟随目标接缝 | 根项目 DSH CLI、`dsh-llm-pi-ai` 和本地 `.dsh` profile 一并验证 `0.1.7-rc.2` |
 | Mermaid 安全配置 | 不可信图表可能引入风险 | 保持 `securityLevel: 'strict'`，不放宽渲染边界 |
+| 应用账号不可登录 | 终端默认 Shell 落到不可登录值，终端打开即退出 | T11 由应用显式导出可用交互式 Shell，不依赖账号登录 Shell，并在真实 NAS 验证终端可用 |
+| 终端环境与模型工具环境存在差异 | 用户可能误判为故障 | T11 在计划中列出差异事实，并在说明页显式描述；`DSH_HOME` 是否补充由 T11-03 决定 |
 
 ### 既有功能变更记录方式
 
@@ -299,7 +410,7 @@ git diff --check
 - 安装失败不得删除旧运行时、配置、凭据、会话或工作区。
 - 设置写入失败恢复写入前版本。
 - 补丁锚点不匹配时停止安装，不继续写入半成品。
-- dshmarket 已安装用户不被降级或卸载。
+- dshmarket 版本不一致时按清单收敛，收敛过程不先卸载用户数据；同版本不重复安装。
 
 ## 参考资料
 
@@ -324,6 +435,7 @@ git diff --check
 | T07 Mermaid 渲染器 | 已完成 | FNOS-007-11 |
 | T09 dshmarket | 本地完成，待 NAS | FNOS-007-12 |
 | T10 FPK workflow 命名 | 已完成 | FNOS-007-14 |
+| T11 应用专用账号下的终端可用性 | 待实施 | FNOS-007-15 |
 
 ## 变更记录
 
@@ -336,3 +448,6 @@ git diff --check
 | 2026-09-27 | 新增 attachment-local 安装阻断项 | 根据 `fnos-dsh-log-issues-02.txt` 确认三次安装均在 node-pty 成功后因回调找不到顶层 `@deepseek-ai/dsh-attachment-local` 终止；目标 `0.1.7-rc.2` 的 `dsh-base` 仍以生产依赖提供该包，但它可能嵌套安装，纳入 FNOS-007-13，要求安装回调解析应用私有依赖树后再执行持久化补丁。 |
 | 2026-09-27 | 新增 FPK workflow 命名功能 | 将可复用 FPK workflow 从 `build-dsh-fn.yml` 统一重命名为 `build-app.yml`，只调整文件名和现行引用，不修改构建、native 或 Release 上传行为。 |
 | 2026-09-27 | 完成 FNOS-007 本地实现 | 完成 FPK 0.1.7 版本链路、四插件接缝、四插件归档、SettingsForms/ConfigForms、CodeBuddy role-tool/image、attachment-local 嵌套解析与幂等补丁；本地全量 check 和文档/FPK（跳过 native）构建通过，Linux native 与真实 NAS 保持待验收。 |
+| 2026-09-27 | 统一 dshmarket 安装行为 | dshmarket registry 安装复用 `.npmrc`，并与普通 plugins 一样在版本不一致时升级/降级、同版本时跳过。 |
+| 2026-09-27 | 同步开发宿主 DSH CLI | 根据用户确认，将根项目 DSH CLI、`dsh-llm-pi-ai` 和本地 `.dsh` profile 一并升级到 `0.1.7-rc.2`，取消原开发宿主 `0.1.5-rc.2` 独立边界。 |
+| 2026-09-27 | 新增 T11 终端可用性任务 | 纳入 FNOS-007-15：DSH `0.1.7-rc.2` 的侧边栏终端按“环境变量 `SHELL` → 宿主账号登录 Shell”解析默认 Shell，而应用专用账号登录 Shell 不可用且应用启动脚本未导出 `SHELL`，导致终端打开即退出。T11 在应用启动脚本补充可用交互式 Shell 默认值，并核对终端运行身份与环境差异。 |

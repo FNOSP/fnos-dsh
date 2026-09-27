@@ -10,7 +10,7 @@ catalog:
   '@commitlint/cli': ^21.2.2
   '@commitlint/config-conventional': ^21.2.2
   '@deepseek-ai/cordis': ^4.0.4
-  '@deepseek-ai/dsh': 0.1.5-rc.2
+  '@deepseek-ai/dsh': 0.1.7-rc.2
   '@deepseek-ai/schemastery': 3.18.4
   '@douyinfe/semi-icons': 2.90.2
   '@douyinfe/semi-icons-lab': 2.90.2
@@ -95,8 +95,6 @@ catalogs:
     '@deepseek-ai/dsh-settings': 0.1.7-rc.2
     '@deepseek-ai/dsh-timeout': 0.1.7-rc.2
     '@deepseek-ai/dsh-tools': 0.1.7-rc.2
-  development-dsh:
-    '@deepseek-ai/dsh-llm-pi-ai': 0.1.5-rc.2
   codex-peer:
     '@deepseek-ai/cordis': ^4.0.1-rc.1
     react: ^18.2.0

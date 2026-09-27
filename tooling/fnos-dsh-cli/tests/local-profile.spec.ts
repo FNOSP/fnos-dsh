@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   runTurbo: vi.fn(),
   runRepoDsh: vi.fn(),
   readFile: vi.fn(),
+  writeFile: vi.fn(),
 }))
 
 const targets = [
@@ -36,6 +37,7 @@ vi.mock('../src/core/turbo.js', () => ({
 vi.mock('node:fs/promises', async importOriginal => ({
   ...(await importOriginal<typeof import('node:fs/promises')>()),
   readFile: mocks.readFile,
+  writeFile: mocks.writeFile,
 }))
 
 const { ensureLocalProfilePlugins, localProfilePlugins } = await import('../src/core/local-profile.js')
@@ -90,5 +92,39 @@ describe('local profile plugins', () => {
     await ensureLocalProfilePlugins()
 
     expect(mocks.runRepoDsh).toHaveBeenCalledTimes(1)
+  })
+
+  it('normalizes catalog peer aliases only in the linked profile copy', async () => {
+    const profilePackagePath = join(repositoryRoot, '.dsh/profiles/web/package.json')
+    const linkedPackagePath = join(repositoryRoot, '.dsh/profiles/web/node_modules/@tnnevol/dsh-codex-auth/package.json')
+    mocks.readFile.mockImplementation(async (path: string) => {
+      if (path === profilePackagePath) {
+        return JSON.stringify({
+          dependencies: {
+            '@tnnevol/dsh-codex-auth': `link:${codexDirectory}`,
+          },
+          dsh: { profile: { bundles: ['@deepseek-ai/dsh-base', '@tnnevol/dsh-codex-auth'] } },
+        })
+      }
+      if (path === linkedPackagePath) {
+        return JSON.stringify({
+          name: '@tnnevol/dsh-codex-auth',
+          peerDependencies: {
+            '@deepseek-ai/dsh-llm': 'catalog:dsh',
+            react: 'catalog:',
+          },
+        })
+      }
+      throw new Error('ENOENT')
+    })
+
+    await ensureLocalProfilePlugins()
+
+    expect(mocks.writeFile).toHaveBeenCalledWith(
+      linkedPackagePath,
+      expect.stringContaining('"@deepseek-ai/dsh-llm": "0.1.7-rc.2"'),
+      'utf8',
+    )
+    expect(mocks.runRepoDsh).not.toHaveBeenCalled()
   })
 })

@@ -31,4 +31,10 @@ describe('gateway path rewriting', () => {
     expect(rewriteLocation('https://example.com/login', '/app/fn-deepseek-harness'))
       .toBe('https://example.com/login')
   })
+
+  it('anchors the DSH 0.1.7 directory-relative auth redirect at the app mount', () => {
+    expect(rewriteLocation('./', '/app/fn-deepseek-harness')).toBe('/app/fn-deepseek-harness/')
+    expect(rewriteLocation('./?from=auth', '/app/fn-deepseek-harness'))
+      .toBe('/app/fn-deepseek-harness/?from=auth')
+  })
 })

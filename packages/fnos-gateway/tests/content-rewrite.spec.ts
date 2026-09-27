@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rewriteCss } from '../src/middleware/content-rewrite.ts'
+import { rewriteCss, rewriteHtml } from '../src/middleware/content-rewrite.ts'
 
 describe('gateway content rewriting', () => {
   it('prefixes root-relative CSS resources, including plugin images', () => {
@@ -14,5 +14,13 @@ describe('gateway content rewriting', () => {
     const css = `.pet { background: url(https://example.com/pet.png), url(data:image/png;base64,abc), url('/app/fn-deepseek-harness/pet.png'); }`
 
     expect(rewriteCss(Buffer.from(css), '/app/fn-deepseek-harness')).toBe(css)
+  })
+
+  it('anchors an upstream relative base at the fnOS mount', () => {
+    const html = '<html><head><base href="./"></head><body><script src="./assets/index.js"></script></body></html>'
+
+    expect(rewriteHtml(Buffer.from(html), '/app/fn-deepseek-harness', '')).toContain(
+      '<base href="/app/fn-deepseek-harness/">',
+    )
   })
 })
