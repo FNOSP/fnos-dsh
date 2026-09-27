@@ -20,7 +20,7 @@
 | 变更类型 | 首先阅读和维护 |
 | --- | --- |
 | 新功能、用户行为、权限、数据、网关、插件契约 | `docs/requirements/` → `docs/plans/` |
-| 已有功能修复 | 对应需求和计划的变更记录 |
+| 已有功能修复 | 当前开发中需求和计划的变更记录（对应需求已完成时，登记到进行中的需求，不回改已完成文档） |
 | fnOS 应用、Manifest、生命周期、权限 | `docs/development/` |
 | DSH 插件 | [`docs/development/plugin-development.md`](docs/development/plugin-development.md) |
 | 构建、版本、发布 | `docs/build/` |
