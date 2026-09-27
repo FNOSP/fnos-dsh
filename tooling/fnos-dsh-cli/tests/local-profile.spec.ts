@@ -3,6 +3,9 @@ import { dirname, join } from 'node:path'
 import { repositoryRoot } from '../src/config/paths.js'
 
 const mocks = vi.hoisted(() => ({
+  readdir: vi.fn(),
+  realpath: vi.fn(),
+  unlink: vi.fn(),
   runTurbo: vi.fn(),
   runRepoDsh: vi.fn(),
   readFile: vi.fn(),
@@ -36,6 +39,9 @@ vi.mock('../src/core/turbo.js', () => ({
 }))
 vi.mock('node:fs/promises', async importOriginal => ({
   ...(await importOriginal<typeof import('node:fs/promises')>()),
+  readdir: mocks.readdir,
+  realpath: mocks.realpath,
+  unlink: mocks.unlink,
   readFile: mocks.readFile,
   writeFile: mocks.writeFile,
 }))
@@ -47,6 +53,9 @@ const codexDirectory = dirname(join(repositoryRoot, 'plugins/dsh-codex-auth-plug
 
 describe('local profile plugins', () => {
   beforeEach(() => {
+    mocks.readdir.mockResolvedValue([])
+    mocks.realpath.mockResolvedValue('/valid')
+    mocks.unlink.mockResolvedValue(undefined)
     mocks.runTurbo.mockResolvedValue(undefined)
     mocks.runRepoDsh.mockResolvedValue(undefined)
     mocks.readFile.mockRejectedValue(new Error('ENOENT'))
@@ -126,5 +135,22 @@ describe('local profile plugins', () => {
       'utf8',
     )
     expect(mocks.runRepoDsh).not.toHaveBeenCalled()
+  })
+
+  it('removes dangling profile symlinks before the watch scans the profile', async () => {
+    mocks.readdir
+      .mockResolvedValueOnce([
+        { name: 'broken-link', isDirectory: () => false, isSymbolicLink: () => true },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+    mocks.realpath
+      .mockRejectedValueOnce(new Error('ENOENT'))
+
+    await ensureLocalProfilePlugins()
+
+    expect(mocks.unlink).toHaveBeenCalledWith(expect.stringContaining('node_modules/broken-link'))
+    expect(mocks.unlink).toHaveBeenCalledTimes(1)
   })
 })

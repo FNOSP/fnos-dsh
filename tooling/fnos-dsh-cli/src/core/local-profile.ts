@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { readdir, readFile, realpath, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { dshHomeDirectory, repositoryRoot } from '../config/paths.js'
 import { pluginTargets, type PluginTarget } from '../config/targets.js'
@@ -39,6 +39,50 @@ function profileDirectory(): string {
 
 function pluginDirectory(target: PluginTarget): string {
   return dirname(join(repositoryRoot, target.path))
+}
+
+/**
+ * pnpm creates executable shims in `.bin` as symlinks. A previous profile
+ * install can leave a shim behind after its package disappears from the
+ * hoisted tree; Turbo then follows the dangling link while starting its file
+ * watcher and aborts before DSH Web is launched. Only repository-local
+ * generated dependency trees are inspected, and only links whose targets no
+ * longer resolve are removed.
+ */
+async function removeDanglingLocalSymlinks(directory: string): Promise<void> {
+  let entries
+  try {
+    entries = await readdir(directory, { withFileTypes: true })
+  } catch {
+    return
+  }
+
+  for (const entry of entries) {
+    const entryPath = join(directory, entry.name)
+    if (entry.isSymbolicLink()) {
+      try {
+        await realpath(entryPath)
+      } catch {
+        await unlink(entryPath)
+      }
+      continue
+    }
+    if (entry.isDirectory()) await removeDanglingLocalSymlinks(entryPath)
+  }
+}
+
+async function repairLocalWatcherTrees(): Promise<void> {
+  await Promise.all([
+    removeDanglingLocalSymlinks(join(repositoryRoot, 'node_modules')),
+    removeDanglingLocalSymlinks(join(profileDirectory(), 'node_modules')),
+    // DSH keeps shared profile dependencies one level above `web`; Turbo scans
+    // both trees because DSH_HOME is the repository-local root.
+    removeDanglingLocalSymlinks(join(dshHomeDirectory, 'profiles', 'node_modules')),
+    // pnpm's repository-local store records temporary project links. Test
+    // cleanup or a removed temp directory can leave one dangling, and Turbo
+    // scans this ignored directory as part of the repository root as well.
+    removeDanglingLocalSymlinks(join(repositoryRoot, '.pnpm-store', 'v11', 'projects')),
+  ])
 }
 
 async function readProfileManifest(directory: string): Promise<ProfileManifest | undefined> {
@@ -103,6 +147,7 @@ export async function ensureLocalProfilePlugins(pluginFilter?: string): Promise<
   if (targets.length === 0) return
 
   await runTurbo(['build'], targets.map(target => target.filter))
+  await repairLocalWatcherTrees()
 
   const manifest = await readProfileManifest(directory)
   for (const target of targets) {
@@ -113,4 +158,7 @@ export async function ensureLocalProfilePlugins(pluginFilter?: string): Promise<
     }
     await normalizeLinkedPluginManifest(directory, target)
   }
+  // `dsh plugin add` may update pnpm's hoisted links, so repair once more
+  // after the profile reconciliation and immediately before Turbo watch.
+  await repairLocalWatcherTrees()
 }

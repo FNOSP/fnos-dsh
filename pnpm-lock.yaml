@@ -227,19 +227,10 @@ catalogs:
     '@deepseek-ai/dsh-host-webserver':
       specifier: 0.1.7-rc.2
       version: 0.1.7-rc.2
-    '@deepseek-ai/dsh-invariants':
-      specifier: 0.1.7-rc.2
-      version: 0.1.7-rc.2
-    '@deepseek-ai/dsh-launch-environment':
-      specifier: 0.1.7-rc.2
-      version: 0.1.7-rc.2
     '@deepseek-ai/dsh-llm':
       specifier: 0.1.7-rc.2
       version: 0.1.7-rc.2
     '@deepseek-ai/dsh-llm-pi-ai':
-      specifier: 0.1.7-rc.2
-      version: 0.1.7-rc.2
-    '@deepseek-ai/dsh-scope':
       specifier: 0.1.7-rc.2
       version: 0.1.7-rc.2
     '@deepseek-ai/dsh-session':
@@ -249,9 +240,6 @@ catalogs:
       specifier: 0.1.7-rc.2
       version: 0.1.7-rc.2
     '@deepseek-ai/dsh-settings':
-      specifier: 0.1.7-rc.2
-      version: 0.1.7-rc.2
-    '@deepseek-ai/dsh-timeout':
       specifier: 0.1.7-rc.2
       version: 0.1.7-rc.2
 
@@ -541,30 +529,15 @@ importers:
       '@deepseek-ai/dsh-host-webserver':
         specifier: catalog:dsh
         version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)(supports-color@7.2.0)
-      '@deepseek-ai/dsh-invariants':
-        specifier: catalog:dsh
-        version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
-      '@deepseek-ai/dsh-launch-environment':
-        specifier: catalog:dsh
-        version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
       '@deepseek-ai/dsh-llm':
         specifier: catalog:dsh
         version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
       '@deepseek-ai/dsh-llm-pi-ai':
         specifier: catalog:dsh
         version: 0.1.7-rc.2(a626e588d3ded582f25fea7b4236a7ce)
-      '@deepseek-ai/dsh-scope':
-        specifier: catalog:dsh
-        version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.1.7-rc.2(@deepseek-ai/cordis@4.0.4))
       '@deepseek-ai/dsh-settings':
         specifier: catalog:dsh
         version: 0.1.7-rc.2(5b96739738d3d7c58fcbca8e03fe72b7)
-      '@deepseek-ai/dsh-timeout':
-        specifier: catalog:dsh
-        version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
-      '@deepseek-ai/schemastery':
-        specifier: 'catalog:'
-        version: 3.18.4
       '@earendil-works/pi-ai':
         specifier: 'catalog:'
         version: 0.85.1(@modelcontextprotocol/sdk@1.30.0(supports-color@7.2.0)(zod@4.4.3))(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)

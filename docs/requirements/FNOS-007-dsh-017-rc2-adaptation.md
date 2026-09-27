@@ -250,6 +250,20 @@ sequenceDiagram
 - `FNOS-007-15-AC-04`：终端继承的工作目录与环境变量与 DSH 服务保持一致；确需存在的差异在面向用户的文档中显式说明。
 - `FNOS-007-15-AC-05`：终端在真实 NAS 上可以完成打开、执行命令和关闭；应用重启后终端仍然可用。
 
+### FNOS-007-16
+
+- `FNOS-007-16-AC-01`：执行 `pnpm start -- --web` 时，仓库本地 DSH Web profile、根 `node_modules` 和 pnpm 临时项目目录中的历史悬空软链接不会阻断 Turbo watcher 初始化。
+- `FNOS-007-16-AC-02`：启动前后只清理目标已不存在的生成软链接，不删除有效依赖、源码、用户 profile、凭据、会话或工作区数据。
+- `FNOS-007-16-AC-03`：所有由默认 pnpm catalog 维护的 workspace 依赖在源 manifest 中使用 `catalog:` 或命名 catalog 协议；`@earendil-works/pi-ai` 不得回退为固定范围。已完成的 DSH peer 精确版本兼容契约保持不变。
+- `FNOS-007-16-AC-04`：catalog 一致性在构建门禁和自动化测试中覆盖 dependencies、devDependencies、peerDependencies、optionalDependencies，并对 DSH peer 精确兼容例外作显式校验。
+
+### FNOS-007-17
+
+- `FNOS-007-17-AC-01`：CodeBuddy、Codex Auth 和 Semi UI Showcase 的 DSH 依赖清单只声明源码、客户端注入或宿主服务契约实际使用的包。
+- `FNOS-007-17-AC-02`：Codex Auth 不再声明未直接使用的 `dsh-invariants`、`dsh-launch-environment`、`dsh-scope`、`dsh-timeout` 和 `schemastery`。
+- `FNOS-007-17-AC-03`：宿主共享的 Cordis、DSH 服务、Remote、UI seam 和模型能力继续使用 `peerDependencies`；不因清理传递依赖而搬到 `dependencies` 生成重复 DSH runtime。
+- `FNOS-007-17-AC-04`：`package.json`、`compatibility.json`、开发依赖和自动化检查保持一致，插件仍可完成类型检查、测试、构建和 profile 安装。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -261,6 +275,8 @@ sequenceDiagram
 | dshmarket 版本升级 | 本地完成，待 NAS | FNOS-007-12 |
 | FPK workflow 命名统一 | 已完成 | FNOS-007-14 |
 | 应用用户下的终端可用性 | 待完成 | FNOS-007-15 |
+| 本地 DSH Web 启动与 catalog 门禁 | 本地完成，待纳入完整回归 | FNOS-007-16 |
+| 插件 DSH 依赖清理 | 本地完成，待纳入完整回归 | FNOS-007-17 |
 
 ## 变更记录
 
@@ -273,3 +289,5 @@ sequenceDiagram
 | 2026-09-27 | 补充 DSH 0.1.7 网关挂载适配 | 对齐官方文档目录相对路径代理契约，增加认证 Cookie 的应用挂载路径隔离，并补充网关回归测试。 |
 | 2026-09-27 | 统一 dshmarket registry 与版本收敛规则 | `dshmarket` 与普通 `plugins` 均使用 `.npmrc` 的 npm 源；版本不一致时按清单版本升级或降级，同版本保持幂等。 |
 | 2026-09-27 | 纳入终端可用性 | 新增 FNOS-007-15：DSH `0.1.7-rc.2` 提供终端能力，但应用以专用应用账号运行，需保证用户在 fnOS 内打开终端即可得到可用 Shell，且终端身份与环境对用户可预期。 |
+| 2026-09-27 | 修复本地 DSH Web 启动与 catalog 漂移 | 新增 FNOS-007-16：启动前清理仓库本地生成树中的悬空软链接，避免 Turbo watcher 因历史 `.dsh`、`node_modules` 或 pnpm 临时项目链接失败；统一校验 catalog 维护依赖，并将 `@earendil-works/pi-ai` 改为 `catalog:`，保留既有 DSH peer 精确版本发布契约。 |
+| 2026-09-27 | 清理插件未使用 DSH 依赖 | 新增 FNOS-007-17：审计三个非 fnOS 插件的源码、客户端注入和宿主服务契约；从 Codex Auth 的 peer、devDependencies 与 compatibility 清单移除 5 个未直接使用的传递依赖，保留 peer 作为宿主共享能力契约。 |

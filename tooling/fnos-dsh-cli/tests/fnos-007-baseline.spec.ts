@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -22,13 +23,13 @@ describe('FNOS-007 DSH baseline', () => {
     expect(workspace).toMatch(/'@deepseek-ai\/dsh-llm-pi-ai':\s*0\.1\.7-rc\.2/u)
   })
 
-  it('keeps source plugin peer ranges on the shared DSH catalog', async () => {
+  it('keeps published DSH plugin peer ranges on the exact runtime baseline', async () => {
     for (const directory of pluginDirectories.filter(value => value !== 'dsh-fnos-plugin')) {
       const manifest = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as {
         peerDependencies: Record<string, string>
       }
       for (const [name, range] of Object.entries(manifest.peerDependencies)) {
-        if (name.startsWith('@deepseek-ai/dsh')) expect(range, `${directory}:${name}`).toBe('catalog:dsh')
+        if (name.startsWith('@deepseek-ai/dsh-')) expect(range, `${directory}:${name}`).toBe(targetVersion)
       }
     }
   })
@@ -96,6 +97,139 @@ describe('FNOS-007 DSH baseline', () => {
     expect(workspace).toMatch(/'@deepseek-ai\/schemastery':\s*3\.18\.4/u)
   })
 
+  it('exports a usable interactive SHELL for the in-app terminal', async () => {
+    const main = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/main', import.meta.url), 'utf8')
+    // The package account's login shell is nologin, so the terminal must not
+    // depend on it and must never preserve an inherited nologin or false value.
+    expect(main).toContain('resolve_terminal_shell')
+    expect(main).toContain('*/nologin | */false')
+    expect(main).toMatch(/export SHELL="\$\{TERMINAL_SHELL\}"/u)
+  })
+
+  it('resolves the terminal shell to an executable non-login shell', async () => {
+    const main = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/main', import.meta.url), 'utf8')
+    const match = /^resolve_terminal_shell\(\) \{[\s\S]+?^\}/mu.exec(main)
+    expect(match, 'cmd/main must define resolve_terminal_shell').not.toBeNull()
+    const fn = match![0]
+    const scenarios: Array<[string, string]> = [
+      ['/usr/sbin/nologin', '/bin/bash'],
+      ['/bin/false', '/bin/bash'],
+      ['/nonexistent/shell', '/bin/bash'],
+    ]
+    for (const [inherited, expected] of scenarios) {
+      const output = execFileSync('/bin/bash', ['-c', `${fn}\nSHELL=${inherited}\nresolve_terminal_shell`], { encoding: 'utf8' })
+      expect(output.trim(), `SHELL=${inherited}`).toBe(expected)
+    }
+  })
+
+  it('exports a UTF-8 locale so the terminal does not mangle non-ASCII paths', async () => {
+    const main = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/main', import.meta.url), 'utf8')
+    // Without a locale bash falls back to C, cannot decode non-ASCII path bytes,
+    // and escapes every multi-byte character of the prompt's `\w` as `M-x`.
+    expect(main).toContain('resolve_utf8_locale')
+    expect(main).toMatch(/export LANG="\$\{TERMINAL_LOCALE\}"/u)
+    expect(main).toMatch(/export LC_CTYPE="\$\{TERMINAL_LOCALE\}"/u)
+  })
+
+  it('selects only a UTF-8 locale this host actually provides', async () => {
+    const main = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/main', import.meta.url), 'utf8')
+    const fn = /^resolve_utf8_locale\(\) \{[\s\S]+?^\}/mu.exec(main)?.[0]
+    expect(fn, 'cmd/main must define resolve_utf8_locale').toBeDefined()
+    // A `locale -a` stub stands in for the host catalogue so the assertion does
+    // not depend on which locales the CI machine happens to have installed.
+    const available = 'C\nC.utf8\nen_US.utf8\nPOSIX\n'
+    const resolve = (env: Record<string, string>): string => {
+      const exports = Object.entries(env).map(([k, v]) => `export ${k}=${v}`).join('\n')
+      const script = [
+        fn!,
+        'locale() { printf \'%s\' "$LOCALE_STUB"; }',
+        'export -f locale 2>/dev/null || true',
+        exports,
+        'resolve_utf8_locale || echo NONE',
+      ].join('\n')
+      return execFileSync('/bin/bash', ['-c', script], {
+        encoding: 'utf8',
+        env: { ...process.env, LOCALE_STUB: available },
+      }).trim()
+    }
+    // No locale at all: must pick a UTF-8 name from the host catalogue.
+    expect(resolve({})).toBe('C.UTF-8')
+    // A non-UTF-8 LANG must never be exported as-is.
+    expect(resolve({ LANG: 'C' })).toBe('C.UTF-8')
+    // An inherited UTF-8 LANG is reused.
+    expect(resolve({ LANG: 'en_US.UTF-8' })).toBe('en_US.UTF-8')
+  })
+
+  it('declares every DSH dependency through the pnpm catalog', async () => {
+    // Versions live in pnpm-workspace.yaml only; a literal in a plugin manifest
+    // is a second place to forget on the next baseline bump.
+    for (const directory of pluginDirectories) {
+      const manifest = JSON.parse(
+        await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8'),
+      ) as Record<string, Record<string, string> | undefined>
+      for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
+        for (const [name, range] of Object.entries(manifest[field] ?? {})) {
+          if (!name.startsWith('@deepseek-ai/')) continue
+          if (field === 'peerDependencies' && name.startsWith('@deepseek-ai/dsh-')) continue
+          expect(range, `${directory}:${field}:${name}`).toMatch(/^catalog:/u)
+        }
+      }
+    }
+  })
+
+  it('declares every catalog-managed workspace dependency through a catalog protocol', async () => {
+    const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
+    const catalogPackages = new Set<string>()
+    let section: 'catalog' | 'catalogs' | undefined
+    for (const line of workspace.split(/\r?\n/u)) {
+      if (line === 'catalog:') {
+        section = 'catalog'
+        continue
+      }
+      if (line === 'catalogs:') {
+        section = 'catalogs'
+        continue
+      }
+      if (/^[^\s#]/u.test(line)) {
+        section = undefined
+        continue
+      }
+      const indent = (line.match(/^ */u)?.[0].length ?? 0)
+      const match = /^\s+(?:'([^']+)'|"([^"]+)"|([^:#][^:]*)):\s*/u.exec(line)
+      if (match === null) continue
+      const name = (match[1] ?? match[2] ?? match[3] ?? '').trim()
+      if ((section === 'catalog' && indent === 2) || (section === 'catalogs' && indent === 4)) {
+        catalogPackages.add(name)
+      }
+    }
+
+    const manifests = [
+      new URL('../../../package.json', import.meta.url),
+      ...['apps', 'docs', 'packages', 'plugins', 'tooling'].flatMap(root =>
+        readdir(new URL(`../../../${root}`, import.meta.url), { withFileTypes: true }).then(entries =>
+          entries
+            .filter(entry => entry.isDirectory())
+            .map(entry => new URL(`../../../${root}/${entry.name}/package.json`, import.meta.url)),
+        ),
+      ),
+    ]
+    for (const manifestUrl of (await Promise.all(manifests)).flat()) {
+      let manifest: Record<string, Record<string, string> | undefined>
+      try {
+        manifest = JSON.parse(await readFile(manifestUrl, 'utf8')) as Record<string, Record<string, string> | undefined>
+      } catch {
+        continue
+      }
+      for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
+        for (const [name, range] of Object.entries(manifest[field] ?? {})) {
+          if (!catalogPackages.has(name)) continue
+          if (field === 'peerDependencies' && name.startsWith('@deepseek-ai/dsh-')) continue
+          expect(range, `${manifestUrl.pathname}:${field}:${name}`).toMatch(/^catalog:/u)
+        }
+      }
+    }
+  })
+
   it('keeps each compatibility package list aligned with source imports', async () => {
     for (const directory of pluginDirectories) {
       const sourcePackages = new Set<string>()
@@ -113,8 +247,13 @@ describe('FNOS-007 DSH baseline', () => {
       const packageManifest = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as {
         peerDependencies: Record<string, string>
       }
-      for (const name of Object.keys(packageManifest.peerDependencies)) {
-        if (name.startsWith('@deepseek-ai/dsh')) sourcePackages.add(name)
+      const peerPackages = Object.keys(packageManifest.peerDependencies).filter(name => name.startsWith('@deepseek-ai/dsh-') || name === '@deepseek-ai/schemastery')
+      if (directory !== 'dsh-fnos-plugin') {
+        expect(peerPackages.filter(name => !sourcePackages.has(name)), directory).toEqual([])
+      } else {
+        // FNOS keeps its existing host-contract package inventory; this audit
+        // is scoped to the three non-fnOS plugins.
+        for (const name of peerPackages) sourcePackages.add(name)
       }
       const compatibility = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/compatibility.json`, import.meta.url), 'utf8')) as {
         dshPluginApi: { packages: string[] }

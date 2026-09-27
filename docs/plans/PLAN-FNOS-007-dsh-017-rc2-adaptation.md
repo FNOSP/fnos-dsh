@@ -348,6 +348,20 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | PLAN-FNOS-007-T10-01 | FNOS-007-14-AC-01 至 03 | 将可复用 FPK workflow 从 `build-dsh-fn.yml` 重命名为 `build-app.yml`，同步 `build-release.yml`、当前 CI 文档和 Mermaid workflow 图；不改变 `workflow_call` 输入、native 准备、FPK 构建、产物命名和上传步骤 | 旧文件名无现行引用；YAML 结构和调用路径一致；workflow 文件 diff 只包含命名及引用变更 |
 
+### T12：本地 DSH Web 启动状态与 catalog 一致性
+
+| 任务 ID | 对应验收 | 实施内容 | 验证 |
+| --- | --- | --- | --- |
+| PLAN-FNOS-007-T12-01 | FNOS-007-16-AC-01、02 | 在链接本地插件并启动 Turbo watch 前，递归检查仓库 `node_modules`、`.dsh/profiles` 和 `.pnpm-store/v11/projects`，只移除目标不存在的悬空软链接；插件链接完成后再执行一次，覆盖 dsh CLI 对 hoisted links 的修改 | 本地悬空 `.bin`、旧 CLI 和临时项目链接夹具；`pnpm start -- --web` 的 watcher 不再因 `walkdir` 报错退出 |
+| PLAN-FNOS-007-T12-02 | FNOS-007-16-AC-03、04 | 从 `pnpm-workspace.yaml` 读取 default/named catalog 包名，对所有 workspace manifest 的依赖字段实施 catalog 协议门禁；保留既有 DSH peer 精确版本兼容契约，并单独校验 `@earendil-works/pi-ai` 使用 `catalog:` | CLI 构建门禁、FNOS-007 baseline 测试、四插件 manifest 扫描和 `git diff --check` |
+
+### T13：插件未使用 DSH 依赖清理
+
+| 任务 ID | 对应验收 | 实施内容 | 验证 |
+| --- | --- | --- | --- |
+| PLAN-FNOS-007-T13-01 | FNOS-007-17-AC-01、02 | 审计三个非 fnOS 插件的源码导入、生成声明、`dsh.client.inject` 和宿主 `inject` 服务；从 Codex Auth 移除未直接使用的 5 个 DSH 包 | peer/compatibility 对照测试；未使用包清单为空 |
+| PLAN-FNOS-007-T13-02 | FNOS-007-17-AC-03、04 | 保留宿主共享 DSH 能力为 peer，不把它们转换为 dependencies；同步 Codex `package.json`、`compatibility.json` 和 devDependencies | 三插件 typecheck、unit test、build、profile 安装和 `git diff --check` |
+
 ## 数据、权限和错误处理
 
 | 类别 | 处理要求 |
@@ -436,6 +450,8 @@ git diff --check
 | T09 dshmarket | 本地完成，待 NAS | FNOS-007-12 |
 | T10 FPK workflow 命名 | 已完成 | FNOS-007-14 |
 | T11 应用专用账号下的终端可用性 | 待实施 | FNOS-007-15 |
+| T12 本地 DSH Web 启动与 catalog 一致性 | 本地完成，待完整回归 | FNOS-007-16 |
+| T13 插件未使用 DSH 依赖清理 | 本地完成，待完整回归 | FNOS-007-17 |
 
 ## 变更记录
 
@@ -451,3 +467,5 @@ git diff --check
 | 2026-09-27 | 统一 dshmarket 安装行为 | dshmarket registry 安装复用 `.npmrc`，并与普通 plugins 一样在版本不一致时升级/降级、同版本时跳过。 |
 | 2026-09-27 | 同步开发宿主 DSH CLI | 根据用户确认，将根项目 DSH CLI、`dsh-llm-pi-ai` 和本地 `.dsh` profile 一并升级到 `0.1.7-rc.2`，取消原开发宿主 `0.1.5-rc.2` 独立边界。 |
 | 2026-09-27 | 新增 T11 终端可用性任务 | 纳入 FNOS-007-15：DSH `0.1.7-rc.2` 的侧边栏终端按“环境变量 `SHELL` → 宿主账号登录 Shell”解析默认 Shell，而应用专用账号登录 Shell 不可用且应用启动脚本未导出 `SHELL`，导致终端打开即退出。T11 在应用启动脚本补充可用交互式 Shell 默认值，并核对终端运行身份与环境差异。 |
+| 2026-09-27 | 新增 T12 本地启动与 catalog 门禁 | 针对 `pnpm start -- --web` 遇到历史悬空软链接导致 Turbo watcher 失败的问题，增加生成树修复；同时把 catalog 维护从单一 DSH 包名检查扩展为所有 workspace catalog 依赖，保留既有 DSH peer 精确版本例外并修复 `pi-ai`。 |
+| 2026-09-27 | 新增 T13 插件依赖清理 | 审计三个非 fnOS 插件的直接使用边界，移除 Codex Auth 中 5 个仅由传递 DSH 依赖使用的包；继续使用 peer 表达宿主共享能力，不改为 dependencies。 |

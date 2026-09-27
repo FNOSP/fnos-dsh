@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, rm } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, rm } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { type OptionValues } from 'commander'
@@ -139,6 +139,15 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
   if (main.includes('dsh_running()') || main.includes(`is_runtime_process "${shellVariable('pid')}" dsh`)) {
     throw new Error('cmd/main must not manage DSH Web processes; the gateway owns the Web lifecycle')
   }
+  // The DSH Web terminal resolves its default shell from the DSH process
+  // environment and otherwise falls back to the package account's login shell,
+  // which is /usr/sbin/nologin on fnOS and exits immediately. cmd/main must keep
+  // exporting a usable interactive shell, and must never preserve a nologin or
+  // false value it inherited. Guarded here because a silent removal only shows
+  // up as a dead terminal on a real NAS.
+  if (!main.includes('export SHELL=') || !main.includes('*/nologin | */false')) {
+    throw new Error('cmd/main must export a usable interactive SHELL for the in-app terminal and reject nologin or false values')
+  }
   // fnOS exposes no root-free way for a normal caller to become the application
   // user: `runuser` refuses non-root, `su` demands a password, and the SDD
   // forbids setuid/ungoverned sudo. A public `dsh` entry point therefore cannot
@@ -157,6 +166,77 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
   if (resource.includes('/bin/dsh') || resource.includes('usr-local-linker')) {
     throw new Error('config/resource must not register a dsh CLI wrapper')
   }
+  await validateCatalogVersionedDependencies()
+}
+
+/**
+ * Every dependency whose version is maintained in pnpm-workspace.yaml must
+ * use a catalog protocol in source manifests. pnpm rewrites `catalog:dsh` to
+ * the resolved version when packing, so published packages still pin the
+ * version; a literal here creates a second place to forget on the next
+ * baseline bump. This deliberately covers peer, optional, development and
+ * runtime dependencies, including `@earendil-works/pi-ai`, rather than only
+ * packages in the `@deepseek-ai` namespace.
+ */
+async function validateCatalogVersionedDependencies(): Promise<void> {
+  const workspace = await readFile(join(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8')
+  const catalogPackages = parseCatalogPackageNames(workspace)
+  const manifestPaths = [join(repositoryRoot, 'package.json')]
+  for (const workspaceRoot of ['apps', 'docs', 'packages', 'plugins', 'tooling']) {
+    const root = join(repositoryRoot, workspaceRoot)
+    if (!existsSync(root)) continue
+    for (const entry of await readdir(root, { withFileTypes: true })) {
+      if (entry.isDirectory()) manifestPaths.push(join(root, entry.name, 'package.json'))
+    }
+  }
+
+  for (const manifestPath of manifestPaths) {
+    if (!existsSync(manifestPath)) continue
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>
+    for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'] as const) {
+      const block = manifest[field]
+      if (typeof block !== 'object' || block === null) continue
+      for (const [name, range] of Object.entries(block as Record<string, unknown>)) {
+        if (!catalogPackages.has(name)) continue
+        // Published DSH plugins intentionally expose the target runtime as an
+        // exact peer range. pnpm resolves `catalog:dsh` in peerDependencies to
+        // that exact value, and FNOS-007's compatibility gate relies on it;
+        // keep this existing release contract while enforcing catalogs for
+        // every other catalog-managed dependency (including pi-ai).
+        if (field === 'peerDependencies' && name.startsWith('@deepseek-ai/dsh-')) continue
+        if (typeof range === 'string' && range.startsWith('catalog:')) continue
+        throw new Error(
+          `${manifestPath} must declare ${name} through the pnpm catalog (catalog: or catalog:<name>), not ${String(range)}`,
+        )
+      }
+    }
+  }
+}
+
+/** Read package keys from the two catalog sections without adding a parser dependency to the CLI. */
+function parseCatalogPackageNames(workspace: string): Set<string> {
+  const packages = new Set<string>()
+  let section: 'catalog' | 'catalogs' | undefined
+  for (const line of workspace.split(/\r?\n/u)) {
+    if (line === 'catalog:') {
+      section = 'catalog'
+      continue
+    }
+    if (line === 'catalogs:') {
+      section = 'catalogs'
+      continue
+    }
+    if (/^[^\s#]/u.test(line)) {
+      section = undefined
+      continue
+    }
+    const indent = (line.match(/^ */u)?.[0].length ?? 0)
+    const match = /^\s+(?:'([^']+)'|"([^"]+)"|([^:#][^:]*)):\s*/u.exec(line)
+    if (match === null) continue
+    const name = (match[1] ?? match[2] ?? match[3] ?? '').trim()
+    if ((section === 'catalog' && indent === 2) || (section === 'catalogs' && indent === 4)) packages.add(name)
+  }
+  return packages
 }
 
 async function prepareDshPluginBundle(app: FpkApp, include: boolean): Promise<void> {
