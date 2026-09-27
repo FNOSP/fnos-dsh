@@ -16,7 +16,7 @@ lastVerified: 2026-09-27
 | 计划编号 | PLAN-FNOS-007 |
 | 计划日期 | 2026-09-24 |
 | 对应需求 | [FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复](/requirements/FNOS-007-dsh-017-rc2-adaptation) |
-| 本轮功能 | FNOS-007-01 至 FNOS-007-13；FNOS-007-11 已完成，其余进入后续实施阶段 |
+| 本轮功能 | FNOS-007-01 至 FNOS-007-14；FNOS-007-11、FNOS-007-14 已完成，其余进入后续实施阶段 |
 | 上游依据 | 本地 Harness checkout 的 `dsh-v0.1.7-rc.2`，以目标 tag 的源码、类型和构建结果为准 |
 | 计划状态 | <Badge type="info" text="规划中" /> |
 
@@ -31,7 +31,7 @@ lastVerified: 2026-09-27
 | 阶段 | 对应功能 | 内容 | 状态 |
 | --- | --- | --- | --- |
 | 第一期 | FNOS-007-11 | 文档站 Mermaid 渲染器替换和图表交互验收 | <Badge type="tip" text="已完成" /> |
-| 第二期 | FNOS-007-01 至 10、12 | 依赖基线、插件接缝、FPK、会话、升级和 dshmarket 验收 | <Badge type="info" text="规划中" /> |
+| 第二期 | FNOS-007-01 至 10、12、13、14 | 依赖基线、插件接缝、FPK、会话、升级、attachment-local、dshmarket 和 workflow 验收 | <Badge type="info" text="规划中" /> |
 
 分期原因：插件源码接缝、FPK 运行时和本地开发宿主存在独立版本通路。先完成差异分析，再在不破坏当前开发宿主的前提下切换 FPK 运行时。
 
@@ -233,6 +233,12 @@ sequenceDiagram
 | PLAN-FNOS-007-T09-01 | FNOS-007-12-AC-01 至 03 | 同步发布清单、构建常量和文档当前值到 `1.65.1`，确认 peer 兼容和精确版本安装 | 构建校验和版本一致性检查 |
 | PLAN-FNOS-007-T09-02 | FNOS-007-12-AC-04 | 在真实 NAS 验证已安装用户跳过安装并保留版本和配置 | 安装/升级证据，确认已完成需求正文未被修改 |
 
+### T10：FPK 构建 workflow 命名
+
+| 任务 ID | 对应验收 | 实施内容 | 验证 |
+| --- | --- | --- | --- |
+| PLAN-FNOS-007-T10-01 | FNOS-007-14-AC-01 至 03 | 将可复用 FPK workflow 从 `build-dsh-fn.yml` 重命名为 `build-app.yml`，同步 `build-release.yml`、当前 CI 文档和 Mermaid workflow 图；不改变 `workflow_call` 输入、native 准备、FPK 构建、产物命名和上传步骤 | 旧文件名无现行引用；YAML 结构和调用路径一致；workflow 文件 diff 只包含命名及引用变更 |
+
 ## 数据、权限和错误处理
 
 | 类别 | 处理要求 |
@@ -317,6 +323,7 @@ git diff --check
 | T06 升级、回滚和 NAS | 规划中 | FNOS-007-10 |
 | T07 Mermaid 渲染器 | 已完成 | FNOS-007-11 |
 | T09 dshmarket | 待完成 | FNOS-007-12 |
+| T10 FPK workflow 命名 | 已完成 | FNOS-007-14 |
 
 ## 变更记录
 
@@ -327,3 +334,4 @@ git diff --check
 | 2026-09-27 | 重整计划边界 | 删除需求正文复制，补充当前/目标设计、影响矩阵、迁移方案、状态图、时序图、任务、验证和变更点规则。 |
 | 2026-09-27 | 明确 node-pty 适配边界 | 确认 DSH `0.1.5-rc.2 → 0.1.7-rc.2` 的目标依赖树仍为 `node-pty@1.2.0-beta.15`、Node.js 24、`node-gyp@11.0.0`；本需求不升级 node-pty 版本，但要求按新 DSH 基线重建 native 产物并验证有/无 g++ 两条安装路径。 |
 | 2026-09-27 | 新增 attachment-local 安装阻断项 | 根据 `fnos-dsh-log-issues-02.txt` 确认三次安装均在 node-pty 成功后因回调找不到顶层 `@deepseek-ai/dsh-attachment-local` 终止；目标 `0.1.7-rc.2` 的 `dsh-base` 仍以生产依赖提供该包，但它可能嵌套安装，纳入 FNOS-007-13，要求安装回调解析应用私有依赖树后再执行持久化补丁。 |
+| 2026-09-27 | 新增 FPK workflow 命名功能 | 将可复用 FPK workflow 从 `build-dsh-fn.yml` 统一重命名为 `build-app.yml`，只调整文件名和现行引用，不修改构建、native 或 Release 上传行为。 |

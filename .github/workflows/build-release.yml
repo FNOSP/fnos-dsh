@@ -96,7 +96,7 @@ jobs:
   build-dsh:
     name: Build DeepSeek Harness FPK
     needs: prepare-release
-    uses: ./.github/workflows/build-dsh-fn.yml
+    uses: ./.github/workflows/build-app.yml
     with:
       release_tag: ${{ inputs.release_tag || github.ref_name }}
       release_id: ${{ needs.prepare-release.outputs.release_id }}

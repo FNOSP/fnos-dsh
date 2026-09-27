@@ -78,7 +78,7 @@ sequenceDiagram
 
 ### `changelogithub` 的执行时机
 
-Release 日志不是在 `build-dsh-fn.yml` 中生成的，而是在 `build-release.yml` 的 `publish-release` 任务中执行。具体顺序是：
+Release 日志不是在 `build-app.yml` 中生成的，而是在 `build-release.yml` 的 `publish-release` 任务中执行。具体顺序是：
 
 1. `prepare-release` 创建或重置草稿 Release，并输出 `release_id`。
 2. `build-dsh` 构建并上传 Harness FPK。
@@ -89,11 +89,11 @@ Release 日志不是在 `build-dsh-fn.yml` 中生成的，而是在 `build-relea
 
 成功路径不再通过 `gh api` 写入自定义 Release `name` 或 `body`，避免与 `changelogithub` 的完整更新结果产生覆盖或拼接耦合。失败信息属于运行诊断，写入 `$GITHUB_STEP_SUMMARY`，不作为 Release 日志内容。
 
-### `build-dsh-fn.yml` 内部步骤
+### `build-app.yml` 内部步骤
 
 ```mermaid
 flowchart TD
-  workflow["build-dsh-fn.yml"]
+  workflow["build-app.yml"]
   checkout["checkout"]
   tooling["Node 24 + pnpm 11"]
   install["安装 fnos-gateway... 与 CLI 依赖"]
@@ -117,7 +117,7 @@ flowchart TD
   status -->|否| uploadFail
 ```
 
-`build-dsh-fn.yml` 只接受 `workflow_call`，不会自行响应 push；它必须由 `build-release.yml` 传入 `release_tag` 和 `release_id`。
+`build-app.yml` 只接受 `workflow_call`，不会自行响应 push；它必须由 `build-release.yml` 传入 `release_tag` 和 `release_id`。
 
 ## 工作流与文件、包的依赖关系
 
@@ -127,7 +127,7 @@ flowchart TD
 flowchart LR
   subgraph workflows["GitHub 工作流"]
     release[".github/workflows/build-release.yml"]
-    dsh[".github/workflows/build-dsh-fn.yml"]
+    dsh[".github/workflows/build-app.yml"]
     docs[".github/workflows/deploy-docs.yml"]
     sdd[".github/workflows/sdd-check.yml"]
   end
@@ -199,7 +199,7 @@ flowchart LR
 | 工作流 | 触发方式 | 主要职责 | 关键输入 |
 | --- | --- | --- | --- |
 | `build-release.yml` | 推送 `v*` Tag | 创建草稿 Release、调用 FPK 构建、发布 Release | `github.ref_name`、Release ID |
-| `build-dsh-fn.yml` | 仅 `workflow_call` | 构建 Gateway、准备 DSH native、构建 Harness FPK | `release_tag`、`release_id`、native 配置 |
+| `build-app.yml` | 仅 `workflow_call` | 构建 Gateway、准备 DSH native、构建 Harness FPK | `release_tag`、`release_id`、native 配置 |
 | `deploy-docs.yml` | `v*` Tag / 手动 | 构建 VitePress 并部署 GitHub Pages | `DOCS_BASE=/` |
 | `sdd-check.yml` | Pull Request / 手动 | 执行完整 SDD、文档、包和 harness 插件检查 | 变更路径 |
 
@@ -217,7 +217,7 @@ git push origin v<版本号>
 
 ### 2. 构建 DeepSeek Harness FPK
 
-`build-dsh-fn.yml` 的顺序不能省略：
+`build-app.yml` 的顺序不能省略：
 
 1. 安装 Gateway 和 FPK 构建依赖。
 2. 执行 `pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --bundle-dsh-native --skip-bundle-dsh-plugins`，由构建流程先编译 Gateway，再按 `.github/config/dsh-native-0.1.5-rc.2.env` 准备并内置 native 依赖。

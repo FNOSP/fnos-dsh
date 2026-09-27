@@ -50,6 +50,7 @@ lastVerified: 2026-09-27
 | FNOS-007-11 | P1 | 文档站 Mermaid 渲染器替换 | 图表可渲染、缩放、拖拽、复制、下载、全屏并跟随主题 | <Badge type="tip" text="已完成" /> |
 | FNOS-007-12 | P1 | dshmarket 精确版本升级 | 新用户获得 `dshmarket@1.65.1`，已安装用户不被覆盖 | <Badge type="warning" text="待完成" /> |
 | FNOS-007-13 | P0 | attachment-local 运行时依赖和持久化补丁 | 新用户安装 FPK 时 `@deepseek-ai/dsh-attachment-local` 可被精确定位、校验并完成 `${TRIM_PKGVAR}` 补丁；不再出现“installed DSH dependency does not provide” | <Badge type="info" text="规划中" /> |
+| FNOS-007-14 | P1 | FPK 构建 workflow 命名统一 | 可复用 FPK 构建 workflow 使用 `.github/workflows/build-app.yml`，发布 workflow 可以正常调用 | <Badge type="tip" text="已完成" /> |
 
 ## 既有功能变更关系
 
@@ -201,6 +202,12 @@ sequenceDiagram
 - `FNOS-007-13-AC-03`：`attachment-local` 的生产依赖（包括图片处理所需的可选 native 依赖）在目标架构上可安装或明确失败；安装失败不删除旧运行时和用户数据。
 - `FNOS-007-13-AC-04`：附件根目录、共享缓存和耐久边界仍位于 `${TRIM_PKGVAR}` 下；补丁重复执行、包缺失和版本不一致均有自动化覆盖。
 
+### FNOS-007-14
+
+- `FNOS-007-14-AC-01`：可复用 FPK workflow 的受版本管理文件名为 `.github/workflows/build-app.yml`，workflow 的 `workflow_call` 输入、权限、构建步骤和产物上传行为保持不变。
+- `FNOS-007-14-AC-02`：`build-release.yml` 使用 `./.github/workflows/build-app.yml` 调用构建 workflow；当前发布文档和 workflow 配置不再引用旧文件名 `build-dsh-fn.yml`。
+- `FNOS-007-14-AC-03`：workflow 重命名不改变 DSH native、FPK 构建、版本化产物命名和 Release 上传流程。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -210,6 +217,7 @@ sequenceDiagram
 | FPK、会话、升级和验收 | 规划中 | FNOS-007-07、08、10 |
 | 文档站 Mermaid 渲染器 | 已完成 | FNOS-007-11，保留历史验收结果 |
 | dshmarket 版本升级 | 待完成 | FNOS-007-12 |
+| FPK workflow 命名统一 | 已完成 | FNOS-007-14 |
 
 ## 变更记录
 

@@ -1,6 +1,6 @@
 # CI 构建
 
-GitHub Actions 配置位于 `.github/workflows/build-release.yml`，由版本 Tag 触发；仓库当前只维护 `apps/fn-deepseek-harness` 一个 FPK 应用，构建由 `build-dsh-fn.yml` 承担。
+GitHub Actions 配置位于 `.github/workflows/build-release.yml`，由版本 Tag 触发；仓库当前只维护 `apps/fn-deepseek-harness` 一个 FPK 应用，构建由 `build-app.yml` 承担。
 
 ## 构建流程
 
@@ -28,4 +28,4 @@ git push origin v<版本号>
 - 应用目录不依赖本地未提交文件。
 - 生命周期脚本具有正确的执行权限。
 - 所有构建依赖都能在 GitHub Actions 环境中获取。
-- 在 `build-release.yml` 中接入新的构建任务；`build-dsh-fn.yml` 只服务 `fn-deepseek-harness`。
+- 在 `build-release.yml` 中接入新的构建任务；`build-app.yml` 只服务 `fn-deepseek-harness`。
