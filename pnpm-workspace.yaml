@@ -102,7 +102,6 @@ catalogs:
     '@types/react': ~18.3.1
   conflicts_@earendil-works/pi-ai_h0_85_1:
     '@earendil-works/pi-ai': ^0.85.1
-
 # DSH ships fully prebuilt native helpers (node-pty spawn-helper, koffi), so the
 # install scripts are denied on purpose: no compiler is required and the
 # install stays non-interactive.
