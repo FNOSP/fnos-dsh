@@ -369,6 +369,13 @@ sequenceDiagram
 | PLAN-FNOS-007-T14-01 | FNOS-007-18-AC-01、02 | 移除 `response-headers` 对 DSH 根 Cookie 的 `Path` 改写，保留 DSH `BrowserAuth` 生成的 `Path=/`，使挂载前缀下的 API、WebSocket 和设置接口继续携带会话 | response-header 回归测试；gateway API/WS 认证测试；真实 NAS 检查 `Set-Cookie` 与 API 请求 Cookie |
 | PLAN-FNOS-007-T14-02 | FNOS-007-18-AC-03 | 保持 Location、HTML、CSS、JavaScript 和 WebSocket 路径改写逻辑不变，并重新生成 gateway app 产物 | gateway middleware 测试、FPK 构建输入一致性和 NAS 页面回归 |
 
+### T15：网关终端 Shell 与字符集环境
+
+| 任务 ID | 对应验收 | 实施内容 | 验证 |
+| --- | --- | --- | --- |
+| PLAN-FNOS-007-T15-01 | FNOS-007-19-AC-01、02 | 在 `buildDshRuntimeEnv()` 中按 DSH `resolveExecutable()` 的 PATH 规则选择第一个可执行 bash，设置 `SHELL`；删除 `cmd/main` 中重复的 Shell 解析，避免 preferred shell 与候选 bash 产生两个条目 | dsh-runtime-env 测试、CLI baseline、真实 NAS 终端菜单检查 |
+| PLAN-FNOS-007-T15-02 | FNOS-007-19-AC-03 | 在网关环境构造阶段检测本机 locale，注入可用 UTF-8 `LANG`/`LC_CTYPE` 并清理非 UTF-8 `LC_ALL` | gateway typecheck/test、非 ASCII 工作目录和终端输出回归 |
+
 ## 数据、权限和错误处理
 
 | 类别 | 处理要求 |
@@ -460,6 +467,7 @@ git diff --check
 | T12 本地 DSH Web 启动与 catalog 一致性 | 本地完成，待完整回归 | FNOS-007-16 |
 | T13 插件未使用 DSH 依赖清理 | 本地完成，待完整回归 | FNOS-007-17 |
 | T14 网关 DSH 浏览器认证 Cookie | 本地完成，待 NAS 回归 | FNOS-007-18 |
+| T15 网关终端 Shell 与字符集环境 | 本地完成，待 NAS 回归 | FNOS-007-19 |
 
 ## 变更记录
 
@@ -478,3 +486,4 @@ git diff --check
 | 2026-09-27 | 新增 T12 本地启动与 catalog 门禁 | 针对 `pnpm start -- --web` 遇到历史悬空软链接导致 Turbo watcher 失败的问题，增加生成树修复；同时把 catalog 维护从单一 DSH 包名检查扩展为所有 workspace catalog 依赖，保留既有 DSH peer 精确版本例外并修复 `pi-ai`。 |
 | 2026-09-27 | 新增 T13 插件依赖清理 | 审计三个非 fnOS 插件的直接使用边界，移除 Codex Auth 中 5 个仅由传递 DSH 依赖使用的包；继续使用 peer 表达宿主共享能力，不改为 dependencies。 |
 | 2026-09-28 | 新增 T14 网关 Cookie 认证修复 | 发现网关把 DSH `BrowserAuth` 的根 Cookie 改写到应用路径后，页面下的 `/api/settings/describe`、credentials、dynamicCordisRunner 和 Remote WebSocket 统一 401；恢复上游 Cookie 路径并补充回归验证。 |
+| 2026-09-28 | 新增 T15 网关终端环境适配 | 根据 NAS 终端出现重复 bash 和中文路径乱码，将 Shell/locale 环境设置从应用 `cmd/main` 移到网关 DSH 子进程环境，并按 DSH 的 PATH 解析规则选择默认 bash。 |

@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -47,5 +47,25 @@ describe('DSH runtime environment', () => {
   it('uses only the first line so a trailing record cannot leak into the store path', async () => {
     const home = await homeWithStore('/vol1/@appshare/store\n/vol1/other/store\n')
     expect(readPersistedPnpmStoreDir(home)).toBe('/vol1/@appshare/store')
+  })
+
+  it('sets the default terminal shell to the exact PATH-resolved bash and enables UTF-8', async () => {
+    const home = await homeWithStore()
+    const bin = join(home, 'bin')
+    await mkdir(bin)
+    await writeFile(join(bin, 'bash'), '#!/bin/sh\n', { mode: 0o755 })
+
+    const environment = buildDshRuntimeEnv(home, {
+      PATH: `${bin}:/usr/bin:/bin`,
+      SHELL: '/usr/sbin/nologin',
+      LANG: 'C',
+      LC_ALL: 'C',
+    })
+
+    expect(environment.SHELL).toBe(join(bin, 'bash'))
+    expect(environment.SHELL).not.toContain('nologin')
+    expect(environment.LANG ?? environment.LC_CTYPE).toMatch(/utf-?8/iu)
+    expect(environment.LC_CTYPE).toMatch(/utf-?8/iu)
+    expect(environment.LC_ALL).toBeUndefined()
   })
 })

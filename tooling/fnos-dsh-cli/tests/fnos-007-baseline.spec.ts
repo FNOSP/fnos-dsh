@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process'
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -97,70 +96,15 @@ describe('FNOS-007 DSH baseline', () => {
     expect(workspace).toMatch(/'@deepseek-ai\/schemastery':\s*3\.18\.4/u)
   })
 
-  it('exports a usable interactive SHELL for the in-app terminal', async () => {
+  it('keeps terminal environment adaptation in the gateway runtime', async () => {
     const main = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/main', import.meta.url), 'utf8')
-    // The package account's login shell is nologin, so the terminal must not
-    // depend on it and must never preserve an inherited nologin or false value.
-    expect(main).toContain('resolve_terminal_shell')
-    expect(main).toContain('*/nologin | */false')
-    expect(main).toMatch(/export SHELL="\$\{TERMINAL_SHELL\}"/u)
-  })
-
-  it('resolves the terminal shell to an executable non-login shell', async () => {
-    const main = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/main', import.meta.url), 'utf8')
-    const match = /^resolve_terminal_shell\(\) \{[\s\S]+?^\}/mu.exec(main)
-    expect(match, 'cmd/main must define resolve_terminal_shell').not.toBeNull()
-    const fn = match![0]
-    // The terminal controller de-duplicates its menu by path string, so whatever
-    // is exported here must match the path it resolves for its own `bash`
-    // candidate; otherwise the same shell is listed twice on a usrmerged host.
-    const bashPath = execFileSync('/bin/bash', ['-c', 'command -v -- bash'], { encoding: 'utf8' }).trim()
-    expect(bashPath).not.toBe('')
-    const scenarios = ['/usr/sbin/nologin', '/bin/false', '/nonexistent/shell', '']
-    for (const inherited of scenarios) {
-      const output = execFileSync('/bin/bash', ['-c', `${fn}\nSHELL=${JSON.stringify(inherited)}\nresolve_terminal_shell`], { encoding: 'utf8' })
-      const resolved = output.trim()
-      expect(resolved, `SHELL=${inherited}`).toBe(bashPath)
-      expect(resolved).not.toMatch(/nologin|false/u)
-    }
-  })
-
-  it('exports a UTF-8 locale so the terminal does not mangle non-ASCII paths', async () => {
-    const main = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/main', import.meta.url), 'utf8')
-    // Without a locale bash falls back to C, cannot decode non-ASCII path bytes,
-    // and escapes every multi-byte character of the prompt's `\w` as `M-x`.
-    expect(main).toContain('resolve_utf8_locale')
-    expect(main).toMatch(/export LANG="\$\{TERMINAL_LOCALE\}"/u)
-    expect(main).toMatch(/export LC_CTYPE="\$\{TERMINAL_LOCALE\}"/u)
-  })
-
-  it('selects only a UTF-8 locale this host actually provides', async () => {
-    const main = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/main', import.meta.url), 'utf8')
-    const fn = /^resolve_utf8_locale\(\) \{[\s\S]+?^\}/mu.exec(main)?.[0]
-    expect(fn, 'cmd/main must define resolve_utf8_locale').toBeDefined()
-    // A `locale -a` stub stands in for the host catalogue so the assertion does
-    // not depend on which locales the CI machine happens to have installed.
-    const available = 'C\nC.utf8\nen_US.utf8\nPOSIX\n'
-    const resolve = (env: Record<string, string>): string => {
-      const exports = Object.entries(env).map(([k, v]) => `export ${k}=${v}`).join('\n')
-      const script = [
-        fn!,
-        'locale() { printf \'%s\' "$LOCALE_STUB"; }',
-        'export -f locale 2>/dev/null || true',
-        exports,
-        'resolve_utf8_locale || echo NONE',
-      ].join('\n')
-      return execFileSync('/bin/bash', ['-c', script], {
-        encoding: 'utf8',
-        env: { ...process.env, LOCALE_STUB: available },
-      }).trim()
-    }
-    // No locale at all: must pick a UTF-8 name from the host catalogue.
-    expect(resolve({})).toBe('C.UTF-8')
-    // A non-UTF-8 LANG must never be exported as-is.
-    expect(resolve({ LANG: 'C' })).toBe('C.UTF-8')
-    // An inherited UTF-8 LANG is reused.
-    expect(resolve({ LANG: 'en_US.UTF-8' })).toBe('en_US.UTF-8')
+    const gatewayEnv = await readFile(new URL('../../../packages/fnos-gateway/src/config/dsh-runtime-env.ts', import.meta.url), 'utf8')
+    expect(main).not.toContain('resolve_terminal_shell')
+    expect(main).not.toContain('resolve_utf8_locale')
+    expect(gatewayEnv).toContain('resolveTerminalShell')
+    expect(gatewayEnv).toContain('resolveUtf8Locale')
+    expect(gatewayEnv).toContain('environment.SHELL')
+    expect(gatewayEnv).toContain('environment.LC_CTYPE')
   })
 
   it('declares every DSH dependency through the pnpm catalog', async () => {

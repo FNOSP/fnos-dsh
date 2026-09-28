@@ -1,8 +1,67 @@
-import { readFileSync } from 'node:fs'
-import { isAbsolute, join } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { accessSync, constants, readFileSync } from 'node:fs'
+import { delimiter, isAbsolute, join } from 'node:path'
 
 /** File recording the pnpm store the install callback resolved for this home. */
 export const PNPM_STORE_FILE = '.pnpm-store-dir'
+
+function isUsableExecutable(path: string): boolean {
+  try {
+    accessSync(path, constants.X_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Resolve a bare command exactly as DSH's subprocess provider resolves it. */
+function resolvePathExecutable(command: string, pathValue: string | undefined): string | undefined {
+  for (const directory of (pathValue ?? '').split(delimiter)) {
+    const candidate = join(directory === '' ? process.cwd() : directory, command)
+    if (isUsableExecutable(candidate)) return candidate
+  }
+  return undefined
+}
+
+function resolveTerminalShell(base: NodeJS.ProcessEnv): string | undefined {
+  // DSH's selector resolves the preferred SHELL first and then the bare
+  // `bash` candidate through PATH. Use the exact PATH spelling for bash so the
+  // preferred row and the candidate row collapse to one entry; readlink-based
+  // canonicalization would turn /bin/bash into /usr/bin/bash and reintroduce
+  // the duplicate on usrmerge systems.
+  const bash = resolvePathExecutable('bash', base.PATH)
+  if (bash !== undefined) return bash
+
+  const inherited = base.SHELL
+  if (inherited !== undefined && !/\/(?:nologin|false)$/u.test(inherited) && isUsableExecutable(inherited)) return inherited
+  for (const candidate of ['/usr/bin/bash', '/bin/bash', '/usr/bin/sh', '/bin/sh']) {
+    if (isUsableExecutable(candidate)) return candidate
+  }
+  return undefined
+}
+
+function localeKey(value: string): string {
+  return value.trim().toLowerCase().replaceAll('-', '')
+}
+
+function resolveUtf8Locale(base: NodeJS.ProcessEnv): string | undefined {
+  let available: string[]
+  try {
+    available = execFileSync('locale', ['-a'], {
+      encoding: 'utf8',
+      env: base,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).split(/\r?\n/u).map(localeKey).filter(Boolean)
+  } catch {
+    return undefined
+  }
+  const availableSet = new Set(available)
+  for (const candidate of [base.LANG, base.LC_CTYPE, 'C.UTF-8', 'C.utf8', 'en_US.UTF-8', 'en_US.utf8']) {
+    if (candidate === undefined || !/utf-?8$/iu.test(candidate)) continue
+    if (availableSet.has(localeKey(candidate))) return candidate
+  }
+  return undefined
+}
 
 /**
  * Read the pnpm store directory persisted at install time.
@@ -44,6 +103,14 @@ export function buildDshRuntimeEnv(dshHome: string, base: NodeJS.ProcessEnv = pr
     NPM_CONFIG_PREFIX: `${dshHome}/.npm-global`,
     NPM_CONFIG_USERCONFIG: `${dshHome}/.npmrc`,
     XDG_CONFIG_HOME: `${dshHome}/.config`,
+  }
+  const shell = resolveTerminalShell(environment)
+  if (shell !== undefined) environment.SHELL = shell
+  const locale = resolveUtf8Locale(environment)
+  if (locale !== undefined) {
+    environment.LANG = locale
+    environment.LC_CTYPE = locale
+    if (environment.LC_ALL !== undefined && !/utf-?8$/iu.test(environment.LC_ALL)) delete environment.LC_ALL
   }
   const storeDir = readPersistedPnpmStoreDir(dshHome)
   if (storeDir === undefined) delete environment.PNPM_CONFIG_STORE_DIR
