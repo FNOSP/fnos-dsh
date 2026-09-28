@@ -32,6 +32,18 @@ describe('DSH runtime environment', () => {
     expect(environment.PATH).toBe('/usr/bin')
   })
 
+  it('keeps the gateway HOME separate from the DSH_HOME data root', async () => {
+    const dshHome = await homeWithStore()
+    const gatewayHome = '/vol1/@appshare/fn-deepseek-harness'
+    const environment = buildDshRuntimeEnv(dshHome, {
+      HOME: gatewayHome,
+      PATH: '/usr/bin',
+    })
+
+    expect(environment.HOME).toBe(gatewayHome)
+    expect(environment.DSH_HOME).toBe(dshHome)
+  })
+
   it('clears an inherited store override when no store was recorded', async () => {
     const home = await homeWithStore()
     const environment = buildDshRuntimeEnv(home, { PNPM_CONFIG_STORE_DIR: '/stale/store' })

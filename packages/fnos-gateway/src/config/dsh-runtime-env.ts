@@ -88,16 +88,16 @@ export function readPersistedPnpmStoreDir(dshHome: string): string | undefined {
  * DSH forwards plugin installs and updates to `pnpm` in the Web profile
  * directory. pnpm pins the store it used into `node_modules/.modules.yaml` and
  * refuses every later operation with `ERR_PNPM_UNEXPECTED_STORE` once the
- * resolved store changes. Node derives that default from `HOME`, which here is
- * `@apphome` — a different volume from the `@appshare` store the profile was
- * built against. Passing the persisted store explicitly keeps runtime
- * resolution identical to install time, so `dsh plugin` and third-party market
- * updates keep working.
+ * resolved store changes. `HOME` and `DSH_HOME` intentionally have different
+ * meanings in the fnOS app: the gateway's HOME is the app-share runtime home,
+ * while DSH_HOME is the package user's persistent Harness data root. Passing
+ * the persisted store explicitly keeps runtime resolution identical to
+ * install time, so `dsh plugin` and third-party market updates keep working.
  */
 export function buildDshRuntimeEnv(dshHome: string, base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = {
     ...base,
-    HOME: dshHome,
+    HOME: base.HOME?.trim() === '' || base.HOME === undefined ? dshHome : base.HOME,
     DSH_HOME: dshHome,
     NPM_CONFIG_CACHE: `${dshHome}/.npm-cache`,
     NPM_CONFIG_PREFIX: `${dshHome}/.npm-global`,
