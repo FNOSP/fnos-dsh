@@ -60,7 +60,7 @@ appcenter-cli install-local
 | --- | --- | --- |
 | npm 镜像源 | 留空（官方源） | 网络受限时选择可用镜像，安装失败不会自动切换，需重新选择后重试 |
 
-选择的源会持久化到 `${DSH_HOME}/.npmrc`，由 npm、pnpm 和 DSH CLI 统一读取。
+选择的源会持久化到 `${HOME}/.npmrc`，由 npm、pnpm 和 DSH CLI 统一读取。
 
 ## 内置插件
 
@@ -71,12 +71,15 @@ FPK 安装和升级时会按发布清单以精确版本准备插件：
 | [`@tnnevol/dsh-fnos`](/plugins/dsh-fnos) | `0.1.7-rc.2` | fnOS 主题、授权目录、NAS 文件访问、会话日志导出 |
 | [`@tnnevol/dsh-codex-auth`](/plugins/dsh-codex-auth) | `0.1.7-rc.2` | ChatGPT 账号登录 Codex、模型目录、用量与图片输入 |
 | [`@tnnevol/dsh-codebuddy`](/plugins/dsh-codebuddy) | `0.1.7-rc.2` | CodeBuddy 账号、用量面板与成长任务 |
-| [`@tnnevol/dsh-semi-ui-showcase`](/plugins/dsh-semi-ui-showcase) | `0.1.7-rc.2` | Semi UI 组件总览、主题和交互验收 |
-| `dshmarket` | `1.65.1` | 三方插件市场；不进入 FPK，安装阶段由 DSH CLI 单独安装，已安装时不会覆盖用户版本 |
+| `dshmarket` | `1.66.3` | 三方插件市场；不进入 FPK，安装阶段由 DSH CLI 单独安装，已安装时不会覆盖用户版本 |
 
 Codex 插件必须随 FPK 内置：registry 上可用版本在 DSH `0.1.7-rc.2` 上会因 `@deepseek-ai/dsh-settings` 不再导出 `settingsNamespace` 而导致 DSH Web 启动失败。升级老用户时不会卸载或覆盖已有的凭据、模型配置和 profile bundle。
 
 插件功能与兼容版本的细节维护在[插件总览](/plugins/)中，本页不重复记录插件内部实现。
+
+## 全局 trim-cli
+
+安装回调会通过配置的 npm 源全局安装 `@trimjs/trim-cli@latest`。它不属于 DSH 插件，也不会进入 DSH profile；包安装完成后，应用会把包内 Skill 更新到 `${HOME}/.agents/skills/trim-cli`，供应用用户和 Agent 使用。
 
 ## 数据与卸载
 

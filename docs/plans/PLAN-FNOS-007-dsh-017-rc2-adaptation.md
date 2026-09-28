@@ -395,6 +395,12 @@ sequenceDiagram
 | PLAN-FNOS-007-T19-02 | FNOS-007-23-AC-02、03 | 将 `wizard_npm_registry` 配置项移动到 `wizard/install` 的第一项，保持 npm 官方源空值语义和现有镜像列表 | 向导 JSON 解析测试、JSON/FPK 构建校验 |
 | PLAN-FNOS-007-T20-01 | FNOS-007-24-AC-01、02 | DSH 401 首页恢复时，在转发新 token 交换响应中追加历史应用挂载路径 Cookie 的过期指令，同时保留上游新根路径 Cookie | Gateway server 集成测试验证恢复响应同时包含新 Cookie 和旧路径删除 Cookie |
 | PLAN-FNOS-007-T20-02 | FNOS-007-24-AC-03 | 覆盖浏览器按路径优先发送旧同名 Cookie 的场景，避免用户必须手动清理浏览器 Cookie | Gateway server stale-cookie 回归测试；真实 NAS 验证设置接口和页面加载 |
+| PLAN-FNOS-007-T21-01 | FNOS-007-25-AC-01、02、04 | 在 DSH 全局 npm 前缀中执行 `npm install @trimjs/trim-cli@latest -g --ignore-scripts`，沿用 `.npmrc` registry，验证安装后的全局包目录，再执行 Skill 复制 | `trim-cli-install.spec.ts` 验证 npm 参数、全局包位置、helper 调用和失败边界 |
+| PLAN-FNOS-007-T21-02 | FNOS-007-25-AC-03 | 通过安装回调 helper 将包内 `skill/` 目录原子更新到 `${HOME}/.agents/skills/trim-cli`，自动创建 `.agents/skills` 并移除旧文件 | `trim-cli-skill.spec.ts` 验证首次安装、覆盖更新和旧文件清理；NAS 验证应用用户可读取 Skill |
+| PLAN-FNOS-007-T22-01 | FNOS-007-26-AC-01、02 | 从 `published-dsh-plugins.json` 删除 Showcase，并同步构建门禁的内置插件集合和归档循环 | CLI baseline 测试验证发布清单只包含三个 FPK 插件；FPK 构建验证无 Showcase 归档 |
+| PLAN-FNOS-007-T22-02 | FNOS-007-26-AC-03 | 保留 `plugins/dsh-semi-ui-showcase-plugin`、`packages/dsh-semi-ui` 和 `showcase` CLI 目标，避免把“移除内置”误实现为删除插件能力 | 插件独立 typecheck/build/test 与 CLI plugin 目标回归 |
+| PLAN-FNOS-007-T23-01 | FNOS-007-27-AC-01、02 | 删除发布清单的 `registry` 字段；保留 `.npmrc` 作为安装向导、插件、dshmarket 和 trim-cli 的唯一 registry 来源 | baseline 清单断言无 registry；安装回调 registry 测试和 shell syntax 检查 |
+| PLAN-FNOS-007-T23-02 | FNOS-007-27-AC-03 | 将 install/upgrade callback 与 DSH runtime 的 `NPM_CONFIG_USERCONFIG` 统一到应用 `HOME/.npmrc`，不合并 `HOME` 与 `DSH_HOME` | dsh-runtime-env 回归测试断言不同 HOME/DSH_HOME 时 config 路径跟随 HOME；gateway 全量测试 |
 
 ## 数据、权限和错误处理
 
@@ -493,6 +499,9 @@ git diff --check
 | T18 FPK 单应用构建选择 | 本地完成 | FNOS-007-22 |
 | T19 安装向导监听地址与 npm 源顺序 | 本地完成 | FNOS-007-23 |
 | T20 网关旧挂载路径 Cookie 清理 | 本地完成，待 NAS 回归 | FNOS-007-24 |
+| T21 全局 trim-cli 与 Agent Skill | 本地完成，待 NAS 回归 | FNOS-007-25 |
+| T22 FPK 移除 Semi UI Showcase 内置插件 | 本地完成 | FNOS-007-26 |
+| T23 npm registry 统一由 HOME/.npmrc 管理 | 本地完成，待 NAS 回归 | FNOS-007-27 |
 
 ## 变更记录
 
@@ -517,3 +526,6 @@ git diff --check
 | 2026-09-28 | 新增 T18 FPK 单应用构建选择 | 当工作区只有一个 fnOS FPK 应用时，跳过无必要的交互选择并直接编译该应用；多应用仍使用原多选流程。 |
 | 2026-09-28 | 新增 T19 安装向导配置收敛 | 首次安装不再让用户选择 DSH 监听地址，固定通过运行时默认值使用 `127.0.0.1`；npm 镜像源移到向导第一项，减少安装时的无效交互。 |
 | 2026-09-28 | 新增 T20 旧挂载路径 Cookie 清理 | 发现旧版本已经写入应用挂载路径的同名 Cookie 会排在新根 Cookie 前面；网关在 token 恢复响应中显式过期旧路径 Cookie，避免 401 恢复仍依赖手动清理。 |
+| 2026-09-28 | 新增 T21 全局 trim-cli 与 Skill 安装 | 明确 trim-cli 不属于 dshmarket 或 DSH profile 插件；安装回调使用 npm `latest` 全局安装，并从包内 `skill/` 更新应用 HOME 下的 Agent Skill。 |
+| 2026-09-28 | 新增 T22 移除 Semi UI Showcase FPK 内置插件 | 根据发布范围调整，FPK 不再归档或安装 Showcase；共享 UI、插件源码和独立构建入口继续保留。 |
+| 2026-09-28 | 新增 T23 npm registry 配置统一 | 删除清单级 registry 字段，安装和 DSH Web 统一从应用 HOME/.npmrc 读取 registry，保留 DSH_HOME 独立数据边界。 |

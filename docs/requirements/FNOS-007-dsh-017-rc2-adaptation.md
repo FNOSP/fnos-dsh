@@ -306,6 +306,25 @@ sequenceDiagram
 - `FNOS-007-24-AC-02`：恢复响应同时保留 DSH 新生成的根路径 Cookie，不影响正常 Cookie 登录和其他响应头。
 - `FNOS-007-24-AC-03`：浏览器同时携带旧挂载路径 Cookie 和新根路径 Cookie 时，不需要用户手动清理 Cookie 即可完成页面加载并访问设置接口。
 
+### FNOS-007-25
+
+- `FNOS-007-25-AC-01`：FPK 安装回调将 `@trimjs/trim-cli@latest` 作为全局 npm 包安装到应用的 npm 全局前缀，不将其加入 DSH profile 或按插件方式管理。
+- `FNOS-007-25-AC-02`：trim-cli 使用安装向导配置的 `.npmrc` registry；安装完成后校验全局包目录存在，再复制包内 Skill。
+- `FNOS-007-25-AC-03`：Skill 安装到当前应用运行时 `${HOME}/.agents/skills/trim-cli`；缺失的父目录自动创建，重复安装可安全更新且不残留旧文件。
+- `FNOS-007-25-AC-04`：trim-cli 安装或 Skill 复制失败时安装回调以非零退出，不执行 DSH profile 插件替代安装。
+
+### FNOS-007-26
+
+- `FNOS-007-26-AC-01`：FPK 发布清单不再包含 `@tnnevol/dsh-semi-ui-showcase`，安装回调不会将其安装到 DSH profile。
+- `FNOS-007-26-AC-02`：FPK 构建门禁只校验并归档 CodeBuddy、Codex Auth 和 fnOS 三个内置运行时插件。
+- `FNOS-007-26-AC-03`：移除 FPK 内置归档不删除 Semi UI 共享包、Showcase 插件源码、独立插件构建能力或 CLI 的历史插件目标别名。
+
+### FNOS-007-27
+
+- `FNOS-007-27-AC-01`：`published-dsh-plugins.json` 不再声明或维护 npm `registry` 字段。
+- `FNOS-007-27-AC-02`：插件、dshmarket 和全局 trim-cli 的 npm 安装统一读取应用 `$HOME/.npmrc`；安装向导选择的源只写入该配置文件。
+- `FNOS-007-27-AC-03`：DSH Web 子进程的 `NPM_CONFIG_USERCONFIG` 与网关 `HOME` 保持一致，同时继续保持 `HOME` 与 `DSH_HOME` 的数据边界独立。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -326,6 +345,9 @@ sequenceDiagram
 | FPK 单应用构建选择 | 本地完成 | FNOS-007-22 |
 | 安装向导监听地址与 npm 源顺序 | 本地完成 | FNOS-007-23 |
 | 网关旧挂载路径 Cookie 清理 | 本地完成，待 NAS 回归 | FNOS-007-24 |
+| 全局 trim-cli 与 Agent Skill | 本地完成，待 NAS 回归 | FNOS-007-25 |
+| FPK 移除 Semi UI Showcase 内置插件 | 本地完成 | FNOS-007-26 |
+| npm registry 统一由 HOME/.npmrc 管理 | 本地完成，待 NAS 回归 | FNOS-007-27 |
 
 ## 变更记录
 
@@ -347,3 +369,6 @@ sequenceDiagram
 | 2026-09-28 | 优化单应用 FPK 构建交互 | 新增 FNOS-007-22：工作区只有一个 FPK 应用时自动选择并跳过应用选择提示；多应用场景继续保留原多选流程。 |
 | 2026-09-28 | 收敛安装向导监听地址 | 新增 FNOS-007-23：移除首次安装向导中的监听地址选择，默认仅使用 `127.0.0.1`，并将 npm 镜像源选择移到第一项；不修改已完成的应用设置和升级向导契约。 |
 | 2026-09-28 | 补充旧挂载路径 Cookie 清理 | 新增 FNOS-007-24：修复历史版本已写入应用路径 Cookie 时，网关仅重新交换 token 但未删除旧 Cookie 的问题；恢复响应同时过期旧路径 Cookie 和保留新的根路径 Cookie。 |
+| 2026-09-28 | 新增全局 trim-cli 与 Skill 安装 | 新增 FNOS-007-25：将 `@trimjs/trim-cli@latest` 与 DSH profile 插件分离，安装到应用 npm 全局前缀，并把包内 `skill` 复制到 `${HOME}/.agents/skills/trim-cli`。 |
+| 2026-09-28 | 移除 Semi UI Showcase FPK 内置插件 | 新增 FNOS-007-26：发布清单和 FPK 构建门禁只保留 CodeBuddy、Codex Auth、fnOS 三个内置插件；Semi UI Showcase 保留独立开发和构建能力。 |
+| 2026-09-28 | 统一 npm registry 配置来源 | 新增 FNOS-007-27：删除发布清单中的 `registry` 字段，统一使用应用 `$HOME/.npmrc`，并让安装回调、升级回调和 DSH Web 继承同一配置位置。 |
