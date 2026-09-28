@@ -131,6 +131,7 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
   }
   const shellVariable = (name: string) => '$' + '{' + name + '}'
   const main = await readFile(join(repositoryRoot, 'apps', app.name, 'cmd/main'), 'utf8')
+  const gatewayRuntimeEnv = await readFile(join(repositoryRoot, 'packages/fnos-gateway/src/config/dsh-runtime-env.ts'), 'utf8')
   if (!main.includes(`DSH_REAL_BIN="${shellVariable('DSH_HOME')}/.npm-global/bin/dsh"`) ||
       !main.includes(`DSH_BIN="${shellVariable('DSH_REAL_BIN')}"`) ||
       main.includes('DSH_WRAPPER=') || main.includes('DSH_PROCESS_BIN=')) {
@@ -141,12 +142,15 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
   }
   // The DSH Web terminal resolves its default shell from the DSH process
   // environment and otherwise falls back to the package account's login shell,
-  // which is /usr/sbin/nologin on fnOS and exits immediately. cmd/main must keep
-  // exporting a usable interactive shell, and must never preserve a nologin or
-  // false value it inherited. Guarded here because a silent removal only shows
-  // up as a dead terminal on a real NAS.
-  if (!main.includes('export SHELL=') || !main.includes('*/nologin | */false')) {
-    throw new Error('cmd/main must export a usable interactive SHELL for the in-app terminal and reject nologin or false values')
+  // which is /usr/sbin/nologin on fnOS and exits immediately. The gateway owns
+  // the child environment, so protect that boundary rather than requiring a
+  // duplicate adaptation in cmd/main.
+  if (!gatewayRuntimeEnv.includes('resolveTerminalShell') || !gatewayRuntimeEnv.includes('environment.SHELL')
+    || !gatewayRuntimeEnv.includes('resolveUtf8Locale') || !gatewayRuntimeEnv.includes('environment.LC_CTYPE')) {
+    throw new Error('gateway DSH runtime environment must provide a usable default SHELL and UTF-8 locale for the in-app terminal')
+  }
+  if (main.includes('resolve_terminal_shell') || main.includes('resolve_utf8_locale')) {
+    throw new Error('cmd/main must not duplicate the gateway terminal SHELL/locale adaptation')
   }
   // fnOS exposes no root-free way for a normal caller to become the application
   // user: `runuser` refuses non-root, `su` demands a password, and the SDD
