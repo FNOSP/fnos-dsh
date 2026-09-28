@@ -44,16 +44,18 @@ describe('FNOS-007 DSH baseline', () => {
 
   it('keeps the FPK plugin manifest and native inputs exact', async () => {
     const published = JSON.parse(await readFile(new URL('../../../apps/fn-deepseek-harness/app/published-dsh-plugins.json', import.meta.url), 'utf8')) as {
-      plugins: Array<{ name: string, version: string }>
-      bundled: Array<{ name: string, version: string }>
+      plugins: Array<{ name: string, version: string, source?: string }>
+      registry?: string
+      bundled?: Array<{ name: string, version: string }>
     }
     expect(published.plugins).toEqual([
       { name: '@tnnevol/dsh-codebuddy', version: targetVersion },
       { name: '@tnnevol/dsh-codex-auth', version: targetVersion },
       { name: '@tnnevol/dsh-fnos', version: targetVersion },
-      { name: '@tnnevol/dsh-semi-ui-showcase', version: targetVersion },
+      { name: 'dshmarket', version: '1.66.3', source: 'thirdparty' },
     ])
-    expect(published.bundled).toContainEqual({ name: 'dshmarket', version: '1.65.1' })
+    expect(published.registry).toBeUndefined()
+    expect(published.bundled ?? []).toEqual([])
 
     const nativeConfig = await readFile(new URL('../../../.github/config/dsh-native-0.1.7-rc.2.env', import.meta.url), 'utf8')
     expect(nativeConfig).toContain('DSH_VERSION="0.1.7-rc.2"')

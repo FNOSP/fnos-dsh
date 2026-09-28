@@ -59,7 +59,11 @@ async function runShell(root: string, body: string): Promise<string> {
 
 async function runPublishedPluginInstall(root: string, currentVersion: string, currentSpec = ''): Promise<string> {
   const manifest = join(root, 'published-dsh-plugins.json')
-  await writeFile(manifest, JSON.stringify({ version: 1, plugins: [], bundled: [{ name: 'dshmarket', version: '1.65.1' }] }))
+  await writeFile(manifest, JSON.stringify({
+    version: 1,
+    plugins: [{ name: 'dshmarket', version: '1.66.3', source: 'thirdparty' }],
+    bundled: [],
+  }))
   const harness = join(root, 'published-harness.sh')
   const prelude = [
     '#!/bin/bash',
@@ -69,7 +73,7 @@ async function runPublishedPluginInstall(root: string, currentVersion: string, c
     'fail_install() { printf "FAIL:%s\\n" "$1"; exit 99; }',
     'log_info() { :; }',
     'validate_plugin_spec() { :; }',
-    'run_install_callback_helper() { [ "$1" = bundled-plugin-version ] && printf "1.65.1"; }',
+    'run_install_callback_helper() { [ "$1" = published-plugins ] && printf "dshmarket\\t1.66.3\\n"; }',
     `installed_plugin_version() { [ "$1" = dshmarket ] && printf ${JSON.stringify(currentVersion)}; }`,
     `profile_dependency_version() { [ "$1" = dshmarket ] && printf ${JSON.stringify(currentSpec)}; }`,
     'run_dsh_plugin() { printf "%s:%s\\n" "$1" "$2"; }',
@@ -135,19 +139,19 @@ describe('bundled plugin install', () => {
     const root = await makeProfile()
     const output = await runPublishedPluginInstall(root, '')
 
-    expect(output).toContain('add:dshmarket@1.65.1')
+    expect(output).toContain('add:dshmarket@1.66.3')
   })
 
   it('updates dshmarket when the installed version differs from the manifest', async () => {
     const root = await makeProfile()
     const output = await runPublishedPluginInstall(root, '1.64.0')
 
-    expect(output).toContain('add:dshmarket@1.65.1')
+    expect(output).toContain('add:dshmarket@1.66.3')
   })
 
   it('keeps dshmarket when the installed version already matches', async () => {
     const root = await makeProfile()
-    const output = await runPublishedPluginInstall(root, '1.65.1')
+    const output = await runPublishedPluginInstall(root, '1.66.3')
 
     expect(output).toBe('')
   })

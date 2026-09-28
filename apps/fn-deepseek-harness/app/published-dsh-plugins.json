@@ -1,6 +1,5 @@
 {
   "version": 1,
-  "registry": "https://registry.npmjs.org/",
   "plugins": [
     {
       "name": "@tnnevol/dsh-codebuddy",
@@ -15,14 +14,9 @@
       "version": "0.1.7-rc.2"
     },
     {
-      "name": "@tnnevol/dsh-semi-ui-showcase",
-      "version": "0.1.7-rc.2"
-    }
-  ],
-  "bundled": [
-    {
       "name": "dshmarket",
-      "version": "1.65.1"
+      "version": "1.66.3",
+      "source": "thirdparty"
     }
   ]
 }

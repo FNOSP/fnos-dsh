@@ -18,7 +18,7 @@ const DSH_PUBLISHED_PLUGIN_MANIFEST = 'app/published-dsh-plugins.json'
 const DSH_BUNDLED_PLUGIN_DIRECTORY = 'app/bundled-dsh-plugins'
 const DSH_VERSION = '0.1.7-rc.2'
 const PNPM_VERSION = '11.7.0'
-const DSHMARKET_VERSION = '1.65.1'
+const DSHMARKET_VERSION = '1.66.3'
 const DSH_NATIVE_CONFIG = '.github/config/dsh-native-0.1.7-rc.2.env'
 const DSH_NATIVE_PREP_SCRIPT = '.github/scripts/prepare-dsh-native.sh'
 const DSH_NATIVE_BUNDLE_DIRECTORY = 'app/native/node-pty'
@@ -27,11 +27,10 @@ const DSH_RUNTIME_PLUGIN_VERSIONS = new Map([
   ['@tnnevol/dsh-codebuddy', DSH_VERSION],
   ['@tnnevol/dsh-codex-auth', DSH_VERSION],
   ['@tnnevol/dsh-fnos', DSH_VERSION],
-  ['@tnnevol/dsh-semi-ui-showcase', DSH_VERSION],
 ])
 
 type PublishedDshPluginManifest = {
-  plugins?: Array<{ name?: unknown, version?: unknown }>
+  plugins?: Array<{ name?: unknown, version?: unknown, source?: unknown }>
   bundled?: Array<{ name?: unknown, version?: unknown }>
 }
 
@@ -56,8 +55,11 @@ async function readPublishedDshPluginNames(app: FpkApp): Promise<string[]> {
     if (typeof plugin?.name !== 'string' || plugin.name.length === 0) {
       throw new Error(`Invalid DSH plugin at ${manifestPath} (index ${index})`)
     }
-    return plugin.name
-  })
+    if (plugin.source !== undefined && plugin.source !== 'thirdparty') {
+      throw new Error(`Invalid DSH plugin source at ${manifestPath} (index ${index})`)
+    }
+    return plugin
+  }).filter(plugin => plugin.source !== 'thirdparty').map(plugin => plugin.name as string)
 }
 
 async function readDshPluginManifest(app: FpkApp): Promise<PublishedDshPluginManifest> {
@@ -99,12 +101,19 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
         plugin.version.length === 0 || !/^[0-9A-Za-z][0-9A-Za-z.+-]*$/u.test(plugin.version)) {
       throw new Error(`Published DSH plugin must use an exact version at ${manifestPath} (index ${index})`)
     }
+    if (plugin.source !== undefined && plugin.source !== 'thirdparty') {
+      throw new Error(`Published DSH plugin source must be thirdparty when specified at ${manifestPath} (index ${index})`)
+    }
   }
-  if (manifest.plugins.length !== DSH_RUNTIME_PLUGIN_VERSIONS.size) {
-    throw new Error(`Published DSH plugin manifest must contain exactly the four FNOS-007 runtime plugins: ${manifestPath}`)
+  const bundledPlugins = manifest.plugins.filter(plugin => plugin.source !== 'thirdparty')
+  if (bundledPlugins.length !== DSH_RUNTIME_PLUGIN_VERSIONS.size) {
+    throw new Error(`Published DSH plugin manifest must contain exactly the three FPK-bundled FNOS-007 runtime plugins: ${manifestPath}`)
+  }
+  if (Array.isArray(manifest.bundled) && manifest.bundled.length > 0) {
+    throw new Error(`Published DSH plugin manifest must place third-party plugins in plugins with source=thirdparty: ${manifestPath}`)
   }
   for (const [name, version] of DSH_RUNTIME_PLUGIN_VERSIONS) {
-    const plugin = manifest.plugins.find(candidate => candidate?.name === name)
+    const plugin = bundledPlugins.find(candidate => candidate?.name === name)
     if (plugin?.version !== version) {
       throw new Error(`The published DSH plugin manifest must pin ${name}@${version}: ${manifestPath}`)
     }
@@ -121,9 +130,9 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
   if (codeBuddy === undefined) {
     throw new Error(`The published DSH plugin manifest must bundle CodeBuddy: ${manifestPath}`)
   }
-  const dshmarket = manifest.bundled?.find(plugin => plugin?.name === 'dshmarket')
+  const dshmarket = manifest.plugins.find(plugin => plugin?.name === 'dshmarket' && plugin.source === 'thirdparty')
   if (dshmarket?.version !== DSHMARKET_VERSION) {
-    throw new Error(`The published DSH plugin manifest must pin dshmarket@${DSHMARKET_VERSION}`)
+    throw new Error(`The published DSH plugin manifest must pin third-party dshmarket@${DSHMARKET_VERSION} in plugins`)
   }
   const callback = await readFile(join(repositoryRoot, 'apps', app.name, 'cmd/install_callback'), 'utf8')
   if (!callback.includes(`DSH_VERSION="${DSH_VERSION}"`) || !callback.includes(`PNPM_VERSION="${PNPM_VERSION}"`)) {
