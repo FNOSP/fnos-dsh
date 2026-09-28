@@ -109,12 +109,11 @@ describe('FNOS-007 DSH baseline', () => {
     expect(gatewayEnv).toContain('environment.LC_CTYPE')
   })
 
-  it('keeps the install wizard localhost-only and puts npm registry first', async () => {
+  it('keeps the install wizard localhost-only', async () => {
     const wizard = JSON.parse(await readFile(new URL('../../../apps/fn-deepseek-harness/wizard/install', import.meta.url), 'utf8')) as Array<{
       items: Array<{ field?: string, type: string, initValue?: string }>
     }>
     const items = wizard[0]?.items ?? []
-    expect(items[0]).toMatchObject({ field: 'wizard_npm_registry', type: 'select' })
     expect(items.find(item => item.field === 'wizard_host')).toBeUndefined()
 
     const main = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/main', import.meta.url), 'utf8')
@@ -139,6 +138,7 @@ describe('FNOS-007 DSH baseline', () => {
       'wizard_npm_registry',
     ]
 
+    expect(installItems.map(item => item.field)).toEqual(expectedFields)
     expect(configItems.map(item => item.field)).toEqual(expectedFields)
     expect(upgradeItems.map(item => item.field)).toEqual(expectedFields)
     expect(new Set(configItems.map(item => item.field))).toEqual(new Set(installItems.map(item => item.field)))

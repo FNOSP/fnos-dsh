@@ -328,7 +328,7 @@ sequenceDiagram
 ### FNOS-007-28
 
 - `FNOS-007-28-AC-01`：`wizard/config`、`wizard/upgrade` 与 `wizard/install` 使用相同的运行配置字段集合、类型、默认值和校验规则，不再显示已移除的 `wizard_host`。
-- `FNOS-007-28-AC-02`：`wizard/config` 和 `wizard/upgrade` 的 npm 镜像源 item 位于字段列表最后，三个向导的 npm label 均不包含“（可选）”。
+- `FNOS-007-28-AC-02`：三个向导的 npm 镜像源 item 均位于字段列表最后，且 npm label 均不包含“（可选）”。
 
 ### FNOS-007-29
 
@@ -385,5 +385,5 @@ sequenceDiagram
 | 2026-09-28 | 新增全局 trim-cli 与 Skill 安装 | 新增 FNOS-007-25：将 `@trimjs/trim-cli@latest` 与 DSH profile 插件分离，安装到应用 npm 全局前缀，并把包内 `skill` 复制到 `${HOME}/.agents/skills/trim-cli`。 |
 | 2026-09-28 | 移除 Semi UI Showcase FPK 内置插件 | 新增 FNOS-007-26：发布清单和 FPK 构建门禁只保留 CodeBuddy、Codex Auth、fnOS 三个内置插件；Semi UI Showcase 保留独立开发和构建能力。 |
 | 2026-09-28 | 统一 npm registry 配置来源 | 新增 FNOS-007-27：删除发布清单中的 `registry` 字段，统一使用应用 `$HOME/.npmrc`，并让安装回调、升级回调和 DSH Web 继承同一配置位置。 |
-| 2026-09-28 | 统一安装/配置/升级向导字段 | 新增 FNOS-007-28：`wizard/config`、`wizard/upgrade` 与 `wizard/install` 统一端口、可信访问地址和 npm 源字段，config/upgrade 将 npm 源放在最后并移除“（可选）”文案。 |
+| 2026-09-28 | 统一安装/配置/升级向导字段 | 新增 FNOS-007-28：`wizard/config`、`wizard/upgrade` 与 `wizard/install` 统一端口、可信访问地址和 npm 源字段，三个向导均将 npm 源放在最后并移除“（可选）”文案。 |
 | 2026-09-28 | 修复 NAS 安装 release-age 阻断 | 新增 FNOS-007-29：FPK 归档替换和 thirdparty registry 收敛使用受控的 `minimum-release-age=0` 参数，避免新发布 dshmarket 阻断 remove/add；remove 保持只传包名。 |

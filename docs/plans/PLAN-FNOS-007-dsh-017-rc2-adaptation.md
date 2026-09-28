@@ -402,7 +402,7 @@ sequenceDiagram
 | PLAN-FNOS-007-T23-01 | FNOS-007-27-AC-01、02 | 删除发布清单的 `registry` 字段；保留 `.npmrc` 作为安装向导、插件、dshmarket 和 trim-cli 的唯一 registry 来源 | baseline 清单断言无 registry；安装回调 registry 测试和 shell syntax 检查 |
 | PLAN-FNOS-007-T23-02 | FNOS-007-27-AC-03 | 将 install/upgrade callback 与 DSH runtime 的 `NPM_CONFIG_USERCONFIG` 统一到应用 `HOME/.npmrc`，不合并 `HOME` 与 `DSH_HOME` | dsh-runtime-env 回归测试断言不同 HOME/DSH_HOME 时 config 路径跟随 HOME；gateway 全量测试 |
 | PLAN-FNOS-007-T24-01 | FNOS-007-28-AC-01 | 让 `wizard/config`、`wizard/upgrade` 复用 `wizard/install` 的 `wizard_port`、`wizard_trusted_hosts`、`wizard_npm_registry` 字段契约，移除 config/upgrade 中的 `wizard_host` | baseline 测试比较三个向导字段集合和 npm 选项定义 |
-| PLAN-FNOS-007-T24-02 | FNOS-007-28-AC-02 | 将 config/upgrade 的 npm 镜像源 item 放到最后，并统一移除三个向导 label 的“（可选）”文案 | 向导 JSON 回归测试和文档构建 |
+| PLAN-FNOS-007-T24-02 | FNOS-007-28-AC-02 | 将三个向导的 npm 镜像源 item 放到最后，并统一移除三个向导 label 的“（可选）”文案 | 向导 JSON 回归测试和文档构建 |
 | PLAN-FNOS-007-T25-01 | FNOS-007-29-AC-01、02 | 为 FPK archive remove/add 提供独立的 `run_dsh_plugin_with_release_age`，仅追加 `--config.minimum-release-age=0`，remove 参数保持插件名称 | bundled-plugin-install 回归测试验证 remove/add 顺序、无版本号和 release-age 参数 |
 | PLAN-FNOS-007-T25-02 | FNOS-007-29-AC-03 | 读取 `plugins` 的第三列 `source`；thirdparty registry add/update 使用受控 release-age 例外，自有插件继续走既有归档或普通收敛逻辑 | dshmarket 缺失、版本不一致和同版本场景测试；真实 NAS 安装验证 |
 
@@ -535,5 +535,5 @@ git diff --check
 | 2026-09-28 | 新增 T21 全局 trim-cli 与 Skill 安装 | 明确 trim-cli 不属于 dshmarket 或 DSH profile 插件；安装回调使用 npm `latest` 全局安装，并从包内 `skill/` 更新应用 HOME 下的 Agent Skill。 |
 | 2026-09-28 | 新增 T22 移除 Semi UI Showcase FPK 内置插件 | 根据发布范围调整，FPK 不再归档或安装 Showcase；共享 UI、插件源码和独立构建入口继续保留。 |
 | 2026-09-28 | 新增 T23 npm registry 配置统一 | 删除清单级 registry 字段，安装和 DSH Web 统一从应用 HOME/.npmrc 读取 registry，保留 DSH_HOME 独立数据边界。 |
-| 2026-09-28 | 新增 T24 安装/配置/升级向导字段统一 | 让 config、upgrade 与 install 使用相同运行字段，config/upgrade 的 npm 源放在末尾，三个向导移除“（可选）”文案。 |
+| 2026-09-28 | 新增 T24 安装/配置/升级向导字段统一 | 让 config、upgrade 与 install 使用相同运行字段，三个向导的 npm 源都放在末尾并移除“（可选）”文案。 |
 | 2026-09-28 | 新增 T25 NAS 安装 release-age 兼容 | 针对 dshmarket 新版本导致 pnpm 在 remove 阶段校验 lockfile 失败的问题，归档替换和 thirdparty registry 操作使用受控 release-age 例外。 |
