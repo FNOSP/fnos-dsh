@@ -6,6 +6,7 @@ export type JsonObject = Record<string, unknown>
 type PluginManifestEntry = {
   name?: unknown
   version?: unknown
+  source?: unknown
 }
 
 function asJsonObject(value: unknown): JsonObject | undefined {
@@ -179,7 +180,8 @@ export async function publishedPlugins(path: string): Promise<void> {
   const plugins = Array.isArray(manifest.plugins) ? manifest.plugins as PluginManifestEntry[] : []
   for (const plugin of plugins) {
     if (typeof plugin.name === 'string' && typeof plugin.version === 'string') {
-      process.stdout.write(`${plugin.name}\t${plugin.version}\n`)
+      const source = plugin.source === 'thirdparty' ? '\tthirdparty' : ''
+      process.stdout.write(`${plugin.name}\t${plugin.version}${source}\n`)
     }
   }
 }

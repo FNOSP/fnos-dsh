@@ -174,10 +174,10 @@ force_install_bundled_plugin() {
 
     if [ -n "${current_version}" ]; then
         log_info "Removing installed ${plugin_name} before replacing it with the FPK archive copy."
-        run_dsh_plugin remove "${plugin_name}" ||
+        run_dsh_plugin_with_release_age remove "${plugin_name}" ||
             fail_install "Unable to remove bundled ${plugin_name} before reinstalling it"
     fi
-    run_dsh_plugin add "file:${bundled_plugin}" ||
+    run_dsh_plugin_with_release_age add "file:${bundled_plugin}" ||
         fail_install "Unable to install bundled ${plugin_name}@${plugin_version} with the dsh CLI"
 }
 
@@ -189,9 +189,18 @@ run_dsh_plugin() {
     "${DSH_BIN}" plugin --profile web "${action}" "${package_spec}"
 }
 
+run_dsh_plugin_with_release_age() {
+    local action="$1"
+    local package_spec="$2"
+    validate_plugin_spec "${package_spec}"
+    log_info "Running dsh plugin --profile web ${action} ${package_spec} with minimum release age disabled for FPK replacement."
+    "${DSH_BIN}" plugin --profile web "${action}" "${package_spec}" \
+        --config.minimum-release-age=0
+}
+
 install_published_dsh_plugins() {
-    local plugin_name plugin_version current_version current_spec bundled_plugin
-    while IFS=$'\t' read -r plugin_name plugin_version; do
+    local plugin_name plugin_version plugin_source current_version current_spec bundled_plugin
+    while IFS=$'\t' read -r plugin_name plugin_version plugin_source; do
         [ -n "${plugin_name}" ] || continue
         validate_plugin_spec "${plugin_name}"
         validate_plugin_spec "${plugin_version}"
@@ -212,12 +221,22 @@ install_published_dsh_plugins() {
         fi
 
         if [ -z "${current_version}" ]; then
-            run_dsh_plugin add "${plugin_name}@${plugin_version}" ||
-                fail_install "Unable to install ${plugin_name}@${plugin_version} with the dsh CLI"
+            if [ "${plugin_source}" = "thirdparty" ]; then
+                run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
+                    fail_install "Unable to install ${plugin_name}@${plugin_version} with the dsh CLI"
+            else
+                run_dsh_plugin add "${plugin_name}@${plugin_version}" ||
+                    fail_install "Unable to install ${plugin_name}@${plugin_version} with the dsh CLI"
+            fi
         elif [ "${current_version}" != "${plugin_version}" ] || [[ "${current_spec}" == link:* ]]; then
             log_info "Updating ${plugin_name} from ${current_version} to ${plugin_version} with the dsh CLI."
-            run_dsh_plugin add "${plugin_name}@${plugin_version}" ||
-                fail_install "Unable to update ${plugin_name} to ${plugin_version} with the dsh CLI"
+            if [ "${plugin_source}" = "thirdparty" ]; then
+                run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
+                    fail_install "Unable to update ${plugin_name} to ${plugin_version} with the dsh CLI"
+            else
+                run_dsh_plugin add "${plugin_name}@${plugin_version}" ||
+                    fail_install "Unable to update ${plugin_name} to ${plugin_version} with the dsh CLI"
+            fi
         else
             log_info "Keeping installed ${plugin_name}@${current_version}; exact version already matches."
         fi

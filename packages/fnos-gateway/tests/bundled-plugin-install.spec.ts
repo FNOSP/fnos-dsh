@@ -50,6 +50,7 @@ async function runShell(root: string, body: string): Promise<string> {
     'log_info() { :; }',
     // Record the forwarded CLI call instead of invoking pnpm.
     'run_dsh_plugin() { printf "%s:%s\\n" "$1" "$2"; }',
+    'run_dsh_plugin_with_release_age() { printf "%s:%s:release-age-0\\n" "$1" "$2"; }',
     await functionSource('force_install_bundled_plugin'),
     body,
   ].join('\n')
@@ -73,10 +74,11 @@ async function runPublishedPluginInstall(root: string, currentVersion: string, c
     'fail_install() { printf "FAIL:%s\\n" "$1"; exit 99; }',
     'log_info() { :; }',
     'validate_plugin_spec() { :; }',
-    'run_install_callback_helper() { [ "$1" = published-plugins ] && printf "dshmarket\\t1.66.3\\n"; }',
+    'run_install_callback_helper() { [ "$1" = published-plugins ] && printf "dshmarket\\t1.66.3\\tthirdparty\\n"; }',
     `installed_plugin_version() { [ "$1" = dshmarket ] && printf ${JSON.stringify(currentVersion)}; }`,
     `profile_dependency_version() { [ "$1" = dshmarket ] && printf ${JSON.stringify(currentSpec)}; }`,
     'run_dsh_plugin() { printf "%s:%s\\n" "$1" "$2"; }',
+    'run_dsh_plugin_with_release_age() { printf "%s:%s:release-age-0\\n" "$1" "$2"; }',
     await functionSource('install_published_dsh_plugins'),
     'install_published_dsh_plugins',
   ].join('\n')
@@ -98,6 +100,13 @@ describe('bundled plugin install', () => {
     expect(source).not.toMatch(/Keeping bundled .*exact local version already matches\./u)
   })
 
+  it('allows release-age validation only for local bundled archive replacement', async () => {
+    const source = await readFile(scriptPath, 'utf8')
+    expect(source).toMatch(/run_dsh_plugin_with_release_age remove "\$\{plugin_name\}"/u)
+    expect(source).toMatch(/run_dsh_plugin_with_release_age add "file:\$\{bundled_plugin\}"/u)
+    expect(source).toContain('--config.minimum-release-age=0')
+  })
+
   it('removes an installed plugin before adding the FPK archive, even at the same version', async () => {
     const root = await makeProfile()
     const installed = join(root, 'profile', 'node_modules', '@tnnevol', 'dsh-fnos')
@@ -109,6 +118,7 @@ describe('bundled plugin install', () => {
 
     expect(output).toContain('remove:@tnnevol/dsh-fnos')
     expect(output).toContain(`add:file:${join(root, 'bundled', 'dsh-fnos.tgz')}`)
+    expect(output).toContain('release-age-0')
     expect(output.indexOf('remove:@tnnevol/dsh-fnos')).toBeLessThan(output.indexOf('add:file:'))
   })
 
@@ -139,14 +149,14 @@ describe('bundled plugin install', () => {
     const root = await makeProfile()
     const output = await runPublishedPluginInstall(root, '')
 
-    expect(output).toContain('add:dshmarket@1.66.3')
+    expect(output).toContain('add:dshmarket@1.66.3:release-age-0')
   })
 
   it('updates dshmarket when the installed version differs from the manifest', async () => {
     const root = await makeProfile()
     const output = await runPublishedPluginInstall(root, '1.64.0')
 
-    expect(output).toContain('add:dshmarket@1.66.3')
+    expect(output).toContain('add:dshmarket@1.66.3:release-age-0')
   })
 
   it('keeps dshmarket when the installed version already matches', async () => {
