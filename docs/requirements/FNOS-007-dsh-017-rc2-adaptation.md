@@ -276,6 +276,18 @@ sequenceDiagram
 - `FNOS-007-19-AC-02`：`SHELL` 使用 PATH 中实际解析到的第一个 `bash` 路径作为默认 Shell，与 DSH 终端候选解析结果一致，不显示重复 bash，也不显示 nologin。
 - `FNOS-007-19-AC-03`：网关为 DSH 子进程注入本机可用的 UTF-8 `LANG`/`LC_CTYPE`，并清除冲突的非 UTF-8 `LC_ALL`，中文工作目录和终端输出不乱码。
 
+### FNOS-007-20
+
+- `FNOS-007-20-AC-01`：网关按当前 DSH upstream authority 识别浏览器认证 Cookie，不把其他 authority 或旧版本遗留的 `dsh-auth-*` Cookie 误判为有效会话。
+- `FNOS-007-20-AC-02`：检测到旧 Cookie 时，首页请求自动重新使用当前 launch token 完成 Cookie exchange，不再因旧 Cookie 阻止 token 注入。
+- `FNOS-007-20-AC-03`：DSH WebSocket、Settings、Credentials、DynamicCordis 和 Model Catalog 请求在重新认证后不再持续返回 401；旧 Cookie 恢复流程保持幂等。
+
+### FNOS-007-21
+
+- `FNOS-007-21-AC-01`：网关与 DSH Web 子进程保持相同的 `HOME`，均指向应用共享运行目录；`DSH_HOME` 单独指向应用包用户的 Harness 数据目录。
+- `FNOS-007-21-AC-02`：DSH Web 不再把 `HOME` 错误覆盖为 `DSH_HOME`，pnpm/npm 运行环境、profile 数据和应用共享文件布局保持既有边界。
+- `FNOS-007-21-AC-03`：网关环境构造在 `HOME` 缺失时才回退到 `DSH_HOME`，并以自动化测试验证两个变量可同时存在且值不同。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -291,6 +303,8 @@ sequenceDiagram
 | 插件 DSH 依赖清理 | 本地完成，待纳入完整回归 | FNOS-007-17 |
 | 网关 DSH Cookie 认证 | 本地完成，待 NAS 回归 | FNOS-007-18 |
 | 网关终端 Shell 与字符集环境 | 本地完成，待 NAS 回归 | FNOS-007-19 |
+| 网关旧 Cookie 认证恢复 | 本地完成，待 NAS 回归 | FNOS-007-20 |
+| 网关与 DSH Web 环境边界 | 本地完成，待 NAS 回归 | FNOS-007-21 |
 
 ## 变更记录
 
@@ -307,3 +321,5 @@ sequenceDiagram
 | 2026-09-27 | 清理插件未使用 DSH 依赖 | 新增 FNOS-007-17：审计三个非 fnOS 插件的源码、客户端注入和宿主服务契约；从 Codex Auth 的 peer、devDependencies 与 compatibility 清单移除 5 个未直接使用的传递依赖，保留 peer 作为宿主共享能力契约。 |
 | 2026-09-28 | 修复网关 DSH 浏览器认证 Cookie | 新增 FNOS-007-18：移除网关将上游 `Set-Cookie: Path=/` 改写为应用挂载路径的行为，避免 DSH `0.1.7-rc.2` 的 Host 绑定浏览器会话无法被 `/api`、WebSocket 和设置接口复用。 |
 | 2026-09-28 | 将终端环境适配迁移到网关 | 新增 FNOS-007-19：移除 `cmd/main` 中的 Shell/locale 适配，改由网关为 DSH Web 子进程选择 PATH 一致的 bash 并注入 UTF-8 环境，避免重复 bash 与中文路径乱码。 |
+| 2026-09-28 | 修复旧 Cookie 导致的 DSH 401 | 新增 FNOS-007-20：网关不再用任意 `dsh-auth-*` Cookie 判断当前会话，而是按当前 upstream authority 的签名 Cookie 名称判断；旧 Cookie 自动触发新的 launch token exchange。 |
+| 2026-09-28 | 修正网关与 DSH Web 的 HOME 边界 | 新增 FNOS-007-21：`DSH_HOME` 保持 `TRIM_PKGHOME`，`HOME` 继承网关的 `TRIM_APPDEST_VOL/@appshare/fn-deepseek-harness`，避免 DSH Web 将两个数据根错误合并。 |

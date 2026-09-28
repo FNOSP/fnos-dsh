@@ -376,6 +376,20 @@ sequenceDiagram
 | PLAN-FNOS-007-T15-01 | FNOS-007-19-AC-01、02 | 在 `buildDshRuntimeEnv()` 中按 DSH `resolveExecutable()` 的 PATH 规则选择第一个可执行 bash，设置 `SHELL`；删除 `cmd/main` 中重复的 Shell 解析，避免 preferred shell 与候选 bash 产生两个条目 | dsh-runtime-env 测试、CLI baseline、真实 NAS 终端菜单检查 |
 | PLAN-FNOS-007-T15-02 | FNOS-007-19-AC-03 | 在网关环境构造阶段检测本机 locale，注入可用 UTF-8 `LANG`/`LC_CTYPE` 并清理非 UTF-8 `LC_ALL` | gateway typecheck/test、非 ASCII 工作目录和终端输出回归 |
 
+### T16：网关旧 Cookie 认证恢复
+
+| 任务 ID | 对应验收 | 实施内容 | 验证 |
+| --- | --- | --- | --- |
+| PLAN-FNOS-007-T16-01 | FNOS-007-20-AC-01、02 | 使用 DSH BrowserAuth 的 authority-hash Cookie 名称判断当前会话；旧 authority Cookie 不阻止首页注入 launch token | gateway server 回归覆盖当前 Cookie、旧 Cookie 和无 Cookie 首页请求 |
+| PLAN-FNOS-007-T16-02 | FNOS-007-20-AC-03 | 401 首页恢复继续执行当前 token exchange，重新生成 Cookie 后保持 API、WebSocket 和设置接口的认证链路 | gateway server 8 项集成测试、FPK gateway app 重建和真实 NAS 回归 |
+
+### T17：网关与 DSH Web 的 HOME/DSH_HOME 边界
+
+| 任务 ID | 对应验收 | 实施内容 | 验证 |
+| --- | --- | --- | --- |
+| PLAN-FNOS-007-T17-01 | FNOS-007-21-AC-01、02 | `buildDshRuntimeEnv()` 保留网关继承的 `HOME`，只设置 `DSH_HOME` 为 `TRIM_PKGHOME`；没有网关 HOME 时才回退到 DSH_HOME | runtime-env 回归测试断言两个目录可不同；gateway typecheck/build |
+| PLAN-FNOS-007-T17-02 | FNOS-007-21-AC-03 | 重新生成 gateway app 产物并在 NAS 检查 `/proc/<dsh-web-pid>/environ` 与网关进程环境 | FPK 安装后同时核对 `HOME`、`DSH_HOME`、profile、pnpm store 和应用共享目录 |
+
 ## 数据、权限和错误处理
 
 | 类别 | 处理要求 |
@@ -468,6 +482,8 @@ git diff --check
 | T13 插件未使用 DSH 依赖清理 | 本地完成，待完整回归 | FNOS-007-17 |
 | T14 网关 DSH 浏览器认证 Cookie | 本地完成，待 NAS 回归 | FNOS-007-18 |
 | T15 网关终端 Shell 与字符集环境 | 本地完成，待 NAS 回归 | FNOS-007-19 |
+| T16 网关旧 Cookie 认证恢复 | 本地完成，待 NAS 回归 | FNOS-007-20 |
+| T17 网关与 DSH Web 的 HOME/DSH_HOME 边界 | 本地完成，待 NAS 回归 | FNOS-007-21 |
 
 ## 变更记录
 
@@ -487,3 +503,5 @@ git diff --check
 | 2026-09-27 | 新增 T13 插件依赖清理 | 审计三个非 fnOS 插件的直接使用边界，移除 Codex Auth 中 5 个仅由传递 DSH 依赖使用的包；继续使用 peer 表达宿主共享能力，不改为 dependencies。 |
 | 2026-09-28 | 新增 T14 网关 Cookie 认证修复 | 发现网关把 DSH `BrowserAuth` 的根 Cookie 改写到应用路径后，页面下的 `/api/settings/describe`、credentials、dynamicCordisRunner 和 Remote WebSocket 统一 401；恢复上游 Cookie 路径并补充回归验证。 |
 | 2026-09-28 | 新增 T15 网关终端环境适配 | 根据 NAS 终端出现重复 bash 和中文路径乱码，将 Shell/locale 环境设置从应用 `cmd/main` 移到网关 DSH 子进程环境，并按 DSH 的 PATH 解析规则选择默认 bash。 |
+| 2026-09-28 | 新增 T16 网关旧 Cookie 认证恢复 | 根据 NAS 401 与连接重试日志，按 DSH 0.1.7 的 authority-bound Cookie 契约修复旧 Cookie 误判，确保首页在旧会话下重新完成 launch token exchange。 |
+| 2026-09-28 | 新增 T17 网关环境边界修复 | 发现 DSH Web 环境把 `HOME` 和 `DSH_HOME` 都设置为 `TRIM_PKGHOME`；改为继承网关 HOME、独立设置 DSH_HOME，并补充 runtime-env 测试。 |
