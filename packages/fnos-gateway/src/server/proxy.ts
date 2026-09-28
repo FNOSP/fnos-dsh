@@ -49,6 +49,18 @@ function hasBrowserSessionCookie(req: IncomingMessage, cookieName: string): bool
   return String(req.headers.cookie ?? '').split(';').some(pair => pair.trim().startsWith(`${cookieName}=`))
 }
 
+/** Path used by gateway releases that incorrectly scoped DSH cookies to the app mount. */
+function legacyCookieMountPath(gatewayPrefix: string): string | undefined {
+  const prefix = gatewayPrefix.replace(/^\/+|\/+$/gu, '')
+  return prefix === '' ? undefined : `/${prefix}/`
+}
+
+function expireLegacyBrowserSessionCookie(cookieName: string, gatewayPrefix: string): string | undefined {
+  const path = legacyCookieMountPath(gatewayPrefix)
+  if (path === undefined) return undefined
+  return `${cookieName}=; Max-Age=0; Path=${path}; HttpOnly; SameSite=Strict`
+}
+
 function withLaunchToken(path: string | undefined, token: string | undefined): string | undefined {
   if (path === undefined || token === undefined || token === '') return path
   try {
@@ -161,6 +173,13 @@ export function createProxyHandler(options: GatewayOptions): RequestHandler {
       path: withLaunchToken('/', token),
       headers,
     }, upstreamResponse => {
+      const expiredCookie = expireLegacyBrowserSessionCookie(cookieName, gatewayPrefix)
+      if (expiredCookie !== undefined) {
+        const setCookie = upstreamResponse.headers['set-cookie']
+        upstreamResponse.headers['set-cookie'] = setCookie === undefined
+          ? [expiredCookie]
+          : [...(Array.isArray(setCookie) ? setCookie : [setCookie]), expiredCookie]
+      }
       writeUpstreamResponse(upstreamResponse, req, res)
     })
     request.on('error', error => sendBadGateway(res, error, options, req))

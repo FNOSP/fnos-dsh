@@ -172,6 +172,69 @@ describe('gateway server', () => {
     expect(upstreamPaths[0]).toContain('token=current-launch-token')
   })
 
+  it('expires a legacy mount-scoped cookie while recovering a stale current-name cookie', async () => {
+    let browserCookieName = ''
+    const upstream = createServer((req, res) => {
+      const requestUrl = new URL(req.url ?? '/', 'http://upstream.invalid')
+      if (requestUrl.searchParams.has('token')) {
+        res.writeHead(303, {
+          location: '/',
+          'set-cookie': `${browserCookieName}=fresh; Path=/; HttpOnly; SameSite=Strict`,
+        })
+        res.end()
+        return
+      }
+      res.writeHead(401)
+      res.end()
+    })
+    const upstreamPort = await listen(upstream)
+    resources.push(async () => new Promise<void>(resolve => upstream.close(() => resolve())))
+
+    const directory = await mkdtemp(join(tmpdir(), 'fnos-gateway-'))
+    const gatewaySocket = join(directory, 'gateway.sock')
+    const gateway = createGateway({
+      socketPath: gatewaySocket,
+      gatewayPrefix: GATEWAY_PREFIX,
+      upstreamHost: '127.0.0.1',
+      upstreamPort,
+      webProcess: {
+        getLaunchToken: () => 'current-launch-token',
+        snapshot: async () => ({ state: 'running' as const, pid: process.pid }),
+        start: async () => ({ state: 'running' as const, pid: process.pid }),
+        restart: async () => ({ state: 'running' as const, pid: process.pid }),
+        stop: async () => undefined,
+      } as never,
+    })
+    await once(gateway.server, 'listening')
+    resources.push(async () => gateway.close())
+    resources.push(async () => rm(directory, { recursive: true, force: true }))
+
+    browserCookieName = `dsh-auth-${createHash('sha256').update(`127.0.0.1:${String(upstreamPort)}`).digest('base64url')}`
+    const response = await new Promise<{ statusCode: number | undefined, setCookie: string[] }>((resolve, reject) => {
+      const request = httpRequest({
+        socketPath: gatewaySocket,
+        path: `${GATEWAY_PREFIX}/`,
+        method: 'GET',
+        // A browser sends the old app-scoped cookie before the new root cookie.
+        headers: { cookie: `${browserCookieName}=legacy-invalid` },
+      }, res => {
+        res.resume()
+        res.on('end', () => resolve({
+          statusCode: res.statusCode,
+          setCookie: res.headers['set-cookie'] ?? [],
+        }))
+        res.on('error', reject)
+      })
+      request.on('error', reject)
+      request.end()
+    })
+
+    expect(response.statusCode).toBe(303)
+    expect(response.setCookie.some(cookie => cookie.startsWith(`${browserCookieName}=;`)
+      && cookie.includes(`Path=${GATEWAY_PREFIX}/`)
+      && /Max-Age=0/iu.test(cookie))).toBe(true)
+  })
+
   it('does not loop when the upstream answers a tokenized index with 303 to the clean URL', async () => {
     const seen: string[] = []
     // Mirrors DSH's authorizeIndex: a tokenized index for `/` always mints a
