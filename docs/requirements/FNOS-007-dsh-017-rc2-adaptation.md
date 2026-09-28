@@ -288,6 +288,12 @@ sequenceDiagram
 - `FNOS-007-21-AC-02`：DSH Web 不再把 `HOME` 错误覆盖为 `DSH_HOME`，pnpm/npm 运行环境、profile 数据和应用共享文件布局保持既有边界。
 - `FNOS-007-21-AC-03`：网关环境构造在 `HOME` 缺失时才回退到 `DSH_HOME`，并以自动化测试验证两个变量可同时存在且值不同。
 
+### FNOS-007-22
+
+- `FNOS-007-22-AC-01`：执行 `pnpm run build` 选择 fnOS FPK 且工作区只有一个 FPK 应用时，CLI 自动选中该应用并跳过应用选择提示。
+- `FNOS-007-22-AC-02`：工作区存在多个 FPK 应用时，CLI 继续显示可多选的应用选择提示，既有选择行为不变。
+- `FNOS-007-22-AC-03`：单应用自动选择由自动化测试覆盖，且不会调用交互式 FPK 应用选择器。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -305,6 +311,7 @@ sequenceDiagram
 | 网关终端 Shell 与字符集环境 | 本地完成，待 NAS 回归 | FNOS-007-19 |
 | 网关旧 Cookie 认证恢复 | 本地完成，待 NAS 回归 | FNOS-007-20 |
 | 网关与 DSH Web 环境边界 | 本地完成，待 NAS 回归 | FNOS-007-21 |
+| FPK 单应用构建选择 | 本地完成 | FNOS-007-22 |
 
 ## 变更记录
 
@@ -323,3 +330,4 @@ sequenceDiagram
 | 2026-09-28 | 将终端环境适配迁移到网关 | 新增 FNOS-007-19：移除 `cmd/main` 中的 Shell/locale 适配，改由网关为 DSH Web 子进程选择 PATH 一致的 bash 并注入 UTF-8 环境，避免重复 bash 与中文路径乱码。 |
 | 2026-09-28 | 修复旧 Cookie 导致的 DSH 401 | 新增 FNOS-007-20：网关不再用任意 `dsh-auth-*` Cookie 判断当前会话，而是按当前 upstream authority 的签名 Cookie 名称判断；旧 Cookie 自动触发新的 launch token exchange。 |
 | 2026-09-28 | 修正网关与 DSH Web 的 HOME 边界 | 新增 FNOS-007-21：`DSH_HOME` 保持 `TRIM_PKGHOME`，`HOME` 继承网关的 `TRIM_APPDEST_VOL/@appshare/fn-deepseek-harness`，避免 DSH Web 将两个数据根错误合并。 |
+| 2026-09-28 | 优化单应用 FPK 构建交互 | 新增 FNOS-007-22：工作区只有一个 FPK 应用时自动选择并跳过应用选择提示；多应用场景继续保留原多选流程。 |

@@ -389,6 +389,8 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | PLAN-FNOS-007-T17-01 | FNOS-007-21-AC-01、02 | `buildDshRuntimeEnv()` 保留网关继承的 `HOME`，只设置 `DSH_HOME` 为 `TRIM_PKGHOME`；没有网关 HOME 时才回退到 DSH_HOME | runtime-env 回归测试断言两个目录可不同；gateway typecheck/build |
 | PLAN-FNOS-007-T17-02 | FNOS-007-21-AC-03 | 重新生成 gateway app 产物并在 NAS 检查 `/proc/<dsh-web-pid>/environ` 与网关进程环境 | FPK 安装后同时核对 `HOME`、`DSH_HOME`、profile、pnpm store 和应用共享目录 |
+| PLAN-FNOS-007-T18-01 | FNOS-007-22-AC-01、03 | `askFpkApps()` 在仅发现一个 FPK 应用时直接返回该应用，不调用 `multiselect` | `tooling/fnos-dsh-cli/tests/prompts.spec.ts` 覆盖单应用自动选择和无交互调用 |
+| PLAN-FNOS-007-T18-02 | FNOS-007-22-AC-02 | 保留多应用场景的原有多选流程，不改变 `--app` 显式选择和 FPK 构建参数 | CLI prompts 测试与 typecheck |
 
 ## 数据、权限和错误处理
 
@@ -484,6 +486,7 @@ git diff --check
 | T15 网关终端 Shell 与字符集环境 | 本地完成，待 NAS 回归 | FNOS-007-19 |
 | T16 网关旧 Cookie 认证恢复 | 本地完成，待 NAS 回归 | FNOS-007-20 |
 | T17 网关与 DSH Web 的 HOME/DSH_HOME 边界 | 本地完成，待 NAS 回归 | FNOS-007-21 |
+| T18 FPK 单应用构建选择 | 本地完成 | FNOS-007-22 |
 
 ## 变更记录
 
@@ -505,3 +508,4 @@ git diff --check
 | 2026-09-28 | 新增 T15 网关终端环境适配 | 根据 NAS 终端出现重复 bash 和中文路径乱码，将 Shell/locale 环境设置从应用 `cmd/main` 移到网关 DSH 子进程环境，并按 DSH 的 PATH 解析规则选择默认 bash。 |
 | 2026-09-28 | 新增 T16 网关旧 Cookie 认证恢复 | 根据 NAS 401 与连接重试日志，按 DSH 0.1.7 的 authority-bound Cookie 契约修复旧 Cookie 误判，确保首页在旧会话下重新完成 launch token exchange。 |
 | 2026-09-28 | 新增 T17 网关环境边界修复 | 发现 DSH Web 环境把 `HOME` 和 `DSH_HOME` 都设置为 `TRIM_PKGHOME`；改为继承网关 HOME、独立设置 DSH_HOME，并补充 runtime-env 测试。 |
+| 2026-09-28 | 新增 T18 FPK 单应用构建选择 | 当工作区只有一个 fnOS FPK 应用时，跳过无必要的交互选择并直接编译该应用；多应用仍使用原多选流程。 |

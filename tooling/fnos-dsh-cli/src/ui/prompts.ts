@@ -116,6 +116,8 @@ export async function askPublishPlugins(): Promise<PluginTarget[] | undefined> {
 }
 
 export async function askFpkApps(apps: FpkApp[]): Promise<FpkApp[] | undefined> {
+  if (apps.length === 1) return apps
+
   const result = await multiselect({
     message: '选择要编译的 FPK 应用（可多选）',
     required: true,
