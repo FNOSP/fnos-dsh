@@ -150,6 +150,12 @@ CodeBuddy 的 RPC 频道是 `/codebuddy`（`CODEBUDDY_AUTH_CHANNEL`），由 DSH
 
 登录成功后，该账号会出现在「账号管理」折叠面板列表中并成为当前账号。展开任意账号面板可查看昵称、UID、企业等详细信息，并可执行「设为当前」或「删除账号」。
 
+### 在 DSH Desktop 中运行
+
+Desktop 是 Electron 壳，加载的是同一套 Web 界面，并把页面请求转发给同一个 Host；因此本插件的登录、账号、用量、成长任务与配置行为与 Web 端一致，不需要额外设置。
+
+唯一区别在**授权页的打开方式**：Desktop 把 `window.open` 交给系统浏览器（`shell.openExternal`），于是授权页在系统默认浏览器中打开，而 `window.open` 的返回值是 `null`。这表示「已交给系统浏览器打开」，**不是**「弹窗被拦截」——插件因此不依据该返回值判定成功与否，登录结果一律以宿主侧的轮询为准。开窗被策略拦截或失败时会话仍可重试，不会让界面卡在加载状态。
+
 ## 多账号管理（设置页）
 
 ![CodeBuddy 账号管理面板](/images/plugins/dsh-codebuddy/account-panel.png)

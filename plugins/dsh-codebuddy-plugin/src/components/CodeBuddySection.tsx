@@ -26,8 +26,7 @@ import {
   DshTypography,
 } from '@tnnevol/dsh-semi-ui'
 import { CODEBUDDY_AUTH_CHANNEL } from '../contracts/constants.ts'
-
-
+import { openAuthUrl } from '../client/external-opener.ts'
 import type { AccountView, AccountsResult, AuthStatus, RpcErr } from '../client/rpc.ts'
 import { describeRpcError } from '../client/rpc.ts'
 import { AddAccountModal, startLoginPolling } from './AddAccountModal.tsx'
@@ -206,7 +205,10 @@ export function CodeBuddySection({ rpc, t, panelRoute, close }: CodeBuddySection
   const onAddLoginStart = useCallback((start: { authUrl: string, state: string }) => {
     // 开窗必须留在宿主：弹框只管握手与反馈，自己不碰 window。漏掉这一句的后果
     // 是登录页永远不出现，而按钮一直 loading 到十分钟超时，用户看不出原因。
-    window.open(start.authUrl, '_blank', 'noopener')
+    // 走 openAuthUrl 而不是裸 `window.open`：DSH Desktop 的 Electron 壳对
+    // http/https 调 `shell.openExternal` 后返回 deny，`window.open` 因此给出
+    // `null`——那是「已在系统浏览器打开」，不是「被拦截」，绝不能据此报错。
+    openAuthUrl(start.authUrl)
     setAddWaiting(true)
   }, [])
   /** 弹框侧登录落定：成功则刷新名册；提示已由弹框给出，这里不重复。 */
@@ -227,7 +229,8 @@ export function CodeBuddySection({ rpc, t, panelRoute, close }: CodeBuddySection
       setPhase('error')
       return
     }
-    window.open(result.value.authUrl, '_blank', 'noopener')
+    // 同样走收口实现：Desktop 下 `window.open` 返回 null 但仍已外部打开。
+    openAuthUrl(result.value.authUrl)
     setLoginState(result.value.state)
   }, [rpc])
 

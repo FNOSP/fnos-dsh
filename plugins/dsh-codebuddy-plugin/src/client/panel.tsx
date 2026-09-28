@@ -30,6 +30,7 @@ import {
 } from '@tnnevol/dsh-semi-ui'
 
 import { CODEBUDDY_AUTH_CHANNEL } from '../contracts/constants.ts'
+import { openAuthUrl } from './external-opener.ts'
 import type { ConnectionRpc, AccountsResult, GrowthRunResult } from './rpc.ts'
 import { describeRpcError } from './rpc.ts'
 import type { PanelRoute } from './panel-route.ts'
@@ -667,7 +668,10 @@ export function CodeBuddyPanelPage({ rpc, route, t }: PanelPageProps): ReactNode
    * `pollLogin` 发双份请求，且两边各自判定落定、提示会出现两次。
    */
   const onAddLoginStart = useCallback((start: { authUrl: string, state: string }) => {
-    window.open(start.authUrl, '_blank', 'noopener')
+    // Desktop 的 Electron 壳对 http/https 调 `shell.openExternal` 后返回 deny，
+    // `window.open` 于是得到 `null`——那是「已外部打开」，不是「被拦截」；
+    // 返回值判定收在 `openAuthUrl` 内部，调用点不自行解读。
+    openAuthUrl(start.authUrl)
     setLoginWaiting(true)
   }, [])
   /** 弹框侧登录落定：成功则刷新名册；提示已由弹框给出，这里不再重复。 */

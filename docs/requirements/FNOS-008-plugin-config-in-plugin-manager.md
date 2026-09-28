@@ -1,7 +1,7 @@
 ---
 id: FNOS-008
 title: FNOS-008 插件配置统一迁入插件管理页
-description: 将第三方插件的全部配置界面从设置弹框迁入插件管理页的组合包详情页，设置弹框不再承载插件配置。
+description: 将第三方插件的全部配置界面从设置弹框迁入插件管理页的组合包详情页，并保证 CodeBuddy 在 DSH Desktop 中兼容运行。
 status: planned
 owner: tnnevol
 targetVersion: 5.6.0
@@ -24,13 +24,14 @@ DSH `0.1.7-rc.2` 新增了侧栏「插件」管理页，并提供官方架构决
 
 本仓库三个带配置界面的插件仍把配置放在设置弹框中：fnOS 插件的授权目录在「设置 → 插件」标签页，CodeBuddy 与 Codex Auth 在设置侧栏各占一个导航分区。这造成同一个插件对象被两个界面各持一半——插件管理页能看到并启停组合包，却打不开它的配置；与上游演进方向不一致，用户也需要在两处入口之间寻找插件设置。
 
-本需求把三个插件的全部配置界面统一迁入插件管理页的组合包详情页，设置弹框不再承载任何插件配置。具体实现方式、模块影响和迁移步骤由对应计划负责。
+本需求把三个插件的全部配置界面统一迁入插件管理页的组合包详情页，设置弹框不再承载任何插件配置；同时将 CodeBuddy 在 DSH Desktop 中的配置详情页、账号、用量和成长任务兼容纳入同一需求。具体实现方式、模块影响和迁移步骤由对应计划负责。
 
 ## 需求目标
 
 - 用户在侧栏「插件」进入对应组合包详情页，即可完成该插件的全部配置操作。
 - 设置弹框不再出现三个插件的配置标签页或导航分区，只读插件清单保持官方原样。
 - 迁移只改变配置界面位置；配置数据的存储位置、读写行为和已有用户数据不受影响。
+- CodeBuddy 配置详情页在 DSH Web、fnOS 和 DSH Desktop 中均能按客户端能力正常工作，客户端差异不改变配置语义。
 - 插件文档站的配置入口说明与实际界面一致。
 
 ## 功能列表
@@ -42,6 +43,7 @@ DSH `0.1.7-rc.2` 新增了侧栏「插件」管理页，并提供官方架构决
 | FNOS-008-03 | P0 | Codex Auth 配置迁入插件详情页 | 登录、全局模型选择与保存、模型目录刷新在 Codex Auth 组合包详情页完成 | <Badge type="info" text="规划中" /> |
 | FNOS-008-04 | P1 | 设置弹框移除插件配置入口 | 「设置 → 插件」分区不再出现 fnOS、CodeBuddy、Codex Auth 的配置标签页或导航项；官方只读插件清单保留 | <Badge type="info" text="规划中" /> |
 | FNOS-008-05 | P1 | 配置功能与数据保持 | 迁移后三个插件的配置读写、保存失败保护与升级前已有的配置数据保持不变 | <Badge type="info" text="规划中" /> |
+| FNOS-008-06 | P0 | CodeBuddy Desktop 兼容 | CodeBuddy 配置详情页及账号、用量和成长任务能力在 DSH Desktop 中可用，同时保持 Web/fnOS 兼容 | <Badge type="info" text="规划中" /> |
 
 ## 既有功能变更关系
 
@@ -69,7 +71,33 @@ sequenceDiagram
     Host-->>Plugins: 返回保存结果，失败时保留原值
 ```
 
-变更原因：与上游「插件页承载配置、设置只保留清单」的架构决策对齐，消除同一插件对象分散在两个界面的问题。用户可观察结果：配置操作位置改变，操作结果与数据不变。
+```mermaid
+sequenceDiagram
+    participant User as 用户
+    participant Desktop as DSH Desktop（Electron 壳）
+    participant Host as 同一 Host（profiles/desktop）
+    participant Browser as 系统浏览器
+    User->>Desktop: 打开 CodeBuddy 组合包详情页
+    Note over Desktop,Host: 变更点：Desktop 复用 web 载体，请求由壳转发到同一 Host
+    Desktop->>Host: 转发 /codebuddy、/api、/plugins/*（壳注入 Cookie）
+    Host->>Host: 走同一套 CodeBuddy 业务与既有 RPC
+    Host-->>Desktop: 返回账号、用量和任务结果
+    User->>Desktop: 发起 OAuth 登录
+    Desktop->>Browser: 壳处理 window.open → shell.openExternal
+    Note over Desktop,Browser: 变更点：window.open 返回 null 但仍已外部打开，不得据此报错
+    Desktop->>Host: 继续轮询/取消本次登录
+    Host-->>Desktop: 登录状态以 pollLogin 为准
+```
+
+变更原因：与上游「插件页承载配置、设置只保留清单」的架构决策对齐，并让同一 CodeBuddy 配置对象在 DSH Web、fnOS 和 Desktop 中保持一致。用户可观察结果：配置操作位置改变，操作结果与数据不变；Desktop 因复用同一 Web 载体与 Host，无需新的传输层。
+
+**Desktop 运行契约（已在 dsh-0.1.7-rc.2 源码核实）**
+
+- Desktop 是 Electron 壳（`apps/desktop`），加载打包内**同一套 Web 前端**（`dsh-app://app/`），profile 使用 `PROFILE_TEMPLATES.web`（含 `dsh-host-webserver`）。
+- 该源下非静态请求由壳 `forwardWebRequest()` 整体转发给同一个 Host，并由壳注入 Host Cookie；插件的 `/codebuddy` RPC、`/api`、Remote WebSocket、`/plugins/*` bundle 因此照常可用。
+- `dsh.client.platform` 在 `dsh-client-modules` 中只接受 `web`（`decl.platform !== 'web'` 即跳过），Desktop 复用该载体，**不得改为 desktop/electron**。
+- 壳在主窗口安装 `setWindowOpenHandler`：对 http/https 调 `shell.openExternal(url)` 后一律返回 `{ action: 'deny' }`，`window.open` 因此返回 `null`。该 `null` 表示「已在系统浏览器打开」，不是「弹窗被拦截」。
+- 结论：Desktop 适配**不需要**新增 Remote facade 或第二套客户端传输；需要固定的是开窗语义与回归覆盖。
 
 ## 行为约束
 
@@ -78,6 +106,11 @@ sequenceDiagram
 - 设置弹框内保留的功能行为不变：官方配置页（模型、终端等）、fnOS「打开配置文件」头部动作、设置快捷键。
 - 无配置界面的插件（`dshmarket`、Semi UI Showcase）不新增配置界面。
 - 插件被禁用或卸载后，其配置页随插件一起从插件管理页消失（上游既定行为，不做额外处理）。
+- CodeBuddy Desktop 复用现有 Host 业务、凭据、任务状态与既有 RPC；Desktop 由 Electron 壳把请求转发到同一 Host，不新增 Desktop 专属账号池、后端进程或第二套传输层。
+- Desktop 的开窗由壳转为系统浏览器打开；`window.open` 返回 `null` 只表示壳接管了这次打开，不得当成「弹窗被拦截」而中断登录。
+- `dsh.client.platform` 保持 `web`：Desktop 复用 web 客户端载体，改动该字段会让插件在 Web 与 Desktop 同时消失。
+- OAuth 凭据只由 Host 保存；登录取消只取消当前尝试，不删除已有账号。
+- 登录结果以宿主 `pollLogin` 为准；开窗失败或返回值异常都不得让客户端产生未处理异常。
 
 ## 不在本次范围内
 
@@ -85,6 +118,7 @@ sequenceDiagram
 - 为没有浏览器半侧的插件生成通用配置表单。
 - 插件管理页安装、卸载、启停能力本身的改进。
 - dsh-semi-ui-showcase 插件的界面调整。
+- Codex Auth 或其它插件的 DSH Desktop 适配；本次只覆盖 CodeBuddy。
 
 ## 验收条件与完成状态
 
@@ -116,8 +150,21 @@ sequenceDiagram
 - `FNOS-008-05-AC-02`：迁移后配置保存失败时，原有设置不被清空或覆盖（与 `FNOS-007-03-AC-04` 一致）。
 - `FNOS-008-05-AC-03`：插件被禁用后重新启用，配置页与配置数据恢复正常。
 
+### FNOS-008-06
+
+- `FNOS-008-06-AC-01`：目标 DSH Desktop 启动后，CodeBuddy 插件随 web 客户端载体成功加载，配置详情页与对话区用量状态正常显示。
+- `FNOS-008-06-AC-02`：Desktop 中的 CodeBuddy 账号、用量、成长任务与配置读写结果，与同一 Host 的 Web 端一致。
+- `FNOS-008-06-AC-03`：用户可在 Desktop 发起、完成、取消和退出 CodeBuddy OAuth 登录；授权页在系统浏览器中打开，登录结果可见，已有账号不会因取消当前登录而删除。
+- `FNOS-008-06-AC-04`：Desktop 下 `window.open` 返回 `null`（壳转为外部打开）时，登录流程继续而不是报「弹窗被拦截」。
+- `FNOS-008-06-AC-05`：Desktop 可读取并同步更新 CodeBuddy 模型、账号、当前账号、用量和偏好。
+- `FNOS-008-06-AC-06`：开窗异常或宿主失败时请求结束并可重试，不产生永久 loading、未处理 Promise 或静默成功。
+- `FNOS-008-06-AC-07`：Desktop 重启后已有凭据、偏好与当前账号按既有持久化规则恢复；Web/fnOS 行为与 `dsh.client.platform: web` 声明保持兼容。
+
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-09-28 | 初始登记 | 建立 FNOS-008，范围覆盖三个插件的配置界面统一迁入插件管理页；关联 PLAN-FNOS-008。 |
+| 2026-09-28 | 合并 FNOS-009 | CodeBuddy DSH Desktop 适配并入 FNOS-008-06；原 FNOS-009 独立需求与计划不再作为追踪入口，Desktop 范围仅覆盖 CodeBuddy。 |
+| 2026-09-28 | 更正 Desktop 前提 | 经 `dsh-0.1.7-rc.2` 源码核实：Desktop 为 Electron 壳并复用 web 载体与同一 Host，`/codebuddy` RPC 等由壳转发即可用，因此 FNOS-008-06 删除「新增 Remote facade/第二套传输层」的原约定；`dsh.client.platform` 保持 `web`，Desktop 真正差异是 `window.open` 返回 `null` 仍属已外部打开。 |
+| 2026-09-28 | FNOS-008-06 实现完成、桌面验收阻塞 | 开窗语义已收口并补契约测试，本地组合端到端通过；目标 DSH Desktop 运行时验收尚未执行（本机无 Electron 运行时），FNOS-008-06 保持「规划中」直至桌面环境验收完成。 |

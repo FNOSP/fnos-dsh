@@ -145,17 +145,20 @@ describe('两个宿主都必须真的打开登录页', () => {
    * 这是一条真实缺陷的回归守卫。
    *
    * 把轮询收归弹框时，`CodeBuddySection` 的 `onAddLoginStart` 被连同参数一起
-   * 简化成了 `() => { setAddWaiting(true) }`——`window.open` 丢了。后果是设置页
+   * 简化成了 `() => { setAddWaiting(true) }`——开窗那一步丢了。后果是设置页
    * 点「添加账号」后**登录页根本不出现**，而按钮会一直 loading 到十分钟超时，
    * 用户看不出任何原因。
    *
    * 为什么既有的检查全都抓不到它：
    *  - tsc 不报错，因为回调声明的入参可以比 prop 类型少（函数逆变是合法的）；
    *  - `--noUnusedParameters` 也不报，因为参数是**整个省略**而不是留着不用；
-   *  - 该文件里还有另一处 `window.open`（属于「重新登录」流程），所以按文件
-   *    整体 grep `window.open` 依然命中。
+   *  - 该文件里还有另一处开窗（属于「重新登录」流程），所以按文件整体
+   *    grep 依然命中。
    *
    * 因此这里必须**按回调各自的函数体**断言，而不是按整个文件。
+   *
+   * 开窗实现已收口到 `openAuthUrl`（见 tests/desktop-adaptation.spec.ts）：
+   * 断言随之改为「回调里确实发起了开窗」，而不是绑定某个具体调用写法。
    */
 
   /** 截取 `onAddLoginStart` 的函数体（到紧随其后的 onAddFinished 为止）。 */
@@ -169,12 +172,12 @@ describe('两个宿主都必须真的打开登录页', () => {
 
   it('设置区块的 onAddLoginStart 打开 authUrl', () => {
     const body = addLoginStartBody(SECTION)
-    expect(body).toContain('window.open(start.authUrl')
+    expect(body).toContain('openAuthUrl(start.authUrl')
   })
 
   it('后台面板的 onAddLoginStart 打开 authUrl', () => {
     const body = addLoginStartBody(PANEL)
-    expect(body).toContain('window.open(start.authUrl')
+    expect(body).toContain('openAuthUrl(start.authUrl')
   })
 
   it('两处都接收 start 参数（省略参数就拿不到 authUrl）', () => {
@@ -186,7 +189,7 @@ describe('两个宿主都必须真的打开登录页', () => {
   it('设置区块的「重新登录」也仍然开窗（另一条独立流程）', () => {
     const from = SECTION.indexOf('const startRelogin')
     expect(from).toBeGreaterThan(-1)
-    expect(SECTION.slice(from)).toContain('window.open(result.value.authUrl')
+    expect(SECTION.slice(from)).toContain('openAuthUrl(result.value.authUrl')
   })
 })
 
