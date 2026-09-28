@@ -104,6 +104,7 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
   const [copyFailed, setCopyFailed] = useState(false)
   const [modelRefresh, setModelRefresh] = useState<ModelRefreshState>({ status: 'idle' })
   const [catalogRefreshKey, setCatalogRefreshKey] = useState(0)
+  const autoRefreshDoneRef = useRef(false)
   /**
    * 本次登录打开过的授权窗口。
    *
@@ -167,6 +168,16 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
     const timer = window.setInterval(() => { void refresh() }, 1_000)
     return () => { window.clearInterval(timer) }
   }, [refresh, status.status])
+
+  useEffect(() => {
+    if (status.status !== 'signed-in') {
+      autoRefreshDoneRef.current = false
+      return
+    }
+    if (autoRefreshDoneRef.current) return
+    autoRefreshDoneRef.current = true
+    void refreshModels()
+  }, [refreshModels, status.status])
 
   /**
    * 用户放弃本次授权时回收等待状态。
@@ -340,22 +351,12 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
           <div className="dsh-codex-model-refresh-header">
             <div>
               <h3 id="dsh-codex-model-refresh-title" className="dsh-codex-section-heading">{t('modelRefreshTitle')}</h3>
-              <p className="dsh-codex-body dsh-codex-model-refresh-intro">{t('modelRefreshIntro')}</p>
             </div>
-            <DshButton
-              htmlType="button"
-              theme="outline"
-              type="secondary"
-              size="small"
-              disabled={modelRefresh.status === 'busy'}
-              loading={modelRefresh.status === 'busy'}
-              onClick={() => { void refreshModels() }}
-            >
-              {modelRefresh.status === 'busy' ? t('modelRefreshing') : t('modelRefreshAction')}
-            </DshButton>
           </div>
           <p className="dsh-codex-body dsh-codex-model-refresh-status" aria-live="polite">
-            {modelRefresh.status === 'done'
+            {modelRefresh.status === 'busy'
+              ? t('modelRefreshing')
+              : modelRefresh.status === 'done'
               ? t('modelRefreshDone').replace('{count}', String(modelRefresh.count))
               : modelRefresh.status === 'error'
                 ? modelRefresh.message

@@ -20,6 +20,7 @@ import type { CodexUsageStatusInjected } from '../components/CodexUsageStatus.ts
 import { en, zh } from './locales.ts'
 import type { CodexAuthLocaleKey } from './locales.ts'
 import { installSemiDshTheme } from '@tnnevol/dsh-semi-ui'
+import { installCodexModelDiscoveryBridge } from './services/model-discovery.ts'
 
 // Keep the renderer-provided slot service visible to consumers that resolve the
 // renderer package through a different peer dependency path.
@@ -47,6 +48,10 @@ export function apply(ctx: ClientContext): void {
   // DSH exposes the merged Remote API on `ctx.remote`. Using `ctx.get('remote')`
   // only resolves the base service and omits namespaces such as `session`.
   const remote = ctx.remote as unknown
+  ctx.effect(
+    () => installCodexModelDiscoveryBridge(remote),
+    'dsh-codex-auth-plugin: shared Codex model discovery',
+  )
   const timer = ctx.get('timer') as CodexUsageStatusInjected['timer']
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',

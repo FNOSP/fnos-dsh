@@ -18,7 +18,10 @@ describe('dsh-codex-auth-plugin host registration', () => {
     expect(routes).not.toContain('manual_code')
     expect(patch).toContain('id: llm-pi-ai')
     expect(patch).toContain('apiKeyEnv: OPENAI_CODEX_AUTH_TOKEN')
-    expect(patch).toContain('id: gpt-5.4')
+    expect(patch).toContain('id: gpt-6-astra')
+    expect(patch).toContain('id: gpt-6-sol')
+    expect(patch).toContain('id: gpt-6-luna')
+    expect(patch).not.toContain('id: gpt-5.3-codex-spark')
   })
 
   it('does not register the removed image capability module', async () => {

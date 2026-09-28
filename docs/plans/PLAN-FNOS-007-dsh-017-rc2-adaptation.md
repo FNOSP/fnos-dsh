@@ -407,6 +407,9 @@ sequenceDiagram
 | PLAN-FNOS-007-T25-02 | FNOS-007-29-AC-03 | 读取 `plugins` 的第三列 `source`；thirdparty registry add/update 使用受控 release-age 例外，自有插件继续走既有归档或普通收敛逻辑 | dshmarket 缺失、版本不一致和同版本场景测试；真实 NAS 安装验证 |
 | PLAN-FNOS-007-T26-01 | FNOS-007-30-AC-01、03 | 将 Codex Auth 客户端首次开窗地址固定为 `https://auth.openai.com/codex/device`，不再先开 `about:blank` 后等待异步请求再导航 | authorization-window 与 authorization-code 回归测试；Codex Auth build |
 | PLAN-FNOS-007-T26-02 | FNOS-007-30-AC-02、03 | 保留 Host 对 provider URL 的 HTTPS/凭据校验；device-code 请求失败时只更新原页面错误状态，不提前关闭已打开授权页 | Codex Auth 全量测试；真实 NAS 网络下验证成功、超时和重试 |
+| PLAN-FNOS-007-T27-01 | FNOS-007-31-AC-01 | 将 Codex Auth 的 llm-pi-ai 静态模型基线更新为当前 profile 使用的 GPT-6/GPT-5.6/GPT-5.5 列表 | patch 配置测试、Codex Auth typecheck |
+| PLAN-FNOS-007-T27-02 | FNOS-007-31-AC-02、03 | 删除模型目录手动刷新按钮；在登录状态切换和已登录页面初始化时触发一次刷新，成功后依靠 settings/document-updated 让 DSH 可用模型目录与全局模型选择器同步，失败保留旧目录 | 客户端注册回归、模型目录刷新测试、真实登录后模型弹框验证 |
+| PLAN-FNOS-007-T28-01 | FNOS-007-32-AC-01 至 03 | 在 Codex Auth 客户端包裹 `llm-pi-ai` 的 Codex model discovery，使官方 Models 页的候选弹框读取 `session.modelCatalog()`；非 Codex provider 和非配置页 discovery 透传原实现 | discovery bridge 单元测试、Codex Auth 全量检查、真实客户端登录后两处列表对照 |
 
 ## 数据、权限和错误处理
 
@@ -511,6 +514,8 @@ git diff --check
 | T24 安装/配置向导字段统一 | 本地完成，待 NAS 回归 | FNOS-007-28 |
 | T25 NAS 安装 release-age 兼容 | 本地完成，待 NAS 回归 | FNOS-007-29 |
 | T26 Codex Auth 授权页打开 | 本地完成，待 NAS/真实网络回归 | FNOS-007-30 |
+| T27 Codex Auth 模型目录自动同步 | 本地完成，待真实客户端/网络回归 | FNOS-007-31 |
+| T28 Codex 模型设置弹框与全局模型目录统一 | 本地完成，待真实客户端回归 | FNOS-007-32 |
 
 ## 变更记录
 
@@ -541,3 +546,5 @@ git diff --check
 | 2026-09-28 | 新增 T24 安装/配置/升级向导字段统一 | 让 config、upgrade 与 install 使用相同运行字段，三个向导的 npm 源都放在末尾并移除“（可选）”文案。 |
 | 2026-09-28 | 新增 T25 NAS 安装 release-age 兼容 | 针对 dshmarket 新版本导致 pnpm 在 remove 阶段校验 lockfile 失败的问题，归档替换和 thirdparty registry 操作使用受控 release-age 例外。 |
 | 2026-09-28 | 新增 T26 Codex Auth 授权页打开修复 | 设备授权页不再依赖 NAS 端 device-code 请求完成后才导航；客户端先打开固定 HTTPS 授权页，后台继续生成和轮询授权码。 |
+| 2026-09-28 | 新增 T27 Codex Auth 模型目录自动同步 | 更新默认模型列表，移除手动刷新入口，登录后自动写入账号目录，并依靠 DSH 的设置变更事件刷新会话可用模型弹框。 |
+| 2026-09-28 | 新增 T28 Codex 模型目录桥接 | 官方 Models 页的 Codex 候选弹框不再使用 pi-ai 静态目录，改为读取与全局模型选择器相同的 DSH Remote 动态目录。 |

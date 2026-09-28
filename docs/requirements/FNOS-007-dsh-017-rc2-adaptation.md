@@ -342,6 +342,18 @@ sequenceDiagram
 - `FNOS-007-30-AC-02`：NAS 到 OpenAI 的 device-code 请求异步失败或超时时，授权页不被业务逻辑误关，原页面显示可诊断的登录错误；网络恢复后可重新发起登录。
 - `FNOS-007-30-AC-03`：授权页 URL 固定为 `https://auth.openai.com/codex/device`，Host 仍校验 provider 返回的授权 URL 为安全 HTTPS URL，授权轮询和取消逻辑保持不变。
 
+### FNOS-007-31
+
+- `FNOS-007-31-AC-01`：Codex Auth 的静态默认模型列表更新到当前 `0.1.7-rc.2` profile 的模型基线，包含 GPT-6 Astra、Sol、Luna 及现有 GPT-5.6/5.5 模型，不再保留已过时的 GPT-5.3/5.4 默认条目。
+- `FNOS-007-31-AC-02`：Codex Auth 设置页移除手动“刷新模型目录”按钮；登录成功后以及打开已登录页面时，自动从 ChatGPT 账号同步一次模型目录。
+- `FNOS-007-31-AC-03`：自动同步成功后，消息框的可用模型弹框与 Codex Auth 全局模型选择器都从同一份最新 DSH 模型目录读取；同步失败保留上一次有效目录并显示错误。
+
+### FNOS-007-32
+
+- `FNOS-007-32-AC-01`：模型设置页中 Codex provider 的“获取可用模型”弹框与 Codex Auth 全局模型选择器使用同一份 DSH 动态模型目录。
+- `FNOS-007-32-AC-02`：Codex provider 的目录桥接只影响 `llm-pi-ai` 下的 `openai-codex`，其他 provider 和普通 endpoint discovery 继续使用 DSH 原生逻辑。
+- `FNOS-007-32-AC-03`：登录后模型目录自动同步完成后，两个模型选择界面显示的模型 ID 和名称一致，不再回退到 pi-ai 内置旧列表。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -368,6 +380,8 @@ sequenceDiagram
 | 安装/配置向导字段统一 | 本地完成，待 NAS 回归 | FNOS-007-28 |
 | NAS 安装 release-age 兼容 | 本地完成，待 NAS 回归 | FNOS-007-29 |
 | Codex Auth 授权页打开 | 本地完成，待 NAS/真实网络回归 | FNOS-007-30 |
+| Codex Auth 模型目录自动同步 | 本地完成，待真实客户端/网络回归 | FNOS-007-31 |
+| Codex 模型设置弹框与全局模型目录统一 | 本地完成，待真实客户端回归 | FNOS-007-32 |
 
 ## 变更记录
 
@@ -395,3 +409,5 @@ sequenceDiagram
 | 2026-09-28 | 统一安装/配置/升级向导字段 | 新增 FNOS-007-28：`wizard/config`、`wizard/upgrade` 与 `wizard/install` 统一端口、可信访问地址和 npm 源字段，三个向导均将 npm 源放在最后并移除“（可选）”文案。 |
 | 2026-09-28 | 修复 NAS 安装 release-age 阻断 | 新增 FNOS-007-29：FPK 归档替换和 thirdparty registry 收敛使用受控的 `minimum-release-age=0` 参数，避免新发布 dshmarket 阻断 remove/add；remove 保持只传包名。 |
 | 2026-09-28 | 修复 Codex Auth 空白授权页 | 新增 FNOS-007-30：点击登录时立即打开固定的 OpenAI device-code 页面，解除授权页导航对 NAS 异步 device-code 请求的依赖；网络错误保留在原页面显示。 |
+| 2026-09-28 | 更新 Codex Auth 模型目录同步 | 新增 FNOS-007-31：更新默认模型基线，移除手动刷新按钮，登录后自动同步账号模型，并通过 DSH 设置变更事件刷新可用模型弹框。 |
+| 2026-09-28 | 统一 Codex 模型弹框数据源 | 新增 FNOS-007-32：修复官方 Models 页面仍读取 pi-ai 静态 Codex 目录的问题，让 provider 弹框与 Codex Auth 全局模型选择器共用 DSH 动态目录。 |

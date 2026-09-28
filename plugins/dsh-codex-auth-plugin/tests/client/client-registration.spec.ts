@@ -14,6 +14,7 @@ describe('dsh-codex-auth-plugin client registration', () => {
     expect(client).toContain("installSemiDshTheme(), 'dsh-codex-auth-plugin: Semi DSH theme'")
     expect(client).toContain("'connection', 'remote', 'remote.session', 'timer'")
     expect(client).toContain('const remote = ctx.remote as unknown')
+    expect(client).toContain('installCodexModelDiscoveryBridge')
     expect(client).not.toContain('settingsScope')
     expect(client).not.toContain('CodexCapabilities')
   })
@@ -60,12 +61,17 @@ describe('dsh-codex-auth-plugin client registration', () => {
     expect(section).not.toContain('dsh-codex-auth-usage')
   })
 
-  it('keeps model refresh and the global model picker in the settings section', async () => {
+  it('refreshes the model catalog automatically after sign-in and keeps the global model picker in the settings section', async () => {
     const section = await readFile(new URL('../../src/components/CodexAuthSection.tsx', import.meta.url), 'utf8')
     expect(section).toContain('<CodexGlobalModel')
     expect(section).toContain('catalogRefreshKey={catalogRefreshKey}')
     expect(section).toContain('CODEX_MODEL_REFRESH_PATH')
     expect(section).toContain('refreshModels')
+    expect(section).toContain('autoRefreshDoneRef')
+    expect(section).toContain("status.status !== 'signed-in'")
+    expect(section).not.toContain('modelRefreshIntro')
+    expect(section).not.toContain('modelRefreshAction')
+    expect(section).not.toContain('onClick={() => { void refreshModels() }}')
     expect(section).not.toContain('CodexCapabilities')
   })
 

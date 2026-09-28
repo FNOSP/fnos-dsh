@@ -44,9 +44,8 @@ export const en = {
   globalModelUnavailable: 'This model is no longer in the current catalog.',
   setGlobalModel: 'Set as global model',
   modelRefreshTitle: 'Model catalog',
-  modelRefreshIntro: 'Fetch the models and reasoning efforts your ChatGPT account can use right now and sync them into DSH.',
-  modelRefreshAction: 'Refresh model catalog',
-  modelRefreshing: 'Refreshing…',
+  modelRefreshIntro: 'After sign-in, the models and reasoning efforts available to your ChatGPT account are synced into DSH automatically.',
+  modelRefreshing: 'Syncing model catalog…',
   modelRefreshDone: 'Synced {count} models from your ChatGPT account.',
   modelRefreshFailed: 'Unable to refresh the Codex model catalog. Check the sign-in state and try again.',
 }
@@ -97,9 +96,8 @@ export const zh: { [Key in CodexAuthLocaleKey]: string } = {
   globalModelUnavailable: '当前模型已不在可用目录中。',
   setGlobalModel: '设置为全局模型',
   modelRefreshTitle: '模型目录',
-  modelRefreshIntro: '从你的 ChatGPT 账号获取当前可用的模型与思考强度，并同步到 DSH。',
-  modelRefreshAction: '刷新模型目录',
-  modelRefreshing: '刷新中…',
+  modelRefreshIntro: '登录后会自动从你的 ChatGPT 账号获取当前可用的模型与思考强度，并同步到 DSH。',
+  modelRefreshing: '正在同步模型目录…',
   modelRefreshDone: '已从账号同步 {count} 个模型。',
   modelRefreshFailed: '无法刷新 Codex 模型目录，请确认登录状态后重试。',
 }
