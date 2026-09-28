@@ -44,6 +44,7 @@ DSH `0.1.7-rc.2` 新增了侧栏「插件」管理页，并提供官方架构决
 | FNOS-008-04 | P1 | 设置弹框移除插件配置入口 | 「设置 → 插件」分区不再出现 fnOS、CodeBuddy、Codex Auth 的配置标签页或导航项；官方只读插件清单保留 | <Badge type="info" text="规划中" /> |
 | FNOS-008-05 | P1 | 配置功能与数据保持 | 迁移后三个插件的配置读写、保存失败保护与升级前已有的配置数据保持不变 | <Badge type="info" text="规划中" /> |
 | FNOS-008-06 | P0 | CodeBuddy Desktop 兼容 | CodeBuddy 配置详情页及账号、用量和成长任务能力在 DSH Desktop 中可用，同时保持 Web/fnOS 兼容 | <Badge type="info" text="规划中" /> |
+| FNOS-008-07 | P0 | Codex Auth Desktop 兼容 | Codex Auth 的登录在 DSH Desktop 中可用：授权页在系统浏览器打开后设备码流程继续，不再误报「登录窗口被阻止」 | <Badge type="info" text="规划中" /> |
 
 ## 既有功能变更关系
 
@@ -89,6 +90,27 @@ sequenceDiagram
     Host-->>Desktop: 登录状态以 pollLogin 为准
 ```
 
+```mermaid
+sequenceDiagram
+    participant User as 用户
+    participant Desktop as DSH Desktop（Electron 壳）
+    participant Page as Codex Auth 设置页
+    participant Host as DSH Host
+    participant Browser as 系统浏览器
+    User->>Page: 点击「登录」
+    Page->>Browser: window.open(auth.openai.com/codex/device)
+    Note over Page,Browser: 变更点：壳转 shell.openExternal 并返回 deny，window.open 得到 null
+    Page->>Page: 原实现把 null 判为「登录窗口被阻止」并中止
+    Note over Page,Host: 变更点：null 只表示壳接管了打开，继续请求设备码
+    Page->>Host: POST /plugins/dsh-codex-auth-plugin/auth/login
+    Host-->>Page: 返回一次性授权码
+    Page-->>User: 展示授权码与「打开授权页」
+    User->>Host: 在浏览器完成授权后由宿主轮询确认
+    Host-->>Page: 显示已登录
+```
+
+变更原因：DSH Desktop 的 Electron 壳把外部链接交给系统浏览器打开并返回 `deny`，使 `window.open` 返回 `null`；Codex Auth 原先据此判定「弹窗被拦截」并提前返回，导致 Desktop 上授权页虽已打开、设备码却永不请求。用户可观察结果：Desktop 中登录可正常完成，不再出现误导性的拦截提示。
+
 变更原因：与上游「插件页承载配置、设置只保留清单」的架构决策对齐，并让同一 CodeBuddy 配置对象在 DSH Web、fnOS 和 Desktop 中保持一致。用户可观察结果：配置操作位置改变，操作结果与数据不变；Desktop 因复用同一 Web 载体与 Host，无需新的传输层。
 
 **Desktop 运行契约（已在 dsh-0.1.7-rc.2 源码核实）**
@@ -111,6 +133,9 @@ sequenceDiagram
 - `dsh.client.platform` 保持 `web`：Desktop 复用 web 客户端载体，改动该字段会让插件在 Web 与 Desktop 同时消失。
 - OAuth 凭据只由 Host 保存；登录取消只取消当前尝试，不删除已有账号。
 - 登录结果以宿主 `pollLogin` 为准；开窗失败或返回值异常都不得让客户端产生未处理异常。
+- Codex Auth 与 CodeBuddy 共用同一条 Desktop 结论：Desktop 复用 web 载体与同一 Host，登录、模型、用量等请求由壳转发即可用，不需要第二套传输层。
+- Desktop 下 `window.open` 返回 `null` 只表示壳把授权页交给系统浏览器打开；Codex Auth 不得据此中止登录或报「登录窗口被阻止」。
+- Codex Auth 的授权码复制、取消语义与「关窗不等于放弃」保持不变；窗口句柄不可得时仅失去「取消时一并关窗」的能力，不影响取消本身。
 
 ## 不在本次范围内
 
@@ -160,6 +185,16 @@ sequenceDiagram
 - `FNOS-008-06-AC-06`：开窗异常或宿主失败时请求结束并可重试，不产生永久 loading、未处理 Promise 或静默成功。
 - `FNOS-008-06-AC-07`：Desktop 重启后已有凭据、偏好与当前账号按既有持久化规则恢复；Web/fnOS 行为与 `dsh.client.platform: web` 声明保持兼容。
 
+### FNOS-008-07
+
+- `FNOS-008-07-AC-01`：目标 DSH Desktop 启动后，Codex Auth 随 web 客户端载体成功加载，设置页与对话区用量状态正常显示。
+- `FNOS-008-07-AC-02`：用户可在 Desktop 点击登录：授权页在系统浏览器中打开，且设备码请求继续发出，不再显示「浏览器阻止了登录窗口」。
+- `FNOS-008-07-AC-03`：Desktop 下 `window.open` 返回 `null` 时登录不中断；设备码与授权码正常展示，登录结果可见。
+- `FNOS-008-07-AC-04`：用户可在 Desktop 取消登录并回到可重试状态，已登录账号不被删除；获得窗口句柄时仍支持取消时关闭授权窗口。
+- `FNOS-008-07-AC-05`：授权码复制、全局模型选择与保存、模型目录刷新在 Desktop 中可用且结果与会话持久化一致。
+- `FNOS-008-07-AC-06`：开窗异常或宿主失败时请求结束并可重试，不产生永久 loading、未处理 Promise 或静默成功。
+- `FNOS-008-07-AC-07`：独立浏览器、fnOS iframe 中的 Codex Auth 登录与取消行为不回归；`dsh.client.platform` 保持 `web`。
+
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
@@ -168,3 +203,5 @@ sequenceDiagram
 | 2026-09-28 | 合并 FNOS-009 | CodeBuddy DSH Desktop 适配并入 FNOS-008-06；原 FNOS-009 独立需求与计划不再作为追踪入口，Desktop 范围仅覆盖 CodeBuddy。 |
 | 2026-09-28 | 更正 Desktop 前提 | 经 `dsh-0.1.7-rc.2` 源码核实：Desktop 为 Electron 壳并复用 web 载体与同一 Host，`/codebuddy` RPC 等由壳转发即可用，因此 FNOS-008-06 删除「新增 Remote facade/第二套传输层」的原约定；`dsh.client.platform` 保持 `web`，Desktop 真正差异是 `window.open` 返回 `null` 仍属已外部打开。 |
 | 2026-09-28 | FNOS-008-06 实现完成、桌面验收阻塞 | 开窗语义已收口并补契约测试，本地组合端到端通过；目标 DSH Desktop 运行时验收尚未执行（本机无 Electron 运行时），FNOS-008-06 保持「规划中」直至桌面环境验收完成。 |
+| 2026-09-28 | 新增 FNOS-008-07 | Codex Auth Desktop 兼容审计：确认其为**功能性阻断**——`signIn()` 把 `window.open` 返回的 `null` 判为「弹窗被拦截」并提前返回，而 Desktop 壳对 http/https 一律返回 deny，导致授权页虽打开但设备码永不请求，Desktop 无法登录。其余路径（`/plugins/*` 转发、`trustedRequest` 的 loopback 判定、剪贴板权限）核实无缺口。 |
+| 2026-09-28 | FNOS-008-07 实现完成、桌面验收阻塞 | 登录阻断已修复：`null` 不再判为失败，设备码照常请求；窗口句柄改为可选（不影响取消与已登录账号），并补 10 条契约测试。本地组合端到端通过；目标 DSH Desktop 运行时验收尚未执行，FNOS-008-07 保持「规划中」。 |

@@ -5,6 +5,7 @@ import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import { DshButton, DshIconCheckCircle, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { CodexAuthLocaleKey } from '../client/locales.ts'
+import { openAuthorizationWindow } from '../client/window-opener.ts'
 import { CodexGlobalModel } from './CodexGlobalModel.tsx'
 import {
   CODEX_AUTH_CANCEL_PATH,
@@ -199,17 +200,26 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
   const signIn = async (): Promise<void> => {
     const generation = loginGenerationRef.current + 1
     loginGenerationRef.current = generation
-    const popup = window.open(CODEX_AUTH_VERIFICATION_URI, '_blank')
-    if (popup === null) {
-      setStatus({ status: 'error', message: t('popupBlocked') })
-      return
-    }
-    // 刻意不置 `popup.opener = null`：授权窗口离开本页后是跨域的，此时若 opener
-    // 已被切断，窗口就不再是 script-closable，`close()` 会静默失效（实测：跨域后
-    // 调 close 返回 undefined 且 `closed` 仍为 false），「取消时一并关掉窗口」也就
-    // 无从实现。授权地址由宿主校验过（必须 https、不带内嵌凭据），保留 opener 是
-    // OAuth 弹窗的常规做法。
-    authWindowsRef.current.add(popup)
+    /**
+     * 先打开固定的授权页。**返回 `null` 不是失败**：DSH Desktop 的 Electron 壳
+     * 对 http/https 调 `shell.openExternal(url)` 后一律返回 `deny`，于是这里
+     * 拿到 `null`，而授权页其实已经在系统浏览器里打开了。
+     *
+     * 曾经把 `null` 当成「浏览器阻止了登录窗口」并在此 `return`，后果是 Desktop
+     * 上授权页开着、设备码却永不请求，登录完全不可用。因此 `null` 只表示
+     * 「窗口句柄不可得」——它只影响「取消时能否顺手关窗」，与登录是否继续无关。
+     *
+     * 刻意不置 `popup.opener = null`：授权窗口离开本页后是跨域的，此时若 opener
+     * 已被切断，窗口就不再是 script-closable，`close()` 会静默失效（实测：跨域后
+     * 调 close 返回 undefined 且 `closed` 仍为 false），「取消时一并关掉窗口」也就
+     * 无从实现。授权地址由宿主校验过（必须 https、不带内嵌凭据），保留 opener 是
+     * OAuth 弹窗的常规做法。
+     *
+     * 这里也刻意不带 `noopener`：它同样会让返回值恒为 `null`（与 Desktop 的
+     * `null` 无法区分），并切断 opener 使跨域后无法关窗。
+     */
+    const popup = openAuthorizationWindow(CODEX_AUTH_VERIFICATION_URI)
+    if (popup !== null) authWindowsRef.current.add(popup)
     setBusy(true)
     setStatus({ status: 'signing-in' })
     setChallenge(undefined)
@@ -217,8 +227,9 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
     try {
       const next = await jsonRequest<LoginChallenge>(CODEX_AUTH_LOGIN_PATH, 'POST')
       // 请求期间用户已取消：丢弃这次结果，也不再跳转那个已关闭的窗口。
+      // `popup` 可能为 `null`（Desktop 壳接管开窗），此时没有句柄可关。
       if (loginGenerationRef.current !== generation) {
-        popup.close()
+        popup?.close()
         return
       }
       setChallenge(next)
@@ -310,9 +321,11 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
                 // 不能带 `noopener`（那会让 window.open 返回 null，拿不到窗口引用，
                 // 也就无法检测用户关掉它、更无法在取消时关掉它），也不能在开窗后置
                 // `opener = null`——原因同 `signIn()`：跨域窗口会因此无法被脚本关闭。
-                const opened = window.open(challenge.verificationUri, '_blank')
-                if (opened === null) return
-                authWindowsRef.current.add(opened)
+                //
+                // `null` 句柄（Desktop 壳接管开窗）只是「关不掉」，不影响打开本身，
+                // 因此静默跳过登记，不 `return` 掉后续逻辑。
+                const opened = openAuthorizationWindow(challenge.verificationUri)
+                if (opened !== null) authWindowsRef.current.add(opened)
               }}
             >
               {t('openAuthorization')}

@@ -45,7 +45,8 @@ describe('Codex 授权码的复制接线', () => {
     const signInBody = source.slice(signInAt, signOutAt)
 
     // 弹窗打开后主文档失去焦点，此时的任何复制调用都必然失败。
-    expect(signInBody).toContain("window.open(CODEX_AUTH_VERIFICATION_URI, '_blank')")
+    // 开窗实现已收口到 `openAuthorizationWindow`（见 desktop-window.spec.ts）。
+    expect(signInBody).toContain('openAuthorizationWindow(CODEX_AUTH_VERIFICATION_URI)')
     expect(signInBody).not.toContain('popup.location.replace(next.verificationUri)')
     expect(signInBody).not.toContain('copyTextToClipboard')
     expect(signInBody).not.toContain('copyAuthorizationCode')

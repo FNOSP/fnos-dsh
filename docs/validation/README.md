@@ -47,3 +47,4 @@ status: passed|failed|blocked
 - [FNOS-002 NAS 浏览器验收记录（2026-09-01）](/validation/FNOS-002-nas-2026-09-01)
 - [FNOS-004-08 DSH 客户端验收记录（2026-09-13）](/validation/FNOS-004-08-dsh-client-2026-09-13)
 - [FNOS-008-06 CodeBuddy Desktop 适配本地验证记录（2026-09-28）](/validation/FNOS-008-06-codebuddy-desktop-local-2026-09-28)
+- [FNOS-008-07 Codex Auth Desktop 登录修复本地验证记录（2026-09-28）](/validation/FNOS-008-07-codex-desktop-local-2026-09-28)

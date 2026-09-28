@@ -11,7 +11,9 @@ describe('Codex 授权窗口导航', () => {
 
     expect(paths).toContain("CODEX_AUTH_VERIFICATION_URI = 'https://auth.openai.com/codex/device'")
     expect(source).toContain('CODEX_AUTH_VERIFICATION_URI')
-    expect(source).toContain("window.open(CODEX_AUTH_VERIFICATION_URI, '_blank')")
+    // 开窗已收口到 `openAuthorizationWindow`（见 desktop-window.spec.ts）：
+    // 它返回句柄供取消时关窗，并在 DSH Desktop 返回 null 时不视为失败。
+    expect(source).toContain('openAuthorizationWindow(CODEX_AUTH_VERIFICATION_URI)')
     expect(source).not.toContain("window.open('about:blank', '_blank')")
     expect(source).not.toContain('popup.location.replace(next.verificationUri)')
 
@@ -19,6 +21,6 @@ describe('Codex 授权窗口导航', () => {
     const finallyStart = source.indexOf('    } finally {', catchStart)
     expect(catchStart).toBeGreaterThan(-1)
     expect(finallyStart).toBeGreaterThan(catchStart)
-    expect(source.slice(catchStart, finallyStart)).not.toContain('popup.close()')
+    expect(source.slice(catchStart, finallyStart)).not.toContain('popup?.close()')
   })
 })
