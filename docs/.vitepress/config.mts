@@ -98,6 +98,7 @@ const charterItems = [
   { text: 'SDD 维护规范', link: '/charter/sdd-workflow' },
   { text: '需求文档规范', link: '/charter/requirements-spec' },
   { text: '计划文档规范', link: '/charter/plans-spec' },
+  { text: 'VitePress 文档菜单规范', link: '/charter/vitepress-document-menu' },
   { text: 'SDD 模式转换报告', link: '/charter/sdd-transition-report' },
   { text: '目录结构规范', link: '/charter/directory-structure' }
 ]
@@ -200,6 +201,10 @@ const requirementsSidebar = [
         text: 'FNOS-007 DSH 0.1.7-rc.2 适配',
         link: '/requirements/FNOS-007-dsh-017-rc2-adaptation'
       },
+      {
+        text: 'FNOS-008 插件配置统一迁入插件管理页',
+        link: '/requirements/FNOS-008-plugin-config-in-plugin-manager'
+      },
     ]
   }
 ]
@@ -236,6 +241,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复',
         link: '/plans/PLAN-FNOS-007-dsh-017-rc2-adaptation'
+      },
+      {
+        text: 'PLAN-FNOS-008 插件配置统一迁入插件管理页',
+        link: '/plans/PLAN-FNOS-008-plugin-config-in-plugin-manager'
       },
     ]
   }
