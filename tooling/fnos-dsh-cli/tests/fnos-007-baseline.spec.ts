@@ -111,14 +111,17 @@ describe('FNOS-007 DSH baseline', () => {
     const match = /^resolve_terminal_shell\(\) \{[\s\S]+?^\}/mu.exec(main)
     expect(match, 'cmd/main must define resolve_terminal_shell').not.toBeNull()
     const fn = match![0]
-    const scenarios: Array<[string, string]> = [
-      ['/usr/sbin/nologin', '/bin/bash'],
-      ['/bin/false', '/bin/bash'],
-      ['/nonexistent/shell', '/bin/bash'],
-    ]
-    for (const [inherited, expected] of scenarios) {
-      const output = execFileSync('/bin/bash', ['-c', `${fn}\nSHELL=${inherited}\nresolve_terminal_shell`], { encoding: 'utf8' })
-      expect(output.trim(), `SHELL=${inherited}`).toBe(expected)
+    // The terminal controller de-duplicates its menu by path string, so whatever
+    // is exported here must match the path it resolves for its own `bash`
+    // candidate; otherwise the same shell is listed twice on a usrmerged host.
+    const bashPath = execFileSync('/bin/bash', ['-c', 'command -v -- bash'], { encoding: 'utf8' }).trim()
+    expect(bashPath).not.toBe('')
+    const scenarios = ['/usr/sbin/nologin', '/bin/false', '/nonexistent/shell', '']
+    for (const inherited of scenarios) {
+      const output = execFileSync('/bin/bash', ['-c', `${fn}\nSHELL=${JSON.stringify(inherited)}\nresolve_terminal_shell`], { encoding: 'utf8' })
+      const resolved = output.trim()
+      expect(resolved, `SHELL=${inherited}`).toBe(bashPath)
+      expect(resolved).not.toMatch(/nologin|false/u)
     }
   })
 

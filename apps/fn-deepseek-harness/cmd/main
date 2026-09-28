@@ -26,23 +26,34 @@ export NPM_CONFIG_CACHE="${DSH_HOME}/.npm-cache"
 export NPM_CONFIG_PREFIX="${DSH_HOME}/.npm-global"
 export PATH="${NPM_CONFIG_PREFIX}/bin:${PATH}"
 
-# The DSH Web terminal resolves its default shell from the DSH process
-# environment first and from the account's login shell second. This app runs as
-# a dedicated package user whose login shell is /usr/sbin/nologin, so without an
-# explicit value the terminal starts a shell that exits immediately. Pick the
-# first explicit, executable, non-login-only candidate so the in-app terminal
-# works; the process identity is unchanged and no fnOS permission model is
-# involved. An inherited SHELL is only reused when it is itself usable, so a
-# nologin value in the ambient environment cannot be preserved.
+# DSH Web 终端解析默认 Shell 时，先读 DSH 进程环境，再回退到账号的登录 Shell。
+# 本应用以专用包用户运行，其登录 Shell 是 /usr/sbin/nologin；若不显式指定，
+# 终端会启动一个立即退出的 Shell。这里挑选第一个可执行、且不是 login-only 的
+# 候选，使应用内终端可用；进程身份不变，也不涉及 fnOS 权限模型。继承来的
+# SHELL 仅在自身可用时才复用，因此环境中的 nologin 不会被保留。
+#
+# 选定结果必须归一化为终端控制器解析自身 Shell 候选时得到的同一路径，因为它
+# 按路径字符串对菜单去重。裸命令名走 PATH（`command -v`），绝对路径走
+# `readlink -f`：在 usrmerge 主机上 /bin 与 /usr/bin 是同一文件，若导出
+# /bin/bash 而 `bash` 候选解析为 /usr/bin/bash，同一个 Shell 会在“新建终端”
+# 菜单里出现两次。
 resolve_terminal_shell() {
-    local candidate
-    for candidate in "${SHELL:-}" /bin/bash /usr/bin/bash /bin/sh; do
+    local candidate resolved
+    for candidate in "${SHELL:-}" bash /usr/bin/bash /bin/bash /bin/sh; do
         [ -n "${candidate}" ] || continue
         case "${candidate}" in
+        */*) resolved="$(readlink -f -- "${candidate}" 2>/dev/null)" || resolved="${candidate}" ;;
+        *) resolved="$(command -v -- "${candidate}" 2>/dev/null)" || continue ;;
+        esac
+        case "${resolved}" in
+        /*) ;;
+        *) continue ;;
+        esac
+        case "${resolved}" in
         */nologin | */false) continue ;;
         esac
-        [ -x "${candidate}" ] || continue
-        printf '%s' "${candidate}"
+        [ -x "${resolved}" ] || continue
+        printf '%s' "${resolved}"
         return 0
     done
     return 1
@@ -52,13 +63,11 @@ if TERMINAL_SHELL="$(resolve_terminal_shell)"; then
     export SHELL="${TERMINAL_SHELL}"
 fi
 
-# An interactive shell renders its prompt (bash's `\w`, i.e. the working
-# directory) by decoding it with the active locale. The app is started with a
-# minimal environment that carries no locale, so bash falls back to the C
-# locale, cannot decode non-ASCII path bytes, and escapes every multi-byte
-# character as `M-x` — a workspace such as 技能安装和测试 then shows as
-# `M-fM-...M-`. Export UTF-8 LANG/LC_CTYPE, but only a name this host actually
-# has, and drop a non-UTF-8 LC_ALL because it would override both.
+# 交互式 Shell 渲染提示符（bash 的 `\w`，即工作目录）时，会按当前 locale 解码。
+# 应用启动时的环境不含任何 locale，bash 因此退回 C locale，无法解码非 ASCII
+# 路径字节，会把每个多字节字符转义成 `M-x`——例如工作区 技能安装和测试 会显示成
+# `M-fM-...M-`。这里导出 UTF-8 的 LANG/LC_CTYPE，但只使用本机确实存在的名称；
+# 同时清除非 UTF-8 的 LC_ALL，因为它会覆盖前两者。
 resolve_utf8_locale() {
     local candidate normalised available
     available="$(locale -a 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -d -- '-')"
