@@ -34,7 +34,6 @@ import { installFnosPresentedOpen } from './services/present-open.ts'
 import { FnosSettingsDocumentAction } from '../components/FnosSettingsDocumentAction.tsx'
 import { FnosWebRestartAction } from '../components/FnosWebRestartAction.tsx'
 import { installFnosBrowserRefreshShortcut } from './shortcuts/browser-refresh-shortcut.ts'
-import { installFnosSettingsShortcut } from './shortcuts/settings-shortcut.ts'
 import { isEmbeddedFnosFrame } from './services/sdk-carrier.ts'
 import { createTrimApp } from './services/sdk.ts'
 import { installFnosPageTitle } from './services/sdk-title.ts'
@@ -105,7 +104,6 @@ export function apply(ctx: ClientContext): void {
   }), 'dsh-fnos: fnOS path opener')
   ctx.effect(() => installFnosPageTitle(createTrimApp), 'dsh-fnos: fnOS page title')
   ctx.effect(() => installFnosBrowserRefreshShortcut(), 'dsh-fnos: browser refresh shortcut')
-  ctx.effect(() => installFnosSettingsShortcut(), 'dsh-fnos: settings shortcut')
   ctx.effect(() => installWorkspaceAuthorizedShortcut(t), 'dsh-fnos: workspace authorized shortcut')
 
   const source: InputTriggerSource = {

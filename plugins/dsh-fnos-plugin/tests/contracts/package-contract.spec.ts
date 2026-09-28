@@ -107,15 +107,14 @@ describe('dsh-fnos package contract', () => {
     const refreshShortcutMatcher = await readFile(new URL('../../src/client/shortcuts/browser-refresh-shortcut-matcher.ts', import.meta.url), 'utf8')
     expect(refreshShortcutMatcher).toContain("event.key === 'F5'")
     expect(refreshShortcutMatcher).toContain("event.key.toLowerCase() === 'r'")
-    const settingsShortcut = await readFile(new URL('../../src/client/shortcuts/settings-shortcut.ts', import.meta.url), 'utf8')
-    expect(settingsShortcut).toContain('DshHotKeys')
-    expect(settingsShortcut).toContain('DshHotKeys.Keys.Control')
-    expect(settingsShortcut).toContain('DshHotKeys.Keys.Meta')
-    expect(settingsShortcut).toContain('DshHotKeys.Keys.Comma')
-    expect(settingsShortcut).toContain('[data-slot="sidebar.settings"] button[aria-haspopup="dialog"]')
-    expect(settingsShortcut).toContain('trigger.click()')
-    expect(settingsShortcut).toContain('event.preventDefault()')
-    expect(source).toContain('installFnosSettingsShortcut')
+    // DSH registers the settings shortcut itself (`settings.open`, Comma with the
+    // primary modifier on every platform) and additionally closes the settings
+    // shell, respects its regions and lets the user rebind it. A plugin-local
+    // listener would only shadow that command, so the plugin must not reinstate
+    // one. Keep this inverted guard so an edit cannot silently add it back.
+    expect(source).not.toContain('installFnosSettingsShortcut')
+    await expect(readFile(new URL('../../src/client/shortcuts/settings-shortcut.ts', import.meta.url), 'utf8'))
+      .rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('keeps the cancel-authorization label stable while adding a directory', async () => {
