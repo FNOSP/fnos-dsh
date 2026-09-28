@@ -1,4 +1,5 @@
 import { createProxyMiddleware } from 'http-proxy-middleware'
+import { createHash } from 'node:crypto'
 import type { RequestHandler } from 'http-proxy-middleware'
 import { request as httpRequest, type ServerResponse, type IncomingMessage } from 'node:http'
 import type { GatewayOptions } from '../types/gateway.js'
@@ -38,9 +39,14 @@ function isIndexRequest(req: IncomingMessage): boolean {
   return pathname === '' || pathname === '/'
 }
 
-/** Whether the browser already returns a DSH browser-session cookie. */
-function hasBrowserSessionCookie(req: IncomingMessage): boolean {
-  return /(?:^|;\s*)dsh-auth-[^=;]+=/u.test(String(req.headers.cookie ?? ''))
+/** The DSH browser-session cookie name is bound to the loopback Host authority. */
+function browserSessionCookieName(upstreamHost: string, upstreamPort: number): string {
+  return `dsh-auth-${createHash('sha256').update(`${upstreamHost}:${String(upstreamPort)}`).digest('base64url')}`
+}
+
+/** Whether the browser returns the cookie for this gateway's current DSH authority. */
+function hasBrowserSessionCookie(req: IncomingMessage, cookieName: string): boolean {
+  return String(req.headers.cookie ?? '').split(';').some(pair => pair.trim().startsWith(`${cookieName}=`))
 }
 
 function withLaunchToken(path: string | undefined, token: string | undefined): string | undefined {
@@ -77,12 +83,13 @@ function stripLaunchTokenFromLocation(value: string): string {
  * token; every other request authenticates with the cookie the browser now
  * holds.
  */
-function needsLaunchToken(req: IncomingMessage): boolean {
-  return isIndexRequest(req) && !hasBrowserSessionCookie(req)
+function needsLaunchToken(req: IncomingMessage, cookieName: string): boolean {
+  return isIndexRequest(req) && !hasBrowserSessionCookie(req, cookieName)
 }
 
 export function createProxyHandler(options: GatewayOptions): RequestHandler {
   const { upstreamHost, upstreamPort, gatewayPrefix, sseKeepaliveInterval = 15_000 } = options
+  const cookieName = browserSessionCookieName(upstreamHost, upstreamPort)
 
   const writeUpstreamResponse = (proxyRes: IncomingMessage, req: IncomingMessage, res: ServerResponse): void => {
     const contentType = String(proxyRes.headers['content-type'] || '').toLowerCase()
@@ -168,16 +175,16 @@ export function createProxyHandler(options: GatewayOptions): RequestHandler {
     on: {
       proxyReq: (proxyReq, req) => {
         applyProxyRequestHeaders(proxyReq, req, { host: upstreamHost, port: upstreamPort })
-        if (!needsLaunchToken(req)) return
+        if (!needsLaunchToken(req, cookieName)) return
         proxyReq.path = withLaunchToken(proxyReq.path, options.webProcess?.getLaunchToken?.()) ?? proxyReq.path
       },
       proxyReqWs: (proxyReq, req) => {
         applyProxyRequestHeaders(proxyReq, req, { host: upstreamHost, port: upstreamPort })
-        if (!needsLaunchToken(req)) return
+        if (!needsLaunchToken(req, cookieName)) return
         proxyReq.path = withLaunchToken(proxyReq.path, options.webProcess?.getLaunchToken?.()) ?? proxyReq.path
       },
       proxyRes: (proxyRes, req, res) => {
-        if (proxyRes.statusCode === 401 && isIndexRequest(req) && hasBrowserSessionCookie(req)) {
+        if (proxyRes.statusCode === 401 && isIndexRequest(req)) {
           const token = options.webProcess?.getLaunchToken?.()
           if (token !== undefined && token !== '') {
             proxyRes.resume()

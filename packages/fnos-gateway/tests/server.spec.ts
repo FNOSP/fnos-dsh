@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { createServer, request as httpRequest, type Server } from 'node:http'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { once } from 'node:events'
@@ -69,10 +70,11 @@ describe('gateway server', () => {
     await expect(get()).resolves.toEqual({ statusCode: 200, location: undefined })
     expect(upstreamPaths[0]).toBe('/?token=launch-token')
 
+    const browserCookieName = `dsh-auth-${createHash('sha256').update(`127.0.0.1:${String(upstreamPort)}`).digest('base64url')}`
     // DSH answers *any* tokenized index request with a 303 to the clean URL,
     // even when the request already carries a valid cookie. Re-injecting the
     // token here is what produced the "too many redirects" loop.
-    await expect(get({ cookie: 'dsh-auth-test=valid' })).resolves.toEqual({ statusCode: 200, location: undefined })
+    await expect(get({ cookie: `${browserCookieName}=valid` })).resolves.toEqual({ statusCode: 200, location: undefined })
     expect(upstreamPaths[1]).toBe('/')
   })
 
@@ -116,7 +118,9 @@ describe('gateway server', () => {
   })
 
   it('replaces an invalid browser cookie with the current launch token upstream', async () => {
+    const upstreamPaths: string[] = []
     const upstream = createServer((req, res) => {
+      upstreamPaths.push(req.url ?? '')
       const requestUrl = new URL(req.url ?? '/', 'http://upstream.invalid')
       if (requestUrl.pathname === '/' && !requestUrl.searchParams.has('token')) {
         res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' })
@@ -165,6 +169,7 @@ describe('gateway server', () => {
     })
 
     expect(response).toEqual({ statusCode: 200, location: undefined })
+    expect(upstreamPaths[0]).toContain('token=current-launch-token')
   })
 
   it('does not loop when the upstream answers a tokenized index with 303 to the clean URL', async () => {
@@ -175,12 +180,13 @@ describe('gateway server', () => {
     const upstream = createServer((req, res) => {
       const requestUrl = new URL(req.url ?? '/', 'http://upstream.invalid')
       seen.push(req.url ?? '')
-      const session = String(req.headers.cookie ?? '').includes('dsh-auth-upstream=')
+      const cookieName = `dsh-auth-${createHash('sha256').update(`127.0.0.1:${String(upstreamPort)}`).digest('base64url')}`
+      const session = String(req.headers.cookie ?? '').includes(`${cookieName}=`)
       if (requestUrl.pathname === '/' && requestUrl.searchParams.has('token')) {
         res.writeHead(303, {
           'cache-control': 'no-store',
           location: '/',
-          'set-cookie': 'dsh-auth-upstream=v1.fresh; Path=/; HttpOnly; SameSite=Strict',
+          'set-cookie': `${cookieName}=v1.fresh; Path=/; HttpOnly; SameSite=Strict`,
         })
         res.end()
         return
