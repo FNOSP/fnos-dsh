@@ -8,19 +8,6 @@ export interface ResponseHeaderOptions {
   gatewayPrefix: string
 }
 
-function cookieMountPath(gatewayPrefix: string): string {
-  const prefix = gatewayPrefix.replace(/^\/+|\/+$/gu, '')
-  return prefix === '' ? '/' : `/${prefix}/`
-}
-
-function rewriteSetCookiePath(value: string, gatewayPrefix: string): string {
-  if (gatewayPrefix === '') return value
-  return value.replace(
-    /(^|;\s*)Path=\/(?=;|$)/iu,
-    `$1Path=${cookieMountPath(gatewayPrefix)}`,
-  )
-}
-
 export function copyResponseHeaders(headers: IncomingHttpHeaders, options: ResponseHeaderOptions): Record<string, string | string[]> {
   const result: Record<string, string | string[]> = {}
   for (const [name, value] of Object.entries(headers)) {
@@ -28,9 +15,6 @@ export function copyResponseHeaders(headers: IncomingHttpHeaders, options: Respo
     if (name.toLowerCase() === 'content-length' && (options.rewriteBody || options.eventStream)) continue
     if (name.toLowerCase() === 'location' && typeof value === 'string') {
       result[name] = rewriteLocation(value, options.gatewayPrefix) as string
-    } else if (name.toLowerCase() === 'set-cookie' && value !== undefined) {
-      const cookies = Array.isArray(value) ? value : [value]
-      result[name] = cookies.map(cookie => rewriteSetCookiePath(cookie, options.gatewayPrefix))
     } else if (value !== undefined) {
       result[name] = value as string | string[]
     }

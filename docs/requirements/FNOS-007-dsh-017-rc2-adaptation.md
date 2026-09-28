@@ -264,6 +264,12 @@ sequenceDiagram
 - `FNOS-007-17-AC-03`：宿主共享的 Cordis、DSH 服务、Remote、UI seam 和模型能力继续使用 `peerDependencies`；不因清理传递依赖而搬到 `dependencies` 生成重复 DSH runtime。
 - `FNOS-007-17-AC-04`：`package.json`、`compatibility.json`、开发依赖和自动化检查保持一致，插件仍可完成类型检查、测试、构建和 profile 安装。
 
+### FNOS-007-18
+
+- `FNOS-007-18-AC-01`：DSH 浏览器认证 Cookie 保留上游 `Path=/` 属性，不被网关改写为应用挂载路径。
+- `FNOS-007-18-AC-02`：通过 `/app/fn-deepseek-harness/` 打开的页面，其 `/api/*`、Remote WebSocket、设置和凭据接口都能复用同一 DSH 浏览器会话，不因 Cookie 路径返回 401。
+- `FNOS-007-18-AC-03`：Cookie 路径修复不改变 Location、HTML、静态资源和 WebSocket 的应用前缀重写行为。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -277,6 +283,7 @@ sequenceDiagram
 | 应用用户下的终端可用性 | 待完成 | FNOS-007-15 |
 | 本地 DSH Web 启动与 catalog 门禁 | 本地完成，待纳入完整回归 | FNOS-007-16 |
 | 插件 DSH 依赖清理 | 本地完成，待纳入完整回归 | FNOS-007-17 |
+| 网关 DSH Cookie 认证 | 本地完成，待 NAS 回归 | FNOS-007-18 |
 
 ## 变更记录
 
@@ -291,3 +298,4 @@ sequenceDiagram
 | 2026-09-27 | 纳入终端可用性 | 新增 FNOS-007-15：DSH `0.1.7-rc.2` 提供终端能力，但应用以专用应用账号运行，需保证用户在 fnOS 内打开终端即可得到可用 Shell，且终端身份与环境对用户可预期。 |
 | 2026-09-27 | 修复本地 DSH Web 启动与 catalog 漂移 | 新增 FNOS-007-16：启动前清理仓库本地生成树中的悬空软链接，避免 Turbo watcher 因历史 `.dsh`、`node_modules` 或 pnpm 临时项目链接失败；统一校验 catalog 维护依赖，并将 `@earendil-works/pi-ai` 改为 `catalog:`，保留既有 DSH peer 精确版本发布契约。 |
 | 2026-09-27 | 清理插件未使用 DSH 依赖 | 新增 FNOS-007-17：审计三个非 fnOS 插件的源码、客户端注入和宿主服务契约；从 Codex Auth 的 peer、devDependencies 与 compatibility 清单移除 5 个未直接使用的传递依赖，保留 peer 作为宿主共享能力契约。 |
+| 2026-09-28 | 修复网关 DSH 浏览器认证 Cookie | 新增 FNOS-007-18：移除网关将上游 `Set-Cookie: Path=/` 改写为应用挂载路径的行为，避免 DSH `0.1.7-rc.2` 的 Host 绑定浏览器会话无法被 `/api`、WebSocket 和设置接口复用。 |

@@ -46,7 +46,7 @@ describe('gateway response headers', () => {
     })
   })
 
-  it('scopes upstream root cookies to the fnOS application mount', () => {
+  it('keeps DSH browser-session cookies at root so API and WebSocket routes receive them', () => {
     const headers = copyResponseHeaders({
       'set-cookie': [
         'dsh-auth-loopback=session; Path=/; HttpOnly; SameSite=Strict',
@@ -55,7 +55,7 @@ describe('gateway response headers', () => {
     }, { ...baseOptions, rewriteBody: false, eventStream: false })
 
     expect(headers['set-cookie']).toEqual([
-      'dsh-auth-loopback=session; Path=/app/fn-deepseek-harness/; HttpOnly; SameSite=Strict',
+      'dsh-auth-loopback=session; Path=/; HttpOnly; SameSite=Strict',
       'unrelated=value; Path=/other; HttpOnly',
     ])
   })
