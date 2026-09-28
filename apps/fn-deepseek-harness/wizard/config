@@ -7,24 +7,6 @@
                 "helpText": "应用通过 fnOS 统一网关在 NAS Web 中打开，不需要对外开放端口。保存后应用会按新配置重启；应用未运行则下次启动生效。"
             },
             {
-                "type": "select",
-                "field": "wizard_host",
-                "label": "监听地址",
-                "initValue": "127.0.0.1",
-                "helpText": "DSH 暂不支持 0.0.0.0，保持 127.0.0.1 即可。",
-                "options": [
-                    {
-                        "label": "127.0.0.1（仅本机）",
-                        "value": "127.0.0.1"
-                    },
-                    {
-                        "label": "0.0.0.0（暂不支持）",
-                        "value": "0.0.0.0",
-                        "disabled": true
-                    }
-                ]
-            },
-            {
                 "type": "text",
                 "field": "wizard_port",
                 "label": "监听端口",
@@ -55,6 +37,39 @@
                     {
                         "pattern": "^(?:[^,\\s]+(?:,[^,\\s]+)*)?$",
                         "message": "请输入 host 或 host:port，多个地址用英文逗号分隔"
+                    }
+                ]
+            },
+            {
+                "type": "select",
+                "field": "wizard_npm_registry",
+                "label": "npm 镜像源",
+                "initValue": "",
+                "helpText": "留空使用 npm 官方源。安装失败不会自动换源，请按当前网络选一个后重试。",
+                "options": [
+                    {
+                        "label": "yarn",
+                        "value": "https://registry.yarnpkg.com/"
+                    },
+                    {
+                        "label": "tencent",
+                        "value": "https://mirrors.tencent.com/npm/"
+                    },
+                    {
+                        "label": "cnpm",
+                        "value": "https://r.cnpmjs.org/"
+                    },
+                    {
+                        "label": "taobao",
+                        "value": "https://registry.npmmirror.com/"
+                    },
+                    {
+                        "label": "npmMirror",
+                        "value": "https://skimdb.npmjs.com/registry/"
+                    },
+                    {
+                        "label": "huawei",
+                        "value": "https://repo.huaweicloud.com/repository/npm/"
                     }
                 ]
             }

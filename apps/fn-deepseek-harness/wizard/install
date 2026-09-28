@@ -5,7 +5,7 @@
             {
                 "type": "select",
                 "field": "wizard_npm_registry",
-                "label": "npm 镜像源（可选）",
+                "label": "npm 镜像源",
                 "initValue": "",
                 "helpText": "留空使用 npm 官方源。安装失败不会自动换源，请按当前网络选一个后重试。",
                 "options": [

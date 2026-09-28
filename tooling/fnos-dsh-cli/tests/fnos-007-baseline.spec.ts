@@ -122,6 +122,32 @@ describe('FNOS-007 DSH baseline', () => {
     expect(main).toContain(defaultHost)
   })
 
+  it('keeps config and upgrade wizard fields aligned with install and puts npm registry last', async () => {
+    type WizardItem = { field?: string, label?: string, type: string }
+    const readWizardItems = async (name: string): Promise<WizardItem[]> => {
+      const wizard = JSON.parse(await readFile(new URL(`../../../apps/fn-deepseek-harness/wizard/${name}`, import.meta.url), 'utf8')) as Array<{
+        items: WizardItem[]
+      }>
+      return wizard[0]?.items.filter(item => item.field !== undefined) ?? []
+    }
+    const installItems = await readWizardItems('install')
+    const configItems = await readWizardItems('config')
+    const upgradeItems = await readWizardItems('upgrade')
+    const expectedFields = [
+      'wizard_port',
+      'wizard_trusted_hosts',
+      'wizard_npm_registry',
+    ]
+
+    expect(configItems.map(item => item.field)).toEqual(expectedFields)
+    expect(upgradeItems.map(item => item.field)).toEqual(expectedFields)
+    expect(new Set(configItems.map(item => item.field))).toEqual(new Set(installItems.map(item => item.field)))
+    expect(new Set(upgradeItems.map(item => item.field))).toEqual(new Set(installItems.map(item => item.field)))
+    expect(installItems.find(item => item.field === 'wizard_npm_registry')?.label).not.toContain('（可选）')
+    expect(configItems.find(item => item.field === 'wizard_npm_registry')?.label).not.toContain('（可选）')
+    expect(upgradeItems.find(item => item.field === 'wizard_npm_registry')?.label).not.toContain('（可选）')
+  })
+
   it('declares every DSH dependency through the pnpm catalog', async () => {
     // Versions live in pnpm-workspace.yaml only; a literal in a plugin manifest
     // is a second place to forget on the next baseline bump.
