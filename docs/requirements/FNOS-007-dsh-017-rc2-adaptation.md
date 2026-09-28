@@ -336,6 +336,12 @@ sequenceDiagram
 - `FNOS-007-29-AC-02`：remove 操作只传递插件名称，不拼接版本号；add 操作仍使用 FPK 文件归档或清单精确版本。
 - `FNOS-007-29-AC-03`：`source: "thirdparty"` 的 registry 插件安装/升级使用同一受控 release-age 例外，普通版本收敛、同版本跳过和 `.npmrc` registry 行为保持不变。
 
+### FNOS-007-30
+
+- `FNOS-007-30-AC-01`：Codex Auth 登录点击后立即打开安全校验过的 OpenAI device-code 授权页，不先展示依赖 NAS 网络请求完成的 `about:blank` 空白页。
+- `FNOS-007-30-AC-02`：NAS 到 OpenAI 的 device-code 请求异步失败或超时时，授权页不被业务逻辑误关，原页面显示可诊断的登录错误；网络恢复后可重新发起登录。
+- `FNOS-007-30-AC-03`：授权页 URL 固定为 `https://auth.openai.com/codex/device`，Host 仍校验 provider 返回的授权 URL 为安全 HTTPS URL，授权轮询和取消逻辑保持不变。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -361,6 +367,7 @@ sequenceDiagram
 | npm registry 统一由 HOME/.npmrc 管理 | 本地完成，待 NAS 回归 | FNOS-007-27 |
 | 安装/配置向导字段统一 | 本地完成，待 NAS 回归 | FNOS-007-28 |
 | NAS 安装 release-age 兼容 | 本地完成，待 NAS 回归 | FNOS-007-29 |
+| Codex Auth 授权页打开 | 本地完成，待 NAS/真实网络回归 | FNOS-007-30 |
 
 ## 变更记录
 
@@ -387,3 +394,4 @@ sequenceDiagram
 | 2026-09-28 | 统一 npm registry 配置来源 | 新增 FNOS-007-27：删除发布清单中的 `registry` 字段，统一使用应用 `$HOME/.npmrc`，并让安装回调、升级回调和 DSH Web 继承同一配置位置。 |
 | 2026-09-28 | 统一安装/配置/升级向导字段 | 新增 FNOS-007-28：`wizard/config`、`wizard/upgrade` 与 `wizard/install` 统一端口、可信访问地址和 npm 源字段，三个向导均将 npm 源放在最后并移除“（可选）”文案。 |
 | 2026-09-28 | 修复 NAS 安装 release-age 阻断 | 新增 FNOS-007-29：FPK 归档替换和 thirdparty registry 收敛使用受控的 `minimum-release-age=0` 参数，避免新发布 dshmarket 阻断 remove/add；remove 保持只传包名。 |
+| 2026-09-28 | 修复 Codex Auth 空白授权页 | 新增 FNOS-007-30：点击登录时立即打开固定的 OpenAI device-code 页面，解除授权页导航对 NAS 异步 device-code 请求的依赖；网络错误保留在原页面显示。 |

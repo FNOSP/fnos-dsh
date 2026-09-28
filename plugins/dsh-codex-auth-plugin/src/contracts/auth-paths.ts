@@ -2,6 +2,8 @@
 
 export const CODEX_AUTH_STATUS_PATH = '/plugins/dsh-codex-auth-plugin/auth/status'
 export const CODEX_AUTH_LOGIN_PATH = '/plugins/dsh-codex-auth-plugin/auth/login'
+/** OpenAI's device-code page is fixed; opening it does not depend on the NAS network request. */
+export const CODEX_AUTH_VERIFICATION_URI = 'https://auth.openai.com/codex/device'
 export const CODEX_AUTH_CANCEL_PATH = '/plugins/dsh-codex-auth-plugin/auth/cancel'
 export const CODEX_AUTH_LOGOUT_PATH = '/plugins/dsh-codex-auth-plugin/auth/logout'
 export const CODEX_USAGE_PATH = '/plugins/dsh-codex-auth-plugin/auth/usage'

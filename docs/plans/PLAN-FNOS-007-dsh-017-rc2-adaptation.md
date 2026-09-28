@@ -405,6 +405,8 @@ sequenceDiagram
 | PLAN-FNOS-007-T24-02 | FNOS-007-28-AC-02 | 将三个向导的 npm 镜像源 item 放到最后，并统一移除三个向导 label 的“（可选）”文案 | 向导 JSON 回归测试和文档构建 |
 | PLAN-FNOS-007-T25-01 | FNOS-007-29-AC-01、02 | 为 FPK archive remove/add 提供独立的 `run_dsh_plugin_with_release_age`，仅追加 `--config.minimum-release-age=0`，remove 参数保持插件名称 | bundled-plugin-install 回归测试验证 remove/add 顺序、无版本号和 release-age 参数 |
 | PLAN-FNOS-007-T25-02 | FNOS-007-29-AC-03 | 读取 `plugins` 的第三列 `source`；thirdparty registry add/update 使用受控 release-age 例外，自有插件继续走既有归档或普通收敛逻辑 | dshmarket 缺失、版本不一致和同版本场景测试；真实 NAS 安装验证 |
+| PLAN-FNOS-007-T26-01 | FNOS-007-30-AC-01、03 | 将 Codex Auth 客户端首次开窗地址固定为 `https://auth.openai.com/codex/device`，不再先开 `about:blank` 后等待异步请求再导航 | authorization-window 与 authorization-code 回归测试；Codex Auth build |
+| PLAN-FNOS-007-T26-02 | FNOS-007-30-AC-02、03 | 保留 Host 对 provider URL 的 HTTPS/凭据校验；device-code 请求失败时只更新原页面错误状态，不提前关闭已打开授权页 | Codex Auth 全量测试；真实 NAS 网络下验证成功、超时和重试 |
 
 ## 数据、权限和错误处理
 
@@ -508,6 +510,7 @@ git diff --check
 | T23 npm registry 统一由 HOME/.npmrc 管理 | 本地完成，待 NAS 回归 | FNOS-007-27 |
 | T24 安装/配置向导字段统一 | 本地完成，待 NAS 回归 | FNOS-007-28 |
 | T25 NAS 安装 release-age 兼容 | 本地完成，待 NAS 回归 | FNOS-007-29 |
+| T26 Codex Auth 授权页打开 | 本地完成，待 NAS/真实网络回归 | FNOS-007-30 |
 
 ## 变更记录
 
@@ -537,3 +540,4 @@ git diff --check
 | 2026-09-28 | 新增 T23 npm registry 配置统一 | 删除清单级 registry 字段，安装和 DSH Web 统一从应用 HOME/.npmrc 读取 registry，保留 DSH_HOME 独立数据边界。 |
 | 2026-09-28 | 新增 T24 安装/配置/升级向导字段统一 | 让 config、upgrade 与 install 使用相同运行字段，三个向导的 npm 源都放在末尾并移除“（可选）”文案。 |
 | 2026-09-28 | 新增 T25 NAS 安装 release-age 兼容 | 针对 dshmarket 新版本导致 pnpm 在 remove 阶段校验 lockfile 失败的问题，归档替换和 thirdparty registry 操作使用受控 release-age 例外。 |
+| 2026-09-28 | 新增 T26 Codex Auth 授权页打开修复 | 设备授权页不再依赖 NAS 端 device-code 请求完成后才导航；客户端先打开固定 HTTPS 授权页，后台继续生成和轮询授权码。 |

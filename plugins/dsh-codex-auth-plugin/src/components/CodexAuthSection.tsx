@@ -11,6 +11,7 @@ import {
   CODEX_AUTH_LOGIN_PATH,
   CODEX_AUTH_LOGOUT_PATH,
   CODEX_AUTH_STATUS_PATH,
+  CODEX_AUTH_VERIFICATION_URI,
   CODEX_MODEL_REFRESH_PATH,
 } from '../contracts/auth-paths.ts'
 
@@ -198,7 +199,7 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
   const signIn = async (): Promise<void> => {
     const generation = loginGenerationRef.current + 1
     loginGenerationRef.current = generation
-    const popup = window.open('about:blank', '_blank')
+    const popup = window.open(CODEX_AUTH_VERIFICATION_URI, '_blank')
     if (popup === null) {
       setStatus({ status: 'error', message: t('popupBlocked') })
       return
@@ -221,10 +222,10 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
         return
       }
       setChallenge(next)
-      popup.location.replace(next.verificationUri)
     } catch (error: unknown) {
-      popup.close()
-      authWindowsRef.current.delete(popup)
+      // Keep the already-open OpenAI page visible when the NAS cannot obtain a
+      // device code. The user can inspect/retry the network path, and an
+      // explicit Cancel still closes the tracked window.
       if (loginGenerationRef.current !== generation) return
       setChallenge(undefined)
       setCopyFailed(false)
