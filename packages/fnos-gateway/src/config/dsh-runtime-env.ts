@@ -95,13 +95,14 @@ export function readPersistedPnpmStoreDir(dshHome: string): string | undefined {
  * install time, so `dsh plugin` and third-party market updates keep working.
  */
 export function buildDshRuntimeEnv(dshHome: string, base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const home = base.HOME?.trim() === '' || base.HOME === undefined ? dshHome : base.HOME
   const environment: NodeJS.ProcessEnv = {
     ...base,
-    HOME: base.HOME?.trim() === '' || base.HOME === undefined ? dshHome : base.HOME,
+    HOME: home,
     DSH_HOME: dshHome,
     NPM_CONFIG_CACHE: `${dshHome}/.npm-cache`,
     NPM_CONFIG_PREFIX: `${dshHome}/.npm-global`,
-    NPM_CONFIG_USERCONFIG: `${dshHome}/.npmrc`,
+    NPM_CONFIG_USERCONFIG: `${home}/.npmrc`,
     XDG_CONFIG_HOME: `${dshHome}/.config`,
   }
   const shell = resolveTerminalShell(environment)

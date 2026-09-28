@@ -11,6 +11,7 @@ NPM_BIN="${NODE_BIN}/npm"
 DSH_BIN="${NPM_CONFIG_PREFIX}/bin/dsh"
 DSH_PACKAGE="@deepseek-ai/dsh"
 DSH_VERSION="0.1.7-rc.2"
+TRIM_CLI_PACKAGE="@trimjs/trim-cli"
 PNPM_VERSION="11.7.0"
 PNPM_BIN="${NPM_CONFIG_PREFIX}/bin/pnpm"
 DSH_VERSION_FILE="${APP_DEST}/dsh-version"
@@ -19,7 +20,7 @@ DSH_PUBLISHED_PLUGIN_MANIFEST="${APP_DEST}/published-dsh-plugins.json"
 DSH_BUNDLED_PLUGIN_DIRECTORY="${APP_DEST}/bundled-dsh-plugins"
 DSH_PROFILE_DIRECTORY="${DSH_HOME}/profiles/web"
 PROXY_SCRIPT="${APP_DEST}/gateway-proxy.mjs"
-NPM_USER_CONFIG_FILE="${DSH_HOME}/.npmrc"
+NPM_USER_CONFIG_FILE="${APP_HOME}/.npmrc"
 LEGACY_NPM_REGISTRY_FILE="${APP_HOME}/.fn-deepseek-harness/npm-registry"
 
 export DSH_HOME
@@ -221,23 +222,30 @@ install_published_dsh_plugins() {
             log_info "Keeping installed ${plugin_name}@${current_version}; exact version already matches."
         fi
     done < <(run_install_callback_helper published-plugins "${DSH_PUBLISHED_PLUGIN_MANIFEST}")
+}
 
-    local dshmarket_version dshmarket_target_version dshmarket_spec
-    dshmarket_target_version="$(run_install_callback_helper bundled-plugin-version "${DSH_PUBLISHED_PLUGIN_MANIFEST}" dshmarket)"
-    [ -n "${dshmarket_target_version}" ] || fail_install "dshmarket is missing from the plugin manifest"
-    validate_plugin_spec "${dshmarket_target_version}"
-    dshmarket_version="$(installed_plugin_version dshmarket)"
-    dshmarket_spec="$(profile_dependency_version dshmarket)"
-    if [ -z "${dshmarket_version}" ]; then
-        run_dsh_plugin add "dshmarket@${dshmarket_target_version}" ||
-            fail_install "Unable to install dshmarket@${dshmarket_target_version} with the dsh CLI"
-    elif [ "${dshmarket_version}" != "${dshmarket_target_version}" ] || [[ "${dshmarket_spec}" == link:* ]]; then
-        log_info "Updating dshmarket from ${dshmarket_version} to ${dshmarket_target_version} with the dsh CLI."
-        run_dsh_plugin add "dshmarket@${dshmarket_target_version}" ||
-            fail_install "Unable to update dshmarket to ${dshmarket_target_version} with the dsh CLI"
-    else
-        log_info "Keeping installed dshmarket@${dshmarket_version}; exact version already matches."
+trim_cli_package_directory() {
+    printf '%s/%s' "${NPM_GLOBAL_ROOT}" "${TRIM_CLI_PACKAGE}"
+}
+
+install_trim_cli() {
+    local package_directory
+    log_info "Installing ${TRIM_CLI_PACKAGE}@latest globally from ${NPM_REGISTRY}..."
+    "${NPM_BIN}" install "${TRIM_CLI_PACKAGE}@latest" -g --ignore-scripts ||
+        fail_install "Unable to install ${TRIM_CLI_PACKAGE}@latest"
+
+    NPM_GLOBAL_ROOT="$(global_package_root)"
+    if [ -z "${NPM_GLOBAL_ROOT}" ]; then
+        NPM_GLOBAL_ROOT="${NPM_CONFIG_PREFIX}/lib/node_modules"
     fi
+    package_directory="$(trim_cli_package_directory)"
+    [ -f "${package_directory}/package.json" ] ||
+        fail_install "Installed ${TRIM_CLI_PACKAGE}@latest cannot be found at ${package_directory}"
+
+    run_install_callback_helper copy-trim-cli-skill \
+        "${package_directory}" "${HOME}/.agents/skills/trim-cli" ||
+        fail_install "Unable to install the ${TRIM_CLI_PACKAGE} skill into ${HOME}/.agents/skills/trim-cli"
+    log_info "Installed the ${TRIM_CLI_PACKAGE} skill into ${HOME}/.agents/skills/trim-cli."
 }
 
 patch_dsh_attachment_local() {
@@ -400,6 +408,7 @@ main() {
         fail_install "dsh --version reported ${DSH_REPORTED_VERSION:-unknown}; expected ${DSH_VERSION}"
 
     log_info "dsh ${DSH_PACKAGE}@${DSH_VERSION} installation verified at ${DSH_BIN}."
+    install_trim_cli
     install_published_dsh_plugins
 }
 

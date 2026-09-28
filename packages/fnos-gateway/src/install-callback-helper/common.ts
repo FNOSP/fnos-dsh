@@ -1,4 +1,4 @@
-import { chmod, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
+import { chmod, cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 export type JsonObject = Record<string, unknown>
@@ -50,6 +50,29 @@ export async function findPackageDirectory(root: string, packageName: string): P
     if (found !== undefined) return found
   }
   return undefined
+}
+
+/** Replace the installed user's trim-cli skill with the package-provided copy. */
+export async function copyTrimCliSkill(packageDirectory: string, targetDirectory: string): Promise<void> {
+  const sourceDirectory = join(packageDirectory, 'skill')
+  try {
+    if (!(await stat(sourceDirectory)).isDirectory()) throw new Error('skill path is not a directory')
+    await stat(join(sourceDirectory, 'SKILL.md'))
+  } catch {
+    throw new Error(`The installed @trimjs/trim-cli package does not contain a usable skill at ${sourceDirectory}`)
+  }
+
+  const temporaryDirectory = `${targetDirectory}.tmp-${process.pid}`
+  await rm(temporaryDirectory, { recursive: true, force: true })
+  try {
+    await cp(sourceDirectory, temporaryDirectory, { recursive: true, force: true })
+    await mkdir(dirname(targetDirectory), { recursive: true })
+    await rm(targetDirectory, { recursive: true, force: true })
+    await rename(temporaryDirectory, targetDirectory)
+  } catch (error) {
+    await rm(temporaryDirectory, { recursive: true, force: true })
+    throw error
+  }
 }
 
 async function fileMode(path: string, fallback: number): Promise<number> {

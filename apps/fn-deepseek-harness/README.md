@@ -19,7 +19,7 @@
 
 安装回调会检查并准备固定版本的 DSH、pnpm 和插件。已满足版本时直接复用，不会删除用户的 profile、凭据、会话或工作区。
 
-DSH 数据目录为 `${TRIM_PKGHOME}`，npm 和 pnpm 配置也保存在该目录。npm 源由安装向导配置，失败时不会自动切换其他源。
+DSH 数据目录为 `${TRIM_PKGHOME}`，npm registry 配置保存在应用 `HOME/.npmrc`。npm 源由安装向导配置，失败时不会自动切换其他源。
 
 应用使用 fnOS 包用户运行，不提供公开的 `dsh` 系统命令。管理员如需调用 CLI，请使用应用私有路径：
 

@@ -3,6 +3,7 @@
 import { Command, CommanderError } from 'commander'
 import {
   bundledPluginVersion,
+  copyTrimCliSkill,
   findPackageDirectory,
   packageField,
   persistPnpmStoreDir,
@@ -55,6 +56,13 @@ export function createProgram(): Command {
       const directory = await findPackageDirectory(root, packageName)
       if (directory !== undefined) process.stdout.write(directory)
     })
+
+  program
+    .command('copy-trim-cli-skill')
+    .description('Copy the trim-cli package skill into the user agents directory')
+    .argument('<package-directory>')
+    .argument('<target-directory>')
+    .action(copyTrimCliSkill)
 
   program
     .command('profile-dependency-version')

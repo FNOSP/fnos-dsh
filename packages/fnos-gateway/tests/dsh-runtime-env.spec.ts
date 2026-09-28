@@ -42,6 +42,7 @@ describe('DSH runtime environment', () => {
 
     expect(environment.HOME).toBe(gatewayHome)
     expect(environment.DSH_HOME).toBe(dshHome)
+    expect(environment.NPM_CONFIG_USERCONFIG).toBe(`${gatewayHome}/.npmrc`)
   })
 
   it('clears an inherited store override when no store was recorded', async () => {
