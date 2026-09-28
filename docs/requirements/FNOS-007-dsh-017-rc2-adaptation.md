@@ -325,6 +325,17 @@ sequenceDiagram
 - `FNOS-007-27-AC-02`：插件、dshmarket 和全局 trim-cli 的 npm 安装统一读取应用 `$HOME/.npmrc`；安装向导选择的源只写入该配置文件。
 - `FNOS-007-27-AC-03`：DSH Web 子进程的 `NPM_CONFIG_USERCONFIG` 与网关 `HOME` 保持一致，同时继续保持 `HOME` 与 `DSH_HOME` 的数据边界独立。
 
+### FNOS-007-28
+
+- `FNOS-007-28-AC-01`：`wizard/config`、`wizard/upgrade` 与 `wizard/install` 使用相同的运行配置字段集合、类型、默认值和校验规则，不再显示已移除的 `wizard_host`。
+- `FNOS-007-28-AC-02`：`wizard/config` 和 `wizard/upgrade` 的 npm 镜像源 item 位于字段列表最后，三个向导的 npm label 均不包含“（可选）”。
+
+### FNOS-007-29
+
+- `FNOS-007-29-AC-01`：FPK 替换自有插件归档时，remove/add 操作可绕过当前 lockfile 的 `minimumReleaseAge` 校验，不因三方插件的新发布时间阻断自有插件安装。
+- `FNOS-007-29-AC-02`：remove 操作只传递插件名称，不拼接版本号；add 操作仍使用 FPK 文件归档或清单精确版本。
+- `FNOS-007-29-AC-03`：`source: "thirdparty"` 的 registry 插件安装/升级使用同一受控 release-age 例外，普通版本收敛、同版本跳过和 `.npmrc` registry 行为保持不变。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -348,6 +359,8 @@ sequenceDiagram
 | 全局 trim-cli 与 Agent Skill | 本地完成，待 NAS 回归 | FNOS-007-25 |
 | FPK 移除 Semi UI Showcase 内置插件 | 本地完成 | FNOS-007-26 |
 | npm registry 统一由 HOME/.npmrc 管理 | 本地完成，待 NAS 回归 | FNOS-007-27 |
+| 安装/配置向导字段统一 | 本地完成，待 NAS 回归 | FNOS-007-28 |
+| NAS 安装 release-age 兼容 | 本地完成，待 NAS 回归 | FNOS-007-29 |
 
 ## 变更记录
 
@@ -372,3 +385,5 @@ sequenceDiagram
 | 2026-09-28 | 新增全局 trim-cli 与 Skill 安装 | 新增 FNOS-007-25：将 `@trimjs/trim-cli@latest` 与 DSH profile 插件分离，安装到应用 npm 全局前缀，并把包内 `skill` 复制到 `${HOME}/.agents/skills/trim-cli`。 |
 | 2026-09-28 | 移除 Semi UI Showcase FPK 内置插件 | 新增 FNOS-007-26：发布清单和 FPK 构建门禁只保留 CodeBuddy、Codex Auth、fnOS 三个内置插件；Semi UI Showcase 保留独立开发和构建能力。 |
 | 2026-09-28 | 统一 npm registry 配置来源 | 新增 FNOS-007-27：删除发布清单中的 `registry` 字段，统一使用应用 `$HOME/.npmrc`，并让安装回调、升级回调和 DSH Web 继承同一配置位置。 |
+| 2026-09-28 | 统一安装/配置/升级向导字段 | 新增 FNOS-007-28：`wizard/config`、`wizard/upgrade` 与 `wizard/install` 统一端口、可信访问地址和 npm 源字段，config/upgrade 将 npm 源放在最后并移除“（可选）”文案。 |
+| 2026-09-28 | 修复 NAS 安装 release-age 阻断 | 新增 FNOS-007-29：FPK 归档替换和 thirdparty registry 收敛使用受控的 `minimum-release-age=0` 参数，避免新发布 dshmarket 阻断 remove/add；remove 保持只传包名。 |
