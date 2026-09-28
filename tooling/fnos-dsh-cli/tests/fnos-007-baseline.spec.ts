@@ -107,6 +107,19 @@ describe('FNOS-007 DSH baseline', () => {
     expect(gatewayEnv).toContain('environment.LC_CTYPE')
   })
 
+  it('keeps the install wizard localhost-only and puts npm registry first', async () => {
+    const wizard = JSON.parse(await readFile(new URL('../../../apps/fn-deepseek-harness/wizard/install', import.meta.url), 'utf8')) as Array<{
+      items: Array<{ field?: string, type: string, initValue?: string }>
+    }>
+    const items = wizard[0]?.items ?? []
+    expect(items[0]).toMatchObject({ field: 'wizard_npm_registry', type: 'select' })
+    expect(items.find(item => item.field === 'wizard_host')).toBeUndefined()
+
+    const main = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/main', import.meta.url), 'utf8')
+    const defaultHost = ['REQUESTED_HOST="', '$', '{wizard_host:-127.0.0.1}', '"'].join('')
+    expect(main).toContain(defaultHost)
+  })
+
   it('declares every DSH dependency through the pnpm catalog', async () => {
     // Versions live in pnpm-workspace.yaml only; a literal in a plugin manifest
     // is a second place to forget on the next baseline bump.

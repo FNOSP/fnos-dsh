@@ -391,6 +391,8 @@ sequenceDiagram
 | PLAN-FNOS-007-T17-02 | FNOS-007-21-AC-03 | 重新生成 gateway app 产物并在 NAS 检查 `/proc/<dsh-web-pid>/environ` 与网关进程环境 | FPK 安装后同时核对 `HOME`、`DSH_HOME`、profile、pnpm store 和应用共享目录 |
 | PLAN-FNOS-007-T18-01 | FNOS-007-22-AC-01、03 | `askFpkApps()` 在仅发现一个 FPK 应用时直接返回该应用，不调用 `multiselect` | `tooling/fnos-dsh-cli/tests/prompts.spec.ts` 覆盖单应用自动选择和无交互调用 |
 | PLAN-FNOS-007-T18-02 | FNOS-007-22-AC-02 | 保留多应用场景的原有多选流程，不改变 `--app` 显式选择和 FPK 构建参数 | CLI prompts 测试与 typecheck |
+| PLAN-FNOS-007-T19-01 | FNOS-007-23-AC-01、03 | 从 `wizard/install` 移除 `wizard_host` 选择项，保留 `cmd/main` 未提供该变量时对 `127.0.0.1` 的默认回退 | FNOS-007 baseline 测试检查安装向导不含监听地址且运行时默认值不变 |
+| PLAN-FNOS-007-T19-02 | FNOS-007-23-AC-02、03 | 将 `wizard_npm_registry` 配置项移动到 `wizard/install` 的第一项，保持 npm 官方源空值语义和现有镜像列表 | 向导 JSON 解析测试、JSON/FPK 构建校验 |
 
 ## 数据、权限和错误处理
 
@@ -487,6 +489,7 @@ git diff --check
 | T16 网关旧 Cookie 认证恢复 | 本地完成，待 NAS 回归 | FNOS-007-20 |
 | T17 网关与 DSH Web 的 HOME/DSH_HOME 边界 | 本地完成，待 NAS 回归 | FNOS-007-21 |
 | T18 FPK 单应用构建选择 | 本地完成 | FNOS-007-22 |
+| T19 安装向导监听地址与 npm 源顺序 | 本地完成 | FNOS-007-23 |
 
 ## 变更记录
 
@@ -509,3 +512,4 @@ git diff --check
 | 2026-09-28 | 新增 T16 网关旧 Cookie 认证恢复 | 根据 NAS 401 与连接重试日志，按 DSH 0.1.7 的 authority-bound Cookie 契约修复旧 Cookie 误判，确保首页在旧会话下重新完成 launch token exchange。 |
 | 2026-09-28 | 新增 T17 网关环境边界修复 | 发现 DSH Web 环境把 `HOME` 和 `DSH_HOME` 都设置为 `TRIM_PKGHOME`；改为继承网关 HOME、独立设置 DSH_HOME，并补充 runtime-env 测试。 |
 | 2026-09-28 | 新增 T18 FPK 单应用构建选择 | 当工作区只有一个 fnOS FPK 应用时，跳过无必要的交互选择并直接编译该应用；多应用仍使用原多选流程。 |
+| 2026-09-28 | 新增 T19 安装向导配置收敛 | 首次安装不再让用户选择 DSH 监听地址，固定通过运行时默认值使用 `127.0.0.1`；npm 镜像源移到向导第一项，减少安装时的无效交互。 |
