@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import { DshModal } from '@tnnevol/dsh-semi-ui'
+import { DshIconInfoCircle, DshModal, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { diagnosePickerResult, isPickerCancellation, isPickerNoSelection, logPickerSdkEvent, logPickerSdkValue } from '../client/input-references/picker-result.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
@@ -18,6 +18,17 @@ import { FNOS_GATEWAY_PROXY_PATHS_ROUTE } from '../contracts/gateway-proxy-contr
 import { isProxyPathsSaveShortcut } from '../client/shortcuts/proxy-paths-save-shortcut.ts'
 
 type Translate = (key: FnosLocaleKey) => string
+
+const AUTHORIZED_DIRECTORY_LOG_PREFIX = '[dsh-fnos][authorized-directories]'
+
+function logAuthorizedDirectoryEvent(stage: string, details: Record<string, unknown>): void {
+  console.info(AUTHORIZED_DIRECTORY_LOG_PREFIX, stage, details)
+}
+
+function logAuthorizedDirectoryWarning(stage: string, details: Record<string, unknown>): void {
+  console.warn(AUTHORIZED_DIRECTORY_LOG_PREFIX, stage, details)
+}
+
 
 type LoadState =
   | { status: 'idle'; directories: AuthorizedDirectory[] }
@@ -59,25 +70,6 @@ export function AuthorizedDirectoriesDetailSection({
   return <AuthorizedDirectoriesCard t={t} />
 }
 
-const AUTHORIZED_DIRECTORY_LOG_PREFIX = '[dsh-fnos][authorized-directories]'
-
-function logAuthorizedDirectoryEvent(stage: string, details: Record<string, unknown>): void {
-  console.info(AUTHORIZED_DIRECTORY_LOG_PREFIX, stage, details)
-}
-
-function logAuthorizedDirectoryWarning(stage: string, details: Record<string, unknown>): void {
-  console.warn(AUTHORIZED_DIRECTORY_LOG_PREFIX, stage, details)
-}
-
-function Chevron({ open }: { open: boolean }) {
-  return (
-    <span aria-hidden="true" className={`dsh-fnos-authorized-chevron${open ? ' is-open' : ''}`}>
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M2.15 5.5 3 4.65l3.73 3.73a.38.38 0 0 0 .54 0L11 4.65l.85.85-2.73 2.73c-.58.58-.9.9-1.4 1.03a2.1 2.1 0 0 1-.94 0c-.5-.13-.82-.45-1.4-1.03L2.15 5.5Z" fill="currentColor" />
-      </svg>
-    </span>
-  )
-}
 
 async function jsonRequest<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const headers: HeadersInit = { accept: 'application/json' }
@@ -120,7 +112,6 @@ function errorMessage(error: unknown, t: Translate, action: 'load' | 'pick' | 'd
 
 /** Render the fnOS authorization card for the plugin detail page. */
 function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
-  const [open, setOpen] = useState(false)
   const [state, setState] = useState<LoadState>({ status: 'idle', directories: [] })
   const [busy, setBusy] = useState(false)
   const [savedProxyPaths, setSavedProxyPaths] = useState('')
@@ -155,9 +146,16 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
     }
   }, [t])
 
+  /**
+   * 挂载即拉取。
+   *
+   * 这里**不能**再依赖「被展开」：折叠已移除，这一页只有这一块内容，等待用户
+   * 点一下才发请求只会让首屏空着。
+   */
   useEffect(() => {
-    if (open) { void refresh(); void loadProxyPaths() }
-  }, [loadProxyPaths, open, refresh])
+    void refresh()
+    void loadProxyPaths()
+  }, [loadProxyPaths, refresh])
 
   const saveProxyPaths = useCallback(async (): Promise<void> => {
     setBusy(true)
@@ -263,20 +261,19 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
   }, [refresh, t])
 
   return (
-    <div className={`dsh-fnos-authorized-card${open ? ' is-open' : ''}`}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls="dsh-fnos-authorized-directories-body"
-        className="dsh-fnos-authorized-card-header"
-        onClick={() => setOpen(value => !value)}
-      >
+    <div className="dsh-fnos-authorized-card">
+      {/*
+        * 标题与说明仍然是**标题**而不是可点击的折叠开关。
+        * 曾经这里是一个 <button aria-expanded>：整块内容收在折叠面板里，用户要
+        * 先点一下才看得到。但这一页只有这一块内容，折叠不承担任何信息架构作用，
+        * 只多出一次点击——实机截图里第一眼看到的就是一排折叠标题而不是设置项。
+        */}
+      <div className="dsh-fnos-authorized-card-header">
         <span className="dsh-fnos-authorized-card-head-text">
           <span className="dsh-fnos-authorized-card-name">{t('title')}</span>
           <span className="dsh-fnos-authorized-card-description">{t('intro')}</span>
         </span>
-        <Chevron open={open} />
-      </button>
+      </div>
       <DshModal
         visible={pendingDeletePath !== undefined}
         title={t('delete')}
@@ -289,8 +286,7 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
         }}
         onCancel={() => { setPendingDeletePath(undefined) }}
       />
-      {open ? (
-        <div id="dsh-fnos-authorized-directories-body" className="dsh-fnos-authorized-card-body">
+      <div id="dsh-fnos-authorized-directories-body" className="dsh-fnos-authorized-card-body">
           <div className="dsh-fnos-authorized-row">
             <button type="button" className="dsh-fnos-authorized-button dsh-fnos-authorized-button--primary" disabled={busy || state.status === 'loading'} onClick={() => { void addDirectory() }}>
               {t('add')}
@@ -317,8 +313,25 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
             </ul>
           ) : null}
           <div className="dsh-fnos-authorized-gateway">
-            <strong className="dsh-fnos-authorized-gateway-title">{t('gatewayProxyTitle')}</strong>
-            <p className="dsh-fnos-authorized-body dsh-fnos-authorized-gateway-description">{t('gatewayProxyDescription')}</p>
+            <div className="dsh-fnos-authorized-gateway-head">
+              <strong className="dsh-fnos-authorized-gateway-title">{t('gatewayProxyTitle')}</strong>
+              {/*
+                * 说明收进 tip 图标。
+                *
+                * 原先是一段平铺在标题下的长句，占掉两行还挤不出信息量。`tabIndex`
+                * 与 `aria-label` 是必需的：说明只存在于悬浮层时，键盘与读屏用户
+                * 拿不到它——那等于把这部分用户排除在这条说明之外。
+                */}
+              <DshTooltip content={t('gatewayProxyDescription')}>
+                <span
+                  className="dsh-fnos-authorized-gateway-tip"
+                  tabIndex={0}
+                  aria-label={t('gatewayProxyDescription')}
+                >
+                  <DshIconInfoCircle />
+                </span>
+              </DshTooltip>
+            </div>
             <textarea value={proxyPathsDraft} placeholder={t('gatewayProxyPlaceholder')} className="dsh-fnos-authorized-textarea" disabled={busy} onKeyDown={handleProxyPathsKeyDown} onChange={event => { setProxyPathsDraft(event.currentTarget.value); setProxyMessage(undefined) }} />
             {proxyMessage === undefined ? null : <p className="dsh-fnos-authorized-body dsh-fnos-authorized-gateway-message">{proxyMessage}</p>}
             <div className="dsh-fnos-authorized-row dsh-fnos-authorized-row--end">
@@ -326,8 +339,7 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
               <button type="button" className="dsh-fnos-authorized-button dsh-fnos-authorized-button--primary" disabled={busy || proxyPathsDraft === savedProxyPaths} onClick={() => { void saveProxyPaths() }}>{t('save')}</button>
             </div>
           </div>
-        </div>
-      ) : null}
+      </div>
     </div>
   )
 }

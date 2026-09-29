@@ -136,13 +136,8 @@ img.dsh-fnos-file-manager-icon {
   list-style: none;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 12px;
-  background: var(--dsw-alias-bg-layer-3);
-  transition: border-color 160ms ease, background 160ms ease;
-
-  &.is-open {
-    background: var(--dsw-alias-bg-layer-2);
-    border-color: var(--dsw-alias-label-dimmed);
-  }
+  background: var(--dsw-alias-bg-layer-2);
+  border-color: var(--dsw-alias-label-dimmed);
 }
 
 .dsh-fnos-authorized-card-header {
@@ -153,13 +148,7 @@ img.dsh-fnos-file-manager-icon {
   width: 100%;
   gap: 12px;
   padding: 14px 16px;
-  border: 0;
-  border-radius: 12px;
-  background: none;
   color: var(--dsw-alias-label-primary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
 .dsh-fnos-authorized-card-head-text {
@@ -179,13 +168,6 @@ img.dsh-fnos-file-manager-icon {
   color: var(--dsw-alias-label-tertiary);
   font-size: 13px;
   line-height: 1.5;
-}
-
-.dsh-fnos-authorized-chevron {
-  color: var(--dsw-alias-label-tertiary);
-  transition: transform 160ms ease;
-
-  &.is-open { transform: rotate(180deg); }
 }
 
 .dsh-fnos-authorized-card-body {
@@ -247,6 +229,13 @@ img.dsh-fnos-file-manager-icon {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /*
+   * 固定视口高度：授权目录没有数量上限，列表会随目录数无限增长，把下面的
+   * 「三方插件 proxy」和保存按钮一路顶出屏幕。滚动放在**列表自己**身上而不是
+   * 卡片或 body 上——否则用户滚到列表底部时，保存按钮也跟着滚走了。
+   */
+  max-height: 500px;
+  overflow-y: auto;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -285,15 +274,48 @@ img.dsh-fnos-file-manager-icon {
   border-top: 1px solid var(--dsw-alias-border-l2);
 }
 
+.dsh-fnos-authorized-gateway-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
 .dsh-fnos-authorized-gateway-title { font-size: 13px; }
-.dsh-fnos-authorized-gateway-description { margin: 4px 0 8px; }
 .dsh-fnos-authorized-gateway-message { margin-top: 6px; }
+
+/* tip 图标：可聚焦、可悬浮，尺寸与命中区对齐行高。 */
+.dsh-fnos-authorized-gateway-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: content-box;
+  width: 14px;
+  height: 14px;
+  margin: -1px;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+
+  &:focus-visible {
+    border-radius: 3px;
+    outline: 2px solid var(--dsw-alias-state-focus-primary, #4d6fff);
+    outline-offset: 1px;
+  }
+}
 
 .dsh-fnos-authorized-textarea {
   box-sizing: border-box;
   width: 100%;
   min-height: 86px;
-  resize: vertical;
+  /*
+   * 最多 8 行（行高 20px 见下方 font 简写）。用 calc 而不是写死 160px：
+   * 行高一旦调整，上限会跟着走，不会悄悄变成「8.5 行」这种半行裁切。
+   * `resize: none` 是配套的——允许纵向拖拽会让用户把框拖高，而内容仍受
+   * max-height 裁剪，看起来像内容丢了。
+   */
+  max-height: calc(8 * 20px);
+  overflow-y: auto;
+  resize: none;
   padding: 9px 10px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 8px;

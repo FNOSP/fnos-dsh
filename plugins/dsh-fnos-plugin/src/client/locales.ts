@@ -3,8 +3,6 @@
 export const en = {
   title: 'fnos',
   intro: 'Manage the NAS directories that DeepSeek Harness can access.',
-  expand: 'Expand authorized directories',
-  collapse: 'Collapse authorized directories',
   refresh: 'Refresh',
   add: 'Add authorized directory',
   confirm: 'Confirm authorization',
@@ -47,9 +45,9 @@ export const en = {
   sharedDirectory: 'App shared directory',
   originNotTrusted: 'This browser origin is not trusted by the DSH Web server.',
   unavailable: 'The fnOS authorization API is unavailable in this environment.',
-  gatewayProxyTitle: 'Third-party plugin API URL proxy',
-  gatewayProxyDescription: 'One absolute path prefix per line. Saved rules take effect after refreshing.',
-  gatewayProxyPlaceholder: '/plugin-api',
+  gatewayProxyTitle: 'Third-party plugin proxy',
+  gatewayProxyDescription: 'Reverse proxy: requests beginning with these prefixes are forwarded to other services on this machine, so third-party plugins can reach local APIs. Enter one absolute path prefix starting with / per line. Saved rules take effect after refreshing the page. For example, /plugin-api forwards /plugin-api/xxx to the matching service.',
+  gatewayProxyPlaceholder: 'One absolute path prefix per line, e.g. /plugin-api\nPress Ctrl+S (⌘S on macOS) to save',
   save: 'Save',
   discard: 'Discard',
   gatewayProxySaved: 'Proxy rules saved.',
@@ -98,8 +96,6 @@ export type FnosLocaleKey = keyof typeof en
 export const zh: { [Key in FnosLocaleKey]: string } = {
   title: 'fnos',
   intro: '管理 DeepSeek Harness 可以访问的 NAS 目录。',
-  expand: '展开授权目录',
-  collapse: '折叠授权目录',
   refresh: '刷新',
   add: '添加授权目录',
   confirm: '确认授权',
@@ -142,9 +138,14 @@ export const zh: { [Key in FnosLocaleKey]: string } = {
   sharedDirectory: '应用共享目录',
   originNotTrusted: '当前浏览器来源未被 DSH Web 服务信任。',
   unavailable: '当前环境无法使用 fnOS 授权接口。',
-  gatewayProxyTitle: '三方插件 API URL 反代配置',
-  gatewayProxyDescription: '每行填写一个绝对路径前缀，保存后刷新即生效。',
-  gatewayProxyPlaceholder: '/plugin-api',
+  gatewayProxyTitle: '三方插件 proxy',
+  /*
+   * 这段文案现在渲染在 tip 悬浮层里（原先平铺在标题下）。
+   * 三要素缺一不可：是什么、怎么用、举个例子——只写「每行一个绝对路径前缀」
+   * 用户仍然不知道它解决什么问题，也不知道填了以后请求会走到哪。
+   */
+  gatewayProxyDescription: '反向代理：把以这些前缀开头的请求转发给本机其它服务，用于让三方插件访问本地 API。每行填一个以 / 开头的绝对路径前缀，保存后刷新页面即生效。例如填 /plugin-api 后，访问 /plugin-api/xxx 会转发到对应服务。',
+  gatewayProxyPlaceholder: '每行一个绝对路径前缀，例如 /plugin-api\n按 Ctrl+S（macOS 为 ⌘S）保存',
   save: '保存',
   discard: '放弃',
   gatewayProxySaved: '反代规则已保存。',
