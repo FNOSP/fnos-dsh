@@ -1,9 +1,36 @@
 # 参与贡献
 
+## Issue 提交规范
+
+仓库启用了 issue 表单模板，入口分为三类：
+
+| 入口 | 用途 |
+| --- | --- |
+| [Bug 报告](https://github.com/FNOSP/fnos-dsh/issues/new?template=bug_report.yml) | 应用、官方插件或文档的功能异常 |
+| [功能请求](https://github.com/FNOSP/fnos-dsh/issues/new?template=feature_request.yml) | 新功能或改进建议 |
+| [Discussions](https://github.com/FNOSP/fnos-dsh/discussions) | 使用咨询、配置问题与交流 |
+
+空白 issue 已关闭，必须通过模板提交。第三方插件（如 `dsh-better-sidebar`）不在本仓库维护范围内，其问题请到对应插件仓库提交；模板配置中的 `contact_links` 会给出提示。
+
+### Bug 报告要点
+
+- 必填应用版本、DSH 版本和运行环境；fnOS NAS 环境补充 fnOS 版本。
+- 必填日志或截图：fnOS 环境日志位于 `/var/log/apps/fn-deepseek-harness.log`，提交前删除 Token、密钥等敏感信息。
+- 标题写"什么功能 + 什么异常"，正文按模板给出复现步骤、实际与期望行为。
+
+### 功能请求要点
+
+- 必填使用场景：描述想完成什么，而不是直接给实现方案。
+- 需求编号（FNOS-XXX）为选填：普通用户留空即可，维护者在分诊阶段回填并关联 `docs/requirements/` 下的需求规格。
+
+### Issue 与 SDD 的关系
+
+issue 是变更入口之一，不直接等于需求规格。维护者确认有效后，按 [SDD 维护规范](/charter/sdd-workflow) 判断是否登记需求与计划，并在 issue 中回填需求编号；修复提交的 `fix` 类型 commit 在正文中关联 issue 编号（如 `Closes #4`），Pull Request 使用仓库自带的 PR 检查清单。
+
 ## 修改流程
 
 1. 从 `main` 创建分支。
-2. 按 [SDD 维护规范](/charter/sdd-workflow) 判断是否需要更新需求和计划。
+2. 按 [SDD 维护规范](/charter/sdd-workflow) 判断是否需要更新需求和计划；实现针对某个 issue 时在提交中关联它。
 3. 修改对应应用、插件或文档。
 4. 运行与改动相关的校验，包括 `pnpm run check -- --all`。
 5. 使用 Conventional Commits 创建提交。

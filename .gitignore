@@ -63,3 +63,4 @@ data/
 .dsh-worktrees
 # 本地 DSH_HOME（profile、凭据、会话），由 `pnpm run start` 的 DSH Web 使用
 .dsh/
+.dsh-*
