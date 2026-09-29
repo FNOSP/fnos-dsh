@@ -90,30 +90,6 @@
   flex-wrap: nowrap;
 }
 
-/* Alert percentage slider: mirrors the showcase Form demo — the slider fills
-   the row width and the current value rides on the right. */
-.dsh-codebuddy-pref-slider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 320px;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.dsh-codebuddy-pref-slider > .semi-slider {
-  display: block;
-  flex: 1;
-  width: 100%;
-  min-width: 0;
-}
-
-.dsh-codebuddy-pref-slider-value {
-  min-width: 38px;
-  color: var(--dsw-alias-label-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
 /* 环境选择下拉：与弹框内输入控件同宽。 */
 .dsh-codebuddy-env-select {
   width: 100%;
@@ -137,4 +113,102 @@
  * 只在添加账号弹框的表单范围内生效，不波及其它地方的选择器。 */
 .dsh-codebuddy-add-form .semi-select-selection {
   margin-left: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   齿轮浮层：自动化与显示偏好（CodeBuddySettingsPopover）
+   ---------------------------------------------------------------------------
+   浮层只有 ~320px 宽，因此**不能**沿用上方 `.dsh-codebuddy-pref-form` 那套
+   「标签在最左、控件推到最右、中间用 space-between 撑开」的布局：那是给设置
+   弹框的整幅宽度设计的，搬进窄浮层后标签与控件之间会只剩几像素，而在详情页
+   那种宽容器里又会撑出上千像素空白。
+
+   浮层内改为「标签块在上、控件紧随其下」的纵向紧凑排布：说明文字本来就有
+   一到两行，标签块自身已占据足够高度，控件另起一行比挤在右侧更易读。
+
+   高度：五项偏好（含三段说明）全展开会把浮层撑到屏幕外，底部的「显示额度
+   余量」被推出可视区。因此**固定高度 + 内部滚动**：滚动容器嵌在有 padding 的
+   外层之内，滚动条落在内边距以内，不贴浮层边缘。
+   --------------------------------------------------------------------------- */
+/* 外层承担内边距；`box-sizing` 由 Semi 的 reset 保证 border-box，
+   因此 padding 不会把定宽撑大。 */
+.dsh-codebuddy-settings {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  max-width: min(320px, calc(100vw - 48px));
+  padding: 16px;
+}
+
+/* 滚动容器：只在这里滚，不把浮层整体撑高。
+   固定高度取 320px——刚好容纳「自动化」分组的前两项多一点，用户滚动即见
+   「自动签到 / 自动旅行 / 显示额度余量」，既给足上下文又不占满屏幕。 */
+.dsh-codebuddy-settings-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 320px;
+  overflow-y: auto;
+  /* 滚动条与内容之间留出间隙：否则滑杆与滚动条会视觉粘连。 */
+  padding-right: 4px;
+  /* 让滚动条紧贴 padding 内边缘而不是外层边缘。 */
+  overscroll-behavior: contain;
+}
+
+.dsh-codebuddy-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 分组标题：与「包含的组件」等页面级小标题同一视觉层级。 */
+.dsh-codebuddy-settings-group-title {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  letter-spacing: 0.02em;
+}
+
+.dsh-codebuddy-settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 控件行：开关靠左贴着标签，滑杆占满整行。 */
+.dsh-codebuddy-settings-control {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.dsh-codebuddy-settings-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.dsh-codebuddy-settings-slider > .semi-slider {
+  display: block;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+.dsh-codebuddy-settings-slider-value {
+  min-width: 38px;
+  text-align: right;
+  color: var(--dsw-alias-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 浮层外壳：去掉 Semi 默认的内容内边距（改由 .dsh-codebuddy-settings 承担），
+   否则滚动容器会贴到自带内边距的外沿、滚动条又与外壳边缘重叠。 */
+.dsh-codebuddy-settings-popover {
+  max-width: calc(100vw - 32px);
+  padding: 0;
 }

@@ -18,7 +18,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { CodexAuthSection } from '../components/CodexAuthSection.tsx'
-import type { CodexAuthSectionProps } from '../components/CodexAuthSection.tsx'
+import type { CodexAuthSectionProps, CodexAuthSubject } from '../components/CodexAuthSection.tsx'
 import { CodexUsageStatus } from '../components/CodexUsageStatus.tsx'
 import type { CodexUsageStatusInjected } from '../components/CodexUsageStatus.tsx'
 import { en, zh } from './locales.ts'
@@ -65,22 +65,29 @@ export function apply(ctx: ClientContext): void {
   )
   const timer = ctx.get('timer') as CodexUsageStatusInjected['timer']
   /**
-   * 配置入口挂在插件管理页的组合包详情页（`plugins.bundle.config`，key 用包名），
-   * 而不是设置弹框的导航分区。
+   * 配置入口挂在插件管理页的组合包详情页。
    *
-   * 上游 0.1.7-rc.2 的架构决策把插件配置收归侧栏「插件」页，设置弹框只保留只读
-   * 插件清单；官方为社区组合包提供的接缝就是这个 slot，它**只以 `view: 'page'`
-   * 渲染**在详情页的描述与组件列表之间。详情页自己绘制标题与面包屑，因此这里
-   * 不再需要导航用的 `label` / `order`。
+   * 座位选 `plugins.detail.section` 而不是官方的 `plugins.bundle.config`：上游
+   * `PackageDetail` 的固定顺序是
    *
-   * 组件忽略可选的 `form`：本插件的配置自管理（读写走 `/plugins/.../auth/*` 与
-   * settings 写入 RPC），不接 settings 命名空间表单。数据路径与迁移前完全一致。
+   *   1. `plugins.bundle.config`（组合包自己的配置）
+   *   2. 「包含的组件」（`RowsSection`）
+   *   3. `plugins.detail.section`（本座位）
+   *
+   * `bundle.config` **永远**排在「包含的组件」之前，插件无法用它把内容放到
+   * 组件列表下方；requirement 要求配置区呈现在组件列表之后。
+   *
+   * 代价是该座位是 **list**（非 keyed）：页面会给打开的每个详情页渲染它，因此
+   * 组件必须自己看 `subject`——不是本插件的组合包就返回 `null`，否则这段界面
+   * 会出现在别的插件详情页上（见 `CodexAuthSection` 的 subject 判定）。
+   * list 座位要求 `id`，且不能声明 `inject`（owner props 由页面传入）。
    */
-  ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
-    name: 'plugins.bundle.config',
-    key: '@tnnevol/dsh-codex-auth',
-    inject: (): CodexAuthSectionProps => ({ t, connection, remote }),
-  }, CodexAuthSection))
+  ctx.slots.inject('plugins.detail.section', () => ctx.slots.register({
+    name: 'plugins.detail.section',
+    id: 'codex-auth',
+    order: 50,
+  }, (props: { subject?: CodexAuthSubject | undefined }) =>
+    <CodexAuthSection t={t} connection={connection} remote={remote} subject={props.subject} />))
   ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
     name: 'conversation.input.right',
     id: 'codex-usage',

@@ -44,8 +44,9 @@ const DETAIL = readFileSync(
   'utf8',
 )
 /** 详情页里的偏好表：切换阈值 + 显示额度余量（自设置区块迁来）。 */
-const PREFS = readFileSync(
-  srcPath('components/CodeBuddyPreferences.tsx'),
+/** 齿轮浮层：全部持久化偏好（自动切换 + 阈值 / 自动签到 / 自动旅行 / 显示额度余量）。 */
+const SETTINGS = readFileSync(
+  srcPath('components/CodeBuddySettingsPopover.tsx'),
   'utf8',
 )
 
@@ -129,78 +130,83 @@ describe('骨架与真实结构对齐', () => {
 })
 
 describe('自动切换账号开关', () => {
-  it('账号页标题行有该开关', () => {
-    // AccountsPage 通过 `useAutoPrefs` 拿到三个开关值（hook 在另一文件）。
-    // 该断言改验：hook 返回的 `autoSwitch` 通过 prop 传给 `<AutoSwitchToggle>`。
+  it('账号页标题行有设置入口（开关本身在浮层里）', () => {
+    // 「自动切换」开关已收进齿轮浮层：标题行只留入口。
+    // 三个偏好值仍由 `useAutoPrefs` 提供——卡片要用它们决定菜单项的显隐
+    // （自动切换开启时隐藏「设为当前」）。
+    expect(accountsBody).toContain('<CodeBuddySettingsPopover')
     expect(accountsBody).toContain('autoSwitchOn')
-    expect(accountsBody).toContain('<AutoSwitchToggle')
   })
 
-  it('开关状态与偏好表共用同一个 store（底层同一存储键）', () => {
-    // store 是 hook 的来源；账号区经 `useAutoPrefs` 读它，偏好表的阈值滑杆与
-    // 显示额度余量开关直接 `useStore` 同一个模块。store 只有一份，因此两边
-    // 必然同步——本地写入发生在哪一处都不影响这一点。
+  it('开关状态与浮层共用同一个 store（底层同一存储键）', () => {
+    // store 是 hook 的来源；账号卡片经 `useAutoPrefs` 读它，齿轮浮层里的开关与
+    // 滑杆直接 `useStore` 同一个模块。store 只有一份，因此两边必然同步——
+    // 写入发生在哪一处都不影响这一点。
     expect(HOOK).toContain('useStore($autoSwitch)')
-    expect(PREFS).toMatch(/useStore\(\$autoSwitch\)/)
-    // 阈值同源：账号区的开关行与偏好表的滑杆读同一个 atom。
-    expect(PREFS).toMatch(/useStore\(\$autoSwitchThreshold\)/)
+    expect(SETTINGS).toMatch(/useStore\(\$autoSwitch\)/)
+    expect(SETTINGS).toMatch(/useStore\(\$autoSwitchThreshold\)/)
   })
 
-  it('切换开关时同步到 host', () => {
-    // 用户在面板里拨动开关 → 推给 host（在 AccountsPage 的 onChange 内联里）。
-    expect(accountsBody).toMatch(/rpc\.call\(CODEBUDDY_AUTH_CHANNEL, 'autoSwitch', \{ enabled: checked \}\)/)
+  it('切换开关时同步到 host（浮层里）', () => {
+    // 用户在浮层里拨动开关 → 推给 host。带上当前阈值：Host 侧两者同属一份
+    // autoSwitch 配置，分开写会让「开关刚打开但阈值还是旧值」有个短暂窗口。
+    expect(SETTINGS).toMatch(/rpc\.call\(CODEBUDDY_AUTH_CHANNEL, 'autoSwitch', \{ enabled: checked, thresholdPct: autoSwitchPct \}\)/)
   })
 })
 
 /**
- * 自动签到 / 自动旅行开关只在管理面板，不在设置页。
+ * 三个自动开关与「显示额度余量」集中在账号区块头的齿轮浮层里。
  *
- * 这两个开关是运营周期（FNOS-003）的唯一入口，因此必须留一个可操作的位置：
- *  - **管理面板**提供开关（本组用例守住）；
- *  - **设置页隐藏**（用户要求：设置里只保留自动切换/阈值/显示额度余量，运营周期
- *    的开关收拢到管理面板，避免两处重复）。
+ * 它们都是**持久化策略**（设置一次长期生效），与同一排的账号操作（刷新、查看
+ * 日志）不是一类。更要紧的是「自动切换」的开关与它的**阈值**原先分处两个区块，
+ * 同一策略被拆成两处——收进浮层后重新相邻。
  *
- * 曾出现过的两种错误都必须被这组用例挡住：
- *  1. 两处都删 —— Host 周期默认开启，用户却无处可关；
- *  2. 两处都留 —— 同一件事有两个入口，改一处忘另一处。
+ * 必须挡住的错误：
+ *  1. 全部删掉 —— Host 周期默认开启，用户无处可关；
+ *  2. 区块头与浮层各留一份 —— 同一件事两个入口，改一处忘另一处。
  */
-describe('自动签到 / 自动旅行开关只在管理面板', () => {
-  it('管理面板动作区有这两个开关', () => {
-    expect(accountsBody).toContain('<AutoCheckinToggle')
-    expect(accountsBody).toContain('<AutoTravelToggle')
-    expect(accountsBody).toContain('autoCheckinOn')
-    expect(accountsBody).toContain('autoTravelOn')
+describe('自动开关集中在齿轮浮层', () => {
+  it('浮层里有全部四个持久化偏好', () => {
+    expect(SETTINGS).toMatch(/t\('autoSwitch'\)/)
+    expect(SETTINGS).toMatch(/t\('autoSwitchPct'\)/)
+    expect(SETTINGS).toMatch(/t\('autoCheckin'\)/)
+    expect(SETTINGS).toMatch(/t\('travelAuto'\)/)
+    expect(SETTINGS).toMatch(/t\('showUsage'\)/)
   })
 
-  it('拨动面板开关会同步到 host（面板是控制任务的入口）', () => {
-    expect(accountsBody).toMatch(/rpc\.call\(CODEBUDDY_AUTH_CHANNEL, 'autoCheckin', \{ enabled: checked \}\)/)
-    expect(accountsBody).toMatch(/rpc\.call\(CODEBUDDY_AUTH_CHANNEL, 'autoTravel', \{ enabled: checked \}\)/)
+  it('自动切换与它的阈值相邻（同一策略不再分处两地）', () => {
+    const sw = SETTINGS.indexOf("t('autoSwitch')")
+    const pct = SETTINGS.indexOf("t('autoSwitchPct')")
+    expect(sw).toBeGreaterThan(-1)
+    expect(pct).toBeGreaterThan(sw)
+    // 中间只隔着阈值那一行的定义，不夹着自动签到/自动旅行。
+    const between = SETTINGS.slice(sw, pct)
+    expect(between).not.toContain("t('autoCheckin')")
+    expect(between).not.toContain("t('travelAuto')")
   })
 
-  it('偏好表不再渲染这两个开关（它们只在账号区的自动开关行）', () => {
-    // 偏好表只剩「切换阈值 / 显示额度余量」两项：自动签到与自动旅行是账号区的
-    // 开关行（`auto-toggles`），不该在偏好表里重复一份。
-    expect(PREFS).not.toMatch(/title=\{t\('autoCheckin'\)\}/)
-    expect(PREFS).not.toMatch(/title=\{t\('travelAuto'\)\}/)
-    expect(PREFS).not.toContain('toggleAutoCheckin')
-    expect(PREFS).not.toContain('toggleAutoTravel')
+  it('拨动开关会同步到 host（浮层是唯一控制入口）', () => {
+    expect(SETTINGS).toMatch(/rpc\.call\(CODEBUDDY_AUTH_CHANNEL, 'autoCheckin', \{ enabled: checked \}\)/)
+    expect(SETTINGS).toMatch(/rpc\.call\(CODEBUDDY_AUTH_CHANNEL, 'autoTravel', \{ enabled: checked \}\)/)
   })
 
-  it('详情页仍保留切换阈值与显示额度余量（只收走运营周期那两个开关）', () => {
-    // 「自动切换」开关本身在账号区头部（`AutoSwitchToggle`），阈值与显示额度
-    // 余量在偏好表里——迁移前后这一分工未变。
-    expect(PREFS).toMatch(/title=\{t\('autoSwitchPct'\)\}/)
-    expect(PREFS).toMatch(/title=\{t\('showUsage'\)\}/)
-    expect(DETAIL).toContain('AutoSwitchToggle')
+  it('账号区块头不再各自渲染这些开关（避免两个入口）', () => {
+    expect(accountsBody).not.toContain('<AutoCheckinToggle')
+    expect(accountsBody).not.toContain('<AutoTravelToggle')
+    expect(accountsBody).not.toContain('<AutoSwitchToggle')
+    expect(accountsBody).toContain('<CodeBuddySettingsPopover')
   })
 
-  it('两个开关组件仍被导出（不是删了实现只留引用）', () => {
-    const TOGGLES = readFileSync(
-      srcPath('client/ui/auto-toggles.tsx'),
-      'utf8',
-    )
-    expect(TOGGLES).toContain('export function AutoCheckinToggleImpl')
-    expect(TOGGLES).toContain('export function AutoTravelToggleImpl')
+  it('详情页不再有独立的偏好区块（已并入浮层）', () => {
+    expect(DETAIL).not.toContain('CodeBuddyPreferences')
+    expect(DETAIL).not.toContain('dsh-codebuddy-detail-collapse-prefs')
+  })
+
+  it('旧的行内开关组件已删除（收进浮层后无人引用）', () => {
+    // 保留一个没人引用的导出只会让人以为它还在用；这些开关的实现已随浮层
+    // 重写，旧文件删除。
+    expect(() => readFileSync(srcPath('client/ui/auto-toggles.tsx'), 'utf8')).toThrow()
+    expect(SETTINGS).toContain('<DshSwitch')
   })
 
   it('挂载时**读** host 配置，而不是把本地值推上去', () => {

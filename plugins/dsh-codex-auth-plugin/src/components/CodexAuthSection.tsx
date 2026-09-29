@@ -13,12 +13,10 @@ import {
   CODEX_AUTH_LOGOUT_PATH,
   CODEX_AUTH_STATUS_PATH,
   CODEX_AUTH_VERIFICATION_URI,
-  CODEX_MODEL_REFRESH_PATH,
 } from '../contracts/auth-paths.ts'
 
 type Translate = (key: CodexAuthLocaleKey) => string
 
-const CODEX_MODEL_REFRESH_FAILED_CODE = 'codex-model-refresh-failed'
 
 type AccountStatus =
   (
@@ -38,23 +36,7 @@ interface LoginChallenge {
   expiresInSeconds?: number
 }
 
-interface RefreshedCodexModel {
-  id: string
-  name: string
-  reasoningEfforts: Record<string, string> | false
-}
 
-interface ModelRefreshResponse {
-  ok: true
-  models: RefreshedCodexModel[]
-  skipped: string[]
-}
-
-type ModelRefreshState =
-  | { status: 'idle' }
-  | { status: 'busy' }
-  | { status: 'done'; count: number }
-  | { status: 'error'; message: string }
 
 export interface CodexAuthSectionInjected {
   t: Translate
@@ -63,6 +45,20 @@ export interface CodexAuthSectionInjected {
 }
 
 export type CodexAuthSectionProps = CodexAuthSectionInjected
+
+/**
+ * 本插件在插件管理页里的组合包名（与 package.json 的 name 一致）。
+ *
+ * 座位 `plugins.detail.section` 是 **list**（不按包名分派）：页面会给打开的每个
+ * 详情页渲染它。因此组件必须自己看 `subject`，不是本插件就返回 `null`。
+ */
+export const CODEX_AUTH_PACKAGE_NAME = '@tnnevol/dsh-codex-auth'
+
+/** `plugins.detail.section` 传入的 owner props：当前打开页面的主题。 */
+export interface CodexAuthSubject {
+  readonly kind: string
+  readonly pkg?: { readonly name?: string }
+}
 
 class AccountRequestError extends Error {
   constructor(readonly code: string, message: string) {
@@ -94,17 +90,32 @@ function dotClass(status: AccountStatus['status']): string {
   return `dsh-codex-auth-status-dot dsh-codex-auth-status-dot--${status}`
 }
 
-/** Render a standalone login/logout page for the Settings section slot. */
-export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProps) {
+/**
+ * 详情页区块的**座位入口**：先按 subject 过滤，再渲染真正的内容。
+ *
+ * `plugins.detail.section` 是 list 座位，页面会给打开的每个详情页都渲染它；
+ * 不筛选就会把这段界面显示到别的插件详情页上。
+ *
+ * @param props - owner props（`subject` 由页面给）加上本插件闭包注入的依赖。
+ * @returns 本插件的组合包详情页上渲染内容，否则 `null`。
+ */
+export function CodexAuthSection({
+  t, connection, remote, subject,
+}: CodexAuthSectionProps & { subject?: CodexAuthSubject | undefined }) {
+  if (subject === undefined) return null
+  if (subject.kind !== 'bundle') return null
+  if (subject.pkg?.name !== CODEX_AUTH_PACKAGE_NAME) return null
+  return <CodexAuthSectionContent t={t} connection={connection} remote={remote} />
+}
+
+/** Render the Codex login/logout and global-model page. */
+function CodexAuthSectionContent({ t, connection, remote }: CodexAuthSectionProps) {
   if (t === undefined) throw new Error('Codex auth section requires its translation function')
   if (connection === undefined) throw new Error('Codex auth section requires the DSH connection')
   const [status, setStatus] = useState<AccountStatus>({ status: 'loading' })
   const [busy, setBusy] = useState(false)
   const [challenge, setChallenge] = useState<LoginChallenge | undefined>()
   const [copyFailed, setCopyFailed] = useState(false)
-  const [modelRefresh, setModelRefresh] = useState<ModelRefreshState>({ status: 'idle' })
-  const [catalogRefreshKey, setCatalogRefreshKey] = useState(0)
-  const autoRefreshDoneRef = useRef(false)
   /**
    * 本次登录打开过的授权窗口。
    *
@@ -124,25 +135,6 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
    * 推进代号，`signIn()` 在 await 之后比对，不一致即整体丢弃。
    */
   const loginGenerationRef = useRef(0)
-
-  const refreshModels = useCallback(async (): Promise<void> => {
-    if (status.status !== 'signed-in' || modelRefresh.status === 'busy') return
-    setModelRefresh({ status: 'busy' })
-    try {
-      const response = await jsonRequest<ModelRefreshResponse>(CODEX_MODEL_REFRESH_PATH, 'POST')
-      setModelRefresh({ status: 'done', count: response.models.length })
-      setCatalogRefreshKey(current => current + 1)
-    } catch (error: unknown) {
-      setModelRefresh({
-        status: 'error',
-        message: error instanceof AccountRequestError
-          ? error.code === CODEX_MODEL_REFRESH_FAILED_CODE
-            ? t('modelRefreshFailed')
-            : error.message
-          : error instanceof Error ? error.message : t('modelRefreshFailed'),
-      })
-    }
-  }, [status.status, modelRefresh.status, t])
 
   const refresh = useCallback(async (): Promise<void> => {
     try {
@@ -168,16 +160,6 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
     const timer = window.setInterval(() => { void refresh() }, 1_000)
     return () => { window.clearInterval(timer) }
   }, [refresh, status.status])
-
-  useEffect(() => {
-    if (status.status !== 'signed-in') {
-      autoRefreshDoneRef.current = false
-      return
-    }
-    if (autoRefreshDoneRef.current) return
-    autoRefreshDoneRef.current = true
-    void refreshModels()
-  }, [refreshModels, status.status])
 
   /**
    * 用户放弃本次授权时回收等待状态。
@@ -345,25 +327,7 @@ export function CodexAuthSection({ t, connection, remote }: CodexAuthSectionProp
           {copyFailed ? <p className="dsh-codex-auth-error">{t('authorizationCodeCopyFailed')}</p> : null}
         </div>
       ) : null}
-      <CodexGlobalModel connection={connection} remote={remote} catalogRefreshKey={catalogRefreshKey} t={t} />
-      {status.status === 'signed-in' ? (
-        <section className="dsh-codex-model-refresh" aria-labelledby="dsh-codex-model-refresh-title">
-          <div className="dsh-codex-model-refresh-header">
-            <div>
-              <h3 id="dsh-codex-model-refresh-title" className="dsh-codex-section-heading">{t('modelRefreshTitle')}</h3>
-            </div>
-          </div>
-          <p className="dsh-codex-body dsh-codex-model-refresh-status" aria-live="polite">
-            {modelRefresh.status === 'busy'
-              ? t('modelRefreshing')
-              : modelRefresh.status === 'done'
-              ? t('modelRefreshDone').replace('{count}', String(modelRefresh.count))
-              : modelRefresh.status === 'error'
-                ? modelRefresh.message
-                : ''}
-          </p>
-        </section>
-      ) : null}
+      <CodexGlobalModel connection={connection} remote={remote} t={t} />
     </div>
   )
 }

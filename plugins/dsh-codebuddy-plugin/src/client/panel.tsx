@@ -42,15 +42,12 @@ import { describeRpcError } from './rpc.ts'
 import { classifyResources, forgetResources, recordResources, resourceHistoryStore, resourcesFrom } from './resource-history.ts'
 import type { ClassifiedResource } from './resource-history.ts'
 import { TokenStatsStore } from './store/token-stats.ts'
-import {
-  $autoCheckin, $autoSwitch, $autoTravel,
-} from './store/usage-prefs.ts'
 import { sortSegmentsByValueDesc } from './segment-bar.ts'
 import { formatUpdatedAt } from './format-time.ts'
 import { accountEpoch, subscribeAccountEpoch } from './store/account-epoch.ts'
 import { DEFAULT_TOKEN_RANGE, DEFAULT_TREND_RANGE, optionsFor, rangeLabel as rangeLabelOf, type TokenRangeKey } from './token-range.ts'
 import { AddAccountModal } from '../components/AddAccountModal.tsx'
-import { CodeBuddyPreferences } from '../components/CodeBuddyPreferences.tsx'
+import { CodeBuddySettingsPopover } from '../components/CodeBuddySettingsPopover.tsx'
 import { startLoginPolling } from './login-polling.ts'
 
 import { usePanelData, useTokenStats } from './hooks/use-panel-data.ts'
@@ -60,11 +57,6 @@ import { AccountCardImpl as AccountCard } from './ui/account-card.tsx'
 import { AccountResourcesModalImpl as AccountResourcesModal } from './ui/account-resources-modal.tsx'
 import { ActivityGridImpl as ActivityGrid } from './ui/activity-grid.tsx'
 import { GrowthRunDrawer } from './ui/growth-run-drawer.tsx'
-import {
-  AutoCheckinToggleImpl as AutoCheckinToggle,
-  AutoSwitchToggleImpl as AutoSwitchToggle,
-  AutoTravelToggleImpl as AutoTravelToggle,
-} from './ui/auto-toggles.tsx'
 import {
   BreakdownListImpl as BreakdownList,
   SessionRankingImpl as SessionRanking,
@@ -123,7 +115,9 @@ function AccountsPage({
   const [logOpen, setLogOpen] = useState(false)
   const [resourceTarget, setResourceTarget] = useState<PanelAccountRow | undefined>(undefined)
   // 三个 auto* 偏好的展示 / 同步 host 都封装在 hook 里——这样本页与设置页同源。
-  const { autoCheckin: autoCheckinOn, autoSwitch: autoSwitchOn, autoTravel: autoTravelOn } = useAutoPrefs(rpc)
+  // 只用得到这两个：卡片用它们决定签到项与「设为当前」是否渲染。自动旅行
+  // 没有卡片级联动，它的开关在齿轮浮层里。
+  const { autoCheckin: autoCheckinOn, autoSwitch: autoSwitchOn } = useAutoPrefs(rpc)
   // 「完成任务」的运行态来自宿主（落盘 + 进程内账号锁表，见 store/growth-run.ts）：
   // 刷新页面后仍是 loading，不会因为组件 state 重置而变回可点击。
   const growthRun = useStore($growthRunning)
@@ -328,18 +322,10 @@ function AccountsPage({
           </div>
         </div>
         <div className="dsh-codebuddy-accounts-head-actions">
-          <AutoSwitchToggle checked={autoSwitchOn} t={t} onChange={(checked: boolean) => {
-            $autoSwitch.set(checked)
-            void rpc.call(CODEBUDDY_AUTH_CHANNEL, 'autoSwitch', { enabled: checked })
-          }} />
-          <AutoCheckinToggle checked={autoCheckinOn} t={t} onChange={(checked: boolean) => {
-            $autoCheckin.set(checked)
-            void rpc.call(CODEBUDDY_AUTH_CHANNEL, 'autoCheckin', { enabled: checked })
-          }} />
-          <AutoTravelToggle checked={autoTravelOn} t={t} onChange={(checked: boolean) => {
-            $autoTravel.set(checked)
-            void rpc.call(CODEBUDDY_AUTH_CHANNEL, 'autoTravel', { enabled: checked })
-          }} />
+          {/* 三个自动开关与「显示额度余量」已收进齿轮浮层：它们是**持久化策略**，
+              与这一排的账号操作（刷新/查看日志）不是一类；而且「自动切换」的阈值
+              原先在上方另一个区块里，同一个策略被拆成两处。
+              见 `CodeBuddySettingsPopover`。 */}
           {/* 签到已并入「完成任务」：不再单独放「一键签到」按钮，避免同一件事两个入口
               （与设置页移除两个运营周期开关同一原则）。手动签到仍可从账号卡片菜单触发。 */}
           <DshButton size="small" theme="light" icon={<DshIconRefresh />} loading={loading} onClick={reload}>{t('refresh')}</DshButton>
@@ -353,6 +339,7 @@ function AccountsPage({
           >
             {t('growthLogOpen')}
           </DshButton>
+          <CodeBuddySettingsPopover rpc={rpc} t={t} />
         </div>
       </div>
       {rows.length === 0 ? (
@@ -807,13 +794,10 @@ function CodeBuddyDetailContent({ rpc, t }: CodeBuddyDetailProps): ReactNode {
 
   return (
     <div className="dsh-codebuddy-detail">
-      {/* 顺序（需求指定）：设置类字段 → 账号管理 → Token 统计。
-          设置字段放最前：它们是"先决定怎么用，再看当前状态"的配置；账号与
-          Token 是观察型内容，读者进来通常是来改配置的。 */}
-      <section className="dsh-codebuddy-detail-section" aria-label={t('autoSwitchPct')}>
-        <CodeBuddyPreferences rpc={rpc} t={t} />
-      </section>
-
+      {/* 顺序：账号管理 → Token 统计。
+          原先顶部还有一个独立的偏好区块（切换阈值 / 显示额度余量）；两者已随
+          三个自动开关一起收进账号区块头的齿轮浮层——把持久化策略集中到一处，
+          也让「自动切换」与它的阈值重新相邻（它们本就是同一个策略的两半）。 */}
       <section className="dsh-codebuddy-detail-section" aria-label={t('accountsTitle')}>
         <AccountsPage
           rpc={rpc}

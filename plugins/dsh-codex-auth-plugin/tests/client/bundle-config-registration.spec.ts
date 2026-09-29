@@ -19,24 +19,31 @@ const CLIENT = new URL('../../src/client/index.tsx', import.meta.url)
 const MANIFEST = new URL('../../package.json', import.meta.url)
 
 describe('Codex Auth 配置注册在插件详情页', () => {
-  it('注册 plugins.bundle.config，key 为包名', async () => {
+  it('注册 plugins.detail.section（排在「包含的组件」之后）', async () => {
     const client = await readFile(CLIENT, 'utf8')
-    expect(client).toContain("ctx.slots.inject('plugins.bundle.config'")
-    expect(client).toContain("name: 'plugins.bundle.config'")
-    expect(client).toContain("key: '@tnnevol/dsh-codex-auth'")
+    // 座位从 `plugins.bundle.config` 换到 `plugins.detail.section`：上游
+    // PackageDetail 把 bundle.config 固定在「包含的组件」**之前**，而需求要求
+    // 配置区排在组件列表之后。detail.section 是唯一能满足该顺序的座位。
+    expect(client).toContain("ctx.slots.inject('plugins.detail.section'")
+    expect(client).toContain("name: 'plugins.detail.section'")
+    expect(client).not.toContain("ctx.slots.inject('plugins.bundle.config'")
   })
 
-  it('key 必须等于 package.json 的包名', async () => {
+  it('用 id 而不是 key（list 座位靠 subject 自筛）', async () => {
     /**
-     * 详情页派发时用的是 `entryKey: pkg.name`（包名），而配置区块的渲染条件是
-     * `ledger.bundles.has(pkg.name)`——它同样由注册时的 `key` 决定
-     * （`ui-plugin-manager` 的 `config-ledger.ts`）。两处必须逐字相等：
-     * 包名一旦改名而 key 没跟着改，区块会**静默不渲染**，且不报任何错误。
+     * `plugins.detail.section` 是 **list**：页面会给打开的每个详情页渲染它，
+     * 不像 keyed 的 `plugins.bundle.config` 那样按包名分派。因此包名不再出现在
+     * 注册里，而必须出现在**组件内部的 subject 判定**中——漏掉就会把这段界面
+     * 显示到别的插件详情页上。
      */
     const client = await readFile(CLIENT, 'utf8')
     const manifest = JSON.parse(await readFile(MANIFEST, 'utf8')) as { name: string }
-    const key = /key: '([^']+)'/u.exec(client.slice(client.indexOf("ctx.slots.inject('plugins.bundle.config'")))
-    expect(key?.[1]).toBe(manifest.name)
+    expect(client).toContain("id: 'codex-auth'")
+    const section = await readFile(new URL('../../src/components/CodexAuthSection.tsx', import.meta.url), 'utf8')
+    expect(section).toContain(`CODEX_AUTH_PACKAGE_NAME = '${manifest.name}'`)
+    expect(section).toMatch(/subject\.pkg\?\.name !== CODEX_AUTH_PACKAGE_NAME/)
+    expect(section).toMatch(/subject\.kind !== 'bundle'/)
+    expect(section).toMatch(/subject === undefined\) return null/)
   })
 
   it('不再注册 settings.section 导航分区', async () => {
@@ -44,18 +51,16 @@ describe('Codex Auth 配置注册在插件详情页', () => {
     // 双入口会让同一份配置在两处漂移；FNOS-008-04 要求设置侧不再有插件配置入口。
     expect(client).not.toContain("ctx.slots.inject('settings.section'")
     expect(client).not.toContain("name: 'settings.section'")
-    expect(client).not.toContain("id: 'codex-auth'")
   })
 
-  it('详情页入口不再提供设置分区专用的 label/order', async () => {
+  it('详情页入口不再提供设置分区专用的 label', async () => {
     const client = await readFile(CLIENT, 'utf8')
-    // 详情页自行绘制标题与面包屑，配置条目不需要导航用的 label/order。
-    const start = client.indexOf("ctx.slots.inject('plugins.bundle.config'")
+    // 详情页自行绘制标题与面包屑，配置条目不需要导航用的 label。
+    const start = client.indexOf("ctx.slots.inject('plugins.detail.section'")
     expect(start).toBeGreaterThan(-1)
     const end = client.indexOf('conversation.input.right', start)
     const registration = client.slice(start, end)
     expect(registration).not.toContain('label:')
-    expect(registration).not.toContain('order:')
   })
 
   it('对话输入区用量状态保持不动', async () => {

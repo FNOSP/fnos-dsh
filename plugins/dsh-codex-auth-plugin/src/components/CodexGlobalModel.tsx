@@ -21,8 +21,6 @@ interface GlobalModelResponse {
 export interface CodexGlobalModelProps {
   connection: ConnectionHandle
   remote: unknown
-  /** Bumped by the parent when the model catalog refresh completes, reloading the picker. */
-  catalogRefreshKey?: number
   t: (key: CodexAuthLocaleKey) => string
 }
 
@@ -127,7 +125,7 @@ function GlobalModelPicker({ modelMenuLabel, effortMenuLabel, modelLabel, modelP
 }
 
 /** Set the model used by new DSH sessions and the host-backed agent entry point. */
-export function CodexGlobalModel({ connection, remote, catalogRefreshKey = 0, t }: CodexGlobalModelProps) {
+export function CodexGlobalModel({ connection, remote, t }: CodexGlobalModelProps) {
   const [models, setModels] = useState<readonly ModelCatalogModel[]>([])
   const [current, setCurrent] = useState<GlobalModelValue | undefined>()
   const [draftModel, setDraftModel] = useState('')
@@ -154,7 +152,9 @@ export function CodexGlobalModel({ connection, remote, catalogRefreshKey = 0, t 
     }
   }, [connection, remote])
 
-  useEffect(() => { void load() }, [load, catalogRefreshKey])
+  // 目录在本组件挂载时读一次；已无「手动刷新目录」入口（该区块已移除），
+  // 因此不再需要外部的刷新键来触发重载。
+  useEffect(() => { void load() }, [load])
 
   const selected = useMemo(() => models.find(model => model.id === draftModel), [draftModel, models])
   const efforts = selected?.reasoning?.efforts ?? []

@@ -4,11 +4,14 @@ import { describe, expect, it } from 'vitest'
 describe('dsh-codex-auth-plugin client registration', () => {
   it('registers the Codex config on the plugin detail page instead of a settings section', async () => {
     const client = await readFile(new URL('../../src/client/index.tsx', import.meta.url), 'utf8')
-    // FNOS-008-03：配置入口迁入插件管理页组合包详情页（key 用包名）。
+    // FNOS-008-03：配置入口迁入插件管理页组合包详情页。
+    // 座位用 `plugins.detail.section` 而非 `plugins.bundle.config`：后者的渲染位置
+    // 固定在「包含的组件」**之前**，需求要求配置区排在组件列表之后。
     // 设置侧不再有导航分区，双入口会让同一份配置在两处漂移。
-    expect(client).toContain("ctx.slots.inject('plugins.bundle.config'")
-    expect(client).toContain("name: 'plugins.bundle.config'")
-    expect(client).toContain("key: '@tnnevol/dsh-codex-auth'")
+    expect(client).toContain("ctx.slots.inject('plugins.detail.section'")
+    expect(client).toContain("name: 'plugins.detail.section'")
+    // list 座位用 id 而不是 key；包名改由组件内按 subject 判定。
+    expect(client).toContain("id: 'codex-auth'")
     expect(client).not.toContain("ctx.slots.inject('settings.section'")
     expect(client).toContain("CodexAuthSection")
     expect(client).not.toContain("settings.plugin.item")
@@ -63,17 +66,16 @@ describe('dsh-codex-auth-plugin client registration', () => {
     expect(section).not.toContain('dsh-codex-auth-usage')
   })
 
-  it('refreshes the model catalog automatically after sign-in and keeps the global model picker in the settings section', async () => {
+  it('keeps the global model picker and drops the model-catalog block', async () => {
     const section = await readFile(new URL('../../src/components/CodexAuthSection.tsx', import.meta.url), 'utf8')
+    // 全局模型选择保留（它决定新会话的默认模型）。
     expect(section).toContain('<CodexGlobalModel')
-    expect(section).toContain('catalogRefreshKey={catalogRefreshKey}')
-    expect(section).toContain('CODEX_MODEL_REFRESH_PATH')
-    expect(section).toContain('refreshModels')
-    expect(section).toContain('autoRefreshDoneRef')
-    expect(section).toContain("status.status !== 'signed-in'")
-    expect(section).not.toContain('modelRefreshIntro')
-    expect(section).not.toContain('modelRefreshAction')
-    expect(section).not.toContain('onClick={() => { void refreshModels() }}')
+    // 「模型目录」整块移除：它只显示"已从账号同步 N 个模型"一行状态，
+    // 而手动刷新入口此前就已去掉，留下一个只读计数没有动作可做。
+    expect(section).not.toContain('CODEX_MODEL_REFRESH_PATH')
+    expect(section).not.toContain('refreshModels')
+    expect(section).not.toContain('modelRefresh')
+    expect(section).not.toContain('catalogRefreshKey')
     expect(section).not.toContain('CodexCapabilities')
   })
 
