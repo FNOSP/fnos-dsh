@@ -1,5 +1,5 @@
 /* 添加账号弹框与偏好表单：add-form / add-footer / pref-form / pref-control
-   / form-label / pref-slider / env-select 等表单控件样式。 */
+   / form-label / env-select 等表单控件样式，以及齿轮浮层的设置行样式。 */
 
 /* 添加账号弹框表单：备注名输入在弹框内占满整行。 */
 .dsh-codebuddy-add-form {
@@ -123,12 +123,13 @@
    弹框的整幅宽度设计的，搬进窄浮层后标签与控件之间会只剩几像素，而在详情页
    那种宽容器里又会撑出上千像素空白。
 
-   浮层内改为「标签块在上、控件紧随其下」的纵向紧凑排布：说明文字本来就有
-   一到两行，标签块自身已占据足够高度，控件另起一行比挤在右侧更易读。
+   浮层内改为「标题（+ 说明 tip）在左、控件在右并撑满剩余宽度」的左右布局。
+   说明文字不平铺，而是收进标题右侧的 info 图标——五行各带一段说明，平铺会把
+   浮层撑得很长。
 
-   高度：五项偏好（含三段说明）全展开会把浮层撑到屏幕外，底部的「显示额度
-   余量」被推出可视区。因此**固定高度 + 内部滚动**：滚动容器嵌在有 padding 的
-   外层之内，滚动条落在内边距以内，不贴浮层边缘。
+   高度：即便如此，五项全展开仍会超出一定视野，底部的「显示额度余量」会被推出
+   可视区。因此**固定高度 + 内部滚动**：滚动容器嵌在有 padding 的外层之内，
+   滚动条落在内边距以内，不贴浮层边缘。
    --------------------------------------------------------------------------- */
 /* 外层承担内边距；`box-sizing` 由 Semi 的 reset 保证 border-box，
    因此 padding 不会把定宽撑大。 */
@@ -141,8 +142,8 @@
 }
 
 /* 滚动容器：只在这里滚，不把浮层整体撑高。
-   固定高度取 320px——刚好容纳「自动化」分组的前两项多一点，用户滚动即见
-   「自动签到 / 自动旅行 / 显示额度余量」，既给足上下文又不占满屏幕。 */
+   固定高度取 320px——容纳前三项多一点，用户滚动即见「自动旅行 / 显示额度
+   余量」，既给足上下文又不占满屏幕。 */
 .dsh-codebuddy-settings-scroll {
   display: flex;
   flex-direction: column;
@@ -155,32 +156,73 @@
   overscroll-behavior: contain;
 }
 
-.dsh-codebuddy-settings-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* 分组标题：与「包含的组件」等页面级小标题同一视觉层级。 */
-.dsh-codebuddy-settings-group-title {
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 18px;
-  letter-spacing: 0.02em;
-}
-
+/* 设置行：**左右布局**——标题（+ 说明 tip）在左，控件在右并自动撑满剩余宽度。
+   左右分栏比上下堆叠更省纵向空间：五项各占一行，浮层可以在定高内一次看到
+   更多项，滑杆也能拿到尽可能长的可拖区间。 */
 .dsh-codebuddy-settings-row {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   min-width: 0;
 }
 
+/* 标题行：标题 + 它右侧的说明图标。两者垂直居中对齐，图标不参与换行。
+   `flex: 0 0 auto` + `white-space: nowrap`：标题保持自身文字宽度，不被挤压，
+   把剩余空间全部让给右侧控件。 */
+.dsh-codebuddy-settings-row-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.dsh-codebuddy-settings-row-head .dsh-codebuddy-form-label-title {
+  white-space: nowrap;
+}
+
+/* 说明 tip 图标：默认弱化，悬浮/聚焦时才提亮——它是补充信息，不该和标题抢注意力。 */
+.dsh-codebuddy-settings-tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary));
+  /* 用 pointer 而不是 help：它在桌面与 Web 上表现一致；help 在部分平台上会
+     退化成默认箭头，反而看不出这里可以悬浮。 */
+  cursor: pointer;
+  /* 图标本身只有 ~14px，直接命中很难瞄准：用 16px 见方的命中区撑开。
+     不改变字号（那会连图标一起放大），只加内边距并把负外边距收回，
+     因此标题行的高度与间距不受影响。 */
+  box-sizing: content-box;
+  width: 16px;
+  height: 16px;
+  margin: -1px;
+  font-size: 14px;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.dsh-codebuddy-settings-tip:hover,
+.dsh-codebuddy-settings-tip:focus-visible {
+  color: var(--dsw-alias-label-primary);
+}
+
+/* 键盘聚焦时才画焦点环（鼠标点击不画），与全站交互一致。 */
+.dsh-codebuddy-settings-tip:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary, currentColor);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* 控件行：开关靠左贴着标签，滑杆占满整行。 */
+/* 右侧控件区：`flex: 1` 撑满剩余宽度，开关靠右对齐，滑杆占满整段。 */
 .dsh-codebuddy-settings-control {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex: 1 1 auto;
   min-width: 0;
 }
 

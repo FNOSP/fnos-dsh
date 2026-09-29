@@ -289,7 +289,6 @@ function AccountsPage({
     <div className="dsh-codebuddy-panel-page">
       <PanelRefreshOverlay visible={loading} />
       {loginWaiting ? <p className="dsh-codebuddy-muted">{t('waiting')}</p> : null}
-      <CreditsOverview rows={rows} t={t} />
       <div className="dsh-codebuddy-panel-section-head">
         <div className="dsh-codebuddy-accounts-head-lead">
           <div className="dsh-codebuddy-panel-section-title"><strong>{t('accountsTitle')}</strong><span>{rows.length}</span></div>
@@ -365,6 +364,10 @@ function AccountsPage({
           ))}
         </div>
       )}
+      {/* 积分总览排在账号卡片之后（需求：与「账号管理」互换位置）。
+          它统计的正是上面那些账号的汇总值，放在列表下方更像"这一列的合计"，
+          而不是先给一个没有上下文的总数。 */}
+      <CreditsOverview rows={rows} t={t} />
       <AccountResourcesModal
         row={resourceTarget}
         items={resourceTarget === undefined ? [] : resourcesByAccount.get(resourceTarget.id) ?? []}

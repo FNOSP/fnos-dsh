@@ -40,16 +40,8 @@ export function AccountsSkeleton(): ReactNode {
       aria-busy="true"
       placeholder={(
         <>
-          <DshCard className="dsh-codebuddy-panel-stat-card">
-            <div className="dsh-codebuddy-panel-stat-grid">
-              {[0, 1, 2, 3].map(index => (
-                <div key={index} className="dsh-codebuddy-panel-stat">
-                  <SkeletonBlock height={12} width="52%" radius={6} />
-                  <SkeletonBlock height={26} width="40%" radius={8} />
-                </div>
-              ))}
-            </div>
-          </DshCard>
+          {/* 与真实页面同序：区块头 →（骨架里没有账号卡片，骨架先用两张占位卡）
+          → 积分总览卡。顺序必须一致，否则骨架替换成内容时版面会跳。 */}
           <div className="dsh-codebuddy-panel-section-head">
             <SkeletonBlock height={16} width={140} />
             <SkeletonBlock height={28} width={220} radius={6} />
@@ -66,6 +58,16 @@ export function AccountsSkeleton(): ReactNode {
               </DshCard>
             ))}
           </div>
+          <DshCard className="dsh-codebuddy-panel-stat-card">
+            <div className="dsh-codebuddy-panel-stat-grid">
+              {[0, 1, 2, 3].map(index => (
+                <div key={index} className="dsh-codebuddy-panel-stat">
+                  <SkeletonBlock height={12} width="52%" radius={6} />
+                  <SkeletonBlock height={26} width="40%" radius={8} />
+                </div>
+              ))}
+            </div>
+          </DshCard>
         </>
       )}
     />

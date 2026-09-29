@@ -110,6 +110,33 @@ describe('动作区可容纳多个控件', () => {
   })
 })
 
+describe('账号管理与积分总览的先后顺序', () => {
+  it('积分总览排在账号卡片**之后**', () => {
+    // 需求：两者位置互换——积分总览是上面那些账号的汇总值，放在列表下方更像
+    // "这一列的合计"，而不是先给一个没有上下文的总数。
+    const head = accountsBody.indexOf('dsh-codebuddy-panel-section-head')
+    const cards = accountsBody.indexOf('dsh-codebuddy-panel-cards')
+    const credits = accountsBody.indexOf('<CreditsOverview')
+    expect(head).toBeGreaterThan(-1)
+    expect(cards).toBeGreaterThan(-1)
+    expect(credits).toBeGreaterThan(-1)
+    expect(head).toBeLessThan(cards)
+    expect(cards).toBeLessThan(credits)
+  })
+
+  it('积分总览不再出现在区块头之前', () => {
+    const credits = accountsBody.indexOf('<CreditsOverview')
+    const head = accountsBody.indexOf('dsh-codebuddy-panel-section-head')
+    expect(credits).toBeGreaterThan(head)
+  })
+
+  it('账号为空时积分总览自己不渲染（避免空列表下出现 0 值卡片）', () => {
+    // `CreditsOverview` 在 rows.length === 0 时返回 null；它现在排在 DshEmpty
+    // 之后，这条不变式仍然成立。
+    expect(DETAIL).toMatch(/function CreditsOverview[\s\S]{0,400}if \(rows\.length === 0\) return null/)
+  })
+})
+
 describe('骨架与真实结构对齐', () => {
   it('骨架不再画已移除的操作卡', () => {
     // 实现迁到 ui/loading-shared.tsx（`AccountsSkeleton`）。从该文件取整段函数体：
@@ -123,9 +150,14 @@ describe('骨架与真实结构对齐', () => {
     const nextExport = rest.indexOf('\nexport ')
     const body = nextExport === -1 ? rest : rest.slice(0, nextExport)
     expect(body).not.toContain('panel-action-card')
-    // 应与真实页面一致：先积分总览卡，再区块头。
-    expect(body).toContain('dsh-codebuddy-panel-stat-card')
+    // 应与真实页面**同序**：区块头 → 账号卡片 → 积分总览卡。顺序不一致会让
+    // 骨架替换成内容时版面跳动。
     expect(body).toContain('dsh-codebuddy-panel-section-head')
+    expect(body).toContain('dsh-codebuddy-panel-cards')
+    expect(body).toContain('dsh-codebuddy-panel-stat-card')
+    const order = ['dsh-codebuddy-panel-section-head', 'dsh-codebuddy-panel-cards', 'dsh-codebuddy-panel-stat-card']
+      .map(c => body.indexOf(c))
+    expect(order).toEqual([...order].sort((a, b) => a - b))
   })
 })
 
@@ -166,7 +198,31 @@ describe('自动切换账号开关', () => {
  *  2. 区块头与浮层各留一份 —— 同一件事两个入口，改一处忘另一处。
  */
 describe('自动开关集中在齿轮浮层', () => {
-  it('浮层里有全部四个持久化偏好', () => {
+  it('说明文字收进标题右侧的 tip 图标，不平铺', () => {
+    // 五行各带一段说明，平铺会把浮层撑得很长。说明改为 tip：每行的说明文案
+    // 必须经 `tip` 传进去，且都由 Tooltip 承载。
+    for (const key of ['autoSwitchDesc', 'autoSwitchPctDesc', 'autoCheckinDesc', 'travelAutoDesc', 'showUsageDesc']) {
+      expect(SETTINGS).toContain(`tip={t('${key}')}`)
+    }
+    expect(SETTINGS).toContain('DshTooltip')
+    expect(SETTINGS).toContain('DshIconInfoCircle')
+    // 不再把说明平铺成一行小字。
+    expect(SETTINGS).not.toContain('dsh-codebuddy-form-label-description')
+  })
+
+  it('tip 图标可被键盘与读屏访问（说明不能只存在于悬浮层里）', () => {
+    // 只挂 Tooltip 的话，键盘用户与读屏用户拿不到这段说明。
+    expect(SETTINGS).toMatch(/dsh-codebuddy-settings-tip[\s\S]{0,200}tabIndex=\{0\}/)
+    expect(SETTINGS).toMatch(/dsh-codebuddy-settings-tip[\s\S]{0,200}aria-label=\{tip\}/)
+  })
+
+  it('两个分组标题已按需求去掉（自动化 / 显示）', () => {
+    expect(SETTINGS).not.toContain('settingsAutomation')
+    expect(SETTINGS).not.toContain('settingsDisplay')
+    expect(SETTINGS).not.toContain('dsh-codebuddy-settings-group')
+  })
+
+  it('浮层里有全部五个持久化偏好', () => {
     expect(SETTINGS).toMatch(/t\('autoSwitch'\)/)
     expect(SETTINGS).toMatch(/t\('autoSwitchPct'\)/)
     expect(SETTINGS).toMatch(/t\('autoCheckin'\)/)

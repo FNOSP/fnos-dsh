@@ -25,7 +25,7 @@
 import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useStore } from '@nanostores/react'
-import { DshIconSetting, DshIconButton, DshPopover, DshSlider, DshSwitch } from '@tnnevol/dsh-semi-ui'
+import { DshIconInfoCircle, DshIconSetting, DshIconButton, DshPopover, DshSlider, DshSwitch, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import { CODEBUDDY_AUTH_CHANNEL } from '../contracts/constants.ts'
 import type { ConnectionRpc } from '../client/rpc.ts'
 import {
@@ -36,7 +36,6 @@ import {
   $showUsage,
   setThreshold,
 } from '../client/store/usage-prefs.ts'
-import { PreferenceLabel } from './PreferenceLabel.tsx'
 import type { Translate } from '../types/client/panel-types'
 
 export interface CodeBuddySettingsPopoverProps {
@@ -44,17 +43,44 @@ export interface CodeBuddySettingsPopoverProps {
   t: Translate
 }
 
-/** 浮层里的一行：左侧标题 + 可选说明，右侧控件。 */
-function SettingRow({ label, description, control }: {
+/**
+ * 浮层里的一行：**标题 + 说明 tip** 在上，控件在下。
+ *
+ * 说明文字不再平铺，而是收进标题右侧的 info 图标（悬浮显示）：五行各带一段
+ * 一两行的说明，平铺会把浮层撑得很长、读者还要在标题与说明之间来回找控件；
+ * 图标只在需要时展开。
+ *
+ * 不直接复用 `PreferenceLabel`：那个组件是**内联**说明的形态，添加账号弹框还在
+ * 用它（那里标签与控件左右分栏，说明平铺更合适）。两者形态不同，因此这里自带
+ * 一份标签标记，而不是给共享组件加一个只有本处使用的开关。
+ */
+function SettingRow({ label, tip, control }: {
   label: string
-  /** 说明文案；写成 `| undefined` 是因为本仓库开启 `exactOptionalPropertyTypes`。 */
-  description?: string | undefined
+  /** tip 文案；写成 `| undefined` 是因为本仓库开启 `exactOptionalPropertyTypes`。 */
+  tip?: string | undefined
   control: ReactNode
 }): ReactNode {
+  const hasTip = tip !== undefined && tip.length > 0
   return (
     <div className="dsh-codebuddy-settings-row">
-      {/* 复用设置表单的标签块：标题加粗、说明小字，与其它插件设置区同一视觉语言。 */}
-      <PreferenceLabel title={label} description={description} />
+      <span className="dsh-codebuddy-settings-row-head">
+        <strong className="dsh-codebuddy-form-label-title">{label}</strong>
+        {hasTip
+          ? (
+            <DshTooltip content={tip}>
+              {/* `tabIndex` + `aria-label`：说明只出现在悬浮层里，键盘与读屏用户
+                  也需要拿到它——只靠 Tooltip 的可视内容，这段说明对它们不存在。 */}
+              <span
+                className="dsh-codebuddy-settings-tip"
+                tabIndex={0}
+                aria-label={tip}
+              >
+                <DshIconInfoCircle />
+              </span>
+            </DshTooltip>
+          )
+          : null}
+      </span>
       <div className="dsh-codebuddy-settings-control">{control}</div>
     </div>
   )
@@ -90,11 +116,9 @@ export function CodeBuddySettingsPopover({ rpc, t }: CodeBuddySettingsPopoverPro
           滚动容器**嵌在有 padding 的外层之内**，滚动条因此落在内边距以内，
           不贴着浮层边缘。 */}
       <div className="dsh-codebuddy-settings-scroll">
-        <div className="dsh-codebuddy-settings-group">
-          <div className="dsh-codebuddy-settings-group-title">{t('settingsAutomation')}</div>
         <SettingRow
           label={t('autoSwitch')}
-          description={t('autoSwitchDesc')}
+          tip={t('autoSwitchDesc')}
           control={(
             <DshSwitch
               size="small"
@@ -113,7 +137,7 @@ export function CodeBuddySettingsPopover({ rpc, t }: CodeBuddySettingsPopoverPro
             自动切换关闭时滑杆仍可调——用户可以先设好阈值再打开开关。 */}
         <SettingRow
           label={t('autoSwitchPct')}
-          description={t('autoSwitchPctDesc')}
+          tip={t('autoSwitchPctDesc')}
           control={(
             <div className="dsh-codebuddy-settings-slider">
               <DshSlider
@@ -132,7 +156,7 @@ export function CodeBuddySettingsPopover({ rpc, t }: CodeBuddySettingsPopoverPro
         />
         <SettingRow
           label={t('autoCheckin')}
-          description={t('autoCheckinDesc')}
+          tip={t('autoCheckinDesc')}
           control={(
             <DshSwitch
               size="small"
@@ -147,7 +171,7 @@ export function CodeBuddySettingsPopover({ rpc, t }: CodeBuddySettingsPopoverPro
         />
         <SettingRow
           label={t('travelAuto')}
-          description={t('travelAutoDesc')}
+          tip={t('travelAutoDesc')}
           control={(
             <DshSwitch
               size="small"
@@ -160,23 +184,21 @@ export function CodeBuddySettingsPopover({ rpc, t }: CodeBuddySettingsPopoverPro
             />
           )}
         />
-        </div>
-
-        <div className="dsh-codebuddy-settings-group">
-          <div className="dsh-codebuddy-settings-group-title">{t('settingsDisplay')}</div>
-          <SettingRow
-            label={t('showUsage')}
-            description={t('showUsageDesc')}
-            control={(
-              <DshSwitch
-                size="small"
-                checked={showUsage}
-                aria-label={t('showUsage')}
-                onChange={(checked: boolean) => { $showUsage.set(checked) }}
-              />
-            )}
-          />
-        </div>
+        {/* 「显示额度余量」与上面四项同类（都是持久化偏好），因此同在一列里，
+            不再另起一个带标题的分组——分组标题已按需求去掉，这五项本身就构成
+            一个「设置」列表。 */}
+        <SettingRow
+          label={t('showUsage')}
+          tip={t('showUsageDesc')}
+          control={(
+            <DshSwitch
+              size="small"
+              checked={showUsage}
+              aria-label={t('showUsage')}
+              onChange={(checked: boolean) => { $showUsage.set(checked) }}
+            />
+          )}
+        />
       </div>
     </div>
   )
