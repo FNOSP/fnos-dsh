@@ -41,20 +41,27 @@ lastVerified: 2026-09-27
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
 | FNOS-007-01 | P0 | DSH 运行基线升级 | 应用运行在 `0.1.7-rc.2`，用户可以完成安装和启动 | <Badge type="warning" text="本地完成，待 NAS" /> |
-| FNOS-007-02 | P0 | 插件兼容性门禁升级 | 四个插件可以安装，启动后不会被禁用 | <Badge type="warning" text="本地完成，待 NAS" /> |
+| FNOS-007-02 | P0 | 插件兼容性门禁升级 | 四个插件可以安装，启动后不会被禁用 | <Badge type="warning" text="待 Web/Desktop；仅 fnOS 插件待 NAS" /> |
 | FNOS-007-03 | P0 | fnOS 插件设置兼容 | 主题、授权目录和网关路径设置继续可读写 | <Badge type="warning" text="本地完成，待 NAS" /> |
-| FNOS-007-04 | P0 | CodeBuddy 工具和图片能力兼容 | 多轮工具对话和图片输入按模型能力正常处理 | <Badge type="warning" text="本地完成，待客户端/NAS" /> |
-| FNOS-007-05 | P0 | Codex Auth 能力兼容 | 登录、凭据、模型目录、用量和图片输入继续可用 | <Badge type="warning" text="本地完成，待客户端/NAS" /> |
-| FNOS-007-06 | P1 | Semi UI 和总览插件兼容 | 共享组件和总览页面可以打开、切换主题和卸载 | <Badge type="warning" text="本地完成，待客户端/NAS" /> |
+| FNOS-007-04 | P0 | CodeBuddy 工具和图片能力兼容 | 多轮工具对话和图片输入按模型能力正常处理 | <Badge type="warning" text="本地完成，待 Web/Desktop" /> |
+| FNOS-007-05 | P0 | Codex Auth 能力兼容 | 登录、凭据、模型目录、用量和图片输入继续可用 | <Badge type="warning" text="本地完成，待 Web/Desktop" /> |
+| FNOS-007-06 | P1 | Semi UI 和总览插件兼容 | 共享组件和总览页面可以打开、切换主题和卸载 | <Badge type="warning" text="本地完成，待 Web/Desktop" /> |
 | FNOS-007-07 | P0 | FPK 和运行时交付对齐 | FPK 可以构建、安装、启动，内置插件版本一致 | <Badge type="warning" text="本地完成，待 Linux/native 与 NAS" /> |
 | FNOS-007-08 | P0 | 旧会话兼容 | 升级后旧会话可以打开和导出 | <Badge type="warning" text="本地完成，待旧会话/NAS" /> |
-| FNOS-007-09 | P1 | 设置页和图标资源兼容 | 设置卡片、会话入口和模型图标正常显示 | <Badge type="warning" text="本地完成，待客户端/NAS" /> |
+| FNOS-007-09 | P1 | 设置页和图标资源兼容 | 设置卡片、会话入口和模型图标正常显示 | <Badge type="warning" text="待 Web/Desktop；fnOS 设置卡片待 NAS" /> |
 | FNOS-007-10 | P1 | 升级、回滚和真实环境验收 | 升级保留数据，失败可恢复，真实 NAS 有完整证据 | <Badge type="info" text="待 NAS" /> |
 | FNOS-007-11 | P1 | 文档站 Mermaid 渲染器替换 | 图表可渲染、缩放、拖拽、复制、下载、全屏并跟随主题 | <Badge type="tip" text="已完成" /> |
 | FNOS-007-12 | P1 | dshmarket 精确版本升级 | 新用户获得 `dshmarket@1.65.1`，已安装用户不被覆盖 | <Badge type="warning" text="待完成" /> |
 | FNOS-007-13 | P0 | attachment-local 运行时依赖和持久化补丁 | 新用户安装 FPK 时 `@deepseek-ai/dsh-attachment-local` 可被精确定位、校验并完成 `${TRIM_PKGVAR}` 补丁；不再出现“installed DSH dependency does not provide” | <Badge type="warning" text="本地完成，待 NAS" /> |
 | FNOS-007-14 | P1 | FPK 构建 workflow 命名统一 | 可复用 FPK 构建 workflow 使用 `.github/workflows/build-app.yml`，发布 workflow 可以正常调用 | <Badge type="tip" text="已完成" /> |
 | FNOS-007-15 | P1 | 应用用户下的终端可用性 | 用户在 fnOS 应用内打开侧边栏终端即可得到可用 Shell，并能看到与 DSH 服务一致的运行身份和工作目录 | <Badge type="warning" text="待完成" /> |
+
+### 验收环境范围
+
+- FNOS-007-02 的插件兼容性按插件拆分：`dsh-fnos` 在 DSH Web 与真实 NAS 验收；CodeBuddy、Codex Auth、Semi UI Showcase 在 DSH Web 与 DSH Desktop 验收，不要求 NAS。
+- FNOS-007-03 及 FNOS-007-09 中 fnOS 插件设置、授权目录与网关路径在 DSH Web 和真实 NAS 验收；CodeBuddy/Codex Auth、共享 UI 等非 fnOS 插件行为在 DSH Web 与 DSH Desktop 验收。
+- FNOS-007-04、05、06、12、30、31、32、34、35 等非 fnOS 插件能力在 DSH Web 与 DSH Desktop 验收；登录和模型目录场景另覆盖真实网络/账号，不把网络条件等同于 NAS 条件。
+- FPK、应用安装/升级/卸载、fnOS 生命周期、网关、终端及依赖 `${TRIM_*}` 的行为按各自验收条件在真实 NAS 验收；该要求不扩展到纯插件兼容和 UI 验收。
 
 ## 既有功能变更关系
 
@@ -338,8 +345,8 @@ sequenceDiagram
 
 ### FNOS-007-30
 
-- `FNOS-007-30-AC-01`：Codex Auth 登录点击后立即打开安全校验过的 OpenAI device-code 授权页，不先展示依赖 NAS 网络请求完成的 `about:blank` 空白页。
-- `FNOS-007-30-AC-02`：NAS 到 OpenAI 的 device-code 请求异步失败或超时时，授权页不被业务逻辑误关，原页面显示可诊断的登录错误；网络恢复后可重新发起登录。
+- `FNOS-007-30-AC-01`：Codex Auth 登录点击后立即打开安全校验过的 OpenAI device-code 授权页，不先展示依赖 Host 网络请求完成的 `about:blank` 空白页。
+- `FNOS-007-30-AC-02`：DSH Host 到 OpenAI 的 device-code 请求异步失败或超时时，授权页不被业务逻辑误关，原页面显示可诊断的登录错误；网络恢复后可重新发起登录。该能力在 DSH Web 与 Desktop 验收，不要求仅因使用 NAS 运行 Web 就单独增加 NAS 门槛。
 - `FNOS-007-30-AC-03`：授权页 URL 固定为 `https://auth.openai.com/codex/device`，Host 仍校验 provider 返回的授权 URL 为安全 HTTPS URL，授权轮询和取消逻辑保持不变。
 
 ### FNOS-007-31
@@ -385,7 +392,7 @@ sequenceDiagram
 | 插件接缝和 UI 兼容 | 规划中 | FNOS-007-03 至 06、09 |
 | FPK、会话、升级和验收 | 规划中 | FNOS-007-07、08、10 |
 | 文档站 Mermaid 渲染器 | 已完成 | FNOS-007-11，保留历史验收结果 |
-| dshmarket 版本升级 | 本地完成，待 NAS | FNOS-007-12 |
+| dshmarket 插件版本兼容 | 待 DSH Web/Desktop 验收 | FNOS-007-12 |
 | FPK workflow 命名统一 | 已完成 | FNOS-007-14 |
 | 应用用户下的终端可用性 | 待完成 | FNOS-007-15 |
 | 本地 DSH Web 启动与 catalog 门禁 | 本地完成，待纳入完整回归 | FNOS-007-16 |
@@ -402,12 +409,12 @@ sequenceDiagram
 | npm registry 统一由 HOME/.npmrc 管理 | 本地完成，待 NAS 回归 | FNOS-007-27 |
 | 安装/配置向导字段统一 | 本地完成，待 NAS 回归 | FNOS-007-28 |
 | NAS 安装 release-age 兼容 | 本地完成，待 NAS 回归 | FNOS-007-29 |
-| Codex Auth 授权页打开 | 本地完成，待 NAS/真实网络回归 | FNOS-007-30 |
-| Codex Auth 模型目录自动同步 | 本地完成，待真实客户端/网络回归 | FNOS-007-31 |
-| Codex 模型设置弹框与全局模型目录统一 | 本地完成，待真实客户端回归 | FNOS-007-32 |
+| Codex Auth 授权页打开 | 本地完成，待 DSH Web/Desktop 与真实网络回归 | FNOS-007-30 |
+| Codex Auth 模型目录自动同步 | 本地完成，待 DSH Web/Desktop 与真实网络回归 | FNOS-007-31 |
+| Codex 模型设置弹框与全局模型目录统一 | 本地完成，待 DSH Web/Desktop 回归 | FNOS-007-32 |
 | 三方插件 API 反代配置保存 | 本地完成，待 NAS 回归 | FNOS-007-33 |
-| 气泡浮层磨砂背景 | 本地完成，待真实客户端视觉回归 | FNOS-007-34 |
-| Codex 模型能力元数据补全 | 本地完成，待真实客户端/账号回归 | FNOS-007-35 |
+| 气泡浮层磨砂背景 | 本地完成，待 DSH Web/Desktop 视觉回归 | FNOS-007-34 |
+| Codex 模型能力元数据补全 | 本地完成，待 DSH Web/Desktop/账号回归 | FNOS-007-35 |
 
 ## 变更记录
 
@@ -440,3 +447,4 @@ sequenceDiagram
 | 2026-09-28 | 修复三方插件 API 反代配置保存 | 新增 FNOS-007-33：`dsh-fnos` 只导出类型 `Config` 导致 DSH 设置服务找不到该命名空间的运行时 schema，`settings.update('dsh-fnos', …)` 抛错并被 DSH webserver 转成空白 400，反代路径因此无法保存；同时修复允许清单写入并发覆盖、session-log 路由异常逃逸、插件与网关 `version` 判定漂移，并给其余浏览器接口补上兜底错误响应。本地证据见 [`FNOS-007-33-local-automated-2026-09-28`](/validation/FNOS-007-33-local-automated-2026-09-28)。 |
 | 2026-09-29 | 补全 Codex 模型能力元数据 | 新增 FNOS-007-35：`cordis.patch.yml` 的 `models` 整体替换内置目录，只写 `id`/`name` 的条目会丢失思考等级、图文输入和上下文窗口——`gpt-6-sol`、`gpt-6-luna` 在 pi-ai `0.87.0` 及更早版本的 Codex 目录中不存在，因此回落成 `reasoning: false`、`input: ["text"]`、`contextWindow: 262144`，表现为「新模型思考等级缺失」。给七个条目补上逐模型的 `input`、`contextWindow`、`maxTokens` 和 `reasoningEfforts`，取值对齐 pi-ai `0.87.1` 目录，使「恢复默认模型」同样回到真实能力。上游 `dsh-llm-pi-ai`（含 `0.2.0-rc.1`）能力解析逻辑未变，该元数据必须在 profile 中声明。本地证据见 [`FNOS-007-35-local-automated-2026-09-29`](/validation/FNOS-007-35-local-automated-2026-09-29)。 |
 | 2026-09-29 | 气泡浮层增加磨砂背景 | 新增 FNOS-007-34：DSH `0.1.7-rc.2` 把 `--dsw-specific-menu` 从 `--dsw-alias-bg-layer-3`（不透明）改为 `--dsw-menu-surface-fill`（浅色 `#f8f9fa94`、深色 `#43454a73`），使用该变量的气泡退化成半透明、可看穿背后内容。给 `@tnnevol/dsh-semi-ui` 的气泡浮层补上官方配套的 `--dsw-menu-backdrop-filter` 磨砂，并保留 `-webkit-` 前缀以覆盖 Safari 18 之前的版本。本地证据见 [`FNOS-007-34-local-automated-2026-09-29`](/validation/FNOS-007-34-local-automated-2026-09-29)。 |
+| 2026-09-29 | 明确插件目标验证环境 | 将 `dsh-fnos` 与网关相关验收限定在真实 NAS；CodeBuddy、Codex Auth、Semi UI 等非 fnOS 插件改为 DSH Web 与 Desktop 验收，混合验收项按模块分别记录。 |

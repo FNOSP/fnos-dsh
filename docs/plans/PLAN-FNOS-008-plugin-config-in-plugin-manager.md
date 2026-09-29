@@ -72,13 +72,13 @@ sequenceDiagram
 
 | 需求功能 | 代码模块 | 配置/数据 | 测试 | 文档 | 目标环境 |
 | --- | --- | --- | --- | --- | --- |
-| FNOS-008-01 | `plugins/dsh-fnos-plugin`（client 注册、授权目录卡片） | 无迁移 | 契约测试、卡片行为测试 | `docs/plugins/dsh-fnos.md` | DSH 客户端、真实 NAS |
-| FNOS-008-02 | `plugins/dsh-codebuddy-plugin`（client 注册、CodeBuddySection） | 无迁移 | 现有组件测试回归 | `docs/plugins/dsh-codebuddy.md` | DSH 客户端、真实 NAS |
-| FNOS-008-03 | `plugins/dsh-codex-auth-plugin`（client 注册、CodexAuthSection） | 无迁移 | 现有组件测试回归 | `docs/plugins/dsh-codex-auth.md` | DSH 客户端、真实 NAS |
-| FNOS-008-04 | 由上面三项注册移除自动达成 | 无 | 契约测试断言更新 | 需求/计划/索引 | DSH 客户端 |
-| FNOS-008-05 | 无（数据层不动） | 既有配置数据保持 | 升级前后数据对照 | — | 真实 NAS |
-| FNOS-008-06 | `plugins/dsh-codebuddy-plugin` Host/Client、Remote 与 Web bridge | 既有凭据、偏好、任务状态保持 | Desktop transport、OAuth opener、生命周期和 Web/fnOS 回归 | `docs/plugins/dsh-codebuddy.md`、验证证据 | DSH Desktop、Web、fnOS NAS |
-| FNOS-008-07 | `plugins/dsh-codex-auth-plugin` Client 登录开窗与取消 | 既有 OAuth 凭据、设置不变 | 登录 `null` 开窗、取消、复制与回归 | `docs/plugins/dsh-codex-auth.md`、验证证据 | DSH Desktop、Web、fnOS NAS |
+| FNOS-008-01 | `plugins/dsh-fnos-plugin`（client 注册、授权目录卡片） | 无迁移 | 契约测试、卡片行为测试 | `docs/plugins/dsh-fnos.md` | DSH Web、真实 NAS |
+| FNOS-008-02 | `plugins/dsh-codebuddy-plugin`（client 注册、CodeBuddySection） | 无迁移 | 现有组件测试回归 | `docs/plugins/dsh-codebuddy.md` | DSH Web、DSH Desktop |
+| FNOS-008-03 | `plugins/dsh-codex-auth-plugin`（client 注册、CodexAuthSection） | 无迁移 | 现有组件测试回归 | `docs/plugins/dsh-codex-auth.md` | DSH Web、DSH Desktop |
+| FNOS-008-04 | 由上面三项注册移除自动达成 | 无 | 契约测试断言更新 | 需求/计划/索引 | DSH Web、DSH Desktop |
+| FNOS-008-05 | 无（数据层不动） | 既有配置数据保持 | 按插件升级前后数据对照 | — | fnOS 授权目录：真实 NAS；其他插件：DSH Web、DSH Desktop |
+| FNOS-008-06 | `plugins/dsh-codebuddy-plugin` Host/Client、Remote 与 Web bridge | 既有凭据、偏好、任务状态保持 | Desktop transport、OAuth opener、生命周期和 Web 回归 | `docs/plugins/dsh-codebuddy.md`、验证证据 | DSH Web、DSH Desktop |
+| FNOS-008-07 | `plugins/dsh-codex-auth-plugin` Client 登录开窗与取消 | 既有 OAuth 凭据、设置不变 | 登录 `null` 开窗、取消、复制与回归 | `docs/plugins/dsh-codex-auth.md`、验证证据 | DSH Web、DSH Desktop |
 
 不涉及：应用 manifest、wizard、`cmd/` 脚本、网关、FPK 构建门禁、`published-dsh-plugins.json`。
 
@@ -222,19 +222,19 @@ sequenceDiagram
 | --- | --- | --- | --- | --- |
 | PLAN-FNOS-008-T04-01 | FNOS-008-01–03、FNOS-008-06–07 | 更新三个插件的配置入口、Desktop 运行形态、OAuth 外部打开限制与截图说明 | 阶段一–三完成 | 文档构建通过 |
 | PLAN-FNOS-008-T04-02 | FNOS-008-04 | 需求/计划索引登记 FNOS-008/PLAN-FNOS-008；移除已合并的 FNOS-009 独立入口 | 需求、计划创建时 | `pnpm run doc-sync` / 站内链接检查 |
-| PLAN-FNOS-008-T04-03 | FNOS-008-05–07 | 本地升级兼容验证：配置数据、Web/fnOS 回归和 Desktop 契约对照 | 阶段一–三完成 | 本地证据登记 `docs/validation/` |
+| PLAN-FNOS-008-T04-03 | FNOS-008-05–07 | 本地升级兼容验证：配置数据、DSH Web 回归和 Desktop 契约对照；fnOS 专属行为单独列入 NAS 验收 | 阶段一–三完成 | 按目标环境分别登记 `docs/validation/` 证据 |
 
 ### 阶段五：DSH Desktop 验收（T05-01）
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
-| PLAN-FNOS-008-T05-01 | FNOS-008-06 / AC-01–07、FNOS-008-07 / AC-01–07 | 在目标 DSH Desktop 版本安装 CodeBuddy 与 Codex Auth bundle，验证加载、配置详情页、OAuth 登录/取消（含 `window.open` 返回 `null` 的 Desktop 路径）、模型、用量、成长任务、重启恢复和卸载清理 | 阶段二–四完成 | Desktop 目标环境证据；失败时保留 Web/fnOS 行为并记录降级 |
+| PLAN-FNOS-008-T05-01 | FNOS-008-06 / AC-01–07、FNOS-008-07 / AC-01–07 | 在目标 DSH Desktop 版本安装 CodeBuddy 与 Codex Auth bundle，验证加载、配置详情页、OAuth 登录/取消（含 `window.open` 返回 `null` 的 Desktop 路径）、模型、用量、成长任务、重启恢复和卸载清理 | 阶段二–四完成 | Desktop 目标环境证据；失败时保留 DSH Web 行为并记录降级 |
 
-### 阶段六：真实 NAS 验收（T06-01）
+### 阶段六：fnOS 插件 NAS 验收（T06-01）
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
-| PLAN-FNOS-008-T06-01 | FNOS-008-05 / AC-01–03 及各功能 AC | 构建 FPK，在真实 NAS 完成安装、升级、配置读写、保存失败保护与禁用/启用循环验收 | 阶段一–四完成 | NAS 证据登记 `docs/validation/` |
+| PLAN-FNOS-008-T06-01 | FNOS-008-01 / 全部 AC；FNOS-008-05 中 fnOS 授权目录数据部分 | 构建 FPK，在真实 NAS 验证 fnOS 组合包详情页、授权目录读写与权限；确认升级前后 fnOS 授权目录配置保留 | fnOS 插件实现及 DSH Web 验收完成 | NAS 证据登记 `docs/validation/`；不把 CodeBuddy/Codex Auth 验收列为 NAS 阻塞项 |
 
 ### 任务依赖
 
@@ -268,10 +268,10 @@ flowchart TD
     T03d --> T04
     T07g --> T04
     T04 --> T05[T05-01 DSH Desktop 验收]
-    T05 --> T06[T06-01 真实 NAS 验收]
+    T04 --> T06[T06-01 fnOS 插件 NAS 验收]
 ```
 
-三个插件的配置入口迁移相互独立，可并行实施；CodeBuddy 与 Codex Auth 的 Desktop 兼容共用同一份 Desktop 契约结论（T02-04），完成后与文档、Desktop 和 NAS 验收按阶段执行。
+三个插件的配置入口迁移相互独立，可并行实施；CodeBuddy 与 Codex Auth 的 Desktop 兼容共用同一份 Desktop 契约结论（T02-04）。DSH Web/Desktop 验收覆盖三个插件各自的目标客户端；真实 NAS 验收仅覆盖 fnOS 插件的宿主授权目录能力，不能作为 CodeBuddy/Codex Auth 的完成阻塞项。
 
 ## 交互和行为设计
 
@@ -337,11 +337,11 @@ flowchart TD
 ## 测试、打包、发布和回滚
 
 - **包级**：三插件 typecheck、单测、构建（`lib/` 产物新鲜）；CodeBuddy `client.js` 同时确认配置详情页注册和 Desktop transport 入口，且不包含 Host 模块。
-- **应用级（本地）**：`dsh plugin add` 链接三插件构建产物启动本地 `dsh web`：详情页配置区块可见可用；设置弹框无插件配置入口；官方配置页正常；CodeBuddy Web bridge 回归通过。
-- **Desktop 契约级**：在 `null` 开窗下验证 CodeBuddy 与 Codex Auth 的登录都继续推进（不断言具体写法，只断言行为）；`dsh.client.platform` 保持 `web`。
-- **Desktop**：在目标 DSH Desktop 版本验证 CodeBuddy 加载、详情页、Remote、OAuth 外部打开、登录取消、模型、用量、成长任务、重启、断线和卸载清理。
-- **FPK**：本需求不修改 FPK 结构，按现有流程构建冒烟即可；插件经 registry 拉取，无需重发 FPK（版本号随插件版本升级）。
-- **真实 NAS**：安装/升级后完成 FNOS-008 全部 AC；升级前后配置数据对照（FNOS-008-05），并确认 fnOS iframe 中 CodeBuddy Web bridge 不回归。
+- **DSH Web**：`dsh plugin add` 链接三插件构建产物启动 Web profile：三个详情页配置区块可见可用；设置弹框无插件配置入口；官方配置页正常；CodeBuddy Web bridge 回归通过。
+- **Desktop 契约级**：在 `null` 开窗下验证 CodeBuddy 与 Codex Auth 的登录都继续推进（断言用户可观察行为）；`dsh.client.platform` 保持 `web`。
+- **DSH Desktop**：在目标版本验证 CodeBuddy/Codex Auth 加载、详情页、OAuth 外部打开与登录取消、模型、用量、成长任务、重启、断线和卸载清理；非 fnOS 插件以 Web/Desktop 验收作为完成条件，不要求 NAS。
+- **FPK**：本需求不修改 FPK 结构，按现有流程构建冒烟即可；不因插件 UI 迁移要求重复发布或安装整个应用。
+- **真实 NAS（仅 fnOS 专属部分）**：安装/升级后验证 FNOS-008-01 与 FNOS-008-05 中授权目录的读写、权限和保留行为；不把 CodeBuddy、Codex Auth 的验收列入 NAS 阶段。
 - **文档**：`pnpm run doc-sync` 与站内链接检查。
 - **回滚**：单插件可独立回滚到原注册；Desktop 适配可独立撤回；禁止删除任何用户配置数据。
 
@@ -363,7 +363,7 @@ flowchart TD
 | 阶段三：Codex Auth 迁移与 Desktop 兼容 | <Badge type="warning" text="本地完成，待验证" /> |
 | 阶段四：文档与索引 | <Badge type="info" text="规划中" /> |
 | 阶段五：DSH Desktop 验收 | <Badge type="info" text="待完成" /> |
-| 阶段六：真实 NAS 验收 | <Badge type="info" text="规划中" /> |
+| 阶段六：fnOS 插件 NAS 验收 | <Badge type="info" text="规划中" /> |
 
 ## 变更记录
 
@@ -378,3 +378,4 @@ flowchart TD
 | 2026-09-28 | 落地 T03-01/T03-02 | Codex Auth 配置从设置弹框 `settings.section` 迁入插件管理页 `plugins.bundle.config`（key `@tnnevol/dsh-codex-auth`）。补 `@deepseek-ai/dsh-client-ui-plugin-manager` 的 catalog 条目、peer/dev 依赖、`dsh.client.inject` 与 compatibility 清单；客户端仅 type-only 引入该包。新增 `tests/client/bundle-config-registration.spec.ts`（8 条）覆盖注册契约、无设置侧入口、无运行时 import、类型依赖、compat 一致性与布局解耦。插件检查 19 文件/96 测试通过；构建产物含新注册且不含 `settings.section`；组合级确认 Codex 条目 `enabled/active`。数据读写路径未变，无数据迁移。 |
 | 2026-09-29 | 新增 T07-08 | 并发换号审计发现两个真实缺陷（详见 FNOS-008-02-AC-05 变更记录），登记为 T07-08 并补可证伪的并发用例。 |
 | 2026-09-29 | 登记验证记录 | 补登三份 `docs/validation/` 记录：FNOS-008-01（fnOS 授权目录迁入详情页）、FNOS-008-02（CodeBuddy 详情页与设置浮层）、FNOS-008-06（Desktop 运行时复验）。01/02 此前只有提交与单测、无验证记录，属流程缺失。另更正 FNOS-008-06 旧记录「本机未安装 Electron、无法验收」已被事实取代——目标运行时（`/Applications/DeepSeek Harness.app`）已安装且实测两个插件均在 Desktop 上激活；按验收规范「证据只追加，不修改」，以新文件取代，旧记录保持原样。 |
+| 2026-09-29 | 按插件拆分环境验收阶段 | CodeBuddy/Codex Auth 改为 DSH Web 与 Desktop 验收；真实 NAS 阶段仅覆盖 fnOS 插件授权目录及其数据保留，调整影响矩阵、任务依赖和验收清单。 |

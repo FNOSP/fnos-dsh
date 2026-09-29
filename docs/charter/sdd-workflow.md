@@ -28,7 +28,7 @@ description: fnOS Apps Monorepo 的需求、计划、实现、验证和发布维
 
 | 变更类型 | 必需产物 | 最低验证 |
 | --- | --- | --- |
-| 新功能、用户行为、权限、数据、网关或插件契约变化 | 需求规格 + 实施计划 + 验收条件 | 代码/测试 + 文档构建；涉及 fnOS 时必须真实 NAS 验收 |
+| 新功能、用户行为、权限、数据、网关或插件契约变化 | 需求规格 + 实施计划 + 验收条件 | 代码/测试 + 文档构建；按实际宿主依赖验证：fnOS 插件、网关及 FPK/生命周期行为需真实 NAS，其他插件需 DSH Web 与 Desktop |
 | 现有功能行为修复 | 原需求变更记录 + 计划调整；影响较大时新增需求 | 回归测试和对应环境验证 |
 | 安全、依赖、构建或发布变化 | 变更说明 + 风险/回滚 + 校验结果 | 受影响的构建、安装、升级或安全检查 |
 | 仅文档、格式或内部重命名 | 变更说明 | `git diff --check` 和 `pnpm run build -- --docs` |
@@ -41,8 +41,13 @@ flowchart TD
   requirement --> review["评审范围、优先级和验收条件"]
   review --> plan["建立实施计划和任务追踪"]
   plan --> implementation["编码并补齐测试/构建验证"]
-  implementation --> nas["在目标 fnOS NAS 完成功能验收"]
+  implementation --> target["按实际宿主依赖选择目标环境"]
+  target -->|fnOS 插件、网关、FPK/生命周期| nas["真实 NAS 验收"]
+  target -->|其他 DSH 插件| client["DSH Web 与 Desktop 验收"]
+  target -->|文档站或其他目标| other["对应目标环境验收"]
   nas --> evidence["写入验收证据并回写需求/计划状态"]
+  client --> evidence
+  other --> evidence
   evidence --> release["关联版本、变更记录和回滚方式"]
 ```
 
@@ -147,7 +152,7 @@ const srcPath = (...segments: string[]) => join(here, '..', 'src', ...segments)
 - [ ] 新增或修改的用户行为有可观察的验收条件。
 - [ ] 计划只包含已进入实施阶段的功能。
 - [ ] 已运行与改动相关的插件测试、构建、`pnpm run check -- --sdd` 和 `pnpm run build -- --docs`。
-- [ ] 涉及 fnOS 权限、宿主、FPK 安装或升级的功能已记录真实 NAS 验收状态。
+- [ ] fnOS 插件、网关及依赖 fnOS 权限、FPK 安装/升级或生命周期的行为已记录真实 NAS 验收状态；其他插件已按目标要求记录 DSH Web 与 Desktop 验收，不笼统追加 NAS 门槛。
 - [ ] 已说明数据影响、敏感信息、升级兼容和回滚方式。
 - [ ] 需求、计划和验证记录中的链接与追踪 ID有效。
 - [ ] 没有引入本机绝对路径；路径定位使用相对路径、包名别名或运行时解析（见[编码边界](#禁止绝对路径)）。

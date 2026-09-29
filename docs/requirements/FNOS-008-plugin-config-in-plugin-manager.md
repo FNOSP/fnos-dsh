@@ -46,6 +46,13 @@ DSH `0.1.7-rc.2` 新增了侧栏「插件」管理页，并提供官方架构决
 | FNOS-008-06 | P0 | CodeBuddy Desktop 兼容 | CodeBuddy 配置详情页及账号、用量和成长任务能力在 DSH Desktop 中可用，同时保持 Web/fnOS 兼容 | <Badge type="info" text="规划中" /> |
 | FNOS-008-07 | P0 | Codex Auth Desktop 兼容 | Codex Auth 的登录在 DSH Desktop 中可用：授权页在系统浏览器打开后设备码流程继续，不再误报「登录窗口被阻止」 | <Badge type="info" text="规划中" /> |
 
+### 验收环境范围
+
+- FNOS-008-01（fnOS 插件授权目录配置）在 DSH Web 与真实 fnOS NAS 验收，覆盖宿主授权目录选择、权限和保存行为。
+- FNOS-008-02、03、04、06、07（CodeBuddy、Codex Auth 及通用插件管理 UI）在 DSH Web 与 DSH Desktop 验收，不要求 NAS。
+- FNOS-008-05 的配置持久化按插件拆分：fnOS 授权目录相关数据在真实 NAS 验收；CodeBuddy 与 Codex Auth 的配置、凭据和迁移行为在 DSH Web 与 Desktop 验收。
+- 登录等依赖外部服务的功能还须覆盖真实网络/账号条件；这不等于必须在 NAS 上执行。
+
 ## 既有功能变更关系
 
 本次变更改变 FNOS-007-09（设置页和图标资源兼容）中授权目录卡片的呈现位置，并终止 CodeBuddy、Codex Auth 在设置侧栏的分区入口。
@@ -214,3 +221,4 @@ sequenceDiagram
 | 2026-09-29 | 修复并发换号（FNOS-008-02-AC-05） | 审计发现被动换号（额度耗尽 → 换账号重试）在多会话并发下有两个缺陷：① 换号决策的 `failedId` 取的是「重试前重读的当前账号」而非「本次真正被拒的账号」，并发下会把别的会话刚切好的健康账号误判为已失败而排除——三个账号时级联到更差的账号，两个账号时直接放弃并抛 `QUOTA`（外层不重试该码）导致会话失败；② `switchTo` 的 CAS 失败（=别人已改掉当前账号）被当作放弃，于是 N 个会话同时撞上同一耗尽账号时只有 1 个成功、其余全部失败。修复：`failedId` 在发出请求前冻结并随每轮切换更新；CAS 失败时改为采用当前账号继续重试（`from === to` 表示未发生切换，因而不产出「已自动切换」提示）。原语 `RunGuard`/`AccountLocks` 为实例级，安全性依赖「进程内共用同一 service」这一前提，已补用例钉住。 |
 | 2026-09-29 | 客户端版本升级 + auth 契约核对 | CodeBuddy CLI `2.148.0 → 2.159.0`、WorkBuddy `5.5.6 → 5.6.2`（`CODEBUDDY_CLIENT_VERSIONS`、`X-IDE-Version`、桌面 UA、登录页 `version` 参数同步；桌面 UA 改为按常量拼接，避免每次升级都要改字面量）。核对全局 `@tencent-ai/codebuddy-code@2.159.0` 的 cli auth 方式：**四条 auth 端点与 `prefixPath`（`/plugin`）、待登录码（11217）均未变动**；CHANGELOG 的 2.148.0→2.159.0 区间无 auth 方式变更。补齐两处与参考实现的头部差异（此前未观测到故障，属防御性对齐）：`auth/state` 与 `login/account` 补 `X-No-Department-Info`，`auth/token/refresh` 补 `X-Auth-Refresh-Source: plugin`。另记录一处**尚未处置**的风险：官方 CLI 把业务码 `6000–6004` 整体归为 `quota/quota_token_limit`（我们只认 `6004`）、`6005–6008` 归 `quota_request_limit`；若服务端改用同区间的其它码，这些错误的分类会退化。 |
 | 2026-09-29 | 补登验证证据、更正 Desktop 前提 | 补登 FNOS-008-01 / FNOS-008-02 / FNOS-008-06 三份 `docs/validation/` 记录。要点：① FNOS-008-01-AC-01 的「区块在组件列表之后」改用**上游源码硬顺序**作证据（`PackageDetail` 的 `detailSections` 子节点数组中 `plugins.detail.section` 恒在 `RowsSection` 之后），比截图更强且可随时复验；② FNOS-008-02 的三处界面调整有运行时实测数值（顺序 top 值、tip 数量/光标/可聚焦、左右布局）与契约测试，且逐条做过反转验证；③ FNOS-008-06 旧记录「本机未安装 Electron、无法启动 Desktop」的前提已不成立——目标运行时已安装（`/Applications/DeepSeek Harness.app` 0.1.7-rc.2），只读探测证实两个插件均已在 Desktop 激活（`/codebuddy` 前缀路由 401 对上同族 404、Codex `auth/status` 返回 `signed-in`），故 AC-01 取得目标运行时证据。三项状态仍为 `blocked`：AC-02/03/04/07 需人眼交互走查，真实 NAS 验收未执行。 |
+| 2026-09-29 | 明确插件目标验证环境 | fnOS 插件授权目录能力需在 DSH Web 与真实 NAS 验收；CodeBuddy、Codex Auth 与通用插件管理行为需在 DSH Web 与 Desktop 验收，不把 NAS 作为非 fnOS 插件完成门槛。 |

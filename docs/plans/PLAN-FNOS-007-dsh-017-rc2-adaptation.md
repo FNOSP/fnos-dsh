@@ -31,7 +31,7 @@ lastVerified: 2026-09-27
 | 阶段 | 对应功能 | 内容 | 状态 |
 | --- | --- | --- | --- |
 | 第一期 | FNOS-007-11 | 文档站 Mermaid 渲染器替换和图表交互验收 | <Badge type="tip" text="已完成" /> |
-| 第二期 | FNOS-007-01 至 10、12、13、14 | 依赖基线、插件接缝、FPK、会话、升级、attachment-local、dshmarket 和 workflow 验收 | <Badge type="warning" text="本地完成，待 Linux/native 与真实 NAS" /> |
+| 第二期 | FNOS-007-01 至 10、12、13、14 | 依赖基线、插件接缝、FPK、会话、升级、attachment-local、dshmarket 和 workflow 验收 | <Badge type="warning" text="待按模块完成 Web/Desktop、Linux/native 与必要的 NAS 验收" /> |
 | 第三期 | FNOS-007-15 | 应用专用账号下的终端可用性适配 | <Badge type="warning" text="待实施" /> |
 
 分期原因：插件源码接缝、FPK 运行时和本地开发宿主需要统一到同一目标基线，先完成差异分析，再同步切换运行时与开发工具链。
@@ -90,12 +90,15 @@ sequenceDiagram
 
 | 需求功能 | 源码和配置 | 用户数据/运行时 | 测试和证据 | 目标环境 |
 | --- | --- | --- | --- | --- |
-| FNOS-007-01、02 | `pnpm-workspace.yaml`、lockfile、插件 package/compatibility 配置、构建 CLI | DSH 运行时、插件安装门禁 | peer 兼容性断言、干净 profile 安装 | 本地 DSH、真实 NAS |
-| FNOS-007-03、09 | `dsh-fnos` Host/Client、设置卡片、图标和输入契约 | 主题、授权目录、代理路径、设置 profile | 设置读写、升级前后 profile 对照 | DSH 客户端、真实 NAS |
-| FNOS-007-04、05 | CodeBuddy/Codex Auth serializer、图片请求和凭据模块 | 工具结果、图片内容、凭据、模型目录 | 工具调用、图片、登录、用量和配置回归 | DSH 客户端 |
-| FNOS-007-06 | Semi UI 共享包和总览插件 | 组件、主题和卸载状态 | 构建、渲染、主题和卸载测试 | DSH 客户端 |
-| FNOS-007-07、08 | FPK manifest、生命周期、网关、native、会话读取边界 | FPK 运行时、旧会话、网关和插件归档 | FPK 构建、安装、旧会话导出 | 真实 NAS |
-| FNOS-007-10、12、13 | 安装/升级流程、发布清单、attachment-local 和 dshmarket 校验 | 用户配置、已安装插件版本、附件持久化目录 | 幂等、回滚、精确版本、补丁和 NAS 证据 | 真实 NAS |
+| FNOS-007-01 | `pnpm-workspace.yaml`、lockfile、DSH 运行时与构建 CLI | 应用运行基线 | 干净 profile 安装、启动与升级 | DSH Web、真实 NAS |
+| FNOS-007-02 | 插件 package/compatibility 配置、构建 CLI | 四个插件的安装门禁 | peer 兼容性断言、干净 profile 安装 | `dsh-fnos`：DSH Web 与真实 NAS；其他插件：DSH Web 与 Desktop |
+| FNOS-007-03 | `dsh-fnos` Host/Client、设置卡片 | 主题、授权目录、代理路径、设置 profile | 设置读写、升级前后 profile 对照 | DSH Web、真实 NAS |
+| FNOS-007-09 | 设置入口、图标和输入契约 | 设置卡片、会话入口和模型图标 | 配置/入口显示与交互回归 | DSH Web/Desktop；fnOS 设置卡片另在真实 NAS 验收 |
+| FNOS-007-04、05 | CodeBuddy/Codex Auth serializer、图片请求和凭据模块 | 工具结果、图片内容、凭据、模型目录 | 工具调用、图片、登录、用量和配置回归 | DSH Web 与 Desktop；登录另需真实网络/账号 |
+| FNOS-007-06 | Semi UI 共享包和总览插件 | 组件、主题和卸载状态 | 构建、渲染、主题和卸载测试 | DSH Web 与 Desktop |
+| FNOS-007-07、08、10 | FPK manifest、生命周期、网关、native、会话读取边界 | FPK 运行时、旧会话、网关和插件归档 | FPK 构建/安装、旧会话导出、升级与回滚 | 真实 NAS；客户端功能另在 DSH Web 验收 |
+| FNOS-007-12 | dshmarket 安装清单与版本收敛 | 已安装插件版本 | 缺失、版本不一致和同版本场景回归 | DSH Web 与 Desktop，不要求 NAS 插件验收 |
+| FNOS-007-13 | attachment-local 安装解析与持久化补丁 | FPK 运行时和附件持久化目录 | 依赖解析、补丁幂等和附件可用性 | 真实 NAS（应用运行时验收） |
 | FNOS-007-11 | `docs/package.json`、VitePress config/theme | 文档图表渲染方式 | 全部 Mermaid 图表和文档构建 | 浏览器、文档构建 |
 | FNOS-007-15 | `apps/fn-deepseek-harness/cmd/main` 的环境导出段 | 终端进程默认 Shell、终端继承环境 | 启动脚本环境断言、终端打开和命令执行回归 | 真实 NAS |
 
@@ -321,10 +324,10 @@ sequenceDiagram
 
 | 任务 ID | 对应验收 | 实施内容 | 验证 |
 | --- | --- | --- | --- |
-| PLAN-FNOS-007-T06-01 | FNOS-007-10-AC-01、02 | 逐项验证 profile、凭据、工作区、授权目录、插件设置和会话保留，确认重复执行幂等 | 升级前后数据对照 |
+| PLAN-FNOS-007-T06-01 | FNOS-007-10-AC-01、02 | 在 NAS 验证应用 profile、fnOS 授权目录、工作区和旧会话保留；在 DSH Web/Desktop 验证 CodeBuddy/Codex Auth 的插件设置与凭据保留，确认各自重复执行幂等 | NAS、Web/Desktop 分别做升级前后数据对照，证据按宿主登记 |
 | PLAN-FNOS-007-T06-02 | FNOS-007-10-AC-03 | 注入安装/升级失败，确认旧运行时和配置可恢复 | 回滚后应用可启动 |
 | PLAN-FNOS-007-T06-03 | FNOS-007-10-AC-04 | 执行插件、包、FPK、文档和 SDD 门禁 | 全量检查和文档构建 |
-| PLAN-FNOS-007-T06-04 | FNOS-007-10-AC-04 | 在真实 NAS 记录安装、升级、启动、网关、四个插件和设置证据 | `docs/validation/` 记录可追溯 |
+| PLAN-FNOS-007-T06-04 | FNOS-007-10-AC-04 | 在真实 NAS 记录应用安装/升级/启动、网关和 fnOS 插件设置证据；CodeBuddy、Codex Auth 与共享 UI 的插件验收分别记录 DSH Web/Desktop 证据 | `docs/validation/` 记录可追溯，按插件/宿主分别登记 |
 
 ### T07：文档站 Mermaid 渲染器（已完成）
 
@@ -340,7 +343,7 @@ sequenceDiagram
 | 任务 ID | 对应验收 | 实施内容 | 验证 |
 | --- | --- | --- | --- |
 | PLAN-FNOS-007-T09-01 | FNOS-007-12-AC-01 至 03、05 | 同步发布清单、构建常量和文档当前值到 `1.65.1`，并确认所有 registry 安装都读取同一份 `.npmrc`，默认使用 npm 官方源 | 构建校验、源配置和版本一致性检查 |
-| PLAN-FNOS-007-T09-02 | FNOS-007-12-AC-04 | 按普通 `plugins` 规则处理 dshmarket：缺失安装、版本不一致升级/降级、同版本幂等保留 | 自动化 shell 回归和真实 NAS 安装/升级证据 |
+| PLAN-FNOS-007-T09-02 | FNOS-007-12-AC-04 | 按普通 `plugins` 规则处理 dshmarket：缺失安装、版本不一致升级/降级、同版本幂等保留 | 自动化 shell 回归及 DSH Web/Desktop 插件验收；FPK 安装回调的 NAS 验收归入 FNOS-007-29/T25 |
 
 ### T10：FPK 构建 workflow 命名
 
@@ -406,7 +409,7 @@ sequenceDiagram
 | PLAN-FNOS-007-T25-01 | FNOS-007-29-AC-01、02 | 为 FPK archive remove/add 提供独立的 `run_dsh_plugin_with_release_age`，仅追加 `--config.minimum-release-age=0`，remove 参数保持插件名称 | bundled-plugin-install 回归测试验证 remove/add 顺序、无版本号和 release-age 参数 |
 | PLAN-FNOS-007-T25-02 | FNOS-007-29-AC-03 | 读取 `plugins` 的第三列 `source`；thirdparty registry add/update 使用受控 release-age 例外，自有插件继续走既有归档或普通收敛逻辑 | dshmarket 缺失、版本不一致和同版本场景测试；真实 NAS 安装验证 |
 | PLAN-FNOS-007-T26-01 | FNOS-007-30-AC-01、03 | 将 Codex Auth 客户端首次开窗地址固定为 `https://auth.openai.com/codex/device`，不再先开 `about:blank` 后等待异步请求再导航 | authorization-window 与 authorization-code 回归测试；Codex Auth build |
-| PLAN-FNOS-007-T26-02 | FNOS-007-30-AC-02、03 | 保留 Host 对 provider URL 的 HTTPS/凭据校验；device-code 请求失败时只更新原页面错误状态，不提前关闭已打开授权页 | Codex Auth 全量测试；真实 NAS 网络下验证成功、超时和重试 |
+| PLAN-FNOS-007-T26-02 | FNOS-007-30-AC-02、03 | 保留 Host 对 provider URL 的 HTTPS/凭据校验；device-code 请求失败时只更新原页面错误状态，不提前关闭已打开授权页 | Codex Auth 全量测试；DSH Web/Desktop 在真实网络下验证成功、超时和重试，不要求 NAS |
 | PLAN-FNOS-007-T27-01 | FNOS-007-31-AC-01 | 将 Codex Auth 的 llm-pi-ai 静态模型基线更新为当前 profile 使用的 GPT-6/GPT-5.6/GPT-5.5 列表 | patch 配置测试、Codex Auth typecheck |
 | PLAN-FNOS-007-T27-02 | FNOS-007-31-AC-02、03 | 删除模型目录手动刷新按钮；在登录状态切换和已登录页面初始化时触发一次刷新，成功后依靠 settings/document-updated 让 DSH 可用模型目录与全局模型选择器同步，失败保留旧目录 | 客户端注册回归、模型目录刷新测试、真实登录后模型弹框验证 |
 | PLAN-FNOS-007-T28-01 | FNOS-007-32-AC-01 至 03 | 在 Codex Auth 客户端包裹 `llm-pi-ai` 的 Codex model discovery，使官方 Models 页的候选弹框读取 `session.modelCatalog()`；非 Codex provider 和非配置页 discovery 透传原实现 | discovery bridge 单元测试、Codex Auth 全量检查、真实客户端登录后两处列表对照 |
@@ -473,8 +476,9 @@ git diff --check
 ### FPK 和真实 NAS
 
 - 构建 FPK，确认版本、native、清单和捆绑插件一致。
-- 在真实 NAS 执行安装、升级、启动、网关、插件加载、设置读写、旧会话读取和回滚。
-- 把证据写入 `docs/validation/`，再回写 FNOS-007 和本计划状态。
+- 在真实 NAS 验证 FPK 应用安装/升级/启动、网关、`dsh-fnos` 插件与授权目录、旧会话和回滚等 fnOS 相关行为。
+- 在 DSH Web 与 Desktop 验证 CodeBuddy、Codex Auth、Semi UI Showcase 等非 fnOS 插件能力；这些插件验收不附加 NAS 门槛。
+- 把证据按插件与目标宿主分别写入 `docs/validation/`，再回写 FNOS-007 和本计划状态。
 
 ### 回滚
 
@@ -497,14 +501,14 @@ git diff --check
 
 | 阶段 | 状态 | 对应功能 |
 | --- | --- | --- |
-| T01 版本基线和插件门禁 | 本地完成，待 NAS | FNOS-007-01、02 |
-| T02 设置、插槽和图标 | 本地完成，待客户端/NAS | FNOS-007-03、09 |
-| T03 LLM、图片和 Codex | 本地完成，待真实客户端 | FNOS-007-04、05 |
-| T04 共享 UI | 本地完成，待真实客户端 | FNOS-007-06 |
+| T01 版本基线和插件门禁 | 应用基线待 NAS；非 fnOS 插件待 Web/Desktop，fnOS 插件待 NAS | FNOS-007-01、02 |
+| T02 设置、插槽和图标 | fnOS 设置待 Web/NAS；通用客户端与图标待 Web/Desktop | FNOS-007-03、09 |
+| T03 LLM、图片和 Codex | 本地完成，待 DSH Web/Desktop；登录另需真实网络/账号 | FNOS-007-04、05 |
+| T04 共享 UI | 本地完成，待 DSH Web/Desktop | FNOS-007-06 |
 | T05/T08 FPK、网关、会话、native 和 attachment-local | 本地完成，待 Linux/native 与 NAS | FNOS-007-07、08、13；node-pty 版本不变但 native 产物和 attachment-local 生产依赖需按目标基线验收 |
 | T06 升级、回滚和 NAS | 待真实 NAS | FNOS-007-10 |
 | T07 Mermaid 渲染器 | 已完成 | FNOS-007-11 |
-| T09 dshmarket | 本地完成，待 NAS | FNOS-007-12 |
+| T09 dshmarket | 待 DSH Web/Desktop 插件验收 | FNOS-007-12 |
 | T10 FPK workflow 命名 | 已完成 | FNOS-007-14 |
 | T11 应用专用账号下的终端可用性 | 待实施 | FNOS-007-15 |
 | T12 本地 DSH Web 启动与 catalog 一致性 | 本地完成，待完整回归 | FNOS-007-16 |
@@ -521,12 +525,12 @@ git diff --check
 | T23 npm registry 统一由 HOME/.npmrc 管理 | 本地完成，待 NAS 回归 | FNOS-007-27 |
 | T24 安装/配置向导字段统一 | 本地完成，待 NAS 回归 | FNOS-007-28 |
 | T25 NAS 安装 release-age 兼容 | 本地完成，待 NAS 回归 | FNOS-007-29 |
-| T26 Codex Auth 授权页打开 | 本地完成，待 NAS/真实网络回归 | FNOS-007-30 |
-| T27 Codex Auth 模型目录自动同步 | 本地完成，待真实客户端/网络回归 | FNOS-007-31 |
-| T28 Codex 模型设置弹框与全局模型目录统一 | 本地完成，待真实客户端回归 | FNOS-007-32 |
+| T26 Codex Auth 授权页打开 | 本地完成，待 DSH Web/Desktop 与真实网络回归 | FNOS-007-30 |
+| T27 Codex Auth 模型目录自动同步 | 本地完成，待 DSH Web/Desktop 与真实网络回归 | FNOS-007-31 |
+| T28 Codex 模型设置弹框与全局模型目录统一 | 本地完成，待 DSH Web/Desktop 回归 | FNOS-007-32 |
 | T29 三方插件 API 反代配置保存 | 本地完成，待 NAS 回归 | FNOS-007-33 |
-| T30 气泡浮层磨砂背景 | 本地完成，待真实客户端视觉回归 | FNOS-007-34 |
-| T31 Codex 模型能力元数据补全 | 本地完成，待真实客户端/账号回归 | FNOS-007-35 |
+| T30 气泡浮层磨砂背景 | 本地完成，待 DSH Web/Desktop 视觉回归 | FNOS-007-34 |
+| T31 Codex 模型能力元数据补全 | 本地完成，待 DSH Web/Desktop/账号回归 | FNOS-007-35 |
 
 ## 变更记录
 
@@ -560,3 +564,4 @@ git diff --check
 | 2026-09-28 | 新增 T27 Codex Auth 模型目录自动同步 | 更新默认模型列表，移除手动刷新入口，登录后自动写入账号目录，并依靠 DSH 的设置变更事件刷新会话可用模型弹框。 |
 | 2026-09-28 | 新增 T28 Codex 模型目录桥接 | 官方 Models 页的 Codex 候选弹框不再使用 pi-ai 静态目录，改为读取与全局模型选择器相同的 DSH Remote 动态目录。 |
 | 2026-09-29 | 新增 T31 Codex 模型能力元数据补全 | 配置里的 `models` 会整体替换内置目录，此前只声明 `id`/`name` 的条目在遇到目录未收录的 `gpt-6-sol`、`gpt-6-luna` 时丢失思考等级与图文输入；改为逐模型显式声明能力，使模型选择器与「恢复默认模型」都回到真实能力。 |
+| 2026-09-29 | 收窄插件目标环境验收 | 将 `dsh-fnos`、网关及 FPK/生命周期行为的 NAS 验收与其他插件的 Web/Desktop 验收分开；更新影响矩阵、阶段状态和验收清单，避免非 fnOS 插件被 NAS 阻塞。 |
