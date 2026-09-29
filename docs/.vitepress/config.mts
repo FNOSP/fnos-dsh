@@ -100,7 +100,6 @@ const charterItems = [
   { text: '计划文档规范', link: '/charter/plans-spec' },
   { text: 'VitePress 文档菜单规范', link: '/charter/vitepress-document-menu' },
   { text: '插件 UI 规范', link: '/charter/plugin-ui-standards' },
-  { text: 'SDD 模式转换报告', link: '/charter/sdd-transition-report' },
   { text: '目录结构规范', link: '/charter/directory-structure' }
 ]
 
@@ -151,7 +150,8 @@ const developmentSidebar = [
     items: [
       { text: '路径与编码', link: '/development/conventions' },
       { text: 'GitHub Workflow', link: '/development/github-workflows' },
-      { text: '贡献指南', link: '/contributing' }
+      { text: '贡献指南', link: '/contributing' },
+      { text: 'SDD 模式转换报告（历史）', link: '/charter/sdd-transition-report' }
     ]
   },
   {

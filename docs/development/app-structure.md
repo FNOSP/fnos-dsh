@@ -28,6 +28,7 @@ flowchart TB
 
   subgraph outputs["产物"]
     fpk["fn-deepseek-harness.fpk"]
+    pluginArchives["可选：FPK 内置插件归档"]
     npmPkg["npm registry 插件包"]
   end
 
@@ -39,14 +40,16 @@ flowchart TB
   gatewaySrc --> gatewayBuild
   gatewayBuild -.->|生成| appSrc
   pluginSrc -.->|version 同步清单| appSrc
+  pluginSrc -.->|可选打包| pluginArchives
   pluginSrc -.->|发布| npmPkg
+  pluginArchives -.->|选择内置时进入| fpk
   appSrc --> fnpack
   fnpack --> fpk
 ```
 
 - `apps/fn-deepseek-harness` 是唯一的打包输入，`manifest`、`cmd`、`config`、`wizard` 和 `app/` 都直接来自源码目录。
 - `packages/fnos-gateway` 的 `build:app` 把网关代理打成单个 ESM，产物写回应用目录，所以 FPK 里的 `app/gateway-proxy.mjs` 和 `app/scripts/install-callback-helper.mjs` 是生成物。
-- `plugins/dsh-*` 的源码**不打进 FPK**：CLI 在 `version` 时把名称与版本同步到 `app/published-dsh-plugins.json`，装机时再按这份清单从 registry 拉取。`packages/dsh-semi-ui` 作为共享组件被插件依赖。
+- `plugins/dsh-*` 源码不会直接复制进 FPK。CLI 在 `version` 时把要随应用安装的插件名称与精确版本同步到 `app/published-dsh-plugins.json`。构建 FPK 时可以选择把仓库内插件打成归档并内置；安装时优先使用包内归档，没有内置的插件再由 DSH CLI 按清单安装。`packages/dsh-semi-ui` 是插件依赖的共享组件包，不作为独立运行时插件安装。
 - 触发方式见[构建应用](#构建应用)和 [CLI 命令参考](./cli-commands)。
 
 ### 运行期
@@ -82,7 +85,7 @@ flowchart LR
 ```
 
 - 访问路径只有一条：统一网关按 `gatewayPrefix` 把请求转发到 `TRIM_APPDEST/app.sock`，由 `gateway-proxy.mjs` 校验前缀后代理给只监听回环地址的 `dsh` Web 进程。
-- `cmd/` 脚本负责安装阶段准备 Node.js 运行时、DSH、pnpm 与插件，启动阶段拉起 `dsh` 和 `gateway-proxy.mjs` 两个进程；安装期按 `published-dsh-plugins.json` 拉取 `dsh-fnos`、`dsh-codex-auth`、`dsh-codebuddy` 和 `dsh-semi-ui-showcase`。
+- `cmd/` 脚本负责安装阶段准备 Node.js 运行时、DSH、pnpm 与插件，启动阶段拉起 `dsh` 和 `gateway-proxy.mjs` 两个进程。安装期按 `published-dsh-plugins.json` 对齐插件：当前清单为 `dsh-codebuddy`、`dsh-codex-auth`、`dsh-fnos` 和第三方 `dshmarket`；仓库插件可使用随 FPK 内置的归档，未内置的插件由 DSH CLI 安装。Semi UI Showcase 是展示用途插件，不在当前应用发布清单中。
 - 会话、配置和工作区落在 `TRIM_PKGHOME` 与 `@appshare`；这些 `TRIM_*` 路径只在 fnOS 生命周期中可靠存在，所以运行期行为必须在设备上验证（见下文「在 fnOS 上验证」）。
 
 适配层的完整链路（权限、主题、文件访问等）见[应用适配说明](../apps/adaptation)，脚本与回调的调用顺序见[生命周期脚本](./lifecycle)。
@@ -144,7 +147,7 @@ fnpack build
 pnpm run build -- --fpk --app <app-name>
 ```
 
-交互式构建执行 `pnpm run build`，选择 **FPK** 后可以多选应用。选择 `fn-deepseek-harness` 时，CLI 会先通过 `build:gateway` 构建 Gateway，再询问是否将 node-pty native 文件内置到 FPK（默认是），选择内置时会在 Linux 构建机上执行 native 准备脚本，最后执行该应用的 `fnpack build`。非交互构建可显式使用 `--bundle-dsh-native` 或 `--skip-bundle-dsh-native`。
+交互式构建执行 `pnpm run build`，选择 **FPK** 后可以多选应用。选择 `fn-deepseek-harness` 时，CLI 会先通过 `build:gateway` 构建 Gateway，再分别询问是否将 node-pty native 文件和发布清单中的仓库插件内置到 FPK（默认均为是）；选择内置 node-pty 时会在 Linux 构建机上执行 native 准备脚本，选择内置插件时会构建仓库插件并打成归档。最后执行该应用的 `fnpack build`。非交互构建可显式使用 `--bundle-dsh-native` / `--skip-bundle-dsh-native` 和 `--bundle-dsh-plugins` / `--skip-bundle-dsh-plugins`。
 
 FPK 产物生成在应用目录中，**不要提交** `.fpk` 或临时构建目录。
 
