@@ -1,0 +1,91 @@
+name: Bug 报告
+description: 应用、插件或文档功能异常时提交问题报告
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请先确认：
+
+        - 这是本仓库（fn-deepseek-harness 应用与官方插件）的问题。**第三方插件**（如 dsh-better-sidebar 等）的问题请到对应插件仓库提交。
+        - 使用方法、配置咨询请优先使用 [ Discussions ](https://github.com/FNOSP/fnos-dsh/discussions) 。
+        - 提交前请搜索 [ 已有 issue ](https://github.com/FNOSP/fnos-dsh/issues?q=is%3Aissue) ，避免重复。
+
+  - type: input
+    id: title
+    attributes:
+      label: 问题标题
+      description: 一句话说明"什么功能 + 什么异常"，例如"应用中心升级时报无法安装错误"
+      placeholder: 例：应用中心升级 5.4.3 时提示无法更新
+    validations:
+      required: true
+
+  - type: dropdown
+    id: app-version
+    attributes:
+      label: 应用版本
+      description: 在应用中心 → 已安装 → DeepSeek Harness 详情中查看
+      options:
+        - 5.4.3
+        - 5.4.1
+        - 5.4.0 及更早
+        - 源码或手动部署
+    validations:
+      required: true
+
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH 版本
+      description: 安装日志中"Installing @deepseek-ai/dsh@"后面的版本号，或 dsh -V 的输出
+      placeholder: 例：0.1.7-rc.2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: 运行环境
+      options:
+        - fnOS NAS（应用中心安装）
+        - DSH Desktop（Windows / macOS）
+        - 源码运行
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: fnos-version
+    attributes:
+      label: fnOS 版本
+      description: fnOS NAS 环境请填写系统版本，例如 1.2.0800；其他环境可留空
+      placeholder: 例：1.2.0800（x86_64）
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 实际发生了什么？你期望发生什么？在什么操作后出现？
+      placeholder: |
+        操作步骤：
+        1. …
+        2. …
+        实际结果：…
+        期望结果：…
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图
+      description: 粘贴关键日志文本或截图。fnOS 环境日志位于 /var/log/apps/fn-deepseek-harness.log（提交前请删除 Token、密钥等敏感信息）
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: 复现概率、是否升级/重装后出现、尝试过的解决方式等

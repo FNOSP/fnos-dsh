@@ -1,0 +1,45 @@
+name: 功能请求
+description: 提出新功能或改进建议
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提议！请先确认：
+
+        - 提议针对本仓库维护的应用或官方插件。第三方插件的功能需求请到对应插件仓库提交。
+        - 提交前请搜索 [ 已有 issue ](https://github.com/FNOSP/fnos-dsh/issues?q=is%3Aissue) ，避免重复。
+
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景
+      description: 你想完成什么？现在是什么方式、遇到什么不便？请描述真实使用场景而不是直接给实现方案
+      placeholder: 例：在 NAS 上长期运行批量任务时，希望每天定时执行一次会话任务并保留结果
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望方案
+      description: 如果你有想法，描述你期望的使用方式；不做设计约束
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 现有替代
+      description: 目前是否已有临时替代方式？为什么不满足需求
+    validations:
+      required: false
+
+  - type: input
+    id: requirement-id
+    attributes:
+      label: 需求编号（选填）
+      description: 维护者或熟悉仓库规划的用户可填写对应的 SDD 需求编号（如 FNOS-007）；不确定时请留空
+      placeholder: 例：FNOS-007
+    validations:
+      required: false

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 第三方插件问题
+    url: https://github.com/topics/dsh-plugin
+    about: dsh-better-sidebar 等社区插件的问题请到对应插件仓库提交，本仓库只维护 fn-deepseek-harness 应用与官方插件
+  - name: 使用讨论与问答
+    url: https://github.com/FNOSP/fnos-dsh/discussions
+    about: 安装配置咨询、使用技巧交流请到 Discussions
