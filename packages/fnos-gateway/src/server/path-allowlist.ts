@@ -27,7 +27,29 @@ export class PathAllowlistStore {
   private readonly listeners = new Set<(snapshot: PathAllowlistSnapshot) => void>()
   constructor(readonly filePath: string) {}
   snapshot(): PathAllowlistSnapshot { return { version: 1, paths: [...this.paths] } }
-  subscribe(listener: (snapshot: PathAllowlistSnapshot) => void): () => void { this.listeners.add(listener); listener(this.snapshot()); return () => { this.listeners.delete(listener) } }
+  /**
+   * Register a listener and immediately push the current snapshot.
+   *
+   * A listener must not be able to break the store: `reload()` runs from
+   * `fs.watch` as an unawaited promise, so a throw here would surface as an
+   * UNHANDLED rejection, which `cli.ts` treats as fatal and answers by
+   * restarting the whole gateway. Isolation keeps one broken consumer from
+   * dropping every other connection and the DSH Web child.
+   */
+  subscribe(listener: (snapshot: PathAllowlistSnapshot) => void): () => void {
+    this.listeners.add(listener)
+    this.notify(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+  /** Deliver one snapshot, disabling a listener that throws. */
+  private notify(listener: (snapshot: PathAllowlistSnapshot) => void): void {
+    try {
+      listener(this.snapshot())
+    } catch (error) {
+      console.error('[fnos-gateway] path allowlist listener failed and was removed', error)
+      this.listeners.delete(listener)
+    }
+  }
   async reload(): Promise<boolean> {
     let value: unknown
     try { value = JSON.parse(await new Promise<string>((resolve, reject) => readFile(this.filePath, 'utf8', (error, data) => error ? reject(error) : resolve(data)))) }
@@ -36,7 +58,8 @@ export class PathAllowlistStore {
     if (paths === undefined) return false
     if (JSON.stringify(paths) === JSON.stringify(this.paths)) return true
     this.paths = paths
-    for (const listener of this.listeners) listener(this.snapshot())
+    // Snapshot the set first: `notify` may delete a failing listener mid-loop.
+    for (const listener of [...this.listeners]) this.notify(listener)
     return true
   }
   async start(): Promise<void> {

@@ -413,6 +413,8 @@ sequenceDiagram
 | PLAN-FNOS-007-T29-01 | FNOS-007-33-AC-01、02、04 | 让 `dsh-fnos` 导出名为 `Config` 的运行时 settings schema（字段全部 `.volatile()`），并以 `volatileValue()` 读取；schema 放在 host-only 模块，避免 `schemastery` 进入浏览器 bundle | 真实 DSH webserver + 真实 SettingsForms 的 HTTP 端到端测试断言 `PUT` 返回 200 且设置与允许清单文件一致；built-`lib` 导出断言；Client bundle 无 `schemastery` |
 | PLAN-FNOS-007-T29-02 | FNOS-007-33-AC-03、04、06 | 网关代理路径路由整体包裹错误处理并返回 JSON 错误；允许清单写入按文件串行化，消除并发原子替换的 `ENOENT` 丢写；session-log 路由的两个 await 纳入 try；七个 fnOS 路由统一补上兜底错误响应 | 路由级回归测试验证失败时返回可诊断 JSON、补偿写恢复原文件、并发写不丢快照；`lib/` 构建产物断言 |
 | PLAN-FNOS-007-T29-03 | FNOS-007-33-AC-05 | 对齐插件校验器与网关解析器的 `version` 判定：两者都要求 `version === 1`，插件额外接受设置字段的裸数组形态；`validateGatewayProxyPaths` 内部改用裸数组形状避免重复要求文档版本 | 跨包契约测试逐例断言两侧判定一致；插件与网关全量测试 |
+| PLAN-FNOS-007-T29-04 | FNOS-007-33-AC-01、02 | 用证据固定网关包的责任边界：补测网关对带 body 的 `PUT` 的逐字节转发、前缀与查询串重写、自定义路径 catch-all 转发、自身控制路由本地响应，以及上游 400 原样透传（证明空白 400 来自 DSH 而非网关） | `packages/fnos-gateway/tests/proxy-forwarding.spec.ts` 6 例；网关全量测试 |
+| PLAN-FNOS-007-T29-05 | FNOS-007-33-AC-06 | 加固 `PathAllowlistStore` 的 listener 隔离：listener 抛错时移除该 listener 并记录，健康 listener 继续收到更新，`reload()` 始终 resolve，避免 unhandled rejection 触发网关整体重启 | `tests/path-allowlist-listener-isolation.spec.ts` 5 例（修复前 4 例失败）；网关与插件全量测试 |
 
 ## 数据、权限和错误处理
 

@@ -72,15 +72,37 @@ PUT http://192.168.119.6:5666/app/fn-deepseek-harness/plugins/dsh-fnos/gateway/p
 ```text
 pnpm --filter @tnnevol/dsh-fnos run typecheck   # 通过
 pnpm --filter @tnnevol/dsh-fnos run test        # 27 files, 155 tests 全部通过
-packages/fnos-gateway: vitest run               # 17 files, 76 tests 全部通过
+packages/fnos-gateway: typecheck + vitest run   # 通过；19 files, 87 tests 全部通过
+pnpm exec eslint plugins/dsh-fnos-plugin packages/fnos-gateway   # 0 error
 pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --bundle-dsh-plugins --skip-bundle-dsh-native
-# 产物校验：dsh-fnos.tgz 与 fn-deepseek-harness.fpk 内的 lib/index.js 均导出 Config；lib/client.js 无 schemastery
+# 产物校验：dsh-fnos.tgz 与 fn-deepseek-harness.fpk 内的 lib/index.js 均导出 Config；
+#          lib/client.js 无 schemastery；FPK 内 gateway-proxy.mjs 含本次网关加固
+pnpm exec vitepress build docs                  # 通过
+git diff --check                               # clean
 ```
+
+## 网关包（`@tnnevol/fnos-gateway`）的责任边界
+
+本次修复**没有改动网关的业务逻辑**（唯一的网关改动是加固，见下）。为回答「网关包是否有业务问题」，追加了针对性测试，用证据固定边界：
+
+| 问题 | 证据 | 结论 |
+| --- | --- | --- |
+| 空白 400 是网关产生的吗？ | `tests/proxy-forwarding.spec.ts`「passes an upstream 400 through unchanged」：上游回 400 时网关原样透传，且确认请求**已到达 DSH** | 不是。400 来自 DSH webserver，网关只是转发 |
+| 网关能正确转发带 body 的 PUT 吗？ | 同文件「forwards a PUT body byte-for-byte」：body 逐字节一致、`content-type`/`content-length` 保留、`/app/...` 前缀被剥离 | 能。既有测试只覆盖 GET，本次补齐 POST/PUT + body |
+| 自定义反代路径能到达 DSH 吗？ | 「serves a same-prefix path that is not one of its own control routes」：`/dsh-market/api/items` 正常转发 | 能。proxy 是 catch-all，仅本地拦截自己的控制路由 |
+| 网关是否按路径做放行/拦截？ | `path-allowlist` 只用于**生成浏览器 bridge 的 `customPaths` 配置**并广播 SSE；`app.use(proxy)` 不按该清单放行或拒绝 | 不做放行决策，因此清单为空也不会造成 400 |
+| 网关自身的控制路由会泄漏到上游吗？ | 「answers its own control routes locally」：`/__fnos-gateway/...` 本地响应，上游零请求 | 不会 |
+
+### 网关侧的加固（防御性，非本次故障的成因）
+
+`PathAllowlistStore.reload()` 在 `fs.watch` 回调中以 `void this.reload()` 调用，而 `cli.ts` 把 unhandled rejection 当作致命错误并 `shutdown(1)`：任何一个 listener 抛错都会从「一条流坏掉」升级为「整个网关重启，丢弃所有在途请求与 DSH Web 子进程」。
+
+**诚实说明**：我**未能**构造出今天真会抛错的 listener——生产中唯一的 subscriber 写 SSE 时已检查 `res.destroyed` / `res.writableEnded`，且在 Node 24 下 `res.write()` 于 `destroy()` 之后不会同步抛错（实测：异步 `ERR_STREAM_WRITE_AFTER_END` 事件，路由已处理）。因此这是**纵深防御**，不是本次故障的成因。改动为：listener 抛错时隔离并移除、健康 listener 继续收到更新、`reload()` 始终 resolve。证据见 `tests/path-allowlist-listener-isolation.spec.ts`（5 例，修复前 4 例失败）。
 
 ## 未完成部分
 
 - **真实 NAS 回归**：本机没有 fnOS 运行时，`${TRIM_PKGVAR}` 下的实际写入、fnOS 统一网关反代后的真实请求、以及反代路径在 NAS 上实际放行三方插件 API 需要真实环境验证。
-- **`TRIM_PKGVAR` 缺失时的不一致**：`packages/fnos-gateway/src/cli.ts` 的 `GATEWAY_PATH_ALLOWLIST` 兜底值是历史硬编码路径 `/var/apps/fn-deepseek-harness/var/gateway/path-allowlist.json`，与当前 fnOS 布局不符；`TRIM_PKGVAR` 未设置时插件侧返回 503 并停用该功能，而网关仍监听旧路径。本记录不改变该行为，仅在 FNOS-007-33 中记录为遗留项。
+- **`TRIM_PKGVAR` 缺失时的不一致**：`packages/fnos-gateway/src/cli.ts` 的 `GATEWAY_PATH_ALLOWLIST` 兜底值是历史硬编码路径 `/var/apps/fn-deepseek-harness/var/gateway/path-allowlist.json`，与当前 fnOS 布局不符；`TRIM_PKGVAR` 未设置时插件侧返回 503 并停用该功能，而网关仍监听旧路径。本记录不改变该行为，仅登记为遗留项。
 - **其余插件的同级问题**：审计确认本仓库只有 `dsh-fnos` 拥有可写 settings 命名空间，`dsh-codebuddy` 与 `dsh-semi-ui-showcase` 不导出 `Config` 也从不被写入；Codex Auth 写入的是官方 `llm-pi-ai`（自身导出 `Config`），并且其 route 已用 try/catch 收口。
 
 ## 验收人
