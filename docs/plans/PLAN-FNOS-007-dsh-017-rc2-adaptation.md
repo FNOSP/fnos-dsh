@@ -415,6 +415,8 @@ sequenceDiagram
 | PLAN-FNOS-007-T29-03 | FNOS-007-33-AC-05 | 对齐插件校验器与网关解析器的 `version` 判定：两者都要求 `version === 1`，插件额外接受设置字段的裸数组形态；`validateGatewayProxyPaths` 内部改用裸数组形状避免重复要求文档版本 | 跨包契约测试逐例断言两侧判定一致；插件与网关全量测试 |
 | PLAN-FNOS-007-T29-04 | FNOS-007-33-AC-01、02 | 用证据固定网关包的责任边界：补测网关对带 body 的 `PUT` 的逐字节转发、前缀与查询串重写、自定义路径 catch-all 转发、自身控制路由本地响应，以及上游 400 原样透传（证明空白 400 来自 DSH 而非网关） | `packages/fnos-gateway/tests/proxy-forwarding.spec.ts` 6 例；网关全量测试 |
 | PLAN-FNOS-007-T29-05 | FNOS-007-33-AC-06 | 加固 `PathAllowlistStore` 的 listener 隔离：listener 抛错时移除该 listener 并记录，健康 listener 继续收到更新，`reload()` 始终 resolve，避免 unhandled rejection 触发网关整体重启 | `tests/path-allowlist-listener-isolation.spec.ts` 5 例（修复前 4 例失败）；网关与插件全量测试 |
+| PLAN-FNOS-007-T30-01 | FNOS-007-34-AC-01、02 | 在 `@tnnevol/dsh-semi-ui` 的气泡浮层（`.semi-popover-wrapper`）上启用 DSH 官方配套变量 `--dsw-menu-backdrop-filter`，回退 `blur(40px) saturate(150%)`；保持 `background: var(--dsw-specific-menu)` 不变，只补磨砂 | `tests/frosted-overlays.spec.ts` 断言 `lib/style.css` 中的 popover 规则含该 token 与回退值；`dsh-semi-ui` 全量测试 |
+| PLAN-FNOS-007-T30-02 | FNOS-007-34-AC-03、04 | `-webkit-backdrop-filter` 单独放入 `@supports` 规则（与标准属性同块会被 lightningcss 去重丢弃），并重建四个消费插件产物，使内联样式同步更新 | 测试同时断言 `lib/style.css` 含前缀声明与 `@supports` 守卫、且源码同块内无前缀；红绿验证覆盖「完全缺失」与「同块并列」两种写法；四个插件 typecheck 与全量测试 |
 
 ## 数据、权限和错误处理
 

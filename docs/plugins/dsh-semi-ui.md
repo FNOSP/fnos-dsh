@@ -42,6 +42,22 @@ export function apply(ctx) {
 - Cascader、Tree 和 TreeSelect 的选中、半选、悬停与滚动；
 - fnOS 文件选择和 Codex 全局模型选择器的局部样式。
 
+### 气泡浮层的磨砂背景
+
+DSH 的 `--dsw-specific-menu` 从 `0.1.7-rc.2` 起是**半透明**色（浅色 `#f8f9fa94`、深色 `#43454a73`）。任何直接用它当背景、却不加背景模糊的表面都会看穿背后内容，所以气泡类浮层必须成对使用官方变量：
+
+```scss
+background: var(--dsw-specific-menu);
+backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%));
+```
+
+两点注意：
+
+- `-webkit-backdrop-filter` 要单独放在 `@supports` 规则里。它与标准属性写在同一个声明块时会被构建去重成后者，产物中前缀声明会消失；Safari 18 之前只认前缀写法。
+- 该样式表会被内联进消费插件的产物，改完需要重建这些插件，不能只构建本包。
+
+回归测试 `tests/frosted-overlays.spec.ts` 断言的是构建产物 `lib/style.css`，用于覆盖上述两个坑。
+
 ## 开发
 
 ```sh

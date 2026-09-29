@@ -363,6 +363,13 @@ sequenceDiagram
 - `FNOS-007-33-AC-05`：插件与网关对允许清单文件的 `version` 判定一致；不支持的版本被拒绝而不是被静默改写为 `version: 1`。
 - `FNOS-007-33-AC-06`：fnOS 插件的其余浏览器接口在遇到意外异常时返回可诊断的 JSON 错误，不以无响应体的 400 作为用户可见结果。
 
+### FNOS-007-34
+
+- `FNOS-007-34-AC-01`：使用 `--dsw-specific-menu` 的气泡类浮层（Semi Popover）在浅色和深色主题下都呈现磨砂背景，不再能直接看穿其背后的页面内容。
+- `FNOS-007-34-AC-02`：磨砂效果使用 DSH 官方配套变量 `--dsw-menu-backdrop-filter`，并在该变量缺失时回退到等价的 `blur(40px) saturate(150%)`，不写死与官方漂移的数值。
+- `FNOS-007-34-AC-03`：Safari 18 之前的版本仍能获得磨砂效果；交付的样式表同时包含标准属性与 `-webkit-` 前缀形式，且前缀声明不会被构建流程静默丢弃。
+- `FNOS-007-34-AC-04`：依赖 `@tnnevol/dsh-semi-ui` 的四个插件产物都包含更新后的样式，不出现共享包已修复而插件仍内联旧样式的情况。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -392,6 +399,7 @@ sequenceDiagram
 | Codex Auth 模型目录自动同步 | 本地完成，待真实客户端/网络回归 | FNOS-007-31 |
 | Codex 模型设置弹框与全局模型目录统一 | 本地完成，待真实客户端回归 | FNOS-007-32 |
 | 三方插件 API 反代配置保存 | 本地完成，待 NAS 回归 | FNOS-007-33 |
+| 气泡浮层磨砂背景 | 本地完成，待真实客户端视觉回归 | FNOS-007-34 |
 
 ## 变更记录
 
@@ -422,3 +430,4 @@ sequenceDiagram
 | 2026-09-28 | 更新 Codex Auth 模型目录同步 | 新增 FNOS-007-31：更新默认模型基线，移除手动刷新按钮，登录后自动同步账号模型，并通过 DSH 设置变更事件刷新可用模型弹框。 |
 | 2026-09-28 | 统一 Codex 模型弹框数据源 | 新增 FNOS-007-32：修复官方 Models 页面仍读取 pi-ai 静态 Codex 目录的问题，让 provider 弹框与 Codex Auth 全局模型选择器共用 DSH 动态目录。 |
 | 2026-09-28 | 修复三方插件 API 反代配置保存 | 新增 FNOS-007-33：`dsh-fnos` 只导出类型 `Config` 导致 DSH 设置服务找不到该命名空间的运行时 schema，`settings.update('dsh-fnos', …)` 抛错并被 DSH webserver 转成空白 400，反代路径因此无法保存；同时修复允许清单写入并发覆盖、session-log 路由异常逃逸、插件与网关 `version` 判定漂移，并给其余浏览器接口补上兜底错误响应。本地证据见 [`FNOS-007-33-local-automated-2026-09-28`](/validation/FNOS-007-33-local-automated-2026-09-28)。 |
+| 2026-09-29 | 气泡浮层增加磨砂背景 | 新增 FNOS-007-34：DSH `0.1.7-rc.2` 把 `--dsw-specific-menu` 从 `--dsw-alias-bg-layer-3`（不透明）改为 `--dsw-menu-surface-fill`（浅色 `#f8f9fa94`、深色 `#43454a73`），使用该变量的气泡退化成半透明、可看穿背后内容。给 `@tnnevol/dsh-semi-ui` 的气泡浮层补上官方配套的 `--dsw-menu-backdrop-filter` 磨砂，并保留 `-webkit-` 前缀以覆盖 Safari 18 之前的版本。本地证据见 [`FNOS-007-34-local-automated-2026-09-29`](/validation/FNOS-007-34-local-automated-2026-09-29)。 |

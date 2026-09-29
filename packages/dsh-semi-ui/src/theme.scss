@@ -343,10 +343,27 @@ body[data-dsh-semi-theme] .semi-dropdown-wrapper {
 
 body[data-dsh-semi-theme] .semi-popover-wrapper {
   background: var(--dsw-specific-menu);
+  /* DSH 0.1.7-rc.2 把 --dsw-specific-menu 从 --dsw-alias-bg-layer-3（不透明）
+   * 改成 --dsw-menu-surface-fill（浅色 #f8f9fa94、深色 #43454a73），气泡因此变成
+   * 半透明、能直接看穿背后的内容。官方 HoverCard 对同一 token 的用法是配上
+   * --dsw-menu-backdrop-filter（blur(40px) saturate(150%)），这里沿用同一组合；
+   * 回退值保证 token 缺失时磨砂仍然生效。
+   * Safari 前缀见下方 @supports —— 与标准属性并列写会被构建去重掉。 */
+  backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%));
   border: 1px solid var(--dsw-alias-border-inverted);
   border-radius: 12px;
   box-shadow: var(--dsw-shadow-lv3);
   color: var(--dsw-alias-label-secondary);
+}
+
+/* Safari 18 之前只认 -webkit-backdrop-filter：caniuse 的 css-backdrop-filter
+ * 在 Safari 15.6–17.6 均标记为 `y x`（需前缀），18.0 起才转为无前缀。前缀必须
+ * 单独成规则：lightningcss 会把同一声明块里的 `-webkit-` 与标准属性去重成后者，
+ * 直接并列等于没写。@supports 只在前缀写法被识别时生效，不支持的环境整块忽略。 */
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  body[data-dsh-semi-theme] .semi-popover-wrapper {
+    -webkit-backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%));
+  }
 }
 
 body[data-dsh-semi-theme] .semi-popover-icon-arrow path:nth-child(1) {

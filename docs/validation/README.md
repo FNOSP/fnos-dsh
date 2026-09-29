@@ -48,6 +48,7 @@ status: passed|failed|blocked
 - [FNOS-004-08 DSH 客户端验收记录（2026-09-13）](/validation/FNOS-004-08-dsh-client-2026-09-13)
 - [FNOS-007 本地自动化验证记录（2026-09-27）](/validation/FNOS-007-local-automated-2026-09-27)
 - [FNOS-007-33 三方插件 API 反代配置保存修复本地验证记录（2026-09-28）](/validation/FNOS-007-33-local-automated-2026-09-28)
+- [FNOS-007-34 气泡浮层磨砂背景修复本地验证记录（2026-09-29）](/validation/FNOS-007-34-local-automated-2026-09-29)
 - [FNOS-008-06 CodeBuddy Desktop 适配本地验证记录（2026-09-28）](/validation/FNOS-008-06-codebuddy-desktop-local-2026-09-28)
 - [FNOS-008-03 Codex Auth 配置迁入插件详情页本地验证记录（2026-09-28）](/validation/FNOS-008-03-codex-bundle-config-local-2026-09-28)
 - [FNOS-008-07 Codex Auth Desktop 登录修复本地验证记录（2026-09-28）](/validation/FNOS-008-07-codex-desktop-local-2026-09-28)
