@@ -11,7 +11,10 @@ import type { CommandUiContract } from '@deepseek-ai/dsh-client-ui-commands/clie
 import type {} from '@deepseek-ai/dsh-client-ui-commands/client'
 import type { InputTriggerServiceContract, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
+// Type-only: 拉入插件管理页对 `plugins.detail.section` 的登记契约
+// （`PluginDetailProps`）。该包只在类型层使用，运行时不 import——客户端模块表
+// 里没有它，运行时引入会直接报模块缺失。
+import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
@@ -20,7 +23,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import { AuthorizedDirectoriesCard } from '../components/AuthorizedDirectoriesCard.tsx'
+import { AuthorizedDirectoriesDetailSection } from '../components/AuthorizedDirectoriesCard.tsx'
+import type { FnosDetailSubject } from '../components/AuthorizedDirectoriesCard.tsx'
 import { FnosInputPickerButton } from '../components/FnosInputPickerButton.tsx'
 import { FnosOpenInHeaderAction } from '../components/FnosOpenInHeaderAction.tsx'
 import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAction.tsx'
@@ -173,14 +177,31 @@ export function apply(ctx: ClientContext): void {
       inject: () => ({ t }),
     }, FnosSettingsDocumentAction))
   }
-  ctx.slots.inject('settings.plugins.tab', () => ctx.slots.register({
-    name: 'settings.plugins.tab',
+  /**
+   * 授权目录配置块挂在插件管理页的 fnOS 组合包详情页。
+   *
+   * 座位选 `plugins.detail.section` 而不是官方的 `plugins.bundle.config`：上游
+   * `PackageDetail` 的固定顺序是
+   *
+   *   1. `plugins.bundle.config`（组合包自己的配置）
+   *   2. 「包含的组件」（`RowsSection`）
+   *   3. `plugins.detail.section`（本座位）
+   *
+   * 需求要求配置块在「包含的组件」**之后**，只有 3 满足。
+   *
+   * 代价是该座位是 **list**（非 keyed）：页面会给打开的每个详情页渲染它，因此
+   * 组件必须自己看 `subject`——不是本插件就返回 `null`（见
+   * `AuthorizedDirectoriesDetailSection`）。list 座位要求 `id`，且不能声明
+   * `inject`（owner props 由页面传入）。
+   */
+  ctx.slots.inject('plugins.detail.section', () => ctx.slots.register({
+    name: 'plugins.detail.section',
     id: 'dsh-fnos-authorized-directories',
-    order: 100,
-    label: () => t('authorizedDirectories'),
+    order: 40,
     locale: namespace,
-    inject: () => ({}),
-  }, AuthorizedDirectoriesCard))
+  }, (props: { subject?: FnosDetailSubject | undefined }) =>
+    // 本文件是 `.ts`（无 JSX），因此用调用而不是元素字面量表达。
+    AuthorizedDirectoriesDetailSection({ t, subject: props.subject })))
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
     id: 'dsh-fnos-web-restart',

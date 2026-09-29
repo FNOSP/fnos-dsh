@@ -74,7 +74,10 @@ describe('dsh-fnos package contract', () => {
     expect(manifest.dsh.client.inject).toContain('@deepseek-ai/dsh-client-ui-theme')
     expect(manifest.dsh.client.inject).toContain('@deepseek-ai/dsh-client-ui-commands')
     expect(manifest.dsh.client.inject).toContain('@deepseek-ai/dsh-client-ui-settings')
-    expect(manifest.dsh.client.inject).toContain('@deepseek-ai/dsh-client-ui-settings-plugins')
+    // 配置入口迁到插件管理页后，`settings.plugins.tab` 不再使用，因此
+    // `dsh-client-ui-settings-plugins` 也从依赖里移除了。
+    expect(manifest.dsh.client.inject).not.toContain('@deepseek-ai/dsh-client-ui-settings-plugins')
+    expect(manifest.dsh.client.inject).toContain('@deepseek-ai/dsh-client-ui-plugin-manager')
     expect(manifest.dsh.client.inject).toContain('@deepseek-ai/dsh-client-ui-workspace')
     expect(manifest.dsh.client.inject).not.toContain('@deepseek-ai/dsh-client-ui-directory-picker-browse')
     expect(manifest.devDependencies['@trimjs/web-app']).toBe('catalog:')
@@ -114,10 +117,13 @@ describe('dsh-fnos package contract', () => {
     expect(patch).not.toContain('@deepseek-ai/dsh-host-directory-picker-browse')
   })
 
-  it('keeps the fnOS settings card after the built-in keyed cards', async () => {
+  it('keeps the fnOS authorization card on the plugin detail page', async () => {
     const source = await readFile(new URL('../../src/client/index.ts', import.meta.url), 'utf8')
-    expect(source).toMatch(/id:\s*'dsh-fnos-authorized-directories'[\s\S]{0,220}order:\s*100/u)
-    expect(source).toContain("ctx.slots.inject('settings.plugins.tab'")
+    expect(source).toMatch(/id:\s*'dsh-fnos-authorized-directories'[\s\S]{0,220}order:\s*40/u)
+    // 座位从 `settings.plugins.tab` 换到 `plugins.detail.section`：需求要求配置块
+    // 排在「包含的组件」之后，而 `plugins.bundle.config` 被上游固定在它之前。
+    expect(source).toContain("ctx.slots.inject('plugins.detail.section'")
+    expect(source).not.toContain("ctx.slots.inject('settings.plugins.tab'")
     expect(source).toContain("ctx.slots.inject('sidebar.footer.action'")
     expect(source).toContain("id: 'dsh-fnos-web-restart'")
     expect(source).toContain('installFnosBrowserRefreshShortcut')
@@ -443,7 +449,6 @@ describe('dsh-fnos package contract', () => {
       '@deepseek-ai/dsh-client-ui-renderer',
       '@deepseek-ai/dsh-client-ui-session',
       '@deepseek-ai/dsh-client-ui-settings',
-      '@deepseek-ai/dsh-client-ui-settings-plugins',
       '@deepseek-ai/dsh-client-ui-sidebar',
       '@deepseek-ai/dsh-client-ui-slots',
       '@deepseek-ai/dsh-client-ui-theme',

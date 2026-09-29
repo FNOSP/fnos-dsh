@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { DshModal } from '@tnnevol/dsh-semi-ui'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { diagnosePickerResult, isPickerCancellation, isPickerNoSelection, logPickerSdkEvent, logPickerSdkValue } from '../client/input-references/picker-result.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
@@ -26,8 +25,38 @@ type LoadState =
   | { status: 'ready'; directories: AuthorizedDirectory[] }
   | { status: 'error'; directories: AuthorizedDirectory[]; code?: string }
 
-export type AuthorizedDirectoriesCardProps = PropsRuntime<'settings.plugins.tab'> & {
+export interface AuthorizedDirectoriesCardProps {
   t: Translate
+}
+
+/**
+ * 本插件在插件管理页里的组合包名（与 package.json 的 name 一致）。
+ *
+ * 座位 `plugins.detail.section` 是 **list**（不按包名分派）：页面会给打开的每个
+ * 详情页渲染它。因此必须自己看 `subject`，不是本插件就返回 `null`——否则这张
+ * 授权目录卡片会显示在别的插件详情页上。
+ */
+export const FNOS_PACKAGE_NAME = '@tnnevol/dsh-fnos'
+
+/** `plugins.detail.section` 传入的 owner props：当前打开页面的主题。 */
+export interface FnosDetailSubject {
+  readonly kind: string
+  readonly pkg?: { readonly name?: string }
+}
+
+/**
+ * 详情页区块的**座位入口**：先按 subject 过滤，再渲染真正的内容。
+ *
+ * @param props - owner props（`subject` 由页面给）加上本插件闭包注入的 `t`。
+ * @returns 本插件的组合包详情页上渲染卡片，否则 `null`。
+ */
+export function AuthorizedDirectoriesDetailSection({
+  t, subject,
+}: AuthorizedDirectoriesCardProps & { subject?: FnosDetailSubject | undefined }) {
+  if (subject === undefined) return null
+  if (subject.kind !== 'bundle') return null
+  if (subject.pkg?.name !== FNOS_PACKAGE_NAME) return null
+  return <AuthorizedDirectoriesCard t={t} />
 }
 
 const AUTHORIZED_DIRECTORY_LOG_PREFIX = '[dsh-fnos][authorized-directories]'
@@ -89,8 +118,8 @@ function errorMessage(error: unknown, t: Translate, action: 'load' | 'pick' | 'd
   return t('loadFailed')
 }
 
-/** Render the fnOS authorization card in the DSH Plugins settings tab. */
-export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
+/** Render the fnOS authorization card for the plugin detail page. */
+function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
   const [open, setOpen] = useState(false)
   const [state, setState] = useState<LoadState>({ status: 'idle', directories: [] })
   const [busy, setBusy] = useState(false)

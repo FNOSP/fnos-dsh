@@ -176,9 +176,9 @@ sequenceDiagram
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
-| PLAN-FNOS-008-T01-01 | FNOS-008-01 / AC-01–03 | 补充插件类型依赖：`package.json` 增加 `@deepseek-ai/dsh-client-ui-plugin-manager: catalog:dsh`（并在 `pnpm-workspace.yaml` 的 `catalogs.dsh` 登记 `0.1.7-rc.2`）；client 注册从 `settings.plugins.tab` 换为 `plugins.bundle.config`（key `@tnnevol/dsh-fnos`）；卡片 props 类型同步 | 无 | 插件构建通过；本地 `dsh web` 详情页出现授权目录区块 |
+| PLAN-FNOS-008-T01-01 | FNOS-008-01 / AC-01–03 | 补充插件类型依赖：`package.json` 增加 `@deepseek-ai/dsh-client-ui-plugin-manager: catalog:dsh`（并在 `pnpm-workspace.yaml` 的 `catalogs.dsh` 登记 `0.1.7-rc.2`）；client 注册从 `settings.plugins.tab` 换为 **`plugins.detail.section`**（list 座位：用 `id` 而非 key、不声明 `inject`、按 `subject` 自筛包名）；卡片 props 类型从 `PropsRuntime<'settings.plugins.tab'>` 改为独立 props | 无 | 插件构建通过；本地 `dsh web` 详情页「包含的组件」**之后**出现授权目录区块 |
 | PLAN-FNOS-008-T01-02 | FNOS-008-01 / AC-01–02 | 卡片行为适配与回归：确认添加/删除/刷新/保存失败保护在详情页容器中不变 | T01-01 | 插件单测 + 本地交互走查 |
-| PLAN-FNOS-008-T01-03 | FNOS-008-01-AC-03、FNOS-008-04-AC-01 | 契约测试更新：`package-contract.spec.ts`、`settings-migration.spec.ts` 的 slot 与 inject 断言改为 `plugins.bundle.config` | T01-01 | `pnpm --filter @tnnevol/dsh-fnos test`（或对应 vitest 过滤）通过 |
+| PLAN-FNOS-008-T01-03 | FNOS-008-01-AC-03、FNOS-008-04-AC-01 | 契约测试更新：`package-contract.spec.ts`、`settings-migration.spec.ts` 的 slot 与 inject 断言改为 `plugins.detail.section`；补 subject 自筛用例（list 座位不筛会串到别的插件详情页） | T01-01 | `pnpm --filter @tnnevol/dsh-fnos test`（或对应 vitest 过滤）通过 |
 
 ### 阶段二：CodeBuddy 迁移与 Desktop 适配（T02-01–T02-06）
 

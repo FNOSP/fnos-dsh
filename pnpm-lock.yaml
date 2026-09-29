@@ -596,6 +596,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-input-trigger':
         specifier: catalog:dsh
         version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
+      '@deepseek-ai/dsh-client-ui-plugin-manager':
+        specifier: catalog:dsh
+        version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
       '@deepseek-ai/dsh-client-ui-primitives':
         specifier: catalog:dsh
         version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
@@ -606,9 +609,6 @@ importers:
         specifier: catalog:dsh
         version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
       '@deepseek-ai/dsh-client-ui-settings':
-        specifier: catalog:dsh
-        version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
-      '@deepseek-ai/dsh-client-ui-settings-plugins':
         specifier: catalog:dsh
         version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
       '@deepseek-ai/dsh-client-ui-sidebar':
