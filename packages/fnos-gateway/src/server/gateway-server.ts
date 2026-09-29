@@ -1,4 +1,5 @@
-import { createServer, type Server } from 'node:http'
+import { createServer, type IncomingMessage, type Server } from 'node:http'
+import type { Duplex } from 'node:stream'
 import type { Socket } from 'node:net'
 import { unlinkSync } from 'node:fs'
 import connect from 'connect'
@@ -104,17 +105,44 @@ export function createGateway(options: GatewayOptions): GatewayServer {
   let stopping = false
 
   const server: Server = createServer(app)
-  // HTTP middleware is not invoked for an upgrade request. Attach the HPM
-  // upgrade handler explicitly so the first WebSocket connection works even
-  // before the browser has made a normal proxied request. Apply the same
-  // prefix rewrite used by the HTTP middleware because upgrade requests skip
-  // the connect middleware chain entirely.
-  server.on('upgrade', (req, socket, head) => {
+  /**
+   * HTTP middleware is not invoked for an upgrade request, so the connect chain
+   * (including the prefix rewrite) never runs. This handler performs that
+   * rewrite.
+   *
+   * **Both this handler and HPM's own one run, and that is load-bearing.**
+   * HPM subscribes `server.on('upgrade')` itself the first time one of its
+   * middleware functions sees an HTTP request, and neither subscription
+   * cancels the other: Node's `emit` snapshots the listener list, so a
+   * `removeListener` performed inside a handler cannot stop a sibling that is
+   * already queued for the same emit.
+   *
+   * The two therefore form an implicit pipeline, in registration order:
+   *
+   *  1. this handler rewrites `req.url` (gateway prefix → upstream path) and
+   *     calls `proxy.upgrade()`, which **deliberately does nothing here** — HPM
+   *     guards its public wrapper with `wsInternalSubscribed`, and that flag is
+   *     already `true` by the time any HTTP request has been served;
+   *  2. HPM's own handler then proxies, reading the URL this handler just
+   *     rewrote.
+   *
+   * Upgrade requests that arrive *before* the first HTTP request are proxied by
+   * this handler directly (HPM has not subscribed yet, so the guard lets it
+   * through), which is why both calls are needed rather than either one alone.
+   *
+   * Consequence to keep in mind when changing this: removing this handler
+   * breaks the prefix rewrite (upstream sees `/app/...` and answers 404), and
+   * removing HPM's breaks proxying entirely once a page has loaded. The
+   * regression tests in `tests/websocket-upgrade.spec.ts` cover both the path
+   * seen upstream and the number of upstream connections.
+   */
+  const onUpgrade = (req: IncomingMessage, socket: Duplex, head: Buffer): void => {
     req.url = rewritePath(req.url, gatewayPrefix)
     // Node types the HTTP upgrade socket as Duplex, while HPM's public type
     // uses net.Socket; the runtime object supplied by Node is a net socket.
     proxy.upgrade(req, socket as Socket, head)
-  })
+  }
+  server.on('upgrade', onUpgrade)
   server.on('connection', (socket) => {
     openSockets.add(socket)
     socket.once('close', () => openSockets.delete(socket))

@@ -132,12 +132,17 @@ img.dsh-fnos-file-manager-icon {
 .dsh-fnos-settings-document-icon { display: inline-flex; align-items: center; margin-right: 6px; }
 
 .dsh-fnos-authorized-card {
-  overflow: hidden;
+  /*
+   * 只负责排布，不再自己画容器。
+   *
+   * 宿主给 `plugins.detail.section` 的容器（`.detailSections`）只有 flex 布局与
+   * 间距，不画边框；这里再套一层带边框和底色的卡片，详情页上就出现「框里的框」：
+   * 外层是插件画的圆角边框，内层每个列表项/文本框各自还有边框。详情页本身就是
+   * 这一块内容的容器，插件不该再画一个。
+   */
+  display: flex;
+  flex-direction: column;
   list-style: none;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
-  background: var(--dsw-alias-bg-layer-2);
-  border-color: var(--dsw-alias-label-dimmed);
 }
 
 .dsh-fnos-authorized-card-header {

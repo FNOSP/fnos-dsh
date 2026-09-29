@@ -141,3 +141,44 @@ describe('反代配置：文案、tip、placeholder、行数上限', () => {
     expect(rule).toMatch(/resize:\s*none/)
   })
 })
+
+/**
+ * 外层「面板」框：详情页里不再需要它。
+ *
+ * 宿主给 `plugins.detail.section` 的容器（`.detailSections` / `.detailSection`）只有
+ * `flex-column` 与间距，**不画边框也不画底色**。此前插件自己又套了一层带边框和背景
+ * 的卡片（`.dsh-fnos-authorized-card`），于是在详情页上出现「框里的框」：外层是插件
+ * 画的圆角边框，内层（列表项、文本框）各自还有边框，视觉上多出一层无意义的容器。
+ *
+ * 详情页本身已经是承载这一块内容的容器，插件不该再画一个。
+ */
+describe('详情页区块不再自带外层面板', () => {
+  const cardRule = (): string => {
+    const i = SCSS.indexOf('.dsh-fnos-authorized-card {')
+    return SCSS.slice(i, SCSS.indexOf('}', i))
+  }
+
+  it('外层容器没有边框与背景', () => {
+    const rule = cardRule()
+    expect(rule).not.toMatch(/border:\s*1px/)
+    expect(rule).not.toMatch(/background:/)
+    expect(rule).not.toMatch(/border-radius/)
+  })
+
+  it('外层容器保留布局职责（不整块删掉，避免破坏间距与语义）', () => {
+    expect(CARD).toContain('dsh-fnos-authorized-card')
+    const rule = cardRule()
+    // 仍然要能排布内部区块。
+    expect(rule).toMatch(/display:\s*flex|flex-direction/)
+  })
+
+  it('标题区与主体不再靠边框分隔（分隔线由主体自身提供）', () => {
+    // 去掉外层框后，标题下沿若还留着「贴边框」的视觉会显得悬空；
+    // 主体自己带的 border-top 才是分隔线。
+    const body = (() => {
+      const i = SCSS.indexOf('.dsh-fnos-authorized-card-body {')
+      return SCSS.slice(i, SCSS.indexOf('}', i))
+    })()
+    expect(body).toContain('border-top')
+  })
+})

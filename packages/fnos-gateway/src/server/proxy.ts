@@ -39,8 +39,12 @@ function isIndexRequest(req: IncomingMessage): boolean {
   return pathname === '' || pathname === '/'
 }
 
-/** The DSH browser-session cookie name is bound to the loopback Host authority. */
-function browserSessionCookieName(upstreamHost: string, upstreamPort: number): string {
+/**
+ * The DSH browser-session cookie name is bound to the loopback Host authority.
+ *
+ * 导出供测试按同一规则构造「已持 cookie」的请求；生产调用点只有本模块。
+ */
+export function browserSessionCookieName(upstreamHost: string, upstreamPort: number): string {
   return `dsh-auth-${createHash('sha256').update(`${upstreamHost}:${String(upstreamPort)}`).digest('base64url')}`
 }
 
@@ -97,6 +101,31 @@ function stripLaunchTokenFromLocation(value: string): string {
  */
 function needsLaunchToken(req: IncomingMessage, cookieName: string): boolean {
   return isIndexRequest(req) && !hasBrowserSessionCookie(req, cookieName)
+}
+
+/**
+ * Whether a **WebSocket upgrade** must carry the launch token.
+ *
+ * The index-only rule above cannot cover upgrades, for two independent reasons:
+ *
+ *  1. An upgrade is never an index request (`isIndexRequest` requires pathname
+ *     `/`), so `needsLaunchToken` is always false for `/api/...mux` — the token
+ *     injection in `proxyReqWs` was dead code.
+ *  2. A 303 redirect has no meaning for an upgrade, so the redirect loop that
+ *     forces the index rule does not apply here.
+ *
+ * Why it matters: the browser opens `/api/remote.mux` as soon as the document
+ * loads, often **before** the tokenized index exchange has stored the
+ * `dsh-auth-*` cookie. A token-less upgrade is rejected with 401, so the mux
+ * drops and the client reconnects — the user-visible symptom is exactly one
+ * disconnect right after the page loads, with the second attempt succeeding
+ * because the cookie now exists.
+ *
+ * A cookie-less upgrade therefore bootstraps with the token, same as the
+ * cookie-less index request.
+ */
+function needsUpgradeLaunchToken(req: IncomingMessage, cookieName: string): boolean {
+  return !hasBrowserSessionCookie(req, cookieName)
 }
 
 export function createProxyHandler(options: GatewayOptions): RequestHandler {
@@ -199,7 +228,7 @@ export function createProxyHandler(options: GatewayOptions): RequestHandler {
       },
       proxyReqWs: (proxyReq, req) => {
         applyProxyRequestHeaders(proxyReq, req, { host: upstreamHost, port: upstreamPort })
-        if (!needsLaunchToken(req, cookieName)) return
+        if (!needsUpgradeLaunchToken(req, cookieName)) return
         proxyReq.path = withLaunchToken(proxyReq.path, options.webProcess?.getLaunchToken?.()) ?? proxyReq.path
       },
       proxyRes: (proxyRes, req, res) => {
