@@ -92,10 +92,53 @@ Cordis 的服务代理对**未在 `inject` 中声明的命名空间读取会直�
 | --- | --- |
 | 启动激活告警 | 0 条（`grep -c "did not activate"` = 0） |
 | 合成树 `connection.inject` | `webRuntime, webServer` |
-| `POST /codebuddy/auth/status` | `200`，返回合法 RPC 信封 |
+| `POST /codebuddy/status` | `200`，合法 RPC 信封 `{"loggedIn":false}` |
 
-结论：仓库内 CodeBuddy 的适配**已经是正确的**；实机报错来自安装状态（未回到 bundles），
-不是代码缺陷。修复动作是让插件重新进入 profile 的组合列表，而不是改插件代码。
+### 更正：以上「全绿」只成立于**冷启动**；运行时启用必然失败
+
+早期版本的本文档据此写下「实机报错来自安装状态、不是代码缺陷，让插件重新进入组合列表即可」。
+**该结论已被实测推翻**，勿再据此给出「在应用内重新启用插件」的建议。
+
+以插件管理器客户端实际使用的 RPC 触发（`remote.pluginManager.setBundleEnabled`）复现：
+
+```
+POST /api/pluginManager/setBundleEnabled  { name: "@tnnevol/dsh-codebuddy", enabled: true }
+→ {"application":"failed",
+   "error":{"diagnostic":"dsh: warning: 1 entry did not activate
+     dsh-codebuddy (@tnnevol/dsh-codebuddy): Error: cannot get property \"webServer\" without inject
+     at @deepseek-ai/dsh-client-connection/lib/index.js:656:35"}}
+```
+
+组合**是**对的，问题在于已激活的光纤不会随之获得新依赖。插桩实测：
+
+```
+[AB2]  第一次 reload（codebuddy 未进 bundles）: connection.inject = ["webRuntime"]
+[AB2]  第二次 reload（codebuddy 已进 bundles）: connection.inject = ["webRuntime","webServer"]
+[RPC]  fiber.inject keys            = ["connection","webServer"]   ← CodeBuddy 自己的子 ctx
+[RPC]  typeof owner.webServer       = THREW                         ← connection 自己的 ctx
+```
+
+`get rpc() { const owner = this.ctx }` 取的是 **connection 服务自身的 ctx**，其 `inject` 在
+光纤激活时即固化；运行时 reload 只更新合成树，不会给已 active 的光纤补上 `webServer`。
+
+两条补救路均实测无效：
+
+| 尝试 | 结果 |
+| --- | --- |
+| 插件侧重试注册（20 次 / 30 秒） | 每次同样抛错，`never registered` |
+| 之后再触发一次 reload 令组合重算 | 路由仍 405，未挂载 |
+
+**重启应用**（即重新组合并重建光纤）后恢复正常：启动告警 0 条，`POST /codebuddy/status`
+经浏览器 cookie 返回合法信封。实机确认：重启后该路由由 405 转为正常的鉴权响应。
+
+结论修正：
+
+- 冷启动路径下仓库内 CodeBuddy 的适配是正确的；
+- **运行时启用/热重载路径存在上游交互缺陷**——`dsh-web-app` 把 `connection` 行声明为
+  `inject: [webRuntime]`，缺少 `webServer`，而补丁式 bundle 无法在运行时生效。任何依赖
+  `connection.rpc.handle()` 的插件，在「应用内启用」时都会踩到同一问题；
+- 临时规避：安装/启用后**重启应用**，不要依赖应用内热启用；
+- 该缺陷属上游组合/重载行为，非本插件代码问题，建议向 DSH 上游反馈。
 
 ## 修复后的端到端证据（现象 2）
 
@@ -171,7 +214,9 @@ llm.discoverModels = bridged   // 静默丢弃
 ## 未完成部分（状态 blocked 的原因）
 
 - 上述复现在**探针 profile** 上完成，未改写 Electron 独占的 `~/.dsh/profiles/desktop`。
-  实机最终确认需用户在 Desktop 应用内重新安装/启用两个插件后重启客户端。
+  实机最终确认需用户在 Desktop 应用内安装两个插件后**重启客户端**（不要依赖应用内热启用）。
+- 运行时启用缺陷属上游（`dsh-web-app` 的 `connection` 行缺 `webServer`），本仓库无法修复，
+  只能规避与上报；是否上游修复待跟踪。
 - 未在 fnOS 或目标发行环境验收；`FNOS-008-06-AC-01`、`FNOS-008-07-AC-01/AC-05/AC-07` 仍缺真实环境证据。
 - 真实 NAS 与 Desktop 目标机的登录、取消、复制、模型目录同步与重启恢复尚未实测。
 - 账号目录刷新接口在无外网环境下返回 `502 fetch failed`（本机 `chatgpt.com` 不可达），
@@ -186,6 +231,8 @@ llm.discoverModels = bridged   // 静默丢弃
 ## 验收人
 
 - 执行：CodeBuddy（DSH 会话 Agent）
-- 结论：三个现象的根因均已复现定位（激活失败、详情页无配置、模型列表陈旧），
-  后两者的客户端缺陷已修复并由端到端渲染证据与回归测试锁定；
-  CodeBuddy 侧确认仓库实现正确、实机问题为安装状态。目标环境验收待补，故状态为 `blocked`。
+- 结论：四个现象均已复现定位（激活失败、详情页无配置、模型列表陈旧、运行时启用报
+  `webServer`）。Codex 客户端的两处缺陷已修复并由端到端渲染证据与回归测试锁定；
+  CodeBuddy 侧在**冷启动**路径下实现正确，但「应用内运行时启用」会踩到上游
+  `connection` 行缺少 `webServer` 的缺陷，需**重启应用**规避（详见「更正」一节）。
+  目标环境验收待补，故状态为 `blocked`。

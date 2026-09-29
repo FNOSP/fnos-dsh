@@ -201,6 +201,7 @@ sequenceDiagram
 | PLAN-FNOS-008-T03-04 | FNOS-008-07 / AC-04–05、AC-07 | 授权窗口句柄可选化：句柄不可得时仅失去「取消时关窗」，不影响取消与已登录账号；回归独立浏览器与 fnOS 行为 | T03-03 | 取消/复制/回归测试；`dsh.client.platform` 契约断言 |
 | PLAN-FNOS-008-T03-05 | FNOS-008-06 / AC-02–03、FNOS-008-07 / AC-06 | Desktop 安装后激活失败修复：客户端 `inject` 补 `remote.llm`，并让模型目录桥接在命名空间不可解析时降级为 no-op（未声明的 `remote.<ns>` 读取在 Cordis 代理上会抛错，原先会拖垮整个客户端条目，导致详情页无配置区）；补「源码中每个 `remote.<ns>` 访问都已在 `inject` 声明」的契约测试 | T03-01、T03-02 | 应用真实前端无头渲染加载探针 profile：激活告警 0 条且 `[data-plugin-config]` 渲染出配置区；新增回归测试通过 |
 | PLAN-FNOS-008-T03-06 | FNOS-008-07 / AC-06 | 模型弹框旧数据修复：`remote.llm.discoverModels` 由 `RemoteNamespaceService.install()` 以**只有 getter、没有 setter** 的访问器安装，原先的 `llm.discoverModels = bridged` 赋值被静默丢弃，桥接从未生效而回落到适配器构建期快照；改为 `Object.defineProperty` 覆盖并读回校验，失败即 fail closed，dispose 还原原 descriptor | T03-05 | A/B 端到端：同一 profile 下弹框模型列表从构建期快照（`gpt-5.4*`）变为账号目录；新增「覆盖 getter-only 访问器」回归测试 |
+| PLAN-FNOS-008-T03-07 | FNOS-008-06 / AC-02–03 | 运行时启用报 `webServer` 定位（上游缺陷，本仓库仅规避与上报）：`connection.rpc.handle()` 经 `get rpc() { const owner = this.ctx }` 取 **connection 服务自身的 ctx**，其 `inject` 在光纤激活时固化；`dsh-web-app` 把该行声明为 `inject: [webRuntime]`，补 `webServer` 的补丁来自 CodeBuddy 自己的 bundle 层，而**运行时 reload 只更新合成树，不会给已 active 的光纤补依赖**，因此「应用内启用」必然失败，重启才恢复。实测插件侧重试（20 次/30 秒）与追加 reload 均无效 | T03-05 | 以客户端实际 RPC `setBundleEnabled` 复现 `application:"failed"` + 帧级一致堆栈；插桩对比冷启动（`inject=["webRuntime","webServer"]`，告警 0、`POST /codebuddy/status` 返回合法信封）与运行时启用（reload 后组合树正确但旧光纤仍抛错）；重启后实机由 405 恢复 |
 
 ### 阶段四：文档与索引（T04-01–T04-03）
 
