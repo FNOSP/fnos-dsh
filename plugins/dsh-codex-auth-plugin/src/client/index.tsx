@@ -12,6 +12,10 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
+// Type-only: 拉入插件管理页对 `plugins.bundle.config` 的登记契约
+// （`PluginConfigViewProps`）。该包只在类型层使用，运行时不 import——
+// 客户端模块表里没有它，运行时引入会直接报模块缺失。
+import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { CodexAuthSection } from '../components/CodexAuthSection.tsx'
 import type { CodexAuthSectionProps } from '../components/CodexAuthSection.tsx'
@@ -53,11 +57,21 @@ export function apply(ctx: ClientContext): void {
     'dsh-codex-auth-plugin: shared Codex model discovery',
   )
   const timer = ctx.get('timer') as CodexUsageStatusInjected['timer']
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'codex-auth',
-    order: 24,
-    label: () => t('title'),
+  /**
+   * 配置入口挂在插件管理页的组合包详情页（`plugins.bundle.config`，key 用包名），
+   * 而不是设置弹框的导航分区。
+   *
+   * 上游 0.1.7-rc.2 的架构决策把插件配置收归侧栏「插件」页，设置弹框只保留只读
+   * 插件清单；官方为社区组合包提供的接缝就是这个 slot，它**只以 `view: 'page'`
+   * 渲染**在详情页的描述与组件列表之间。详情页自己绘制标题与面包屑，因此这里
+   * 不再需要导航用的 `label` / `order`。
+   *
+   * 组件忽略可选的 `form`：本插件的配置自管理（读写走 `/plugins/.../auth/*` 与
+   * settings 写入 RPC），不接 settings 命名空间表单。数据路径与迁移前完全一致。
+   */
+  ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
+    name: 'plugins.bundle.config',
+    key: '@tnnevol/dsh-codex-auth',
     inject: (): CodexAuthSectionProps => ({ t, connection, remote }),
   }, CodexAuthSection))
   ctx.slots.inject('conversation.input.right', () => ctx.slots.register({

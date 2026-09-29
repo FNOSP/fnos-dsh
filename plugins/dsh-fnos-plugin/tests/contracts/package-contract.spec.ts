@@ -9,6 +9,41 @@ describe('dsh-fnos package contract', () => {
     expect(source).toContain('ctx.remote.session')
   })
 
+  /**
+   * The built entry must export a runtime `Config` **value**.
+   *
+   * DSH resolves a settings namespace through `entry.fiber.runtime.Config`, and
+   * Cordis populates that field only from an export literally named `Config`
+   * (`Context.registry.plugin` builds `{ ..., Config: plugin.Config }`). A
+   * type-only `interface Config` erases at build time, so every
+   * `settings.update('dsh-fnos', …)` then fails with `No configurable plugin
+   * entry "dsh-fnos"` and the DSH webserver answers the rejected route with an
+   * empty-body `400` — the exact symptom this test exists to prevent.
+   *
+   * This reads `lib/` rather than `src/` on purpose: an assertion against
+   * `src/` passes before the build and cannot see a stale artifact, which is
+   * how the defect reached the shipped FPK.
+   */
+  it('ships a built entry that exports the runtime Config schema value', async () => {
+    const built = await readFile(new URL('../../lib/index.js', import.meta.url), 'utf8')
+    // The bundler wraps the export list across lines, so normalize whitespace
+    // and strip `type` markers before splitting it into names.
+    const exportList = built.match(/export\s*\{[^}]*\}/u)?.[0] ?? ''
+    const exportedNames = exportList
+      .replace(/^export\s*\{/u, '')
+      .replace(/\}$/u, '')
+      .split(',')
+      .map(name => name.trim().replace(/^type\s+/u, ''))
+      .filter(Boolean)
+
+    expect(exportedNames).toContain('Config')
+
+    // The built module must be importable and expose a real schema, not undefined.
+    const module = await import(new URL('../../lib/index.js', import.meta.url).href) as { Config?: unknown }
+    expect(module.Config).toBeDefined()
+    expect(typeof (module.Config as { toJSON?: unknown })?.toJSON).toBe('function')
+  })
+
   it('registers fn through DSH commandUi and keeps directory browsing as input completion', async () => {
     const source = await readFile(new URL('../../src/client/index.ts', import.meta.url), 'utf8')
     const slashSource = await readFile(new URL('../../src/client/input-references/fnos-command-source.ts', import.meta.url), 'utf8')

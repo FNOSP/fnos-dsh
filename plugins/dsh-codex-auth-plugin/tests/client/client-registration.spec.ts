@@ -2,12 +2,14 @@ import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
 describe('dsh-codex-auth-plugin client registration', () => {
-  it('registers a Codex settings section instead of a plugin-list card', async () => {
+  it('registers the Codex config on the plugin detail page instead of a settings section', async () => {
     const client = await readFile(new URL('../../src/client/index.tsx', import.meta.url), 'utf8')
-    expect(client).toContain("ctx.slots.inject('settings.section'")
-    expect(client).toContain("name: 'settings.section'")
-    expect(client).toContain("id: 'codex-auth'")
-    expect(client).toContain('label: () => t(\'title\')')
+    // FNOS-008-03：配置入口迁入插件管理页组合包详情页（key 用包名）。
+    // 设置侧不再有导航分区，双入口会让同一份配置在两处漂移。
+    expect(client).toContain("ctx.slots.inject('plugins.bundle.config'")
+    expect(client).toContain("name: 'plugins.bundle.config'")
+    expect(client).toContain("key: '@tnnevol/dsh-codex-auth'")
+    expect(client).not.toContain("ctx.slots.inject('settings.section'")
     expect(client).toContain("CodexAuthSection")
     expect(client).not.toContain("settings.plugin.item")
     expect(client).not.toContain("installCodexModelEditorPresentation")

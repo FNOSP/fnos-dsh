@@ -195,8 +195,8 @@ sequenceDiagram
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
-| PLAN-FNOS-008-T03-01 | FNOS-008-03 / AC-01 | 注册迁移与类型依赖（同 T02-01 模式） | 无 | 插件构建通过 |
-| PLAN-FNOS-008-T03-02 | FNOS-008-03-AC-02、FNOS-008-04-AC-01 | 设置侧栏无 Codex Auth 分区的断言与回归 | T03-01 | 测试通过；设置弹框走查 |
+| PLAN-FNOS-008-T03-01 | FNOS-008-03 / AC-01 | 注册迁移与类型依赖：`settings.section`（id `codex-auth`、order 24）→ `plugins.bundle.config`（key `@tnnevol/dsh-codex-auth`）；补 `@deepseek-ai/dsh-client-ui-plugin-manager` 的 catalog 条目、peer/dev 依赖与 `dsh.client.inject`；客户端仅 type-only 引入该包 | 无 | 插件构建通过；`lib/client.js` 含新注册且不含 `settings.section` |
+| PLAN-FNOS-008-T03-02 | FNOS-008-03-AC-02、FNOS-008-04-AC-01 | 容器适配与断言：确认组件无设置弹框的视口/滚动耦合（详情页为普通纵向 flex、页面整体滚动），补布局回归；契约断言改为详情页注册并移除设置侧分区 | T03-01 | 测试通过；组合级确认 Codex 条目在插件清单中且 `enabled` |
 | PLAN-FNOS-008-T03-03 | FNOS-008-07 / AC-01–03、AC-06 | 修复 Desktop 登录阻断：`signIn()` 不再把 `window.open` 的 `null` 判为「弹窗被拦截」；开窗收口为单一实现并吞掉异常，`null` 时继续请求设备码；同步修正 `popupBlocked` 文案适用条件 | T02-04（共用 Desktop 契约） | 新增强制性行为测试（`null` 仍继续请求 login）+ 现有授权窗测试同步更新 |
 | PLAN-FNOS-008-T03-04 | FNOS-008-07 / AC-04–05、AC-07 | 授权窗口句柄可选化：句柄不可得时仅失去「取消时关窗」，不影响取消与已登录账号；回归独立浏览器与 fnOS 行为 | T03-03 | 取消/复制/回归测试；`dsh.client.platform` 契约断言 |
 
@@ -324,7 +324,7 @@ flowchart TD
 | --- | --- |
 | 阶段一：dsh-fnos 迁移 | <Badge type="info" text="规划中" /> |
 | 阶段二：CodeBuddy 迁移与 Desktop 适配 | <Badge type="info" text="规划中" /> |
-| 阶段三：Codex Auth 迁移与 Desktop 兼容 | <Badge type="info" text="规划中" /> |
+| 阶段三：Codex Auth 迁移与 Desktop 兼容 | <Badge type="warning" text="本地完成，待验证" /> |
 | 阶段四：文档与索引 | <Badge type="info" text="规划中" /> |
 | 阶段五：DSH Desktop 验收 | <Badge type="info" text="待完成" /> |
 | 阶段六：真实 NAS 验收 | <Badge type="info" text="规划中" /> |
@@ -339,3 +339,4 @@ flowchart TD
 | 2026-09-28 | CodeBuddy Desktop 实现完成、Desktop 验收阻塞 | 落地 `openAuthUrl` 开窗收口（3 个登录入口）与 `tests/desktop-adaptation.spec.ts`；插件检查 68 文件/888 测试通过，本地组合下 `/codebuddy` RPC 与客户端 bundle 端到端可用。本机未安装 Electron 且 `apps/desktop` 未构建，真实 Desktop 运行时验收无法执行，阶段五标记为「待完成」，证据见 [FNOS-008-06 本地验证记录](/validation/FNOS-008-06-codebuddy-desktop-local-2026-09-28)。 |
 | 2026-09-28 | 新增 Codex Auth Desktop 任务 | 审计确认 FNOS-008-07 为功能性阻断：`signIn()` 把 `window.open` 的 `null` 判为「弹窗被拦截」并提前返回，Desktop 下设备码永不请求。新增 T03-03（修复登录阻断）与 T03-04（窗口句柄可选化与回归），并把阶段五验收范围扩到两个插件的 `null` 开窗路径。 |
 | 2026-09-28 | Codex Desktop 修复实现完成、Desktop 验收阻塞 | 落地 T03-03/T03-04：新增 `src/client/window-opener.ts`（`openAuthorizationWindow`），`signIn()` 在 `null` 时继续请求设备码，句柄登记改为判空守卫，取消作废路径改 `popup?.close()`；新增 `tests/client/desktop-window.spec.ts`（10 条）并同步两处旧写法断言。插件检查 18 文件/88 测试通过，构建通过，本地组合下 `/plugins/dsh-codex-auth-plugin/auth/status` 端到端返回 200。本机无 Electron 运行时，真实 Desktop 验收未执行，证据见 [FNOS-008-07 本地验证记录](/validation/FNOS-008-07-codex-desktop-local-2026-09-28)。 |
+| 2026-09-28 | 落地 T03-01/T03-02 | Codex Auth 配置从设置弹框 `settings.section` 迁入插件管理页 `plugins.bundle.config`（key `@tnnevol/dsh-codex-auth`）。补 `@deepseek-ai/dsh-client-ui-plugin-manager` 的 catalog 条目、peer/dev 依赖、`dsh.client.inject` 与 compatibility 清单；客户端仅 type-only 引入该包。新增 `tests/client/bundle-config-registration.spec.ts`（8 条）覆盖注册契约、无设置侧入口、无运行时 import、类型依赖、compat 一致性与布局解耦。插件检查 19 文件/96 测试通过；构建产物含新注册且不含 `settings.section`；组合级确认 Codex 条目 `enabled/active`。数据读写路径未变，无数据迁移。 |

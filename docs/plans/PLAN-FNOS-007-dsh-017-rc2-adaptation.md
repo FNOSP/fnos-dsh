@@ -410,6 +410,9 @@ sequenceDiagram
 | PLAN-FNOS-007-T27-01 | FNOS-007-31-AC-01 | 将 Codex Auth 的 llm-pi-ai 静态模型基线更新为当前 profile 使用的 GPT-6/GPT-5.6/GPT-5.5 列表 | patch 配置测试、Codex Auth typecheck |
 | PLAN-FNOS-007-T27-02 | FNOS-007-31-AC-02、03 | 删除模型目录手动刷新按钮；在登录状态切换和已登录页面初始化时触发一次刷新，成功后依靠 settings/document-updated 让 DSH 可用模型目录与全局模型选择器同步，失败保留旧目录 | 客户端注册回归、模型目录刷新测试、真实登录后模型弹框验证 |
 | PLAN-FNOS-007-T28-01 | FNOS-007-32-AC-01 至 03 | 在 Codex Auth 客户端包裹 `llm-pi-ai` 的 Codex model discovery，使官方 Models 页的候选弹框读取 `session.modelCatalog()`；非 Codex provider 和非配置页 discovery 透传原实现 | discovery bridge 单元测试、Codex Auth 全量检查、真实客户端登录后两处列表对照 |
+| PLAN-FNOS-007-T29-01 | FNOS-007-33-AC-01、02、04 | 让 `dsh-fnos` 导出名为 `Config` 的运行时 settings schema（字段全部 `.volatile()`），并以 `volatileValue()` 读取；schema 放在 host-only 模块，避免 `schemastery` 进入浏览器 bundle | 真实 DSH webserver + 真实 SettingsForms 的 HTTP 端到端测试断言 `PUT` 返回 200 且设置与允许清单文件一致；built-`lib` 导出断言；Client bundle 无 `schemastery` |
+| PLAN-FNOS-007-T29-02 | FNOS-007-33-AC-03、04、06 | 网关代理路径路由整体包裹错误处理并返回 JSON 错误；允许清单写入按文件串行化，消除并发原子替换的 `ENOENT` 丢写；session-log 路由的两个 await 纳入 try；七个 fnOS 路由统一补上兜底错误响应 | 路由级回归测试验证失败时返回可诊断 JSON、补偿写恢复原文件、并发写不丢快照；`lib/` 构建产物断言 |
+| PLAN-FNOS-007-T29-03 | FNOS-007-33-AC-05 | 对齐插件校验器与网关解析器的 `version` 判定：两者都要求 `version === 1`，插件额外接受设置字段的裸数组形态；`validateGatewayProxyPaths` 内部改用裸数组形状避免重复要求文档版本 | 跨包契约测试逐例断言两侧判定一致；插件与网关全量测试 |
 
 ## 数据、权限和错误处理
 

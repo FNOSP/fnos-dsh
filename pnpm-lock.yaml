@@ -191,6 +191,9 @@ catalogs:
     '@deepseek-ai/dsh-client-ui-model-selection':
       specifier: 0.1.7-rc.2
       version: 0.1.7-rc.2
+    '@deepseek-ai/dsh-client-ui-plugin-manager':
+      specifier: 0.1.7-rc.2
+      version: 0.1.7-rc.2
     '@deepseek-ai/dsh-client-ui-primitives':
       specifier: 0.1.7-rc.2
       version: 0.1.7-rc.2
@@ -500,6 +503,9 @@ importers:
         specifier: catalog:dsh
         version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
       '@deepseek-ai/dsh-client-ui-model-selection':
+        specifier: catalog:dsh
+        version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
+      '@deepseek-ai/dsh-client-ui-plugin-manager':
         specifier: catalog:dsh
         version: 0.1.7-rc.2(@deepseek-ai/cordis@4.0.4)
       '@deepseek-ai/dsh-client-ui-primitives':

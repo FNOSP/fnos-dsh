@@ -3,11 +3,11 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-settings'
-import z from '@deepseek-ai/schemastery'
 import { registerAuthorizedDirectoryRoutes } from './host/authorized-directories.ts'
 import { FNOS_AUTHORIZED_DIRECTORIES_SETTINGS_NAMESPACE } from './contracts/authorized-directories-contract.ts'
 import { cachedFnosThemeFromConfig, injectCachedFnosTheme, type DshThemePreference } from './host/theme-bootstrap.ts'
-import { FNOS_GATEWAY_PROXY_PATHS_FIELD, FNOS_SYSTEM_THEME_FIELD, type FnosTheme } from './contracts/theme-contract.ts'
+import { FNOS_SYSTEM_THEME_FIELD, volatileValue, type FnosConfig, type FnosTheme } from './contracts/theme-contract.ts'
+import { FnosSettingsSchema } from './contracts/theme-schema.ts'
 import { registerGatewayProxyRoutes } from './host/gateway-proxy-routes.ts'
 import { registerStaticAssetRoute } from './host/static-assets.ts'
 import { registerPresentedPathRoute } from './host/presented-open.ts'
@@ -15,15 +15,26 @@ import { registerPresentedPathRoute } from './host/presented-open.ts'
 /** Stable Host bundle name. */
 export const name = '@tnnevol/dsh-fnos'
 
-/** Settings back the fnOS card and the cached pre-plugin theme bootstrap. */
-export const FnosSettingsSchema = z.object({
-  [FNOS_SYSTEM_THEME_FIELD]: z.union(['light', 'dark']).volatile(),
-  [FNOS_GATEWAY_PROXY_PATHS_FIELD]: z.array(z.string()).default([]).volatile(),
-})
-export interface Config {
-  [FNOS_SYSTEM_THEME_FIELD]?: FnosTheme
-  [FNOS_GATEWAY_PROXY_PATHS_FIELD]: string[]
-}
+/**
+ * Runtime Config schema for the `dsh-fnos` settings entry.
+ *
+ * The **value** must be exported under the name `Config`: DSH resolves a
+ * settings namespace through `entry.fiber.runtime.Config`, so without it every
+ * `settings.update('dsh-fnos', …)` fails with `No configurable plugin entry
+ * "dsh-fnos"`, and the DSH webserver turns the rejected route handler into an
+ * empty-body `400`.
+ *
+ * The type is declared here too, so `Config` names both the schema value and
+ * the {@link FnosConfig} shape it validates. Every field is `.volatile()`, which
+ * is why Cordis hands `apply` a stable reference per field instead of a plain
+ * value and a live edit reaches the running plugin without remounting it. The
+ * schema itself lives in `contracts/theme-schema.ts` so the browser half never
+ * inherits this host dependency.
+ */
+export const Config: FnosConfig & typeof FnosSettingsSchema = FnosSettingsSchema as FnosConfig & typeof FnosSettingsSchema
+
+export type { FnosSettings } from './contracts/theme-contract.ts'
+
 export const FNOS_AUTHORIZED_DIRECTORIES_SETTINGS_NS = FNOS_AUTHORIZED_DIRECTORIES_SETTINGS_NAMESPACE
 const DSH_THEME_SETTINGS_NS = 'ui-theme'
 const DSH_SETTINGS_ENTRY_ID = 'dsh-fnos'
@@ -31,7 +42,7 @@ const DSH_SETTINGS_ENTRY_ID = 'dsh-fnos'
 /** Host services required to register the fnOS settings namespace and Web routes. */
 export const inject = ['webServer', 'settings']
 
-export function apply(ctx: Context, config?: Config): void {
+export function apply(ctx: Context, config?: FnosConfig): void {
   ctx.inject(['settings'], child => {
     child.effect(() => child.settings.configure({ auto: false }, ctx.fiber))
   })
@@ -44,7 +55,7 @@ export function apply(ctx: Context, config?: Config): void {
       () => httpCtx.webServer.tapIndex(html => injectCachedFnosTheme(
         html,
         readDshThemePreference(ctx),
-        readCachedFnosTheme(config),
+        cachedFnosThemeFromConfig(readCachedFnosTheme(config)),
       )),
       'dsh-fnos: cached fnOS theme bootstrap',
     )
@@ -58,8 +69,15 @@ function readDshThemePreference(ctx: Context): DshThemePreference {
     : 'system'
 }
 
-function readCachedFnosTheme(config: Config | undefined): FnosTheme | null {
-  return cachedFnosThemeFromConfig(config === undefined ? undefined : { systemTheme: config[FNOS_SYSTEM_THEME_FIELD] })
+/**
+ * Read the cached fnOS theme from the live volatile config reference.
+ *
+ * Read per call, not captured once: a settings write updates the reference in
+ * place, and the index transform must observe the newest value.
+ */
+function readCachedFnosTheme(config: FnosConfig | undefined): { systemTheme?: unknown } | undefined {
+  const theme = volatileValue<FnosTheme | undefined>(config?.[FNOS_SYSTEM_THEME_FIELD])
+  return theme === undefined ? undefined : { systemTheme: theme }
 }
 
 export {

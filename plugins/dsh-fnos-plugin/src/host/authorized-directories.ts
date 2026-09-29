@@ -839,8 +839,28 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
       json(res, 403, { error: 'remote-web-origin-not-trusted' })
       return false
     }
+    /**
+     * Register one fnOS route behind a last-resort rejection guard.
+     *
+     * The DSH webserver answers any rejection escaping a route handler with a
+     * bare empty `400`, which hides the cause from the browser and from the NAS
+     * log. Each handler below still reports its own precise status; this wrapper
+     * only makes a genuinely unexpected rejection diagnosable instead of blank.
+     */
+    const register = (route: {
+      kind: 'exact'
+      path: string
+      handler: (req: IncomingMessage, res: ServerResponse) => void | Promise<void>
+    }): (() => void) => ctx.webServer.register({
+      ...route,
+      handler: (req, res) => Promise.resolve(route.handler(req, res)).catch((error: unknown) => {
+        console.error(`[dsh-fnos] route ${route.path} failed`, error)
+        if (res.headersSent || res.writableEnded || res.destroyed) return
+        json(res, 500, { error: 'fnos-route-failed' })
+      }),
+    })
     const routes = [
-      ctx.webServer.register({
+      register({
         kind: 'exact',
         path: FNOS_AUTHORIZED_DIRECTORIES_PATH,
         handler: async (req, res) => {
@@ -853,7 +873,7 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
           }
         },
       }),
-      ctx.webServer.register({
+      register({
         kind: 'exact',
         path: FNOS_SETTINGS_DOCUMENT_PATH,
         handler: async (req, res) => {
@@ -868,16 +888,32 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
           }
         },
       }),
-      ctx.webServer.register({
+      register({
         kind: 'exact',
         path: FNOS_SESSION_LOG_EXPORT_PATH,
         handler: async (req, res) => {
           if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
           if (!authorize(req, res)) return
-          const request = sessionLogExportRequest(await readJsonBody(req))
+          // Everything from here on is inside one try: `readJsonBody` rejects on
+          // a malformed or oversized body and `validatePathForOpen` can reject
+          // while resolving authorized roots. Letting either escape would make
+          // the webserver answer a bare empty 400 instead of the JSON error the
+          // browser needs to explain the failure.
+          let request: FnosSessionLogExportRequest | undefined
+          try {
+            request = sessionLogExportRequest(await readJsonBody(req))
+          } catch {
+            return json(res, 400, { error: 'invalid-session-log-export-request' })
+          }
           if (request === undefined) return json(res, 400, { error: 'invalid-session-log-export-request' })
 
-          const validation = await validatePathForOpen(request.directory, req)
+          let validation
+          try {
+            validation = await validatePathForOpen(request.directory, req)
+          } catch (error: unknown) {
+            errorResponse(res, error)
+            return
+          }
           if (!validation.ok) {
             const status = validation.failure === 'fnos-path-not-found' ? 404
               : validation.failure === 'fnos-user-permission-unavailable' ? 503
@@ -915,7 +951,7 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
           }
         },
       }),
-      ctx.webServer.register({
+      register({
         kind: 'exact',
         path: FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
         handler: async (req, res) => {
@@ -942,7 +978,7 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
           }
         },
       }),
-      ctx.webServer.register({
+      register({
         kind: 'exact',
         path: FNOS_PATH_CONVERSION_PATH,
         handler: async (req, res) => {
@@ -962,7 +998,7 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
           }
         },
       }),
-      ctx.webServer.register({
+      register({
         kind: 'exact',
         path: FNOS_PATH_OPEN_VALIDATION_PATH,
         handler: async (req, res) => {
@@ -984,7 +1020,7 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
           }
         },
       }),
-      ctx.webServer.register({
+      register({
         kind: 'exact',
         path: FNOS_AUTHORIZED_ENTRIES_PATH,
         handler: async (req, res) => {

@@ -354,6 +354,15 @@ sequenceDiagram
 - `FNOS-007-32-AC-02`：Codex provider 的目录桥接只影响 `llm-pi-ai` 下的 `openai-codex`，其他 provider 和普通 endpoint discovery 继续使用 DSH 原生逻辑。
 - `FNOS-007-32-AC-03`：登录后模型目录自动同步完成后，两个模型选择界面显示的模型 ID 和名称一致，不再回退到 pi-ai 内置旧列表。
 
+### FNOS-007-33
+
+- `FNOS-007-33-AC-01`：在 fnOS 设置卡片的「三方插件 API URL 反代」文本框中保存路径时，请求成功并回显规范化后的路径列表，不再出现空白 `400 Bad Request`。
+- `FNOS-007-33-AC-02`：保存成功后，网关读取的 `${TRIM_PKGVAR}/gateway/path-allowlist.json` 与 DSH 设置中的 `gatewayProxyPaths` 内容一致，网关无需重启即可生效。
+- `FNOS-007-33-AC-03`：提交非法路径时返回明确的 `invalid-gateway-proxy-paths` 错误，用户看到「路径不合法」提示而不是空白失败。
+- `FNOS-007-33-AC-04`：设置写入失败时原文件与设置值都保持不变，接口返回可诊断的 JSON 错误，不返回无响应体的 400。
+- `FNOS-007-33-AC-05`：插件与网关对允许清单文件的 `version` 判定一致；不支持的版本被拒绝而不是被静默改写为 `version: 1`。
+- `FNOS-007-33-AC-06`：fnOS 插件的其余浏览器接口在遇到意外异常时返回可诊断的 JSON 错误，不以无响应体的 400 作为用户可见结果。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -382,6 +391,7 @@ sequenceDiagram
 | Codex Auth 授权页打开 | 本地完成，待 NAS/真实网络回归 | FNOS-007-30 |
 | Codex Auth 模型目录自动同步 | 本地完成，待真实客户端/网络回归 | FNOS-007-31 |
 | Codex 模型设置弹框与全局模型目录统一 | 本地完成，待真实客户端回归 | FNOS-007-32 |
+| 三方插件 API 反代配置保存 | 本地完成，待 NAS 回归 | FNOS-007-33 |
 
 ## 变更记录
 
@@ -411,3 +421,4 @@ sequenceDiagram
 | 2026-09-28 | 修复 Codex Auth 空白授权页 | 新增 FNOS-007-30：点击登录时立即打开固定的 OpenAI device-code 页面，解除授权页导航对 NAS 异步 device-code 请求的依赖；网络错误保留在原页面显示。 |
 | 2026-09-28 | 更新 Codex Auth 模型目录同步 | 新增 FNOS-007-31：更新默认模型基线，移除手动刷新按钮，登录后自动同步账号模型，并通过 DSH 设置变更事件刷新可用模型弹框。 |
 | 2026-09-28 | 统一 Codex 模型弹框数据源 | 新增 FNOS-007-32：修复官方 Models 页面仍读取 pi-ai 静态 Codex 目录的问题，让 provider 弹框与 Codex Auth 全局模型选择器共用 DSH 动态目录。 |
+| 2026-09-28 | 修复三方插件 API 反代配置保存 | 新增 FNOS-007-33：`dsh-fnos` 只导出类型 `Config` 导致 DSH 设置服务找不到该命名空间的运行时 schema，`settings.update('dsh-fnos', …)` 抛错并被 DSH webserver 转成空白 400，反代路径因此无法保存；同时修复允许清单写入并发覆盖、session-log 路由异常逃逸、插件与网关 `version` 判定漂移，并给其余浏览器接口补上兜底错误响应。本地证据见 [`FNOS-007-33-local-automated-2026-09-28`](/validation/FNOS-007-33-local-automated-2026-09-28)。 |

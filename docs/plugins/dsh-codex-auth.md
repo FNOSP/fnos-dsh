@@ -15,7 +15,9 @@ dsh --profile web --dump-config
 
 ## 登录与用量
 
-打开「设置 → Codex Auth」，点击「登录」。插件会生成一次性授权码并打开 Codex 授权页面，不需要选择工作空间。
+打开侧栏「插件」→ 已安装分组 → `Codex Auth` 组合包详情页，点击「登录」。插件会生成一次性授权码并打开 Codex 授权页面，不需要选择工作空间。
+
+自 DSH `0.1.7-rc.2` 起，插件配置统一挂在插件管理页的组合包详情页；设置弹框不再提供 Codex Auth 导航分区，配置数据的读写路径与位置没有变化。
 
 授权码右端有一个复制图标，点它即把授权码写入剪贴板，成功后就地显示勾选标记。
 
@@ -93,7 +95,7 @@ Web 设置通过同源插件路由访问 Host。使用 `fn-deepseek-harness` 时
 dsh --profile web --dump-config | grep -n -C 3 'dsh-codex-auth'
 ```
 
-如果出现 `cannot resolve profile bundle`，请重新执行 `dsh plugin --profile web add @tnnevol/dsh-codex-auth@0.1.7-rc.2`，不要只在 `package.json` 中手动补 bundle。插件安装后，「设置」侧栏会出现 Codex Auth 入口。
+如果出现 `cannot resolve profile bundle`，请重新执行 `dsh plugin --profile web add @tnnevol/dsh-codex-auth@0.1.7-rc.2`，不要只在 `package.json` 中手动补 bundle。插件安装后，侧栏「插件」的已安装分组会出现 `Codex Auth` 组合包，其配置位于该组合包的详情页。
 
 ### 登录后模型目录没有变化
 

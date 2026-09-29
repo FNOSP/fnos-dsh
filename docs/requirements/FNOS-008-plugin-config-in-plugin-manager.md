@@ -205,3 +205,4 @@ sequenceDiagram
 | 2026-09-28 | FNOS-008-06 实现完成、桌面验收阻塞 | 开窗语义已收口并补契约测试，本地组合端到端通过；目标 DSH Desktop 运行时验收尚未执行（本机无 Electron 运行时），FNOS-008-06 保持「规划中」直至桌面环境验收完成。 |
 | 2026-09-28 | 新增 FNOS-008-07 | Codex Auth Desktop 兼容审计：确认其为**功能性阻断**——`signIn()` 把 `window.open` 返回的 `null` 判为「弹窗被拦截」并提前返回，而 Desktop 壳对 http/https 一律返回 deny，导致授权页虽打开但设备码永不请求，Desktop 无法登录。其余路径（`/plugins/*` 转发、`trustedRequest` 的 loopback 判定、剪贴板权限）核实无缺口。 |
 | 2026-09-28 | FNOS-008-07 实现完成、桌面验收阻塞 | 登录阻断已修复：`null` 不再判为失败，设备码照常请求；窗口句柄改为可选（不影响取消与已登录账号），并补 10 条契约测试。本地组合端到端通过；目标 DSH Desktop 运行时验收尚未执行，FNOS-008-07 保持「规划中」。 |
+| 2026-09-28 | FNOS-008-03 实现完成、目标环境待验 | Codex Auth 配置从设置侧栏分区迁入插件管理页组合包详情页（`plugins.bundle.config`，key 用包名）；设置弹框不再有 Codex Auth 入口，数据读写路径未变。本地组合级渲染条件与构建产物已验证；真实界面与 NAS/Desktop 走查待补，故 FNOS-008-03 及 FNOS-008-04 中 Codex 相关部分保持「规划中」。 |
