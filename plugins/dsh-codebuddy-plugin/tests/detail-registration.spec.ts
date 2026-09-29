@@ -5,9 +5,18 @@ import { srcPath } from './paths.ts'
 /**
  * 配置入口的注册契约。
  *
- * 设置弹框 → 插件管理页组合包详情页的迁移（FNOS-008-02）在这里收口。上游
- * `0.1.7-rc.2` 为社区组合包提供的接缝是 `plugins.bundle.config`，**以包名为
- * key**，只以 `view: 'page'` 渲染在详情页的描述与组件列表之间。
+ * 设置弹框 → 插件管理页组合包详情页的迁移（FNOS-008-02）在这里收口。
+ *
+ * 座位用 `plugins.detail.section` 而不是官方的 `plugins.bundle.config`：上游
+ * `PackageDetail` 的固定顺序是
+ *
+ *   1. `plugins.bundle.config`——组合包自己的配置
+ *   2. 「包含的组件」（`RowsSection`）
+ *   3. `plugins.detail.section`——本座位
+ *
+ * 需求要的顺序是「包含的组件 → 设置字段 → 账号管理 → Token 统计」，因此只能
+ * 落在 3。代价是这个座位是 **list**（不按包名分派），页面会给打开的每个详情页
+ * 都渲染它——组件必须自己按 `subject` 过滤，否则会在别的插件页面上显形。
  *
  * 这组用例守三类真实故障：
  *
@@ -34,32 +43,65 @@ function codeOnly(source: string): string {
 const CODE = codeOnly(CLIENT)
 
 describe('CodeBuddy 配置注册到组合包详情页', () => {
-  it('以包名为 key 注册 plugins.bundle.config', () => {
-    expect(CODE).toContain("'plugins.bundle.config'")
-    expect(CODE).toContain(`key: '${PKG.name}'`)
+  it('注册 plugins.detail.section（排在「包含的组件」之后）', () => {
+    expect(CODE).toContain("'plugins.detail.section'")
+    // 不再使用 bundle.config：它永远在「包含的组件」之前，满足不了需求顺序。
+    expect(CODE).not.toContain("'plugins.bundle.config'")
   })
 
   it('经 slots.inject 等 slot 出现（否则注册会被丢弃）', () => {
     // 上游把该 slot 声明为页面 main 注册的子 slot，因此必须 inject 而不是直接
     // register：直接注册会落在"slot 还不存在"的时刻。
-    expect(CODE).toMatch(/ctx\.slots\.inject\('plugins\.bundle\.config'/)
-    expect(CODE).toMatch(/ctx\.slots\.register\(\{\s*name: 'plugins\.bundle\.config'/)
+    expect(CODE).toMatch(/ctx\.slots\.inject\('plugins\.detail\.section'/)
+    expect(CODE).toMatch(/ctx\.slots\.register\(\{\s*name: 'plugins\.detail\.section'/)
+  })
+
+  it('list 座位用 id 而不是 key，且不声明 inject（owner props 由页面给）', () => {
+    // `plugins.detail.section` 是 list：要求 `id`；`subject` 由页面传入，因此
+    // `inject` 必须是 undefined——写了会被类型系统拒收。
+    expect(CODE).toMatch(/name: 'plugins\.detail\.section'[\s\S]{0,160}id: 'codebuddy'/)
+    const reg = CODE.slice(CODE.indexOf("ctx.slots.register({\n    name: 'plugins.detail.section'"))
+    expect(reg.slice(0, 240)).not.toContain('inject:')
   })
 
   it('注册的是详情页区块组件', () => {
     expect(CODE).toContain('CodeBuddyDetailSection')
   })
 
-  it('key 与 package.json 的 name 一致（挂错组合包就不显示）', () => {
-    // 用真实包名反向确认，避免 key 写成一个"看起来对"的字面量。
+  it('key 与 package.json 的 name 一致（list 座位靠 subject 自筛）', () => {
+    // list 座位不像 keyed 那样由页面按包名分派，因此包名出现在组件内部的
+    // subject 判定里——这正是"不筛就会串页"的防线。
     expect(PKG.name).toBe('@tnnevol/dsh-codebuddy')
-    expect(CODE).toContain(`key: '${PKG.name}'`)
+    const panel = readFileSync(srcPath('client/panel.tsx'), 'utf8')
+    expect(panel).toContain(`CODEBUDDY_PACKAGE_NAME = '${PKG.name}'`)
+    expect(panel).toMatch(/subject\.pkg\?\.name !== CODEBUDDY_PACKAGE_NAME/)
+  })
+})
+
+describe('list 座位的 subject 过滤（不筛会串到别的插件页）', () => {
+  const panel = readFileSync(srcPath('client/panel.tsx'), 'utf8')
+
+  it('非 bundle 主题一律不渲染', () => {
+    expect(panel).toMatch(/subject\.kind !== 'bundle'/)
+  })
+
+  it('包名不匹配一律不渲染（别的插件的详情页）', () => {
+    expect(panel).toMatch(/subject\.pkg\?\.name !== CODEBUDDY_PACKAGE_NAME/)
+  })
+
+  it('subject 缺失时返回 null（页面未给出主题）', () => {
+    expect(panel).toMatch(/subject === undefined\) return null/)
   })
 })
 
 describe('旧配置入口已移除', () => {
   it('不再注册设置弹框的 settings.section', () => {
     expect(CODE).not.toContain("'settings.section'")
+  })
+
+  it('不再注册组合包配置座位 plugins.bundle.config', () => {
+    // 换成 detail.section 是为了拿到「组件列表之后」的位置。
+    expect(CODE).not.toContain("'plugins.bundle.config'")
   })
 
   it('不再注册全页面面板 shell.overlay', () => {

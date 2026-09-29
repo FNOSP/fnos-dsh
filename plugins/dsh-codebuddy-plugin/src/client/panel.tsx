@@ -22,8 +22,10 @@
  */
 
 import { CodeBuddyLogo } from '../components/CodeBuddyLogo.tsx'
-import type { StatsDimension, CodeBuddyDetailProps } from '../types/client/panel'
-export type { CodeBuddyDetailProps } from '../types/client/panel'
+import type { StatsDimension, CodeBuddyDetailProps, CodeBuddyDetailSubjectProps } from '../types/client/panel'
+export type { CodeBuddyDetailProps, CodeBuddyDetailSubjectProps } from '../types/client/panel'
+/** 座位入口的 props 类型别名（`plugins.detail.section` 的 owner props）。 */
+export type CodeBuddyDetailSectionProps = CodeBuddyDetailSubjectProps
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import { useStore } from '@nanostores/react'
@@ -718,7 +720,35 @@ function SegmentBar({ segments }: { segments: Array<{ label: string, value: numb
  * 保留项与迁移前一致：积分总览、账号卡片（含签到与旅行状态）、三个自动开关、
  * 完成任务与一键完成、执行日志抽屉、Token 各图表。
  */
-export function CodeBuddyDetailSection({ rpc, t }: CodeBuddyDetailProps): ReactNode {
+/**
+ * 详情页区块的**座位入口**：先按 subject 过滤，再渲染真正的内容。
+ *
+ * 为什么挂在 `plugins.detail.section` 而不是 `plugins.bundle.config`：上游
+ * `PackageDetail` 的固定顺序是
+ *
+ *   1. `plugins.bundle.config`——我们的配置区
+ *   2. 「包含的组件」（`RowsSection`，即插件自己那一行）
+ *   3. `plugins.detail.section`——本座位
+ *
+ * 也就是说 `bundle.config` **永远**在「包含的组件」之前，插件无法用它把内容
+ * 放到组件列表下方。需求要的顺序是「包含的组件 → 设置字段 → 账号管理 →
+ * Token 统计」，只有 `detail.section` 能满足。
+ *
+ * 该座位是 **list**（不是 keyed）：页面会给打开的任何详情页都渲染它，因此必须
+ * 自己判断 subject——不是本插件的组合包就返回 `null`，否则这段界面会出现在
+ * 别的插件页面上。
+ */
+export function CodeBuddyDetailSection({ rpc, t, subject }: CodeBuddyDetailSubjectProps): ReactNode {
+  if (subject === undefined) return null
+  if (subject.kind !== 'bundle') return null
+  if (subject.pkg?.name !== CODEBUDDY_PACKAGE_NAME) return null
+  return <CodeBuddyDetailContent rpc={rpc} t={t} />
+}
+
+/** 本插件在插件管理页里的组合包名（与 package.json 的 name 一致）。 */
+export const CODEBUDDY_PACKAGE_NAME = '@tnnevol/dsh-codebuddy'
+
+function CodeBuddyDetailContent({ rpc, t }: CodeBuddyDetailProps): ReactNode {
   const notify = useCallback((ok: boolean, text: string) => {
     if (ok) DshToast.success({ content: text })
     else DshToast.warning({ content: text })
@@ -777,6 +807,13 @@ export function CodeBuddyDetailSection({ rpc, t }: CodeBuddyDetailProps): ReactN
 
   return (
     <div className="dsh-codebuddy-detail">
+      {/* 顺序（需求指定）：设置类字段 → 账号管理 → Token 统计。
+          设置字段放最前：它们是"先决定怎么用，再看当前状态"的配置；账号与
+          Token 是观察型内容，读者进来通常是来改配置的。 */}
+      <section className="dsh-codebuddy-detail-section" aria-label={t('autoSwitchPct')}>
+        <CodeBuddyPreferences rpc={rpc} t={t} />
+      </section>
+
       <section className="dsh-codebuddy-detail-section" aria-label={t('accountsTitle')}>
         <AccountsPage
           rpc={rpc}
@@ -799,11 +836,6 @@ export function CodeBuddyDetailSection({ rpc, t }: CodeBuddyDetailProps): ReactN
           <summary className="dsh-codebuddy-detail-summary">{t('tokenTitle')}</summary>
           <TokenStatsPage rpc={rpc} t={t} />
         </details>
-      </section>
-
-      {/* 偏好：切换阈值与显示余额余量。从设置区块迁来；写入语义未变。 */}
-      <section className="dsh-codebuddy-detail-section" aria-label={t('autoSwitchPct')}>
-        <CodeBuddyPreferences rpc={rpc} t={t} />
       </section>
 
       <AddAccountModal

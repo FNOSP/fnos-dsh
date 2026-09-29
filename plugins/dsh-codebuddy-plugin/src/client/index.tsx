@@ -18,7 +18,7 @@ import { installSemiDshTheme } from '@tnnevol/dsh-semi-ui'
 import { CodeBuddyUsageStatus } from '../components/CodeBuddyUsageStatus.tsx'
 import type { CodeBuddyUsageStatusInjected } from '../components/CodeBuddyUsageStatus.tsx'
 import { CodeBuddyDetailSection } from './panel.tsx'
-import type { CodeBuddyDetailProps } from './panel.tsx'
+import type { CodeBuddyDetailProps, CodeBuddyDetailSectionProps } from './panel.tsx'
 import { bumpAccountEpoch } from './store/account-epoch.ts'
 import { en, zh } from './locales/index.ts'
 
@@ -60,22 +60,35 @@ export function apply(ctx: ClientContext): void {
   }
 
   /**
-   * 配置入口挂在插件管理页的组合包详情页（`plugins.bundle.config`，key 用包名）。
+   * 配置入口挂在插件管理页的组合包详情页。
    *
-   * 上游 0.1.7-rc.2 把插件配置收归侧栏「插件」页，设置弹框只保留只读插件清单；
-   * 官方为社区组合包提供的接缝就是这个 slot，它**只以 `view: 'page'` 渲染**在
-   * 详情页的描述与组件列表之间。详情页自己绘制标题与面包屑，因此这里不需要
-   * 导航用的 `label` / `order`。
+   * 座位选 `plugins.detail.section` 而不是官方的 `plugins.bundle.config`：
+   * 上游 `PackageDetail` 的固定顺序是
+   *
+   *   1. `plugins.bundle.config`（组合包自己的配置）
+   *   2. 「包含的组件」（`RowsSection`）
+   *   3. `plugins.detail.section`（本座位）
+   *
+   * `bundle.config` **永远**排在「包含的组件」之前，插件无法用它把内容放到组件
+   * 列表下方；而需求要求的顺序是「包含的组件 → 设置字段 → 账号管理 → Token
+   * 统计」。`detail.section` 是唯一的落点。
+   *
+   * 代价是它**不按包名分派**（`kind: 'list'` 而非 `keyed`）：页面会给打开的每个
+   * 详情页渲染它，因此组件必须自己看 `subject`，不是本插件的组合包就返回
+   * `null`——见 `CodeBuddyDetailSection` 的说明。
    *
    * 原先的 `settings.section`（设置弹框里的 CodeBuddy 区块）与 `shell.overlay`
    * （全页面管理面板 + `#/codebuddy/*` hash 路由）都已移除：登录、账号管理、
    * Token 统计、自动偏好全部在这个详情页内完成。
    */
-  ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
-    name: 'plugins.bundle.config',
-    key: '@tnnevol/dsh-codebuddy',
-    inject: (): CodeBuddyDetailProps => ({ rpc, t }),
-  }, CodeBuddyDetailSection))
+  ctx.slots.inject('plugins.detail.section', () => ctx.slots.register({
+    name: 'plugins.detail.section',
+    // list 座位要求 id；owner props（`subject`）由页面传入，因此这里**不能**也
+    // 不需要 `inject`。rpc/t 经闭包进入组件——它们来自本插件自己的 ctx。
+    id: 'codebuddy',
+    order: 60,
+  }, (props: { subject?: CodeBuddyDetailSectionProps['subject'] }) =>
+    <CodeBuddyDetailSection rpc={rpc} t={t} subject={props.subject} />))
 
   // 实时额度读数放在 composer dock，与 Codex 插件一致。
   ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
