@@ -370,6 +370,13 @@ sequenceDiagram
 - `FNOS-007-34-AC-03`：Safari 18 之前的版本仍能获得磨砂效果；交付的样式表同时包含标准属性与 `-webkit-` 前缀形式，且前缀声明不会被构建流程静默丢弃。
 - `FNOS-007-34-AC-04`：依赖 `@tnnevol/dsh-semi-ui` 的四个插件产物都包含更新后的样式，不出现共享包已修复而插件仍内联旧样式的情况。
 
+### FNOS-007-35
+
+- `FNOS-007-35-AC-01`：Codex Auth 声明的每个模型都自带完整能力元数据（输入模态、上下文窗口、最大输出和思考等级），不依赖 DSH 内置 pi-ai 目录恰好描述该模型 ID。
+- `FNOS-007-35-AC-02`：`gpt-6-sol` 与 `gpt-6-luna` 在模型选择器中提供思考等级，且 `input` 为 `text, image`；不再因为这两个 ID 不在 pi-ai 目录中而回落到 `reasoning: false`、`input: ["text"]`、`contextWindow: 262144`。
+- `FNOS-007-35-AC-03`：「恢复默认模型」清空 DSH 设置覆盖后，回落到的静态条目描述的上下文窗口、图文输入和思考等级与模型真实能力一致。
+- `FNOS-007-35-AC-04`：`reasoningEfforts` 按模型独立声明；`off` 的写法与模型真实语义一致（不支持 `off` 的模型不声明，支持的模型用 `off: null` 表示「不发送思考参数」，需要发送具体值时用 `off: none`）。
+
 ## 完成状态
 
 | 功能分组 | 状态 | 说明 |
@@ -400,6 +407,7 @@ sequenceDiagram
 | Codex 模型设置弹框与全局模型目录统一 | 本地完成，待真实客户端回归 | FNOS-007-32 |
 | 三方插件 API 反代配置保存 | 本地完成，待 NAS 回归 | FNOS-007-33 |
 | 气泡浮层磨砂背景 | 本地完成，待真实客户端视觉回归 | FNOS-007-34 |
+| Codex 模型能力元数据补全 | 本地完成，待真实客户端/账号回归 | FNOS-007-35 |
 
 ## 变更记录
 
@@ -430,4 +438,5 @@ sequenceDiagram
 | 2026-09-28 | 更新 Codex Auth 模型目录同步 | 新增 FNOS-007-31：更新默认模型基线，移除手动刷新按钮，登录后自动同步账号模型，并通过 DSH 设置变更事件刷新可用模型弹框。 |
 | 2026-09-28 | 统一 Codex 模型弹框数据源 | 新增 FNOS-007-32：修复官方 Models 页面仍读取 pi-ai 静态 Codex 目录的问题，让 provider 弹框与 Codex Auth 全局模型选择器共用 DSH 动态目录。 |
 | 2026-09-28 | 修复三方插件 API 反代配置保存 | 新增 FNOS-007-33：`dsh-fnos` 只导出类型 `Config` 导致 DSH 设置服务找不到该命名空间的运行时 schema，`settings.update('dsh-fnos', …)` 抛错并被 DSH webserver 转成空白 400，反代路径因此无法保存；同时修复允许清单写入并发覆盖、session-log 路由异常逃逸、插件与网关 `version` 判定漂移，并给其余浏览器接口补上兜底错误响应。本地证据见 [`FNOS-007-33-local-automated-2026-09-28`](/validation/FNOS-007-33-local-automated-2026-09-28)。 |
+| 2026-09-29 | 补全 Codex 模型能力元数据 | 新增 FNOS-007-35：`cordis.patch.yml` 的 `models` 整体替换内置目录，只写 `id`/`name` 的条目会丢失思考等级、图文输入和上下文窗口——`gpt-6-sol`、`gpt-6-luna` 在 pi-ai `0.87.0` 及更早版本的 Codex 目录中不存在，因此回落成 `reasoning: false`、`input: ["text"]`、`contextWindow: 262144`，表现为「新模型思考等级缺失」。给七个条目补上逐模型的 `input`、`contextWindow`、`maxTokens` 和 `reasoningEfforts`，取值对齐 pi-ai `0.87.1` 目录，使「恢复默认模型」同样回到真实能力。上游 `dsh-llm-pi-ai`（含 `0.2.0-rc.1`）能力解析逻辑未变，该元数据必须在 profile 中声明。本地证据见 [`FNOS-007-35-local-automated-2026-09-29`](/validation/FNOS-007-35-local-automated-2026-09-29)。 |
 | 2026-09-29 | 气泡浮层增加磨砂背景 | 新增 FNOS-007-34：DSH `0.1.7-rc.2` 把 `--dsw-specific-menu` 从 `--dsw-alias-bg-layer-3`（不透明）改为 `--dsw-menu-surface-fill`（浅色 `#f8f9fa94`、深色 `#43454a73`），使用该变量的气泡退化成半透明、可看穿背后内容。给 `@tnnevol/dsh-semi-ui` 的气泡浮层补上官方配套的 `--dsw-menu-backdrop-filter` 磨砂，并保留 `-webkit-` 前缀以覆盖 Safari 18 之前的版本。本地证据见 [`FNOS-007-34-local-automated-2026-09-29`](/validation/FNOS-007-34-local-automated-2026-09-29)。 |

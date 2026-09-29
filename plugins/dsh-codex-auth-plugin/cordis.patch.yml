@@ -5,6 +5,24 @@
 # Use the official pi-ai settings family so the DSH Models page renders the
 # provider's credential status and its standard model-catalog editor. The
 # access token is mirrored to this reference by the plugin after OAuth login.
+#
+# Every entry states its full capability set on purpose. A configured `models`
+# list replaces the installed catalog wholesale, so an entry that only names an
+# id keeps nothing but whatever the installed catalog happens to describe for
+# that id — and silently loses reasoning levels and image input when the id is
+# newer than that catalog, which is exactly what happened to `gpt-6-sol` and
+# `gpt-6-luna` (both absent from the codex catalog in pi-ai through 0.87.0,
+# added in 0.87.1). The fields below mirror the catalog's own values, so
+# clearing the DSH settings override ("恢复默认模型") lands on each model's real
+# capabilities again — context window, image input, and its actual thinking
+# levels — instead of on `reasoning: false` plus llm-pi-ai's defaults
+# (contextWindow 262144, input `["text"]`).
+#
+# `reasoningEfforts` is per model because the levels differ per model. Wire
+# spellings are the codex endpoint's own: `minimal` is sent as `low`, and `off`
+# is declared with no value so that "not thinking" omits the reasoning option
+# rather than sending a level the endpoint would reject. `gpt-6-astra` genuinely
+# has no `off` (its catalog entry maps `off` to `null`), so its list omits it.
 - id: llm-pi-ai
   config:
     providers:
@@ -14,15 +32,90 @@
         models:
           - id: gpt-6-astra
             name: GPT-6-Astra
+            contextWindow: 272000
+            maxTokens: 128000
+            input: [text, image]
+            reasoningEfforts:
+              minimal: low
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
           - id: gpt-6-sol
             name: GPT-6-Sol
+            contextWindow: 272000
+            maxTokens: 128000
+            input: [text, image]
+            reasoningEfforts:
+              off: none
+              minimal: low
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
           - id: gpt-6-luna
             name: GPT-6-Luna
+            contextWindow: 272000
+            maxTokens: 128000
+            input: [text, image]
+            reasoningEfforts:
+              off: none
+              minimal: low
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
           - id: gpt-5.6-sol
             name: GPT-5.6 Sol
+            contextWindow: 272000
+            maxTokens: 128000
+            input: [text, image]
+            reasoningEfforts:
+              off: null
+              minimal: low
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
           - id: gpt-5.6-terra
             name: GPT-5.6 Terra
+            contextWindow: 272000
+            maxTokens: 128000
+            input: [text, image]
+            reasoningEfforts:
+              off: null
+              minimal: low
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
           - id: gpt-5.6-luna
             name: GPT-5.6 Luna
+            contextWindow: 272000
+            maxTokens: 128000
+            input: [text, image]
+            reasoningEfforts:
+              off: null
+              minimal: low
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh
+              max: max
           - id: gpt-5.5
             name: GPT-5.5
+            contextWindow: 272000
+            maxTokens: 128000
+            input: [text, image]
+            reasoningEfforts:
+              off: null
+              minimal: low
+              low: low
+              medium: medium
+              high: high
+              xhigh: xhigh

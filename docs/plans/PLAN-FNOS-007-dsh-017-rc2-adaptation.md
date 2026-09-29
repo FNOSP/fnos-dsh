@@ -417,6 +417,7 @@ sequenceDiagram
 | PLAN-FNOS-007-T29-05 | FNOS-007-33-AC-06 | 加固 `PathAllowlistStore` 的 listener 隔离：listener 抛错时移除该 listener 并记录，健康 listener 继续收到更新，`reload()` 始终 resolve，避免 unhandled rejection 触发网关整体重启 | `tests/path-allowlist-listener-isolation.spec.ts` 5 例（修复前 4 例失败）；网关与插件全量测试 |
 | PLAN-FNOS-007-T30-01 | FNOS-007-34-AC-01、02 | 在 `@tnnevol/dsh-semi-ui` 的气泡浮层（`.semi-popover-wrapper`）上启用 DSH 官方配套变量 `--dsw-menu-backdrop-filter`，回退 `blur(40px) saturate(150%)`；保持 `background: var(--dsw-specific-menu)` 不变，只补磨砂 | `tests/frosted-overlays.spec.ts` 断言 `lib/style.css` 中的 popover 规则含该 token 与回退值；`dsh-semi-ui` 全量测试 |
 | PLAN-FNOS-007-T30-02 | FNOS-007-34-AC-03、04 | `-webkit-backdrop-filter` 单独放入 `@supports` 规则（与标准属性同块会被 lightningcss 去重丢弃），并重建四个消费插件产物，使内联样式同步更新 | 测试同时断言 `lib/style.css` 含前缀声明与 `@supports` 守卫、且源码同块内无前缀；红绿验证覆盖「完全缺失」与「同块并列」两种写法；四个插件 typecheck 与全量测试 |
+| PLAN-FNOS-007-T31-01 | FNOS-007-35-AC-01、02、03、04 | 在 `cordis.patch.yml` 中为七个 Codex 模型补全 `input`、`contextWindow`、`maxTokens` 与逐模型 `reasoningEfforts`，取值对齐 pi-ai `0.87.1` 的 Codex 目录；`off` 按模型语义区分「不声明 / `off: null` / `off: none`」 | `tests/host/model-capabilities.spec.ts` 断言每个条目的能力字段、思考等级顺序与 `off` 写法（修复前 3 例中 2 例失败）；真实 `llm-pi-ai` 启动后经 `PiAiAdapter.resolveModel` 读回等级、模态与上下文窗口 |
 
 ## 数据、权限和错误处理
 
@@ -523,6 +524,9 @@ git diff --check
 | T26 Codex Auth 授权页打开 | 本地完成，待 NAS/真实网络回归 | FNOS-007-30 |
 | T27 Codex Auth 模型目录自动同步 | 本地完成，待真实客户端/网络回归 | FNOS-007-31 |
 | T28 Codex 模型设置弹框与全局模型目录统一 | 本地完成，待真实客户端回归 | FNOS-007-32 |
+| T29 三方插件 API 反代配置保存 | 本地完成，待 NAS 回归 | FNOS-007-33 |
+| T30 气泡浮层磨砂背景 | 本地完成，待真实客户端视觉回归 | FNOS-007-34 |
+| T31 Codex 模型能力元数据补全 | 本地完成，待真实客户端/账号回归 | FNOS-007-35 |
 
 ## 变更记录
 
@@ -555,3 +559,4 @@ git diff --check
 | 2026-09-28 | 新增 T26 Codex Auth 授权页打开修复 | 设备授权页不再依赖 NAS 端 device-code 请求完成后才导航；客户端先打开固定 HTTPS 授权页，后台继续生成和轮询授权码。 |
 | 2026-09-28 | 新增 T27 Codex Auth 模型目录自动同步 | 更新默认模型列表，移除手动刷新入口，登录后自动写入账号目录，并依靠 DSH 的设置变更事件刷新会话可用模型弹框。 |
 | 2026-09-28 | 新增 T28 Codex 模型目录桥接 | 官方 Models 页的 Codex 候选弹框不再使用 pi-ai 静态目录，改为读取与全局模型选择器相同的 DSH Remote 动态目录。 |
+| 2026-09-29 | 新增 T31 Codex 模型能力元数据补全 | 配置里的 `models` 会整体替换内置目录，此前只声明 `id`/`name` 的条目在遇到目录未收录的 `gpt-6-sol`、`gpt-6-luna` 时丢失思考等级与图文输入；改为逐模型显式声明能力，使模型选择器与「恢复默认模型」都回到真实能力。 |
