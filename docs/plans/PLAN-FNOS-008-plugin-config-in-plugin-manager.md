@@ -203,7 +203,7 @@ sequenceDiagram
 | PLAN-FNOS-008-T03-06 | FNOS-008-07 / AC-06 | 模型弹框旧数据修复：`remote.llm.discoverModels` 由 `RemoteNamespaceService.install()` 以**只有 getter、没有 setter** 的访问器安装，原先的 `llm.discoverModels = bridged` 赋值被静默丢弃，桥接从未生效而回落到适配器构建期快照；改为 `Object.defineProperty` 覆盖并读回校验，失败即 fail closed，dispose 还原原 descriptor | T03-05 | A/B 端到端：同一 profile 下弹框模型列表从构建期快照（`gpt-5.4*`）变为账号目录；新增「覆盖 getter-only 访问器」回归测试 |
 | PLAN-FNOS-008-T03-07 | FNOS-008-06 / AC-02–03 | 运行时启用报 `webServer` 定位（上游缺陷，本仓库仅规避与上报）：`connection.rpc.handle()` 经 `get rpc() { const owner = this.ctx }` 取 **connection 服务自身的 ctx**，其 `inject` 在光纤激活时固化；`dsh-web-app` 把该行声明为 `inject: [webRuntime]`，补 `webServer` 的补丁来自 CodeBuddy 自己的 bundle 层，而**运行时 reload 只更新合成树，不会给已 active 的光纤补依赖**，因此「应用内启用」必然失败，重启才恢复。实测插件侧重试（20 次/30 秒）与追加 reload 均无效 | T03-05 | 以客户端实际 RPC `setBundleEnabled` 复现 `application:"failed"` + 帧级一致堆栈；插桩对比冷启动（`inject=["webRuntime","webServer"]`，告警 0、`POST /codebuddy/status` 返回合法信封）与运行时启用（reload 后组合树正确但旧光纤仍抛错）；重启后实机由 405 恢复 |
 
-### 阶段七：CodeBuddy 面板内联与配置合并（T07-01–T07-07）
+### 阶段七：CodeBuddy 面板内联与配置合并（T07-01–T07-08）
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
@@ -213,6 +213,7 @@ sequenceDiagram
 | PLAN-FNOS-008-T07-04 | FNOS-008-02 / AC-03 | 设置区块移除与控件迁移：`CodeBuddySection` 的登录/账号列表/开关不再渲染；「切换阈值」（`$autoSwitchThreshold`）与「显示余额余量」（`$showUsage`）作为独立小区块迁入详情页，读写仍走既有 store 与 host RPC | T07-02 | 新增控件测试：改阈值写入 store 且发 `autoSwitch` RPC；旧「管理面板」入口与 `nav`/`back`/`managePanel` 文案不再被引用 |
 | PLAN-FNOS-008-T07-05 | FNOS-008-02 / AC-04、FNOS-008-05 / AC-01、AC-04 | 配置合并：`codebuddy-auth.json` 扩为单一文档（`version: 2`：`activeId`/`accounts`/`prefs`/`growthRun`）；4 个路径 getter 收敛；`growthRun` 改用 storage 的同一 `mutationQueue`（两个模块原本各持一个队列却写同一目录）；新增旧格式读时迁移 | 无 | `storage.spec.ts` 扩展：旧 4 文件 → 单文档，字段逐项保留；迁移不删除旧文件 |
 | PLAN-FNOS-008-T07-06 | FNOS-008-02 / AC-04 | 显式迁移脚本：`plugins/dsh-codebuddy-plugin/scripts/migrate-storage.mjs` + npm script，与读时迁移共用同一实现（不各写一份）；旧文件改名为 `.migrated-<ts>` 保留，历史 `*.backup-*` 不处理 | T07-05 | 脚本在含旧格式的沙盒目录上运行：生成单文档、旧文件改名、输出摘要；重复运行幂等 |
+| PLAN-FNOS-008-T07-08 | FNOS-008-02 / AC-05 | 多会话并发换号修复：`failedId` 改为「本次尝试真正被拒的账号」（发出请求前冻结、每轮切换后更新）；`switchTo` CAS 失败时采用当前账号继续重试而非放弃；`from === to` 时不产出「已自动切换」提示。补端到端并发用例（两/三个账号、失败响应晚于别人切换的确定性编排） | T07-03 | 反转任一修复对应用例变红；插件 67 文件全绿 |
 | PLAN-FNOS-008-T07-07 | FNOS-008-02 / AC-01–04、FNOS-008-06 / AC-01 | 端到端验证：探针 profile + 无头 Electron 打开插件详情页，断言四个区块渲染、两个控件可写、Token 图表挂载、成长任务入口可用；确认无 `#/codebuddy` 残留路由 | T07-03、T07-04、T07-06 | 真实前端渲染证据；修复前失败、修复后通过 |
 
 ### 阶段四：文档与索引（T04-01–T04-03）
@@ -255,6 +256,7 @@ flowchart TD
     T07b --> T07d[T07-04 设置移除与控件迁移]
     T07e[T07-05 配置合并] --> T07f[T07-06 迁移脚本]
     T07c --> T07g[T07-07 端到端验证]
+    T07g --> T07h[T07-08 并发换号修复]
     T07d --> T07g
     T07f --> T07g
     T01b --> T04[T04 文档与本地兼容验证]
@@ -374,3 +376,4 @@ flowchart TD
 | 2026-09-28 | 新增 Codex Auth Desktop 任务 | 审计确认 FNOS-008-07 为功能性阻断：`signIn()` 把 `window.open` 的 `null` 判为「弹窗被拦截」并提前返回，Desktop 下设备码永不请求。新增 T03-03（修复登录阻断）与 T03-04（窗口句柄可选化与回归），并把阶段五验收范围扩到两个插件的 `null` 开窗路径。 |
 | 2026-09-28 | Codex Desktop 修复实现完成、Desktop 验收阻塞 | 落地 T03-03/T03-04：新增 `src/client/window-opener.ts`（`openAuthorizationWindow`），`signIn()` 在 `null` 时继续请求设备码，句柄登记改为判空守卫，取消作废路径改 `popup?.close()`；新增 `tests/client/desktop-window.spec.ts`（10 条）并同步两处旧写法断言。插件检查 18 文件/88 测试通过，构建通过，本地组合下 `/plugins/dsh-codex-auth-plugin/auth/status` 端到端返回 200。本机无 Electron 运行时，真实 Desktop 验收未执行，证据见 [FNOS-008-07 本地验证记录](/validation/FNOS-008-07-codex-desktop-local-2026-09-28)。 |
 | 2026-09-28 | 落地 T03-01/T03-02 | Codex Auth 配置从设置弹框 `settings.section` 迁入插件管理页 `plugins.bundle.config`（key `@tnnevol/dsh-codex-auth`）。补 `@deepseek-ai/dsh-client-ui-plugin-manager` 的 catalog 条目、peer/dev 依赖、`dsh.client.inject` 与 compatibility 清单；客户端仅 type-only 引入该包。新增 `tests/client/bundle-config-registration.spec.ts`（8 条）覆盖注册契约、无设置侧入口、无运行时 import、类型依赖、compat 一致性与布局解耦。插件检查 19 文件/96 测试通过；构建产物含新注册且不含 `settings.section`；组合级确认 Codex 条目 `enabled/active`。数据读写路径未变，无数据迁移。 |
+| 2026-09-29 | 新增 T07-08 | 并发换号审计发现两个真实缺陷（详见 FNOS-008-02-AC-05 变更记录），登记为 T07-08 并补可证伪的并发用例。 |

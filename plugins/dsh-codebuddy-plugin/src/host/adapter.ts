@@ -384,7 +384,16 @@ export class CodeBuddyAdapter extends LlmAdapter {
     const attempted = new Set<string>()
     const current = await this.config.session.activeAccountSummary()
     if (current !== undefined) attempted.add(current.id)
-
+    /**
+     * **本次尝试所用的账号**，即失败时的「真凶」。
+     *
+     * 必须在**发出请求前**决定，不能在 catch 里重新读 `activeAccountSummary()`：
+     * 并发下别的会话可能刚把当前账号换掉，重读拿到的是**别人的**账号。把它当作
+     * 「被拒的账号」传下去，会让一个健康账号被误判为「已经失败」而排除——3 个
+     * 账号时级联切到更差的账号，2 个账号时直接放弃并抛 QUOTA（外层不可重试），
+     * 该会话就失败了。
+     */
+    let attemptAccountId: string | undefined = current?.id
     /**
      * 尝试上限 = 账号总数。
      *
@@ -395,6 +404,8 @@ export class CodeBuddyAdapter extends LlmAdapter {
     const maxAttempts = Math.max(1, total)
 
     let lastError: LlmError | undefined
+    /** 上一轮被拒的账号 id；供下一轮换号决策排除「已失败的那个」。 */
+    let rejectedId: string | undefined
     /**
      * 开关是否允许换号。**在切换点显式检查**，而不是依赖「上一轮 catch 检查过」
      * 这个隐式前提。
@@ -415,19 +426,37 @@ export class CodeBuddyAdapter extends LlmAdapter {
           if (lastError === undefined) break
           throw lastError
         }
-        const switched = await this.failoverToNextAccount(attempted)
+        const switched = await this.failoverToNextAccount(attempted, rejectedId)
         if (switched === undefined) break
         attempted.add(switched.id)
-        // 在重试的流开始前，把接管以可见的助手文本呈现出来：StreamChunk
-        // 联合类型没有 status 成员，而用户应当看到请求为何短暂停顿、以及
-        // 后续对话由谁的额度来支付。
-        yield {
-          type: 'text-delta',
-          index: 0,
-          text: `\n[CodeBuddy] 账号「${switched.from}」额度不足，已自动切换至「${switched.to}」继续。\n`,
+        // 下一轮用的就是刚选定的这个账号；不更新的话第 3 轮会拿着第 1 轮的旧值
+        // 去判断「谁被拒了」，又退化成旧缺陷。
+        attemptAccountId = switched.id
+        /**
+         * `from === to`：并发下**别的会话已经把当前账号换好了**，本会话只是采用
+         * 它继续。没有发生切换，因此不产出提示——否则用户会看到一句自己所处会话
+         * 并未执行的「已自动切换至 X」，而且 X 还是此刻正在用的账号。
+         *
+         * 重试本身仍然继续：这正是这个分支存在的意义（旧实现在这里直接失败）。
+         */
+        if (switched.from !== switched.to) {
+          // 在重试的流开始前，把接管以可见的助手文本呈现出来：StreamChunk
+          // 联合类型没有 status 成员，而用户应当看到请求为何短暂停顿、以及
+          // 后续对话由谁的额度来支付。
+          yield {
+            type: 'text-delta',
+            index: 0,
+            text: `\n[CodeBuddy] 账号「${switched.from}」额度不足，已自动切换至「${switched.to}」继续。\n`,
+          }
         }
       }
 
+      /**
+       * 冻结**本轮**使用的账号。首轮是进入循环时读到的那个；后续轮次是上一轮末尾
+       * 切过去的那个。冻结成常量而不是每轮重读：重读会拿到并发的别人改过的值，
+       * 那正是本缺陷的成因。
+       */
+      const attemptId = attemptAccountId
       /**
        * 是否已经向调用方产出过 chunk。
        *
@@ -470,6 +499,8 @@ export class CodeBuddyAdapter extends LlmAdapter {
          */
         const swappable = error.code === QUOTA_EXCEEDED_CODE || error.code === 'RATE_LIMIT'
         if (!autoSwitchAllowed() || !swappable) throw error
+        // 把**本轮真正被拒的账号**交给下一轮决策，而不是届时重新读当前账号。
+        rejectedId = attemptId
       }
     }
     // 换不动了（没有未尝试过的账号、或尝试次数用尽）：把最后一次的失败如实抛出，
@@ -480,15 +511,24 @@ export class CodeBuddyAdapter extends LlmAdapter {
   /**
    * 在额度失败后，把当前活动账号切换到下一个可用的账号。
    *
-   * 不接收触发失败本身：换号只关心「还有哪些账号没试过」（`attempted`），
-   * 失败原因由调用方负责呈现。
+   * **`rejectedId` 必须是真正被拒的那个账号**，由调用方在**发出请求前**冻结并
+   * 传进来——不能在这里重新读 `activeAccountSummary()`：并发下别的会话可能刚把
+   * 当前账号换成一个健康账号，重读拿到的就是**别人的**账号。把它当作「已失败」
+   * 传进决策会让那个健康账号被排除，于是本会话要么级联到更差的账号，要么在只有
+   * 两个账号时直接放弃并抛 QUOTA（外层不可重试）——明明有人已经切好了却仍然失败。
    *
-   * @param attempted 本轮已试过的账号 id（避免在两个账号之间来回切）。
+   * 决策可能选回**当前已在用的账号**（当它健康且未被尝试过时）：并发下这正是
+   * 期望结果，表示「直接用别人切好的账号重试」。此时 CAS 的期望值恰好等于目标，
+   * `switchTo` 会把它当作「已经是目标账号」而成功返回。
+   *
+   * @param attempted - 本次请求已试过的账号 id（避免在两个账号之间来回切）。
+   * @param rejectedId - 真正被拒的账号 id；缺省时退回「当前账号」的旧行为。
    * @returns from/to 展示名；当没有其他账号能接管时为 `undefined`
    *   （只有一个账号，或其余凭据全部过期）。
    */
   private async failoverToNextAccount(
     attempted: ReadonlySet<string>,
+    rejectedId?: string,
   ): Promise<{ from: string, to: string, id: string } | undefined> {
     const current = await this.config.session.activeAccountSummary()
     if (current === undefined) return undefined
@@ -509,16 +549,43 @@ export class CodeBuddyAdapter extends LlmAdapter {
     }
     const decision = decideReactiveTarget({
       candidates,
-      failedId: current.id,
+      failedId: rejectedId ?? current.id,
       triedIds: [...attempted],
     })
     if (decision.kind === 'stay') return undefined
 
-    // CAS：探测期间当前账号可能已被改动（用户手动切换、或并发的主动切换）。
-    // 不匹配就放弃，避免拿着过期状态把账号切回去。
+    /**
+     * CAS 的期望值取**重试将要使用的账号**（`current`），而不是被拒的那个：
+     * `switchTo` 的语义是「把当前账号改成目标」，因此它比对的是当前账号。
+     */
     const applied = await this.config.session.switchTo(decision.targetId, current.id)
-    if (!applied) return undefined
+    if (!applied) {
+      /**
+       * CAS 失败 = 探测期间**别的会话已经把当前账号改掉了**。
+       *
+       * 旧实现就此放弃，于是本会话抛 QUOTA（外层不可重试）而失败——尽管此刻
+       * 当前账号很可能已经是别人刚切好的健康账号。并发下这是**常态**而不是异常：
+       * N 个会话同时撞上同一个耗尽账号时，只有一个能赢得 CAS，其余都会失败。
+       *
+       * 正确动作是**采用当前账号继续**：它既不是被拒的那个，也没被本请求试过，
+       * 就是一次可用的重试机会。缺了这个分支，2 个账号的场景下必然有会话失败。
+       *
+       * 仍要校验它没被本请求试过，否则会与「同一请求内不重复使用同一账号」冲突。
+       */
+      const after = await this.config.session.activeAccountSummary()
+      if (after === undefined || attempted.has(after.id)) return undefined
+      try { this.config.onAccountSwitched?.() } catch { /* 广播失败不影响请求继续 */ }
+      /**
+       * `from === to`：表示**没有发生切换**，只是改用别人已经切好的账号。调用方
+       * 据此不产出「已自动切换」提示——那会让用户以为是自己这边切过去的。
+       */
+      return { from: after.nickname, to: after.nickname, id: after.id }
+    }
     try { this.config.onAccountSwitched?.() } catch { /* 广播失败不影响请求继续 */ }
+    /**
+     * 目标就是当前账号时（并发下别人刚切好），`from`/`to` 会是同一个名字。
+     * 调用方据此可以不产出「已切换」提示——实际上并没有发生切换。
+     */
     return { from: current.nickname, to: decision.targetNickname, id: decision.targetId }
   }
 

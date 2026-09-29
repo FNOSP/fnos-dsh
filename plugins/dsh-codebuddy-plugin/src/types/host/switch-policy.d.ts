@@ -123,7 +123,12 @@ export type StayCode =
  */
 export interface ReactiveSwitchInput {
   candidates: readonly SwitchCandidate[]
-  /** 刚失败的账号 id。 */
+  /**
+   * **本次尝试真正被拒的那个账号** id。
+   *
+   * 必须由调用方记录「这次尝试用的是谁」，而不是重试前重新读当前账号——并发下
+   * 两者会分叉（别人可能刚把当前账号换掉了），见 `decideReactiveTarget`。
+   */
   failedId: string
   /** 本次请求**已经尝试过**的账号 id，必须排除，避免对同一账号反复重试。 */
   triedIds: readonly string[]
