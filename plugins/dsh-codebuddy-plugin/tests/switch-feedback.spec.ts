@@ -28,105 +28,94 @@ import { SRC } from './paths.ts'
  * 自动禁用按钮，因此两个 prop 必须都给。
  */
 const ROOT = SRC
-const SECTION = readFileSync(`${ROOT}/components/CodeBuddySection.tsx`, 'utf8')
+// 设置区块（`CodeBuddySection`）随配置入口迁移移除后，账号切换按钮只剩账号卡片
+// 菜单里的「设为当前」这一个入口，因此这些不变量改为在卡片与其宿主上验证。
+const CARD = readFileSync(`${ROOT}/client/ui/account-card.tsx`, 'utf8')
+const DETAIL = readFileSync(`${ROOT}/client/panel.tsx`, 'utf8')
 const LOCALES_ZH = readFileSync(`${ROOT}/client/locales/zh.ts`, 'utf8')
 const LOCALES_EN = readFileSync(`${ROOT}/client/locales/en.ts`, 'utf8')
 
-/** 切换账号按钮的渲染片段（从 switchAccount 的定义到移除按钮之前）。 */
-const switchButtonBlock = (): string => {
-  const start = SECTION.indexOf('const switching = switchingId === account.id')
+/** 卡片菜单里「设为当前」这一项的渲染片段。 */
+const switchMenuItemBlock = (): string => {
+  const start = CARD.indexOf("key=\"switch\"")
   expect(start).toBeGreaterThan(-1)
-  return SECTION.slice(start, SECTION.indexOf('setRemoveTarget', start))
+  return CARD.slice(start, CARD.indexOf('</DshDropdown.Item>', start))
+}
+
+/** 切换动作的执行片段（含在途守卫与收尾）。 */
+const switchActionBlock = (): string => {
+  const start = DETAIL.indexOf('const switchOne = async')
+  expect(start).toBeGreaterThan(-1)
+  return DETAIL.slice(start, DETAIL.indexOf('\n  }', start))
 }
 
 describe('切换账号按钮有进行中反馈', () => {
-  it('switchingId 被读取并驱动 loading（不再只写不读）', () => {
-    expect(SECTION).toMatch(/const switching = switchingId === account\.id/)
-    expect(switchButtonBlock()).toMatch(/loading=\{switching\}/)
+  it('在途标记被读取并驱动菜单项的禁用与文案', () => {
+    expect(switchActionBlock()).toMatch(/setBusyId\(id\)/)
+    const item = switchMenuItemBlock()
+    expect(item).toMatch(/disabled=\{[^}]*busy[^}]*\}/)
+    expect(item).toMatch(/busy \? labels\.switching : switchLabel/)
   })
 
-  it('切换中禁用按钮，避免重复点击导致连续换号', () => {
+  it('切换中禁用入口，避免重复点击导致连续换号', () => {
     // 重复点击会让 host 连续换号，最终停在哪个账号取决于网络返回顺序。
-    expect(switchButtonBlock()).toMatch(/disabled=\{switching \|\|/)
+    // 两层守卫：宿主在途时直接返回，卡片菜单项同时禁用。
+    expect(switchActionBlock()).toMatch(/if \(busyId !== undefined\) return/)
+    expect(switchMenuItemBlock()).toMatch(/disabled=\{[^}]*busy[^}]*\}/)
   })
 
   it('切换中文案使用既有的 accountSwitching 键（不再是孤立 i18n）', () => {
-    expect(switchButtonBlock()).toMatch(/\{switching \? t\('accountSwitching'\) : t\('selectAccount'\)\}/)
-    // 该键必须真实存在于两种语言——曾定义后无人使用。
+    // 该键必须真实存在于两种语言，且真的被接线到卡片标签上。
     expect(LOCALES_ZH).toMatch(/accountSwitching: '切换中…'/)
     expect(LOCALES_EN).toMatch(/accountSwitching: 'Switching…'/)
+    expect(DETAIL).toMatch(/switching: t\('accountSwitching'\)/)
+    expect(switchMenuItemBlock()).toMatch(/labels\.switching/)
   })
 
-  it('loading 与 disabled 同时给：Semi 的 loading 不会自动禁用', () => {
-    // Semi Button.render(): `isLoading && !isDisabled` 才走 IconButton 分支，
-    // 即 loading 只影响图标位、不改变可点击性。只给 loading 会让「看起来在转」
-    // 的按钮仍可被点击——这正是要防的。
-    const block = switchButtonBlock()
-    expect(block).toContain('loading={switching}')
-    expect(block).toMatch(/disabled=\{switching \|\|/)
+  it('在途标记在 finally 里清除，RPC 抛错也不会永久卡住入口', () => {
+    const action = switchActionBlock()
+    expect(action).toContain('finally')
+    expect(action).toMatch(/setBusyId\(undefined\)/)
   })
 
-  it('余额不足仍然禁用（当前账号除外）', () => {
-    // 断言的是**规则本身**而不是某个变量名：这段曾被重构成
-    // `const isActive = account.id === ...active?.id` + `!isActive`，
-    // 语义等价但字面量变了，绑字面量的断言会在无害重构时误报（已发生过）。
-    //
-    // 注意 `autoSwitch` **不再**是禁用原因：自动切换开启时改为整体不渲染
-    // （见下方「自动切换开启时隐藏所有账号的选择入口」）。同一个条件不该在
-    // 禁用与渲染两处各写一遍，否则日后改动容易只改一处。
-    const block = switchButtonBlock()
-    expect(block).toMatch(/balance !== undefined && !balance\.usable/)
-    // 该禁用条件已不再包含 autoSwitch。
-    const disabled = block.slice(block.indexOf('disabled={switching'), block.indexOf('onClick='))
-    expect(disabled).not.toContain('autoSwitch')
-    // 「当前账号除外」这一条件可以是原字面量，也可以是等价的 isActive 取反。
-    const literalForm = /account\.id !== accounts\.find\(item => item\.active\)\?\.id/
-    const isActiveForm = /!isActive/
-    expect(literalForm.test(block) || isActiveForm.test(block)).toBe(true)
+  it('禁用与宿主守卫同时给：Semi 的 disabled 只是外观，真正的防重在宿主', () => {
+    // Semi 的 `disabled` 只挡指针事件；键盘与程序触发的点击仍可能到达 onClick。
+    // 因此卡片里的 `if (!busy) onSwitch(...)` 与宿主的在途早退必须同时存在。
+    const item = switchMenuItemBlock()
+    expect(item).toMatch(/disabled=\{[^}]*busy[^}]*\}/)
+    expect(item).toMatch(/if \(!busy\) onSwitch\(row\.id\)/)
+    expect(switchActionBlock()).toMatch(/if \(busyId !== undefined\) return/)
   })
 
-  it('当前账号若要被排除，必须先算出它是不是当前账号', () => {
-    // 上面两种写法都以后者为准，这里锁住它的定义，避免有人写了 `!isActive`
-    // 却把 isActive 定义反了或定义成别的字段。
-    expect(switchButtonBlock()).toMatch(/const isActive = account\.id === accounts\.find\(item => item\.active\)\?\.id/)
+  it('余额不足或已掉线时禁用菜单项', () => {
+    const item = switchMenuItemBlock()
+    expect(item).toMatch(/!row\.usable/)
+    expect(item).toMatch(/row\.expired/)
   })
 })
 
 /**
- * 已选中的账号不再出现「选择账号」按钮。
+ * 当前账号不出现「设为当前」入口。
  *
- * 真实缺陷：该按钮原先无条件渲染，而它的 `disabled` 里含
- * `... && account.id !== activeId` —— 对当前账号这一项恒为 false，于是
- * `disabled` 只剩 `switching`，非切换状态下按钮**可点**且文案为「选择账号」，
- * 点了是自己切自己（host 侧也无意义）。面板卡片的同名菜单项早已按
- * `!row.active && !autoSwitch` 隐藏，设置区块此前漏了。
+ * 对当前账号点「设为当前」是自己切自己（host 侧也无意义）。这条规则原先在
+ * 设置区块的「选择账号」按钮上实现（且曾经漏掉过——按钮无条件渲染、`disabled`
+ * 里那个「不等于当前账号」的条件对当前账号恒为 false，于是非切换状态下可点）。
+ * 设置区块移除后，卡片菜单的 `!row.active` 是唯一实现点。
  */
-describe('当前账号隐藏「选择账号」按钮', () => {
-  const HIDE_LINE = /if \(hideForAutoSwitch \|\| \(isActive && !switching\)\) return null/
-
-  it('已选中且非切换中时返回 null，不渲染按钮', () => {
-    expect(switchButtonBlock()).toMatch(HIDE_LINE)
+describe('当前账号隐藏「设为当前」入口', () => {
+  it('菜单项只在非当前账号上渲染', () => {
+    expect(CARD).toMatch(/if \(!row\.active && !autoSwitch\) \{/)
+    expect(switchMenuItemBlock()).toMatch(/key="switch"/)
   })
 
-  it('切换在途时仍渲染，保留「切换中…」与转圈', () => {
-    // 切换成功前该账号尚未成为当前账号（setAccounts 在响应回来后才更新），
-    // 若此刻就隐藏，用户点了按钮它会直接消失，看不出请求是否发出。
-    const block = switchButtonBlock()
-    expect(block).toMatch(HIDE_LINE)
-    // 隐藏发生在构造 button 之后，因此 switching 分支的文案仍在同一片段里。
-    expect(block).toMatch(/\{switching \? t\('accountSwitching'\) : t\('selectAccount'\)\}/)
-  })
-
-  it('隐藏位置在 button 构造之后，不会连切换中的转圈一起砍掉', () => {
-    const block = switchButtonBlock()
-    expect(block.indexOf('const button = (')).toBeLessThan(block.indexOf('if (hideForAutoSwitch ||'))
-  })
-
-  it('当前账号这一项仍然被隐藏（条件里保留了 isActive）', () => {
-    const block = switchButtonBlock()
-    expect(block).toMatch(/isActive && !switching/)
-    // 且为此必须先算出 isActive，避免写成别的字段。
-    expect(block).toMatch(/const isActive = account\.id === accounts\.find\(item => item\.active\)\?\.id/)
+  it('切换在途时菜单项仍渲染，保留下「切换中…」反馈', () => {
+    // 切换成功前该账号尚未成为当前账号（`reload()` 在响应回来后才刷新行数据），
+    // 若此刻就隐藏，用户点了入口它会直接消失，看不出请求是否发出。
+    // 卡片的条件里不含 busy，因此这一点天然成立；断言锁住它，避免有人为了
+    // 「切换中别显示」而把 busy 加进隐藏条件。
+    const condition = CARD.slice(CARD.indexOf('if (!row.active && !autoSwitch)'), CARD.indexOf('key="switch"'))
+    expect(condition).not.toContain('busy')
+    expect(switchMenuItemBlock()).toMatch(/busy \? labels\.switching : switchLabel/)
   })
 })
 
@@ -142,85 +131,41 @@ describe('当前账号隐藏「选择账号」按钮', () => {
  * 而这里要的是「这个操作此刻不存在」。
  */
 describe('自动切换开启时隐藏所有账号的选择入口', () => {
-  it('隐藏条件包含 autoSwitch（且不与 switching 冲突）', () => {
-    const block = switchButtonBlock()
-    expect(block).toMatch(/const hideForAutoSwitch = autoSwitch && !switching/)
-    expect(block).toMatch(/if \(hideForAutoSwitch \|\| \(isActive && !switching\)\) return null/)
+  it('隐藏条件包含 autoSwitch', () => {
+    expect(CARD).toMatch(/if \(!row\.active && !autoSwitch\) \{/)
   })
 
   /**
-   * 取出 `hideForAutoSwitch` 的右侧表达式，并用**结构化求值**在真值下判定。
+   * 隐藏条件必须**只**由 autoSwitch 与账号是否为当前决定，且不依赖「是哪个账号」。
    *
-   * 为什么要求值而不是做词法检查：这里最初断言「定义行不含 isActive/activeId」，
-   * 结果漏掉了一个真实变异——把条件写成
+   * 设置区块那份实现曾出过真实变异：条件写成
    * `autoSwitch && !switching && account.id === accounts.find(item => item.active)?.id`
-   * （退化成「只隐藏当前账号」，正是本次要修的 bug），字面量里既没有 "isActive"
-   * 也没有 "activeId"，词法检查完全看不见它。
+   * ——退化成「只隐藏当前账号」，正是要修的 bug，而纯词法检查看不见它
+   * （字面量里既没有 isActive 也没有 activeId）。
    *
-   * 真正的不变量是语义的：**隐藏判定不得依赖是哪个账号**。因此在「当前账号」与
-   * 「非当前账号」两种取值下各判定一次，要求结果相同。
-   *
-   * 不用 `new Function`/eval（仓库禁用 `no-new-func`）：改为把表达式里的标识符
-   * 替换为字面量后按运算符求值——本表达式只由 `&&`、`!`、标识符与括号组成，
-   * 足以覆盖。若日后表达式复杂到无法这样求值，下方有一条守卫会失败并提示改用
-   * 真实组件渲染测试。
+   * 配置入口迁移后隐藏只剩卡片菜单一处，判据是可读的两个字段：
+   * `!row.active && !autoSwitch`。这里直接断言这两个字段（而不是用求值夹具），
+   * 因为表达式已足够简单，且卡片是纯 props 组件——真正的行为覆盖由 card 渲染
+   * 用例负责。
    */
-  function hideExpr(): string {
-    const line = switchButtonBlock().split('\n').find(l => l.includes('const hideForAutoSwitch ='))
-    expect(line).toBeDefined()
-    return line!.slice(line!.indexOf('=') + 1).trim().replace(/;$/, '')
-  }
-
-  /**
-   * 对只含标识符与 `&&`/`!`/括号的表达式求值。
-   *
-   * 做法：把每个标识符按 ctx 换成 `true`/`false` 字面量，再用一组穷举判定——
-   * `A && !B` 这类表达式在布尔域上等价于「所有合取项都为真」。这里直接实现一个
-   * 极小的解析：按 `&&` 切分，每一项去掉前导 `!` 后查 ctx。
-   */
-  function evalConjunction(expr: string, ctx: Record<string, boolean>): boolean {
-    // 守卫：表达式若超出「&& 合取 + ! 取反 + 标识符」的形式，说明它已复杂到
-    // 本夹具不该假装能求值，直接失败提醒改用渲染测试。
-    const allowed = /^[\sA-Za-z0-9_$.?!&()]+$/
-    expect(allowed.test(expr)).toBe(true)
-    expect(expr).not.toMatch(/\(|\)/)
-    return expr.split('&&').map(part => part.trim()).every((part) => {
-      const negated = part.startsWith('!')
-      const name = part.replace(/^!+/, '').trim()
-      const value = ctx[name]
-      expect(value).toBeDefined()
-      return negated ? !value : value
-    })
-  }
-
-  it('隐藏判定不依赖是哪个账号（当前 / 非当前账号结果相同）', () => {
-    const expr = hideExpr()
-    // 同一组条件、同一个账号的身份差异不影响结果——本用例的核心断言。
-    const base = { autoSwitch: true, switching: false }
-    expect(evalConjunction(expr, { ...base, isActive: true })).toBe(true)
-    expect(evalConjunction(expr, { ...base, isActive: false })).toBe(true)
+  it('隐藏判定只由 autoSwitch 与 row.active 决定', () => {
+    const condition = CARD.slice(CARD.indexOf('if (!row.active && !autoSwitch)'), CARD.indexOf('key="switch"'))
+    expect(condition).toContain('!row.active')
+    expect(condition).toContain('!autoSwitch')
+    // 不得引入与"是哪个账号"有关的额外判据（那会退化成只隐藏当前账号）。
+    expect(condition).not.toMatch(/row\.id|nickname|uid/)
   })
 
-  it('autoSwitch 关闭时不隐藏', () => {
-    expect(evalConjunction(hideExpr(), { autoSwitch: false, switching: false })).toBe(false)
+  it('autoSwitch 关闭时显示入口（条件取反正确）', () => {
+    // 断言取反方向：写成 `row.active && autoSwitch` 会在完全相反的情形下显示，
+    // 是这类条件最容易犯的错。
+    expect(CARD).toMatch(/if \(!row\.active && !autoSwitch\) \{/)
   })
 
-  it('切换在途时不隐藏，保留转圈', () => {
-    expect(evalConjunction(hideExpr(), { autoSwitch: true, switching: true })).toBe(false)
-  })
-
-  it('切换在途时二者都放行，保留转圈', () => {
-    // 若 autoSwitch 分支不放行 switching，用户点了按钮它会立刻消失。
-    const block = switchButtonBlock()
-    expect(block).toMatch(/const hideForAutoSwitch = autoSwitch && !switching/)
-    expect(block).toMatch(/isActive && !switching/)
-  })
-
-  it('与面板菜单同一语义：两个入口都用 autoSwitch 隐藏', () => {
-    const card = readFileSync(`${ROOT}/client/ui/account-card.tsx`, 'utf8')
-    // 面板：自动切换开启时不渲染「设为当前」。
-    expect(card).toMatch(/if \(!row\.active && !autoSwitch\) \{/)
-    // 设置区块：同样由 autoSwitch 触发隐藏。
-    expect(switchButtonBlock()).toMatch(/const hideForAutoSwitch = autoSwitch && !switching/)
+  it('切换在途不影响隐藏判定：入口保留，只把文案换成「切换中…」', () => {
+    // 若把 busy 加进隐藏条件，用户点了入口它会立刻消失，看不出请求是否发出。
+    const condition = CARD.slice(CARD.indexOf('if (!row.active && !autoSwitch)'), CARD.indexOf('key="switch"'))
+    expect(condition).not.toContain('busy')
+    expect(switchMenuItemBlock()).toMatch(/busy \? labels\.switching : switchLabel/)
   })
 })

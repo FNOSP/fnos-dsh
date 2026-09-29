@@ -38,9 +38,14 @@ const HOOK = readFileSync(
   srcPath('client/hooks/use-auto-prefs.ts'),
   'utf8',
 )
-/** components/CodeBuddySection.tsx（设置页组件，store 来源之一）。 */
-const SECTION = readFileSync(
-  srcPath('components/CodeBuddySection.tsx'),
+/** 插件详情页区块（配置入口迁移后，账号管理的唯一宿主）。 */
+const DETAIL = readFileSync(
+  srcPath('client/panel.tsx'),
+  'utf8',
+)
+/** 详情页里的偏好表：切换阈值 + 显示额度余量（自设置区块迁来）。 */
+const PREFS = readFileSync(
+  srcPath('components/CodeBuddyPreferences.tsx'),
   'utf8',
 )
 
@@ -131,12 +136,14 @@ describe('自动切换账号开关', () => {
     expect(accountsBody).toContain('<AutoSwitchToggle')
   })
 
-  it('开关状态与设置页共用同一个 store（底层同一存储键）', () => {
-    // store 是 hook 的来源；hook 与设置页都 useStore($autoSwitch)。
-    // （早期设置页还会就地写 `$autoSwitch.set(checked)`，那是另一回事——
-    // store 是同一份，不论写入发生在哪一处。）
+  it('开关状态与偏好表共用同一个 store（底层同一存储键）', () => {
+    // store 是 hook 的来源；账号区经 `useAutoPrefs` 读它，偏好表的阈值滑杆与
+    // 显示额度余量开关直接 `useStore` 同一个模块。store 只有一份，因此两边
+    // 必然同步——本地写入发生在哪一处都不影响这一点。
     expect(HOOK).toContain('useStore($autoSwitch)')
-    expect(SECTION).toMatch(/useStore\(\$autoSwitch\)/)
+    expect(PREFS).toMatch(/useStore\(\$autoSwitch\)/)
+    // 阈值同源：账号区的开关行与偏好表的滑杆读同一个 atom。
+    expect(PREFS).toMatch(/useStore\(\$autoSwitchThreshold\)/)
   })
 
   it('切换开关时同步到 host', () => {
@@ -170,18 +177,21 @@ describe('自动签到 / 自动旅行开关只在管理面板', () => {
     expect(accountsBody).toMatch(/rpc\.call\(CODEBUDDY_AUTH_CHANNEL, 'autoTravel', \{ enabled: checked \}\)/)
   })
 
-  it('设置页不再渲染这两个开关', () => {
-    // 设置页的偏好表只剩自动切换 / 阈值 / 显示额度余量。
-    expect(SECTION).not.toMatch(/title=\{t\('autoCheckin'\)\}/)
-    expect(SECTION).not.toMatch(/title=\{t\('travelAuto'\)\}/)
-    expect(SECTION).not.toContain('toggleAutoCheckin')
-    expect(SECTION).not.toContain('toggleAutoTravel')
+  it('偏好表不再渲染这两个开关（它们只在账号区的自动开关行）', () => {
+    // 偏好表只剩「切换阈值 / 显示额度余量」两项：自动签到与自动旅行是账号区的
+    // 开关行（`auto-toggles`），不该在偏好表里重复一份。
+    expect(PREFS).not.toMatch(/title=\{t\('autoCheckin'\)\}/)
+    expect(PREFS).not.toMatch(/title=\{t\('travelAuto'\)\}/)
+    expect(PREFS).not.toContain('toggleAutoCheckin')
+    expect(PREFS).not.toContain('toggleAutoTravel')
   })
 
-  it('设置页仍保留自动切换与显示额度余量（只收走运营周期那两个）', () => {
-    expect(SECTION).toMatch(/title=\{t\('autoSwitch'\)\}/)
-    expect(SECTION).toMatch(/title=\{t\('autoSwitchPct'\)\}/)
-    expect(SECTION).toMatch(/title=\{t\('showUsage'\)\}/)
+  it('详情页仍保留切换阈值与显示额度余量（只收走运营周期那两个开关）', () => {
+    // 「自动切换」开关本身在账号区头部（`AutoSwitchToggle`），阈值与显示额度
+    // 余量在偏好表里——迁移前后这一分工未变。
+    expect(PREFS).toMatch(/title=\{t\('autoSwitchPct'\)\}/)
+    expect(PREFS).toMatch(/title=\{t\('showUsage'\)\}/)
+    expect(DETAIL).toContain('AutoSwitchToggle')
   })
 
   it('两个开关组件仍被导出（不是删了实现只留引用）', () => {

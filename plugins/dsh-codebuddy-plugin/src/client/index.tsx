@@ -10,15 +10,15 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 // Type-only: 拉入 ui-session 对 SessionStandardProps 的合并（含 useProjection），
 // 会话作用域座位的标准套件才不会是空对象。
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
+// Type-only: 拉入插件管理页对 `plugins.bundle.config` 的登记契约。
+// 该包只在类型层使用，运行时不 import——客户端模块表里没有它。
+import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { installSemiDshTheme } from '@tnnevol/dsh-semi-ui'
-import { CodeBuddySection } from '../components/CodeBuddySection.tsx'
-import type { CodeBuddySectionProps } from '../components/CodeBuddySection.tsx'
 import { CodeBuddyUsageStatus } from '../components/CodeBuddyUsageStatus.tsx'
 import type { CodeBuddyUsageStatusInjected } from '../components/CodeBuddyUsageStatus.tsx'
-import { CodeBuddyPanelPage } from './panel.tsx'
-import { PanelRouteController } from './panel-route.ts'
+import { CodeBuddyDetailSection } from './panel.tsx'
+import type { CodeBuddyDetailProps } from './panel.tsx'
 import { bumpAccountEpoch } from './store/account-epoch.ts'
 import { en, zh } from './locales/index.ts'
 
@@ -32,20 +32,18 @@ export const name = 'dsh-codebuddy-plugin-client'
 export const inject = ['slots', 'locale', 'connection', 'remote']
 
 export function apply(ctx: ClientContext): void {
-  const panelRoute = new PanelRouteController()
-  // 账号切换后 host 广播 llm/adapters-updated；bump 代际让用量指示器与管理面板
-  // 各页即时重拉账号相关数据（模型选择器由 harness 目录自己刷新）。
+  // 账号切换后 host 广播 llm/adapters-updated；bump 代际让用量指示器与插件
+  // 详情页各区块即时重拉账号相关数据（模型选择器由 harness 目录自己刷新）。
   const remote = (ctx as unknown as { remote?: { $on: (event: string, listener: () => void) => () => void } }).remote
   ctx.effect(() => {
     if (remote === undefined) return () => {}
     const off = remote.$on('llm/adapters-updated', () => { bumpAccountEpoch() })
     return () => { off() }
   }, 'dsh-codebuddy-plugin: account epoch sync')
-  ctx.effect(() => panelRoute.install(), 'dsh-codebuddy-plugin: panel hash route')
   ctx.effect(() => installSemiDshTheme(), 'dsh-codebuddy-plugin: Semi DSH theme')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-codebuddy-plugin: locale')
 
-  const t = ctx.locale.bind(NS) as CodeBuddySectionProps['t']
+  const t = ctx.locale.bind(NS) as CodeBuddyDetailProps['t']
   // 连接层的 `call` 声明为 `Promise<RpcResult<T>>`（结果信封），但它在传输失败时
   // 会**拒绝**：主机不可达、socket 断开、非 2xx、rpcId 不匹配都会抛出。各处
   // 调用点只判 `result.ok`，因此那类失败会静默跳过 `setLoading(false)` 之类的
@@ -61,14 +59,23 @@ export function apply(ctx: ClientContext): void {
     },
   }
 
-  // 设置页（登录 + 用量偏好）保持原有界面。
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section',
-    id: 'codebuddy',
-    order: 25,
-    label: () => t('nav'),
-    inject: (): CodeBuddySectionProps => ({ rpc, t, panelRoute }),
-  }, CodeBuddySection))
+  /**
+   * 配置入口挂在插件管理页的组合包详情页（`plugins.bundle.config`，key 用包名）。
+   *
+   * 上游 0.1.7-rc.2 把插件配置收归侧栏「插件」页，设置弹框只保留只读插件清单；
+   * 官方为社区组合包提供的接缝就是这个 slot，它**只以 `view: 'page'` 渲染**在
+   * 详情页的描述与组件列表之间。详情页自己绘制标题与面包屑，因此这里不需要
+   * 导航用的 `label` / `order`。
+   *
+   * 原先的 `settings.section`（设置弹框里的 CodeBuddy 区块）与 `shell.overlay`
+   * （全页面管理面板 + `#/codebuddy/*` hash 路由）都已移除：登录、账号管理、
+   * Token 统计、自动偏好全部在这个详情页内完成。
+   */
+  ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
+    name: 'plugins.bundle.config',
+    key: '@tnnevol/dsh-codebuddy',
+    inject: (): CodeBuddyDetailProps => ({ rpc, t }),
+  }, CodeBuddyDetailSection))
 
   // 实时额度读数放在 composer dock，与 Codex 插件一致。
   ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
@@ -77,18 +84,4 @@ export function apply(ctx: ClientContext): void {
     order: 2,
     inject: (): CodeBuddyUsageStatusInjected => ({ t, timer, rpc }),
   }, CodeBuddyUsageStatus))
-
-  // 全页面管理面板（hash 路由隔离，非动态组件切换）。shell.overlay 的键由
-  // dsh-client-ui-layout 的运行时 SlotMap 提供，但其类型包不在本插件的依赖
-  // 图里，所以注入走与 showcase 插件相同的字符串键（运行时等价）。
-  const slots = ctx.slots as unknown as {
-    inject: (key: string, factory: () => () => void) => () => void
-    register: (options: Record<string, unknown>, component: unknown) => () => void
-  }
-  slots.inject('shell.overlay', () => slots.register({
-    name: 'shell.overlay',
-    id: 'codebuddy-panel',
-    order: 120,
-    inject: () => ({ rpc, route: panelRoute, t }),
-  }, CodeBuddyPanelPage))
 }

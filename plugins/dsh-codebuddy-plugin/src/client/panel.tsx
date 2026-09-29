@@ -1,5 +1,5 @@
 /**
- * CodeBuddy 管理面板：全页面 overlay（shell.overlay slot），hash 路由隔离。
+ * CodeBuddy 插件详情页区块（`plugins.bundle.config`）。
  *
  * 设计要点：
  *  - 数据获取、store 缓存、auto 偏好的 host 同步都封装在 {@link hooks/} 下的
@@ -10,30 +10,33 @@
  *  - 共享类型放 {@link ../types/client/panel-types.d.ts}；DatePicker / echarts / 资源条等大块组件
  *    各自独立文件。
  *
- * 页面：账号管理、Token 统计。布局参考 workbuddy-switch：左上返回按钮 + 侧边导
- * 航；账号卡片化（当前/掉线/签到/剩余额度），无可用余额的账号禁用「设为当前」。
- * 数据来自 host 的 /codebuddy RPC。
+ * 内容：账号管理（登录、账号卡片、积分总览、三个自动开关、完成任务与日志）与
+ * Token 统计，两块纵向排列，另有「切换阈值 / 显示余额余量」偏好区。
+ *
+ * 原先是**全页面管理面板**（`shell.overlay` slot + `#/codebuddy/*` hash 路由 +
+ * 左侧导航 + 左上返回按钮）。配置入口迁到插件管理页的组合包详情页后，外壳、
+ * 路由与侧边导航全部删除：详情页自己画标题与面包屑，插件只提供内容。
+ * 数据来源仍是 host 的 /codebuddy RPC。
  *
  * @module dsh-codebuddy/panel
  */
 
-import type { StatsDimension, PanelPageProps } from '../types/client/panel'
-export type { PanelPageProps } from '../types/client/panel'
+import { CodeBuddyLogo } from '../components/CodeBuddyLogo.tsx'
+import type { StatsDimension, CodeBuddyDetailProps } from '../types/client/panel'
+export type { CodeBuddyDetailProps } from '../types/client/panel'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import { useStore } from '@nanostores/react'
 import {
-  DshButton, DshCard, DshEmpty, DshIconButton,
-  DshIconArrowLeft, DshIconCommand, DshIconElementStroked, DshIconList, DshIconRefresh,
-  DshIconUser, DshInput, DshLayout, DshModal, DshNav, DshTag, DshToast,
-  DshTooltip,
+  DshButton, DshCard, DshEmpty, DshIconArrowLeft, DshIconButton, DshIconCommand,
+  DshIconElementStroked, DshIconList, DshIconRefresh, DshIconUser, DshInput, DshModal,
+  DshTag, DshToast, DshTooltip,
 } from '@tnnevol/dsh-semi-ui'
 
 import { CODEBUDDY_AUTH_CHANNEL } from '../contracts/constants.ts'
 import { openAuthUrl } from './external-opener.ts'
 import type { ConnectionRpc, AccountsResult, GrowthRunResult } from './rpc.ts'
 import { describeRpcError } from './rpc.ts'
-import type { PanelRoute } from './panel-route.ts'
 import { classifyResources, forgetResources, recordResources, resourceHistoryStore, resourcesFrom } from './resource-history.ts'
 import type { ClassifiedResource } from './resource-history.ts'
 import { TokenStatsStore } from './store/token-stats.ts'
@@ -44,8 +47,9 @@ import { sortSegmentsByValueDesc } from './segment-bar.ts'
 import { formatUpdatedAt } from './format-time.ts'
 import { accountEpoch, subscribeAccountEpoch } from './store/account-epoch.ts'
 import { DEFAULT_TOKEN_RANGE, DEFAULT_TREND_RANGE, optionsFor, rangeLabel as rangeLabelOf, type TokenRangeKey } from './token-range.ts'
-import { CodeBuddyLogo } from '../components/CodeBuddyLogo.tsx'
 import { AddAccountModal } from '../components/AddAccountModal.tsx'
+import { CodeBuddyPreferences } from '../components/CodeBuddyPreferences.tsx'
+import { startLoginPolling } from './login-polling.ts'
 
 import { usePanelData, useTokenStats } from './hooks/use-panel-data.ts'
 import { useAutoPrefs } from './hooks/use-auto-prefs.ts'
@@ -72,7 +76,6 @@ import {
   compact, formatCredit, PageLoading, PanelBody, PanelRefreshOverlay,
   StatMetric,
 } from './ui/loading-shared.tsx'
-import { DshIconLabAvatar, DshIconLabChart } from '@tnnevol/dsh-semi-ui'
 import {
   $growthAccountInFlight, $growthRunning, hydrateGrowthRunState, isRunAllDisabled, markGrowthRunning,
 } from './store/growth-run.ts'
@@ -106,6 +109,14 @@ function AccountsPage({
   const [busyId, setBusyId] = useState<string | undefined>(undefined)
   /** 「完成任务」重入标志（loading 不拦点击，必须自己挡）。 */
   const runAllGrowthRef = useRef(false)
+  /**
+   * 掉线账号重新登录的轮询中止句柄。
+   *
+   * 详情页**切走即卸载**（原面板是常驻不卸载的），因此必须在卸载时显式中止：
+   * 否则轮询会继续对 `pollLogin` 发请求，落定后还会对已卸载的组件调 notify。
+   */
+  const reloginAbort = useRef<(() => void) | undefined>(undefined)
+  useEffect(() => () => { reloginAbort.current?.(); reloginAbort.current = undefined }, [])
   /** 执行日志抽屉是否展开（点「完成任务」自动展开，也可手动开关）。 */
   const [logOpen, setLogOpen] = useState(false)
   const [resourceTarget, setResourceTarget] = useState<PanelAccountRow | undefined>(undefined)
@@ -173,10 +184,80 @@ function AccountsPage({
     }
   }
 
+  /**
+   * 手动切换到指定账号。
+   *
+   * 必须走 `busyId`（与签到同一个在途标记）而不是直接发请求：重复点击会让
+   * host 连续换号，最终停在哪个账号取决于网络返回顺序。原先这份守卫只存在于
+   * 设置区块的切换按钮上（`loading` + `disabled`），而配置入口迁移删掉了那个
+   * 组件之后，卡片菜单的「设为当前」成为唯一入口——守卫必须跟着搬过来，
+   * 否则唯一的入口反而没有防重。
+   *
+   * 已在途时直接返回而不是排队：第二次点击表达的是同一个意图，没必要再发一次。
+   */
   const switchOne = async (id: string): Promise<void> => {
-    const result = await rpc.call<AccountsResult>(CODEBUDDY_AUTH_CHANNEL, 'switchAccount', { id })
-    if (result.ok) { notify(true, t('switchDone')); reload() }
-    else { notify(false, describeRpcError(result)) }
+    if (busyId !== undefined) return
+    setBusyId(id)
+    try {
+      const result = await rpc.call<AccountsResult>(CODEBUDDY_AUTH_CHANNEL, 'switchAccount', { id })
+      if (result.ok) { notify(true, t('switchDone')); reload() }
+      else { notify(false, describeRpcError(result)) }
+    } finally {
+      // `finally` 而非成功分支收尾：RPC 抛错时若不清标记，卡片会永久停留在
+      // 「切换中」且切换入口再也不可用。
+      setBusyId(undefined)
+    }
+  }
+
+  /**
+   * 掉线账号重新登录：保留其环境与备注名，直接发起一次新的握手。
+   *
+   * 语义取自原先设置区块的 `startRelogin`（那份实现随组件删除，能力在这里
+   * 恢复）：
+   *
+   *  - **`activate: false`**——重新登录不把该账号变成当前账号。离线账号在它
+   *    下线期间可能已由别的账号接管流量，重新登录只是修复凭据，不该顺手抢回来；
+   *  - 带上 `label` 与 `environment`，让新握手沿用原账号的备注名与网络环境，
+   *    否则企业/自建环境的账号会在重新登录后跑到默认端点上；
+   *  - 开窗走 `openAuthUrl`：Desktop 下 `window.open` 返回 `null` 但已外部打开，
+   *    绝不能据此报「被拦截」。
+   *
+   * 登录轮询交给弹框（`AddAccountModal`）：它才知道这次登录是它发起的，也只有
+   * 它能在成功后关闭自己。这里只负责发起并打开浏览器。
+   */
+  const reloginOne = async (row: PanelAccountRow): Promise<void> => {
+    if (busyId !== undefined) return
+    setBusyId(row.id)
+    try {
+      const result = await rpc.call<{ authUrl: string, state: string }>(CODEBUDDY_AUTH_CHANNEL, 'startLogin', {
+        ...(row.nickname !== undefined ? { label: row.nickname } : {}),
+        ...(row.environment !== undefined ? { environment: row.environment } : {}),
+        activate: false,
+      })
+      if (!result.ok) {
+        notify(false, describeRpcError(result))
+        return
+      }
+      openAuthUrl(result.value.authUrl)
+      /**
+       * 自己轮询这次握手，而不是交给「添加账号」弹框。
+       *
+       * 弹框的轮询是围绕**新建账号表单**的（它成功后会关闭自己并清表单），
+       * 而这里是在修复一个已存在账号的凭据：不该弹出一个带空表单的对话框，
+       * 也不该在成功后把它当成"刚添加了账号"。原先设置区块的 `startRelogin`
+       * 也是自己轮询、不经过弹框——收回这条语义。
+       */
+      reloginAbort.current?.()
+      reloginAbort.current = startLoginPolling(
+        rpc,
+        result.value.state,
+        () => { reloginAbort.current = undefined; notify(true, t('loginSucceeded')); onCheckinChange() },
+        () => { reloginAbort.current = undefined; notify(false, t('timeout')) },
+        (reason) => { reloginAbort.current = undefined; notify(false, `${t('loginFailed')} ${reason}`) },
+      )
+    } finally {
+      setBusyId(undefined)
+    }
   }
 
   /**
@@ -287,6 +368,7 @@ function AccountsPage({
               onCheckin={(id) => { void checkinOne(id) }}
               autoSwitch={autoSwitchOn}
               onSwitch={(id) => { void switchOne(id) }}
+              onRelogin={(row_) => { void reloginOne(row_) }}
               onDelete={(row_) => { onDelete(row_) }}
               onRename={(row_) => { onRename(row_) }}
               onOpenResources={(row_) => { setResourceTarget(row_) }}
@@ -318,6 +400,8 @@ function buildAccountLabels(t: Translate): AccountCardLabels {
     checkin: t('checkinDo'),
     remaining: t('remaining'),
     switchLabel: t('accountSwitch'),
+    switching: t('accountSwitching'),
+    reloginLabel: t('accountRelogin'),
     deleteLabel: t('accountRemove'),
     renameLabel: t('renameLabel'),
     resourcesLabel: t('resourcesTitle'),
@@ -616,9 +700,25 @@ function SegmentBar({ segments }: { segments: Array<{ label: string, value: numb
   )
 }
 
-/** 面板壳：左上返回 + 侧边导航 + 各页面（hash 路由隔离）。 */
-export function CodeBuddyPanelPage({ rpc, route, t }: PanelPageProps): ReactNode {
-  const snapshot = useSyncExternalStore(route.subscribe, route.getSnapshot, route.getSnapshot)
+/**
+ * 插件详情页区块：账号管理与 Token 统计。
+ *
+ * 原先是全页面管理面板——`shell.overlay` 常驻 + `#/codebuddy/*` hash 路由 +
+ * 左侧 `DshNav` 导航 + 左上返回按钮。现在两块内容**直接内联**在插件管理页的
+ * CodeBuddy 组合包详情页里，因此：
+ *
+ *  - 没有 hash 归属匹配（`panel-route.ts` 已删除），也没有面包屑与返回按钮；
+ *    详情页自己画标题；
+ *  - 没有侧边导航：两块内容纵向分区依次呈现；Token 统计较长，故可折叠；
+ *  - **没有 keep-alive**：详情页切走即卸载（原面板是"关闭仅 return null、
+ *    组件不卸载"）。跨挂载要保留的状态都在模块级持久化 store 里
+ *    （`usage-prefs`、`growth-run`、`token-stats`、`account-epoch`），由
+ *    `useStore`/`useSyncExternalStore` 驱动，重挂载后自然恢复。
+ *
+ * 保留项与迁移前一致：积分总览、账号卡片（含签到与旅行状态）、三个自动开关、
+ * 完成任务与一键完成、执行日志抽屉、Token 各图表。
+ */
+export function CodeBuddyDetailSection({ rpc, t }: CodeBuddyDetailProps): ReactNode {
   const notify = useCallback((ok: boolean, text: string) => {
     if (ok) DshToast.success({ content: text })
     else DshToast.warning({ content: text })
@@ -632,11 +732,6 @@ export function CodeBuddyPanelPage({ rpc, route, t }: PanelPageProps): ReactNode
   /** 让账号列表重取。useCallback 使引用稳定——它被 login 轮询的 effect 依赖，
    *  每次渲染换新函数会让那个 effect 反复重启轮询。 */
   const bumpRoster = useCallback((): void => { setRosterTick(v => v + 1) }, [])
-  // keep-alive：首次进入某页才挂载；之后一直保留，破坏性页面变更才会重置。
-  const [visited, setVisited] = useState<ReadonlySet<PanelRoute>>(() => new Set([snapshot.page]))
-  useEffect(() => {
-    setVisited(prev => prev.has(snapshot.page) ? prev : new Set([...prev, snapshot.page]))
-  }, [snapshot.page])
 
   const doRename = async (): Promise<void> => {
     const target = renaming
@@ -680,69 +775,36 @@ export function CodeBuddyPanelPage({ rpc, route, t }: PanelPageProps): ReactNode
     if (ok) bumpRoster()
   }, [bumpRoster])
 
-  if (!snapshot.active) return null
-
-  const pageTitle = snapshot.page === 'accounts' ? t('accountsTitle') : t('tokenTitle')
-  const pageDescription = snapshot.page === 'accounts' ? t('accountsDesc') : undefined
-
-  // 左侧菜单用彩色图标（semi-icons-lab）。该包是硬编码多色 fill 的彩色图标集，
-  // 语义上对应账号（头像）、Token（图表）。
-  const items = [
-    { itemKey: 'accounts', text: t('accountsTitle'), icon: <DshIconLabAvatar /> },
-    { itemKey: 'tokens', text: t('tokenTitle'), icon: <DshIconLabChart /> },
-  ]
-
   return (
-    <div className="dsh-codebuddy-panel" role="dialog" aria-label="CodeBuddy 管理面板">
-      <DshLayout>
-        <DshLayout.Sider>
-          <DshNav
-            className="dsh-codebuddy-panel-nav"
-            selectedKeys={[snapshot.page]}
-            items={items}
-            onSelect={(data_: { itemKey: string }) => { route.open(data_.itemKey as PanelRoute) }}
-            footer={{ collapseButton: false }}
-            header={{ logo: <CodeBuddyLogo size={28} />, text: 'CodeBuddy' }}
-          />
-        </DshLayout.Sider>
-        <DshLayout className="dsh-codebuddy-panel-main">
-          <DshLayout.Header className="dsh-codebuddy-panel-toolbar">
-            <DshIconButton
-              type="tertiary"
-              theme="borderless"
-              icon={<DshIconArrowLeft aria-label={t('back')} />}
-              onClick={() => { route.close() }}
-            />
-            <div className="dsh-codebuddy-panel-heading">
-              <h1 className="dsh-codebuddy-panel-title">{pageTitle}</h1>
-              {pageDescription === undefined ? null : <p className="dsh-codebuddy-muted">{pageDescription}</p>}
-            </div>
-            <div style={{ flex: 1 }} />
-          </DshLayout.Header>
-          <DshLayout.Content className="dsh-codebuddy-panel-views">
-            {visited.has('accounts') ? (
-              <div className="dsh-codebuddy-panel-view" hidden={snapshot.page !== 'accounts'}>
-                <AccountsPage
-                  rpc={rpc}
-                  t={t}
-                  notify={notify}
-                  rosterTick={rosterTick}
-                  loginWaiting={loginWaiting}
-                  onRename={openRename}
-                  onDelete={openDelete}
-                  onAddAccount={() => { setAddOpen(true) }}
-                  onCheckinChange={bumpRoster}
-                />
-              </div>
-            ) : null}
-            {visited.has('tokens') ? (
-              <div className="dsh-codebuddy-panel-view" hidden={snapshot.page !== 'tokens'}>
-                <TokenStatsPage rpc={rpc} t={t} />
-              </div>
-            ) : null}
-          </DshLayout.Content>
-        </DshLayout>
-      </DshLayout>
+    <div className="dsh-codebuddy-detail">
+      <section className="dsh-codebuddy-detail-section" aria-label={t('accountsTitle')}>
+        <AccountsPage
+          rpc={rpc}
+          t={t}
+          notify={notify}
+          rosterTick={rosterTick}
+          loginWaiting={loginWaiting}
+          onRename={openRename}
+          onDelete={openDelete}
+          onAddAccount={() => { setAddOpen(true) }}
+          onCheckinChange={bumpRoster}
+        />
+      </section>
+
+      {/* Token 统计面板较多，默认展开但可折叠：详情页是纵向长列，读者常只需
+          其一看。用原生 `<details>` 而不是受控 state —— 折叠是纯展示偏好，
+          不需要跨挂载保留，也不该参与任何数据流。 */}
+      <section className="dsh-codebuddy-detail-section" aria-label={t('tokenTitle')}>
+        <details className="dsh-codebuddy-detail-collapse" open>
+          <summary className="dsh-codebuddy-detail-summary">{t('tokenTitle')}</summary>
+          <TokenStatsPage rpc={rpc} t={t} />
+        </details>
+      </section>
+
+      {/* 偏好：切换阈值与显示余额余量。从设置区块迁来；写入语义未变。 */}
+      <section className="dsh-codebuddy-detail-section" aria-label={t('autoSwitchPct')}>
+        <CodeBuddyPreferences rpc={rpc} t={t} />
+      </section>
 
       <AddAccountModal
         rpc={rpc}

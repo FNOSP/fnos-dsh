@@ -14,6 +14,13 @@ export interface AccountCardProps {
   busy: boolean
   onCheckin: (id: string) => void
   onSwitch: (id: string) => void
+  /**
+   * 掉线账号重新登录（重新走一次 OAuth 握手）。
+   *
+   * 语义与原先设置区块的 `startRelogin` 一致：`activate: false`，重新登录不
+   * 抢占当前账号——离线账号不该因为重新登录就接管流量。
+   */
+  onRelogin: (row: PanelAccountRow) => void
   onDelete: (row: PanelAccountRow) => void
   onRename: (row: PanelAccountRow) => void
   /** 点击卡片主体查看该账号全部资源包。 */

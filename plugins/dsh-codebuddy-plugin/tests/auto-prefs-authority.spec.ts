@@ -5,18 +5,20 @@ import { SRC } from './paths.ts'
 /**
  * 自动开关配置的权威来源必须是 **Host**。
  *
- * 曾经是反的：设置页与管理面板在挂载时把 localStorage 的值推给 Host，于是
- * Host 上更新的值会被旧 localStorage 静默覆盖。实测复现：
+ * 曾经是反的：界面挂载时把 localStorage 的值推给 Host，于是 Host 上更新的值
+ * 会被旧 localStorage 静默覆盖。实测复现：
  *
  *   Host = {enabled:false, thresholdPct:25}
  *   另一窗口的旧 localStorage 上推 → {enabled:true, thresholdPct:10}   ← 配置丢失
  *
  * 现在改为「读 Host → 写本地 store」，并有 hasStoredPrefs 区分老用户升级路径。
+ *
+ * 配置入口从设置弹框迁到插件详情页后，**采纳与迁移都只发生在
+ * `hooks/use-auto-prefs.ts` 这一个地方**——原先设置区块里另有一份相同逻辑，
+ * 两处必然漂移（曾经就漂移过：一处采纳 4 项含阈值、另一处只采纳 3 项）。
+ * 因此本文件现在只读这一个文件来验证全部不变量。
  */
 const ROOT = SRC
-const SECTION = readFileSync(`${ROOT}/components/CodeBuddySection.tsx`, 'utf8')
-// 三个 auto* 偏好的同步封装已迁到 hooks/use-auto-prefs.ts（`useAutoPrefs`）。
-// 读取原文件以验证「挂载时读 Host」+「subscribeUsagePref 中只同步 host」两个不变量。
 const AUTO_HOOK = readFileSync(`${ROOT}/client/hooks/use-auto-prefs.ts`, 'utf8')
 const SERVICE = readFileSync(`${ROOT}/host/auth-service.ts`, 'utf8')
 const STORAGE = readFileSync(`${ROOT}/host/storage.ts`, 'utf8')
@@ -35,8 +37,8 @@ describe('Host 是自动配置的唯一权威', () => {
     }
   })
 
-  it('设置页挂载时先读 Host；向 Host 推本地值只发生在「Host 尚无配置」之后', () => {
-    const mount = SECTION.slice(SECTION.indexOf('挂载时加载一次状态'), SECTION.indexOf('// 轮询进行中的登录'))
+  it('挂载时先读 Host；向 Host 推本地值只发生在「Host 尚无配置」之后', () => {
+    const mount = AUTO_HOOK.slice(AUTO_HOOK.indexOf("'autoPrefs'"), AUTO_HOOK.indexOf('return subscribeUsagePref'))
     // 必须发起 autoPrefs 读取
     expect(mount).toContain("'autoPrefs'")
     // 迁移用的推写在语法上确实存在，但它必须在 adopt 分支的 early return **之后**。
@@ -54,8 +56,8 @@ describe('Host 是自动配置的唯一权威', () => {
     expect(guard).toBeLessThan(adoptReturn)
   })
 
-  it('Host 已有配置时设置页采纳 Host 值；没有时才迁移本地值', () => {
-    const mount = SECTION.slice(SECTION.indexOf('挂载时加载一次状态'), SECTION.indexOf('// 轮询进行中的登录'))
+  it('Host 已有配置时采纳 Host 值；没有时才迁移本地值', () => {
+    const mount = AUTO_HOOK.slice(AUTO_HOOK.indexOf("'autoPrefs'"), AUTO_HOOK.indexOf('return subscribeUsagePref'))
     // 断言「受 hasStoredPrefs 保护地采纳」这一意图；采纳内容由 adoptHostPrefs
     // 统一决定（其字段覆盖由 pref-adoption-atomic.spec.ts 的行为用例保证）。
     //
@@ -75,7 +77,7 @@ describe('Host 是自动配置的唯一权威', () => {
     expect(migrateAt).toBeGreaterThan(adoptAt)
   })
 
-  it('管理面板同样读 Host，不再上推三个开关', () => {
+  it('挂载路径同样读 Host，不再上推三个开关', () => {
     // 切片：useAutoPrefs 函数体中，'autoPrefs' 读取之后到 subscribeUsagePref 之前。
     const block = AUTO_HOOK.slice(AUTO_HOOK.indexOf("'autoPrefs'"), AUTO_HOOK.indexOf('subscribeUsagePref(() => {'))
     expect(AUTO_HOOK).toContain("'autoPrefs'")

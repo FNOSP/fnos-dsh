@@ -55,9 +55,11 @@ describe('Desktop 开窗：返回 null 不等于被拦截', () => {
   })
 })
 
-describe('三个登录入口都必须走同一个开窗实现', () => {
-  const SECTION = readFileSync(srcPath('components/CodeBuddySection.tsx'), 'utf8')
-  const PANEL = readFileSync(srcPath('client/panel.tsx'), 'utf8')
+describe('两个登录入口都必须走同一个开窗实现', () => {
+  // 配置入口迁移后登录宿主只剩插件详情页与共享弹框：`CodeBuddySection`
+  // （设置区块）已随配置入口移除。
+  const DETAIL = readFileSync(srcPath('client/panel.tsx'), 'utf8')
+  const MODAL = readFileSync(srcPath('components/AddAccountModal.tsx'), 'utf8')
 
   /**
    * 剥离注释后再找调用点。
@@ -74,14 +76,13 @@ describe('三个登录入口都必须走同一个开窗实现', () => {
 
   it('两个宿主都不再有裸 window.open 调用', () => {
     // 裸调用是「被后来者按返回值判定拦截」的入口；收拢到一处才守得住语义。
-    for (const [name, source] of [['CodeBuddySection.tsx', SECTION], ['panel.tsx', PANEL]] as const) {
+    for (const [name, source] of [['panel.tsx', DETAIL], ['AddAccountModal.tsx', MODAL]] as const) {
       expect(codeOnly(source), `${name} 仍在直接调用 window.open`).not.toContain('window.open(')
     }
   })
 
-  it('两个宿主都通过 openAuthUrl 打开登录页', () => {
-    expect(SECTION).toContain('openAuthUrl(')
-    expect(PANEL).toContain('openAuthUrl(')
+  it('详情页通过 openAuthUrl 打开登录页', () => {
+    expect(DETAIL).toContain('openAuthUrl(')
   })
 })
 

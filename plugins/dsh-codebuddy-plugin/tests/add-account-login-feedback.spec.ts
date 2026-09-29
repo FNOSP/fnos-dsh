@@ -20,7 +20,11 @@ import { SRC } from './paths.ts'
 const ROOT = SRC
 const MODAL = readFileSync(`${ROOT}/components/AddAccountModal.tsx`, 'utf8')
 const PANEL = readFileSync(`${ROOT}/client/panel.tsx`, 'utf8')
-const SECTION = readFileSync(`${ROOT}/components/CodeBuddySection.tsx`, 'utf8')
+// 设置区块（`CodeBuddySection`）随配置入口迁移移除；登录宿主只剩插件详情页
+// （`panel.tsx`）与共享弹框。原先针对该区块的断言改为在详情页上验证同一批
+// 不变量——它们守的是真实缺陷（回调丢了参数、重复轮询、入口消失），与宿主
+// 是哪个组件无关。
+const DETAIL = PANEL
 const ZH = readFileSync(`${ROOT}/client/locales/zh.ts`, 'utf8')
 const EN = readFileSync(`${ROOT}/client/locales/en.ts`, 'utf8')
 
@@ -126,11 +130,9 @@ describe('复制登录链接按钮已去除（需求 1/2）', () => {
     expect(COMPONENT).not.toContain('DshIconCopy')
   })
 
-  it('两处宿主界面也不再有复制登录链接的入口', () => {
+  it('宿主界面也不再有复制登录链接的入口', () => {
     expect(PANEL).not.toContain('copyLoginLink')
     expect(PANEL).not.toContain('onCopyLoginLink')
-    expect(SECTION).not.toContain('copyLoginLink')
-    expect(SECTION).not.toContain('cbCopyLoginLink')
   })
 
   it('弹框不再自己开浏览器窗口（仍由宿主的 onLoginStart 负责）', () => {
@@ -170,26 +172,22 @@ describe('两个宿主都必须真的打开登录页', () => {
     return src.slice(from, to)
   }
 
-  it('设置区块的 onAddLoginStart 打开 authUrl', () => {
-    const body = addLoginStartBody(SECTION)
-    expect(body).toContain('openAuthUrl(start.authUrl')
-  })
-
-  it('后台面板的 onAddLoginStart 打开 authUrl', () => {
+  it('详情页的 onAddLoginStart 打开 authUrl', () => {
     const body = addLoginStartBody(PANEL)
     expect(body).toContain('openAuthUrl(start.authUrl')
   })
 
-  it('两处都接收 start 参数（省略参数就拿不到 authUrl）', () => {
-    for (const src of [SECTION, PANEL]) {
-      expect(addLoginStartBody(src)).toMatch(/useCallback\(\(start: \{ authUrl: string, state: string \}\)/)
-    }
+  it('接收 start 参数（省略参数就拿不到 authUrl）', () => {
+    // 这条守卫针对真实缺陷：回调被简化成 `() => { setLoginWaiting(true) }` 后
+    // 开窗那一步丢了，而 tsc 与 --noUnusedParameters 都抓不到（参数是整个省略，
+    // 且函数逆变合法）。
+    expect(addLoginStartBody(PANEL)).toMatch(/useCallback\(\(start: \{ authUrl: string, state: string \}\)/)
   })
 
   it('设置区块的「重新登录」也仍然开窗（另一条独立流程）', () => {
-    const from = SECTION.indexOf('const startRelogin')
+    const from = DETAIL.indexOf('const reloginOne')
     expect(from).toBeGreaterThan(-1)
-    expect(SECTION.slice(from)).toContain('openAuthUrl(result.value.authUrl')
+    expect(DETAIL.slice(from)).toContain('openAuthUrl(result.value.authUrl')
   })
 })
 
@@ -252,24 +250,33 @@ describe('轮询归属单一，避免双重轮询', () => {
     expect(COMPONENT).toContain('return startLoginPolling(')
   })
 
-  it('后台面板不再重复轮询同一个 state', () => {
-    // 两处同时轮询会对 pollLogin 发双份请求，并各自判定落定 → 提示出现两次。
-    expect(PANEL).not.toContain('startLoginPolling')
+  it('详情页不重复轮询弹框的握手 state', () => {
+    // 两处同时轮询同一个 state 会对 pollLogin 发双份请求，并各自判定落定 →
+    // 提示出现两次。详情页**确实**会轮询，但只轮询自己发起的「重新登录」
+    // （reloginOne），弹框发起的登录它不碰——因此断言按调用点而非文件存在性。
+    const code = PANEL.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/^[ \t]*\/\/.*$/gmu, '')
+    const calls = code.match(/startLoginPolling\(/g) ?? []
+    expect(calls).toHaveLength(1)
+    // 且那一次在 reloginOne 里（不是 onAddLoginStart）。
+    const relogin = code.slice(code.indexOf('const reloginOne'))
+    expect(relogin).toContain('startLoginPolling(')
+    const addStart = code.slice(code.indexOf('const onAddLoginStart'), code.indexOf('const onAddFinished'))
+    expect(addStart).not.toContain('startLoginPolling(')
   })
 
-  it('设置区块保留自己的轮询，但只服务「重新登录」', () => {
-    // startRelogin 是该区块独有的流程，其 state 不经过弹框。
-    expect(SECTION).toContain('startLoginPolling')
-    expect(SECTION).toContain('const startRelogin')
-    // 弹框发起的登录不再喂进该区块的 loginState。
-    expect(SECTION).not.toMatch(/onAddLoginStart[\s\S]{0,200}setLoginState/)
+  it('详情页保留自己的轮询，但只服务「重新登录」', () => {
+    // reloginOne 是掉线重登独有的流程，它自己轮询而不经过弹框：弹框的轮询围绕
+    // 「新建账号表单」，成功后会关闭自己并清空表单——修复既有账号的凭据不该弹
+    // 一个空表单对话框。
+    expect(DETAIL).toContain('startLoginPolling')
+    expect(DETAIL).toContain('const reloginOne')
+    // 弹框发起的登录不再喂进详情页的登录 state。
+    expect(DETAIL).not.toMatch(/onAddLoginStart[\s\S]{0,200}setLoginState/)
   })
 
   it('宿主通过 onFinished 感知结果并刷新名册', () => {
     expect(PANEL).toMatch(/onFinished=\{onAddFinished\}/)
-    expect(SECTION).toMatch(/onFinished=\{onAddFinished\}/)
     expect(PANEL).toMatch(/if \(ok\) bumpRoster\(\)/)
-    expect(SECTION).toMatch(/if \(ok\) void refresh\(\)/)
   })
 })
 

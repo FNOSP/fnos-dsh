@@ -24,13 +24,13 @@ import { formatProbeAge, formatResetDate } from '../format-time.ts'
 
 import { formatCredit } from './loading-shared.tsx'
 
-export function AccountCardImpl({ row, labels, autoCheckin, autoSwitch, resources, busy, onCheckin, onSwitch, onDelete, onRename, onOpenResources }: AccountCardProps): ReactNode {
+export function AccountCardImpl({ row, labels, autoCheckin, autoSwitch, resources, busy, onCheckin, onSwitch, onRelogin, onDelete, onRename, onOpenResources }: AccountCardProps): ReactNode {
   const env = row.environment
   // 历史条目没有 client 字段（那时只有 CLI），缺省按 cli 展示。
   const clientId = normalizeClientId(row.client)
   const clientVersion = row.clientVersion ?? CODEBUDDY_CLIENT_VERSIONS[clientId]
   const name = row.nickname
-  const { active, offline, checkedIn, unchecked, checkin, remaining, switchLabel, deleteLabel, renameLabel, longTerm } = labels
+  const { active, offline, checkedIn, unchecked, checkin, remaining, switchLabel, deleteLabel, renameLabel, longTerm, reloginLabel } = labels
   const totalPct = row.totalCapacity > 0 ? Math.max(0, Math.min(100, (row.totalRemaining / row.totalCapacity) * 100)) : null
   /**
    * 额度数据的陈旧提示（够新时为 null，不占位）。
@@ -85,6 +85,24 @@ export function AccountCardImpl({ row, labels, autoCheckin, autoSwitch, resource
       </DshDropdown.Item>,
     )
   }
+  // 掉线账号的重新登录入口。
+  //
+  // 原先它在设置区块的账号折叠面板上（`startRelogin`）。配置入口迁移删掉那个
+  // 组件后，卡片这里只显示「掉线，请重新登录」却**没有任何重新登录的入口**——
+  // 用户被告知要做一件事却做不到。恢复它时保持原有语义：`activate: false`，
+  // 即重新登录不抢占当前账号（离线账号不该因为重新登录就接管流量）。
+  if (row.expired) {
+    menu.push(
+      <DshDropdown.Item
+        key="relogin"
+        icon={<DshIconRefresh />}
+        disabled={busy}
+        onClick={() => { if (!busy) onRelogin(row) }}
+      >
+        {reloginLabel}
+      </DshDropdown.Item>,
+    )
+  }
   // 自动切换开启时隐藏手动入口：那时账号由客户端按阈值自动切换，手动指定会被
   // 下一次自动切换覆盖，留着只会让用户以为设置没生效。
   if (!row.active && !autoSwitch) {
@@ -92,10 +110,14 @@ export function AccountCardImpl({ row, labels, autoCheckin, autoSwitch, resource
       <DshDropdown.Item
         key="switch"
         icon={<DshIconSetting />}
-        disabled={!row.usable || row.expired}
-        onClick={() => { onSwitch(row.id) }}
+        // 切换在途时禁用并改文案：重复点会连续换号，最终停在哪个账号取决于网络
+        // 返回顺序。这份反馈原先只在设置区块的切换按钮上（那里是 `loading` +
+        // `disabled`），该组件随配置入口迁移移除后，这里成了唯一入口，因此把
+        // 防重与可见反馈一并搬过来——`busy` 由 AccountsPage 的在途标记驱动。
+        disabled={!row.usable || row.expired || busy}
+        onClick={() => { if (!busy) onSwitch(row.id) }}
       >
-        {switchLabel}
+        {busy ? labels.switching : switchLabel}
       </DshDropdown.Item>,
     )
   }

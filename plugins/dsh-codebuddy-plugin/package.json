@@ -60,6 +60,7 @@
         "@deepseek-ai/dsh-client-connection",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-session",
         "@deepseek-ai/dsh-client-ui-settings"
@@ -73,6 +74,7 @@
     "@deepseek-ai/dsh-client-connection": "0.1.7-rc.2",
     "@deepseek-ai/dsh-client-locale": "0.1.7-rc.2",
     "@deepseek-ai/dsh-client-ui-conversation": "0.1.7-rc.2",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "0.1.7-rc.2",
     "@deepseek-ai/dsh-client-ui-renderer": "0.1.7-rc.2",
     "@deepseek-ai/dsh-client-ui-session": "0.1.7-rc.2",
     "@deepseek-ai/dsh-client-ui-settings": "0.1.7-rc.2",
@@ -95,6 +97,7 @@
     "@deepseek-ai/dsh-client-connection": "catalog:dsh",
     "@deepseek-ai/dsh-client-locale": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-conversation": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-renderer": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-session": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-settings": "catalog:dsh",

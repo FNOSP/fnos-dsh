@@ -109,6 +109,10 @@ export interface AccountCardLabels {
   checkin: string
   remaining: string
   switchLabel: string
+  /** 切换在途时的按钮文案（「切换中…」）。 */
+  switching: string
+  /** 掉线账号的「重新登录」入口文案。 */
+  reloginLabel: string
   deleteLabel: string
   renameLabel: string
   resourcesLabel: string
