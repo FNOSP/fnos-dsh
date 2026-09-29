@@ -66,6 +66,7 @@ pnpm run check -- --packages --plugins
 
 ## 相关页面
 
+- [插件 UI 规范](/charter/plugin-ui-standards)
 - [本地 DSH Web](./local-dsh-web)
 - [Turbo 任务](./turbo-tasks)
 - [路径与编码](./conventions)

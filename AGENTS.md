@@ -35,6 +35,7 @@
 | 需求文档规范 | [`docs/charter/requirements-spec.md`](docs/charter/requirements-spec.md) |
 | 计划文档规范 | [`docs/charter/plans-spec.md`](docs/charter/plans-spec.md) |
 | VitePress 文档菜单规范 | [`docs/charter/vitepress-document-menu.md`](docs/charter/vitepress-document-menu.md) |
+| 插件 UI 规范（Semi UI 与共享包主题） | [`docs/charter/plugin-ui-standards.md`](docs/charter/plugin-ui-standards.md) |
 | 目录结构规范 | [`docs/charter/directory-structure.md`](docs/charter/directory-structure.md) |
 | 需求清单 | [`docs/requirements/index.md`](docs/requirements/index.md) |
 | 实施计划 | [`docs/plans/index.md`](docs/plans/index.md) |
