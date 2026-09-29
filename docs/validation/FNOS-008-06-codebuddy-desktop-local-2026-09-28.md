@@ -50,14 +50,7 @@ status: blocked
 
 ## 未完成部分（状态 blocked 的原因）
 
-- **Desktop 运行时已可用，本节原述「本机未安装 Electron」已过时**（2026-09-29 更正）：当时依据的是「仓库内 `apps/desktop` 未构建、无 `.desktop-build`」，但目标运行时并不需要构建仓库内的 Electron——机器上存在已安装的 `/Applications/DeepSeek Harness.app`（0.1.7-rc.2），且 `~/.dsh/profiles/desktop` 已将两个插件以 `link:` 指向本仓库源码。实测（只读探测运行中的 Desktop Host `127.0.0.1:19387`）：
-
-  | 探测 | 结果 | 含义 |
-  | --- | --- | --- |
-  | `POST /codebuddy` | `401 unauthorized` | CodeBuddy 通道**已挂载**（未挂载的路由返回 `405`）；401 是缺浏览器 Cookie 鉴权，属预期 |
-  | `GET /plugins/dsh-codex-auth-plugin/auth/status` | `200 {"status":"signed-in","expiresAt":"2026-10-07…"}` | Codex Auth 已在 Desktop 激活**且已登录** |
-
-  因此 `FNOS-008-06-AC-01`（随 web 载体加载）与 `AC-05`（读取账号/模型状态）已有**目标运行时**证据。仍缺的是需要人眼交互的部分（OAuth 授权页在系统浏览器打开、取消、重启恢复）——那部分无法由只读探测覆盖。
+- **未执行真实 DSH Desktop 运行时验收**：本机未安装 Electron、`apps/desktop` 未构建（无 `.desktop-build`），无法启动 Desktop 客户端。
 - 因此 `FNOS-008-06-AC-02`（Desktop 与 Web 结果一致）与 `FNOS-008-06-AC-07`（Desktop 重启恢复与 Web/fnOS 兼容）目前**只有源码级与本地组合证据**，尚无 Desktop 实测结论。
 - 待补：在目标 DSH Desktop 版本安装同一 bundle，实测加载、配置详情页、OAuth 登录/取消、模型、用量、成长任务与重启恢复。
 
