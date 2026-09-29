@@ -200,6 +200,7 @@ sequenceDiagram
 | PLAN-FNOS-008-T03-03 | FNOS-008-07 / AC-01–03、AC-06 | 修复 Desktop 登录阻断：`signIn()` 不再把 `window.open` 的 `null` 判为「弹窗被拦截」；开窗收口为单一实现并吞掉异常，`null` 时继续请求设备码；同步修正 `popupBlocked` 文案适用条件 | T02-04（共用 Desktop 契约） | 新增强制性行为测试（`null` 仍继续请求 login）+ 现有授权窗测试同步更新 |
 | PLAN-FNOS-008-T03-04 | FNOS-008-07 / AC-04–05、AC-07 | 授权窗口句柄可选化：句柄不可得时仅失去「取消时关窗」，不影响取消与已登录账号；回归独立浏览器与 fnOS 行为 | T03-03 | 取消/复制/回归测试；`dsh.client.platform` 契约断言 |
 | PLAN-FNOS-008-T03-05 | FNOS-008-06 / AC-02–03、FNOS-008-07 / AC-06 | Desktop 安装后激活失败修复：客户端 `inject` 补 `remote.llm`，并让模型目录桥接在命名空间不可解析时降级为 no-op（未声明的 `remote.<ns>` 读取在 Cordis 代理上会抛错，原先会拖垮整个客户端条目，导致详情页无配置区）；补「源码中每个 `remote.<ns>` 访问都已在 `inject` 声明」的契约测试 | T03-01、T03-02 | 应用真实前端无头渲染加载探针 profile：激活告警 0 条且 `[data-plugin-config]` 渲染出配置区；新增回归测试通过 |
+| PLAN-FNOS-008-T03-06 | FNOS-008-07 / AC-06 | 模型弹框旧数据修复：`remote.llm.discoverModels` 由 `RemoteNamespaceService.install()` 以**只有 getter、没有 setter** 的访问器安装，原先的 `llm.discoverModels = bridged` 赋值被静默丢弃，桥接从未生效而回落到适配器构建期快照；改为 `Object.defineProperty` 覆盖并读回校验，失败即 fail closed，dispose 还原原 descriptor | T03-05 | A/B 端到端：同一 profile 下弹框模型列表从构建期快照（`gpt-5.4*`）变为账号目录；新增「覆盖 getter-only 访问器」回归测试 |
 
 ### 阶段四：文档与索引（T04-01–T04-03）
 

@@ -77,4 +77,51 @@ describe('Codex model discovery bridge', () => {
     expect(dispose).toEqual(expect.any(Function))
     expect(() => dispose()).not.toThrow()
   })
+
+  /**
+   * The Remote namespace service installs each RPC method with
+   * `Object.defineProperty(service, method, { get })` — a getter and no setter.
+   * Assigning `llm.discoverModels = bridged` is silently dropped in that case,
+   * so the bridge never ran and the model picker kept listing the adapter's
+   * build-time snapshot. The override has to go through `defineProperty`.
+   */
+  it('overrides a getter-only discoverModels accessor', async () => {
+    const original = vi.fn(async () => ({ ok: true as const, value: [{ id: 'pi-ai-snapshot' }] }))
+    const llm: Record<string, unknown> = {}
+    Object.defineProperty(llm, 'discoverModels', { configurable: true, enumerable: true, get: () => original })
+    const modelCatalog = vi.fn(async () => ({
+      ok: true as const,
+      value: { groups: [{ id: 'openai-codex', name: 'OpenAI Codex', models: [{ id: 'gpt-6-astra', name: 'GPT-6-Astra' }] }] },
+    }))
+
+    const dispose = installCodexModelDiscoveryBridge({ llm, session: { modelCatalog } })
+
+    // The getter must be replaced for real — not shadowed on a throwaway wrapper.
+    expect(llm.discoverModels).not.toBe(original)
+    await expect((llm.discoverModels as (...a: unknown[]) => Promise<unknown>)('llm-pi-ai', { provider: 'openai-codex' }))
+      .resolves.toEqual({ ok: true, value: [{ id: 'gpt-6-astra', name: 'GPT-6-Astra' }] })
+    expect(modelCatalog).toHaveBeenCalledTimes(1)
+
+    // Other providers still reach the namespace's own implementation.
+    await expect((llm.discoverModels as (...a: unknown[]) => Promise<unknown>)('llm-pi-ai', { provider: 'other' }))
+      .resolves.toEqual({ ok: true, value: [{ id: 'pi-ai-snapshot' }] })
+    expect(original).toHaveBeenCalledTimes(1)
+
+    // Disposal restores the namespace accessor rather than leaving the bridge.
+    dispose()
+    expect(llm.discoverModels).toBe(original)
+  })
+
+  it('leaves the namespace untouched when the accessor cannot be redefined', async () => {
+    const original = vi.fn()
+    const llm: Record<string, unknown> = {}
+    Object.defineProperty(llm, 'discoverModels', { configurable: false, get: () => original })
+    const modelCatalog = vi.fn(async () => ({ ok: true as const, value: { groups: [] } }))
+
+    const dispose = installCodexModelDiscoveryBridge({ llm, session: { modelCatalog } })
+
+    expect(llm.discoverModels).toBe(original)
+    expect(() => dispose()).not.toThrow()
+    expect(modelCatalog).not.toHaveBeenCalled()
+  })
 })

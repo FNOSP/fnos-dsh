@@ -115,9 +115,58 @@ pageText:   "… 包含的组件 共 1 个 · 1 运行中 … dsh-codex-auth 运
 
 | 命令 | 结果 |
 | --- | --- |
-| `pnpm --filter @tnnevol/dsh-codex-auth run check` | 19 文件 / 100 测试通过（修复前 97） |
+| `pnpm --filter @tnnevol/dsh-codex-auth run check` | 19 文件 / 102 测试通过（初版修复后 100） |
 | `pnpm --filter @tnnevol/dsh-codebuddy run check` | 68 文件 / 888 测试通过 |
 | `pnpm run check -- --packages --plugins` | 13/13 任务通过 |
+
+## 追加：模型弹框仍列旧模型（根因三）
+
+现象三：激活与配置区恢复后，模型设置的「选择要添加的模型」弹框仍列出适配器
+**构建期快照**（`gpt-5.3-codex-spark`、`gpt-5.4`、`gpt-5.4-mini` …），而不是账号目录。
+
+### 定位
+
+在客户端条目激活正常（`bridge applied=true`）的前提下，弹框仍为旧列表，说明桥接
+**装上了但从未生效**。对已构建产物做运行时探针，读出：
+
+```
+desc={"hasGet":true,"hasSet":false,"configurable":true}
+isOwn=true
+after assign, readback===marker? false
+```
+
+`@deepseek-ai/dsh-api-gateway` 的 `RemoteNamespaceService.install()` 用
+`Object.defineProperty(this, method, { configurable: true, enumerable: true, get })`
+安装每个 RPC 方法——**只有 getter、没有 setter**。因此桥接原来的
+
+```ts
+llm.discoverModels = bridged   // 静默丢弃
+```
+
+既不报错也不生效（客户端产物是 classic script，非严格模式，连 TypeError 都没有），
+弹框于是回落到 `llm-pi-ai` 的构建期快照。
+
+### 修复三
+
+- `src/client/services/model-discovery.ts` 新增 `overrideMethod()`：用
+  `Object.defineProperty` 覆盖访问器，并在覆盖后**读回校验** `value === bridged`；
+  失败则返回 `undefined` 并放弃（fail closed，而不是静默继续用旧数据）。
+- 覆盖前先绑定原实现，避免读回时拿到桥接自身而递归。
+- disposer 还原原 descriptor（而非赋值回原函数），插件卸载后命名空间不变形。
+- 回归测试：`overrides a getter-only discoverModels accessor`（含覆盖生效、他provider
+  仍走原实现、dispose 还原）与 `leaves the namespace untouched when the accessor cannot
+  be redefined`。
+
+### 端到端 A/B（决定性）
+
+同一份 profile、同一无头渲染器，只改 `lib/client.js` 的这一处：
+
+| 变体 | 弹框列出的模型 |
+| --- | --- |
+| `llm.discoverModels = bridged`（修复前） | `gpt-5.3-codex-spark`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.5`, `gpt-5.6-luna/sol/terra`, `gpt-6-astra` ← **与用户截图一致** |
+| `defineProperty`（当前实现） | `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, `gpt-5.6-sol/terra/luna`, `gpt-5.5` |
+
+修复后弹框列出的是账号目录（7 个模型），不再包含已退役的 `gpt-5.4*`。
 
 ## 未完成部分（状态 blocked 的原因）
 
@@ -125,14 +174,18 @@ pageText:   "… 包含的组件 共 1 个 · 1 运行中 … dsh-codex-auth 运
   实机最终确认需用户在 Desktop 应用内重新安装/启用两个插件后重启客户端。
 - 未在 fnOS 或目标发行环境验收；`FNOS-008-06-AC-01`、`FNOS-008-07-AC-01/AC-05/AC-07` 仍缺真实环境证据。
 - 真实 NAS 与 Desktop 目标机的登录、取消、复制、模型目录同步与重启恢复尚未实测。
+- 账号目录刷新接口在无外网环境下返回 `502 fetch failed`（本机 `chatgpt.com` 不可达），
+  因此「刷新后写回 settings 并跨重启保持」只验证到代码路径，未在联网状态复测。
 
 ## 回滚
 
-- 客户端修复：还原 `src/client/index.tsx` 的 `inject` 与 `model-discovery.ts` 的 `try/catch` 即可。
+- 客户端修复：还原 `src/client/index.tsx` 的 `inject`、`model-discovery.ts` 的
+  `try/catch` 与 `overrideMethod` 覆盖即可。
 - 不涉及凭据、账号或持久化数据，回退无数据风险。
 
 ## 验收人
 
 - 执行：CodeBuddy（DSH 会话 Agent）
-- 结论：两个现象的根因均已复现定位，Codex 客户端缺陷已修复并由端到端渲染证据与回归测试锁定；
+- 结论：三个现象的根因均已复现定位（激活失败、详情页无配置、模型列表陈旧），
+  后两者的客户端缺陷已修复并由端到端渲染证据与回归测试锁定；
   CodeBuddy 侧确认仓库实现正确、实机问题为安装状态。目标环境验收待补，故状态为 `blocked`。

@@ -24,6 +24,43 @@ function record(value: unknown): Record<string, unknown> | undefined {
 }
 
 /**
+ * Replace `target[key]` even when the key is a getter-only accessor, returning
+ * the undo or `undefined` when the override did not take.
+ *
+ * The Remote namespace service installs every RPC method with
+ * `Object.defineProperty(service, method, { get })` — a getter and **no
+ * setter**. A plain `llm.discoverModels = bridged` assignment is therefore
+ * dropped without any error (the client bundle is a classic script, so it is
+ * not even a strict-mode TypeError), and the bridge silently never runs while
+ * the picker keeps showing the adapter's build-time snapshot. Redefining the
+ * property is the only way in; the readback check makes a future upstream
+ * change fail closed instead of quietly serving stale data.
+ */
+function overrideMethod(target: object, key: string, value: unknown): (() => void) | undefined {
+  let previous: PropertyDescriptor | undefined
+  try {
+    previous = Object.getOwnPropertyDescriptor(target, key)
+    Object.defineProperty(target, key, {
+      configurable: true,
+      enumerable: previous?.enumerable ?? true,
+      writable: true,
+      value,
+    })
+  } catch {
+    return undefined
+  }
+  if (Object.getOwnPropertyDescriptor(target, key)?.value !== value) return undefined
+  return () => {
+    try {
+      if (previous === undefined) delete (target as Record<string, unknown>)[key]
+      else Object.defineProperty(target, key, previous)
+    } catch {
+      // The namespace service is being torn down; nothing left to restore.
+    }
+  }
+}
+
+/**
  * Replace only Codex's configuration-page discovery with the same catalog
  * used by CodexGlobalModel. Other providers and draft endpoint discovery stay
  * on DSH's native discovery implementation.
@@ -45,6 +82,8 @@ export function installCodexModelDiscoveryBridge(remote: unknown): () => void {
   } catch {
     return () => undefined
   }
+  // Bind the original before overriding: reading it back through the patched
+  // property would return the bridge and recurse.
   const original = llm?.discoverModels
   if (llm === undefined || typeof original !== 'function' || typeof modelCatalog !== 'function') return () => undefined
 
@@ -63,8 +102,5 @@ export function installCodexModelDiscoveryBridge(remote: unknown): () => void {
     }
   }
 
-  llm.discoverModels = bridged
-  return () => {
-    if (llm.discoverModels === bridged) llm.discoverModels = original
-  }
+  return overrideMethod(llm, 'discoverModels', bridged) ?? (() => undefined)
 }
