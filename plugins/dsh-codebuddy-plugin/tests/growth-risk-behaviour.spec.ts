@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AccountLocks } from '../src/host/concurrency.ts'
-import { accountRiskHeaders, stableDeviceId } from '../src/host/risk-headers.ts'
+import { accountRiskHeaders, DESKTOP_USER_AGENT, stableDeviceId } from '../src/host/risk-headers.ts'
 import { runGrowthTaskAction } from '../src/host/growth-actions.ts'
 import { disableGrowthThrottleForTests } from '../src/host/risk-headers.ts'
 
@@ -94,7 +94,7 @@ describe('行为上报的真实出站请求', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('https://copilot.tencent.com/v2/report')
     const headers = init.headers as Record<string, string>
-    expect(headers['User-Agent']).toBe('WorkBuddy/5.5.6 WorkBuddy/5.5.6 CLI/2.137.1')
+    expect(headers['User-Agent']).toBe(DESKTOP_USER_AGENT)
     expect(headers['X-Product']).toBe('SaaS')
     const events = JSON.parse(String(init.body)) as Array<Record<string, unknown>>
     expect(events[0]).toMatchObject({

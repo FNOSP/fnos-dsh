@@ -21,6 +21,7 @@
  */
 
 import { createHash } from 'node:crypto'
+import { CODEBUDDY_CLIENT_VERSIONS } from '../contracts/constants.ts'
 
 /**
  * 本模块只需要账号唯一的 `uid` 与可选的企业 id。
@@ -36,11 +37,10 @@ export interface RiskIdentity {
 /**
  * 桌面端出站 UA。
  *
- * 来源口径：`WorkBuddy/<clientVersion> <platform>/<clientVersion> CLI/<cliVersion>`，
- * 实测取值 `WorkBuddy/5.5.6 WorkBuddy/5.5.6 CLI/2.137.1`。服务端按 UA 归因
- * 「使用端」；桌面行为链（RichMeow、模板、画布、专家）必须用这一形态。
+ * 来源口径：`WorkBuddy/<clientVersion> <platform>/<clientVersion> CLI/<cliVersion>`。
+ * 服务端按 UA 归因「使用端」；桌面行为链（RichMeow、模板、画布、专家）必须用这一形态。
  */
-export const DESKTOP_USER_AGENT = 'WorkBuddy/5.5.6 WorkBuddy/5.5.6 CLI/2.137.1'
+export const DESKTOP_USER_AGENT = `WorkBuddy/${CODEBUDDY_CLIENT_VERSIONS.workbuddy} WorkBuddy/${CODEBUDDY_CLIENT_VERSIONS.workbuddy} CLI/${CODEBUDDY_CLIENT_VERSIONS.cli}`
 
 /**
  * web 端事件上报的浏览器 UA。

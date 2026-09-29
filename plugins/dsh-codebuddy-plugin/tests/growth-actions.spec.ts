@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runGrowthTaskAction } from '../src/host/growth-actions.ts'
+import { DESKTOP_USER_AGENT } from '../src/host/risk-headers.ts'
 
 const identity = {
   accessToken: 'test-token',
@@ -44,7 +45,7 @@ describe('growth task actions', () => {
     expect(result.supported).toBe(true)
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('https://copilot.tencent.com/v2/report')
-    expect(init.headers).toMatchObject({ 'User-Agent': 'WorkBuddy/5.5.6 WorkBuddy/5.5.6 CLI/2.137.1' })
+    expect(init.headers).toMatchObject({ 'User-Agent': DESKTOP_USER_AGENT })
     expect(JSON.parse(String(init.body))).toEqual([expect.objectContaining({
       eventCode: 'automated_task_create_suc',
       ideName: 'WorkBuddy',

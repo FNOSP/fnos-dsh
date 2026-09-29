@@ -676,7 +676,7 @@ export class CodeBuddyAdapter extends LlmAdapter {
           // **不能**改用 `attributionHeaders()`。DSH 的契约要求适配器每个请求都带
           // harness 归因（`deepseek-harness/x.y.z (+url)`），但那与本服务的要求
           // 直接冲突——实测（真实凭据）：
-          //   UA = CLI/2.148.0 CodeBuddy/2.148.0        → HTTP 200
+          //   UA = CLI/<版本> CodeBuddy/<版本>          → HTTP 200
           //   UA = deepseek-harness/0.1.5-rc.2 (+url)   → HTTP 400 code=11128
           //   UA = harness/... CLI/...（拼接）          → HTTP 400
           //   UA = CLI/... harness/...（追加）          → HTTP 400

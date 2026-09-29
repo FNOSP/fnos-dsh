@@ -39,8 +39,16 @@ describe('账号级指纹头', () => {
     expect(RISK).not.toMatch(/randomUUID\(\).*machine/i)
   })
 
-  it('桌面链带来源的三段式 UA 与产品/域头', () => {
-    expect(RISK).toContain("'WorkBuddy/5.5.6 WorkBuddy/5.5.6 CLI/2.137.1'")
+  it('桌面链带来源的三段式 UA 与产品/域头', async () => {
+    // 断言**求值后的常量**而不是源码里的字面量：UA 由客户端版本常量拼出，
+    // 升级版本时这里会自动跟着走，不会因为「源码里搜不到某个旧数字」而误报。
+    const { DESKTOP_USER_AGENT } = await import('../src/host/risk-headers.ts')
+    const { CODEBUDDY_CLIENT_VERSIONS } = await import('../src/contracts/constants.ts')
+    expect(DESKTOP_USER_AGENT).toBe(
+      `WorkBuddy/${CODEBUDDY_CLIENT_VERSIONS.workbuddy} WorkBuddy/${CODEBUDDY_CLIENT_VERSIONS.workbuddy} CLI/${CODEBUDDY_CLIENT_VERSIONS.cli}`,
+    )
+    // 三段式形态：WorkBuddy/<v> WorkBuddy/<v> CLI/<v>
+    expect(DESKTOP_USER_AGENT).toMatch(/^WorkBuddy\/[\d.]+ WorkBuddy\/[\d.]+ CLI\/[\d.]+$/)
     expect(ACTIONS).toContain("'X-Product': 'SaaS'")
     expect(ACTIONS).toContain("'User-Agent': DESKTOP_USER_AGENT")
   })

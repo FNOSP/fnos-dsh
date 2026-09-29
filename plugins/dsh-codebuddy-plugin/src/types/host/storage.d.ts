@@ -48,7 +48,7 @@ export interface CodeBuddyAccountEntry {
    */
   client?: CodeBuddyClientId
   /**
-   * 该客户端上报的固定版本号（CLI 2.145.0 / WorkBuddy 5.5.6）。
+   * 该客户端上报的固定版本号（取值见 `CODEBUDDY_CLIENT_VERSIONS`）。
    *
    * 存下来是为了让面板展示与实际请求一致：版本是产品发布版本、不随时间变化，
    * 因此它是账号属性而不是运行时随机值。

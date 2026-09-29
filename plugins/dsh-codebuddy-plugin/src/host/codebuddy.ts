@@ -49,7 +49,7 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
  * version 是客户端自己的产品版本，按官方客户端打开页面前的方式追加。
  *
  * 版本按客户端取自 {@link CODEBUDDY_CLIENT_VERSIONS}，都是固定发布版本：
- * 例如 WorkBuddy 是 5.5.6。不要写成随机值——服务端以此归因客户端版本。
+ * 取值见 `CODEBUDDY_CLIENT_VERSIONS`。不要写成随机值——服务端以此归因客户端版本。
  *
  * @param authUrl - 服务端提供的登录 URL。
  * @param client - 以哪个客户端身份登录。
@@ -86,9 +86,13 @@ export async function requestAuthState(
     method: 'POST',
     headers: {
       'Accept': 'application/json',
+      // 四个 X-No-* 与官方 CLI 一致（`X-No-*-*` 用于让服务端跳过对应身份头）。
+      // `X-No-Department-Info` 此前缺失，虽未观测到故障，但与参考实现对齐以免
+      // 服务端在未来收紧校验时拒绝。
       'X-No-Authorization': 'true',
       'X-No-User-Id': 'true',
       'X-No-Enterprise-Id': 'true',
+      'X-No-Department-Info': 'true',
     },
     ...signal === undefined ? {} : { signal },
   })
@@ -200,6 +204,7 @@ export async function getLoginAccount(
         'Authorization': `Bearer ${accessToken}`,
         'X-No-User-Id': 'true',
         'X-No-Enterprise-Id': 'true',
+        'X-No-Department-Info': 'true',
         'X-Domain': domain,
       },
     },
@@ -255,6 +260,9 @@ export async function refreshAccessToken(
     'X-Domain': identity.domain,
     'X-User-Id': identity.uid,
     'X-Refresh-Token': refreshToken,
+    // 官方 CLI 在 refresh 与 logout 上都带它，取值恒为 `plugin`：服务端据此区分
+    // 「插件（外部链接）发起的刷新」与其它来源。缺它此前未观测到故障，属对齐。
+    'X-Auth-Refresh-Source': 'plugin',
   }
   if (identity.enterpriseId !== undefined) headers['X-Enterprise-Id'] = identity.enterpriseId
   let response: Response

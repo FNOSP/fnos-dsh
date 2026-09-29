@@ -119,7 +119,7 @@ export const CODEBUDDY_IDE_VERSION = '4.9.8'
  * 注意与 {@link CODEBUDDY_IDE_VERSION} 的区别：那是 **CodeBuddyIDE**（VS Code 扩展）
  * 的版本，属另一条产品线，不随本包变化。
  */
-export const CODEBUDDY_CLI_VERSION = '2.148.0'
+export const CODEBUDDY_CLI_VERSION = '2.159.0'
 
 /**
  * 客户端字典：id → 客户端**标识**（登录 `platform` 参数 + 请求的 `X-IDE-Type`/`X-IDE-Name`）。
@@ -144,7 +144,7 @@ export const CODEBUDDY_CLIENT_PLATFORMS: Readonly<Record<CodeBuddyClientId, stri
 /** 客户端字典：id → 固定版本号。 */
 export const CODEBUDDY_CLIENT_VERSIONS: Readonly<Record<CodeBuddyClientId, string>> = {
   cli: CODEBUDDY_CLI_VERSION,
-  workbuddy: '5.5.6',
+  workbuddy: '5.6.2',
 }
 
 /** 客户端字典：id → 登录页/计费所在的服务地址。 */

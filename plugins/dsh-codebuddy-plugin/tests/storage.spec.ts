@@ -200,7 +200,7 @@ describe('normalizeEntry 必须保留客户端身份字段', () => {
     const loadedWb = loaded.accounts.find(e => e.account.uid === 'u1')!
     const loadedCli = loaded.accounts.find(e => e.account.uid === 'u2')!
     expect(loadedWb.client).toBe('workbuddy')
-    expect(loadedWb.clientVersion).toBe('5.5.6')
+    expect(loadedWb.clientVersion).toBe('5.6.2')
     expect(loadedCli.client).toBe('cli')
 
     // 且端点解析正确 —— 这是该字段的实际用途
@@ -234,7 +234,7 @@ describe('normalizeEntry 必须保留客户端身份字段', () => {
     const loaded = (await loadStorage())!
     // 老条目没有该字段 → 按 CLI 处理，且补上固定版本号。
     expect(loaded.accounts[0]!.client).toBe('cli')
-    expect(loaded.accounts[0]!.clientVersion).toBe('2.148.0')
+    expect(loaded.accounts[0]!.clientVersion).toBe('2.159.0')
     delete process.env.DSH_CODEBUDDY_AUTH_FILE
   }, 60_000)
 })
