@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { chmodSync, mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, readdirSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -335,5 +335,216 @@ describe('nextActiveId：登录后谁是当前账号', () => {
     const block = src.slice(src.indexOf('const existing = stored?.accounts.find'), start)
     expect(block).toMatch(/id: existing\.id/)
     expect(src.slice(start, start + 200)).toMatch(/stored\.activeId === existing\.id/)
+  })
+})
+
+/**
+ * 配置文件合并：账号凭据、三份自动偏好、成长任务运行状态原本散在 5 个文件里
+ * （`codebuddy-auth.json` 与它的 4 个 `.auto-*.json` / `.growth-run.json` 兄弟），
+ * 现在收敛为一份文档。
+ *
+ * 这组用例守两件事：**合并后字段一个都不能丢**，以及**老配置能自动升上来且
+ * 旧文件被保留**（改名而非删除）。
+ */
+describe('配置文档合并与读时迁移', () => {
+  it('把 4 个旧兄弟文件并入单一文档，字段逐项保留', async () => {
+    const path = useTempAuthFile()
+    writeOwnerOnly(path, { activeId: 'a', accounts: [entry('a', 'uid-a')] })
+    writeOwnerOnly(`${path}.auto-switch.json`, { enabled: true, thresholdPct: 33 })
+    writeOwnerOnly(`${path}.auto-checkin.json`, { enabled: false })
+    writeOwnerOnly(`${path}.auto-travel.json`, { enabled: false })
+    writeOwnerOnly(`${path}.growth-run.json`, {
+      running: false,
+      mode: 'all',
+      startedAt: 1,
+      summary: 'all:1 accounts',
+    })
+
+    const storage = await loadStorage()
+    expect(storage?.activeId).toBe('a')
+    expect(storage?.accounts.map(item => item.id)).toEqual(['a'])
+
+    const { loadAutoSwitchConfig, loadAutoCheckinConfig, loadAutoTravelConfig } = await import('../src/host/storage.ts')
+    expect(await loadAutoSwitchConfig()).toEqual({ enabled: true, thresholdPct: 33, fromDisk: true })
+    expect(await loadAutoCheckinConfig()).toEqual({ enabled: false })
+    expect(await loadAutoTravelConfig()).toEqual({ enabled: false })
+
+    const { loadGrowthRunState } = await import('../src/host/growth-run.ts')
+    expect(await loadGrowthRunState()).toMatchObject({ summary: 'all:1 accounts' })
+  })
+
+  it('迁移后磁盘上只剩一份文档，旧文件改名为 .migrated-* 保留', async () => {
+    const path = useTempAuthFile()
+    writeOwnerOnly(path, { activeId: 'a', accounts: [entry('a', 'uid-a')] })
+    writeOwnerOnly(`${path}.auto-switch.json`, { enabled: false, thresholdPct: 5 })
+    writeOwnerOnly(`${path}.growth-run.json`, { running: false, mode: 'all', startedAt: 1 })
+
+    await loadStorage()
+
+    const files = readdirSync(workdir!)
+    expect(files.filter(name => name.includes('.migrated-'))).toHaveLength(2)
+    // 旧的原始文件名不再存在（已改名），且旧内容确实被保留了下来。
+    expect(files).not.toContain('codebuddy-auth.json.auto-switch.json')
+    const archived = files.find(name => name.startsWith('codebuddy-auth.json.auto-switch.json.migrated-'))!
+    expect(JSON.parse(readFileSync(join(workdir!, archived), 'utf-8'))).toEqual({ enabled: false, thresholdPct: 5 })
+    // 新文档带版本号，且已含偏好。
+    const merged = JSON.parse(readFileSync(path, 'utf-8')) as { version: number, prefs: { autoSwitch: unknown } }
+    expect(merged.version).toBe(1)
+    expect(merged.prefs.autoSwitch).toEqual({ enabled: false, thresholdPct: 5 })
+  })
+
+  it('重复读取幂等：第二次不再产生新的归档文件', async () => {
+    const path = useTempAuthFile()
+    writeOwnerOnly(path, { activeId: 'a', accounts: [entry('a', 'uid-a')] })
+    writeOwnerOnly(`${path}.auto-checkin.json`, { enabled: false })
+
+    await loadStorage()
+    const afterFirst = readdirSync(workdir!).filter(name => name.includes('.migrated-')).length
+    await loadStorage()
+    expect(readdirSync(workdir!).filter(name => name.includes('.migrated-'))).toHaveLength(afterFirst)
+  })
+
+  it('单个兄弟文件损坏不影响其余迁移，也不阻断读取', async () => {
+    const path = useTempAuthFile()
+    writeOwnerOnly(path, { activeId: 'a', accounts: [entry('a', 'uid-a')] })
+    writeFileSync(`${path}.auto-travel.json`, '{ not json', { encoding: 'utf-8', mode: 0o600 })
+    writeOwnerOnly(`${path}.auto-checkin.json`, { enabled: false })
+
+    const storage = await loadStorage()
+    expect(storage?.accounts).toHaveLength(1)
+    const { loadAutoCheckinConfig, loadAutoTravelConfig } = await import('../src/host/storage.ts')
+    expect(await loadAutoCheckinConfig()).toEqual({ enabled: false })
+    // 损坏的那份按「用户没配过」处理，回落到默认值。
+    expect(await loadAutoTravelConfig()).toEqual({ enabled: true })
+  })
+
+  it('偏好与成长任务状态在未登录（零账号）时也能落盘', async () => {
+    const path = useTempAuthFile()
+    const { saveAutoCheckinConfig, loadAutoCheckinConfig } = await import('../src/host/storage.ts')
+    const { beginGrowthRun, loadGrowthRunState } = await import('../src/host/growth-run.ts')
+
+    await saveAutoCheckinConfig({ enabled: false })
+    await beginGrowthRun('all')
+
+    expect(await loadStorage()).toBeUndefined()
+    expect(await loadAutoCheckinConfig()).toEqual({ enabled: false })
+    expect((await loadGrowthRunState())?.running).toBe(true)
+    const merged = JSON.parse(readFileSync(path, 'utf-8')) as { accounts: unknown[] }
+    expect(merged.accounts).toEqual([])
+  })
+
+  it('保存偏好不会覆盖账号列表（同一份文档的不同片段）', async () => {
+    const path = useTempAuthFile()
+    await saveStorage({ activeId: 'a', accounts: [entry('a', 'uid-a')] })
+    const { saveAutoSwitchConfig } = await import('../src/host/storage.ts')
+    await saveAutoSwitchConfig({ enabled: false, thresholdPct: 42 })
+
+    const storage = await loadStorage()
+    expect(storage?.accounts.map(item => item.id)).toEqual(['a'])
+    expect(storage?.prefs?.autoSwitch).toEqual({ enabled: false, thresholdPct: 42 })
+    const merged = JSON.parse(readFileSync(path, 'utf-8')) as { version: number }
+    expect(merged.version).toBe(1)
+  })
+
+  /**
+   * 下面的用例守一个**最容易漏掉**的点：合并文档之后，凡是"重建文档对象"的
+   * 地方都必须带上 `...current`，否则那份代码在改动自己关心的字段时会**顺手
+   * 抹掉**其它片段。这类缺陷不会报错、也不会让任何已有用例变红——删账号时
+   * 偏好与执行日志一起消失，只有真去读偏好才会发现。
+   *
+   * 因此逐个账号操作都断言"改动后 `prefs`/`growthRun` 仍在"。
+   */
+  it('删除账号保留偏好与成长任务状态', async () => {
+    const path = useTempAuthFile()
+    const { CodeBuddyAuthService } = await import('../src/host/auth-service.ts')
+    const { CodeBuddySession } = await import('../src/host/session.ts')
+    const { saveAutoSwitchConfig, loadAutoSwitchConfig } = await import('../src/host/storage.ts')
+    const { beginGrowthRun, loadGrowthRunState } = await import('../src/host/growth-run.ts')
+
+    await saveStorage({ activeId: 'a', accounts: [entry('a', 'uid-a'), entry('b', 'uid-b')] })
+    await saveAutoSwitchConfig({ enabled: false, thresholdPct: 42 })
+    await beginGrowthRun('all')
+    expect((await loadGrowthRunState())?.running).toBe(true)
+
+    const service = new CodeBuddyAuthService(
+      { logger: { info: () => {}, warn: () => {}, error: () => {} }, effect: () => () => {}, inject: () => () => {}, get: () => undefined } as never,
+      new CodeBuddySession(),
+    )
+    await service.removeAccount('b')
+
+    expect((await loadStorage())?.accounts.map(item => item.id)).toEqual(['a'])
+    expect(await loadAutoSwitchConfig()).toEqual({ enabled: false, thresholdPct: 42, fromDisk: true })
+    expect((await loadGrowthRunState())?.running).toBe(true)
+    // 文档仍带版本号：重建成"账号层文档"会丢掉它，下次读取又会当成待迁移。
+    expect((JSON.parse(readFileSync(path, 'utf-8')) as { version: number }).version).toBe(1)
+  })
+
+  it('改名保留偏好与成长任务状态', async () => {
+    const { CodeBuddyAuthService } = await import('../src/host/auth-service.ts')
+    const { CodeBuddySession } = await import('../src/host/session.ts')
+    const { saveAutoCheckinConfig, loadAutoCheckinConfig } = await import('../src/host/storage.ts')
+
+    useTempAuthFile()
+    await saveStorage({ activeId: 'a', accounts: [entry('a', 'uid-a')] })
+    await saveAutoCheckinConfig({ enabled: false })
+
+    const service = new CodeBuddyAuthService(
+      { logger: { info: () => {}, warn: () => {}, error: () => {} }, effect: () => () => {}, inject: () => () => {}, get: () => undefined } as never,
+      new CodeBuddySession(),
+    )
+    await service.renameLabel('a', '备注')
+
+    expect((await loadStorage())?.accounts[0]?.account.label).toBe('备注')
+    expect(await loadAutoCheckinConfig()).toEqual({ enabled: false })
+  })
+
+  it('切换当前账号保留偏好与成长任务状态', async () => {
+    const { CodeBuddyAuthService } = await import('../src/host/auth-service.ts')
+    const { CodeBuddySession } = await import('../src/host/session.ts')
+    const { saveAutoTravelConfig, loadAutoTravelConfig } = await import('../src/host/storage.ts')
+
+    useTempAuthFile()
+    await saveStorage({ activeId: 'a', accounts: [entry('a', 'uid-a'), entry('b', 'uid-b')] })
+    await saveAutoTravelConfig({ enabled: false })
+
+    const service = new CodeBuddyAuthService(
+      { logger: { info: () => {}, warn: () => {}, error: () => {} }, effect: () => () => {}, inject: () => () => {}, get: () => undefined } as never,
+      new CodeBuddySession(),
+    )
+    await service.switchAccount('b')
+
+    expect((await loadStorage())?.activeId).toBe('b')
+    expect(await loadAutoTravelConfig()).toEqual({ enabled: false })
+  })
+
+  /**
+   * `mutateStorage` 的**片段保全**不变量。
+   *
+   * 各账号写路径的回调都是"逐字段重建"文档（`{ activeId, accounts }`），只关心
+   * 自己改的那部分。合并文档后，这种写法会顺手抹掉 `prefs`/`growthRun`——删账号
+   * 时偏好与执行日志一起消失，且**不会报错**，只有真去读偏好才会发现。
+   *
+   * 与其要求每个调用点记得写 `...current`，事务层把回调结果**并回**当前文档，
+   * 让"只关心自己那片"的写法天然安全。这条用例直接钉住该不变量：回调故意只返回
+   * 自己关心的字段，断言其它片段仍在。
+   */
+  it('mutateStorage 把回调结果并回文档：回调只返回部分字段也不丢其它片段', async () => {
+    const { mutateStorage, saveAutoSwitchConfig, loadAutoSwitchConfig, readGrowthRunState } = await import('../src/host/storage.ts')
+    const { beginGrowthRun } = await import('../src/host/growth-run.ts')
+
+    useTempAuthFile()
+    await saveStorage({ activeId: 'a', accounts: [entry('a', 'uid-a'), entry('b', 'uid-b')] })
+    await saveAutoSwitchConfig({ enabled: false, thresholdPct: 42 })
+    await beginGrowthRun('all')
+
+    // 刻意**不**写 `...current`：模拟"只关心账号字段"的调用点。
+    await mutateStorage((current) => {
+      if (current === undefined) return undefined
+      return { activeId: 'b', accounts: current.accounts }
+    })
+
+    expect((await loadStorage())?.activeId).toBe('b')
+    expect(await loadAutoSwitchConfig()).toEqual({ enabled: false, thresholdPct: 42, fromDisk: true })
+    expect((await readGrowthRunState()) as { running: boolean } | undefined).toMatchObject({ running: true })
   })
 })

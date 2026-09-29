@@ -316,9 +316,21 @@ describe('宿主持久化日志', () => {
     expect(HOST_RUN).not.toContain('MAX_LOG_ENTRIES')
   })
 
-  it('追加走串行队列：账号并发处理时读-改-写会互相覆盖', () => {
-    expect(HOST_RUN).toContain('SerialQueue')
-    expect(HOST_RUN).toMatch(/logQueue\.runExclusive/)
+  it('追加走文档锁：账号并发处理时读-改-写会互相覆盖', () => {
+    // 串行化不再由本模块私有的队列承担，而是统一到 storage 的文档锁——
+    // 状态与账号凭据、自动偏好同处一份 JSON，两把锁挡不住交叉写。
+    expect(HOST_RUN).not.toContain('logQueue')
+    expect(HOST_RUN).not.toContain('SerialQueue')
+    expect(HOST_RUN).toContain('mutateGrowthRunState')
+    // 写入点都必须经同一个「锁内读-改-写」原语，而不是各自读一次再写回：
+    // load 的孤儿落定、begin、append、finish、save 各一处。
+    expect(HOST_RUN.match(/await writeGrowthRunState\(/g) ?? []).toHaveLength(5)
+    const append = HOST_RUN.slice(
+      HOST_RUN.indexOf('export async function appendGrowthRunLog'),
+      HOST_RUN.indexOf('export function retainedLogRounds'),
+    )
+    expect(append).not.toContain('loadGrowthRunState')
+    expect(append).toContain('writeGrowthRunState((previous) =>')
   })
 
   it('begin 清空上一轮日志，finish 保留本轮日志', () => {

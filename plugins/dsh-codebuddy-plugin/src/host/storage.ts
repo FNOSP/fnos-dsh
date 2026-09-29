@@ -181,10 +181,27 @@ function normalizeEntry(entry: CodeBuddyAccountEntry): CodeBuddyAccountEntry {
   }
 }
 
-/** 判断解析出的值看起来是否是当前的多账号文档。 */
-function isMultiAccount(value: object): value is CodeBuddyStorage {
-  return 'activeId' in value && 'accounts' in value && Array.isArray((value as CodeBuddyStorage).accounts)
-}
+/**
+ * 配置文件合并后的文档版本。
+ *
+ * `0` 是**合并之前**的结构：账号凭据在 `codebuddy-auth.json`，三份自动偏好
+ * 与成长任务运行状态散在旁边的兄弟文件里。读到没有 `version` 或 `version`
+ * 小于本值的文档即触发迁移。
+ */
+export const STORAGE_VERSION = 1
+
+/**
+ * 旧版分散文件的磁盘后缀（相对凭据文档路径）。
+ *
+ * 保留在这里是为了让读时迁移与 `scripts/migrate-storage.mjs` 使用**同一份**
+ * 文件名清单——两边各写一份的话，新增一个子文件就会只改一边。
+ */
+export const LEGACY_SIBLING_SUFFIXES = {
+  autoSwitch: '.auto-switch.json',
+  autoCheckin: '.auto-checkin.json',
+  autoTravel: '.auto-travel.json',
+  growthRun: '.growth-run.json',
+} as const
 
 /**
  * 接受旧版 `{auth, account}` 文档，作为初始的唯一条目。
@@ -193,7 +210,95 @@ function isMultiAccount(value: object): value is CodeBuddyStorage {
  */
 function migrateLegacy(legacy: LegacyCodeBuddyStorage): CodeBuddyStorage {
   const entry = normalizeEntry({ id: randomUUID(), auth: legacy.auth, account: legacy.account })
-  return { activeId: entry.id, accounts: [entry] }
+  return { version: STORAGE_VERSION, activeId: entry.id, accounts: [entry] }
+}
+
+/**
+ * 读取并解析一个旧版兄弟文件；缺失或损坏时返回 `undefined`。
+ *
+ * 迁移必须容忍单个子文件损坏：读不动的那一份按"用户没配过"处理并继续迁移
+ * 其余部分，而不是让整次迁移失败、把用户挡在登录之外。
+ * @param path - 待读取的文件绝对路径。
+ * @returns 解析后的值；文件缺失、不可读或不是合法 JSON 时为 `undefined`。
+ */
+async function readJsonFile(path: string): Promise<unknown> {
+  try {
+    return JSON.parse(await fs.readFile(path, 'utf-8')) as unknown
+  } catch {
+    return undefined
+  }
+}
+
+/** 从任意值里取出布尔字段，非布尔一律当作缺省。 */
+function readEnabled(value: unknown): boolean | undefined {
+  if (value === null || typeof value !== 'object') return undefined
+  const enabled = (value as { enabled?: unknown }).enabled
+  return typeof enabled === 'boolean' ? enabled : undefined
+}
+
+/**
+ * 把旧版分散文件的内容并入单一文档。
+ *
+ * 三份自动偏好与成长任务状态原本各占一个兄弟文件；这里逐个探测并把内容搬进
+ * `prefs` / `growthRun`。任何一份缺失都只是让对应字段保持缺省——各读取函数
+ * 仍会回落到自己的默认值，因此"从未配过"与"迁移后没有该字段"语义一致。
+ * @param base - 已解析的凭据部分（多账号结构或旧单账号结构迁移而来）。
+ * @returns 带 `prefs`/`growthRun` 的合并文档。
+ */
+async function mergeLegacySiblings(base: CodeBuddyDocument): Promise<CodeBuddyDocument> {
+  const path = getStoragePath()
+  const [autoSwitch, autoCheckin, autoTravel, growthRun] = await Promise.all([
+    readJsonFile(`${path}${LEGACY_SIBLING_SUFFIXES.autoSwitch}`),
+    readJsonFile(`${path}${LEGACY_SIBLING_SUFFIXES.autoCheckin}`),
+    readJsonFile(`${path}${LEGACY_SIBLING_SUFFIXES.autoTravel}`),
+    readJsonFile(`${path}${LEGACY_SIBLING_SUFFIXES.growthRun}`),
+  ])
+  const prefs: NonNullable<CodeBuddyStorage['prefs']> = {}
+  const switchEnabled = readEnabled(autoSwitch)
+  if (switchEnabled !== undefined) {
+    const raw = autoSwitch as { thresholdPct?: unknown }
+    // 阈值沿用原读取函数的收敛规则（0–100 整数，非法值回落 10），
+    // 这样迁移与不迁移读到的偏好完全一致。
+    const thresholdPct = typeof raw.thresholdPct === 'number' && Number.isFinite(raw.thresholdPct)
+      ? Math.max(0, Math.min(100, Math.round(raw.thresholdPct)))
+      : 10
+    prefs.autoSwitch = { enabled: switchEnabled, thresholdPct }
+  }
+  const checkinEnabled = readEnabled(autoCheckin)
+  if (checkinEnabled !== undefined) prefs.autoCheckin = { enabled: checkinEnabled }
+  const travelEnabled = readEnabled(autoTravel)
+  if (travelEnabled !== undefined) prefs.autoTravel = { enabled: travelEnabled }
+  return {
+    ...base,
+    version: STORAGE_VERSION,
+    ...Object.keys(prefs).length === 0 ? {} : { prefs },
+    ...growthRun === undefined ? {} : { growthRun },
+  }
+}
+
+/**
+ * 迁移旧版兄弟文件，并把它们改名为 `.migrated-<ts>` 保留。
+ *
+ * 为什么改名而不是删除：这些文件里是账号偏好与执行日志，删除是不可逆的。
+ * 改名后既能让"下次读取不再重复迁移"，又给用户留了手工回退的余地。
+ * 改名失败**不**影响本次迁移——内容已经并入新文档，残留的旧文件顶多让下次
+ * 读取再迁移一次（幂等）。
+ * @param stamp - 追加到文件名上的时间戳（毫秒）。
+ * @returns 实际改名成功的文件数。
+ */
+export async function archiveLegacySiblings(stamp: number = Date.now()): Promise<number> {
+  const path = getStoragePath()
+  let moved = 0
+  for (const suffix of Object.values(LEGACY_SIBLING_SUFFIXES)) {
+    const from = `${path}${suffix}`
+    try {
+      await fs.rename(from, `${from}.migrated-${stamp}`)
+      moved += 1
+    } catch {
+      // 不存在或改名失败都跳过：迁移结果已经落盘，这里只是清理。
+    }
+  }
+  return moved
 }
 
 /**
@@ -207,6 +312,71 @@ export function getStoragePath(): string {
   const override = process.env.DSH_CODEBUDDY_AUTH_FILE
   if (override !== undefined && override.length > 0) return override
   return dshHomePath('codebuddy-auth.json')
+}
+
+/** 一次迁移的结果，供脚本输出与测试断言。 */
+export interface MigrationOutcome {
+  /** 迁移前是否存在待合并的旧兄弟文件。 */
+  readonly legacyFiles: readonly string[]
+  /** 是否已写出合并后的文档。 */
+  readonly written: boolean
+  /** 改名成功的旧文件数。 */
+  readonly archived: number
+  /** 合并后文档中的账号数。 */
+  readonly accounts: number
+  /** 合并后文档是否带偏好。 */
+  readonly hasPrefs: boolean
+  /** 合并后文档是否带成长任务状态。 */
+  readonly hasGrowthRun: boolean
+}
+
+/**
+ * 把磁盘上的分散配置合并为一份文档。
+ *
+ * **读时迁移与显式脚本共用这一个入口**：两边各写一份实现的话，将来多加一个
+ * 子文件只会改一边，另一条路径就静默漏掉它。已合并的文档在这里是幂等空操作。
+ *
+ * @param options - 可选：`stamp` 指定归档文件名的时间戳（默认当前时刻，
+ *   测试可固定）。
+ * @returns 迁移结果摘要。
+ */
+export async function migrateStorageDocument(
+  options: { stamp?: number } = {},
+): Promise<MigrationOutcome> {
+  const path = getStoragePath()
+  const before = await listLegacySiblings(path)
+  // `readDocument` 内部完成合并、写回与归档（缺 `version` 时才触发）。
+  const document = await readDocument()
+  const remaining = await listLegacySiblings(path)
+  // 已合并的文档若仍有残留旧文件（上次归档失败、或用户手工拷回），补一次归档，
+  // 否则下次读取会再做一遍无用的合并。
+  if (before.length > 0 && remaining.length > 0) {
+    await archiveLegacySiblings(options.stamp ?? Date.now())
+  }
+  const stillThere = await listLegacySiblings(path)
+  return {
+    legacyFiles: before,
+    written: document !== undefined,
+    archived: before.length - stillThere.length,
+    accounts: document?.accounts.length ?? 0,
+    hasPrefs: document?.prefs !== undefined,
+    hasGrowthRun: document?.growthRun !== undefined,
+  }
+}
+
+/** 列出实际存在的旧版兄弟文件路径。 */
+async function listLegacySiblings(path: string): Promise<string[]> {
+  const found: string[] = []
+  for (const suffix of Object.values(LEGACY_SIBLING_SUFFIXES)) {
+    const candidate = `${path}${suffix}`
+    try {
+      await fs.stat(candidate)
+      found.push(candidate)
+    } catch {
+      // 不存在即跳过。
+    }
+  }
+  return found
 }
 
 /**
@@ -250,31 +420,106 @@ async function isOwnerOnly(path: string): Promise<boolean> {
  *   认证的东西"，而登录流程对每一种都是修复手段。
  */
 export async function loadStorage(): Promise<CodeBuddyStorage | undefined> {
+  const document = await readDocument()
+  if (document === undefined || document.accounts.length === 0) return undefined
+  const activeId = document.accounts.some(entry => entry.id === document.activeId)
+    ? document.activeId!
+    : document.accounts[0]!.id
+  return { ...document, activeId, accounts: document.accounts }
+}
+
+/**
+ * 磁盘上的完整文档，含**尚无账号**的情形。
+ *
+ * 与 {@link CodeBuddyStorage} 的差别只有一处：它允许 `accounts` 为空。这不是
+ * 可有可无的宽松——自动偏好与成长任务运行状态与凭据同处一份文档，而两者在
+ * 用户还没登录时就必须能落盘（此前各占一个文件，天然没有这个约束）。
+ * 账号相关读取仍然经 {@link loadStorage}，它把「零账号」呈现为 `undefined`
+ * （即"未登录"），调用方的语义不变。
+ */
+interface CodeBuddyDocument {
+  version: number
+  activeId?: string
+  accounts: CodeBuddyAccountEntry[]
+  prefs?: NonNullable<CodeBuddyStorage['prefs']>
+  growthRun?: unknown
+}
+
+/**
+ * 接受旧版单账号结构，或把已识别的文档降级成文档层形状。
+ * @param storage - 账号层文档。
+ * @returns 补上 `version` 的文档。
+ */
+function asDocument(storage: CodeBuddyStorage): CodeBuddyDocument {
+  return { ...storage, version: STORAGE_VERSION }
+}
+
+/**
+ * 读取并规范化整份文档（含零账号的情形），必要时完成迁移。
+ *
+ * @returns 文档；文件缺失、损坏或权限不安全时为 `undefined`。
+ */
+async function readDocument(): Promise<CodeBuddyDocument | undefined> {
   const path = getStoragePath()
   try {
     if (!(await isOwnerOnly(path))) return undefined
     const raw = await fs.readFile(path, 'utf-8')
     const parsed = JSON.parse(raw) as unknown
     if (parsed === null || typeof parsed !== 'object') return undefined
-    if (isMultiAccount(parsed)) {
-      const accounts = parsed.accounts
-        .filter(entry => entry !== null && typeof entry === 'object'
-          && typeof entry.id === 'string' && entry.id.length > 0
-          && entry.auth?.accessToken !== undefined
-          && entry.account?.uid !== undefined)
-        .map(normalizeEntry)
-      if (accounts.length === 0) return undefined
-      const activeId = accounts.some(entry => entry.id === parsed.activeId)
-        ? parsed.activeId
-        : accounts[0]!.id
-      return { activeId, accounts }
+    const record = parsed as Record<string, unknown>
+    // 账号列表缺失但有 `prefs`/`growthRun` 的文档是合法的：用户尚未登录，
+    // 但已经改过自动偏好（或跑过成长任务）。
+    const rawAccounts = Array.isArray(record.accounts) ? record.accounts : []
+    const accounts = rawAccounts
+      .filter(entry => entry !== null && typeof entry === 'object'
+        && typeof (entry as CodeBuddyAccountEntry).id === 'string'
+        && ((entry as CodeBuddyAccountEntry).id?.length ?? 0) > 0
+        && (entry as CodeBuddyAccountEntry).auth?.accessToken !== undefined
+        && (entry as CodeBuddyAccountEntry).account?.uid !== undefined)
+      .map(entry => normalizeEntry(entry as CodeBuddyAccountEntry))
+    const activeId = typeof record.activeId === 'string' ? record.activeId : undefined
+    const base: CodeBuddyDocument = {
+      ...record,
+      version: STORAGE_VERSION,
+      ...activeId === undefined ? {} : { activeId },
+      accounts,
     }
-    const legacy = parsed as LegacyCodeBuddyStorage
-    if (legacy.auth?.accessToken === undefined || legacy.account?.uid === undefined) return undefined
-    return migrateLegacy(legacy)
+    // 已合并的文档直接返回；缺 `version` 的是拆分时期的结构，需要把旁边的
+    // 兄弟文件并进来。
+    if (typeof record.version === 'number' && record.version >= STORAGE_VERSION) return base
+    // 旧版单账号结构没有任何账号被识别出来时，再按 legacy 形状试一次。
+    if (accounts.length === 0 && !('prefs' in record) && !('growthRun' in record)) {
+      const legacy = parsed as LegacyCodeBuddyStorage
+      if (legacy.auth?.accessToken !== undefined && legacy.account?.uid !== undefined) {
+        return await migrateInPlace(asDocument(migrateLegacy(legacy)))
+      }
+      // 认不出内容的文档按不存在处理，与旧实现的语义一致。
+      return undefined
+    }
+    return await migrateInPlace(base)
   } catch {
     return undefined
   }
+}
+
+/**
+ * 就地完成一次迁移：并入兄弟文件、写回单一文档、把旧文件改名保留。
+ *
+ * 写回失败**不**让读取失败：内存里的文档是完整的，本次会话照常可用；旧文件
+ * 因为改名失败而留在原处，下一次读取会再迁移一次（幂等）。反过来若在这里
+ * 抛出，用户会在升级后直接变成"未登录"。
+ * @param base - 已解析并合并了兄弟文件的文档。
+ * @returns 合并后的文档。
+ */
+async function migrateInPlace(base: CodeBuddyDocument): Promise<CodeBuddyDocument> {
+  const merged = await mergeLegacySiblings(base)
+  try {
+    await saveDocument(merged)
+    await archiveLegacySiblings()
+  } catch {
+    // 落盘失败时仍返回合并结果，见上方说明。
+  }
+  return merged
 }
 
 /**
@@ -343,25 +588,69 @@ const mutationQueue = new SerialQueue()
 export async function mutateStorage(
   mutate: (current: CodeBuddyStorage | undefined) => CodeBuddyStorage | undefined | Promise<CodeBuddyStorage | undefined>,
 ): Promise<CodeBuddyStorage | undefined> {
+  let outcome: CodeBuddyStorage | undefined
+  const written = await mutateDocument(async (current) => {
+    // 零账号的文档对账号层调用方呈现为"未登录"（`undefined`），与
+    // `loadStorage` 的口径一致。
+    const visible = current.accounts.length === 0
+      ? undefined
+      : { ...current, activeId: current.activeId ?? current.accounts[0]!.id } as CodeBuddyStorage
+    const next = await mutate(visible)
+    if (next === undefined) return undefined
+    outcome = next
+    return { ...current, ...next }
+  })
+  return written === undefined ? undefined : outcome
+}
+
+/**
+ * 在锁内对**整份文档**做一次「读 → 改 → 写」事务。
+ *
+ * 与 {@link mutateStorage} 的差别是它不把"零账号"折叠成 `undefined`，因此
+ * 偏好与成长任务状态在用户尚未登录时也能落盘。
+ *
+ * @param mutate - 锁内最新的文档在等着被改；返回 `undefined` 表示放弃写入。
+ * @returns 写入后的文档，或放弃时的 `undefined`。
+ */
+export async function mutateDocument(
+  mutate: (current: CodeBuddyDocument) => CodeBuddyDocument | undefined | Promise<CodeBuddyDocument | undefined>,
+): Promise<CodeBuddyDocument | undefined> {
   return mutationQueue.runExclusive(async () => {
-    const current = await loadStorage()
+    const current = (await readDocument()) ?? emptyDocument()
     const next = await mutate(current)
     if (next === undefined) return undefined
-    await saveStorage(next)
+    await saveDocument(next)
     return next
   })
 }
 
+/** 一份空白文档：没有账号，也没有任何偏好。 */
+function emptyDocument(): CodeBuddyDocument {
+  return { version: STORAGE_VERSION, accounts: [] }
+}
+
 /**
  * 以仅属主权限原子地写入凭据文档。
+ *
+ * 这是**整份文档**的写入：调用方须传入完整的 `CodeBuddyStorage`（各写路径
+ * 都基于锁内最新的文档构造，见 `mutateStorage`）。只想改一个片段时用
+ * `mutateStorage` / `mutateDocument`，不要自己读-改-写。
  * @param storage - 待持久化的凭据文档。
  */
 export async function saveStorage(storage: CodeBuddyStorage): Promise<void> {
+  await saveDocument({ ...storage, version: STORAGE_VERSION })
+}
+
+/**
+ * 以仅属主权限原子地写入整份文档（允许零账号）。
+ * @param document - 待持久化的文档。
+ */
+async function saveDocument(document: CodeBuddyDocument): Promise<void> {
   const path = getStoragePath()
   await fs.mkdir(dirname(path), { recursive: true })
   const temp = `${path}.${randomBytes(6).toString('hex')}.tmp`
   try {
-    await fs.writeFile(temp, JSON.stringify(storage, null, 2), { encoding: 'utf-8', mode: 0o600 })
+    await fs.writeFile(temp, JSON.stringify({ ...document, version: STORAGE_VERSION }, null, 2), { encoding: 'utf-8', mode: 0o600 })
     await fs.rename(temp, path)
   } catch (error) {
     await fs.unlink(temp).catch(() => {
@@ -375,103 +664,111 @@ export async function saveStorage(storage: CodeBuddyStorage): Promise<void> {
   })
 }
 
-function getAutoSwitchConfigPath(): string {
-  return `${getStoragePath()}.auto-switch.json`
-}
-
-/** 读取自动切号偏好；默认开启，阈值为 10%。 */
+/**
+ * 读取自动切号偏好；默认开启，阈值为 10%。
+ *
+ * `fromDisk` 表示这份偏好确实存在于文档中，而不是回落到了默认值——调用方
+ * 据此判断能否让客户端把已有的 localStorage 值迁移上来（老用户升级）。
+ */
 export async function loadAutoSwitchConfig(): Promise<AutoSwitchConfig> {
-  try {
-    const raw = await fs.readFile(getAutoSwitchConfigPath(), 'utf-8')
-    const parsed = JSON.parse(raw) as Partial<AutoSwitchConfig>
-    return {
-      enabled: parsed.enabled === true,
-      thresholdPct: typeof parsed.thresholdPct === 'number' && Number.isFinite(parsed.thresholdPct)
-        ? Math.max(0, Math.min(100, Math.round(parsed.thresholdPct)))
-        : 10,
-      fromDisk: true,
-    }
-  } catch {
-    // 文件不存在或损坏：返回默认值，并标明它**不是**磁盘上的权威配置。
-    return { enabled: true, thresholdPct: 10, fromDisk: false }
-  }
+  const stored = (await readDocument())?.prefs?.autoSwitch
+  if (stored === undefined) return { enabled: true, thresholdPct: 10, fromDisk: false }
+  return { enabled: stored.enabled, thresholdPct: stored.thresholdPct, fromDisk: true }
 }
 
-/** 原子地写入自动切号偏好。 */
+/**
+ * 在锁内改动文档的 `prefs` 片段。
+ *
+ * 走文档锁而不是自己读-改-写：偏好写入与账号操作（登录、切换、删除、token
+ * 刷新）、成长任务状态改的是**同一份文档**，各自读一次再各自写回会让后写的
+ * 那次整体覆盖前一次的结果。
+ *
+ * 刻意用 `mutateDocument` 而不是 `mutateStorage`：用户尚未登录时（零账号）
+ * 也要能保存偏好。
+ * @param patch - 基于当前片段计算新片段。
+ */
+async function mutatePrefs(
+  patch: (current: NonNullable<CodeBuddyStorage['prefs']>) => NonNullable<CodeBuddyStorage['prefs']>,
+): Promise<void> {
+  await mutateDocument((current) => ({ ...current, prefs: patch(current.prefs ?? {}) }))
+}
+
+/** 写入自动切号偏好。 */
 export async function saveAutoSwitchConfig(config: Omit<AutoSwitchConfig, 'fromDisk'>): Promise<void> {
-  const path = getAutoSwitchConfigPath()
-  await fs.mkdir(dirname(path), { recursive: true })
-  const temp = `${path}.${randomBytes(6).toString('hex')}.tmp`
-  try {
-    await fs.writeFile(temp, JSON.stringify(config, null, 2), { encoding: 'utf-8', mode: 0o600 })
-    await fs.rename(temp, path)
-  } catch (error) {
-    await fs.unlink(temp).catch(() => {})
-    throw error
-  }
-}
-
-function getAutoCheckinConfigPath(): string {
-  return `${getStoragePath()}.auto-checkin.json`
+  const { enabled, thresholdPct } = config
+  await mutatePrefs(prefs => ({ ...prefs, autoSwitch: { enabled, thresholdPct } }))
 }
 
 /** 读取自动签到偏好；默认开启。 */
 export async function loadAutoCheckinConfig(): Promise<AutoCheckinConfig> {
-  try {
-    const raw = await fs.readFile(getAutoCheckinConfigPath(), 'utf-8')
-    const parsed = JSON.parse(raw) as Partial<AutoCheckinConfig>
-    return { enabled: parsed.enabled === true }
-  } catch {
-    return { enabled: true }
-  }
+  const stored = (await readDocument())?.prefs?.autoCheckin
+  return { enabled: stored?.enabled ?? true }
 }
 
-/** 原子地写入自动签到偏好。 */
+/** 写入自动签到偏好。 */
 export async function saveAutoCheckinConfig(config: AutoCheckinConfig): Promise<void> {
-  const path = getAutoCheckinConfigPath()
-  await fs.mkdir(dirname(path), { recursive: true })
-  const temp = `${path}.${randomBytes(6).toString('hex')}.tmp`
-  try {
-    await fs.writeFile(temp, JSON.stringify(config, null, 2), { encoding: 'utf-8', mode: 0o600 })
-    await fs.rename(temp, path)
-  } catch (error) {
-    await fs.unlink(temp).catch(() => {})
-    throw error
-  }
-}
-
-function getAutoTravelConfigPath(): string {
-  return `${getStoragePath()}.auto-travel.json`
+  const { enabled } = config
+  await mutatePrefs(prefs => ({ ...prefs, autoCheckin: { enabled } }))
 }
 
 /** 读取自动出游偏好；默认开启。 */
 export async function loadAutoTravelConfig(): Promise<AutoTravelConfig> {
-  try {
-    const raw = await fs.readFile(getAutoTravelConfigPath(), 'utf-8')
-    const parsed = JSON.parse(raw) as Partial<AutoTravelConfig>
-    return { enabled: parsed.enabled === true }
-  } catch {
-    return { enabled: true }
-  }
+  const stored = (await readDocument())?.prefs?.autoTravel
+  return { enabled: stored?.enabled ?? true }
 }
 
-/** 原子地写入自动出游偏好。 */
+/** 写入自动出游偏好。 */
 export async function saveAutoTravelConfig(config: AutoTravelConfig): Promise<void> {
-  const path = getAutoTravelConfigPath()
-  await fs.mkdir(dirname(path), { recursive: true })
-  const temp = `${path}.${randomBytes(6).toString('hex')}.tmp`
-  try {
-    await fs.writeFile(temp, JSON.stringify(config, null, 2), { encoding: 'utf-8', mode: 0o600 })
-    await fs.rename(temp, path)
-  } catch (error) {
-    await fs.unlink(temp).catch(() => {})
-    throw error
-  }
+  const { enabled } = config
+  await mutatePrefs(prefs => ({ ...prefs, autoTravel: { enabled } }))
 }
 
-/** 删除已存储的凭据文档（若存在）。 */
+/**
+ * 读取成长任务运行状态片段。
+ *
+ * 由 `growth-run` 模块解释内容；storage 只负责搬进搬出，避免两个模块在类型
+ * 层互相依赖（`growth-run` 依赖 storage，反向依赖会成环）。
+ * @returns 原始片段；不存在时为 `undefined`。
+ */
+export async function readGrowthRunState(): Promise<unknown> {
+  return (await readDocument())?.growthRun
+}
+
+/**
+ * 在锁内对成长任务运行状态做一次「读 → 改 → 写」事务。
+ *
+ * **必须走这个函数而不是自己 `read` 再 `save`**：状态与账号凭据、自动偏好
+ * 同处一份文档，分开读写时并发的偏好写入会把刚追加的执行日志整体覆盖回去。
+ * 合并之前两者各有一把锁（同一目录、两份读-改-写），合并文档后只剩这一把锁，
+ * 正是修复它的时机。
+ *
+ * 与偏好一致使用文档锁而非账号层锁：成长任务状态在用户尚未登录时也可能写入。
+ * @param mutate - 基于当前片段计算新片段；返回 `undefined` 表示清除该片段。
+ */
+export async function mutateGrowthRunState(
+  mutate: (current: unknown) => unknown,
+): Promise<void> {
+  await mutateDocument((current) => {
+    const next = mutate(current.growthRun)
+    if (next === undefined) {
+      const { growthRun: _dropped, ...rest } = current
+      return rest
+    }
+    return { ...current, growthRun: next }
+  })
+}
+
+/**
+ * 删除已存储的凭据文档（若存在）。
+ *
+ * `prefs` 与 `growthRun` 是同一份文档的片段，因此随之一起消失。这是**登出
+ * 全部账号**的语义：回到初始状态。单账号删除不走这里——那条路径在锁内重建
+ * 文档并保留其余片段（见 `AuthService.removeAccount`）。
+ */
 export async function clearStorage(): Promise<void> {
-  await fs.unlink(getStoragePath()).catch(() => {
-    // 本就不存在即是期望的终态。
+  await mutationQueue.runExclusive(async () => {
+    await fs.unlink(getStoragePath()).catch(() => {
+      // 本就不存在即是期望的终态。
+    })
   })
 }

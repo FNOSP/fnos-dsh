@@ -35,7 +35,8 @@
     "README.md",
     "compatibility.json",
     "cordis.patch.yml",
-    "lib"
+    "lib",
+    "scripts"
   ],
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
@@ -43,6 +44,7 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
+    "migrate:storage": "node scripts/migrate-storage.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "check": "pnpm run typecheck && pnpm run test",
     "prepublishOnly": "pnpm run check",

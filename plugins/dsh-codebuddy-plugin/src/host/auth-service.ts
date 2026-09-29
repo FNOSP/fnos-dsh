@@ -1282,7 +1282,9 @@ export class CodeBuddyAuthService {
         ? storage.activeId
         : remaining[0]!.id
       activeChanged = activeId !== storage.activeId
-      return { activeId, accounts: remaining }
+      // `...storage` 保留 `prefs`/`growthRun`：删掉一个账号不该顺手清掉
+      // 自动偏好与成长任务执行日志。
+      return { ...storage, activeId, accounts: remaining }
     })
     // 全部删完：清空文档而不是写一个空 accounts（否则 loadStorage 视为损坏）。
     if (emptied) {
@@ -1605,12 +1607,16 @@ export class CodeBuddyAuthService {
               },
         }
         const wasActive = stored.activeId === existing.id
+        // `...stored` 保留 `prefs`/`growthRun`：登录只改账号列表，逐字段重建
+        // 会丢掉合并文档里的其它片段。
         next = {
+          ...stored,
           activeId: nextActiveId(stored.activeId, replaced.id, activate, wasActive),
           accounts: stored.accounts.map(entry => entry.id === existing.id ? replaced : entry),
         }
       } else {
         next = {
+          ...stored,
           activeId: nextActiveId(stored.activeId, fresh.id, activate),
           accounts: [...stored.accounts, fresh],
         }

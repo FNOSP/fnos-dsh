@@ -58,11 +58,43 @@ export interface CodeBuddyAccountEntry {
 /**
  * 持久化结构。成功保存之后 `activeId` 总是指向 `accounts` 中的某一条；
  * 瞬时的不匹配（手工编辑过的文件）读作"第一条为活动"而不是"没有账号"。
+ *
+ * **单一文档**：账号凭据、自动偏好与成长任务运行状态同处一份 JSON。合并
+ * 之前它们是 `codebuddy-auth.json` 及其 4 个 `.auto-*.json` / `.growth-run.json`
+ * 兄弟文件；拆开时每份都有各自的读-改-写事务，却写在同一个目录里，写入
+ * 交叉就会互相覆盖。合并后只有一个文档，也只允许一把锁。
  */
 export interface CodeBuddyStorage {
+  /**
+   * 文档结构版本。缺省（旧文档）表示尚未合并，读取时触发迁移。
+   *
+   * 用显式的版本号而不是"探测字段是否存在"来判断，是为了让未来的结构变更
+   * 有稳定的判别依据——探测式判断在字段可选之后会变得不可靠。
+   */
+  version?: number
   /** 每个请求都用它认证的那条条目的 id。 */
   activeId: string
   accounts: CodeBuddyAccountEntry[]
+  /**
+   * 自动行为偏好。缺省表示用户从未写过这些偏好（与"文件不存在"同义），
+   * 因此各读取函数的默认值仍然生效。
+   */
+  prefs?: CodeBuddyPrefs
+  /**
+   * 成长任务运行状态快照（结构见 `growth-run.ts` 的 `GrowthRunState`）。
+   *
+   * 这里以不透明对象承载：运行状态的字段归 `growth-run` 模块所有，storage
+   * 只负责把它原样搬进搬出，不做解释。类型为 `unknown` 也避免了两个模块
+   * 在类型层互相依赖。
+   */
+  growthRun?: unknown
+}
+
+/** 合并文档中的自动行为偏好；每一项缺省时回落到各自的默认值。 */
+export interface CodeBuddyPrefs {
+  autoSwitch?: { enabled: boolean, thresholdPct: number }
+  autoCheckin?: { enabled: boolean }
+  autoTravel?: { enabled: boolean }
 }
 /**
  * @deprecated 旧的单账号结构，由 {@link loadStorage} 迁移。

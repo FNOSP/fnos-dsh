@@ -57,9 +57,10 @@ describe('成长任务运行态落盘', () => {
 
     const entries = (await import('node:fs')).readdirSync(dir)
     expect(entries.filter(name => name.endsWith('.tmp'))).toEqual([])
-    const path = `${process.env.DSH_CODEBUDDY_AUTH_FILE}.growth-run.json`
+    // 状态与账号凭据同处**一份**文档：不再有独立的 `.growth-run.json`。
+    expect(entries).toEqual(['codebuddy-auth.json'])
     if (process.platform !== 'win32') {
-      const mode = (await stat(path)).mode & 0o777
+      const mode = (await stat(process.env.DSH_CODEBUDDY_AUTH_FILE!)).mode & 0o777
       expect(mode).toBe(0o600)
     }
   })
@@ -72,19 +73,29 @@ describe('成长任务运行态落盘', () => {
       mode: 'all' as const,
       startedAt: Date.now() - 31 * 60_000,
     }
-    await writeFile(`${process.env.DSH_CODEBUDDY_AUTH_FILE}.growth-run.json`, JSON.stringify(stale), 'utf-8')
+    await writeFile(
+      process.env.DSH_CODEBUDDY_AUTH_FILE!,
+      JSON.stringify({ version: 1, accounts: [], growthRun: stale }),
+      // 必须仅属主可读写：凭据文档的加载守卫会拒绝 group/other 可读的文件
+      // （与 dsh-credentials-local 同一口径），默认 0644 会被当作"没有凭据"。
+      { encoding: 'utf-8', mode: 0o600 },
+    )
 
     const state = await loadGrowthRunState()
     expect(state?.running).toBe(false)
     // 并且已经写回磁盘，后续读取不需要再判断一次。
     const persisted = JSON.parse(
-      await readFile(`${process.env.DSH_CODEBUDDY_AUTH_FILE}.growth-run.json`, 'utf-8'),
-    ) as { running: boolean }
-    expect(persisted.running).toBe(false)
+      await readFile(process.env.DSH_CODEBUDDY_AUTH_FILE!, 'utf-8'),
+    ) as { growthRun: { running: boolean } }
+    expect(persisted.growthRun.running).toBe(false)
   })
 
-  it('损坏的状态文件读作 undefined，不抛错', async () => {
-    await writeFile(`${process.env.DSH_CODEBUDDY_AUTH_FILE}.growth-run.json`, '{ not json', 'utf-8')
+  it('损坏的状态片段读作 undefined，不抛错', async () => {
+    await writeFile(
+      process.env.DSH_CODEBUDDY_AUTH_FILE!,
+      JSON.stringify({ version: 1, accounts: [], growthRun: '{ not json' }),
+      'utf-8',
+    )
     expect(await loadGrowthRunState()).toBeUndefined()
   })
 })

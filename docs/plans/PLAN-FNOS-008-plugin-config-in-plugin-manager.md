@@ -203,6 +203,18 @@ sequenceDiagram
 | PLAN-FNOS-008-T03-06 | FNOS-008-07 / AC-06 | 模型弹框旧数据修复：`remote.llm.discoverModels` 由 `RemoteNamespaceService.install()` 以**只有 getter、没有 setter** 的访问器安装，原先的 `llm.discoverModels = bridged` 赋值被静默丢弃，桥接从未生效而回落到适配器构建期快照；改为 `Object.defineProperty` 覆盖并读回校验，失败即 fail closed，dispose 还原原 descriptor | T03-05 | A/B 端到端：同一 profile 下弹框模型列表从构建期快照（`gpt-5.4*`）变为账号目录；新增「覆盖 getter-only 访问器」回归测试 |
 | PLAN-FNOS-008-T03-07 | FNOS-008-06 / AC-02–03 | 运行时启用报 `webServer` 定位（上游缺陷，本仓库仅规避与上报）：`connection.rpc.handle()` 经 `get rpc() { const owner = this.ctx }` 取 **connection 服务自身的 ctx**，其 `inject` 在光纤激活时固化；`dsh-web-app` 把该行声明为 `inject: [webRuntime]`，补 `webServer` 的补丁来自 CodeBuddy 自己的 bundle 层，而**运行时 reload 只更新合成树，不会给已 active 的光纤补依赖**，因此「应用内启用」必然失败，重启才恢复。实测插件侧重试（20 次/30 秒）与追加 reload 均无效 | T03-05 | 以客户端实际 RPC `setBundleEnabled` 复现 `application:"failed"` + 帧级一致堆栈；插桩对比冷启动（`inject=["webRuntime","webServer"]`，告警 0、`POST /codebuddy/status` 返回合法信封）与运行时启用（reload 后组合树正确但旧光纤仍抛错）；重启后实机由 405 恢复 |
 
+### 阶段七：CodeBuddy 面板内联与配置合并（T07-01–T07-07）
+
+| 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
+| --- | --- | --- | --- | --- |
+| PLAN-FNOS-008-T07-01 | FNOS-008-02 / AC-01–03 | 注册迁移：删 `settings.section`（id `codebuddy`）与 `shell.overlay`（id `codebuddy-panel`）两处注册，改挂 `plugins.bundle.config`（key `@tnnevol/dsh-codebuddy`）；删除 `PanelRouteController`、`panel-route.ts`、hash 前缀匹配与 `panel.install()` effect。客户端不再需要 `'slots'` 以外的 shell.overlay 字符串键强转 | 无 | 构建通过；`lib/client.js` 含 `plugins.bundle.config` 且不含 `shell.overlay` / `settings.section` / `#/codebuddy` |
+| PLAN-FNOS-008-T07-02 | FNOS-008-02 / AC-02 | 内容内联：`panel.tsx` 的 `AccountsPage` 与 `TokenStatsPage` 去掉 `DshLayout`/`DshNav`/返回栏/页标题后作为详情页内的两个分区；删除 `visited` 延迟挂载 keep-alive（详情页切走即卸载）；Token 统计区块可折叠 | T07-01 | 组件测试：详情页渲染出两个分区、无 `DshNav`；卸载后重挂载仍从 store 恢复 |
+| PLAN-FNOS-008-T07-03 | FNOS-008-02 / AC-02 | 保留项适配：增长任务整套（列表/完成任务/一键完成/执行日志/查看日志）、三个自动开关、账号卡片签到与旅行状态、积分总览全部保留在详情页；`useAutoPrefs` 的 host 采纳仍在挂载时执行，详情页卸载重挂不重复采纳 | T07-02 | 现有 growth/auto/checkin/travel 测试全绿；新增详情页内四块存在性断言 |
+| PLAN-FNOS-008-T07-04 | FNOS-008-02 / AC-03 | 设置区块移除与控件迁移：`CodeBuddySection` 的登录/账号列表/开关不再渲染；「切换阈值」（`$autoSwitchThreshold`）与「显示余额余量」（`$showUsage`）作为独立小区块迁入详情页，读写仍走既有 store 与 host RPC | T07-02 | 新增控件测试：改阈值写入 store 且发 `autoSwitch` RPC；旧「管理面板」入口与 `nav`/`back`/`managePanel` 文案不再被引用 |
+| PLAN-FNOS-008-T07-05 | FNOS-008-02 / AC-04、FNOS-008-05 / AC-01、AC-04 | 配置合并：`codebuddy-auth.json` 扩为单一文档（`version: 2`：`activeId`/`accounts`/`prefs`/`growthRun`）；4 个路径 getter 收敛；`growthRun` 改用 storage 的同一 `mutationQueue`（两个模块原本各持一个队列却写同一目录）；新增旧格式读时迁移 | 无 | `storage.spec.ts` 扩展：旧 4 文件 → 单文档，字段逐项保留；迁移不删除旧文件 |
+| PLAN-FNOS-008-T07-06 | FNOS-008-02 / AC-04 | 显式迁移脚本：`plugins/dsh-codebuddy-plugin/scripts/migrate-storage.mjs` + npm script，与读时迁移共用同一实现（不各写一份）；旧文件改名为 `.migrated-<ts>` 保留，历史 `*.backup-*` 不处理 | T07-05 | 脚本在含旧格式的沙盒目录上运行：生成单文档、旧文件改名、输出摘要；重复运行幂等 |
+| PLAN-FNOS-008-T07-07 | FNOS-008-02 / AC-01–04、FNOS-008-06 / AC-01 | 端到端验证：探针 profile + 无头 Electron 打开插件详情页，断言四个区块渲染、两个控件可写、Token 图表挂载、成长任务入口可用；确认无 `#/codebuddy` 残留路由 | T07-03、T07-04、T07-06 | 真实前端渲染证据；修复前失败、修复后通过 |
+
 ### 阶段四：文档与索引（T04-01–T04-03）
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
@@ -238,6 +250,13 @@ flowchart TD
     T03a --> T03c[T03-03 Codex Desktop 登录阻断修复]
     T02d --> T03c
     T03c --> T03d[T03-04 窗口句柄可选化与回归]
+    T07a[T07-01 注册迁移] --> T07b[T07-02 面板内容内联]
+    T07b --> T07c[T07-03 保留项适配]
+    T07b --> T07d[T07-04 设置移除与控件迁移]
+    T07e[T07-05 配置合并] --> T07f[T07-06 迁移脚本]
+    T07c --> T07g[T07-07 端到端验证]
+    T07d --> T07g
+    T07f --> T07g
     T01b --> T04[T04 文档与本地兼容验证]
     T01c --> T04
     T02b --> T04
@@ -245,6 +264,7 @@ flowchart TD
     T02f --> T04
     T03b --> T04
     T03d --> T04
+    T07g --> T04
     T04 --> T05[T05-01 DSH Desktop 验收]
     T05 --> T06[T06-01 真实 NAS 验收]
 ```
@@ -266,8 +286,19 @@ flowchart TD
 
 ### CodeBuddy 区块
 
-- 登录、账号管理、自动切换/签到/旅行开关、额度刷新操作不变；`close` 空操作后，从详情页进入管理面板（`panelRoute.open('accounts')`）不再关闭设置弹框，行为自然成立。
-- 区块根节点增加滚动约束（详情页无外层滚动容器时保证可用）。
+- 详情页承载全部配置：账号管理（登录、添加账号、账号卡片、积分总览、三个自动开关、刷新、完成任务、查看日志）与 Token 统计（总览、趋势、活动热力图、分布与排行）两块内容内联展示；「切换阈值」与「显示余额余量」作为独立控件同样在详情页内。
+- 原全页面管理面板（`shell.overlay` + `#/codebuddy/*` hash 路由 + `DshNav` 侧栏 + 返回按钮）整体移除；`panel-route.ts` 与 `PanelRouteController` 一并删除，不再有 hash 归属匹配。
+- 详情页为窄列纵向容器且切走即卸载：删除原面板的 `visited` 延迟挂载（keep-alive）逻辑；跨挂载状态由模块级持久化 store（`usage-prefs`、`token-stats`、`account-epoch`）承担，`useAutoPrefs` 的 host 采纳在每次挂载执行但幂等。
+- 增长任务整套保留：账号卡片内的签到与旅行状态、三个自动开关、成长任务列表、完成任务/一键完成、执行日志抽屉、积分总览在详情页内均可用，行为与迁移前一致。
+- 设置弹框不再有 CodeBuddy 区块（`settings.section` 注册删除），`nav`/`managePanel` 入口随之消失。
+
+### CodeBuddy 配置文档合并
+
+- 磁盘上由 6 个文件收敛为 1 个：`codebuddy-auth.json` 扩为带 `version: 2` 的单一文档，字段为 `activeId`/`accounts`/`prefs`（`autoSwitch`/`autoCheckin`/`autoTravel`）/`growthRun`。
+- 读时自动迁移：`loadStorage()` 读到无 `version: 2` 的文档时，探测旧子文件并把内容并入，原子写回新格式后把旧文件改名为 `.migrated-<ts>`（保留，不删除）。用户无需手动操作。
+- 显式脚本：`pnpm --filter @tnnevol/dsh-codebuddy migrate:storage`，与读时迁移共用同一实现，用于离线/NAS 预迁移与排错。
+- 写入串行化收敛：`storage.ts` 与 `growth-run.ts` 原先各持一个 `SerialQueue` 却写同一目录，合并后 `growthRun` 必须走 storage 的同一把锁，避免单文件上的读-改-写互相覆盖。
+- 历史遗留文件（`*.backup-*`）不在本插件生成逻辑内，迁移时不处理、不清理。
 
 ### Codex Auth 区块
 

@@ -41,8 +41,15 @@ export type {
   CodeBuddyUsageWindow,
 } from './host/auth-service.ts'
 export { CodeBuddySession, NotLoggedInError } from './host/session.ts'
-export { buildStorage, clearStorage, getStoragePath, loadStorage, saveStorage } from './host/storage.ts'
-export type { CodeBuddyStorage } from './host/storage.ts'
+export {
+  buildStorage,
+  clearStorage,
+  getStoragePath,
+  loadStorage,
+  migrateStorageDocument,
+  saveStorage,
+} from './host/storage.ts'
+export type { CodeBuddyStorage, MigrationOutcome } from './host/storage.ts'
 export { fetchUsage, fetchPersonalUsage, fetchEnterpriseUsage, parseUsage } from './host/usage.ts'
 export type { UsageSnapshot, UsageWindow } from './host/usage.ts'
 export { acceptGrowthTasks, claimGrowthTask, isAutomatableGrowthTask, listGrowthTasks } from './host/growth-tasks.ts'

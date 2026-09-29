@@ -272,6 +272,9 @@ export class CodeBuddySession {
       return this.identityOf(refreshedEntry)
     }
     const next: CodeBuddyStorage = {
+      // 保留 `prefs` 与 `growthRun`：本函数只替换被刷新的那一条账号，
+      // 逐字段重建会静默丢掉合并文档里的其它片段（偏好与执行日志）。
+      ...storage,
       activeId: storage.activeId,
       accounts: storage.accounts.map(candidate => candidate.id === entry.id ? refreshedEntry : candidate),
     }
