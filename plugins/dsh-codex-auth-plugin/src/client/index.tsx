@@ -41,7 +41,14 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 export const name = 'dsh-codex-auth-plugin-client'
-export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.session', 'timer']
+// `remote` only exposes the namespaces whose services this fiber declares, and
+// its proxy throws `cannot get property "remote.<ns>" without inject` on any
+// other access. The model-discovery bridge below reads `remote.llm`, so it must
+// be listed here next to the `remote.session` catalog it is bridged onto;
+// otherwise the whole client fiber fails and every registration it owns — most
+// visibly the `plugins.bundle.config` detail-page section — silently disappears.
+// Same shape as the in-box consumer, `dsh-client-ui-settings-models`.
+export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.llm', 'remote.session', 'timer']
 
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => installSemiDshTheme(), 'dsh-codex-auth-plugin: Semi DSH theme')

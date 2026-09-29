@@ -29,10 +29,23 @@ function record(value: unknown): Record<string, unknown> | undefined {
  * on DSH's native discovery implementation.
  */
 export function installCodexModelDiscoveryBridge(remote: unknown): () => void {
-  const root = record(remote) as DiscoveryRemote | undefined
-  const llm = root?.llm
+  // `remote` is the Cordis service proxy, not a plain object: reading a
+  // namespace the fibre did not declare makes the proxy **throw**
+  // (`cannot get property "remote.llm" without inject`) instead of yielding
+  // `undefined`. An exception here used to escape `apply`, fail the whole
+  // client fibre, and take every other registration down with it — including
+  // the `plugins.bundle.config` section. Treat an unresolvable namespace as
+  // "bridge not applicable" and let the rest of the plugin activate.
+  let llm: DiscoveryRemote['llm']
+  let modelCatalog: ((...args: unknown[]) => Promise<ModelCatalogResult>) | undefined
+  try {
+    const root = record(remote) as DiscoveryRemote | undefined
+    llm = root?.llm
+    modelCatalog = root?.session?.modelCatalog
+  } catch {
+    return () => undefined
+  }
   const original = llm?.discoverModels
-  const modelCatalog = root?.session?.modelCatalog
   if (llm === undefined || typeof original !== 'function' || typeof modelCatalog !== 'function') return () => undefined
 
   const bridged = async (...args: unknown[]): Promise<unknown> => {

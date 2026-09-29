@@ -52,4 +52,29 @@ describe('Codex model discovery bridge', () => {
     expect(discoverModels).toHaveBeenCalledTimes(1)
     dispose()
   })
+
+  /**
+   * `remote` is a Cordis service proxy: reading an undeclared namespace throws
+   * instead of returning `undefined`. That throw used to escape `apply`, fail
+   * the whole client fibre, and drop every registration it owned — the plugin
+   * detail page then rendered no configuration section at all. The bridge must
+   * degrade to a no-op instead.
+   */
+  it('degrades to a no-op when a remote namespace throws without inject', () => {
+    const remote = new Proxy({}, {
+      get(_target, prop) {
+        throw new Error(`cannot get property "remote.${String(prop)}" without inject`)
+      },
+    })
+
+    expect(() => installCodexModelDiscoveryBridge(remote)).not.toThrow()
+    expect(installCodexModelDiscoveryBridge(remote)).toEqual(expect.any(Function))
+  })
+
+  it('reports a disposable no-op when the catalog namespace is absent', () => {
+    const dispose = installCodexModelDiscoveryBridge({ llm: { discoverModels: vi.fn() } })
+
+    expect(dispose).toEqual(expect.any(Function))
+    expect(() => dispose()).not.toThrow()
+  })
 })

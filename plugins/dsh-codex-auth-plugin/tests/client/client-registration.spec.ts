@@ -14,7 +14,7 @@ describe('dsh-codex-auth-plugin client registration', () => {
     expect(client).not.toContain("settings.plugin.item")
     expect(client).not.toContain("installCodexModelEditorPresentation")
     expect(client).toContain("installSemiDshTheme(), 'dsh-codex-auth-plugin: Semi DSH theme'")
-    expect(client).toContain("'connection', 'remote', 'remote.session', 'timer'")
+    expect(client).toContain("'connection', 'remote', 'remote.llm', 'remote.session', 'timer'")
     expect(client).toContain('const remote = ctx.remote as unknown')
     expect(client).toContain('installCodexModelDiscoveryBridge')
     expect(client).not.toContain('settingsScope')
@@ -123,5 +123,37 @@ describe('dsh-codex-auth-plugin client registration', () => {
     expect(section).not.toContain('view_image')
     expect(refresh).toContain('input_modalities')
     expect(refresh).toContain('input: inputModalities(model),')
+  })
+
+  /**
+   * The Cordis service proxy throws on any `remote.<ns>` read the fibre did not
+   * declare, and that throw kills the whole client entry: the plugin's
+   * `plugins.bundle.config` registration never runs, so the Desktop plugin
+   * detail page renders without its configuration section. Deriving the
+   * accessed namespaces from source keeps the declaration and the usage from
+   * drifting apart again.
+   */
+  it('declares every remote namespace the client half reads', async () => {
+    const client = await readFile(new URL('../../src/client/index.tsx', import.meta.url), 'utf8')
+    const sources = await Promise.all([
+      'client/services/model-discovery.ts',
+      'client/services/model-catalog.ts',
+    ].map(path => readFile(new URL(`../../src/${path}`, import.meta.url), 'utf8')))
+
+    const declared = new Set((client.match(/export const inject = \[(.*?)\]/su)?.[1] ?? '')
+      .split(',')
+      .map(part => part.trim().replace(/^'|'$/gu, ''))
+      .filter(part => part.startsWith('remote.')))
+
+    // Only namespace reads that reach the live proxy matter; the property after
+    // the namespace (`remote.llm.discoverModels`) is not itself injected.
+    const accessed = new Set(
+      [client, ...sources]
+        .flatMap(source => source.match(/\bremote\??\.[a-z][A-Za-z]*/gu) ?? [])
+        .map(match => match.replace(/\??/u, '')),
+    )
+
+    expect([...accessed].sort()).toEqual([...declared].filter(ns => ns !== 'remote').sort())
+    for (const namespace of accessed) expect(client).toContain(`'${namespace}'`)
   })
 })

@@ -52,3 +52,4 @@ status: passed|failed|blocked
 - [FNOS-008-06 CodeBuddy Desktop 适配本地验证记录（2026-09-28）](/validation/FNOS-008-06-codebuddy-desktop-local-2026-09-28)
 - [FNOS-008-03 Codex Auth 配置迁入插件详情页本地验证记录（2026-09-28）](/validation/FNOS-008-03-codex-bundle-config-local-2026-09-28)
 - [FNOS-008-07 Codex Auth Desktop 登录修复本地验证记录（2026-09-28）](/validation/FNOS-008-07-codex-desktop-local-2026-09-28)
+- [FNOS-008-08 Desktop 安装后激活失败本地验证记录（2026-09-29）](/validation/FNOS-008-08-desktop-install-activation-local-2026-09-29)
