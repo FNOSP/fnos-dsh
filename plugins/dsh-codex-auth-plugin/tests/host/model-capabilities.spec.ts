@@ -1,8 +1,10 @@
 import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
+import { CODEX_MODEL_CAPABILITIES } from '../../src/contracts/model-capabilities.ts'
 
 /**
- * Every shipped model entry must state its own capabilities.
+ * Every shipped model entry must state its own capabilities, and the entry and
+ * the shared contract must agree exactly.
  *
  * A configured `models` list replaces the installed pi-ai catalog wholesale, so
  * an entry that only names an id keeps nothing but what that catalog happens to
@@ -12,40 +14,57 @@ import { describe, expect, it } from 'vitest'
  * catalog through pi-ai 0.87.0), which is why the composer offered no thinking
  * levels and the model could not take images.
  *
- * The assertions below read the patch as text, matching this suite's existing
- * convention. They are deliberate about `off`, because the same field means
- * three different things depending on how it is written:
+ * These values now live in two places for one reason: the patch is what DSH
+ * loads, while `src/contracts/model-capabilities.ts` is what the client bridge
+ * hands the Models page's candidate picker and what the capability repair fills
+ * missing fields from. Two copies drift; two copies checked against each other
+ * cannot drift silently, which is what the first test below enforces. The
+ * remaining tests pin the contract itself to the values verified against the
+ * codex catalog, so the pair cannot drift together into something wrong.
+ *
+ * The assertions on `off` are deliberate, because the same field means three
+ * different things depending on how it is written:
  *
  * - omitted → pinned to `null`, i.e. the model does not offer `off`;
  * - `off: null` → left absent from pi-ai's map, i.e. `off` is offered and sends
  *   no reasoning parameter at all;
  * - `off: none` → `off` is offered and sends the literal `"none"`.
- *
- * The expectations mirror the codex catalog's own `thinkingLevelMap`, so they
- * also hold for the values pi-ai 0.87.1 added for these two models.
  */
-interface ExpectedModel {
-  id: string
-  /** Levels the entry must declare, in escalation order. */
-  levels: readonly string[]
-  /** How the entry must express `off`; see the doc comment above. */
-  off: 'absent' | 'null' | 'none'
-}
 
-const EXPECTED_MODELS: readonly ExpectedModel[] = [
-  // Its catalog entry maps `off` to null, so the model genuinely has no off.
-  { id: 'gpt-6-astra', levels: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], off: 'absent' },
-  { id: 'gpt-6-sol', levels: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'], off: 'none' },
-  { id: 'gpt-6-luna', levels: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'], off: 'none' },
-  { id: 'gpt-5.6-sol', levels: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'], off: 'null' },
-  { id: 'gpt-5.6-terra', levels: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'], off: 'null' },
-  { id: 'gpt-5.6-luna', levels: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'], off: 'null' },
-  // No `max`: the catalog doesn't offer it for gpt-5.5.
-  { id: 'gpt-5.5', levels: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh'], off: 'null' },
+const CONTEXT_WINDOW = 272_000
+const MAX_TOKENS = 128_000
+
+/** Levels in escalation order, as the catalog declares them per model. */
+const LEVELS_WITH_MAX = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+/** `gpt-6-astra`'s catalog entry maps `off` to `null`: it genuinely has no off. */
+const LEVELS_WITHOUT_OFF = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+/** The catalog does not offer `max` for gpt-5.5. */
+const LEVELS_WITHOUT_MAX = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh'] as const
+
+const EXPECTED_MODELS: readonly {
+  id: string
+  levels: readonly string[]
+  off: 'absent' | 'null' | 'none'
+}[] = [
+  { id: 'gpt-6-astra', levels: LEVELS_WITHOUT_OFF, off: 'absent' },
+  { id: 'gpt-6-sol', levels: LEVELS_WITH_MAX, off: 'none' },
+  { id: 'gpt-6-luna', levels: LEVELS_WITH_MAX, off: 'none' },
+  { id: 'gpt-5.6-sol', levels: LEVELS_WITH_MAX, off: 'null' },
+  { id: 'gpt-5.6-terra', levels: LEVELS_WITH_MAX, off: 'null' },
+  { id: 'gpt-5.6-luna', levels: LEVELS_WITH_MAX, off: 'null' },
+  { id: 'gpt-5.5', levels: LEVELS_WITHOUT_MAX, off: 'null' },
 ]
 
-const CONTEXT_WINDOW = 272000
-const MAX_TOKENS = 128000
+/** One model entry parsed out of the patch document. */
+interface ParsedEntry {
+  id: string
+  name: string
+  contextWindow?: number
+  maxTokens?: number
+  input?: readonly string[]
+  /** Declared level → wire value, with `null` kept as `null`. */
+  reasoningEfforts?: Readonly<Record<string, string | null>>
+}
 
 async function readPatch(): Promise<string> {
   return readFile(new URL('../../cordis.patch.yml', import.meta.url), 'utf8')
@@ -74,6 +93,34 @@ function declaredLevels(block: string): string[] {
   return levels
 }
 
+/** Parse the seven model entries the patch declares. */
+function parseEntries(patch: string): ParsedEntry[] {
+  return [...patch.matchAll(/^ {10}- id: (.+)$/gm)].map((match) => {
+    const block = modelBlock(patch, match[1]!)!
+    const entry: ParsedEntry = {
+      id: match[1]!,
+      name: /^ {12}name: (.+)$/m.exec(block)![1]!,
+    }
+    const contextWindow = /^ {12}contextWindow: (\d+)$/m.exec(block)
+    if (contextWindow !== null) entry.contextWindow = Number(contextWindow[1])
+    const maxTokens = /^ {12}maxTokens: (\d+)$/m.exec(block)
+    if (maxTokens !== null) entry.maxTokens = Number(maxTokens[1])
+    const input = /^ {12}input: \[(.+)\]$/m.exec(block)
+    if (input !== null) entry.input = input[1]!.split(',').map(value => value.trim())
+    const declared = declaredLevels(block)
+    if (declared.length > 0) {
+      const efforts: Record<string, string | null> = {}
+      for (const level of declared) {
+        const wire = new RegExp(`^ {14}${level}: (.*)$`, 'm').exec(block)
+        // `off:` with no value is YAML null — the "send nothing" dispatch.
+        efforts[level] = wire === null || wire[1]!.trim() === 'null' ? null : wire[1]!.trim()
+      }
+      entry.reasoningEfforts = efforts
+    }
+    return entry
+  })
+}
+
 describe('Codex model capability declarations', () => {
   it('declares every shipped model with its real capabilities', async () => {
     const patch = await readPatch()
@@ -93,8 +140,6 @@ describe('Codex model capability declarations', () => {
 
     for (const expected of EXPECTED_MODELS) {
       const block = modelBlock(patch, expected.id)!
-      const marker = block.indexOf('reasoningEfforts:')
-      const header = block.slice(marker, marker + 'reasoningEfforts:'.length)
       const declaredOff = declaredLevels(block).includes('off')
 
       if (expected.off === 'absent') {
@@ -103,7 +148,6 @@ describe('Codex model capability declarations', () => {
       } else {
         expect(declaredOff, `"${expected.id}" must declare off`).toBe(true)
       }
-      expect(header, `"${expected.id}" needs a reasoningEfforts block`).toContain('reasoningEfforts:')
       if (expected.off === 'null') expect(block).toContain('off: null')
       if (expected.off === 'none') expect(block).toContain('off: none')
     }
@@ -114,5 +158,46 @@ describe('Codex model capability declarations', () => {
     const ids = [...patch.matchAll(/^ {10}- id: (.+)$/gm)].map(match => match[1]!)
 
     expect(ids).toEqual(EXPECTED_MODELS.map(model => model.id))
+  })
+
+  /**
+   * The drift gate. The patch is what DSH loads; the contract is what the client
+   * bridge advertises to the Models page's candidate picker and what the
+   * capability repair fills missing fields from. Editing one without the other
+   * used to be invisible — the picker would keep handing out capability-less
+   * candidates while the patch looked correct. Field-by-field equality makes
+   * that edit fail here instead.
+   */
+  it('keeps the shipped patch and the shared contract identical', async () => {
+    const entries = parseEntries(await readPatch())
+
+    expect(entries.map(entry => entry.id)).toEqual(CODEX_MODEL_CAPABILITIES.map(model => model.id))
+    expect(entries).toEqual(CODEX_MODEL_CAPABILITIES.map(model => ({
+      id: model.id,
+      name: model.name,
+      contextWindow: model.contextWindow,
+      maxTokens: model.maxTokens,
+      input: [...model.input],
+      reasoningEfforts: { ...model.reasoningEfforts },
+    })))
+  })
+
+  it('states the values the codex catalog actually reports for these models', () => {
+    // Independent of the patch: the contract itself must carry the real values,
+    // otherwise the drift gate above would happily agree on something wrong.
+    for (const model of CODEX_MODEL_CAPABILITIES) {
+      expect(model.contextWindow, `contextWindow for "${model.id}"`).toBe(CONTEXT_WINDOW)
+      expect(model.maxTokens, `maxTokens for "${model.id}"`).toBe(MAX_TOKENS)
+      expect([...model.input], `input for "${model.id}"`).toEqual(['text', 'image'])
+    }
+    for (const expected of EXPECTED_MODELS) {
+      const model = CODEX_MODEL_CAPABILITIES.find(one => one.id === expected.id)!
+      expect(Object.keys(model.reasoningEfforts), `levels for "${expected.id}"`).toEqual([...expected.levels])
+      expect(model.reasoningEfforts.off, `off for "${expected.id}"`).toBe(
+        expected.off === 'absent' ? undefined
+        : expected.off === 'null' ? null
+        : 'none',
+      )
+    }
   })
 })

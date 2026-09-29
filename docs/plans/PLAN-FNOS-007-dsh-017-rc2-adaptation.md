@@ -421,6 +421,9 @@ sequenceDiagram
 | PLAN-FNOS-007-T30-01 | FNOS-007-34-AC-01、02 | 在 `@tnnevol/dsh-semi-ui` 的气泡浮层（`.semi-popover-wrapper`）上启用 DSH 官方配套变量 `--dsw-menu-backdrop-filter`，回退 `blur(40px) saturate(150%)`；保持 `background: var(--dsw-specific-menu)` 不变，只补磨砂 | `tests/frosted-overlays.spec.ts` 断言 `lib/style.css` 中的 popover 规则含该 token 与回退值；`dsh-semi-ui` 全量测试 |
 | PLAN-FNOS-007-T30-02 | FNOS-007-34-AC-03、04 | `-webkit-backdrop-filter` 单独放入 `@supports` 规则（与标准属性同块会被 lightningcss 去重丢弃），并重建四个消费插件产物，使内联样式同步更新 | 测试同时断言 `lib/style.css` 含前缀声明与 `@supports` 守卫、且源码同块内无前缀；红绿验证覆盖「完全缺失」与「同块并列」两种写法；四个插件 typecheck 与全量测试 |
 | PLAN-FNOS-007-T31-01 | FNOS-007-35-AC-01、02、03、04 | 在 `cordis.patch.yml` 中为七个 Codex 模型补全 `input`、`contextWindow`、`maxTokens` 与逐模型 `reasoningEfforts`，取值对齐 pi-ai `0.87.1` 的 Codex 目录；`off` 按模型语义区分「不声明 / `off: null` / `off: none`」 | `tests/host/model-capabilities.spec.ts` 断言每个条目的能力字段、思考等级顺序与 `off` 写法（修复前 3 例中 2 例失败）；真实 `llm-pi-ai` 启动后经 `PiAiAdapter.resolveModel` 读回等级、模态与上下文窗口 |
+| PLAN-FNOS-007-T31-02 | FNOS-007-35-AC-05 | 消除能力清单的第二份副本：新增 `src/contracts/model-capabilities.ts`，客户端候选桥接与宿主自愈都从它取值；补丁条目与该契约逐字段比对，任一侧漂移即测试失败 | `tests/host/model-capabilities.spec.ts` 新增「补丁 ↔ 契约逐字段一致」与「契约本身取值正确」两例；双向变异验证（改补丁、改契约各自变红，还原后 5 例全绿） |
+| PLAN-FNOS-007-T31-03 | FNOS-007-35-AC-05、06 | 客户端候选桥接改为返回完整能力：以契约为准，并用适配器自带目录补齐契约未收录的新 id；列表查询失败时只降级补全、不丢失候选 | `tests/client/model-discovery.spec.ts` 覆盖「候选带能力」「契约外 id 用适配器补齐」「适配器失败仍返回候选」「契约优先于适配器」；旧实现下 5 例失败 |
+| PLAN-FNOS-007-T31-04 | FNOS-007-35-AC-06 | 宿主侧一次性自愈：启动时若用户层 `models` 条目缺少能力字段则补齐，只填空缺、不覆盖用户已设的值，不增删改模型与顺序，重复执行无写入 | `tests/host/model-capability-heal.spec.ts` 10 例（含「不覆盖用户值」「保留自有模型/顺序/名称」「契约外 id 不动」「幂等」）；真实 profile 启动后 dump 由 0 条能力字段变为 7 条 |
 
 ## 数据、权限和错误处理
 
@@ -565,3 +568,4 @@ git diff --check
 | 2026-09-28 | 新增 T28 Codex 模型目录桥接 | 官方 Models 页的 Codex 候选弹框不再使用 pi-ai 静态目录，改为读取与全局模型选择器相同的 DSH Remote 动态目录。 |
 | 2026-09-29 | 新增 T31 Codex 模型能力元数据补全 | 配置里的 `models` 会整体替换内置目录，此前只声明 `id`/`name` 的条目在遇到目录未收录的 `gpt-6-sol`、`gpt-6-luna` 时丢失思考等级与图文输入；改为逐模型显式声明能力，使模型选择器与「恢复默认模型」都回到真实能力。 |
 | 2026-09-29 | 收窄插件目标环境验收 | 将 `dsh-fnos`、网关及 FPK/生命周期行为的 NAS 验收与其他插件的 Web/Desktop 验收分开；更新影响矩阵、阶段状态和验收清单，避免非 fnOS 插件被 NAS 阻塞。 |
+| 2026-09-29 | 新增 T31-02 至 T31-04 Codex 能力单一事实来源与自愈 | 复现并固定完整因果链：官方候选弹框的数据来自客户端桥接，桥接只回传 `{id, name}`，弹框「添加所选」按候选项生成型号行 → 生成的能力不全的行被写入用户层 `cordis.patch.yml` → 用户层的 `models` 整体替换插件基线，于是选择器显示灰色 `256K`/`32K` 占位且无思考等级。改为：能力收敛到共享契约并加补丁↔契约漂移门；桥接返回完整能力；宿主启动时一次性补齐用户层缺失的能力字段（只填空缺，不覆盖用户值，不增删改模型）。 |

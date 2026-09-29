@@ -50,6 +50,7 @@ status: passed|failed|blocked
 - [FNOS-007-33 三方插件 API 反代配置保存修复本地验证记录（2026-09-28）](/validation/FNOS-007-33-local-automated-2026-09-28)
 - [FNOS-007-34 气泡浮层磨砂背景修复本地验证记录（2026-09-29）](/validation/FNOS-007-34-local-automated-2026-09-29)
 - [FNOS-007-35 Codex 模型能力元数据补全本地验证记录（2026-09-29）](/validation/FNOS-007-35-local-automated-2026-09-29)
+- [FNOS-007-36 Codex 模型能力单一来源与历史覆盖自愈本地验证记录（2026-09-29）](/validation/FNOS-007-36-local-automated-2026-09-29)
 - [FNOS-008-01 fnOS 授权目录迁入插件详情页本地验证记录（2026-09-29）](/validation/FNOS-008-01-fnos-detail-section-local-2026-09-29)
 - [FNOS-008-02 CodeBuddy 详情页与设置浮层本地验证记录（2026-09-29）](/validation/FNOS-008-02-codebuddy-detail-ui-local-2026-09-29)
 - [FNOS-008-06 CodeBuddy Desktop 适配本地验证记录（2026-09-28）](/validation/FNOS-008-06-codebuddy-desktop-local-2026-09-28)

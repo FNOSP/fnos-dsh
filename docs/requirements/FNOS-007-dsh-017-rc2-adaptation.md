@@ -383,6 +383,8 @@ sequenceDiagram
 - `FNOS-007-35-AC-02`：`gpt-6-sol` 与 `gpt-6-luna` 在模型选择器中提供思考等级，且 `input` 为 `text, image`；不再因为这两个 ID 不在 pi-ai 目录中而回落到 `reasoning: false`、`input: ["text"]`、`contextWindow: 262144`。
 - `FNOS-007-35-AC-03`：「恢复默认模型」清空 DSH 设置覆盖后，回落到的静态条目描述的上下文窗口、图文输入和思考等级与模型真实能力一致。
 - `FNOS-007-35-AC-04`：`reasoningEfforts` 按模型独立声明；`off` 的写法与模型真实语义一致（不支持 `off` 的模型不声明，支持的模型用 `off: null` 表示「不发送思考参数」，需要发送具体值时用 `off: none`）。
+- `FNOS-007-35-AC-05`：模型能力只有一份事实来源。插件声明的默认条目、设置页「获取可用模型」返回的候选、以及账号同步写回的条目，三者描述的能力必须一致；任何一处漂移都必须让自动化检查失败，而不是静默降级成「只有文本输入」和内置默认窗口。
+- `FNOS-007-35-AC-06`：用户层已经保存过一份缺少能力字段的模型列表时，用户不需要手工改配置：模型选择器、上下文窗口和图片输入仍按真实能力呈现，且用户自己增删的模型、顺序和自定义名称不被改动。
 
 ## 完成状态
 
@@ -448,3 +450,4 @@ sequenceDiagram
 | 2026-09-29 | 补全 Codex 模型能力元数据 | 新增 FNOS-007-35：`cordis.patch.yml` 的 `models` 整体替换内置目录，只写 `id`/`name` 的条目会丢失思考等级、图文输入和上下文窗口——`gpt-6-sol`、`gpt-6-luna` 在 pi-ai `0.87.0` 及更早版本的 Codex 目录中不存在，因此回落成 `reasoning: false`、`input: ["text"]`、`contextWindow: 262144`，表现为「新模型思考等级缺失」。给七个条目补上逐模型的 `input`、`contextWindow`、`maxTokens` 和 `reasoningEfforts`，取值对齐 pi-ai `0.87.1` 目录，使「恢复默认模型」同样回到真实能力。上游 `dsh-llm-pi-ai`（含 `0.2.0-rc.1`）能力解析逻辑未变，该元数据必须在 profile 中声明。本地证据见 [`FNOS-007-35-local-automated-2026-09-29`](/validation/FNOS-007-35-local-automated-2026-09-29)。 |
 | 2026-09-29 | 气泡浮层增加磨砂背景 | 新增 FNOS-007-34：DSH `0.1.7-rc.2` 把 `--dsw-specific-menu` 从 `--dsw-alias-bg-layer-3`（不透明）改为 `--dsw-menu-surface-fill`（浅色 `#f8f9fa94`、深色 `#43454a73`），使用该变量的气泡退化成半透明、可看穿背后内容。给 `@tnnevol/dsh-semi-ui` 的气泡浮层补上官方配套的 `--dsw-menu-backdrop-filter` 磨砂，并保留 `-webkit-` 前缀以覆盖 Safari 18 之前的版本。本地证据见 [`FNOS-007-34-local-automated-2026-09-29`](/validation/FNOS-007-34-local-automated-2026-09-29)。 |
 | 2026-09-29 | 明确插件目标验证环境 | 将 `dsh-fnos` 与网关相关验收限定在真实 NAS；CodeBuddy、Codex Auth、Semi UI 等非 fnOS 插件改为 DSH Web 与 Desktop 验收，混合验收项按模块分别记录。 |
+| 2026-09-29 | 收敛 Codex 模型能力来源并自愈历史覆盖 | 扩展 FNOS-007-35：模型能力此前有两份副本——插件补丁里是全的，设置页「获取可用模型」弹框的候选却只有 `id`/`name`（客户端桥接丢字段），于是「添加所选」生成的模型行缺 `input`/`contextWindow`/`maxTokens`/`reasoningEfforts`；这些行一旦保存，用户层的 `models` 就整体替换掉插件基线，选择器随即显示灰色 `256K`/`32K` 占位、图片不可选、思考等级消失，且「恢复默认模型」只能删掉整段覆盖而不能把能力补回来。改为：能力收敛到单一事实来源并以「补丁 ↔ 契约」一致性检查防止漂移；候选恢复携带完整能力；插件启动时一次性补齐历史覆盖中缺失的能力字段，只填空缺、不改用户已设的值、不增删改模型。本地证据见 [`FNOS-007-36-local-automated-2026-09-29`](/validation/FNOS-007-36-local-automated-2026-09-29)。 |

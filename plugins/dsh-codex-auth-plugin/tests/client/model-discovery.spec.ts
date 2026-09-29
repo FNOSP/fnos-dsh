@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { CODEX_MODEL_CAPABILITIES } from '../../src/contracts/model-capabilities.ts'
 import { installCodexModelDiscoveryBridge } from '../../src/client/services/model-discovery.ts'
 
 describe('Codex model discovery bridge', () => {
@@ -24,17 +25,127 @@ describe('Codex model discovery bridge', () => {
     }
 
     const dispose = installCodexModelDiscoveryBridge(remote)
+    const astra = CODEX_MODEL_CAPABILITIES[0]!
+    const sol = CODEX_MODEL_CAPABILITIES[1]!
+    expect(astra.id).toBe('gpt-6-astra')
     await expect(remote.llm.discoverModels('llm-pi-ai', { provider: 'openai-codex' })).resolves.toEqual({
       ok: true,
       value: [
-        { id: 'gpt-6-astra', name: 'GPT-6-Astra' },
-        { id: 'gpt-6-sol', name: 'GPT-6-Sol' },
+        {
+          id: 'gpt-6-astra',
+          name: 'GPT-6-Astra',
+          contextWindow: astra.contextWindow,
+          maxTokens: astra.maxTokens,
+          inputModalities: [...astra.input],
+        },
+        {
+          id: 'gpt-6-sol',
+          name: 'GPT-6-Sol',
+          contextWindow: sol.contextWindow,
+          maxTokens: sol.maxTokens,
+          inputModalities: [...sol.input],
+        },
       ],
     })
-    expect(discoverModels).not.toHaveBeenCalled()
+    // The adapter's own listing is consulted only to extend coverage beyond
+    // the contract; it never decides the answer for a shipped model.
+    expect(discoverModels).toHaveBeenCalledTimes(1)
     dispose()
     await remote.llm.discoverModels('llm-pi-ai', { provider: 'openai-codex' })
-    expect(discoverModels).toHaveBeenCalledTimes(1)
+    expect(discoverModels).toHaveBeenCalledTimes(2)
+  })
+
+  /**
+   * The candidate list is what the official picker's `adopt()` copies into a
+   * new model row. A candidate that omits `inputModalities`/`contextWindow`/
+   * `maxTokens` therefore becomes a row with no image input and no capacity,
+   * and — because a configured `models` list replaces the installed catalog
+   * wholesale — that empty row then shadows the route's real capabilities for
+   * every selector until the override is cleared by hand. This is the exact
+   * regression that produced the grey `256K`/`32K` placeholders.
+   */
+  it('returns capabilities with every candidate so added rows keep them', async () => {
+    const remote = {
+      llm: { discoverModels: vi.fn(async (_ns: string, _request: unknown) => ({ ok: true as const, value: [] })) },
+      session: {
+        modelCatalog: vi.fn(async () => ({
+          ok: true as const,
+          value: { groups: [{ id: 'openai-codex', name: 'OpenAI Codex', models: [{ id: 'gpt-6-luna', name: 'GPT-6-Luna' }] }] },
+        })),
+      },
+    }
+
+    installCodexModelDiscoveryBridge(remote)
+    const answer = await remote.llm.discoverModels('llm-pi-ai', { provider: 'openai-codex' }) as {
+      value: readonly Record<string, unknown>[]
+    }
+
+    expect(answer.value).toEqual([{
+      id: 'gpt-6-luna',
+      name: 'GPT-6-Luna',
+      contextWindow: 272_000,
+      maxTokens: 128_000,
+      inputModalities: ['text', 'image'],
+    }])
+  })
+
+  /**
+   * The account catalog can carry models newer than this plugin's contract.
+   * For those, the adapter's own listing is the only capability source, and it
+   * must be used rather than shipping a capability-less candidate.
+   */
+  it('extends coverage beyond the contract from the adapter listing', async () => {
+    const remote = {
+      llm: {
+        discoverModels: vi.fn(async (_ns: string, _request: unknown) => ({
+          ok: true as const,
+          value: [{ id: 'gpt-5.4', name: 'GPT-5.4', contextWindow: 400_000, maxTokens: 64_000, inputModalities: ['text', 'image'] }],
+        })),
+      },
+      session: {
+        modelCatalog: vi.fn(async () => ({
+          ok: true as const,
+          value: { groups: [{ id: 'openai-codex', name: 'OpenAI Codex', models: [{ id: 'gpt-5.4', name: 'GPT-5.4' }] }] },
+        })),
+      },
+    }
+
+    installCodexModelDiscoveryBridge(remote)
+    const answer = await remote.llm.discoverModels('llm-pi-ai', { provider: 'openai-codex' }) as {
+      value: readonly Record<string, unknown>[]
+    }
+
+    expect(answer.value).toEqual([{
+      id: 'gpt-5.4',
+      name: 'GPT-5.4',
+      contextWindow: 400_000,
+      maxTokens: 64_000,
+      inputModalities: ['text', 'image'],
+    }])
+  })
+
+  /**
+   * Enrichment is best effort: a failing adapter listing must not cost the
+   * caller its candidate list, because the picker treats a refusal as "no
+   * models to add" and the user would silently lose the account's models.
+   */
+  it('still returns contract capabilities when the adapter listing fails', async () => {
+    const remote = {
+      llm: { discoverModels: vi.fn(async (_ns: string, _request: unknown) => { throw new Error('listing unavailable') }) },
+      session: {
+        modelCatalog: vi.fn(async () => ({
+          ok: true as const,
+          value: { groups: [{ id: 'openai-codex', name: 'OpenAI Codex', models: [{ id: 'gpt-6-astra', name: 'GPT-6-Astra' }] }] },
+        })),
+      },
+    }
+
+    installCodexModelDiscoveryBridge(remote)
+    const answer = await remote.llm.discoverModels('llm-pi-ai', { provider: 'openai-codex' }) as {
+      value: readonly Record<string, unknown>[]
+    }
+
+    expect(answer.value[0]).toMatchObject({ id: 'gpt-6-astra', contextWindow: 272_000, inputModalities: ['text', 'image'] })
   })
 
   it('does not intercept other providers', async () => {
@@ -99,13 +210,25 @@ describe('Codex model discovery bridge', () => {
     // The getter must be replaced for real — not shadowed on a throwaway wrapper.
     expect(llm.discoverModels).not.toBe(original)
     await expect((llm.discoverModels as (...a: unknown[]) => Promise<unknown>)('llm-pi-ai', { provider: 'openai-codex' }))
-      .resolves.toEqual({ ok: true, value: [{ id: 'gpt-6-astra', name: 'GPT-6-Astra' }] })
+      .resolves.toEqual({
+        ok: true,
+        value: [{
+          id: 'gpt-6-astra',
+          name: 'GPT-6-Astra',
+          contextWindow: 272_000,
+          maxTokens: 128_000,
+          inputModalities: ['text', 'image'],
+        }],
+      })
     expect(modelCatalog).toHaveBeenCalledTimes(1)
+    // The adapter is still consulted once for capability enrichment, but its
+    // `pi-ai-snapshot` row must not leak into the answer.
+    expect(original).toHaveBeenCalledTimes(1)
 
     // Other providers still reach the namespace's own implementation.
     await expect((llm.discoverModels as (...a: unknown[]) => Promise<unknown>)('llm-pi-ai', { provider: 'other' }))
       .resolves.toEqual({ ok: true, value: [{ id: 'pi-ai-snapshot' }] })
-    expect(original).toHaveBeenCalledTimes(1)
+    expect(original).toHaveBeenCalledTimes(2)
 
     // Disposal restores the namespace accessor rather than leaving the bridge.
     dispose()

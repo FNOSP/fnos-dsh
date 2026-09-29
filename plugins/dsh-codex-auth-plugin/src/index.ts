@@ -8,12 +8,48 @@ import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type {} from '@deepseek-ai/dsh-settings'
 import { registerCodexAuthRoutes, registerCodexGlobalModelRoute, registerCodexModelRefreshRoute } from './host/auth-routes.ts'
 import { CodexCredentialMirror } from './host/credential-mirror.ts'
+import type { CapabilityRepairSettings } from './host/model-capability-heal.ts'
+import { CODEX_SETTINGS_NAMESPACE, healCodexModelCapabilities } from './host/model-capability-heal.ts'
 import { CodexCredentialStore } from './host/store.ts'
 
 /** Stable Host bundle name. */
 export const name = 'dsh-codex-auth-plugin'
 /** Host services required by the routes and credential mirror. */
 export const inject = ['webServer', 'settings', 'credentials', 'agentDefaultModel', 'llm']
+
+/**
+ * One-shot capability repair, run once the settings entries are addressable.
+ *
+ * Activation order between this plugin and `llm-pi-ai` is not guaranteed, so
+ * the descriptor may not exist yet on the first attempt. The retry listens for
+ * the settings service's own update notification and disconnects immediately
+ * after the first attempt that can see the namespace: this has to stay a
+ * one-shot, because rewriting a document while the user is editing it would
+ * make their save lose its revision check.
+ */
+function scheduleCodexCapabilityHeal(ctx: Context): void {
+  let settled = false
+  const attempt = (): boolean => {
+    const settings = ctx.settings
+    if (!settings.describe().some(row => row.ns === CODEX_SETTINGS_NAMESPACE)) return false
+    settled = true
+    void healCodexModelCapabilities(settings as unknown as CapabilityRepairSettings)
+      .then(filled => {
+        if (filled.length > 0) ctx.logger.info(`dsh-codex-auth: filled missing Codex model capabilities for ${filled.join(', ')}`)
+      })
+      .catch(error => {
+        ctx.logger.warn('dsh-codex-auth: unable to fill Codex model capabilities', error)
+      })
+    return true
+  }
+  ctx.effect(() => {
+    if (attempt()) return () => { /* nothing to detach; the repair is fire-and-forget */ }
+    const off = ctx.on('settings/document-updated', () => {
+      if (!settled) attempt()
+    })
+    return () => { off() }
+  }, 'dsh-codex-auth: Codex model capability repair')
+}
 
 export function apply(ctx: Context): void {
   const store = new CodexCredentialStore()
@@ -31,6 +67,7 @@ export function apply(ctx: Context): void {
   registerCodexAuthRoutes(ctx, store, mirror)
   registerCodexModelRefreshRoute(ctx, store, { update: (ns, patch) => ctx.settings.update(ns, patch) })
   registerCodexGlobalModelRoute(ctx, ctx.agentDefaultModel, ctx.llm)
+  scheduleCodexCapabilityHeal(ctx)
 }
 
 export { CodexCredentialStore } from './host/store.ts'
