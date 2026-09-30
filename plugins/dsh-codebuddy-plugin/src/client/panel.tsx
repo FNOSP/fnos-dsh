@@ -815,14 +815,15 @@ function CodeBuddyDetailContent({ rpc, t }: CodeBuddyDetailProps): ReactNode {
         />
       </section>
 
-      {/* Token 统计面板较多，默认展开但可折叠：详情页是纵向长列，读者常只需
-          其一看。用原生 `<details>` 而不是受控 state —— 折叠是纯展示偏好，
-          不需要跨挂载保留，也不该参与任何数据流。 */}
+      {/* Token 统计与账号管理同级呈现：两者都是详情页的一级区块，标题常驻。
+          这里曾用 `<details open>` 折起来，于是同一页出现两种层级——账号管理是
+          常驻标题，Token 统计却带一个展开箭头，读者会以为它归属上一块；默认
+          展开时折叠也没省下任何点击，只是多包了一层容器。 */}
       <section className="dsh-codebuddy-detail-section" aria-label={t('tokenTitle')}>
-        <details className="dsh-codebuddy-detail-collapse" open>
-          <summary className="dsh-codebuddy-detail-summary">{t('tokenTitle')}</summary>
-          <TokenStatsPage rpc={rpc} t={t} />
-        </details>
+        <div className="dsh-codebuddy-panel-section-head">
+          <div className="dsh-codebuddy-panel-section-title"><strong>{t('tokenTitle')}</strong></div>
+        </div>
+        <TokenStatsPage rpc={rpc} t={t} />
       </section>
 
       <AddAccountModal

@@ -122,38 +122,3 @@
   gap: 12px;
   min-width: 0;
 }
-/* 折叠容器（原生 <details>）：Token 统计面板较长，读者常只需其一看。 */
-.dsh-codebuddy-detail-collapse {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.dsh-codebuddy-detail-summary {
-  cursor: pointer;
-  /* 与区块标题同一视觉重量：读者不必重新学习层级。 */
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--dsw-alias-label-primary);
-  padding: 4px 0;
-  /* 去掉浏览器默认的三角标记，自绘 caret 以免各平台外观不一致。 */
-  list-style: none;
-}
-.dsh-codebuddy-detail-summary::-webkit-details-marker { display: none; }
-.dsh-codebuddy-detail-summary::before {
-  content: '';
-  display: inline-block;
-  width: 0;
-  height: 0;
-  margin-right: 8px;
-  vertical-align: middle;
-  border-left: 5px solid currentColor;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  transition: transform 0.15s ease;
-}
-.dsh-codebuddy-detail-collapse[open] > .dsh-codebuddy-detail-summary::before {
-  transform: rotate(90deg);
-}
-@media (prefers-reduced-motion: reduce) {
-  .dsh-codebuddy-detail-summary::before { transition: none; }
-}

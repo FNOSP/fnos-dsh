@@ -215,6 +215,7 @@ sequenceDiagram
 | PLAN-FNOS-008-T07-06 | FNOS-008-02 / AC-04 | 显式迁移脚本：`plugins/dsh-codebuddy-plugin/scripts/migrate-storage.mjs` + npm script，与读时迁移共用同一实现（不各写一份）；旧文件改名为 `.migrated-<ts>` 保留，历史 `*.backup-*` 不处理 | T07-05 | 脚本在含旧格式的沙盒目录上运行：生成单文档、旧文件改名、输出摘要；重复运行幂等 |
 | PLAN-FNOS-008-T07-08 | FNOS-008-02 / AC-05 | 多会话并发换号修复：`failedId` 改为「本次尝试真正被拒的账号」（发出请求前冻结、每轮切换后更新）；`switchTo` CAS 失败时采用当前账号继续重试而非放弃；`from === to` 时不产出「已自动切换」提示。补端到端并发用例（两/三个账号、失败响应晚于别人切换的确定性编排） | T07-03 | 反转任一修复对应用例变红；插件 67 文件全绿 |
 | PLAN-FNOS-008-T07-07 | FNOS-008-02 / AC-01–04、FNOS-008-06 / AC-01 | 端到端验证：探针 profile + 无头 Electron 打开插件详情页，断言四个区块渲染、两个控件可写、Token 图表挂载、成长任务入口可用；确认无 `#/codebuddy` 残留路由 | T07-03、T07-04、T07-06 | 真实前端渲染证据；修复前失败、修复后通过 |
+| PLAN-FNOS-008-T07-09 | FNOS-008-02 / AC-06 | 呈现层级对齐：`panel.tsx` 的 Token 统计去掉 `<details>`/`<summary>` 折叠容器，改为与账号管理同级的常驻区块标题（`dsh-codebuddy-panel-section-title` + `tokenTitle`）；删除已无引用的 `.dsh-codebuddy-detail-collapse` / `.dsh-codebuddy-detail-summary` 全部样式（含 caret 与 `prefers-reduced-motion` 分支） | T07-02 | 契约测试：详情页不含 `<details>` / `<summary>` / `detail-collapse`，Token 标题常驻且与账号标题同级；反转任一项变红；插件全量测试通过 |
 
 ### 阶段四：文档与索引（T04-01–T04-03）
 
@@ -379,3 +380,4 @@ flowchart TD
 | 2026-09-29 | 新增 T07-08 | 并发换号审计发现两个真实缺陷（详见 FNOS-008-02-AC-05 变更记录），登记为 T07-08 并补可证伪的并发用例。 |
 | 2026-09-29 | 登记验证记录 | 补登三份 `docs/validation/` 记录：FNOS-008-01（fnOS 授权目录迁入详情页）、FNOS-008-02（CodeBuddy 详情页与设置浮层）、FNOS-008-06（Desktop 运行时复验）。01/02 此前只有提交与单测、无验证记录，属流程缺失。另更正 FNOS-008-06 旧记录「本机未安装 Electron、无法验收」已被事实取代——目标运行时（`/Applications/DeepSeek Harness.app`）已安装且实测两个插件均在 Desktop 上激活；按验收规范「证据只追加，不修改」，以新文件取代，旧记录保持原样。 |
 | 2026-09-29 | 按插件拆分环境验收阶段 | CodeBuddy/Codex Auth 改为 DSH Web 与 Desktop 验收；真实 NAS 阶段仅覆盖 fnOS 插件授权目录及其数据保留，调整影响矩阵、任务依赖和验收清单。 |
+| 2026-09-29 | 新增 T07-09 | Token 统计在详情页内改回常驻区块（与账号管理同级呈现），删除折叠容器与配套样式；登记 FNOS-008-02-AC-06。 |

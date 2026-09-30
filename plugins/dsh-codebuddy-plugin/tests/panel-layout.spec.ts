@@ -90,9 +90,35 @@ describe('详情页区块不再有面板外壳', () => {
     expect(SHELL_SCSS).not.toMatch(/\.dsh-codebuddy-panel-main\s*\{/)
   })
 
-  it('详情页样式确实定义了区块与折叠容器', () => {
+  it('详情页样式确实定义了区块容器', () => {
     expect(SHELL_SCSS).toMatch(/\.dsh-codebuddy-detail\s*\{/)
     expect(SHELL_SCSS).toMatch(/\.dsh-codebuddy-detail-section\s*\{/)
-    expect(SHELL_SCSS).toMatch(/\.dsh-codebuddy-detail-summary\s*\{/)
+  })
+
+  /**
+   * Token 统计与账号管理是详情页里的同级区块，两者都要以常驻标题呈现。
+   *
+   * 这里曾用 `<details open>` 把 Token 统计折起来：同一页于是出现两种层级——
+   * 账号管理是常驻标题，Token 统计却带一个展开箭头，读者会以为它归属上一块；
+   * 而默认展开的折叠也没省下任何点击，只是多包了一层容器。折叠样式随之删除，
+   * 留着只会让人以为折叠还在用。
+   */
+  it('Token 统计与账号管理同级呈现，不被折叠面板包住', () => {
+    // 剥掉注释再断言：源码里有一段解释"这里曾用 <details> 折起来"的历史说明，
+    // 那是正当的记录，不该被当成残留标签（与本文件前面的做法一致）。
+    const code = shell.replace(/\/\*[\s\S]*?\*\//gu, '')
+    expect(code).not.toContain('<details')
+    expect(code).not.toContain('<summary')
+    expect(code).not.toContain('dsh-codebuddy-detail-collapse')
+    expect(code).not.toContain('dsh-codebuddy-detail-summary')
+    // 标题常驻：两个区块都走同一个标题类。
+    const tokenSection = shell.slice(shell.indexOf("t('tokenTitle')"), shell.indexOf('<TokenStatsPage'))
+    expect(tokenSection).toContain('dsh-codebuddy-panel-section-title')
+    expect(tokenSection).toContain("<strong>{t('tokenTitle')}</strong>")
+  })
+
+  it('折叠容器样式已删除（含 caret 与 reduced-motion 分支）', () => {
+    expect(SHELL_SCSS).not.toMatch(/\.dsh-codebuddy-detail-collapse/)
+    expect(SHELL_SCSS).not.toMatch(/\.dsh-codebuddy-detail-summary/)
   })
 })

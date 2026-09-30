@@ -53,6 +53,7 @@ status: passed|failed|blocked
 - [FNOS-007-36 Codex 模型能力单一来源与历史覆盖自愈本地验证记录（2026-09-29）](/validation/FNOS-007-36-local-automated-2026-09-29)
 - [FNOS-008-01 fnOS 授权目录迁入插件详情页本地验证记录（2026-09-29）](/validation/FNOS-008-01-fnos-detail-section-local-2026-09-29)
 - [FNOS-008-02 CodeBuddy 详情页与设置浮层本地验证记录（2026-09-29）](/validation/FNOS-008-02-codebuddy-detail-ui-local-2026-09-29)
+- [FNOS-008-02 CodeBuddy Token 统计移除折叠本地验证记录（2026-09-29）](/validation/FNOS-008-02-codebuddy-token-section-local-2026-09-29)
 - [FNOS-008-06 CodeBuddy Desktop 适配本地验证记录（2026-09-28）](/validation/FNOS-008-06-codebuddy-desktop-local-2026-09-28)
 - [FNOS-008-06 CodeBuddy Desktop 运行时复验记录（2026-09-29）](/validation/FNOS-008-06-codebuddy-desktop-runtime-2026-09-29)
 - [FNOS-008-03 Codex Auth 配置迁入插件详情页本地验证记录（2026-09-28）](/validation/FNOS-008-03-codex-bundle-config-local-2026-09-28)
