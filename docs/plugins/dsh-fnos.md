@@ -7,7 +7,7 @@
 在 fnOS 上使用 DSH 时，插件随应用安装或升级自动安装。其他 DSH 环境可执行：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-fnos@0.1.7-rc.2.2
+dsh plugin --profile web add @tnnevol/dsh-fnos@0.2.0-rc.2.0
 ```
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。

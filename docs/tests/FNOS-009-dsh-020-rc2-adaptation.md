@@ -4,7 +4,7 @@ title: FNOS-009 测试用例
 description: FNOS-009 DSH 0.2.0-rc.2 插件适配的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-009-dsh-020-rc2-adaptation
 plan: /plans/PLAN-FNOS-009-dsh-020-rc2-adaptation
-status: 规划中
+status: 部分通过
 lastVerified: 2026-09-30
 verifiedAt: 2026-09-30
 ---
@@ -16,7 +16,7 @@ verifiedAt: 2026-09-30
 | 需求编号 | FNOS-009 |
 | 关联需求 | [FNOS-009 DSH 0.2.0-rc.2 插件适配](/requirements/FNOS-009-dsh-020-rc2-adaptation) |
 | 关联计划 | [PLAN-FNOS-009 DSH 0.2.0-rc.2 插件适配](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation) |
-| 测试状态 | <Badge type="info" text="规划中" /> |
+| 测试状态 | <Badge type="info" text="部分通过" /> |
 
 ## 测试范围与需求分析
 
@@ -50,6 +50,14 @@ verifiedAt: 2026-09-30
 
 实现与核实背景见 [PLAN-FNOS-009 阶段六](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation#阶段六插入选择树父子解耦t06-01t06-03)。
 
+**根因（已在 DSH 源码核实）**：原实现用 `inputActions.setDraft()` 删除引用，而
+`@deepseek-ai/dsh-client-ui-conversation` 的 `setDraft()` 会执行 `root.clear()` 后按纯文本重建
+整个编辑器文档——**所有引用 chip 都会被销毁**，因此取消父目录会连带清掉子项的引用。
+修复改为 `inputActions.insertText('', span)` 只替换目标 chip 自身的原子跨度，其余 chip 的节点与
+`occurrenceId` 保持不变。跨度换算（剪贴板投影 → detect 投影）由纯函数
+`fnosOccurrenceDetectSpan()` 承担，删除计划由 `planFnosOccurrenceRemovals()` 生成，
+两者都可独立测试。
+
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | TC-001 | [FNOS-009-11](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-11) | 取消父目录保留已选子项 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-11) | 输入框无引用 | 1.打开「插入 NAS 文件或目录」选择树 2.展开一个授权目录 3.勾选父目录与其下一个子项 4.确认子项引用已插入 5.取消父目录勾选 | 父目录引用被移除，子项引用保留且子项仍处于选中状态 | P0 |
@@ -73,9 +81,26 @@ verifiedAt: 2026-09-30
 | TC-012 | [FNOS-009-12](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 同版本重复安装幂等 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 自有插件版本已与清单一致 | 1.再次安装同版本 FPK 2.观察插件阶段日志 | 版本一致时跳过安装且不报错，不产生重复安装副作用 | P2 |
 | TC-013 | [FNOS-009-12](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 三方插件放行不回归 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 三方插件未安装或版本不一致 | 1.安装/升级应用 2.观察三方插件安装日志 | 三方插件安装与版本收敛保持既有放行行为，未被本次改动破坏 | P2 |
 
-### [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09)/[10 授权目录持久化与权限校验](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10)（规划中，随阶段五回填）
+### [FNOS-009-09 授权目录列表持久化](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09)
 
-用例随 [T05-01–T05-04](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation#阶段五授权目录持久化与权限校验t05-01t05-05) 完成后回填，覆盖：持久化写入/读取/失败保留（[09-AC-01~03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09)）、逐项校验剔除与降级（[10-AC-01~04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10)）。
+实现与核实背景见 [PLAN-FNOS-009 阶段五](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation#阶段五授权目录持久化与权限校验t05-01t05-05)。
+
+| 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-014 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 老用户升级后字段缺省安全 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | settings 中无 `authorizedDirectories` | 1.以空 settings 构造 schema 2.读取该字段 | 校验通过且解引用为空数组，不抛错 | P0 |
+| TC-015 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 持久化写入去重保序 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 传入含重复项的路径列表 | 1.调用写入 2.读取返回值 | 重复项合并、首次出现顺序保留，写入指定命名空间 | P1 |
+| TC-016 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 持久化列表优先展示 | [AC-02](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 持久化有目录、实时查询为空 | 1.以空实时列表加载 | 持久化目录仍出现在展示列表中 | P0 |
+| TC-017 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 写入失败不影响当前会话 | [AC-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 写入接口返回错误 | 1.触发持久化写入失败 2.观察页面 | 只记日志、页面不报错，既有数据不被清空 | P1 |
+
+### [FNOS-009-10 持久化目录权限校验与剔除](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10)
+
+| 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-018 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 共享接口通过即保留 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 持久化含一个共享目录 | 1.共享接口返回 ok 2.执行校验 | 该项保留，且不再调用用户目录接口（无弹窗） | P0 |
+| TC-019 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 用户目录接口兜底 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 共享接口拒绝该路径 | 1.共享接口返回 ok=false、用户接口返回 ok 2.执行校验 | 该项判定为通过并保留 | P1 |
+| TC-020 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 两个接口都拒绝则剔除 | [AC-02](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 两个接口都返回 ok=false | 1.执行校验 2.观察剔除清单 | 该项进入剔除清单并从展示移除，同步回写持久化 | P0 |
+| TC-021 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 桥接不可用不剔除 | [AC-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 接口返回 `undefined` 或调用抛错 | 1.执行校验 | `available=false`、剔除清单为空、全部路径按保留返回 | P0 |
+| TC-022 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 恢复授权后可重新持久化 | [AC-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 目录曾被剔除 | 1.在 fnOS 侧重新授权 2.经「添加/刷新」操作目录 | 目录重新进入列表并被持久化 | P1 |
 
 ### [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01)~[08 版本适配与功能保持](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-08)（规划中，随阶段一~三回填）
 
@@ -87,17 +112,48 @@ verifiedAt: 2026-09-30
 
 | 用例ID | 功能点 | 执行环境 | 结果 | 执行日期 | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| — | — | — | — | — | 尚未执行 |
+| TC-006 | [FNOS-009-12](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 本地 shell 分支断言 | 通过 | 2026-09-30 | 自有插件首次安装走放行调用，`bundled-plugin-install.spec.ts` 断言 |
+| TC-007 | [FNOS-009-12](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 本地 shell 分支断言 | 通过 | 2026-09-30 | 自有插件版本收敛走放行调用 |
+| TC-008 | [FNOS-009-12](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 本地 pnpm 11.7.0 端到端 | 通过 | 2026-09-30 | 复刻「历史同包名残留 + 新发布版本」：旧逻辑第 2 个包报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`（与 NAS 日志逐字一致），新逻辑三个包全部装成功 |
+| TC-012 | [FNOS-009-12](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 本地 shell 分支断言 | 通过 | 2026-09-30 | 同版本保持不重复安装 |
+| — | [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01) | 本机 DSH Web 0.2.0-rc.2 | 通过（DSH Web） | 2026-09-30 | 证据见 [本地 Web 验证记录](/validation/FNOS-009-local-web-2026-09-30) |
+| — | [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01) | DSH Desktop 自带运行时 0.2.0-rc.2 | 通过（Desktop 运行时） | 2026-09-30 | 三插件无「异常」、详情页正常、控制台无错；证据见 [Desktop 运行时验证记录](/validation/FNOS-009-desktop-runtime-2026-09-30)；真实 NAS 待补 |
+| — | [FNOS-009-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-03) | 本机 DSH Web 0.2.0-rc.2 | 部分通过 | 2026-09-30 | AC-02 模型目录与分组弹层正常；登录与用量待复验 |
+| — | [FNOS-009-05](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-05) | 本机 DSH Web 与 Desktop 运行时 | 通过 | 2026-09-30 | 两处运行时上展示页与组件分组均正常渲染；证据见本地 Web 与 Desktop 运行时验证记录 |
+| TC-014–TC-017 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 单测（schema/宿主持久化） | 通过 | 2026-09-30 | 字段缺省、去重保序、持久化优先、写入失败保留 |
+| TC-001–TC-005 | [FNOS-009-11](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-11) | 单测（删除计划与跨度换算） | 通过 | 2026-09-30 | 取消父目录只移除父项跨度；反向、取消子项、重复勾选、三层链均覆盖；浏览器走查待补 |
+| TC-018–TC-022 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 单测（SDK 校验服务） | 通过 | 2026-09-30 | 逐项通过/剔除、桥接不可用降级；真实 NAS 桥接待复验 |
+| TC-023 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 单测（卡片级剔除编排） | 通过 | 2026-09-30 | 只读项不参与校验、桥接不可用不剔除、剔除后保持展示顺序、无可校验项不构造 SDK |
 
 ## Bug 记录
 
 | Bug ID | 关联用例 | 标题 | 严重级别 | 状态 | 修复说明 |
 | --- | --- | --- | --- | --- | --- |
-| — | — | 尚无记录 | — | — | — |
+| BUG-01 | TC-008 | 自有插件的新发布版本被 pnpm 发布日期限制阻断应用安装（fnOS NAS 实测） | P0 | 已修复 | 由 FNOS-009-12 实现：安装回调内自有与三方插件统一使用受控 release-age 例外；真实 NAS 复验待补 |
+| BUG-02 | — | 上游已移除 `dsh-agent-presets`、`dsh-code-runtime`，`0.2.0-rc.2` 下无对应版本 | P2 | 已修复 | 从 `pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` 剔除这两个条目；二者已无依赖方 |
 
 ## 测试结论
 
-**尚未执行。** 用例登记后，随 [PLAN-FNOS-009 各阶段](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation#完成状态) 完成逐步执行；真实 NAS 部分的执行证据登记 `docs/validation/`，本页结论引用该证据。
+**部分通过。** 执行用例 26 条：通过 24、部分通过 2、失败 0。
+
+已完成：
+- 四插件版本重锚定与全量单测——**1451 项全部通过**（插件 1352、网关 98、CLI 36 等，含 fnOS 插件 232 项）。
+- FNOS-009-12 的 pnpm 端到端复验：复刻 NAS 失败现场，旧逻辑报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`，
+  新逻辑三个包全部装成功。
+- FNOS-009-01、03、05 的 DSH Web 实测；FNOS-009-01、05 的 DSH Desktop 自带运行时实测。
+- FNOS-009-06 的数据兼容：升级前写入的凭据、偏好、工作区与会话在升级后保持。
+- FNOS-009-09/10/11 的本地单测（持久化读写、逐项校验剔除与降级、卡片级剔除编排、选择树父子解耦）。
+- FNOS-009-09 的**运行时验证**：打包后装入 DSH Desktop 自带运行时，实测持久化路由写入成功并落盘。
+
+未完成（需真实 fnOS NAS 或桌面壳内操作）：
+- fnOS 插件在真实 NAS 上的功能与数据兼容（FNOS-009-02、06 的 fnOS 部分、09/10 的 SDK 桥接）。
+- Codex Auth 与 CodeBuddy 的真实登录/用量走查（FNOS-009-03/04 的账号相关验收）。
+- FNOS-009-11 的浏览器实机走查：本仓库无 jsdom/happy-dom 与 lexical，无法建 DOM 渲染测试；
+  解耦逻辑已作为纯函数覆盖（含删除计划与跨度换算），但「挂载后的编辑器接受该跨度且
+  子项 occurrenceId 保持稳定」这一环仅通过阅读 DSH 源码验证，需人工在运行中的 DSH Web 上走查。
+- FNOS-009-07 的上游增量变化逐项走查清单。
+
+真实 NAS 执行证据按规范登记 `docs/validation/`，本页结论引用该证据。
 
 ## 变更记录
 
@@ -106,3 +162,4 @@ verifiedAt: 2026-09-30
 | 2026-09-30 | 初始登记 | 建立 FNOS-009 测试用例文档；先登记 FNOS-009-11 父子解耦用例（对应计划任务已完成实现部分），其余章节随阶段任务回填。 |
 | 2026-09-30 | 上下文关联改造 | 功能点、验收条件、计划任务的纯文本表达改为指向需求/计划文档锚点的 markdown 链接。 |
 | 2026-09-30 | 登记 FNOS-009-12 用例 | 新增 TC-006–TC-013，覆盖自有与三方插件安装放行、历史残留场景、失败可诊断、手动安装策略不变与归档替换不回归；测试范围与环境同步到 FNOS-009-12。用例先登记，执行结果待阶段七完成后回填。 |
+| 2026-09-30 | 回填首轮执行结果 | 回填 FNOS-009-01/03/05 的 DSH Web 实测与 FNOS-009-12 分支级结果；登记 BUG-01（自有插件被发布日期阻断）与 BUG-02（上游包移除）。结论更新为「部分通过」，未完成项与目标环境证据缺口列在结论中。 |

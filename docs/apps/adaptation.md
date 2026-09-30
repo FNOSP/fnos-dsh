@@ -53,7 +53,7 @@ fnOS 通过统一网关把应用暴露在 NAS Web 中，因此 DSH Web 不能直
 | 请求头注入 | 补充 loopback 相关头，让 DSH 认可来自网关的请求 |
 | 响应头适配 | 移除 hop-by-hop 头，并将上游认证 Cookie 的 `Path=/` 收窄到应用挂载目录，避免污染 NAS 根路径 |
 | SSE 心跳保活 | 定期发送注释行，防止长连接被中间层断开 |
-| HTML/CSS/JS 改写 | 让 DSH `0.1.7-rc.2` 文档目录相对页面在非根路径下正确加载静态资源 |
+| HTML/CSS/JS 改写 | 让 DSH `0.2.0-rc.2` 文档目录相对页面在非根路径下正确加载静态资源 |
 
 网关监听应用目录下的 Unix Socket（`app.sock`），只对 fnOS 开放，不额外占用网络端口。`cmd/main` 启动网关，由网关拉起 DSH Web：
 

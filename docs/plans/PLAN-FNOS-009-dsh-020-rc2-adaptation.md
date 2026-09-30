@@ -364,13 +364,13 @@ FNOS-009-09/10 的用户可见变化仅限授权目录管理页：
 
 | 阶段 | 状态 |
 | --- | --- |
-| 阶段一：版本重锚定与构建 | <Badge type="info" text="规划中" /> |
-| 阶段二：功能回归与接缝适配 | <Badge type="info" text="规划中" /> |
-| 阶段三：数据兼容与文档 | <Badge type="info" text="规划中" /> |
-| 阶段四：目标环境验收 | <Badge type="info" text="规划中" /> |
-| 阶段五：授权目录持久化与权限校验 | <Badge type="info" text="规划中" /> |
-| 阶段六：插入选择树父子解耦 | <Badge type="info" text="规划中" /> |
-| 阶段七：插件安装发布日期放行统一 | <Badge type="info" text="规划中" /> |
+| 阶段一：版本重锚定与构建 | <Badge type="info" text="本地完成，待目标环境验收" /> |
+| 阶段二：功能回归与接缝适配 | <Badge type="info" text="本地完成，待目标环境验收" /> |
+| 阶段三：数据兼容与文档 | <Badge type="info" text="本地完成，待目标环境验收" /> |
+| 阶段四：目标环境验收 | <Badge type="info" text="待执行（DSH Web 部分已验，Desktop 与真实 NAS 待补）" /> |
+| 阶段五：授权目录持久化与权限校验 | <Badge type="info" text="本地完成，待目标环境验收" /> |
+| 阶段六：插入选择树父子解耦 | <Badge type="info" text="本地完成，待目标环境验收" /> |
+| 阶段七：插件安装发布日期放行统一 | <Badge type="info" text="本地完成，待目标环境验收" /> |
 
 ## 变更记录
 

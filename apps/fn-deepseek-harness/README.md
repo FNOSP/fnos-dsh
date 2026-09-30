@@ -4,7 +4,7 @@
 
 - 架构：x86
 - 运行时：`nodejs_v24`
-- DSH：`0.1.7-rc.2`
+- DSH：`0.2.0-rc.2`
 - Web 入口：`/app/fn-deepseek-harness`
 
 ## 功能
