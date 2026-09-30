@@ -87,7 +87,7 @@ verifiedAt: 2026-09-30
 
 | 被测对象 | 执行环境 | 执行方式 |
 | --- | --- | --- |
-| fnOS 插件（`dsh-fnos`）及依赖 fnOS 宿主桥接、NAS 文件能力、安装/升级生命周期的功能 | 真实 fnOS NAS | 部署 FPK 后在设备上执行，证据按[验收证据规范](../validation/README.md)登记 `docs/validation/` |
+| fnOS 插件（`dsh-fnos`）及依赖 fnOS 宿主桥接、NAS 文件能力、安装/升级生命周期的功能 | 真实 fnOS NAS | 见[真实 NAS 测试](#真实-nas-测试)，证据按[验收证据规范](../validation/README.md)登记 `docs/validation/` |
 | 其他 DSH 插件（Codex Auth、CodeBuddy、Semi UI Showcase 等）与插件 UI 功能 | **DSH Web 与 DSH Desktop（至少两者）** | Web：`pnpm run start -- --web`；Desktop：在安装的 DSH Desktop 客户端中加载待测插件版本后人工走查（见下） |
 | 纯文档与构建产物 | 文档站构建环境 | `pnpm run build -- --docs` 与 `git diff --check` |
 
@@ -109,6 +109,28 @@ verifiedAt: 2026-09-30
 - **验证重点**：Desktop 与 Web 的宿主差异点优先覆盖——外部链接经系统默认浏览器打开（Electron `setWindowOpenHandler` 语义）、OAuth 授权回流、插件详情页/配置区块渲染、设置页呈现；行为以 Desktop 实测为准，不以 Web 结果外推。
 - **结论登记**：Desktop 走查结论可与同一需求的 Web 走查合并登记在测试用例文档的「测试执行结果」，按客户端分列；涉及真实用户确认的结论按[验收证据规范](../validation/README.md)登记 `docs/validation/`。
 - 用例的「前置条件」与「执行环境」按上述口径填写；执行环境取值使用 `DSH Web`、`DSH Desktop`、`真实 fnOS NAS`、`文档站构建环境`，不使用「本地」等含糊表述。
+
+### 真实 NAS 测试
+
+**测试设备与入口（固定）**：
+
+- 测试在内网 NAS 桌面网页完成：`http://192.168.119.6:5666/`。
+- **禁止存储 NAS 账号密码**：任何受版本管理文件、测试文档、脚本和环境变量清单中都不得出现 NAS 凭据；需要登录时**向需求提出人询问**，或使用 `trim-cli` 的 OAuth 交互式登录（不索取、不代填账号密码）。
+- 登录后进入 fnOS 桌面进行应用测试；浏览器操作可由 Chrome DevTools（CDP）驱动完成（先例见 `docs/validation/` 既有记录）。
+
+**应用安装**（二选一，均安装到**存储 1**）：
+
+- **trim-cli 安装**（优先，结果可断言）：
+  ```bash
+  trim-cli --host 192.168.119.6 --port 5666 --profile home --scheme http \
+    --allow-insecure-http app install-fpk <fpk 文件> --volume-id <存储1 的 volume-id> --yes
+  ```
+  写操作必须显式 `--yes`；`--volume-id` 通过 `trim-cli ... storage pools` 查询「存储 1」对应 id；建议先加 `--dry-run` 验证安装信息与 guard。安装/更新会创建并轮询下载与安装任务，等待任务完成后再继续断言。
+- **Chrome CDP 在应用中心安装**：通过 CDP 驱动 NAS 桌面网页，在应用中心完成 FPK 上传与安装向导；目标存储空间选择**存储 1**。无法用 trim-cli 断言的向导交互走此路径。
+
+**日志与取证**：应用安装与运行日志在 NAS 的 `/var/log/apps/<应用名称>.log`（如 `/var/log/apps/fn-deepseek-harness.log`）；通过 `trim-cli` 文件命令读取或导出，失败取证时附在测试执行结果或 `docs/validation/` 记录中，日志中的 Token、凭据先脱敏。
+
+**安全红线**：NAS 凭据、auth 文件与测试账号信息**一律不得进入仓库**——不得写入受版本管理的代码、文档、脚本、`.env` 和测试用例；auth 配置备份只允许存放在 `tmp/auth-back/`（见[账号状态测试顺序与 auth 配置备份](#账号状态测试顺序与-auth-配置备份)），NAS 日志引用前先脱敏。
 
 ### 客户端与基线版本记录
 
@@ -160,6 +182,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 - **移除登录配置前必须先完成备份**：把上表的配置文件原样复制进对应备份目录；恢复登录则从备份目录原样复制回 `DSH_HOME`，恢复后文件权限保持 `600`（Codex Auth 会拒绝放宽权限的凭据文件）。
 - 每次进入新插件版本测试时新建一份备份目录，不覆盖旧备份；备份中包含真实凭据，禁止提交、截图或粘贴到任何受版本管理与共享的位置。
 - 测试全部结束后，确认 `DSH_HOME` 中的 auth 配置与测试前状态一致（恢复备份或保留新登录），并在测试执行结果备注登记状态切换与恢复动作。
+- **仓库红线（代码与测试通用）**：测试账号密码、NAS 凭据和 auth 相关文件一律不得上传到仓库——不进受版本管理的代码、文档、脚本、`.env`、测试夹具和测试用例；`.gitignore` 已忽略 `tmp/` 与 `.dsh/`，凭据只允许存在于这两类位置或 `trim-cli` 的 session 存储。提交前用 `git status` 与 `git diff --check` 确认无凭据文件混入。
 
 ### 回归用例与基线来源
 
@@ -242,6 +265,8 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 - [ ] 回归用例标注基线来源并链接原需求/版本；「与基线一致」的预期附带可观察特征（见[回归用例与基线来源](#回归用例与基线来源)）。
 - [ ] 涉及登录状态的测试按「登录态 → 非登录态 → 登录流程」顺序执行；auth 配置备份在 `tmp/auth-back/<插件名称>-<插件版本>-<备份日期>`，移除前已备份、恢复后权限为 `600`（见[账号状态测试顺序与 auth 配置备份](#账号状态测试顺序与-auth-配置备份)）。
 - [ ] Desktop 测试使用项目根 `.dsh/profiles/desktop`，未使用 `~/.dsh/profiles/desktop`，启动前已确认 `DSH_HOME` 指向项目根（见[DSH Desktop 测试](#dsh-desktop-测试)）。
+- [ ] NAS 测试在内网 `http://192.168.119.6:5666/` 桌面完成，未存储 NAS 凭据；安装到存储 1，日志从 `/var/log/apps/<应用名称>.log` 取证（见[真实 NAS 测试](#真实-nas-测试)）。
+- [ ] 测试账号密码、NAS 凭据与 auth 文件未进入仓库（代码、文档、脚本、测试夹具均不含凭据；备份仅在 git 忽略的 `tmp/auth-back/`）。
 - [ ] 测试数据清理动作已登记，无个人生产账号（见[测试数据清理](#测试数据清理)）。
 - [ ] 执行结果、Bug、结论仅在执行后回填，用例定义未被改写。
 - [ ] `pnpm run check -- --sdd` 与文档构建通过。
@@ -255,6 +280,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-09-30 | 新增版本记录、数据清理与基线来源要求 | 执行前记录环境版本三元组并校验 Desktop 运行时与插件锚定版本匹配；测试数据按位置约定清理并登记；回归用例标注基线来源，「与基线一致」须附可观察特征。用例模板增加基线来源列。 |
 | 2026-09-30 | 新增账号状态测试顺序与 auth 配置备份 | Codex/CodeBuddy 登录态测试按「登录态 Bug → 非登录态 Bug → 登录流程」顺序执行；状态切换前备份 auth 配置到 `tmp/auth-back/<插件名称>-<插件版本>-<备份日期>`，恢复登录从备份还原并保持 600 权限。 |
 | 2026-09-30 | 约束 Desktop 测试 profile 位置 | Desktop 测试禁止使用 `~/.dsh/profiles/desktop`，必须使用项目根 `.dsh/profiles/desktop`，与 Web 测试共用 `DSH_HOME=<repo>/.dsh`；登记 profile 创建与插件链接命令。 |
+| 2026-09-30 | 新增真实 NAS 测试规范 | 固定测试入口 `http://192.168.119.6:5666/`；禁止存储 NAS 凭据，登录向需求提出人询问或走 trim-cli OAuth；安装走 trim-cli（`app install-fpk --volume-id`）或 Chrome CDP 应用中心，目标存储为存储 1；日志在 `/var/log/apps/<应用名称>.log`。测试账号密码与 auth 文件禁止上传仓库（代码与测试通用红线）。 |
 
 ## 回填时机
 
