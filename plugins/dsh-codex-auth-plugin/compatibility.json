@@ -4,7 +4,7 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "dshPluginApi": {
-    "version": "0.1.7-rc.2",
+    "version": "0.2.0-rc.2",
     "packages": [
       "@deepseek-ai/dsh-agent-default-model",
       "@deepseek-ai/dsh-api-remotes",
@@ -31,6 +31,6 @@
   },
   "piAi": {
     "package": "@earendil-works/pi-ai",
-    "version": "0.85.1"
+    "version": "0.87.1"
   }
 }

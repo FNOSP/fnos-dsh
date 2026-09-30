@@ -3,15 +3,15 @@
   "plugins": [
     {
       "name": "@tnnevol/dsh-codebuddy",
-      "version": "0.1.7-rc.2.2"
+      "version": "0.2.0-rc.2.0"
     },
     {
       "name": "@tnnevol/dsh-codex-auth",
-      "version": "0.1.7-rc.2.2"
+      "version": "0.2.0-rc.2.0"
     },
     {
       "name": "@tnnevol/dsh-fnos",
-      "version": "0.1.7-rc.2.2"
+      "version": "0.2.0-rc.2.0"
     },
     {
       "name": "dshmarket",

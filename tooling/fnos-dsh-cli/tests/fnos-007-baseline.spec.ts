@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const targetVersion = '0.1.7-rc.2'
+const targetVersion = '0.2.0-rc.2'
 const pluginDirectories = [
   'dsh-codebuddy-plugin',
   'dsh-codex-auth-plugin',
@@ -30,8 +30,8 @@ describe('FNOS-007 DSH baseline', () => {
     const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
     expect(rootPackage.devDependencies['@deepseek-ai/dsh']).toBe('catalog:')
     expect(rootPackage.devDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('catalog:dsh')
-    expect(workspace).toMatch(/'@deepseek-ai\/dsh':\s*0\.1\.7-rc\.2/u)
-    expect(workspace).toMatch(/'@deepseek-ai\/dsh-llm-pi-ai':\s*0\.1\.7-rc\.2/u)
+    expect(workspace).toMatch(/'@deepseek-ai\/dsh':\s*0\.2\.0-rc\.2/u)
+    expect(workspace).toMatch(/'@deepseek-ai\/dsh-llm-pi-ai':\s*0\.2\.0-rc\.2/u)
   })
 
   it('keeps published DSH plugin peer ranges on the exact runtime baseline', async () => {
@@ -45,7 +45,7 @@ describe('FNOS-007 DSH baseline', () => {
     }
   })
 
-  it('declares 0.1.7-rc.2 in every runtime plugin compatibility manifest', async () => {
+  it('declares 0.2.0-rc.2 in every runtime plugin compatibility manifest', async () => {
     for (const directory of pluginDirectories) {
       const compatibility = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/compatibility.json`, import.meta.url), 'utf8')) as {
         dshPluginApi: { version: string }
@@ -99,7 +99,7 @@ describe('FNOS-007 DSH baseline', () => {
     // The manifest is a copy of each plugin's own version, so assert the copy
     // against its source instead of restating the expected value here. A
     // literal in the test rots exactly like one in the build guard: both said
-    // 0.1.7-rc.2 after the plugins moved to 0.1.7-rc.2.1, so the test went red
+    // 0.2.0-rc.2 after the plugins moved to 0.2.0-rc.2.0, so the test went red
     // while the release it was meant to protect still shipped a stale pin.
     for (const name of ['@tnnevol/dsh-codebuddy', '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-fnos'] as const) {
       const directory = bundledPluginDirectories[name]
@@ -113,8 +113,8 @@ describe('FNOS-007 DSH baseline', () => {
     expect(published.registry).toBeUndefined()
     expect(published.bundled ?? []).toEqual([])
 
-    const nativeConfig = await readFile(new URL('../../../.github/config/dsh-native-0.1.7-rc.2.env', import.meta.url), 'utf8')
-    expect(nativeConfig).toContain('DSH_VERSION="0.1.7-rc.2"')
+    const nativeConfig = await readFile(new URL('../../../.github/config/dsh-native-0.2.0-rc.2.env', import.meta.url), 'utf8')
+    expect(nativeConfig).toContain('DSH_VERSION="0.2.0-rc.2"')
     expect(nativeConfig).toContain('NODE_MAJOR="24"')
     expect(nativeConfig).toContain('NODE_PTY_VERSION="1.2.0-beta.15"')
     expect(nativeConfig).toContain('NODE_GYP_VERSION="11.0.0"')

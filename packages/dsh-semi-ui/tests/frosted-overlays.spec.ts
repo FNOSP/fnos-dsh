@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 /**
  * Regression guard for the frosted menu surfaces.
  *
- * DSH 0.1.7-rc.2 changed `--dsw-specific-menu` from `--dsw-alias-bg-layer-3`
+ * DSH 0.2.0-rc.2 changed `--dsw-specific-menu` from `--dsw-alias-bg-layer-3`
  * (opaque) to `--dsw-menu-surface-fill`, which is translucent —
  * `#f8f9fa94` in light (`#f8f9faf0` on darwin) and `#43454a73` in dark. Any
  * surface that paints this token without a backdrop filter lets the content

@@ -131,7 +131,7 @@ describe('local profile plugins', () => {
 
     expect(mocks.writeFile).toHaveBeenCalledWith(
       linkedPackagePath,
-      expect.stringContaining('"@deepseek-ai/dsh-llm": "0.1.7-rc.2"'),
+      expect.stringContaining('"@deepseek-ai/dsh-llm": "0.2.0-rc.2"'),
       'utf8',
     )
     expect(mocks.runRepoDsh).not.toHaveBeenCalled()

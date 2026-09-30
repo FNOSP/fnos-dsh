@@ -212,7 +212,11 @@ const requirementsSidebar = [
         text: 'FNOS-009 DSH 0.2.0-rc.2 插件适配',
         link: '/requirements/FNOS-009-dsh-020-rc2-adaptation'
       },
-    ]
+      {
+        text: 'FNOS-010 三方搜索接入与官方兜底',
+        link: '/requirements/FNOS-010-thirdparty-web-search-failover'
+      },
+      ]
   }
 ]
 
@@ -256,6 +260,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-009 DSH 0.2.0-rc.2 插件适配',
         link: '/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation'
+      },
+      {
+        text: 'PLAN-FNOS-010 三方搜索接入与官方兜底',
+        link: '/plans/PLAN-FNOS-010-thirdparty-web-search-failover'
       },
     ]
   }

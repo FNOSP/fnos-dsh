@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 /**
  * Codex Auth 配置入口迁入插件管理页详情页（FNOS-008-03 / T03-01、T03-02）。
  *
- * 上游 DSH 0.1.7-rc.2 的架构决策把插件配置收归侧栏「插件」页：设置弹框只保留
+ * 上游 DSH 0.2.0-rc.2 的架构决策把插件配置收归侧栏「插件」页：设置弹框只保留
  * 只读插件清单。官方给社区组合包的接缝是 `plugins.bundle.config`：
  *
  *  - 它按**包名**做 key（`key: '@tnnevol/dsh-codex-auth'`），渲染在组合包详情页
@@ -80,7 +80,7 @@ describe('Codex Auth 配置注册在插件详情页', () => {
     // 上游 ui-settings-shell 同样以 devDependencies 持有该包；运行时通过 slot
     // 名注册，不 import 该包，避免客户端模块表缺项。
     expect(manifest.dsh.client.inject).toContain(pkg)
-    expect(manifest.peerDependencies[pkg]).toBe('0.1.7-rc.2')
+    expect(manifest.peerDependencies[pkg]).toBe('0.2.0-rc.2')
     expect(manifest.devDependencies[pkg]).toBe('catalog:dsh')
   })
 
