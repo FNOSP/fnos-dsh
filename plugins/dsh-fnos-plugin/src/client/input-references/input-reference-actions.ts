@@ -26,19 +26,30 @@ export function fnosReferenceDraftText(_label: string): string {
   return '\uFFFC'
 }
 
-export function draftWithoutFnosOccurrence(
+/**
+ * 把剪贴板投影中的引用区间换算成 detect 投影跨度。
+ *
+ * `Occurrence.offset`/`length` 与 `input.draft` 同为剪贴板投影（chip 展开为其
+ * `clipboardText`），而 DSH 的引用删除入口只接受 detect 投影（chip 占一个原子
+ * 字符）。两者的差值就是排在该引用之前的每个引用多出来的标签长度，因此这里必须
+ * 传入**全部**引用，不能只传 fnOS 来源的那几个。
+ * 跨度默认连带 DSH 插入时补的分隔空格。
+ */
+export function fnosOccurrenceDetectSpan(
   draft: string,
-  occurrence: { offset: number, length: number },
-  _occurrences: readonly { offset: number, length: number }[],
+  occurrence: { readonly offset: number, readonly length: number },
+  occurrences: readonly { readonly offset: number, readonly length: number }[],
   options: { removeTrailingSeparator?: boolean } = {},
-): string {
-  const start = occurrence.offset
-  const end = occurrence.offset + occurrence.length
-  // DSH appends one separator after an inserted structured reference. Remove
-  // only that separator; whitespace owned by the user's existing draft stays.
-  let after = end
-  if (options.removeTrailingSeparator !== false && draft[after] === ' ') after += 1
-  return draft.slice(0, start) + draft.slice(after)
+): { start: number, end: number } {
+  const shift = occurrences.reduce(
+    (total, item) => item.offset + item.length <= occurrence.offset ? total + Math.max(0, item.length - 1) : total,
+    0,
+  )
+  const start = Math.max(0, occurrence.offset - shift)
+  // chip 本身占 1 个原子字符，其后的分隔空格也占 1 个。
+  const withSeparator = options.removeTrailingSeparator !== false
+    && draft[occurrence.offset + occurrence.length] === ' '
+  return { start, end: start + (withSeparator ? 2 : 1) }
 }
 
 /** Add exactly one separator only when existing text touches the insertion. */

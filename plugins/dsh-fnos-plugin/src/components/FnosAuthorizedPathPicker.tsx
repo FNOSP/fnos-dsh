@@ -7,9 +7,8 @@ import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import { DshIconFile as IconFile, DshIconFolder as IconFolder, DshTooltip as Tooltip, DshTreeSelect as TreeSelect } from '@tnnevol/dsh-semi-ui'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { FnosColorLogo } from './FnosLogo.tsx'
-import { decodeFnosReference, FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
-import { draftWithoutFnosOccurrence } from '../client/input-references/input-reference-actions.ts'
-import { reconcileFnosOperationOccurrences, type PendingFnosOccurrence, type TrackedFnosOccurrence } from '../client/input-references/input-reference-operation.ts'
+import { FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
+import { planFnosOccurrenceRemovals, reconcileFnosOperationOccurrences, type PendingFnosOccurrence, type TrackedFnosOccurrence } from '../client/input-references/input-reference-operation.ts'
 import type { AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
 
 type InputSelector = <S>(
@@ -161,29 +160,26 @@ export function FnosAuthorizedPathPicker({ useInput, inputActions, insertReferen
   }, [desiredPaths, input.occurrences])
 
   useEffect(() => {
-    if (pendingRemovalPaths.current.size === 0) return
-    const fnosOccurrences = input.occurrences.filter(occurrence => occurrence.source === FNOS_REFERENCE_SOURCE)
-    const removableIds = new Set([...currentOperationOccurrences.current]
-      .filter(([, occurrence]) => pendingRemovalPaths.current.has(occurrence.path))
-      .map(([occurrenceId]) => occurrenceId))
-    const removable = fnosOccurrences
-      .filter(occurrence => removableIds.has(occurrence.occurrenceId))
-      .sort((left, right) => right.offset - left.offset)
-    if (removable.length === 0) return
+    const steps = planFnosOccurrenceRemovals({
+      draft: input.draft,
+      occurrences: input.occurrences,
+      trackedOccurrences: currentOperationOccurrences.current,
+      pendingRemovalPaths: pendingRemovalPaths.current,
+    })
+    if (steps.length === 0) return
 
-    let draft = input.draft
-    for (const occurrence of removable) {
-      const decoded = decodeFnosReference(occurrence.ref)
-      const tracked = currentOperationOccurrences.current.get(occurrence.occurrenceId)
-      if (decoded !== undefined) {
-        pendingRemovalPaths.current.delete(decoded.path)
-        currentOperationOccurrences.current.delete(occurrence.occurrenceId)
-      }
-      draft = draftWithoutFnosOccurrence(draft, occurrence, fnosOccurrences, {
-        removeTrailingSeparator: tracked?.trailingSeparator ?? true,
-      })
+    for (const step of steps) {
+      // 逐个读取实时修订号：每次删除都会推进它，用快照里的值会让第二个引用
+      // 之后的删除被 CAS 拒绝。跨度无需重算——计划按偏移倒序，删掉靠后的引用
+      // 不会移动靠前引用的位置。
+      const draftRev = inputActions.captureInsertion().draftRev
+      // 用空文本替换这一个 chip 的原子跨度，只销毁它自己的节点；其余 chip 的
+      // occurrenceId 与 occurrence 投影保持不变，父子勾选状态因此互不牵连。
+      // 不能改走 setDraft：那条路径会 root.clear() 后按纯文本重建，销毁所有 chip。
+      if (!inputActions.insertText('', { ...step.span, draftRev })) break
+      pendingRemovalPaths.current.delete(step.path)
+      currentOperationOccurrences.current.delete(step.occurrenceId)
     }
-    inputActions.setDraft(draft)
   }, [desiredPaths, input.draft, input.occurrences, inputActions])
 
   const handleTreeChange = useCallback((next: unknown) => {
