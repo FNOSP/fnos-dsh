@@ -16,7 +16,7 @@ lastVerified: 2026-09-30
 | 计划编号 | PLAN-FNOS-009 |
 | 计划日期 | 2026-09-30 |
 | 对应需求 | [FNOS-009 DSH 0.2.0-rc.2 插件适配](/requirements/FNOS-009-dsh-020-rc2-adaptation) |
-| 本轮功能 | FNOS-009-01 至 FNOS-009-10 全部进入本轮实施 |
+| 本轮功能 | FNOS-009-01 至 FNOS-009-12 全部进入本轮实施 |
 | 上游依据 | 本地 Harness checkout `dsh-v0.2.0-rc.2`（`~/workspace/fork-pj/deepseek-harness`）；与 `dsh-v0.1.7-rc.2` 的全量源码对比；`@trimjs/web-app` SDK 类型与实现源码（插件 `node_modules` 内 `dist/index.js`、`dist/*.d.ts`） |
 | 计划状态 | <Badge type="info" text="规划中" /> |
 
@@ -44,6 +44,7 @@ lastVerified: 2026-09-30
 | 授权目录列表来源（FNOS-009-09） | 实时合并 fnOS 授权接口与进程环境，无本地持久化；进程内 `removedAccessiblePaths` 防复活，重启即失效 | 新增 `dsh-fnos` settings 字段 `authorizedDirectories` 持久化用户授权目录；读取时持久化列表优先，实时查询用于合并新增与恢复 | settings schema、Host 读写、Client 卡片加载逻辑、契约测试 |
 | 授权目录加载流程（FNOS-009-10） | 展示前无权限校验；失效目录依赖 fnOS 接口返回自然消失 | 插件加载与列表读取时用 `@trimjs/web-app` 无交互授权接口逐项校验；校验不通过的目录剔除展示并同步移除持久化记录 | Client 校验服务、Host 剔除回写路由语义、错误降级 |
 | 插入选择树勾选语义（FNOS-009-11） | `FnosAuthorizedPathPicker` 的 `TreeSelect` 已声明 `checkRelation="unRelated"`，但用户实测同时选中父子后取消父目录会连带取消子项 | 父子勾选状态完全解耦：取消父目录只移除父目录引用；修复优先通过组件 props（`checkRelation`/受控 `value`）表达，必要时用受控 `onChange` 过滤兜底 | Client 选择器逻辑与单测 |
+| 插件安装发布日期限制（FNOS-009-12） | 安装回调按清单第三列 `source` 分派：`source: "thirdparty"` 走带放行的安装，自有插件走普通安装。自有插件刚发布时会被发布日期限制拒绝，`install_published_dsh_plugins` 以非零退出中断整次安装。放行目前只覆盖三方插件与 FPK 归档替换（FNOS-007-29） | 自有插件与三方插件的 registry 安装/升级统一走同一放行处理；`source` 不再决定是否放行，仅保留解析用于兼容既有清单格式 | 分支断言与真实 pnpm 端到端验证 |
 
 ### 上游两版本对比结论（差异核实记录）
 
@@ -171,14 +172,15 @@ sequenceDiagram
 | FNOS-009-09 | `plugins/dsh-fnos-plugin`：settings schema/契约、Host 列表读取与剔除回写、Client 卡片加载 | 新增 settings 字段 `authorizedDirectories`；升级保留既有数据 | 契约测试、Host 路由测试、Client 合并/降级单测 | `docs/plugins/dsh-fnos.md` | DSH Web、真实 NAS |
 | FNOS-009-10 | `plugins/dsh-fnos-plugin`：Client SDK 校验服务（`authorizeSharedFile`/`authorizeUserFile`）、剔除回写 | 持久化记录剔除 | SDK 校验单测（mock 桥接）、剔除与降级路径测试 | `docs/plugins/dsh-fnos.md` | DSH Web、真实 NAS |
 | FNOS-009-11 | `plugins/dsh-fnos-plugin/src/components/FnosAuthorizedPathPicker.tsx` | 无 | 选择器勾选独立性单测 | — | DSH Web |
+| FNOS-009-12 | `apps/fn-deepseek-harness/cmd/install_callback`（自有插件 registry 安装/升级分支） | 无 | `packages/fnos-gateway/tests/bundled-plugin-install.spec.ts` 分支断言 | `docs/development/app-structure.md`（如安装说明涉及） | 真实 fnOS NAS |
 
-不涉及：应用 manifest、FPK 构建、网关路由语义、安装脚本、node-pty 补丁。fnOS 侧 ACL 与应用共享目录声明不变；剔除只作用于插件自有持久化记录。
+不涉及：应用 manifest、FPK 构建、网关路由语义、node-pty 补丁、插件市场与 DSH 插件管理的默认安装策略。fnOS 侧 ACL 与应用共享目录声明不变；剔除只作用于插件自有持久化记录。
 
 ## 源文件与生成产物边界
 
 | 边界 | 内容 |
 | --- | --- |
-| 允许修改 | 四插件 `package.json`、`compatibility.json`、`pnpm-workspace.yaml`（`catalogs.dsh`、`minimumReleaseAgeExclude`、`conflicts_*` 段）、四插件 `src/`（仅在验证发现接缝破损时最小修改）、`plugins/dsh-fnos-plugin/src`（FNOS-009-09/10 功能实现）、`plugins/*/tests`、`docs/plugins/*.md`、`docs/apps/fn-deepseek-harness.md`、需求/计划/索引文档 |
+| 允许修改 | 四插件 `package.json`、`compatibility.json`、`pnpm-workspace.yaml`（`catalogs.dsh`、`minimumReleaseAgeExclude`、`conflicts_*` 段）、四插件 `src/`（仅在验证发现接缝破损时最小修改）、`plugins/dsh-fnos-plugin/src`（FNOS-009-09/10 功能实现）、`plugins/*/tests`、`docs/plugins/*.md`、`docs/apps/fn-deepseek-harness.md`、需求/计划/索引文档、`apps/fn-deepseek-harness/cmd/install_callback`（FNOS-009-12）、`packages/fnos-gateway/tests/bundled-plugin-install.spec.ts`（FNOS-009-12） |
 | 禁止修改 | 上游 checkout `~/workspace/fork-pj/deepseek-harness`；DSH Host/Client 运行时；node-pty 补丁；应用与 FPK 结构 |
 | 构建产物 | 四插件 `lib/`（构建输出，不入库） |
 
@@ -262,6 +264,13 @@ sequenceDiagram
 | PLAN-FNOS-009-T06-02 | FNOS-009-11 / AC-01–03 | 修复 `FnosAuthorizedPathPicker`：优先修正/保留 props 表达（`checkRelation="unRelated"` + 受控 `value`）；若 props 无法表达，在 `onChange` 中用「与上次选中集合求差」阻止父目录取消波及子项，保证 `insertedTreePaths`/`pendingRemovalPaths` 只随自身 key 变化 | T06-01 | 单测：先选父+子、取消父，子项保留；反向与取消子项用例 |
 | PLAN-FNOS-009-T06-03 | FNOS-009-11 / AC-01–03 | DSH Web 走查「插入 NAS 文件或目录」树：父子解耦、引用插入与移除行为与既有一致 | T06-02 | Web 走查记录 |
 
+### 阶段七：插件安装发布日期放行统一（T07-01–T07-02）
+
+| 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
+| --- | --- | --- | --- | --- |
+| PLAN-FNOS-009-T07-01 | FNOS-009-12 / AC-01、AC-03 | `install_callback` 的 `install_published_dsh_plugins`：自有插件的 registry 安装/升级分支改为与 `thirdparty` 相同的放行调用，去掉按 `source` 分派的二选一；`force_install_bundled_plugin` 的归档替换保持现状 | 无 | 分支断言：自有插件与三方插件均走放行调用；FPK 归档路径仍走 `remove`→`add` |
+| PLAN-FNOS-009-T07-02 | FNOS-009-12 / AC-01、AC-03 | 加固与验证：确认放行只作用于安装回调自身发起的调用，未改动插件市场/DSH 插件管理的默认策略；真实类 pnpm 端到端复现「新发布版本 + 历史同包名残留」场景 | T07-01 | `bundled-plugin-install.spec.ts` 全绿；端到端记录（安装成功且无发布日期报错） |
+
 ### 任务依赖
 
 ```mermaid
@@ -295,6 +304,7 @@ flowchart TD
     T01c --> T06a[T06-01 勾选行为核实]
     T06a --> T06b[T06-02 父子解耦修复]
     T06b --> T06c[T06-03 Web 走查]
+    T07a[T07-01 自有插件统一放行] --> T07b[T07-02 加固与端到端验证]
 ```
 
 ## 交互和行为设计
@@ -336,9 +346,9 @@ FNOS-009-09/10 的用户可见变化仅限授权目录管理页：
 - **包级**：四插件 typecheck、单测、构建（`lib/` 产物新鲜）；锚定断言测试（`compatibility.json` 与 peer 一致性）随 T01-02 更新。
 - **DSH Web**：本地 `0.2.0-rc.2` Web profile 安装四插件，T01-04/T02 走查；这是接缝适配的主验证场。
 - **DSH Desktop**：T04-01 目标环境验收。
-- **真实 NAS**：T04-02 仅覆盖 fnOS 插件与其数据保持；不把其他插件列入 NAS 阻塞。T05-05 覆盖 FNOS-009-09/10 的 SDK 桥接、授权撤销剔除与升级数据保持。
+- **真实 NAS**：T04-02 仅覆盖 fnOS 插件与其数据保持；不把其他插件列入 NAS 阻塞。T05-05 覆盖 FNOS-009-09/10 的 SDK 桥接、授权撤销剔除与升级数据保持。T07-02 覆盖 FNOS-009-12 的安装回调端到端链路（插件阶段不再因发布日期失败）。
 - **发布**：四插件以 `0.2.0-rc.2.0` 发布 npm；文档同步。FPK 不受影响（插件经 registry 拉取）。
-- **回滚**：单插件可独立回滚到旧锚定重发；禁止删除任何用户配置数据。
+- **回滚**：单插件可独立回滚到旧锚定重发；禁止删除任何用户配置数据。FNOS-009-12 的回滚是把自有插件分支恢复为按 `source` 分派：放行退回只覆盖三方插件与归档替换，不影响已安装插件与用户数据。
 
 ## 参考资料
 
@@ -360,6 +370,7 @@ FNOS-009-09/10 的用户可见变化仅限授权目录管理页：
 | 阶段四：目标环境验收 | <Badge type="info" text="规划中" /> |
 | 阶段五：授权目录持久化与权限校验 | <Badge type="info" text="规划中" /> |
 | 阶段六：插入选择树父子解耦 | <Badge type="info" text="规划中" /> |
+| 阶段七：插件安装发布日期放行统一 | <Badge type="info" text="规划中" /> |
 
 ## 变更记录
 
@@ -368,3 +379,4 @@ FNOS-009-09/10 的用户可见变化仅限授权目录管理页：
 | 2026-09-30 | 初始计划 | 建立 PLAN-FNOS-009，覆盖 FNOS-009-01 至 FNOS-009-08；门禁机制与两版本差异已在 `dsh-v0.2.0-rc.2` checkout 源码核实。插件版本号按用户决定取 `0.2.0-rc.2.0`。 |
 | 2026-09-30 | 新增阶段五 | 覆盖 FNOS-009-09/10：授权目录列表持久化（`dsh-fnos` settings 新字段，持久化优先展示）、`@trimjs/web-app` 无交互授权接口逐项校验与失效剔除（T05-01–T05-05）；SDK 事实已在插件依赖的 `@trimjs/web-app` dist 源码核实，扩展桥不支持形态登记为降级路径。同步更新影响矩阵、数据约束、风险与回滚。 |
 | 2026-09-30 | 新增阶段六 | 覆盖 FNOS-009-11：「插入 NAS 文件或目录」选择树父子勾选解耦（T06-01–T06-03）；Semi 源码核实 `checkRelation="unRelated"` 语义为逐 key 独立增删，修复优先走 props 与受控 value，必要时 onChange 求差兜底。同步更新影响矩阵与依赖图。 |
+| 2026-09-30 | 新增阶段七 | 覆盖 FNOS-009-12：自有插件与三方插件的 registry 安装/升级统一走发布日期放行（T07-01–T07-02），`source` 不再决定是否放行；覆盖 FNOS-007-29 原约定。放行限定在应用安装回调内，不改动插件市场与 DSH 插件管理的默认策略。同步更新影响矩阵、源文件边界、验证与回滚。 |
