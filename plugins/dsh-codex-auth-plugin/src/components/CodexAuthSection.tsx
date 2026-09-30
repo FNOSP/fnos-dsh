@@ -14,6 +14,7 @@ import {
   CODEX_AUTH_STATUS_PATH,
   CODEX_AUTH_VERIFICATION_URI,
 } from '../contracts/auth-paths.ts'
+import { autoSyncModels, describeAutoSyncTrigger, shouldAutoSyncModels } from '../client/services/model-auto-sync.ts'
 
 type Translate = (key: CodexAuthLocaleKey) => string
 
@@ -154,6 +155,46 @@ function CodexAuthSectionContent({ t, connection, remote }: CodexAuthSectionProp
   useEffect(() => {
     void refresh()
   }, [refresh])
+
+  /**
+   * 打开已登录页面时同步一次模型目录（FNOS-007-31-AC-02）。
+   *
+   * 用 ref 去重而不是 state：`refresh` 是 1 秒/5 分钟级的轮询，用 state 会多一次
+   * 渲染，而且去重本身不该触发渲染。`after-sign-in` 那条路径**不**看这个标记——
+   * 换账号后必须覆盖旧账号的列表。
+   */
+  const pageOpenSyncedRef = useRef(false)
+  /**
+   * 记录上一次观察到的状态，用来识别「刚变成已登录」。
+   *
+   * 不能只在 `signIn()` 的结尾同步：登录完成的判定走的是**轮询**（`signing-in`
+   * 每秒查一次），`signIn()` 早在设备码返回时就结束了，那时状态还是 `signing-in`。
+   * 因此这里看状态机的跃迁而不是某个函数的返回。
+   */
+  const previousStatusRef = useRef<AccountStatus['status']>('loading')
+  useEffect(() => {
+    const previous = previousStatusRef.current
+    previousStatusRef.current = status.status
+    // 只有「刚变成已登录」才算登录成功；页面重新挂载时是 loading → signed-in，
+    // 那条由下面的 page-open 分支负责，这里用 previous !== 'loading' 区分。
+    if (status.status !== 'signed-in' || previous === 'signed-in') return
+    if (previous === 'loading') return
+    const input = { signedIn: true, trigger: 'after-sign-in' as const }
+    void autoSyncModels(input).then(result => {
+      console.info(`[dsh-codex-auth] ${describeAutoSyncTrigger(input)}`, result)
+    })
+  }, [status.status])
+
+  useEffect(() => {
+    if (status.status !== 'signed-in') return
+    const input = { signedIn: true, trigger: 'page-open' as const, alreadySynced: pageOpenSyncedRef.current }
+    // 未发起（本会话已同步过）时不置位，保持「是否已同步」与事实一致。
+    if (!shouldAutoSyncModels(input)) return
+    pageOpenSyncedRef.current = true
+    void autoSyncModels(input).then(result => {
+      console.info(`[dsh-codex-auth] ${describeAutoSyncTrigger(input)}`, result)
+    })
+  }, [status.status])
 
   useEffect(() => {
     if (status.status !== 'signing-in') return

@@ -8,13 +8,41 @@ import type { CodexAuthLocaleKey } from '../client/locales.ts'
 import { readCodexSignedInStatus, readCodexUsage } from '../client/services/usage-status-data.ts'
 import type { CodexUsage } from '../client/services/usage-status-data.ts'
 import { codexUsageVisible } from '../client/services/usage-visibility.ts'
-import { compactUsageWindow, fiveHourWindow, FIVE_HOUR_WINDOW_SECONDS, weeklyWindow } from '../client/services/usage-windows.ts'
-import type { CodexUsageWindow } from '../client/services/usage-windows.ts'
+import { compactUsageWindow, fiveHourWindow, monthlyWindow, usageWindowKind, weeklyWindow } from '../client/services/usage-windows.ts'
+import type { CodexUsageWindow, CodexUsageWindowKind } from '../client/services/usage-windows.ts'
 
 type Translate = (key: CodexAuthLocaleKey) => string
 
 type TimerService = {
   interval(callback: () => void, delay: number): () => void
+}
+
+/**
+ * 窗口类别到文案键的映射。
+ *
+ * 此前这里是二选一（`=== FIVE_HOUR_WINDOW_SECONDS ? 五小时 : 每周`），于是
+ * 30 天的月度窗口会被**错标成「每周使用限额」**；同时它按精确值比较，服务端时长
+ * 一漂移就落到 else 分支。改为按类别映射。
+ */
+function windowLabelKey(kind: CodexUsageWindowKind): CodexAuthLocaleKey {
+  if (kind === 'five-hour') return 'usageFiveHour'
+  if (kind === 'monthly') return 'usageMonthly'
+  return 'usageWeekly'
+}
+
+/**
+ * `plan_type` → 展示名。
+ *
+ * 服务端给的是内部标识符（`free` / `plus` / `pro`），直接显示对用户没有意义。
+ * 未知取值原样显示而不是隐藏：新套餐上线时宁可露出原始值，也不要静默不显示。
+ */
+function planLabel(planType: string | undefined, t: Translate): string | undefined {
+  if (planType === undefined) return undefined
+  const key = planType.trim().toLowerCase()
+  if (key === 'free') return t('usagePlanFree')
+  if (key === 'plus') return t('usagePlanPlus')
+  if (key === 'pro') return t('usagePlanPro')
+  return planType
 }
 
 function percent(value: number | undefined): string | undefined {
@@ -80,12 +108,22 @@ function UsageWindowDetails({ label, value, t }: { label: string; value: CodexUs
   )
 }
 
-function UsagePopover({ fiveHour, weekly, fallback, t }: { fiveHour: CodexUsageWindow | undefined; weekly: CodexUsageWindow | undefined; fallback: string; t: Translate }) {
+function UsagePopover({ fiveHour, weekly, monthly, planLabel, fallback, t }: {
+  fiveHour: CodexUsageWindow | undefined
+  weekly: CodexUsageWindow | undefined
+  monthly: CodexUsageWindow | undefined
+  planLabel: string | undefined
+  fallback: string
+  t: Translate
+}) {
+  const noWindow = fiveHour === undefined && weekly === undefined && monthly === undefined
   return (
     <div className="dsh-codex-usage-popover-content">
-      {fiveHour === undefined && weekly === undefined ? <span className="dsh-codex-usage-popover-empty">{fallback}</span> : null}
+      {planLabel === undefined ? null : <span className="dsh-codex-usage-popover-plan">{`${t('usagePlan')}: ${planLabel}`}</span>}
+      {noWindow ? <span className="dsh-codex-usage-popover-empty">{fallback}</span> : null}
       <UsageWindowDetails label={t('usageFiveHour')} value={fiveHour} t={t} />
       <UsageWindowDetails label={t('usageWeekly')} value={weekly} t={t} />
+      <UsageWindowDetails label={t('usageMonthly')} value={monthly} t={t} />
     </div>
   )
 }
@@ -172,7 +210,9 @@ export function CodexUsageStatus({ t, timer, useProjection }: CodexUsageStatusPr
 
   const fiveHour = usage === undefined ? undefined : fiveHourWindow(usage)
   const weekly = usage === undefined ? undefined : weeklyWindow(usage)
+  const monthly = usage === undefined ? undefined : monthlyWindow(usage)
   const usageWindow = usage === undefined ? undefined : compactUsageWindow(usage)
+  const plan = planLabel(usage?.planType, t)
   useEffect(() => {
     // 组件被隐藏后浮层状态不该残留，否则重新显示时会自己弹开。
     if ((usageWindow === undefined || !visible) && popoverOpen) setPopoverOpen(false)
@@ -187,7 +227,7 @@ export function CodexUsageStatus({ t, timer, useProjection }: CodexUsageStatusPr
     togglePopover()
   }
   const hasUsage = usageWindow !== undefined
-  const label = hasUsage && usageWindow.limitWindowSeconds === FIVE_HOUR_WINDOW_SECONDS ? t('usageFiveHour') : t('usageWeekly')
+  const label = hasUsage ? t(windowLabelKey(usageWindowKind(usageWindow))) : t('usageWeekly')
   const currentSummary = hasUsage ? usageSummary(label, usageWindow, t) ?? label : usageState === 'loading' ? t('usageLoading') : t('usageUnavailable')
   const tooltip = currentSummary
   const progressContent = (
@@ -218,7 +258,7 @@ export function CodexUsageStatus({ t, timer, useProjection }: CodexUsageStatusPr
       <DshPopover
         trigger="custom"
         position="topRight"
-        content={<UsagePopover fiveHour={fiveHour} weekly={weekly} fallback={currentSummary} t={t} />}
+        content={<UsagePopover fiveHour={fiveHour} weekly={weekly} monthly={monthly} planLabel={plan} fallback={currentSummary} t={t} />}
         contentClassName="dsh-codex-usage-popover"
         visible={popoverOpen}
         onVisibleChange={setPopoverOpen}

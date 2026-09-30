@@ -1,9 +1,16 @@
 import { CODEX_AUTH_STATUS_PATH, CODEX_USAGE_PATH } from '../../contracts/auth-paths.ts'
 import type { CodexUsageWindow } from './usage-windows.ts'
 
+/**
+ * Host 端已经解析出套餐类型（`CodexUsage.planType`），但这里此前**没有声明**该
+ * 字段，于是它在类型层面就被丢掉了——界面因此永远拿不到套餐信息，看起来像
+ * 「未订阅账号无法获取套餐」。
+ */
 export interface CodexUsage {
   secondaryWindow?: CodexUsageWindow
   primaryWindow?: CodexUsageWindow
+  /** 服务端 `plan_type`，例如 `free` / `plus` / `pro`。 */
+  planType?: string
 }
 
 interface CodexAuthStatus {

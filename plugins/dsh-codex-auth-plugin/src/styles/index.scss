@@ -164,6 +164,13 @@
     line-height: 18px;
   }
 
+  /* 套餐行：放在各窗口之上，先回答「这是什么账号」。 */
+  &-plan {
+    color: var(--dsw-alias-label-secondary);
+    font-size: 12px;
+    line-height: 18px;
+  }
+
   &-window {
     display: flex;
     flex-direction: column;
