@@ -7,7 +7,7 @@
 在 fnOS 上使用 DSH 时，CodeBuddy 插件随应用安装或升级自动安装。其他 DSH 环境可在 Web profile 中安装：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-codebuddy@0.1.7-rc.2
+dsh plugin --profile web add @tnnevol/dsh-codebuddy@0.1.7-rc.2.1
 ```
 
 安装完成后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。

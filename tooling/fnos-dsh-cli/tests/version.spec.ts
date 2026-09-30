@@ -26,7 +26,11 @@ vi.mock('node:fs/promises', () => ({
 }))
 vi.mock('node:fs', async importOriginal => ({
   ...(await importOriginal<typeof import('node:fs')>()),
-  existsSync: vi.fn((path: unknown) => String(path).endsWith('published-dsh-plugins.json')),
+  existsSync: vi.fn((path: unknown) => {
+    const value = String(path)
+    // Install commands live in each plugin README and its docs page.
+    return value.endsWith('published-dsh-plugins.json') || value.endsWith('.md')
+  }),
 }))
 vi.mock('node:child_process', () => ({ spawnSync: mocks.spawnSync }))
 vi.mock('bumpp', () => ({ versionBump: mocks.versionBump }))
@@ -69,15 +73,31 @@ describe('plugin version command', () => {
     mocks.select.mockResolvedValue('patch')
     mocks.text.mockResolvedValue('1.2.3')
     mocks.confirm.mockResolvedValue(true)
-    mocks.readFile.mockImplementation(async (path: string) => path.endsWith('published-dsh-plugins.json')
-      ? JSON.stringify({
+    mocks.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('published-dsh-plugins.json')) {
+        return JSON.stringify({
           version: 1,
           plugins: [
             { name: '@tnnevol/dsh-codex-auth', version: '1.2.2' },
             { name: '@tnnevol/dsh-fnos', version: '1.2.2' },
           ],
         })
-      : JSON.stringify({ name: 'plugin', version: '1.2.3' }))
+      }
+      // Markdown carries the user-facing install command, which must track the
+      // released version like the manifest does.
+      if (path.endsWith('.md')) {
+        return [
+          '# plugin',
+          '',
+          '```sh',
+          `dsh plugin --profile web add ${path.includes('codex-auth') ? '@tnnevol/dsh-codex-auth' : '@tnnevol/dsh-fnos'}@1.2.2`,
+          '```',
+          '',
+          '| `@tnnevol/dsh-fnos` | `1.2.2` | x |',
+        ].join('\n')
+      }
+      return JSON.stringify({ name: 'plugin', version: '1.2.3' })
+    })
     mocks.spawnSync.mockReturnValue({ status: 0, error: undefined, stderr: '', stdout: '' })
   })
 
@@ -88,7 +108,7 @@ describe('plugin version command', () => {
     const writtenPaths = mocks.writeFile.mock.calls.map(call => String(call[0]))
     expect(writtenPaths.filter(path => path.endsWith('/package.json'))).toHaveLength(2)
     expect(writtenPaths.filter(path => path.endsWith('published-dsh-plugins.json'))).toHaveLength(2)
-    expect(mocks.spawnSync).toHaveBeenNthCalledWith(1, 'git', ['add', '--', ...targets.map(target => target.path), 'apps/fn-deepseek-harness/app/published-dsh-plugins.json'], expect.any(Object))
+    expect(mocks.spawnSync).toHaveBeenNthCalledWith(1, 'git', ['add', '--', ...targets.map(target => target.path), 'apps/fn-deepseek-harness/app/published-dsh-plugins.json', 'docs/plugins/index.md', 'plugins/dsh-codex-auth-plugin/README.md', 'docs/plugins/dsh-codex-auth.md', 'plugins/dsh-fnos-plugin/README.md', 'docs/plugins/dsh-fnos.md'], expect.any(Object))
     expect(mocks.spawnSync).toHaveBeenNthCalledWith(2, 'git', ['commit', '-m', 'chore(plugin): release selected plugins v1.2.4'], expect.any(Object))
   })
 
@@ -97,8 +117,34 @@ describe('plugin version command', () => {
     mocks.readPackageInfo.mockResolvedValue({ name: '@tnnevol/dsh-fnos', version: '1.2.3' })
     await runVersion(['plugin', '--yes'])
 
-    expect(mocks.writeFile).toHaveBeenCalledTimes(2)
+    // package.json + manifest + index table + README install command + docs install command
+    expect(mocks.writeFile).toHaveBeenCalledTimes(5)
     expect(mocks.spawnSync).toHaveBeenNthCalledWith(2, 'git', ['commit', '-m', 'chore(plugin): release @tnnevol/dsh-fnos v1.2.4'], expect.any(Object))
+  })
+
+  it('rewrites the install command version so a released plugin is not installed stale', async () => {
+    mocks.askPlugin.mockResolvedValue([targets[1]])
+    mocks.readPackageInfo.mockResolvedValue({ name: '@tnnevol/dsh-fnos', version: '1.2.3' })
+    await runVersion(['plugin', '--no-commit', '--yes'])
+
+    const writtenMarkdown = mocks.writeFile.mock.calls.filter(call => String(call[0]).endsWith('.md'))
+    // Assert on suffixes: `repositoryRoot` resolves relative to the importing
+    // module, so the absolute prefix differs between the bundled CLI and the
+    // source layout vitest loads.
+    expect(writtenMarkdown.map(call => String(call[0]).replace(/^.*?(?=docs\/|plugins\/)/u, ''))).toEqual([
+      'docs/plugins/index.md',
+      'plugins/dsh-fnos-plugin/README.md',
+      'docs/plugins/dsh-fnos.md',
+    ])
+    for (const [, content] of writtenMarkdown) {
+      const text = String(content)
+      expect(text).toContain('add @tnnevol/dsh-fnos@1.2.4')
+      // The DSH compatibility baseline is prose, not an install command: it
+      // must survive the rewrite untouched.
+      expect(text).not.toContain('add @tnnevol/dsh-fnos@1.2.2')
+    }
+    // Another plugin's install line must not be rewritten.
+    expect(String(writtenMarkdown[0]?.[1])).toContain('| `@tnnevol/dsh-fnos` | `1.2.4` |')
   })
 
   it('accepts a custom version from the interactive release prompt', async () => {

@@ -39,8 +39,8 @@ DSH 运行时和四个运行时插件的发布版本与兼容性基线统一为 
 在其他 DSH 环境中可以手动安装：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-fnos@0.1.7-rc.2
-dsh plugin --profile web add dshmarket@1.65.1
+dsh plugin --profile web add @tnnevol/dsh-fnos@0.1.7-rc.2.1
+dsh plugin --profile web add dshmarket@1.66.3
 dsh --profile web --dump-config
 ```
 

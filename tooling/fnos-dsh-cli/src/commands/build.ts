@@ -23,11 +23,22 @@ const DSH_NATIVE_CONFIG = '.github/config/dsh-native-0.1.7-rc.2.env'
 const DSH_NATIVE_PREP_SCRIPT = '.github/scripts/prepare-dsh-native.sh'
 const DSH_NATIVE_BUNDLE_DIRECTORY = 'app/native/node-pty'
 const DSH_NATIVE_VERSION_FILES = ['app/dsh-version', 'app/node-pty-versions'] as const
-const DSH_RUNTIME_PLUGIN_VERSIONS = new Map([
-  ['@tnnevol/dsh-codebuddy', DSH_VERSION],
-  ['@tnnevol/dsh-codex-auth', DSH_VERSION],
-  ['@tnnevol/dsh-fnos', DSH_VERSION],
-])
+/**
+ * The runtime plugins the FPK bundles.
+ *
+ * Only the **names** are policy — which plugins ship inside the package is a
+ * product decision. Versions deliberately are not listed here: each plugin
+ * owns its own version in `plugins/<name>/package.json`, and the published
+ * manifest must agree with that file. Copying a version into this file creates
+ * a second place to forget, and forgetting it once already broke a release:
+ * the plugins moved to `0.1.7-rc.2.1` while a constant here still said
+ * `0.1.7-rc.2`, so the build failed on a value that duplicated the real one.
+ */
+const FPK_BUNDLED_PLUGIN_NAMES = [
+  '@tnnevol/dsh-codebuddy',
+  '@tnnevol/dsh-codex-auth',
+  '@tnnevol/dsh-fnos',
+]
 
 type PublishedDshPluginManifest = {
   plugins?: Array<{ name?: unknown, version?: unknown, source?: unknown }>
@@ -106,17 +117,37 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
     }
   }
   const bundledPlugins = manifest.plugins.filter(plugin => plugin.source !== 'thirdparty')
-  if (bundledPlugins.length !== DSH_RUNTIME_PLUGIN_VERSIONS.size) {
+  if (bundledPlugins.length !== FPK_BUNDLED_PLUGIN_NAMES.length) {
     throw new Error(`Published DSH plugin manifest must contain exactly the three FPK-bundled FNOS-007 runtime plugins: ${manifestPath}`)
   }
   if (Array.isArray(manifest.bundled) && manifest.bundled.length > 0) {
     throw new Error(`Published DSH plugin manifest must place third-party plugins in plugins with source=thirdparty: ${manifestPath}`)
   }
-  for (const [name, version] of DSH_RUNTIME_PLUGIN_VERSIONS) {
+  // Each version is read from the plugin's own package.json rather than compared
+  // against a constant here. The manifest is a *copy* of that version, so the
+  // guard's job is to prove the copy still matches its source — not to restate
+  // the value. A restated value silently rots the moment the plugin is released
+  // on its own, which is exactly how the v5.5.0 build failed.
+  for (const name of FPK_BUNDLED_PLUGIN_NAMES) {
     const plugin = bundledPlugins.find(candidate => candidate?.name === name)
-    if (plugin?.version !== version) {
-      throw new Error(`The published DSH plugin manifest must pin ${name}@${version}: ${manifestPath}`)
+    if (plugin === undefined) {
+      throw new Error(`The published DSH plugin manifest must bundle ${name}: ${manifestPath}`)
     }
+    const target = findPluginTarget(name)
+    if (target === undefined) {
+      throw new Error(`FPK-bundled DSH plugin ${name} has no source package under plugins/`)
+    }
+    const source = JSON.parse(await readFile(join(repositoryRoot, target.path), 'utf8')) as { version?: unknown }
+    if (typeof source.version !== 'string' || source.version.length === 0) {
+      throw new Error(`${target.path} must declare an exact version for ${name}`)
+    }
+    if (plugin.version !== source.version) {
+      throw new Error(`The published DSH plugin manifest must agree with ${target.path}: expected ${name}@${source.version}, declared ${String(plugin.version)}`)
+    }
+  }
+  const unknownBundled = bundledPlugins.filter(plugin => !FPK_BUNDLED_PLUGIN_NAMES.includes(plugin.name as string))
+  if (unknownBundled.length > 0) {
+    throw new Error(`Published DSH plugin manifest bundles an unlisted plugin: ${unknownBundled.map(plugin => String(plugin.name)).join(', ')}`)
   }
   // Codex must stay bundled: the registry only carries builds whose DSH
   // baseline predates 0.1.7-rc.2, and installing one of those breaks Web

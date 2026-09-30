@@ -203,9 +203,56 @@ async function syncPublishedPluginVersion(pluginName: string, version: string): 
   return changed
 }
 
+/** 文档目录名 → 插件目录名，用于定位插件对应的文档站页面。 */
+const pluginDocPages: Record<string, string> = {
+  '@tnnevol/dsh-codebuddy': 'dsh-codebuddy',
+  '@tnnevol/dsh-codex-auth': 'dsh-codex-auth',
+  '@tnnevol/dsh-fnos': 'dsh-fnos',
+  '@tnnevol/dsh-semi-ui-showcase': 'dsh-semi-ui-showcase',
+}
+
+/** 把某个插件安装命令里的版本号替换为目标版本。 */
+function replacePluginInstallVersion(content: string, pluginName: string, version: string): string {
+  const escaped = pluginName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+  return content.replace(new RegExp(`(add ${escaped}@)[0-9A-Za-z][0-9A-Za-z.+-]*`, 'gu'), `$1${version}`)
+}
+
+/**
+ * 同步安装命令里的插件版本号。
+ *
+ * 安装命令 `dsh plugin --profile web add <包名>@<版本>` 里的版本是**可执行**
+ * 的指令，不是描述文字：插件发版后它若停在旧版本，用户照抄就会装到旧包。
+ * README 与文档站页面各有一份，必须一起更新——只改总览表格不足以让用户拿到
+ * 新版本（总览页自己那条命令由 `syncPluginIndexDocVersion` 一并处理）。
+ *
+ * 只替换安装命令中的版本段，不触碰「要求 DSH `0.1.7-rc.2`」这类兼容性基线
+ * 描述，也不触碰依赖该插件的其它包名。
+ */
+async function syncPluginInstallVersions(pluginName: string, pluginDirectory: string, version: string): Promise<string[]> {
+  const page = pluginDocPages[pluginName]
+  const candidates = [
+    join('plugins', pluginDirectory, 'README.md'),
+    ...(page === undefined ? [] : [join('docs', 'plugins', `${page}.md`)]),
+  ]
+  const changed: string[] = []
+  for (const relativePath of candidates) {
+    const absolutePath = join(repositoryRoot, relativePath)
+    if (!existsSync(absolutePath)) continue
+    const content = await readFile(absolutePath, 'utf8')
+    const updated = replacePluginInstallVersion(content, pluginName, version)
+    if (updated === content) continue
+    await writeFile(absolutePath, updated)
+    changed.push(relativePath)
+  }
+  return changed
+}
+
 /**
  * 同步插件总览文档表格中的版本号，避免插件发版后文档版本过期。
  * 只替换「包名 | 版本」表格行中的版本列，不触碰正文中的兼容性基线描述。
+ *
+ * 总览页同时携带一条安装命令，因此这里补做一次命令版本替换：否则表格显示
+ * 新版本、命令却指向旧版本，用户照抄安装会拿到旧包。
  */
 async function syncPluginIndexDocVersion(pluginName: string, version: string): Promise<boolean> {
   const absolutePath = join(repositoryRoot, pluginIndexDocPath)
@@ -213,7 +260,7 @@ async function syncPluginIndexDocVersion(pluginName: string, version: string): P
   const content = await readFile(absolutePath, 'utf8')
   const quoted = '`'
   const pattern = new RegExp(`(\\| ${quoted}${pluginName}${quoted} \\| ${quoted})[^${quoted}]+(${quoted})`)
-  const updated = content.replace(pattern, `$1${version}$2`)
+  const updated = replacePluginInstallVersion(content.replace(pattern, `$1${version}$2`), pluginName, version)
   if (updated === content) return false
   await writeFile(absolutePath, updated)
   return true
@@ -242,18 +289,27 @@ async function writePluginRelease(
   newVersion: string,
   noCommit: boolean,
 ): Promise<number> {
-  const changedPaths = targets.map(target => target.path)
+  const changedPaths = new Set(targets.map(target => target.path))
   let syncedCount = 0
   let docSynced = false
+  const installDocPaths = new Set<string>()
   for (const [index, target] of targets.entries()) {
     await updatePackageVersion(target.path, newVersion)
     const pkg = packages[index]
     if (pkg !== undefined && await syncPublishedPluginVersion(pkg.name, newVersion)) syncedCount += 1
     if (pkg !== undefined && await syncPluginIndexDocVersion(pkg.name, newVersion)) docSynced = true
+    if (pkg !== undefined) {
+      // `target.path` is `plugins/<pluginDirectory>/package.json`.
+      const pluginDirectory = target.path.split('/')[1] ?? ''
+      for (const path of await syncPluginInstallVersions(pkg.name, pluginDirectory, newVersion)) installDocPaths.add(path)
+    }
   }
 
-  if (syncedCount > 0) changedPaths.push(publishedDshPluginsPath)
-  if (docSynced) changedPaths.push(pluginIndexDocPath)
+  if (syncedCount > 0) changedPaths.add(publishedDshPluginsPath)
+  if (docSynced) changedPaths.add(pluginIndexDocPath)
+  // A Set keeps `docs/plugins/index.md` from being staged twice: it carries both
+  // the version table and an install command, so two sync steps touch it.
+  for (const path of installDocPaths) changedPaths.add(path)
   if (!noCommit) {
     runGit(['add', '--', ...changedPaths])
     const subject = targets.length === 1

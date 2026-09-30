@@ -10,6 +10,18 @@ const pluginDirectories = [
   'dsh-semi-ui-showcase-plugin',
 ]
 
+/**
+ * The three plugins the FPK bundles, mapped to their source directories.
+ *
+ * `dsh-semi-ui-showcase-plugin` is intentionally absent: it is published but
+ * not bundled into the package, so it has no entry in the manifest.
+ */
+const bundledPluginDirectories = {
+  '@tnnevol/dsh-codebuddy': 'dsh-codebuddy-plugin',
+  '@tnnevol/dsh-codex-auth': 'dsh-codex-auth-plugin',
+  '@tnnevol/dsh-fnos': 'dsh-fnos-plugin',
+} as const
+
 describe('FNOS-007 DSH baseline', () => {
   it('synchronizes the development host DSH CLI with the FPK catalog', async () => {
     const rootPackage = JSON.parse(await readFile(new URL('../../../package.json', import.meta.url), 'utf8')) as {
@@ -42,18 +54,62 @@ describe('FNOS-007 DSH baseline', () => {
     }
   })
 
-  it('keeps the FPK plugin manifest and native inputs exact', async () => {
+  it('keeps every documented install command on the released plugin version', async () => {
+    // The install command is executable: a user pastes it. If it lags the
+    // released version, `dsh plugin add` installs the old package while the
+    // version table beside it claims the new one. `version -- plugin` now
+    // rewrites these lines, and this test is the independent check that no
+    // page was missed.
+    const published = JSON.parse(await readFile(new URL('../../../apps/fn-deepseek-harness/app/published-dsh-plugins.json', import.meta.url), 'utf8')) as {
+      plugins: Array<{ name: string, version: string }>
+    }
+    const documented: Array<[string, string]> = [
+      ['plugins/dsh-codebuddy-plugin/README.md', '@tnnevol/dsh-codebuddy'],
+      ['plugins/dsh-codex-auth-plugin/README.md', '@tnnevol/dsh-codex-auth'],
+      ['plugins/dsh-fnos-plugin/README.md', '@tnnevol/dsh-fnos'],
+      ['plugins/dsh-semi-ui-showcase-plugin/README.md', '@tnnevol/dsh-semi-ui-showcase'],
+      ['docs/plugins/dsh-codebuddy.md', '@tnnevol/dsh-codebuddy'],
+      ['docs/plugins/dsh-codex-auth.md', '@tnnevol/dsh-codex-auth'],
+      ['docs/plugins/dsh-fnos.md', '@tnnevol/dsh-fnos'],
+      ['docs/plugins/index.md', '@tnnevol/dsh-fnos'],
+    ]
+    const showcaseDirectory = 'dsh-semi-ui-showcase-plugin'
+    const sourceVersions = new Map<string, string>()
+    for (const [name, directory] of Object.entries({ ...bundledPluginDirectories, '@tnnevol/dsh-semi-ui-showcase': showcaseDirectory })) {
+      const source = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as { version: string }
+      sourceVersions.set(name, source.version)
+      // The manifest is a copy; when it carries the plugin it must agree.
+      const publishedEntry = published.plugins.find(plugin => plugin.name === name)
+      if (publishedEntry !== undefined) expect(publishedEntry.version, `${name} manifest version`).toBe(source.version)
+    }
+    for (const [file, name] of documented) {
+      const content = await readFile(new URL(`../../../${file}`, import.meta.url), 'utf8')
+      const match = new RegExp(`add ${name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}@([0-9A-Za-z][0-9A-Za-z.+-]*)`).exec(content)
+      expect(match, `${file} must document an install command for ${name}`).not.toBeNull()
+      expect(match?.[1], `${file} install version for ${name}`).toBe(sourceVersions.get(name))
+    }
+  })
+
+  it('keeps the FPK plugin manifest pinned to each plugin source version', async () => {
     const published = JSON.parse(await readFile(new URL('../../../apps/fn-deepseek-harness/app/published-dsh-plugins.json', import.meta.url), 'utf8')) as {
       plugins: Array<{ name: string, version: string, source?: string }>
       registry?: string
       bundled?: Array<{ name: string, version: string }>
     }
-    expect(published.plugins).toEqual([
-      { name: '@tnnevol/dsh-codebuddy', version: targetVersion },
-      { name: '@tnnevol/dsh-codex-auth', version: targetVersion },
-      { name: '@tnnevol/dsh-fnos', version: targetVersion },
-      { name: 'dshmarket', version: '1.66.3', source: 'thirdparty' },
-    ])
+    // The manifest is a copy of each plugin's own version, so assert the copy
+    // against its source instead of restating the expected value here. A
+    // literal in the test rots exactly like one in the build guard: both said
+    // 0.1.7-rc.2 after the plugins moved to 0.1.7-rc.2.1, so the test went red
+    // while the release it was meant to protect still shipped a stale pin.
+    for (const name of ['@tnnevol/dsh-codebuddy', '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-fnos'] as const) {
+      const directory = bundledPluginDirectories[name]
+      const source = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as { version: string }
+      expect(published.plugins.find(plugin => plugin.name === name), name).toEqual({ name, version: source.version })
+    }
+    expect(published.plugins).toHaveLength(4)
+    // Third-party dshmarket has no local source, so its exact pin stays a
+    // literal: the registry version is the contract, not a copy.
+    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.66.3', source: 'thirdparty' })
     expect(published.registry).toBeUndefined()
     expect(published.bundled ?? []).toEqual([])
 
