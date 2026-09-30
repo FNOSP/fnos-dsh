@@ -81,6 +81,23 @@ verifiedAt: 2026-09-30
 5. **Bug 记录**：测试产出的缺陷清单与状态。
 6. **测试结论**：需求编号整体的最终结果与遗留风险。
 
+## 测试环境执行方式
+
+目标环境的执行载体按插件类型固定，写用例与回填执行结果时按此选择：
+
+| 被测对象 | 执行环境 | 执行方式 |
+| --- | --- | --- |
+| fnOS 插件（`dsh-fnos`）及依赖 fnOS 宿主桥接、NAS 文件能力、安装/升级生命周期的功能 | 真实 fnOS NAS | 部署 FPK 后在设备上执行，证据按[验收证据规范](../validation/README.md)登记 `docs/validation/` |
+| 其他 DSH 插件（Codex Auth、CodeBuddy、Semi UI Showcase 等）与插件 UI 功能 | 本项目 DSH CLI 启动的 DSH Web | 用 `pnpm run start -- --web` 启动；CLI 固定把 `DSH_HOME` 指向仓库根 `.dsh` 目录，profile、凭据和会话留在检出目录内，不污染开发者 `$HOME/.dsh` |
+| 纯文档与构建产物 | 文档站构建环境 | `pnpm run build -- --docs` 与 `git diff --check` |
+
+DSH Web 本地测试的统一约定：
+
+- **启动命令**：`pnpm run start -- --web`（需要同时 watch 插件时加 `--plugin`，详见[本地 DSH Web](../development/local-dsh-web.md)）；不要手工另起 DSH 进程。
+- **`DSH_HOME` 必须指向项目的 `.dsh` 目录**：CLI 的 `start --web` 已自动注入（`<repo>/.dsh`），手工执行 `dsh` 命令核对配置时同样必须带 `DSH_HOME="$PWD/.dsh"`；禁止把本地测试指向 `$HOME/.dsh` 或其他检出目录。
+- 本地端口固定 `8070`，与 FPK 网关的 `127.0.0.1:3080` 互不冲突，可同时运行。
+- 用例的「前置条件」与「执行环境」按上述口径填写；涉及 fnOS 宿主桥接差异的场景（如 SDK 授权接口在 Flutter 壳上的行为）仍以真实 NAS 结论为准。
+
 ## 用例模板
 
 用例设计遵循测试用例生成规范：每个功能点至少覆盖正向、逆向、边界、权限、数据一致性五类；步骤可执行、预期可验证。功能表格列固定：
@@ -142,6 +159,7 @@ verifiedAt: 2026-09-30
 - [ ] 用例文档已加入 `docs/.vitepress/config.mts` 的 `testsSidebar` 并更新 `docs/tests/index.md`。
 - [ ] 元数据含 `id`、`title`、`description`、`requirement`、`plan`、`status`、`lastVerified`、`verifiedAt`。
 - [ ] 功能点、验收条件、计划任务引用全部使用 markdown 链接指向目标文档锚点，无纯文本编号（见[上下文关联](#上下文关联必填)）。
+- [ ] 执行环境按[测试环境执行方式](#测试环境执行方式)填写：fnOS 插件走真实 NAS，其他插件走 `pnpm run start -- --web`（`DSH_HOME` 指向项目 `.dsh`）。
 - [ ] 执行结果、Bug、结论仅在执行后回填，用例定义未被改写。
 - [ ] `pnpm run check -- --sdd` 与文档构建通过。
 
@@ -149,6 +167,7 @@ verifiedAt: 2026-09-30
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-09-30 | 新增测试环境执行方式 | 明确除 fnOS 插件外的其他插件统一在项目 DSH CLI 启动的 DSH Web 中测试（`pnpm run start -- --web`，`DSH_HOME` 固定指向仓库 `.dsh`），fnOS 插件仍走真实 NAS。 |
 
 ## 回填时机
 
