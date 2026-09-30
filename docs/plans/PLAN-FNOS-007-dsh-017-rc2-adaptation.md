@@ -16,7 +16,7 @@ lastVerified: 2026-09-27
 | 计划编号 | PLAN-FNOS-007 |
 | 计划日期 | 2026-09-24 |
 | 对应需求 | [FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复](/requirements/FNOS-007-dsh-017-rc2-adaptation) |
-| 本轮功能 | FNOS-007-01 至 FNOS-007-15；FNOS-007-11、FNOS-007-14 已完成，其余进入后续实施阶段 |
+| 本轮功能 | FNOS-007-01 至 FNOS-007-15、FNOS-007-19；FNOS-007-11、FNOS-007-14 已完成，FNOS-007-15 已废弃（归口 FNOS-007-19），其余进入后续实施阶段 |
 | 上游依据 | 本地 Harness checkout 的 `dsh-v0.1.7-rc.2`，以目标 tag 的源码、类型和构建结果为准 |
 | 计划状态 | <Badge type="warning" text="本地实现与自动化验证完成，待 Linux/native 和真实 NAS" /> |
 
@@ -32,7 +32,7 @@ lastVerified: 2026-09-27
 | --- | --- | --- | --- |
 | 第一期 | FNOS-007-11 | 文档站 Mermaid 渲染器替换和图表交互验收 | <Badge type="tip" text="已完成" /> |
 | 第二期 | FNOS-007-01 至 10、12、13、14 | 依赖基线、插件接缝、FPK、会话、升级、attachment-local、dshmarket 和 workflow 验收 | <Badge type="warning" text="待按模块完成 Web/Desktop、Linux/native 与必要的 NAS 验收" /> |
-| 第三期 | FNOS-007-15 | 应用专用账号下的终端可用性适配 | <Badge type="warning" text="待实施" /> |
+| 第三期 | FNOS-007-19 | 应用专用账号下的终端可用性适配。原定由 FNOS-007-15/T11 承担，该条已废弃，归口本条 | <Badge type="warning" text="本地完成，待 NAS 回归" /> |
 
 分期原因：插件源码接缝、FPK 运行时和本地开发宿主需要统一到同一目标基线，先完成差异分析，再同步切换运行时与开发工具链。
 
@@ -100,7 +100,7 @@ sequenceDiagram
 | FNOS-007-12 | dshmarket 安装清单与版本收敛 | 已安装插件版本 | 缺失、版本不一致和同版本场景回归 | DSH Web 与 Desktop，不要求 NAS 插件验收 |
 | FNOS-007-13 | attachment-local 安装解析与持久化补丁 | FPK 运行时和附件持久化目录 | 依赖解析、补丁幂等和附件可用性 | 真实 NAS（应用运行时验收） |
 | FNOS-007-11 | `docs/package.json`、VitePress config/theme | 文档图表渲染方式 | 全部 Mermaid 图表和文档构建 | 浏览器、文档构建 |
-| FNOS-007-15 | `apps/fn-deepseek-harness/cmd/main` 的环境导出段 | 终端进程默认 Shell、终端继承环境 | 启动脚本环境断言、终端打开和命令执行回归 | 真实 NAS |
+| ~~FNOS-007-15~~（已废弃） | 原设想为 `apps/fn-deepseek-harness/cmd/main` 的环境导出段；实际改由网关 `buildDshRuntimeEnv()` 注入 | 终端进程默认 Shell、终端继承环境 | 网关环境回归、终端打开和命令执行回归 | 真实 NAS |
 
 ## 源文件与生成产物边界
 
@@ -248,12 +248,14 @@ sequenceDiagram
 
 #### 任务
 
-| 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
-| --- | --- | --- | --- | --- |
-| PLAN-FNOS-007-T11-01 | FNOS-007-15-AC-01、02 | 在 `cmd/main` 的环境导出段为 DSH 服务进程导出可用交互式 Shell 默认值 | 确认目标 NAS 存在该 Shell 路径 | 启动脚本环境断言；真实 NAS 打开终端不再出现账号不可用提示 |
-| PLAN-FNOS-007-T11-02 | FNOS-007-15-AC-03 | 断言终端运行身份为应用账号，且不提升权限、不切换用户 | T11-01 | 终端内查看身份与进程属主，确认与应用服务一致 |
-| PLAN-FNOS-007-T11-03 | FNOS-007-15-AC-04、05 | 核对终端继承的工作目录与环境变量，决定是否补充 `DSH_HOME`，并把必须保留的差异写入说明页 | T11-01 | 终端内环境与工作目录核对；应用重启后终端仍可用 |
-| PLAN-FNOS-007-T11-04 | FNOS-007-15-AC-05 | 在真实 NAS 记录终端打开、命令执行、关闭和应用重启后的证据 | T11-01 至 T11-03 | `docs/validation/` 记录可追溯 |
+**T11 的四个任务已全部作废**（2026-09-30）：其对应的需求 FNOS-007-15 已被认定为对终端问题的错误理解，终端实施与验收归口 T15 / FNOS-007-19。下表保留原任务供追溯，**不再执行**：
+
+| 任务 ID | 原对应验收 | 原修改内容 | 处置 |
+| --- | --- | --- | --- |
+| ~~PLAN-FNOS-007-T11-01~~ | FNOS-007-15-AC-01、02 | 在 `cmd/main` 补可用交互式 Shell | **作废**：注入点改到网关，由 `PLAN-FNOS-007-T15-01` 实施（并明确删除 `cmd/main` 中的重复解析） |
+| ~~PLAN-FNOS-007-T11-02~~ | FNOS-007-15-AC-03 | 断言终端运行身份不提升、不切换用户 | **转入** `PLAN-FNOS-007-T15-03`（对应并入的 `FNOS-007-19-AC-04`） |
+| ~~PLAN-FNOS-007-T11-03~~ | FNOS-007-15-AC-04、05 | 核对环境变量并决定是否补 `DSH_HOME` | **作废**：环境变量由 T15-01/T15-02 覆盖，`HOME`/`DSH_HOME` 边界由 T17 承担 |
+| ~~PLAN-FNOS-007-T11-04~~ | FNOS-007-15-AC-05 | 真实 NAS 记录终端证据 | **转入** `PLAN-FNOS-007-T15-04`（`FNOS-007-19-AC-05`） |
 
 #### 风险与回滚
 
@@ -378,6 +380,8 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | PLAN-FNOS-007-T15-01 | FNOS-007-19-AC-01、02 | 在 `buildDshRuntimeEnv()` 中按 DSH `resolveExecutable()` 的 PATH 规则选择第一个可执行 bash，设置 `SHELL`；删除 `cmd/main` 中重复的 Shell 解析，避免 preferred shell 与候选 bash 产生两个条目 | dsh-runtime-env 测试、CLI baseline、真实 NAS 终端菜单检查 |
 | PLAN-FNOS-007-T15-02 | FNOS-007-19-AC-03 | 在网关环境构造阶段检测本机 locale，注入可用 UTF-8 `LANG`/`LC_CTYPE` 并清理非 UTF-8 `LC_ALL` | gateway typecheck/test、非 ASCII 工作目录和终端输出回归 |
+| PLAN-FNOS-007-T15-03 | FNOS-007-19-AC-04 | 断言终端进程运行身份与应用服务一致：网关不调用 `setuid`/`setgid`、不切换到其它用户；终端内 `id -u` 与应用服务进程属主相同 | 网关源码断言（无身份切换调用）+ 真实 NAS 终端内核对身份 |
+| PLAN-FNOS-007-T15-04 | FNOS-007-19-AC-05 | 在真实 NAS 记录终端打开、命令执行、关闭和应用重启后的证据，并登记 `docs/validation/` | T15-01 至 T15-03 | `docs/validation/` 记录可追溯 |
 
 ### T16：网关旧 Cookie 认证恢复
 
@@ -513,11 +517,11 @@ git diff --check
 | T07 Mermaid 渲染器 | 已完成 | FNOS-007-11 |
 | T09 dshmarket | 待 DSH Web/Desktop 插件验收 | FNOS-007-12 |
 | T10 FPK workflow 命名 | 已完成 | FNOS-007-14 |
-| T11 应用专用账号下的终端可用性 | 待实施 | FNOS-007-15 |
+| ~~T11 应用专用账号下的终端可用性~~（已废弃） | 作废，归口 T15 | FNOS-007-15 → FNOS-007-19 |
 | T12 本地 DSH Web 启动与 catalog 一致性 | 本地完成，待完整回归 | FNOS-007-16 |
 | T13 插件未使用 DSH 依赖清理 | 本地完成，待完整回归 | FNOS-007-17 |
 | T14 网关 DSH 浏览器认证 Cookie | 本地完成，待 NAS 回归 | FNOS-007-18 |
-| T15 网关终端 Shell 与字符集环境 | 本地完成，待 NAS 回归 | FNOS-007-19 |
+| T15 网关终端 Shell 与字符集环境 | 本地完成，待 NAS 回归 | FNOS-007-19（含并入的身份断言与 NAS 终端证据） |
 | T16 网关旧 Cookie 认证恢复 | 本地完成，待 NAS 回归 | FNOS-007-20 |
 | T17 网关与 DSH Web 的 HOME/DSH_HOME 边界 | 本地完成，待 NAS 回归 | FNOS-007-21 |
 | T18 FPK 单应用构建选择 | 本地完成 | FNOS-007-22 |
@@ -569,3 +573,4 @@ git diff --check
 | 2026-09-29 | 新增 T31 Codex 模型能力元数据补全 | 配置里的 `models` 会整体替换内置目录，此前只声明 `id`/`name` 的条目在遇到目录未收录的 `gpt-6-sol`、`gpt-6-luna` 时丢失思考等级与图文输入；改为逐模型显式声明能力，使模型选择器与「恢复默认模型」都回到真实能力。 |
 | 2026-09-29 | 收窄插件目标环境验收 | 将 `dsh-fnos`、网关及 FPK/生命周期行为的 NAS 验收与其他插件的 Web/Desktop 验收分开；更新影响矩阵、阶段状态和验收清单，避免非 fnOS 插件被 NAS 阻塞。 |
 | 2026-09-29 | 新增 T31-02 至 T31-04 Codex 能力单一事实来源与自愈 | 复现并固定完整因果链：官方候选弹框的数据来自客户端桥接，桥接只回传 `{id, name}`，弹框「添加所选」按候选项生成型号行 → 生成的能力不全的行被写入用户层 `cordis.patch.yml` → 用户层的 `models` 整体替换插件基线，于是选择器显示灰色 `256K`/`32K` 占位且无思考等级。改为：能力收敛到共享契约并加补丁↔契约漂移门；桥接返回完整能力；宿主启动时一次性补齐用户层缺失的能力字段（只填空缺，不覆盖用户值，不增删改模型）。 |
+| 2026-09-30 | 废弃 T11，终端归口 T15 | 范围变化。需求 FNOS-007-15 被认定为对终端问题的错误理解（原设想在应用启动脚本 `cmd/main` 补 `SHELL`），已废弃；T11 四个任务全部作废，其中身份断言与真实 NAS 证据分别转入新增的 `T15-03`、`T15-04`，其余由既有 `T15-01`/`T15-02` 与 `T17` 覆盖。分期表第三期、完成状态表、影响范围表同步更新。详见 [FNOS-007 变更记录](/requirements/FNOS-007-dsh-017-rc2-adaptation#变更记录)。 |

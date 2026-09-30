@@ -54,7 +54,8 @@ lastVerified: 2026-09-27
 | FNOS-007-12 | P1 | dshmarket 精确版本升级 | 新用户获得 `dshmarket@1.65.1`，已安装用户不被覆盖 | <Badge type="warning" text="待完成" /> |
 | FNOS-007-13 | P0 | attachment-local 运行时依赖和持久化补丁 | 新用户安装 FPK 时 `@deepseek-ai/dsh-attachment-local` 可被精确定位、校验并完成 `${TRIM_PKGVAR}` 补丁；不再出现“installed DSH dependency does not provide” | <Badge type="warning" text="本地完成，待 NAS" /> |
 | FNOS-007-14 | P1 | FPK 构建 workflow 命名统一 | 可复用 FPK 构建 workflow 使用 `.github/workflows/build-app.yml`，发布 workflow 可以正常调用 | <Badge type="tip" text="已完成" /> |
-| FNOS-007-15 | P1 | 应用用户下的终端可用性 | 用户在 fnOS 应用内打开侧边栏终端即可得到可用 Shell，并能看到与 DSH 服务一致的运行身份和工作目录 | <Badge type="warning" text="待完成" /> |
+| FNOS-007-15 | P1 | ~~应用用户下的终端可用性~~ | **已废弃**：本条是对终端问题的错误理解（以为要在应用启动脚本补 Shell）。实际做法由 FNOS-007-19 承担（网关统一注入 Shell 与字符集环境）。保留编号仅为追溯，不再作为实施或验收入口 | <Badge type="danger" text="已废弃" /> |
+| FNOS-007-19 | P1 | 网关终端 Shell 与字符集环境 | 用户在 fnOS 应用内打开侧边栏终端首次即可交互：默认 Shell 解析为可用 bash（不显示重复 bash 或 nologin），中文工作目录与输出不乱码；终端运行身份与应用服务一致 | <Badge type="warning" text="本地完成，待 NAS" /> |
 
 ### 验收环境范围
 
@@ -100,7 +101,9 @@ sequenceDiagram
 
 ## 终端可用性交互
 
-应用以专用应用账号运行，该账号没有交互式登录能力。终端面板的可用性因此需要在应用侧补齐默认 Shell，用户才可能得到可用结果。终端打开的成功路径和失败路径如下：
+应用以专用应用账号运行，该账号的登录 Shell 是 `/usr/sbin/nologin`。终端能否打开，取决于启动 DSH Web 时是否注入了可用的 `SHELL`：默认解析顺序是「进程环境变量 `SHELL` → 宿主账号登录 Shell」，后者在本环境下不可用，因此必须由前者补上。
+
+**变更点：注入位置**。原约定（[FNOS-007-15](#fnos-007-15-已废弃)，已废弃）打算在应用启动脚本 `cmd/main` 里补 `SHELL`；实际采用的新约定是由**网关**在启动 DSH Web 子进程时统一注入 Shell 与字符集环境，见 [FNOS-007-19](#fnos-007-19)。改动位置变化不改变用户可观察结果：终端打开即可用。
 
 ```mermaid
 sequenceDiagram
@@ -121,7 +124,7 @@ sequenceDiagram
   end
 ```
 
-上图的变更点表示终端相对于既有版本的变化位置：原约定是默认 Shell 直接取宿主账号的登录 Shell，在专用应用账号下该值不可用；新约定是应用为终端提供可用的交互式 Shell，使用户打开终端即可用。变更不改变终端的运行身份，也不涉及 fnOS 权限模型调整。
+上图的变更点表示终端相对于既有版本的变化位置：原约定是默认 Shell 直接取宿主账号的登录 Shell，在专用应用账号下该值不可用；新约定是由网关为 DSH Web 子进程注入可用的交互式 Shell，使用户打开终端即可用。变更不改变终端的运行身份，也不涉及 fnOS 权限模型调整。
 
 ## 行为约束
 
@@ -249,7 +252,18 @@ sequenceDiagram
 - `FNOS-007-14-AC-02`：`build-release.yml` 使用 `./.github/workflows/build-app.yml` 调用构建 workflow；当前发布文档和 workflow 配置不再引用旧文件名 `build-dsh-fn.yml`。
 - `FNOS-007-14-AC-03`：workflow 重命名不改变 DSH native、FPK 构建、版本化产物命名和 Release 上传流程。
 
-### FNOS-007-15
+### FNOS-007-15（已废弃）
+
+<Badge type="danger" text="已废弃" /> 本条由 [FNOS-007-19](#fnos-007-19) 取代，不再作为实施或验收入口。各条验收的归属：
+
+| 原验收 | 处置 |
+| --- | --- |
+| `FNOS-007-15-AC-01`、`AC-02` | 由 `FNOS-007-19-AC-01`、`AC-02` 覆盖（终端可交互、不显示 nologin） |
+| `FNOS-007-15-AC-03` | **并入** `FNOS-007-19-AC-04`（运行身份与应用服务一致、不提升权限） |
+| `FNOS-007-15-AC-04` | 由 `FNOS-007-19-AC-03` 承担环境变量部分；`HOME`/`DSH_HOME` 边界由 `FNOS-007-21` 承担 |
+| `FNOS-007-15-AC-05` | 由 `FNOS-007-19` 的真实 NAS 验收覆盖 |
+
+原验收条件（保留供追溯，**不再逐条验收**）：
 
 - `FNOS-007-15-AC-01`：应用运行在专用应用账号下时，用户在应用内打开侧边栏终端即可得到可交互 Shell，不再出现账号不可用提示。
 - `FNOS-007-15-AC-02`：终端不需要用户在打开前手动切换 Shell 或修改系统级设置；首次打开即得到可用结果。
@@ -279,9 +293,13 @@ sequenceDiagram
 
 ### FNOS-007-19
 
+本功能是**终端可用性的唯一实施与验收入口**。原 [FNOS-007-15](#fnos-007-15-已废弃) 对该问题的理解有误（以为要在应用启动脚本补 Shell），已废弃；其验收条件按上方对照表归入本条与 `FNOS-007-21`。
+
 - `FNOS-007-19-AC-01`：终端 Shell 和字符集环境由网关启动 DSH Web 时统一注入，不再由 `apps/fn-deepseek-harness/cmd/main` 重复适配。
-- `FNOS-007-19-AC-02`：`SHELL` 使用 PATH 中实际解析到的第一个 `bash` 路径作为默认 Shell，与 DSH 终端候选解析结果一致，不显示重复 bash，也不显示 nologin。
+- `FNOS-007-19-AC-02`：`SHELL` 使用 PATH 中实际解析到的第一个 `bash` 路径作为默认 Shell，与 DSH 终端候选解析结果一致，不显示重复 bash，也不显示 nologin；用户在应用内打开侧边栏终端**首次即得到可交互结果**，无需手动切换 Shell 或修改系统级设置。
 - `FNOS-007-19-AC-03`：网关为 DSH 子进程注入本机可用的 UTF-8 `LANG`/`LC_CTYPE`，并清除冲突的非 UTF-8 `LC_ALL`，中文工作目录和终端输出不乱码。
+- `FNOS-007-19-AC-04`：终端进程的运行身份与应用服务身份一致，不提升为 root、不切换为 NAS 普通用户（原 `FNOS-007-15-AC-03` 并入）。
+- `FNOS-007-19-AC-05`：终端在真实 NAS 上可以完成打开、执行命令和关闭；应用重启后终端仍然可用。
 
 ### FNOS-007-20
 
@@ -453,3 +471,4 @@ sequenceDiagram
 | 2026-09-29 | 收敛 Codex 模型能力来源并自愈历史覆盖 | 扩展 FNOS-007-35：模型能力此前有两份副本——插件补丁里是全的，设置页「获取可用模型」弹框的候选却只有 `id`/`name`（客户端桥接丢字段），于是「添加所选」生成的模型行缺 `input`/`contextWindow`/`maxTokens`/`reasoningEfforts`；这些行一旦保存，用户层的 `models` 就整体替换掉插件基线，选择器随即显示灰色 `256K`/`32K` 占位、图片不可选、思考等级消失，且「恢复默认模型」只能删掉整段覆盖而不能把能力补回来。改为：能力收敛到单一事实来源并以「补丁 ↔ 契约」一致性检查防止漂移；候选恢复携带完整能力；插件启动时一次性补齐历史覆盖中缺失的能力字段，只填空缺、不改用户已设的值、不增删改模型。本地证据见 [`FNOS-007-36-local-automated-2026-09-29`](/validation/FNOS-007-36-local-automated-2026-09-29)。 |
 | 2026-09-29 | 修复 mux 断联（WS 升级凭据） | 页面打开后 `/api/remote.mux` 断联一次、重连才成功——被当成网络抖动。根因在网关：`proxyReqWs` 里的 launch token 注入是**死代码**（复用了 `needsLaunchToken`，而它要求 `isIndexRequest`，升级路径 `/api/...` 永远不满足）。浏览器在文档加载后立刻发起 mux，此时往往**还没有** `dsh-auth-*` cookie，于是升级不带任何凭据被 401 拒绝、连接断开，重连时 cookie 已存在才成功。修复：新增 `needsUpgradeLaunchToken`，无 cookie 的升级同样带 token（303 重定向循环只对 index 请求成立，升级不适用）。 |
 | 2026-09-29 | 澄清网关 upgrade 双订阅的真实机制 | 排查中一度判定「双订阅导致同一 socket 被代理两次」，实测**否证**：HPM 的公开 `middleware.upgrade()` 有 `wsInternalSubscribed` guard，网关那次调用是 no-op；真正代理的是 HPM 自订阅的 handler，而它**读到的正是网关 handler 已改写的 `req.url`**。两者构成隐式流水线（Node `emit` 用监听器快照，任一方都无法取消另一方）。据此移除仅凭推测加入的 socket 标记，并把该机制与两个反例（去掉任一侧的后果）写进源码注释与 `tests/websocket-upgrade.spec.ts`（6 条，含前缀改写与上游连接数）。 |
+| 2026-09-30 | 废弃 FNOS-007-15，终端验收归口 FNOS-007-19 | 范围与状态变化。① **FNOS-007-15「应用用户下的终端可用性」标记为已废弃**：它是对终端问题的**错误理解**——以为要在应用启动脚本 `cmd/main` 里补 `SHELL`。② 终端可用性的**唯一实施与验收入口改为 FNOS-007-19**（网关在启动 DSH Web 时统一注入 Shell 与字符集环境），该条从「仅有 AC 段」补为功能表正式条目。③ 原 15 的验收条件按对照表归入 19 与 21：`AC-01`/`AC-02` → `19-AC-01`/`AC-02`；**`AC-03`（运行身份不提权）并入 `19-AC-04`**；`AC-04` 的环境变量部分 → `19-AC-03`、`HOME`/`DSH_HOME` 边界 → `FNOS-007-21`；`AC-05`（真实 NAS 终端的打开/执行/关闭/重启）→ `19-AC-05`。④ 15 的编号与原文保留供追溯，但不再逐条验收。变更记录只登记范围与状态，不改写已完成需求正文。 |
