@@ -51,3 +51,4 @@ git push origin v<版本号>
 - 目标应用可以通过 `fnpack build` 构建。
 - 项目/FPK 版本命令涉及的 Manifest 与目标项目版本一致；独立维护版本的应用和插件不要求与根 `package.json` 相同。
 - 应用 README、安装向导和文档没有遗留旧版本或旧路径。
+- Manifest 的 `desc` 与 `changelog` 已随本轮功能完成及时更新：`desc` 富文本（HTML）内容与当前功能一致，`changelog` 概括本轮变更；发布前不再临时补写。

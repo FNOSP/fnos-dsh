@@ -41,7 +41,8 @@ install_dep_apps      = nodejs_v24
 | `appname` | 应用唯一标识 | 与应用目录名及相关入口 ID 保持一致 |
 | `version` | 应用版本号 | 使用根 `fnos-dsh-cli version` 项目/FPK 流程维护 |
 | `display_name` | 应用中心显示名称 | 面向用户，避免包含内部构建信息 |
-| `desc` | 应用描述 | 说明用途和核心能力，不写无法验证的承诺 |
+| `desc` | 应用描述 | **支持富文本（HTML）**，随每次功能完成及时更新：说明用途、核心能力、快捷键和安装提示；用 `<br />`、`<strong>`、`<code>` 等标签组织版式，不写无法验证的承诺 |
+| `changelog` | 应用变更摘要 | **随每次功能完成及时更新**：概括本轮功能、修复与行为变化，与文档站对应需求的变更记录保持口径一致 |
 | `platform` | 目标架构 | 按实际 FPK 产物填写，例如 `x86`、`arm` 或 `all` |
 | `source` | 应用来源 | 第三方应用通常使用 `thirdparty` |
 | `maintainer` / `maintainer_url` | 原始项目维护者和地址 | 指向真实上游项目 |
@@ -53,7 +54,16 @@ install_dep_apps      = nodejs_v24
 | `install_dep_apps` | 安装前置依赖 | 只填写应用中心可提供且确实需要的依赖 |
 | `micro_app` | 是否作为微应用运行 | 与入口类型和网关方案一起验证 |
 
-其他字段（例如 `checkport`、`disable_authorization_path`、`changelog`）应只在应用确实需要时增加，并以平台文档和同类已验证应用为准。
+其他字段（例如 `checkport`、`disable_authorization_path`）应只在应用确实需要时增加，并以平台文档和同类已验证应用为准。
+
+### desc 与 changelog 的更新时机
+
+每次功能完成（需求功能实现并通过本地验证）时，必须同步更新 `manifest` 中的 `desc` 与 `changelog`，不能等版本发布时才补：
+
+- `desc` 支持富文本（HTML），使用 `<br />` 换行、`<strong>` 分节标题、`<code>` 标记按键和路径；功能新增、删除或行为变化时同步增删对应描述，不留过期内容。
+- `changelog` 追加或改写为本轮变更的简要摘要；保持中文，与需求文档变更记录、文档站安装说明口径一致。
+- 两个字段都是单行 INI 值：换行用 `<br />` 表达，不写真实换行；值内不要出现未转义的 `#` 开头注释或引号包裹。
+- 更新后运行 `pnpm run check -- --all` 确认清单检查通过。
 
 ## 与其他配置的对应关系
 
