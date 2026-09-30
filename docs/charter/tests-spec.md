@@ -102,6 +102,10 @@ verifiedAt: 2026-09-30
 ### DSH Desktop 测试
 
 - **客户端**：使用实际安装的 DSH Desktop（Electron 壳）执行；Desktop 无法由本仓库 CLI 直接拉起，测试前先把待测插件版本装入 Desktop 所用 profile，再启动客户端。
+- **profile 位置约束（强制）**：Desktop 测试**禁止使用 `~/.dsh/profiles/desktop`**（用户主目录下的个人 profile，含个人凭据与个人配置）；必须使用**项目根目录 `.dsh/profiles/desktop`**，与本地 Web 测试共用同一份 `DSH_HOME=<repo>/.dsh`，使 Desktop 测试与 Web 测试的插件版本、auth 配置备份/恢复（见[账号状态测试顺序与 auth 配置备份](#账号状态测试顺序与-auth-配置备份)）和数据清理作用在同一目录上。
+  - profile 不存在时从项目 `.dsh` 创建：`DSH_HOME="$PWD/.dsh" pnpm exec dsh --from-default-profile desktop`，再用 `DSH_HOME="$PWD/.dsh" pnpm exec dsh plugin --profile desktop add <插件目录>` 链接待测插件（构建产物要求与 Web profile 相同，见[本地 DSH Web](../development/local-dsh-web.md)）。
+  - 启动 Desktop 前确认其 `DSH_HOME` 指向项目根 `.dsh`（Desktop 按标准解析顺序读取 `$DSH_HOME`，缺省回落 `~/.dsh`）；从用户主目录 profile 启动的测试结果无效。
+  - `~/.dsh/profiles/desktop` 属于个人日常使用环境，不得作为测试对象，也不得把测试改动写回该 profile。
 - **验证重点**：Desktop 与 Web 的宿主差异点优先覆盖——外部链接经系统默认浏览器打开（Electron `setWindowOpenHandler` 语义）、OAuth 授权回流、插件详情页/配置区块渲染、设置页呈现；行为以 Desktop 实测为准，不以 Web 结果外推。
 - **结论登记**：Desktop 走查结论可与同一需求的 Web 走查合并登记在测试用例文档的「测试执行结果」，按客户端分列；涉及真实用户确认的结论按[验收证据规范](../validation/README.md)登记 `docs/validation/`。
 - 用例的「前置条件」与「执行环境」按上述口径填写；执行环境取值使用 `DSH Web`、`DSH Desktop`、`真实 fnOS NAS`、`文档站构建环境`，不使用「本地」等含糊表述。
@@ -237,6 +241,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 - [ ] 执行结果的备注记录版本三元组；Desktop 内置运行时与插件锚定版本匹配（见[客户端与基线版本记录](#客户端与基线版本记录)）。
 - [ ] 回归用例标注基线来源并链接原需求/版本；「与基线一致」的预期附带可观察特征（见[回归用例与基线来源](#回归用例与基线来源)）。
 - [ ] 涉及登录状态的测试按「登录态 → 非登录态 → 登录流程」顺序执行；auth 配置备份在 `tmp/auth-back/<插件名称>-<插件版本>-<备份日期>`，移除前已备份、恢复后权限为 `600`（见[账号状态测试顺序与 auth 配置备份](#账号状态测试顺序与-auth-配置备份)）。
+- [ ] Desktop 测试使用项目根 `.dsh/profiles/desktop`，未使用 `~/.dsh/profiles/desktop`，启动前已确认 `DSH_HOME` 指向项目根（见[DSH Desktop 测试](#dsh-desktop-测试)）。
 - [ ] 测试数据清理动作已登记，无个人生产账号（见[测试数据清理](#测试数据清理)）。
 - [ ] 执行结果、Bug、结论仅在执行后回填，用例定义未被改写。
 - [ ] `pnpm run check -- --sdd` 与文档构建通过。
@@ -249,6 +254,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-09-30 | 补充 Desktop 测试要求 | 非 fnOS 插件至少兼容 DSH Web 与 DSH Desktop 两个客户端并均纳入用例；新增 Desktop 测试执行方式（客户端获取、宿主差异验证重点、结论登记）。 |
 | 2026-09-30 | 新增版本记录、数据清理与基线来源要求 | 执行前记录环境版本三元组并校验 Desktop 运行时与插件锚定版本匹配；测试数据按位置约定清理并登记；回归用例标注基线来源，「与基线一致」须附可观察特征。用例模板增加基线来源列。 |
 | 2026-09-30 | 新增账号状态测试顺序与 auth 配置备份 | Codex/CodeBuddy 登录态测试按「登录态 Bug → 非登录态 Bug → 登录流程」顺序执行；状态切换前备份 auth 配置到 `tmp/auth-back/<插件名称>-<插件版本>-<备份日期>`，恢复登录从备份还原并保持 600 权限。 |
+| 2026-09-30 | 约束 Desktop 测试 profile 位置 | Desktop 测试禁止使用 `~/.dsh/profiles/desktop`，必须使用项目根 `.dsh/profiles/desktop`，与 Web 测试共用 `DSH_HOME=<repo>/.dsh`；登记 profile 创建与插件链接命令。 |
 
 ## 回填时机
 
