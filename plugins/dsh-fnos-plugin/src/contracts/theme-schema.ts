@@ -12,7 +12,7 @@
  */
 
 import z from '@deepseek-ai/schemastery'
-import { FNOS_GATEWAY_PROXY_PATHS_FIELD, FNOS_SYSTEM_THEME_FIELD } from './theme-contract.ts'
+import { FNOS_AUTHORIZED_DIRECTORIES_FIELD, FNOS_GATEWAY_PROXY_PATHS_FIELD, FNOS_SYSTEM_THEME_FIELD } from './theme-contract.ts'
 
 /**
  * Runtime schema for the `dsh-fnos` settings entry.
@@ -32,4 +32,6 @@ import { FNOS_GATEWAY_PROXY_PATHS_FIELD, FNOS_SYSTEM_THEME_FIELD } from './theme
 export const FnosSettingsSchema = z.object({
   [FNOS_SYSTEM_THEME_FIELD]: z.union(['light', 'dark']).volatile(),
   [FNOS_GATEWAY_PROXY_PATHS_FIELD]: z.array(z.string()).default([]).volatile(),
+  // 默认空数组：老用户升级时该字段缺失，读取方必须能安全拿到空列表。
+  [FNOS_AUTHORIZED_DIRECTORIES_FIELD]: z.array(z.string()).default([]).volatile(),
 })

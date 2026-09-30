@@ -10,6 +10,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import { callFnOsApi, FnOsApiError } from '../api/fnos-api.ts'
 import {
   FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
+  FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH,
   FNOS_AUTHORIZED_ENTRIES_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_PATH,
   FNOS_PATH_CONVERSION_PATH,
@@ -20,6 +21,7 @@ import {
   type ReadablePath,
 } from '../contracts/authorized-directories-contract.ts'
 import { FNOS_SETTINGS_DOCUMENT_PATH } from '../contracts/settings-document-contract.ts'
+import { FNOS_AUTHORIZED_DIRECTORIES_FIELD, type FnosSettings } from '../contracts/theme-contract.ts'
 import { FNOS_SESSION_LOG_EXPORT_PATH, type FnosSessionLogExportRequest } from '../contracts/session-log-export-contract.ts'
 
 const BODY_LIMIT = 64 * 1024
@@ -554,6 +556,51 @@ async function convertDirectories(paths: string[], language: string, readOnlyPat
   return converted.map(entry => ({ ...entry, removable: !readOnly.has(entry.path) }))
 }
 
+/**
+ * 持久化列表的读写入口。
+ *
+ * settings 是权威来源：这里的三个函数只负责在它与列表展示之间搬运数据，
+ * 不建立第二份镜像文件——目录列表是纯插件侧数据，settings 已经提供原子写与
+ * 升级保留，再加一层镜像只会多一个可能与权威源不一致的地方。
+ */
+export interface AuthorizedDirectoriesSettings {
+  describe(): { ns: string, value: unknown }[]
+  update(ns: string, patch: Record<string, unknown>): Promise<void>
+}
+
+/** 读取持久化的授权目录列表；字段缺失或非法时返回空列表。 */
+export function readPersistedAuthorizedDirectories(settings: AuthorizedDirectoriesSettings, namespace: string): string[] {
+  const descriptor = settings.describe().find(row => row.ns === namespace)
+  const value = descriptor?.value as FnosSettings | undefined
+  return normalizeAuthorizedPaths(value?.[FNOS_AUTHORIZED_DIRECTORIES_FIELD])
+}
+
+/** 写入持久化列表；保持首次出现顺序并去重。 */
+export async function writePersistedAuthorizedDirectories(
+  settings: AuthorizedDirectoriesSettings,
+  namespace: string,
+  pathsValue: unknown,
+): Promise<string[]> {
+  const paths = normalizeAuthorizedPaths(pathsValue)
+  await settings.update(namespace, { [FNOS_AUTHORIZED_DIRECTORIES_FIELD]: paths })
+  return paths
+}
+
+/**
+ * 合并持久化列表与实时来源。
+ *
+ * 持久化项优先展示：实时查询失败时它们仍要出现在列表里（FNOS-009-09-AC-02）。
+ * 实时来源里新增的路径照常合入展示，但不自动写入持久化——共享应用路径等
+ * 只读项由 `readOnlyPaths` 承载。
+ */
+export function mergePersistedWithLive(
+  persistedValue: unknown,
+  liveValue: unknown,
+  readOnlyValue: unknown = [],
+): string[] {
+  return mergeAuthorizedPaths(persistedValue, liveValue, readOnlyValue)
+}
+
 export async function loadAuthorizedDirectories(req: IncomingMessage): Promise<AuthorizedDirectory[]> {
   const readOnlyPaths = mergeAuthorizedPaths(dataSharePathsFromEnvironment(), defaultApplicationPathsFromEnvironment())
   let accessiblePaths: string[] = []
@@ -569,6 +616,35 @@ export async function loadAuthorizedDirectories(req: IncomingMessage): Promise<A
   // volume is temporarily offline. Functional browsing/opening below still
   // requires the path to exist and be readable at the time of use.
   const paths = mergeAuthorizedPaths(accessiblePaths, readOnlyPaths)
+  return convertDirectories(paths, requestLanguage(req), readOnlyPaths)
+}
+
+/**
+ * 列表展示的合并入口：持久化列表优先，其次实时查询与只读共享路径。
+ *
+ * 与 `loadAuthorizedDirectories` 的区别是它接收已取到的实时结果，便于在
+ * 实时查询失败时只回退到持久化列表，而不是让整页报错（FNOS-009-09-AC-02）。
+ */
+export async function loadAuthorizedDirectoriesWithPersisted(
+  req: IncomingMessage,
+  persistedValue: unknown,
+  livePathsValue?: unknown,
+): Promise<AuthorizedDirectory[]> {
+  const readOnlyPaths = mergeAuthorizedPaths(dataSharePathsFromEnvironment(), defaultApplicationPathsFromEnvironment())
+  const persisted = normalizeAuthorizedPaths(persistedValue)
+  let livePaths: string[]
+  if (livePathsValue === undefined) {
+    try {
+      livePaths = await loadAuthorizedDirectoryPaths()
+    } catch (error: unknown) {
+      if (persisted.length === 0 && readOnlyPaths.length === 0) throw error
+      console.warn('[dsh-fnos] showing the persisted authorized directories because the fnOS ACL query failed', error)
+      livePaths = []
+    }
+  } else {
+    livePaths = normalizeAuthorizedPaths(livePathsValue)
+  }
+  const paths = mergePersistedWithLive(persisted, livePaths, readOnlyPaths)
   return convertDirectories(paths, requestLanguage(req), readOnlyPaths)
 }
 
@@ -832,9 +908,9 @@ async function validatePathsForConversion(req: IncomingMessage, paths: readonly 
 }
 
 /** Register fnOS settings/document and authorized-directory routes on the DSH Web profile. */
-export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
-  ctx.effect(() => {
-    const authorize = (req: IncomingMessage, res: ServerResponse): boolean => {
+export function registerAuthorizedDirectoryRoutes(ctx: Context, options: { settingsNamespace?: string } = {}): void {
+  const settingsNamespace = options.settingsNamespace
+  ctx.effect(() => {    const authorize = (req: IncomingMessage, res: ServerResponse): boolean => {
       if (isTrustedFnosRequest(req)) return true
       json(res, 403, { error: 'remote-web-origin-not-trusted' })
       return false
@@ -867,7 +943,15 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
           if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
           if (!authorize(req, res)) return
           try {
-            json(res, 200, { directories: await loadAuthorizedDirectories(req) })
+            // 持久化列表优先：实时查询失败时仍要展示已保存的目录
+            // （FNOS-009-09-AC-02），所以这里带着持久化项一起加载。
+            const persisted = settingsNamespace === undefined
+              ? []
+              : readPersistedAuthorizedDirectories(
+                ctx.settings as unknown as AuthorizedDirectoriesSettings,
+                settingsNamespace,
+              )
+            json(res, 200, { directories: await loadAuthorizedDirectoriesWithPersisted(req, persisted) })
           } catch (error: unknown) {
             errorResponse(res, error)
           }
@@ -960,7 +1044,15 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
           try {
             const path = deletePath(await readJsonBody(req))
             if (path === undefined) return json(res, 400, { error: 'invalid-authorized-directory-path' })
-            const current = await loadAuthorizedDirectories(req)
+            // 与 GET 用同一条合并逻辑：持久化项也在可移除范围内，否则用户
+            // 无法取消一个只存在于持久化记录里的目录。
+            const persisted = settingsNamespace === undefined
+              ? []
+              : readPersistedAuthorizedDirectories(
+                ctx.settings as unknown as AuthorizedDirectoriesSettings,
+                settingsNamespace,
+              )
+            const current = await loadAuthorizedDirectoriesWithPersisted(req, persisted)
             const directory = current.find(candidate => candidate.path === path)
             if (directory === undefined) {
               return json(res, 409, { error: 'authorized-directory-not-found' })
@@ -973,6 +1065,33 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context): void {
             if (result?.suc === false) return json(res, 502, { error: 'fnos-authorized-directory-request-failed' })
             markAuthorizedPathRemoved(path)
             json(res, 200, { ok: true })
+          } catch (error: unknown) {
+            errorResponse(res, error)
+          }
+        },
+      }),
+      /**
+       * 持久化授权目录列表（FNOS-009-09）。
+       *
+       * 客户端在校验剔除后回写剩余项；这里只接受合法绝对路径，写入失败时
+       * 返回错误但**不清空**既有记录——遗留数据比丢数据安全（09-AC-03）。
+       */
+      register({
+        kind: 'exact',
+        path: FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH,
+        handler: async (req, res) => {
+          if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
+          if (!authorize(req, res)) return
+          if (settingsNamespace === undefined) return json(res, 503, { error: 'fnos-authorized-directories-unavailable' })
+          try {
+            const paths = conversionPaths(await readJsonBody(req))
+            if (paths === undefined) return json(res, 400, { error: 'invalid-fnos-paths' })
+            const stored = await writePersistedAuthorizedDirectories(
+              ctx.settings as unknown as AuthorizedDirectoriesSettings,
+              settingsNamespace,
+              paths,
+            )
+            json(res, 200, { paths: stored })
           } catch (error: unknown) {
             errorResponse(res, error)
           }

@@ -1,6 +1,6 @@
 /** Settings card for the fnOS shared-directory authorization list. */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { DshIconInfoCircle, DshModal, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
@@ -9,7 +9,9 @@ import { createTrimApp } from '../client/services/sdk.ts'
 import {
   DirectoryRequestError,
   requestAuthorizedDirectories,
+  requestPersistAuthorizedDirectories,
 } from '../client/services/authorized-directories-client.ts'
+import { evictInvalidDirectories } from '../client/services/authorized-directories-eviction.ts'
 import {
   FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
   type AuthorizedDirectory,
@@ -118,6 +120,14 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
   const [proxyPathsDraft, setProxyPathsDraft] = useState('')
   const [proxyMessage, setProxyMessage] = useState<string>()
   const [pendingDeletePath, setPendingDeletePath] = useState<string>()
+  const [validateNotice, setValidateNotice] = useState<string>()
+  /**
+   * 最近一次加载到的目录列表。
+   *
+   * 增删后的持久化回写发生在 `await refresh()` 之后，此时组件闭包里的
+   * `state` 还是旧值；用 ref 读取最新列表，避免把回写建立在过期快照上。
+   */
+  const directoriesRef = useRef<AuthorizedDirectory[]>([])
 
   const loadProxyPaths = useCallback(async (): Promise<void> => {
     try {
@@ -135,7 +145,29 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
     try {
       const directories = await requestAuthorizedDirectories()
       logAuthorizedDirectoryEvent('refresh-success', { count: directories.length })
-      setState({ status: 'ready', directories })
+      // 展示前逐项校验权限并剔除失效项（FNOS-009-10）。校验失败不影响展示：
+      // 任何异常都退回未校验列表，绝不因校验问题清空用户的目录。
+      let visible = directories
+      let notice: string | undefined
+      try {
+        const result = await evictInvalidDirectories(directories, createTrimApp)
+        notice = result.noticeKey === undefined ? undefined : t(result.noticeKey)
+        visible = result.directories
+        if (result.evicted) {
+          // 剔除即时生效：同步回写持久化，下次加载不再出现。
+          await requestPersistAuthorizedDirectories(visible.filter(item => item.removable).map(item => item.path))
+            .catch(error => logAuthorizedDirectoryWarning('evict-persist-failed', {
+              message: error instanceof Error ? error.message : undefined,
+            }))
+        }
+      } catch (error: unknown) {
+        logAuthorizedDirectoryWarning('validate-failed', {
+          message: error instanceof Error ? error.message : undefined,
+        })
+      }
+      setValidateNotice(notice)
+      directoriesRef.current = visible
+      setState({ status: 'ready', directories: visible })
     } catch (error: unknown) {
       logAuthorizedDirectoryWarning('refresh-failed', {
         errorType: error instanceof Error ? error.name : typeof error,
@@ -180,6 +212,24 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
     event.stopPropagation()
     if (!busy && proxyPathsDraft !== savedProxyPaths) void saveProxyPaths()
   }, [busy, proxyPathsDraft, saveProxyPaths, savedProxyPaths])
+
+  /**
+   * 把当前可移除目录写进持久化记录（FNOS-009-09）。
+   *
+   * 只写用户自己添加的项：只读的应用共享路径由 fnOS 声明，不属于用户授权，
+   * 写进去会在下次加载时变成一条无法移除的假记录。失败只记日志——持久化是
+   * 增强项，不能因为写盘失败让页面报错（09-AC-03）。
+   */
+  const persistCurrentDirectories = useCallback(async (): Promise<void> => {
+    const paths = directoriesRef.current.filter(item => item.removable).map(item => item.path)
+    try {
+      await requestPersistAuthorizedDirectories(paths)
+    } catch (error: unknown) {
+      logAuthorizedDirectoryWarning('persist-failed', {
+        message: error instanceof Error ? error.message : undefined,
+      })
+    }
+  }, [])
 
   const addDirectory = useCallback(async (): Promise<void> => {
     setBusy(true)
@@ -226,7 +276,9 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
           diagnosis.message ?? diagnosis.error ?? `fnOS picker returned ${diagnosis.reason}`,
         )
       }
+      // 用户主动授权成功：刷新列表后把可移除项写入持久化（FNOS-009-09-AC-01）。
       await refresh()
+      await persistCurrentDirectories()
     } catch (error: unknown) {
       const diagnosis = diagnosePickerResult(error)
       logPickerSdkEvent('rejected', { phase, diagnosis })
@@ -246,19 +298,21 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
     } finally {
       setBusy(false)
     }
-  }, [refresh, t])
+  }, [refresh, t, persistCurrentDirectories])
 
   const removeDirectory = useCallback(async (path: string): Promise<void> => {
     setBusy(true)
     try {
       await jsonRequest(FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH, 'POST', { path })
       await refresh()
+      // 取消授权后同步持久化，避免下次加载把已移除的目录又显示出来。
+      await persistCurrentDirectories()
     } catch (error: unknown) {
       setState(current => ({ status: 'error', directories: current.directories, code: errorMessage(error, t, 'delete') }))
     } finally {
       setBusy(false)
     }
-  }, [refresh, t])
+  }, [refresh, t, persistCurrentDirectories])
 
   return (
     <div className="dsh-fnos-authorized-card">
@@ -297,6 +351,7 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
           </div>
           {state.status === 'loading' ? <p className="dsh-fnos-authorized-body">{t('loading')}</p> : null}
           {state.status === 'error' ? <p className="dsh-fnos-authorized-error">{state.code ?? t('loadFailed')}</p> : null}
+          {validateNotice === undefined ? null : <p className="dsh-fnos-authorized-body">{validateNotice}</p>}
           {state.status !== 'loading' && state.directories.length === 0 ? <p className="dsh-fnos-authorized-body">{t('empty')}</p> : null}
           {state.directories.length > 0 ? (
             <ul className="dsh-fnos-authorized-path-list">

@@ -9,6 +9,9 @@ export const FNOS_AUTHORIZED_DIRECTORIES_PATH = '/plugins/dsh-fnos/authorized-di
 /** Same-origin route that removes one application directory ACL. */
 export const FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH = '/plugins/dsh-fnos/authorized-directories/delete'
 
+/** Same-origin route that persists the user-authorised directory list. */
+export const FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH = '/plugins/dsh-fnos/authorized-directories/persist'
+
 /** Same-origin route that converts internal fnOS paths to readable paths. */
 export const FNOS_PATH_CONVERSION_PATH = '/plugins/dsh-fnos/paths/convert'
 

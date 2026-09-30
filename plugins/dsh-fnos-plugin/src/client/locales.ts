@@ -45,6 +45,7 @@ export const en = {
   sharedDirectory: 'App shared directory',
   originNotTrusted: 'This browser origin is not trusted by the DSH Web server.',
   unavailable: 'The fnOS authorization API is unavailable in this environment.',
+  validateUnavailable: 'Showing the saved directory list; permissions could not be verified right now.',
   gatewayProxyTitle: 'Third-party plugin proxy',
   /*
    * Rendered in the tip popover as three fixed lines: what / how / example.
@@ -143,6 +144,7 @@ export const zh: { [Key in FnosLocaleKey]: string } = {
   sharedDirectory: '应用共享目录',
   originNotTrusted: '当前浏览器来源未被 DSH Web 服务信任。',
   unavailable: '当前环境无法使用 fnOS 授权接口。',
+  validateUnavailable: '已按保存的记录展示目录；当前无法校验权限。',
   gatewayProxyTitle: '三方插件 proxy',
   /*
    * 这段文案渲染在 tip 悬浮层里（原先平铺在标题下），固定三行：是什么 / 怎么写 / 举例子。

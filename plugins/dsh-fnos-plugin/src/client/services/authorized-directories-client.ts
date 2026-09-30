@@ -2,6 +2,7 @@
 
 import {
   FNOS_AUTHORIZED_DIRECTORIES_PATH,
+  FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH,
   FNOS_AUTHORIZED_ENTRIES_PATH,
   FNOS_PATH_CONVERSION_PATH,
   FNOS_PATH_OPEN_VALIDATION_PATH,
@@ -78,8 +79,7 @@ export async function requestAuthorizedDirectories(): Promise<AuthorizedDirector
   return directoriesFromResponse(value as AuthorizedDirectoriesResponse)
 }
 
-function entriesFromResponse(value: AuthorizedEntriesResponse): AuthorizedEntriesResult {
-  const seen = new Set<string>()
+function entriesFromResponse(value: AuthorizedEntriesResponse): AuthorizedEntriesResult {  const seen = new Set<string>()
   const entries = Array.isArray(value.entries)
     ? value.entries.flatMap(entry => {
       if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return []
@@ -174,4 +174,29 @@ export async function requestPathOpenAuthorization(path: string): Promise<void> 
       : `HTTP ${response.status}`
     throw new DirectoryRequestError(code)
   }
+}
+
+/**
+ * 持久化用户授权目录列表（FNOS-009-09）。
+ *
+ * 只在用户确实增删目录或校验剔除后调用；读取路径不写盘，避免一次加载就把
+ * 实时查询到的共享路径误写进持久化记录。
+ */
+export async function requestPersistAuthorizedDirectories(paths: readonly string[]): Promise<string[]> {
+  const response = await fetch(FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH, {
+    method: 'POST',
+    headers: { ...requestHeaders(), 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ paths }),
+  })
+  const value: unknown = await response.json().catch(() => undefined)
+  if (!response.ok) {
+    const code = typeof value === 'object' && value !== null && 'error' in value && typeof value.error === 'string'
+      ? value.error
+      : `HTTP ${response.status}`
+    throw new DirectoryRequestError(code)
+  }
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return []
+  const stored = (value as { paths?: unknown }).paths
+  return Array.isArray(stored) ? stored.filter((item): item is string => typeof item === 'string') : []
 }

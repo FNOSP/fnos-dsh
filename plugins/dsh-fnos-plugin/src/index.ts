@@ -46,7 +46,7 @@ export function apply(ctx: Context, config?: FnosConfig): void {
   ctx.inject(['settings'], child => {
     child.effect(() => child.settings.configure({ auto: false }, ctx.fiber))
   })
-  registerAuthorizedDirectoryRoutes(ctx)
+  registerAuthorizedDirectoryRoutes(ctx, { settingsNamespace: DSH_SETTINGS_ENTRY_ID })
   registerGatewayProxyRoutes(ctx, DSH_SETTINGS_ENTRY_ID)
   registerStaticAssetRoute(ctx)
   registerPresentedPathRoute(ctx)

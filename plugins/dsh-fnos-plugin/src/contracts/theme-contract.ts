@@ -10,10 +10,18 @@ export interface FnosSettings {
   systemTheme?: FnosTheme
   /** User-managed third-party plugin API URL path prefixes. */
   gatewayProxyPaths?: string[]
+  /**
+   * 用户授权过的目录（内部 fnOS 路径），持久保存以在接口失败或插件重启后仍能展示。
+   *
+   * 只保存用户通过选择器主动添加的目录；fnOS 实时接口返回的共享路径是只读展示项，
+   * 不写入这里，避免把应用声明路径误当成用户授权。
+   */
+  authorizedDirectories?: string[]
 }
 
 export const FNOS_SYSTEM_THEME_FIELD = 'systemTheme'
 export const FNOS_GATEWAY_PROXY_PATHS_FIELD = 'gatewayProxyPaths'
+export const FNOS_AUTHORIZED_DIRECTORIES_FIELD = 'authorizedDirectories'
 
 /**
  * Resolved plugin config: volatile fields arrive as stable references.
@@ -24,6 +32,7 @@ export const FNOS_GATEWAY_PROXY_PATHS_FIELD = 'gatewayProxyPaths'
 export interface FnosConfig {
   [FNOS_SYSTEM_THEME_FIELD]?: Volatile<FnosTheme | undefined>
   [FNOS_GATEWAY_PROXY_PATHS_FIELD]: Volatile<string[]>
+  [FNOS_AUTHORIZED_DIRECTORIES_FIELD]: Volatile<string[]>
 }
 
 export function isFnosTheme(value: unknown): value is FnosTheme {

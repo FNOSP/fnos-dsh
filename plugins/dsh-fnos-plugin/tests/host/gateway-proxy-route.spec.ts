@@ -239,15 +239,25 @@ describe('dsh-fnos settings entry contract', () => {
     expect(typeof plugin.Config?.['~standard']?.validate).toBe('function')
   })
 
-  it('declares both settings fields as editable volatile fields', () => {
+  it('declares every settings field as an editable volatile field', () => {
     // Volatile is what lets a live edit reach the running plugin without
     // remounting it, and what the settings forms accept as writable.
     const json = FnosSettingsSchema.toJSON() as unknown as SerializedSchema
     const root = json.refs[json.uid] as SerializedSchemaNode
     const dict = root.dict ?? {}
-    expect(Object.keys(dict).sort()).toEqual(['gatewayProxyPaths', 'systemTheme'])
-    expect(json.refs[dict.systemTheme as number]?.meta?.volatile).toBe(true)
-    expect(json.refs[dict.gatewayProxyPaths as number]?.meta?.volatile).toBe(true)
+    expect(Object.keys(dict).sort()).toEqual(['authorizedDirectories', 'gatewayProxyPaths', 'systemTheme'])
+    for (const field of ['authorizedDirectories', 'gatewayProxyPaths', 'systemTheme']) {
+      expect(json.refs[dict[field] as number]?.meta?.volatile, field).toBe(true)
+    }
+  })
+
+  it('defaults the persisted authorized directories to an empty list', () => {
+    // 老用户的 settings 里没有这个字段；默认值必须让读取方安全拿到空数组，
+    // 否则升级后第一次打开授权目录页就会抛错。该字段是 volatile，读取要走
+    // volatileValue()，所以断言解引用后的值。
+    expect(issuesOf({})).toBeUndefined()
+    const parsed = acceptedValue({}) as Record<string, unknown>
+    expect(volatileValue(parsed.authorizedDirectories as never)).toEqual([])
   })
 
   it('accepts an empty, a theme-only and a path-only section', () => {
