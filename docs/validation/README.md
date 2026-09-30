@@ -44,6 +44,10 @@ status: passed|failed|blocked
 
 ## 当前记录
 
+- [FNOS-009-09 授权目录持久化运行时验证记录（2026-09-30）](/validation/FNOS-009-09-persistence-runtime-2026-09-30)
+- [FNOS-009 插件重锚定 DSH Desktop 运行时验证记录（2026-09-30）](/validation/FNOS-009-desktop-runtime-2026-09-30)
+- [FNOS-009-12 插件安装放行本地端到端验证记录（2026-09-30）](/validation/FNOS-009-12-release-age-local-2026-09-30)
+- [FNOS-009 插件重锚定本地 DSH Web 验证记录（2026-09-30）](/validation/FNOS-009-local-web-2026-09-30)
 - [FNOS-007/008 v5.5.0 真实 NAS 安装复验记录（2026-09-30）](/validation/FNOS-007-008-nas-v550-2026-09-30)
 - [FNOS-007 真实 NAS 验收记录（2026-09-30）](/validation/FNOS-007-nas-2026-09-30)
 - [FNOS-007 Web/Desktop 验收记录（2026-09-30）](/validation/FNOS-007-web-desktop-2026-09-30)
