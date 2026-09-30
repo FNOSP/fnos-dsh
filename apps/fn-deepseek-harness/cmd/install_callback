@@ -10,7 +10,7 @@ PNPM_STORE_FILE="${DSH_HOME}/.pnpm-store-dir"
 NPM_BIN="${NODE_BIN}/npm"
 DSH_BIN="${NPM_CONFIG_PREFIX}/bin/dsh"
 DSH_PACKAGE="@deepseek-ai/dsh"
-DSH_VERSION="0.1.7-rc.2"
+DSH_VERSION="0.2.0-rc.2"
 TRIM_CLI_PACKAGE="@trimjs/trim-cli"
 PNPM_VERSION="11.7.0"
 PNPM_BIN="${NPM_CONFIG_PREFIX}/bin/pnpm"
@@ -181,24 +181,26 @@ force_install_bundled_plugin() {
         fail_install "Unable to install bundled ${plugin_name}@${plugin_version} with the dsh CLI"
 }
 
-run_dsh_plugin() {
-    local action="$1"
-    local package_spec="$2"
-    validate_plugin_spec "${package_spec}"
-    log_info "Running dsh plugin --profile web ${action} ${package_spec}."
-    "${DSH_BIN}" plugin --profile web "${action}" "${package_spec}"
-}
-
+# Every plugin installed here goes through the release-age exception. This
+# callback only installs the versions the application ships in its own
+# manifest, so pnpm's publication cooldown protects nothing and only delays a
+# release. It is also the difference between a working and a failing install:
+# a plugin left on the strict path fails while its version is still fresh, and
+# the reported violation names a previously installed plugin instead. Manual
+# installs through the plugin manager keep pnpm's default policy.
 run_dsh_plugin_with_release_age() {
     local action="$1"
     local package_spec="$2"
     validate_plugin_spec "${package_spec}"
-    log_info "Running dsh plugin --profile web ${action} ${package_spec} with minimum release age disabled for FPK replacement."
+    log_info "Running dsh plugin --profile web ${action} ${package_spec} with the minimum release age disabled."
     "${DSH_BIN}" plugin --profile web "${action}" "${package_spec}" \
         --config.minimum-release-age=0
 }
 
 install_published_dsh_plugins() {
+    # The helper prints `name<TAB>version[<TAB>thirdparty]`. The third column is
+    # still read even though the install path no longer branches on it: leaving
+    # it out would append a trailing tab to the version for dshmarket.
     local plugin_name plugin_version plugin_source current_version current_spec bundled_plugin
     while IFS=$'\t' read -r plugin_name plugin_version plugin_source; do
         [ -n "${plugin_name}" ] || continue
@@ -221,22 +223,12 @@ install_published_dsh_plugins() {
         fi
 
         if [ -z "${current_version}" ]; then
-            if [ "${plugin_source}" = "thirdparty" ]; then
-                run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
-                    fail_install "Unable to install ${plugin_name}@${plugin_version} with the dsh CLI"
-            else
-                run_dsh_plugin add "${plugin_name}@${plugin_version}" ||
-                    fail_install "Unable to install ${plugin_name}@${plugin_version} with the dsh CLI"
-            fi
+            run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
+                fail_install "Unable to install ${plugin_name}@${plugin_version} with the dsh CLI"
         elif [ "${current_version}" != "${plugin_version}" ] || [[ "${current_spec}" == link:* ]]; then
             log_info "Updating ${plugin_name} from ${current_version} to ${plugin_version} with the dsh CLI."
-            if [ "${plugin_source}" = "thirdparty" ]; then
-                run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
-                    fail_install "Unable to update ${plugin_name} to ${plugin_version} with the dsh CLI"
-            else
-                run_dsh_plugin add "${plugin_name}@${plugin_version}" ||
-                    fail_install "Unable to update ${plugin_name} to ${plugin_version} with the dsh CLI"
-            fi
+            run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
+                fail_install "Unable to update ${plugin_name} to ${plugin_version} with the dsh CLI"
         else
             log_info "Keeping installed ${plugin_name}@${current_version}; exact version already matches."
         fi

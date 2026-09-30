@@ -58,13 +58,19 @@ async function runShell(root: string, body: string): Promise<string> {
   return execFileSync('/bin/bash', [harness], { encoding: 'utf8' })
 }
 
-async function runPublishedPluginInstall(root: string, currentVersion: string, currentSpec = ''): Promise<string> {
+async function runPublishedPluginInstall(
+  root: string,
+  currentVersion: string,
+  currentSpec = '',
+  plugin: { name: string, version: string, source?: string } = { name: 'dshmarket', version: '1.66.3', source: 'thirdparty' },
+): Promise<string> {
   const manifest = join(root, 'published-dsh-plugins.json')
   await writeFile(manifest, JSON.stringify({
     version: 1,
-    plugins: [{ name: 'dshmarket', version: '1.66.3', source: 'thirdparty' }],
+    plugins: [plugin],
     bundled: [],
   }))
+  const row = [plugin.name, plugin.version, plugin.source === 'thirdparty' ? 'thirdparty' : ''].filter(Boolean).join('\\t')
   const harness = join(root, 'published-harness.sh')
   const prelude = [
     '#!/bin/bash',
@@ -74,9 +80,9 @@ async function runPublishedPluginInstall(root: string, currentVersion: string, c
     'fail_install() { printf "FAIL:%s\\n" "$1"; exit 99; }',
     'log_info() { :; }',
     'validate_plugin_spec() { :; }',
-    'run_install_callback_helper() { [ "$1" = published-plugins ] && printf "dshmarket\\t1.66.3\\tthirdparty\\n"; }',
-    `installed_plugin_version() { [ "$1" = dshmarket ] && printf ${JSON.stringify(currentVersion)}; }`,
-    `profile_dependency_version() { [ "$1" = dshmarket ] && printf ${JSON.stringify(currentSpec)}; }`,
+    `run_install_callback_helper() { [ "$1" = published-plugins ] && printf '${row}\\n'; }`,
+    `installed_plugin_version() { [ "$1" = ${JSON.stringify(plugin.name)} ] && printf ${JSON.stringify(currentVersion)}; }`,
+    `profile_dependency_version() { [ "$1" = ${JSON.stringify(plugin.name)} ] && printf ${JSON.stringify(currentSpec)}; }`,
     'run_dsh_plugin() { printf "%s:%s\\n" "$1" "$2"; }',
     'run_dsh_plugin_with_release_age() { printf "%s:%s:release-age-0\\n" "$1" "$2"; }',
     await functionSource('install_published_dsh_plugins'),
@@ -100,7 +106,7 @@ describe('bundled plugin install', () => {
     expect(source).not.toMatch(/Keeping bundled .*exact local version already matches\./u)
   })
 
-  it('allows release-age validation only for local bundled archive replacement', async () => {
+  it('allows release-age validation for FPK archive replacement', async () => {
     const source = await readFile(scriptPath, 'utf8')
     expect(source).toMatch(/run_dsh_plugin_with_release_age remove "\$\{plugin_name\}"/u)
     expect(source).toMatch(/run_dsh_plugin_with_release_age add "file:\$\{bundled_plugin\}"/u)
@@ -164,5 +170,48 @@ describe('bundled plugin install', () => {
     const output = await runPublishedPluginInstall(root, '1.66.3')
 
     expect(output).toBe('')
+  })
+
+  // FNOS-009-12: the callback installs only the versions this application
+  // ships in its own manifest, so every plugin it installs takes the
+  // release-age exception. A plugin left on the strict path fails as soon as
+  // its version is published inside pnpm's cooldown window, and the reported
+  // violation names whichever plugin it validated first.
+  const ownedPlugin = { name: '@tnnevol/dsh-codebuddy', version: '0.2.0-rc.2.0' }
+
+  it('installs an owned plugin through the release-age exception', async () => {
+    const root = await makeProfile()
+    const output = await runPublishedPluginInstall(root, '', '', ownedPlugin)
+
+    expect(output).toContain('add:@tnnevol/dsh-codebuddy@0.2.0-rc.2.0:release-age-0')
+  })
+
+  it('updates an owned plugin through the release-age exception', async () => {
+    const root = await makeProfile()
+    const output = await runPublishedPluginInstall(root, '0.1.7-rc.2.2', '', ownedPlugin)
+
+    expect(output).toContain('add:@tnnevol/dsh-codebuddy@0.2.0-rc.2.0:release-age-0')
+  })
+
+  it('still reinstalls an owned plugin that is linked instead of installed', async () => {
+    const root = await makeProfile()
+    const output = await runPublishedPluginInstall(root, '0.2.0-rc.2.0', 'link:/tmp/somewhere', ownedPlugin)
+
+    expect(output).toContain('add:@tnnevol/dsh-codebuddy@0.2.0-rc.2.0:release-age-0')
+  })
+
+  it('keeps an owned plugin whose exact version already matches', async () => {
+    const root = await makeProfile()
+    const output = await runPublishedPluginInstall(root, '0.2.0-rc.2.0', '', ownedPlugin)
+
+    expect(output).toBe('')
+  })
+
+  it('never routes an installed plugin through the strict CLI path', async () => {
+    const source = await readFile(scriptPath, 'utf8')
+    // The strict wrapper is gone entirely: one install path, one policy.
+    expect(source).not.toMatch(/^run_dsh_plugin\(\)/mu)
+    expect(source).not.toMatch(/run_dsh_plugin add /u)
+    expect(source).toContain('--config.minimum-release-age=0')
   })
 })
