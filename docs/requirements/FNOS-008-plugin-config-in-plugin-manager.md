@@ -2,10 +2,10 @@
 id: FNOS-008
 title: FNOS-008 插件配置统一迁入插件管理页
 description: 将第三方插件的全部配置界面从设置弹框迁入插件管理页的组合包详情页，并保证 CodeBuddy 在 DSH Desktop 中兼容运行。
-status: planned
+status: completed
 owner: tnnevol
 targetVersion: 5.6.0
-lastVerified: 2026-09-28
+lastVerified: 2026-09-30
 ---
 
 # FNOS-008 插件配置统一迁入插件管理页
@@ -38,13 +38,13 @@ DSH `0.1.7-rc.2` 新增了侧栏「插件」管理页，并提供官方架构决
 
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-008-01 | P0 | fnOS 配置迁入插件详情页 | 用户在插件管理页的 fnOS 组合包详情页查看、添加、删除授权目录并保存，行为与原设置卡片一致 | <Badge type="info" text="规划中" /> |
-| FNOS-008-02 | P0 | CodeBuddy 配置迁入插件详情页 | 登录、账号管理、自动切换、自动签到、自动旅行等配置操作全部在 CodeBuddy 组合包详情页完成 | <Badge type="info" text="规划中" /> |
-| FNOS-008-03 | P0 | Codex Auth 配置迁入插件详情页 | 登录、全局模型选择与保存、模型目录刷新在 Codex Auth 组合包详情页完成 | <Badge type="info" text="规划中" /> |
-| FNOS-008-04 | P1 | 设置弹框移除插件配置入口 | 「设置 → 插件」分区不再出现 fnOS、CodeBuddy、Codex Auth 的配置标签页或导航项；官方只读插件清单保留 | <Badge type="info" text="规划中" /> |
-| FNOS-008-05 | P1 | 配置功能与数据保持 | 迁移后三个插件的配置读写、保存失败保护与升级前已有的配置数据保持不变 | <Badge type="info" text="规划中" /> |
-| FNOS-008-06 | P0 | CodeBuddy Desktop 兼容 | CodeBuddy 配置详情页及账号、用量和成长任务能力在 DSH Desktop 中可用，同时保持 Web/fnOS 兼容 | <Badge type="info" text="规划中" /> |
-| FNOS-008-07 | P0 | Codex Auth Desktop 兼容 | Codex Auth 的登录在 DSH Desktop 中可用：授权页在系统浏览器打开后设备码流程继续，不再误报「登录窗口被阻止」 | <Badge type="info" text="规划中" /> |
+| FNOS-008-01 | P0 | fnOS 配置迁入插件详情页 | 用户在插件管理页的 fnOS 组合包详情页查看、添加、删除授权目录并保存，行为与原设置卡片一致 | <Badge type="tip" text="已完成" /> |
+| FNOS-008-02 | P0 | CodeBuddy 配置迁入插件详情页 | 登录、账号管理、自动切换、自动签到、自动旅行等配置操作全部在 CodeBuddy 组合包详情页完成 | <Badge type="tip" text="已完成" /> |
+| FNOS-008-03 | P0 | Codex Auth 配置迁入插件详情页 | 登录、全局模型选择与保存、模型目录刷新在 Codex Auth 组合包详情页完成 | <Badge type="tip" text="已完成" /> |
+| FNOS-008-04 | P1 | 设置弹框移除插件配置入口 | 「设置 → 插件」分区不再出现 fnOS、CodeBuddy、Codex Auth 的配置标签页或导航项；官方只读插件清单保留 | <Badge type="tip" text="已完成" /> |
+| FNOS-008-05 | P1 | 配置功能与数据保持 | 迁移后三个插件的配置读写、保存失败保护与升级前已有的配置数据保持不变 | <Badge type="tip" text="已完成" /> |
+| FNOS-008-06 | P0 | CodeBuddy Desktop 兼容 | CodeBuddy 配置详情页及账号、用量和成长任务能力在 DSH Desktop 中可用，同时保持 Web/fnOS 兼容 | <Badge type="tip" text="已完成" /> |
+| FNOS-008-07 | P0 | Codex Auth Desktop 兼容 | Codex Auth 的登录在 DSH Desktop 中可用：授权页在系统浏览器打开后设备码流程继续，不再误报「登录窗口被阻止」 | <Badge type="tip" text="已完成" /> |
 
 ### 验收环境范围
 
@@ -228,3 +228,4 @@ sequenceDiagram
 | 2026-09-29 | fnOS 详情页配置区呈现调整 | 实机截图显示配置被折叠面板包住（进页面只看得到一排折叠标题）。调整：① **移除折叠**，内容常驻（这一页只有这一块内容，折叠只多出一次点击；数据改为挂载即拉取，不再等到点开才请求）；② 授权目录列表固定 **500px** 上限并自行滚动（滚动放在列表本身而非卡片上，否则保存按钮会随列表滚出视口）；③「三方插件 API URL 反代配置」→「**三方插件 proxy**」，平铺说明收进标题右侧 ⓘ tip（tooltip 覆盖「是什么 / 怎么用 / 举例」三要素，图标带 `tabIndex` 与 `aria-label`，键盘与读屏用户同样可获取）；④ placeholder 补保存快捷键与「一行一个」提示；⑤ 文本框最多 **8 行**（行高 20px）超出滚动，并禁用纵向拖拽（拖高会绕过上限、内容仍被裁）。补 13 条契约用例并逐条反转验证。 |
 | 2026-09-29 | CodeBuddy Token 统计移除折叠 | 实机截图显示详情页里「Token 统计」被折叠面板包住（标题旁带展开箭头），而它上方的「账号管理」是常驻区块，同一页两个同级区块的呈现层级不一致；折叠默认展开时还要多一层内部容器，读者容易误以为它归属上一块。调整：去掉 `<details>`/`<summary>` 折叠容器，Token 统计改用与账号管理相同的常驻区块标题，并删除已无引用的折叠样式（含 caret 与 reduced-motion 分支）。与 fnOS 详情页「移除折叠、内容常驻」同一处理原则。
 | 2026-09-29 | fnOS 授权目录与 proxy 说明微调 | ① 授权目录列表上限 `500px → 300px`（列表过长时仍由列表自身滚动，保存按钮不被顶出视口）；② 「三方插件 proxy」的 tip 说明改为固定三行——是什么（把三方插件的绝对路径 API **统一接入应用网关**，原先写成「转发给本机其它服务」，没有点出它的定位）、怎么写（一行一个以 `/` 开头的绝对路径前缀）、举例子（插件 API 是 `/plugin-api/get/me`，就填 `/plugin-api`；原例子只给 `/plugin-api/xxx`，读者仍要猜前缀边界）。换行由 `.dsh-fnos-gateway-tip-content` 的 `white-space: pre-line` 渲染：浮层 portal 到 body，必须用专用类命中，直接改共用的 `.semi-tooltip-wrapper` 会波及所有提示。新增 FNOS-008-01-AC-05、AC-06。 |
+| 2026-09-30 | FNOS-008 验收完成 | 状态变化。FNOS-008-01 至 FNOS-008-07 全部功能在目标环境验收通过，需求状态由 `planned` 改为 `completed`，`lastVerified` 更新为 2026-09-30。验收按需求 [`验收环境范围`](#验收环境范围) 分组：FNOS-008-01 与 FNOS-008-05 的 fnOS 授权目录部分在真实 NAS 验收，见 [FNOS-008-01 真实 NAS 验收记录](/validation/FNOS-008-01-nas-2026-09-30)；FNOS-008-02、03、04、06、07 在 DSH Web 与 DSH Desktop 验收。此前 `docs/validation/` 下标注 `blocked` 的本地记录是「本地证据不足」的状态，目标环境验收完成后其结论由本记录与上述 NAS 记录承担。 |

@@ -2,7 +2,7 @@
 id: PLAN-FNOS-008
 title: PLAN-FNOS-008 插件配置统一迁入插件管理页
 description: 实施 FNOS-008 的插件配置界面迁移，并补齐 CodeBuddy 在 DSH Desktop 中的 Host/Client 兼容。
-status: planned
+status: completed
 owner: tnnevol
 planDate: 2026-09-28
 targetVersion: 5.6.0
@@ -360,12 +360,12 @@ flowchart TD
 
 | 阶段 | 状态 |
 | --- | --- |
-| 阶段一：dsh-fnos 迁移 | <Badge type="info" text="规划中" /> |
-| 阶段二：CodeBuddy 迁移与 Desktop 适配 | <Badge type="info" text="规划中" /> |
-| 阶段三：Codex Auth 迁移与 Desktop 兼容 | <Badge type="warning" text="本地完成，待验证" /> |
-| 阶段四：文档与索引 | <Badge type="info" text="规划中" /> |
-| 阶段五：DSH Desktop 验收 | <Badge type="info" text="待完成" /> |
-| 阶段六：fnOS 插件 NAS 验收 | <Badge type="info" text="规划中" /> |
+| 阶段一：dsh-fnos 迁移 | <Badge type="tip" text="已完成" /> |
+| 阶段二：CodeBuddy 迁移与 Desktop 适配 | <Badge type="tip" text="已完成" /> |
+| 阶段三：Codex Auth 迁移与 Desktop 兼容 | <Badge type="tip" text="已完成" /> |
+| 阶段四：文档与索引 | <Badge type="tip" text="已完成" /> |
+| 阶段五：DSH Desktop 验收 | <Badge type="tip" text="已完成" /> |
+| 阶段六：fnOS 插件 NAS 验收 | <Badge type="tip" text="已完成" /> |
 
 ## 变更记录
 
@@ -383,3 +383,4 @@ flowchart TD
 | 2026-09-29 | 按插件拆分环境验收阶段 | CodeBuddy/Codex Auth 改为 DSH Web 与 Desktop 验收；真实 NAS 阶段仅覆盖 fnOS 插件授权目录及其数据保留，调整影响矩阵、任务依赖和验收清单。 |
 | 2026-09-29 | 新增 T07-09 | Token 统计在详情页内改回常驻区块（与账号管理同级呈现），删除折叠容器与配套样式；登记 FNOS-008-02-AC-06。 |
 | 2026-09-29 | 新增 T01-04 | fnOS 授权目录上限改 300px；proxy 说明改为三行结构并更正用途表述与举例，登记 FNOS-008-01-AC-05、AC-06。 |
+| 2026-09-30 | FNOS-008 计划完成 | 状态变化。FNOS-008 全部阶段在目标环境验收通过，计划状态改为 `completed`，阶段一至阶段六同步更新。NAS 范围证据见 [FNOS-008-01 真实 NAS 验收记录](/validation/FNOS-008-01-nas-2026-09-30)。详见 [FNOS-008 变更记录](/requirements/FNOS-008-plugin-config-in-plugin-manager#变更记录)。 |

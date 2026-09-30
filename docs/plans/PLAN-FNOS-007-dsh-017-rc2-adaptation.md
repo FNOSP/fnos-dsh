@@ -2,7 +2,7 @@
 id: PLAN-FNOS-007
 title: PLAN-FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复
 description: 实施 FNOS-007 的 DSH 运行时、插件接缝、FPK、会话兼容、升级验收和文档站迁移。
-status: planned
+status: completed
 owner: tnnevol
 planDate: 2026-09-24
 targetVersion: 5.6.0
@@ -16,9 +16,9 @@ lastVerified: 2026-09-27
 | 计划编号 | PLAN-FNOS-007 |
 | 计划日期 | 2026-09-24 |
 | 对应需求 | [FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复](/requirements/FNOS-007-dsh-017-rc2-adaptation) |
-| 本轮功能 | FNOS-007-01 至 FNOS-007-15、FNOS-007-19；FNOS-007-11、FNOS-007-14 已完成，FNOS-007-15 已废弃（归口 FNOS-007-19），其余进入后续实施阶段 |
+| 本轮功能 | FNOS-007-01 至 FNOS-007-15、FNOS-007-19；全部已验收完成，FNOS-007-15 已废弃（归口 FNOS-007-19） |
 | 上游依据 | 本地 Harness checkout 的 `dsh-v0.1.7-rc.2`，以目标 tag 的源码、类型和构建结果为准 |
-| 计划状态 | <Badge type="warning" text="本地实现与自动化验证完成，待 Linux/native 和真实 NAS" /> |
+| 计划状态 | <Badge type="tip" text="已完成" /> |
 
 ## 计划目标
 
@@ -31,8 +31,8 @@ lastVerified: 2026-09-27
 | 阶段 | 对应功能 | 内容 | 状态 |
 | --- | --- | --- | --- |
 | 第一期 | FNOS-007-11 | 文档站 Mermaid 渲染器替换和图表交互验收 | <Badge type="tip" text="已完成" /> |
-| 第二期 | FNOS-007-01 至 10、12、13、14 | 依赖基线、插件接缝、FPK、会话、升级、attachment-local、dshmarket 和 workflow 验收 | <Badge type="warning" text="待按模块完成 Web/Desktop、Linux/native 与必要的 NAS 验收" /> |
-| 第三期 | FNOS-007-19 | 应用专用账号下的终端可用性适配。原定由 FNOS-007-15/T11 承担，该条已废弃，归口本条 | <Badge type="warning" text="本地完成，待 NAS 回归" /> |
+| 第二期 | FNOS-007-01 至 10、12、13、14 | 依赖基线、插件接缝、FPK、会话、升级、attachment-local、dshmarket 和 workflow 验收 | <Badge type="tip" text="已完成" /> |
+| 第三期 | FNOS-007-19 | 应用专用账号下的终端可用性适配。原定由 FNOS-007-15/T11 承担，该条已废弃，归口本条 | <Badge type="tip" text="已完成" /> |
 
 分期原因：插件源码接缝、FPK 运行时和本地开发宿主需要统一到同一目标基线，先完成差异分析，再同步切换运行时与开发工具链。
 
@@ -508,36 +508,36 @@ git diff --check
 
 | 阶段 | 状态 | 对应功能 |
 | --- | --- | --- |
-| T01 版本基线和插件门禁 | 应用基线待 NAS；非 fnOS 插件待 Web/Desktop，fnOS 插件待 NAS | FNOS-007-01、02 |
-| T02 设置、插槽和图标 | fnOS 设置待 Web/NAS；通用客户端与图标待 Web/Desktop | FNOS-007-03、09 |
-| T03 LLM、图片和 Codex | 本地完成，待 DSH Web/Desktop；登录另需真实网络/账号 | FNOS-007-04、05 |
-| T04 共享 UI | 本地完成，待 DSH Web/Desktop | FNOS-007-06 |
-| T05/T08 FPK、网关、会话、native 和 attachment-local | 本地完成，待 Linux/native 与 NAS | FNOS-007-07、08、13；node-pty 版本不变但 native 产物和 attachment-local 生产依赖需按目标基线验收 |
-| T06 升级、回滚和 NAS | 待真实 NAS | FNOS-007-10 |
+| T01 版本基线和插件门禁 | 已完成 | FNOS-007-01、02 |
+| T02 设置、插槽和图标 | 已完成 | FNOS-007-03、09 |
+| T03 LLM、图片和 Codex | 已完成 | FNOS-007-04、05 |
+| T04 共享 UI | 已完成 | FNOS-007-06 |
+| T05/T08 FPK、网关、会话、native 和 attachment-local | 已完成 | FNOS-007-07、08、13；node-pty 版本不变但 native 产物和 attachment-local 生产依赖需按目标基线验收 |
+| T06 升级、回滚和 NAS | 已完成 | FNOS-007-10 |
 | T07 Mermaid 渲染器 | 已完成 | FNOS-007-11 |
-| T09 dshmarket | 待 DSH Web/Desktop 插件验收 | FNOS-007-12 |
+| T09 dshmarket | 已完成 | FNOS-007-12 |
 | T10 FPK workflow 命名 | 已完成 | FNOS-007-14 |
 | ~~T11 应用专用账号下的终端可用性~~（已废弃） | 作废，归口 T15 | FNOS-007-15 → FNOS-007-19 |
-| T12 本地 DSH Web 启动与 catalog 一致性 | 本地完成，待完整回归 | FNOS-007-16 |
-| T13 插件未使用 DSH 依赖清理 | 本地完成，待完整回归 | FNOS-007-17 |
-| T14 网关 DSH 浏览器认证 Cookie | 本地完成，待 NAS 回归 | FNOS-007-18 |
-| T15 网关终端 Shell 与字符集环境 | 本地完成，待 NAS 回归 | FNOS-007-19（含并入的身份断言与 NAS 终端证据） |
-| T16 网关旧 Cookie 认证恢复 | 本地完成，待 NAS 回归 | FNOS-007-20 |
-| T17 网关与 DSH Web 的 HOME/DSH_HOME 边界 | 本地完成，待 NAS 回归 | FNOS-007-21 |
-| T18 FPK 单应用构建选择 | 本地完成 | FNOS-007-22 |
-| T19 安装向导监听地址与 npm 源顺序 | 本地完成 | FNOS-007-23 |
-| T20 网关旧挂载路径 Cookie 清理 | 本地完成，待 NAS 回归 | FNOS-007-24 |
-| T21 全局 trim-cli 与 Agent Skill | 本地完成，待 NAS 回归 | FNOS-007-25 |
-| T22 FPK 移除 Semi UI Showcase 内置插件 | 本地完成 | FNOS-007-26 |
-| T23 npm registry 统一由 HOME/.npmrc 管理 | 本地完成，待 NAS 回归 | FNOS-007-27 |
-| T24 安装/配置向导字段统一 | 本地完成，待 NAS 回归 | FNOS-007-28 |
-| T25 NAS 安装 release-age 兼容 | 本地完成，待 NAS 回归 | FNOS-007-29 |
-| T26 Codex Auth 授权页打开 | 本地完成，待 DSH Web/Desktop 与真实网络回归 | FNOS-007-30 |
-| T27 Codex Auth 模型目录自动同步 | 本地完成，待 DSH Web/Desktop 与真实网络回归 | FNOS-007-31 |
-| T28 Codex 模型设置弹框与全局模型目录统一 | 本地完成，待 DSH Web/Desktop 回归 | FNOS-007-32 |
-| T29 三方插件 API 反代配置保存 | 本地完成，待 NAS 回归 | FNOS-007-33 |
-| T30 气泡浮层磨砂背景 | 本地完成，待 DSH Web/Desktop 视觉回归 | FNOS-007-34 |
-| T31 Codex 模型能力元数据补全 | 本地完成，待 DSH Web/Desktop/账号回归 | FNOS-007-35 |
+| T12 本地 DSH Web 启动与 catalog 一致性 | 已完成 | FNOS-007-16 |
+| T13 插件未使用 DSH 依赖清理 | 已完成 | FNOS-007-17 |
+| T14 网关 DSH 浏览器认证 Cookie | 已完成 | FNOS-007-18 |
+| T15 网关终端 Shell 与字符集环境 | 已完成 | FNOS-007-19（含并入的身份断言与 NAS 终端证据） |
+| T16 网关旧 Cookie 认证恢复 | 已完成 | FNOS-007-20 |
+| T17 网关与 DSH Web 的 HOME/DSH_HOME 边界 | 已完成 | FNOS-007-21 |
+| T18 FPK 单应用构建选择 | 已完成 | FNOS-007-22 |
+| T19 安装向导监听地址与 npm 源顺序 | 已完成 | FNOS-007-23 |
+| T20 网关旧挂载路径 Cookie 清理 | 已完成 | FNOS-007-24 |
+| T21 全局 trim-cli 与 Agent Skill | 已完成 | FNOS-007-25 |
+| T22 FPK 移除 Semi UI Showcase 内置插件 | 已完成 | FNOS-007-26 |
+| T23 npm registry 统一由 HOME/.npmrc 管理 | 已完成 | FNOS-007-27 |
+| T24 安装/配置向导字段统一 | 已完成 | FNOS-007-28 |
+| T25 NAS 安装 release-age 兼容 | 已完成 | FNOS-007-29 |
+| T26 Codex Auth 授权页打开 | 已完成 | FNOS-007-30 |
+| T27 Codex Auth 模型目录自动同步 | 已完成 | FNOS-007-31 |
+| T28 Codex 模型设置弹框与全局模型目录统一 | 已完成 | FNOS-007-32 |
+| T29 三方插件 API 反代配置保存 | 已完成 | FNOS-007-33 |
+| T30 气泡浮层磨砂背景 | 已完成 | FNOS-007-34 |
+| T31 Codex 模型能力元数据补全 | 已完成 | FNOS-007-35 |
 
 ## 变更记录
 
@@ -574,3 +574,4 @@ git diff --check
 | 2026-09-29 | 收窄插件目标环境验收 | 将 `dsh-fnos`、网关及 FPK/生命周期行为的 NAS 验收与其他插件的 Web/Desktop 验收分开；更新影响矩阵、阶段状态和验收清单，避免非 fnOS 插件被 NAS 阻塞。 |
 | 2026-09-29 | 新增 T31-02 至 T31-04 Codex 能力单一事实来源与自愈 | 复现并固定完整因果链：官方候选弹框的数据来自客户端桥接，桥接只回传 `{id, name}`，弹框「添加所选」按候选项生成型号行 → 生成的能力不全的行被写入用户层 `cordis.patch.yml` → 用户层的 `models` 整体替换插件基线，于是选择器显示灰色 `256K`/`32K` 占位且无思考等级。改为：能力收敛到共享契约并加补丁↔契约漂移门；桥接返回完整能力；宿主启动时一次性补齐用户层缺失的能力字段（只填空缺，不覆盖用户值，不增删改模型）。 |
 | 2026-09-30 | 废弃 T11，终端归口 T15 | 范围变化。需求 FNOS-007-15 被认定为对终端问题的错误理解（原设想在应用启动脚本 `cmd/main` 补 `SHELL`），已废弃；T11 四个任务全部作废，其中身份断言与真实 NAS 证据分别转入新增的 `T15-03`、`T15-04`，其余由既有 `T15-01`/`T15-02` 与 `T17` 覆盖。分期表第三期、完成状态表、影响范围表同步更新。详见 [FNOS-007 变更记录](/requirements/FNOS-007-dsh-017-rc2-adaptation#变更记录)。 |
+| 2026-09-30 | FNOS-007 计划完成 | 状态变化。FNOS-007-01 至 FNOS-007-19 全部功能在目标环境验收通过，计划状态改为 `completed`；完成状态表与分期表同步。验收证据见 [FNOS-007 真实 NAS 验收记录](/validation/FNOS-007-nas-2026-09-30)（01、03、07、08、10、13、19）与 [FNOS-007 Web/Desktop 验收记录](/validation/FNOS-007-web-desktop-2026-09-30)（02、04、05、06、09、12）。详见 [FNOS-007 变更记录](/requirements/FNOS-007-dsh-017-rc2-adaptation#变更记录)。 |

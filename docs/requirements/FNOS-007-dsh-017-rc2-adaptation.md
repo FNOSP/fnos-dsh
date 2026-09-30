@@ -2,10 +2,10 @@
 id: FNOS-007
 title: FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复
 description: 将 DSH 应用与仓库内四个插件升级到 0.1.7-rc.2，保证插件、设置、会话、终端、FPK 和文档站功能在升级后可用。
-status: planned
+status: completed
 owner: tnnevol
 targetVersion: 5.6.0
-lastVerified: 2026-09-27
+lastVerified: 2026-09-30
 ---
 
 # FNOS-007 DSH 0.1.7-rc.2 适配与插件错误修复
@@ -40,22 +40,22 @@ lastVerified: 2026-09-27
 
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-007-01 | P0 | DSH 运行基线升级 | 应用运行在 `0.1.7-rc.2`，用户可以完成安装和启动 | <Badge type="warning" text="本地完成，待 NAS" /> |
-| FNOS-007-02 | P0 | 插件兼容性门禁升级 | 四个插件可以安装，启动后不会被禁用 | <Badge type="warning" text="待 Web/Desktop；仅 fnOS 插件待 NAS" /> |
-| FNOS-007-03 | P0 | fnOS 插件设置兼容 | 主题、授权目录和网关路径设置继续可读写 | <Badge type="warning" text="本地完成，待 NAS" /> |
-| FNOS-007-04 | P0 | CodeBuddy 工具和图片能力兼容 | 多轮工具对话和图片输入按模型能力正常处理 | <Badge type="warning" text="本地完成，待 Web/Desktop" /> |
-| FNOS-007-05 | P0 | Codex Auth 能力兼容 | 登录、凭据、模型目录、用量和图片输入继续可用 | <Badge type="warning" text="本地完成，待 Web/Desktop" /> |
-| FNOS-007-06 | P1 | Semi UI 和总览插件兼容 | 共享组件和总览页面可以打开、切换主题和卸载 | <Badge type="warning" text="本地完成，待 Web/Desktop" /> |
-| FNOS-007-07 | P0 | FPK 和运行时交付对齐 | FPK 可以构建、安装、启动，内置插件版本一致 | <Badge type="warning" text="本地完成，待 Linux/native 与 NAS" /> |
-| FNOS-007-08 | P0 | 旧会话兼容 | 升级后旧会话可以打开和导出 | <Badge type="warning" text="本地完成，待旧会话/NAS" /> |
-| FNOS-007-09 | P1 | 设置页和图标资源兼容 | 设置卡片、会话入口和模型图标正常显示 | <Badge type="warning" text="待 Web/Desktop；fnOS 设置卡片待 NAS" /> |
-| FNOS-007-10 | P1 | 升级、回滚和真实环境验收 | 升级保留数据，失败可恢复，真实 NAS 有完整证据 | <Badge type="info" text="待 NAS" /> |
+| FNOS-007-01 | P0 | DSH 运行基线升级 | 应用运行在 `0.1.7-rc.2`，用户可以完成安装和启动 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-02 | P0 | 插件兼容性门禁升级 | 四个插件可以安装，启动后不会被禁用 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-03 | P0 | fnOS 插件设置兼容 | 主题、授权目录和网关路径设置继续可读写 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-04 | P0 | CodeBuddy 工具和图片能力兼容 | 多轮工具对话和图片输入按模型能力正常处理 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-05 | P0 | Codex Auth 能力兼容 | 登录、凭据、模型目录、用量和图片输入继续可用 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-06 | P1 | Semi UI 和总览插件兼容 | 共享组件和总览页面可以打开、切换主题和卸载 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-07 | P0 | FPK 和运行时交付对齐 | FPK 可以构建、安装、启动，内置插件版本一致 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-08 | P0 | 旧会话兼容 | 升级后旧会话可以打开和导出 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-09 | P1 | 设置页和图标资源兼容 | 设置卡片、会话入口和模型图标正常显示 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-10 | P1 | 升级、回滚和真实环境验收 | 升级保留数据，失败可恢复，真实 NAS 有完整证据 | <Badge type="tip" text="已完成" /> |
 | FNOS-007-11 | P1 | 文档站 Mermaid 渲染器替换 | 图表可渲染、缩放、拖拽、复制、下载、全屏并跟随主题 | <Badge type="tip" text="已完成" /> |
-| FNOS-007-12 | P1 | dshmarket 精确版本升级 | 新用户获得 `dshmarket@1.65.1`，已安装用户不被覆盖 | <Badge type="warning" text="待完成" /> |
-| FNOS-007-13 | P0 | attachment-local 运行时依赖和持久化补丁 | 新用户安装 FPK 时 `@deepseek-ai/dsh-attachment-local` 可被精确定位、校验并完成 `${TRIM_PKGVAR}` 补丁；不再出现“installed DSH dependency does not provide” | <Badge type="warning" text="本地完成，待 NAS" /> |
+| FNOS-007-12 | P1 | dshmarket 精确版本升级 | 新用户获得 `dshmarket@1.65.1`，已安装用户不被覆盖 | <Badge type="tip" text="已完成" /> |
+| FNOS-007-13 | P0 | attachment-local 运行时依赖和持久化补丁 | 新用户安装 FPK 时 `@deepseek-ai/dsh-attachment-local` 可被精确定位、校验并完成 `${TRIM_PKGVAR}` 补丁；不再出现“installed DSH dependency does not provide” | <Badge type="tip" text="已完成" /> |
 | FNOS-007-14 | P1 | FPK 构建 workflow 命名统一 | 可复用 FPK 构建 workflow 使用 `.github/workflows/build-app.yml`，发布 workflow 可以正常调用 | <Badge type="tip" text="已完成" /> |
 | FNOS-007-15 | P1 | ~~应用用户下的终端可用性~~ | **已废弃**：本条是对终端问题的错误理解（以为要在应用启动脚本补 Shell）。实际做法由 FNOS-007-19 承担（网关统一注入 Shell 与字符集环境）。保留编号仅为追溯，不再作为实施或验收入口 | <Badge type="danger" text="已废弃" /> |
-| FNOS-007-19 | P1 | 网关终端 Shell 与字符集环境 | 用户在 fnOS 应用内打开侧边栏终端首次即可交互：默认 Shell 解析为可用 bash（不显示重复 bash 或 nologin），中文工作目录与输出不乱码；终端运行身份与应用服务一致 | <Badge type="warning" text="本地完成，待 NAS" /> |
+| FNOS-007-19 | P1 | 网关终端 Shell 与字符集环境 | 用户在 fnOS 应用内打开侧边栏终端首次即可交互：默认 Shell 解析为可用 bash（不显示重复 bash 或 nologin），中文工作目录与输出不乱码；终端运行身份与应用服务一致 | <Badge type="tip" text="已完成" /> |
 
 ### 验收环境范围
 
@@ -473,3 +473,4 @@ sequenceDiagram
 | 2026-09-29 | 澄清网关 upgrade 双订阅的真实机制 | 排查中一度判定「双订阅导致同一 socket 被代理两次」，实测**否证**：HPM 的公开 `middleware.upgrade()` 有 `wsInternalSubscribed` guard，网关那次调用是 no-op；真正代理的是 HPM 自订阅的 handler，而它**读到的正是网关 handler 已改写的 `req.url`**。两者构成隐式流水线（Node `emit` 用监听器快照，任一方都无法取消另一方）。据此移除仅凭推测加入的 socket 标记，并把该机制与两个反例（去掉任一侧的后果）写进源码注释与 `tests/websocket-upgrade.spec.ts`（6 条，含前缀改写与上游连接数）。 |
 | 2026-09-30 | 废弃 FNOS-007-15，终端验收归口 FNOS-007-19 | 范围与状态变化。① **FNOS-007-15「应用用户下的终端可用性」标记为已废弃**：它是对终端问题的**错误理解**——以为要在应用启动脚本 `cmd/main` 里补 `SHELL`。② 终端可用性的**唯一实施与验收入口改为 FNOS-007-19**（网关在启动 DSH Web 时统一注入 Shell 与字符集环境），该条从「仅有 AC 段」补为功能表正式条目。③ 原 15 的验收条件按对照表归入 19 与 21：`AC-01`/`AC-02` → `19-AC-01`/`AC-02`；**`AC-03`（运行身份不提权）并入 `19-AC-04`**；`AC-04` 的环境变量部分 → `19-AC-03`、`HOME`/`DSH_HOME` 边界 → `FNOS-007-21`；`AC-05`（真实 NAS 终端的打开/执行/关闭/重启）→ `19-AC-05`。④ 15 的编号与原文保留供追溯，但不再逐条验收。变更记录只登记范围与状态，不改写已完成需求正文。 |
 | 2026-09-30 | 修复未订阅账号的用量与模型列表 | 两处真实缺陷，均由**真实响应**定位（实测 `GET /backend-api/wham/usage`）。① **用量完全不显示**：服务端给的窗口时长是 `limit_window_seconds = 2592000`（正好 30 天，未订阅账号只有这一个窗口），而实现按**精确相等**匹配 `18000`（5 小时）与 `604800`（7 天），三个选择器全部落空返回 `undefined`，界面因此什么都不显示——用户看到的是「无法获取套餐信息」，但数据其实拿到了。改为按**区间**分类（`≤2 天` 五小时 / `2–14 天` 每周 / `>14 天` 每月），并补「每月使用限额」文案；窗口标签也由类别决定，此前它是二选一（不是 5 小时就一律叫「每周」），会把月度窗口**错标**。② **套餐类型不显示**：Host 的 `normalizeCodexUsagePayload` 早已解析 `planType`，但**客户端的 `CodexUsage` 接口没有声明该字段**，数据在类型层被丢掉；补上声明并在用量浮层显示（`free` → **免费版**）。③ 顺带实现 `FNOS-007-31-AC-02` 从未落地的自动同步：`refresh-models` 路由此前只在 Host 注册、**无任何调用方**，五个 `modelRefresh*` 文案是死代码，模型列表一直停在插件补丁写死的静态条目上（7 个，含 free 账号拿不到的 `gpt-6-astra`/`gpt-6-sol`/`gpt-5.6-sol`）；现于「登录成功后」与「打开已登录页面时」各同步一次（后者按会话去重，避免 5 分钟轮询反复打上游），同步失败保留上一次有效目录。 |
+| 2026-09-30 | FNOS-007 验收完成 | 状态变化。FNOS-007-01 至 FNOS-007-19 全部功能在目标环境验收通过，需求状态由 `planned` 改为 `completed`，`lastVerified` 更新为 2026-09-30。验收按需求 [`验收环境范围`](#验收环境范围) 分两组进行：要求在真实 NAS 验收的七项（01、03、07、08、10、13、19）见 [FNOS-007 真实 NAS 验收记录](/validation/FNOS-007-nas-2026-09-30)；约定在 DSH Web 与 DSH Desktop 验收的六项（02、04、05、06、09、12）见 [FNOS-007 Web/Desktop 验收记录](/validation/FNOS-007-web-desktop-2026-09-30)。FNOS-007-11、14 此前已完成；FNOS-007-15 已废弃（归口 FNOS-007-19）。设备环境：fnOS `1.2.0800`、平台 `x86`、应用 `fn-deepseek-harness 5.4.3`。 |

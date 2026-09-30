@@ -44,6 +44,9 @@ status: passed|failed|blocked
 
 ## 当前记录
 
+- [FNOS-007 真实 NAS 验收记录（2026-09-30）](/validation/FNOS-007-nas-2026-09-30)
+- [FNOS-007 Web/Desktop 验收记录（2026-09-30）](/validation/FNOS-007-web-desktop-2026-09-30)
+- [FNOS-008-01 fnOS 授权目录真实 NAS 验收记录（2026-09-30）](/validation/FNOS-008-01-nas-2026-09-30)
 - [FNOS-002 NAS 浏览器验收记录（2026-09-01）](/validation/FNOS-002-nas-2026-09-01)
 - [FNOS-004-08 DSH 客户端验收记录（2026-09-13）](/validation/FNOS-004-08-dsh-client-2026-09-13)
 - [FNOS-007 本地自动化验证记录（2026-09-27）](/validation/FNOS-007-local-automated-2026-09-27)
