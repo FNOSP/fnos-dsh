@@ -5,7 +5,7 @@ import type { FpkApp } from '../config/workspace.js'
 export type ReleaseArea = 'project' | 'plugin'
 export type BuildSelection = 'plugins' | 'fpk' | 'docs'
 export type StartSelection = 'docs' | 'plugins' | 'web'
-export type CheckSelection = 'sdd' | 'docs' | 'packages' | 'plugins'
+export type CheckSelection = 'sdd' | 'docs' | 'packages' | 'plugins' | 'tooling'
 
 export async function askReleaseArea(): Promise<ReleaseArea | undefined> {
   const result = await select({
@@ -45,6 +45,7 @@ export async function askCheckSelection(): Promise<CheckSelection[] | undefined>
       { value: 'docs', label: '项目文档', hint: '构建 VitePress 文档站点' },
       { value: 'packages', label: '共享包', hint: '通过 Turbo 执行共享包检查' },
       { value: 'plugins', label: 'Harness 插件', hint: '通过 Turbo 执行插件检查' },
+      { value: 'tooling', label: '构建工具', hint: '通过 Turbo 执行 tooling 检查' },
     ],
   })
   if (isCancel(result)) {

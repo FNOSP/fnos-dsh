@@ -255,10 +255,11 @@ flowchart TD
 pnpm run check -- --sdd
 pnpm run check -- --docs
 pnpm run check -- --packages --plugins
+pnpm run check -- --tooling
 pnpm run check -- --all
 ```
 
-下图展示一次 `--all` 检查的主要交互。SDD 和文档检查由 CLI 直接处理，包检查统一交给一次 Turbo 调度。
+下图展示一次 `--all` 检查的主要交互。SDD 和文档检查由 CLI 直接处理，包、插件和构建工具检查统一交给一次 Turbo 调度。
 
 ```mermaid
 sequenceDiagram
@@ -271,22 +272,27 @@ sequenceDiagram
   participant semi as dsh-semi-ui
   participant packages as 共享包
   participant plugins as harness 插件
+  participant tooling as 构建工具
 
   developer->>root: pnpm run check -- --all
   root->>cli: pnpm exec fnos-dsh-cli check --all
   cli->>checker: 校验需求、计划和链接
   cli->>vitepress: 构建 docs
-  cli->>turbo: pnpm exec turbo run check --filter=./packages/* --filter=./plugins/*
+  cli->>turbo: pnpm exec turbo run check --filter=./packages/* --filter=./plugins/* --filter=./tooling/*
   turbo->>semi: 先执行 package.json 的 build
   turbo->>packages: 执行 package.json 的 check
   turbo->>plugins: 执行 harness 插件 package.json 的 check
+  turbo->>tooling: 执行构建工具 package.json 的 check
   packages->>turbo: 返回检查结果
   plugins->>turbo: 返回检查结果
+  tooling->>turbo: 返回检查结果
   turbo->>cli: 汇总任务结果
   checker->>cli: 返回静态检查结果
   vitepress->>cli: 返回文档构建结果
   cli->>developer: 返回成功或非零退出码
 ```
+
+`tooling/*` 的 `check` 在 `turbo.json` 里单独声明了 `inputs`：它的用例会读取 `apps/`、`docs/`、`plugins/`、`packages/` 下的文件（发布清单、文档版本号、兼容性清单），而 Turbo 默认只按该包自身文件计算哈希。不补 `inputs` 时本地缓存会把「清单已漂移」当成命中缓存而报假绿；CI 没有远程缓存所以不受影响，但开发者本机需要这份声明。
 
 ## 构建任务交互
 

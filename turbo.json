@@ -35,6 +35,21 @@
     "check": {
       "dependsOn": ["build", "^typecheck"],
       "outputs": []
+    },
+    "@tnnevol/fnos-dsh-cli#check": {
+      "dependsOn": ["build", "^typecheck"],
+      "outputs": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/apps/**",
+        "$TURBO_ROOT$/docs/**",
+        "$TURBO_ROOT$/plugins/**",
+        "$TURBO_ROOT$/packages/**",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/pnpm-workspace.yaml",
+        "$TURBO_ROOT$/.github/config/**",
+        "$TURBO_ROOT$/turbo.json"
+      ]
     }
   }
 }

@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | `pnpm run start` | 启动 harness 插件 watch、文档服务和/或本地 DSH Web | 可选 |
 | `pnpm run build` | 构建 harness 插件、FPK 应用和文档 | 可选 |
-| `pnpm run check` | 检查 SDD、文档、共享包和 harness 插件 | 可选 |
+| `pnpm run check` | 检查 SDD、文档、共享包、harness 插件和构建工具 | 可选 |
 | `pnpm run version` | 维护项目/FPK 或单个 harness 插件版本 | 可选 |
 | `pnpm run publish` | 交互选择并发布 DSH 插件到 npm（`next` dist-tag） | 可选 |
 | `pnpm run release:notes` | 使用 `changelogithub` 生成 Release 说明 | 否 |
@@ -62,9 +62,14 @@ pnpm run build -- --docs
 # 共享包或 harness 插件改动
 pnpm run check -- --packages --plugins
 
+# 构建脚本、发布校验或 CLI 改动
+pnpm run check -- --tooling
+
 # 完整门禁
 pnpm run check -- --all
 ```
+
+`--all` 覆盖 SDD、文档、共享包、harness 插件和构建工具（`tooling/*`）。构建工具这一项不能少：CI 的 `sdd-check.yml` 会在 `tooling/**` 变化时触发，而发布校验和文档版本同步的实现与用例都在那里；漏掉它曾让过期版本常量、两处兼容性清单和 8 处安装命令版本同时通过全部门禁并发布到 tag。
 
 涉及 FPK、权限、Docker、网关或生命周期的改动，还必须在真实 fnOS 设备上完成安装、启动、停止、升级和卸载验证。
 
