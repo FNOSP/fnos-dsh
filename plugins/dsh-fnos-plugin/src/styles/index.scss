@@ -239,7 +239,7 @@ img.dsh-fnos-file-manager-icon {
    * 「三方插件 proxy」和保存按钮一路顶出屏幕。滚动放在**列表自己**身上而不是
    * 卡片或 body 上——否则用户滚到列表底部时，保存按钮也跟着滚走了。
    */
-  max-height: 500px;
+  max-height: 300px;
   overflow-y: auto;
   margin: 0;
   padding: 0;
@@ -306,6 +306,22 @@ img.dsh-fnos-file-manager-icon {
     outline: 2px solid var(--dsw-alias-state-focus-primary, #4d6fff);
     outline-offset: 1px;
   }
+}
+
+/*
+ * tip 的说明分三行（是什么 / 怎么写 / 举例子），文案里的换行必须能被渲染出来。
+ *
+ * 浮层是 portal 到 body 的，不在本组件子树里，因此只能靠这个类选择器命中；
+ * 而它又必须是**专用类**——`.semi-tooltip-wrapper` 是所有提示共用的，直接给
+ * 它加 `pre-line` 会让别处依赖单行折叠的提示一起变形。
+ *
+ * 用 `pre-line` 而非 `pre-wrap`：两者都保留换行、都在超宽时自动折行，区别在
+ * 连续空格——`pre-wrap` 会把它们照原样留出来，`pre-line` 折叠成单个空格。这段
+ * 文案是散文，要的是后者。
+ */
+.semi-tooltip-wrapper.dsh-fnos-gateway-tip-content {
+  max-width: 320px;
+  white-space: pre-line;
 }
 
 .dsh-fnos-authorized-textarea {

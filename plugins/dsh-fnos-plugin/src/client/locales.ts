@@ -46,7 +46,12 @@ export const en = {
   originNotTrusted: 'This browser origin is not trusted by the DSH Web server.',
   unavailable: 'The fnOS authorization API is unavailable in this environment.',
   gatewayProxyTitle: 'Third-party plugin proxy',
-  gatewayProxyDescription: 'Reverse proxy: requests beginning with these prefixes are forwarded to other services on this machine, so third-party plugins can reach local APIs. Enter one absolute path prefix starting with / per line. Saved rules take effect after refreshing the page. For example, /plugin-api forwards /plugin-api/xxx to the matching service.',
+  /*
+   * Rendered in the tip popover as three fixed lines: what / how / example.
+   * The example must be a real plugin API path and its prefix; the line breaks
+   * are rendered by `.dsh-fnos-gateway-tip-content` (`white-space: pre-line`).
+   */
+  gatewayProxyDescription: 'What: routes third-party plugins\u2019 absolute-path APIs through the app gateway, which forwards each prefix to the matching service.\nHow: one absolute prefix starting with / per line; refresh the page after saving.\nExample: a plugin API at /plugin-api/get/me needs just /plugin-api.',
   gatewayProxyPlaceholder: 'One absolute path prefix per line, e.g. /plugin-api\nPress Ctrl+S (⌘S on macOS) to save',
   save: 'Save',
   discard: 'Discard',
@@ -140,11 +145,16 @@ export const zh: { [Key in FnosLocaleKey]: string } = {
   unavailable: '当前环境无法使用 fnOS 授权接口。',
   gatewayProxyTitle: '三方插件 proxy',
   /*
-   * 这段文案现在渲染在 tip 悬浮层里（原先平铺在标题下）。
-   * 三要素缺一不可：是什么、怎么用、举个例子——只写「每行一个绝对路径前缀」
-   * 用户仍然不知道它解决什么问题，也不知道填了以后请求会走到哪。
+   * 这段文案渲染在 tip 悬浮层里（原先平铺在标题下），固定三行：是什么 / 怎么写 / 举例子。
+   *
+   * 三行各司其职，缺一不可：只写「每行一个绝对路径前缀」，用户既不知道它解决什么
+   * 问题，也不知道前缀该填到哪里为止。举例子必须给一个**真实形态**的插件 API 路径
+   * 及其前缀，否则用户仍会照着「/plugin-api/xxx」去猜前缀边界。
+   *
+   * 换行符由 `.dsh-fnos-gateway-tip-content` 的 `white-space: pre-line` 渲染，
+   * 不要把它改成单行长句——那样三行结构会消失。
    */
-  gatewayProxyDescription: '反向代理：把以这些前缀开头的请求转发给本机其它服务，用于让三方插件访问本地 API。每行填一个以 / 开头的绝对路径前缀，保存后刷新页面即生效。例如填 /plugin-api 后，访问 /plugin-api/xxx 会转发到对应服务。',
+  gatewayProxyDescription: '是什么：把三方插件的绝对路径 API 统一接入应用网关，由网关按前缀转发到对应服务。\n怎么写：一行填一个以 / 开头的绝对路径前缀，保存后刷新页面生效。\n举例子：插件 API 是 /plugin-api/get/me，就填 /plugin-api。',
   gatewayProxyPlaceholder: '每行一个绝对路径前缀，例如 /plugin-api\n按 Ctrl+S（macOS 为 ⌘S）保存',
   save: '保存',
   discard: '放弃',

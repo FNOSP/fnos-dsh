@@ -65,10 +65,10 @@ describe('配置区不再折叠，内容常驻', () => {
 })
 
 describe('授权目录列表：固定高度、超出滚动', () => {
-  it('列表容器有 500px 上限并允许纵向滚动', () => {
+  it('列表容器有 300px 上限并允许纵向滚动', () => {
     const block = SCSS.slice(SCSS.indexOf('.dsh-fnos-authorized-path-list'))
     const rule = block.slice(0, block.indexOf('}'))
-    expect(rule).toContain('max-height: 500px')
+    expect(rule).toContain('max-height: 300px')
     expect(rule).toContain('overflow-y: auto')
   })
 
@@ -102,15 +102,58 @@ describe('反代配置：文案、tip、placeholder、行数上限', () => {
     expect(tip.slice(0, 400)).toContain('aria-label=')
   })
 
-  it('描述涵盖「是什么 / 怎么用 / 举例」三要素', () => {
-    const tip = zhCopy('gatewayProxyDescription')
-    expect(tip.length).toBeGreaterThan(40)
-    // 是什么
-    expect(tip).toMatch(/反代|代理|转发/)
-    // 怎么用：绝对路径前缀 + 每行一个
-    expect(tip).toMatch(/每行/)
-    // 举例：至少出现一个 / 开头的示例前缀
-    expect(tip).toMatch(/\/[a-z-]+/i)
+  it('描述固定三行：是什么 / 怎么写 / 举例子', () => {
+    // `zhCopy` 取的是**源码字面量**，其中的 `\n` 在文件里是两个字符（反斜杠 + n），
+    // 而运行时会被 JS 解析成真换行。要断言行结构，先按 JS 的规则解回来。
+    const tip = zhCopy('gatewayProxyDescription').replace(/\\n/g, '\n')
+    const lines = tip.split('\n')
+
+    expect(lines).toHaveLength(3)
+    // 第一行：是什么——统一接入网关，而不是「转发给本机其它服务」。
+    expect(lines[0]).toContain('是什么')
+    expect(lines[0]).toMatch(/网关/)
+    expect(lines[0]).toMatch(/三方插件/)
+    // 第二行：怎么写——绝对路径前缀 + 一行一个。
+    expect(lines[1]).toContain('怎么写')
+    expect(lines[1]).toMatch(/每行|一行/)
+    expect(lines[1]).toMatch(/绝对路径前缀/)
+    // 第三行：举例子——必须给出**真实形态**的插件 API 路径及其前缀。
+    expect(lines[2]).toContain('举例子')
+    expect(lines[2]).toContain('/plugin-api/get/me')
+    expect(lines[2]).toContain('/plugin-api')
+  })
+
+  it('源码里的换行是转义序列，运行时才成为真换行', () => {
+    // 上一条断言依赖这个前提：如果谁把 `\n` 改成真的换行写进字符串字面量，
+    // 源码会变成多行、而渲染结果不变，上一条仍会通过但可读性变差。
+    expect(zhCopy('gatewayProxyDescription')).toContain('\\n')
+  })
+
+  it('说明点明 proxy 的作用是接入统一网关', () => {
+    // 这条是本次的语义修正：功能不是「转发给本机其它服务」，而是把三方插件的
+    // 绝对路径 API 统一接入应用网关。
+    expect(zhCopy('gatewayProxyDescription')).toMatch(/统一接入|接入.*网关|网关.*接入/)
+  })
+
+  it('tooltip 带专用类，换行才渲染得出来', () => {
+    // 三行结构靠 `white-space: pre-line` 渲染；浮层 portal 到 body，只能靠类名命中。
+    expect(CARD).toContain('className="dsh-fnos-gateway-tip-content"')
+    const tipRule = (() => {
+      const i = SCSS.indexOf('.semi-tooltip-wrapper.dsh-fnos-gateway-tip-content')
+      return SCSS.slice(i, i + SCSS.slice(i).indexOf('}'))
+    })()
+    expect(tipRule).toContain('white-space: pre-line')
+  })
+
+  it('多行样式只作用于本 tip，不改动共用提示外观', () => {
+    // 直接给 `.semi-tooltip-wrapper` 加 pre-line 会波及所有提示。
+    const rule = (() => {
+      const i = SCSS.indexOf('.semi-tooltip-wrapper.dsh-fnos-gateway-tip-content')
+      return SCSS.slice(i, i + SCSS.slice(i).indexOf('}'))
+    })()
+    expect(rule).toContain('dsh-fnos-gateway-tip-content')
+    // 不应存在一条裸 `.semi-tooltip-wrapper { white-space: ... }` 规则。
+    expect(SCSS).not.toMatch(/\.semi-tooltip-wrapper\s*\{[^}]*white-space/)
   })
 
   it('placeholder 提示保存快捷键与「一行一个」', () => {

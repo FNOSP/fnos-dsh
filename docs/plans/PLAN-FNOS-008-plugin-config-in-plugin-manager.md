@@ -179,6 +179,7 @@ sequenceDiagram
 | PLAN-FNOS-008-T01-01 | FNOS-008-01 / AC-01–03 | 补充插件类型依赖：`package.json` 增加 `@deepseek-ai/dsh-client-ui-plugin-manager: catalog:dsh`（并在 `pnpm-workspace.yaml` 的 `catalogs.dsh` 登记 `0.1.7-rc.2`）；client 注册从 `settings.plugins.tab` 换为 **`plugins.detail.section`**（list 座位：用 `id` 而非 key、不声明 `inject`、按 `subject` 自筛包名）；卡片 props 类型从 `PropsRuntime<'settings.plugins.tab'>` 改为独立 props | 无 | 插件构建通过；本地 `dsh web` 详情页「包含的组件」**之后**出现授权目录区块 |
 | PLAN-FNOS-008-T01-02 | FNOS-008-01 / AC-01–02 | 卡片行为适配与回归：确认添加/删除/刷新/保存失败保护在详情页容器中不变 | T01-01 | 插件单测 + 本地交互走查 |
 | PLAN-FNOS-008-T01-03 | FNOS-008-01-AC-03、FNOS-008-04-AC-01 | 契约测试更新：`package-contract.spec.ts`、`settings-migration.spec.ts` 的 slot 与 inject 断言改为 `plugins.detail.section`；补 subject 自筛用例（list 座位不筛会串到别的插件详情页） | T01-01 | `pnpm --filter @tnnevol/dsh-fnos test`（或对应 vitest 过滤）通过 |
+| PLAN-FNOS-008-T01-04 | FNOS-008-01 / AC-05、AC-06 | 呈现微调：授权目录列表上限 `500px → 300px`；tip 说明改为三行结构（是什么 / 怎么写 / 举例子），用途改为「把三方插件的绝对路径 API 统一接入应用网关」，举例改为 `/plugin-api/get/me` → `/plugin-api`；新增 `.dsh-fnos-gateway-tip-content` 专用类承载 `white-space: pre-line`（浮层 portal 到 body，直接改 `.semi-tooltip-wrapper` 会波及所有提示） | 无 | `tests/client/detail-section-ui.spec.ts` 断言 300px、三行结构（`split('\n')` 长度为 3）、示例前缀、`pre-line` 只在专用类上；反转任一项变红；插件全量测试通过 |
 
 ### 阶段二：CodeBuddy 迁移与 Desktop 适配（T02-01–T02-06）
 
@@ -381,3 +382,4 @@ flowchart TD
 | 2026-09-29 | 登记验证记录 | 补登三份 `docs/validation/` 记录：FNOS-008-01（fnOS 授权目录迁入详情页）、FNOS-008-02（CodeBuddy 详情页与设置浮层）、FNOS-008-06（Desktop 运行时复验）。01/02 此前只有提交与单测、无验证记录，属流程缺失。另更正 FNOS-008-06 旧记录「本机未安装 Electron、无法验收」已被事实取代——目标运行时（`/Applications/DeepSeek Harness.app`）已安装且实测两个插件均在 Desktop 上激活；按验收规范「证据只追加，不修改」，以新文件取代，旧记录保持原样。 |
 | 2026-09-29 | 按插件拆分环境验收阶段 | CodeBuddy/Codex Auth 改为 DSH Web 与 Desktop 验收；真实 NAS 阶段仅覆盖 fnOS 插件授权目录及其数据保留，调整影响矩阵、任务依赖和验收清单。 |
 | 2026-09-29 | 新增 T07-09 | Token 统计在详情页内改回常驻区块（与账号管理同级呈现），删除折叠容器与配套样式；登记 FNOS-008-02-AC-06。 |
+| 2026-09-29 | 新增 T01-04 | fnOS 授权目录上限改 300px；proxy 说明改为三行结构并更正用途表述与举例，登记 FNOS-008-01-AC-05、AC-06。 |

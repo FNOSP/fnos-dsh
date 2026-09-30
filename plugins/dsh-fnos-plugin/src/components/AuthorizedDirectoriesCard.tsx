@@ -321,8 +321,12 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
                 * 原先是一段平铺在标题下的长句，占掉两行还挤不出信息量。`tabIndex`
                 * 与 `aria-label` 是必需的：说明只存在于悬浮层时，键盘与读屏用户
                 * 拿不到它——那等于把这部分用户排除在这条说明之外。
+                *
+                * `className` 是必需的：文案按「是什么 / 怎么写 / 举例子」分三行，
+                * 浮层被 portal 到 body，只能靠这个专用类拿到 `white-space: pre-line`
+                * （直接改 `.semi-tooltip-wrapper` 会波及所有提示）。
                 */}
-              <DshTooltip content={t('gatewayProxyDescription')}>
+              <DshTooltip className="dsh-fnos-gateway-tip-content" content={t('gatewayProxyDescription')}>
                 <span
                   className="dsh-fnos-authorized-gateway-tip"
                   tabIndex={0}
