@@ -445,6 +445,7 @@ describe('dsh-fnos package contract', () => {
       '@deepseek-ai/dsh-client-ui-commands',
       '@deepseek-ai/dsh-client-ui-conversation',
       '@deepseek-ai/dsh-client-ui-input-trigger',
+      '@deepseek-ai/dsh-client-ui-plugin-manager',
       '@deepseek-ai/dsh-client-ui-primitives',
       '@deepseek-ai/dsh-client-ui-renderer',
       '@deepseek-ai/dsh-client-ui-session',
