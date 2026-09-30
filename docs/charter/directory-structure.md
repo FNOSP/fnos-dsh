@@ -138,6 +138,7 @@ tooling/<tool-name>/
 | `plugins/` | 插件和共享 UI 面向用户的说明 |
 | `requirements/` | 正式需求规格 |
 | `plans/` | 已进入实施阶段的计划 |
+| `tests/` | 需求测试用例、执行结果与最终测试结论 |
 | `validation/` | NAS、客户端和发布环境验收证据 |
 | `build/` | 打包、版本、CI 和发布说明 |
 | `public/` | 文档站静态资源 |
@@ -147,8 +148,8 @@ tooling/<tool-name>/
 文档归档规则：
 
 - 规范性内容进入 `charter/`；操作说明进入 `guide/` 或 `development/`，不要混放。
-- 需求、计划和验收证据必须分别进入 `requirements/`、`plans/` 和 `validation/`。
-- 文档页面使用小写短横线命名；需求和计划使用既定的 `FNOS-###`、`PLAN-FNOS-###` 前缀。
+- 需求、计划、测试用例和验收证据必须分别进入 `requirements/`、`plans/`、`tests/` 和 `validation/`。
+- 文档页面使用小写短横线命名；需求、计划和测试用例使用既定的 `FNOS-###`、`PLAN-FNOS-###` 前缀（测试用例与需求同号）。
 - 图片、Logo 和其他静态文件进入 `public/`，不要放在 Markdown 页面旁边。
 - 一篇文档只能有一个权威位置；移动或拆分文档时必须同步更新侧边栏和全部引用。
 

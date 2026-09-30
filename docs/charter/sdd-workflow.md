@@ -14,13 +14,15 @@ description: fnOS Apps Monorepo 的需求、计划、实现、验证和发布维
 | 目录结构规范 | `docs/charter/directory-structure.md` |
 | 需求文档规范 | `docs/charter/requirements-spec.md` |
 | 计划文档规范 | `docs/charter/plans-spec.md` |
+| 测试用例文档规范 | `docs/charter/tests-spec.md` |
 | 需求规格 | `docs/requirements/` |
 | 实施计划 | `docs/plans/` |
+| 测试用例 | `docs/tests/` |
 | 真实环境验收证据 | `docs/validation/` |
 | 应用和插件面向用户说明 | `docs/` 下的应用/插件文档 |
 | 跨需求架构决策 | `docs/decisions/`，仅在计划中的决策章节不足以表达时使用 |
 
-不新建与 `requirements/`、`plans/` 重复的 `specs/` 或 `stories/` 目录。`apps/*/README.md` 和 `plugins/*/README.md` 保留作历史或兼容参考，不作为现行需求和面向用户文档的权威入口。
+不新建与 `requirements/`、`plans/`、`tests/` 重复的 `specs/` 或 `stories/` 目录。`apps/*/README.md` 和 `plugins/*/README.md` 保留作历史或兼容参考，不作为现行需求和面向用户文档的权威入口。
 
 开发类文档（`docs/development/`）按主题分组维护：环境与工具、应用开发、插件开发、任务与构建、协作与规范。单页承担三个以上互不相关主题、或篇幅超过约 300 行时，按主题拆分并在侧边栏归入对应分组；不要把一个主题的内容分散到多页，也不要让单页变成混合罗列的长清单。拆分或改名后必须更新全部交叉引用和侧边栏配置，并用 `pnpm run build -- --docs` 确认链接与图表正常。
 
@@ -41,7 +43,8 @@ flowchart TD
   requirement --> review["评审范围、优先级和验收条件"]
   review --> plan["建立实施计划和任务追踪"]
   plan --> implementation["编码并补齐测试/构建验证"]
-  implementation --> target["按实际宿主依赖选择目标环境"]
+  implementation --> testcases["计划任务完成后回填测试用例文档 docs/tests/"]
+  testcases --> target["按实际宿主依赖选择目标环境"]
   target -->|fnOS 插件、网关、FPK/生命周期| nas["真实 NAS 验收"]
   target -->|其他 DSH 插件| client["DSH Web 与 Desktop 验收"]
   target -->|文档站或其他目标| other["对应目标环境验收"]
@@ -52,6 +55,8 @@ flowchart TD
 ```
 
 未进入计划的 P2、后续计划和未确认能力不得出现在当前计划的阶段任务、详细交互、完成状态或测试清单中。
+
+测试用例的归属：**计划任务完成后，在 `docs/tests/` 回填与需求同编号（`FNOS-###`）的测试用例文档**，包含用例定义、执行结果、Bug 记录和最终测试结论；计划文档的「测试、打包、发布和回滚」章节只描述验证层次、环境和回滚方式，不再展开测试用例表。规则见[测试用例文档规范](./tests-spec.md)。
 
 ## 文档图示规范
 
@@ -81,10 +86,12 @@ flowchart LR
 | 需求功能 | `FNOS-###-##` | `FNOS-001-10` |
 | 验收条件 | `<功能 ID>-AC-##` | `FNOS-001-10-AC-01` |
 | 计划任务 | `PLAN-FNOS-###-T##-##` | `PLAN-FNOS-001-T10-01` |
-| 测试场景 | `<功能 ID>-TEST-##` | `FNOS-001-10-TEST-01` |
+| 测试用例文档 | `FNOS-###`（与需求同号） | `docs/tests/FNOS-009` |
+| 测试用例 | `TC-###`（文档内连续） | `TC-001` |
+| 测试 Bug | `BUG-##`（文档内连续） | `BUG-01` |
 | 环境证据 | `<功能 ID>-ENV-##` | `FNOS-001-10-ENV-01` |
 
-每个 P0/P1 功能至少要能从需求追踪到验收条件、计划任务、测试和目标环境结论。计划文档可以维护追踪矩阵，不复制需求正文。被后续变更取代的已完成功能，其追踪链路从**当前开发中的需求**重新建立，不需要回改已完成的原文。
+每个 P0/P1 功能至少要能从需求追踪到验收条件、计划任务、测试用例（`docs/tests/`）和目标环境结论。计划文档可以维护追踪矩阵，不复制需求正文。被后续变更取代的已完成功能，其追踪链路从**当前开发中的需求**重新建立，不需要回改已完成的原文。
 
 ## 状态规则
 

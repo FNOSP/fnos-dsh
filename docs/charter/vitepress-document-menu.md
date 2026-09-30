@@ -24,6 +24,7 @@ description: fnOS DSH 文档新增、归档与 VitePress 左侧菜单登记规�
 | `docs/plugins/` | `/plugins/` | `appSidebar` | 插件总览页 |
 | `docs/requirements/` | `/requirements/` | `requirementsSidebar` | `docs/requirements/index.md` |
 | `docs/plans/` | `/plans/` | `plansSidebar` | `docs/plans/index.md` |
+| `docs/tests/` | `/tests/` | `testsSidebar` | `docs/tests/index.md` |
 | `docs/validation/` | `/validation/` | 对应验收 sidebar | `docs/validation/README.md` 或验收索引 |
 
 以上映射以 `docs/.vitepress/config.mts` 为唯一菜单配置入口。新增目录时，必须先更新[目录结构规范](./directory-structure.md)，再补充对应映射。
@@ -51,7 +52,8 @@ description: fnOS DSH 文档新增、归档与 VitePress 左侧菜单登记规�
 - 新需求同时更新 `docs/requirements/index.md`；
 - 新计划同时更新 `docs/plans/index.md`；
 - 新章程同步更新 `AGENTS.md` 的文档索引；
-- 新验收证据同步更新 `docs/validation/README.md` 或对应验收索引。
+- 新验收证据同步更新 `docs/validation/README.md` 或对应验收索引；
+- 新测试用例文档同步更新 `docs/tests/index.md`，并在 `testsSidebar` 加入条目（与需求同编号）。
 
 ### 4. 检查链接与构建
 

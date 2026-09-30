@@ -98,6 +98,7 @@ const charterItems = [
   { text: 'SDD 维护规范', link: '/charter/sdd-workflow' },
   { text: '需求文档规范', link: '/charter/requirements-spec' },
   { text: '计划文档规范', link: '/charter/plans-spec' },
+  { text: '测试用例文档规范', link: '/charter/tests-spec' },
   { text: 'VitePress 文档菜单规范', link: '/charter/vitepress-document-menu' },
   { text: '插件 UI 规范', link: '/charter/plugin-ui-standards' },
   { text: '目录结构规范', link: '/charter/directory-structure' }
@@ -259,6 +260,20 @@ const plansSidebar = [
   }
 ]
 
+// 测试用例文档与需求同编号（FNOS-###），每个需求一个条目，便于多个需求并列查看。
+const testsSidebar = [
+  {
+    text: '测试用例',
+    items: [
+      { text: '测试用例清单', link: '/tests/' },
+      {
+        text: 'FNOS-009 DSH 0.2.0-rc.2 插件适配',
+        link: '/tests/FNOS-009-dsh-020-rc2-adaptation'
+      },
+    ]
+  }
+]
+
 // 项目内置的 DeepSeek Harness 图标，供标签 favicon、导航栏 logo 和首页 hero 图共用。
 const DSH_LOGO = '/icons/dsh-logo.svg'
 
@@ -307,6 +322,11 @@ export default defineConfig({
         text: '详细计划',
         link: '/plans/',
         activeMatch: '^/plans(/|$)'
+      },
+      {
+        text: '测试用例',
+        link: '/tests/',
+        activeMatch: '^/tests(/|$)'
       }
     ],
     sidebar: {
@@ -319,6 +339,7 @@ export default defineConfig({
       '/troubleshooting': developmentSidebar,
       '/requirements/': requirementsSidebar,
       '/plans/': plansSidebar,
+      '/tests/': testsSidebar,
       '/contributing': developmentSidebar
     },
     outline: {

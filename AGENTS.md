@@ -34,11 +34,13 @@
 | 项目维护章程与 SDD 规范 | [`docs/charter/sdd-workflow.md`](docs/charter/sdd-workflow.md) |
 | 需求文档规范 | [`docs/charter/requirements-spec.md`](docs/charter/requirements-spec.md) |
 | 计划文档规范 | [`docs/charter/plans-spec.md`](docs/charter/plans-spec.md) |
+| 测试用例文档规范 | [`docs/charter/tests-spec.md`](docs/charter/tests-spec.md) |
 | VitePress 文档菜单规范 | [`docs/charter/vitepress-document-menu.md`](docs/charter/vitepress-document-menu.md) |
 | 插件 UI 规范（Semi UI 与共享包主题） | [`docs/charter/plugin-ui-standards.md`](docs/charter/plugin-ui-standards.md) |
 | 目录结构规范 | [`docs/charter/directory-structure.md`](docs/charter/directory-structure.md) |
 | 需求清单 | [`docs/requirements/index.md`](docs/requirements/index.md) |
 | 实施计划 | [`docs/plans/index.md`](docs/plans/index.md) |
+| 测试用例 | [`docs/tests/index.md`](docs/tests/index.md) |
 | 验收证据 | [`docs/validation/README.md`](docs/validation/README.md) |
 | 开发环境 | [`docs/development/environment.md`](docs/development/environment.md) |
 | 常用命令与脚本 | [`docs/development/commands-and-scripts.md`](docs/development/commands-and-scripts.md) |
@@ -65,6 +67,7 @@
 - Commit 描述和正文使用中文（type/scope 保持 Conventional Commits 规范），见 [贡献指南](docs/contributing.md)。
 - 代码注释使用中文、保持简洁，删除功能时同步删除对应注释，见 [路径与编码](docs/development/conventions.md)。
 - 每次功能完成及时更新 `apps/fn-deepseek-harness/manifest` 的 `desc` 与 `changelog`；`desc` 支持富文本（HTML），见 [Manifest 清单配置](docs/development/manifest.md)。
+- 计划任务完成后在 `docs/tests/` 回填与需求同编号的测试用例文档（含结果、Bug、最终结论）；计划文档不再写测试用例表，见 [测试用例文档规范](docs/charter/tests-spec.md)。
 - 官方上游项目只作为契约和行为参考，不直接修改或提交上游代码。
 
 ## 官方文档

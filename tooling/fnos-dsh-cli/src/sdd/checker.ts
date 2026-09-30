@@ -56,7 +56,7 @@ export function checkSddDocs(root: string): string[] {
       }
     }
   }
-  const checkDocument = (file: string, kind: 'requirement' | 'plan'): void => {
+  const checkDocument = (file: string, kind: 'requirement' | 'plan' | 'tests'): void => {
     const content = read(file)
     const metadata = frontmatter(content)
     if (metadata === undefined) errors.push(`${relative(file)}: missing frontmatter`)
@@ -65,6 +65,8 @@ export function checkSddDocs(root: string): string[] {
         if (!metadata.get(field)) errors.push(`${relative(file)}: frontmatter field ${field} is required`)
       }
       for (const field of ['id', 'status', 'owner', 'targetVersion', 'lastVerified']) {
+        // 测试用例文档面向执行结果，不承载 owner 与 targetVersion 追踪。
+        if (kind === 'tests' && (field === 'owner' || field === 'targetVersion')) continue
         if (!metadata.get(field)) errors.push(`${relative(file)}: frontmatter field ${field} is required for SDD tracking`)
       }
       const lastVerified = metadata.get('lastVerified')
@@ -81,6 +83,10 @@ export function checkSddDocs(root: string): string[] {
       if (!hasMetadataRow(content, '计划编号', 'PLAN-FNOS-\\d+')) errors.push(`${relative(file)}: missing PLAN-FNOS metadata row`)
       if (!/\]\(\/requirements\/[^)]+\)/.test(content)) errors.push(`${relative(file)}: missing link to a requirement document`)
     }
+    if (kind === 'tests') {
+      if (!/\]\(\/requirements\/[^)]+\)/.test(content)) errors.push(`${relative(file)}: missing link to a requirement document`)
+      if (!/\]\(\/plans\/[^)]+\)/.test(content)) errors.push(`${relative(file)}: missing link to a plan document`)
+    }
     checkInternalLinks(file, content)
   }
 
@@ -95,9 +101,13 @@ export function checkSddDocs(root: string): string[] {
 
   const requirementFiles = markdownFiles(path.join(docsRoot, 'requirements')).filter(file => path.basename(file) !== 'index.md')
   const planFiles = markdownFiles(path.join(docsRoot, 'plans')).filter(file => path.basename(file) !== 'index.md')
+  const testFiles = markdownFiles(path.join(docsRoot, 'tests')).filter(file => path.basename(file) !== 'index.md')
   for (const file of requirementFiles) checkDocument(file, 'requirement')
   for (const file of planFiles) checkDocument(file, 'plan')
+  for (const file of testFiles) checkDocument(file, 'tests')
   collectUniqueIds(requirementFiles, /^\|\s*(FNOS-\d+-\d+)\s*\|/gm, 'requirement feature ID')
   collectUniqueIds(planFiles, /^\|\s*(PLAN-FNOS-\d+(?:-T\d+(?:-\d+)?)?)\s*\|/gm, 'plan ID')
+  // 测试用例文档与需求同号，唯一性按需求级 FNOS-### 校验。
+  collectUniqueIds(testFiles, /^id:\s*(FNOS-\d+)\s*$/gm, 'test document ID')
   return errors
 }

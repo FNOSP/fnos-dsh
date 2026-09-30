@@ -12,10 +12,11 @@ export async function runCheckSdd(): Promise<void> {
     return
   }
 
-  const [requirements, plans] = await Promise.all([
+  const [requirements, plans, tests] = await Promise.all([
     readdir(join(repositoryRoot, 'docs/requirements')),
     readdir(join(repositoryRoot, 'docs/plans')),
+    readdir(join(repositoryRoot, 'docs/tests')).catch(() => []),
   ])
   const countDocuments = (files: string[]): number => files.filter(file => file.endsWith('.md') && file !== 'index.md').length
-  console.log(`SDD docs check passed: ${countDocuments(requirements)} requirement document(s), ${countDocuments(plans)} plan document(s)`)
+  console.log(`SDD docs check passed: ${countDocuments(requirements)} requirement document(s), ${countDocuments(plans)} plan document(s), ${countDocuments(tests)} test document(s)`)
 }
