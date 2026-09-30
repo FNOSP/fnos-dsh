@@ -88,15 +88,23 @@ verifiedAt: 2026-09-30
 | 被测对象 | 执行环境 | 执行方式 |
 | --- | --- | --- |
 | fnOS 插件（`dsh-fnos`）及依赖 fnOS 宿主桥接、NAS 文件能力、安装/升级生命周期的功能 | 真实 fnOS NAS | 部署 FPK 后在设备上执行，证据按[验收证据规范](../validation/README.md)登记 `docs/validation/` |
-| 其他 DSH 插件（Codex Auth、CodeBuddy、Semi UI Showcase 等）与插件 UI 功能 | 本项目 DSH CLI 启动的 DSH Web | 用 `pnpm run start -- --web` 启动；CLI 固定把 `DSH_HOME` 指向仓库根 `.dsh` 目录，profile、凭据和会话留在检出目录内，不污染开发者 `$HOME/.dsh` |
+| 其他 DSH 插件（Codex Auth、CodeBuddy、Semi UI Showcase 等）与插件 UI 功能 | **DSH Web 与 DSH Desktop（至少两者）** | Web：`pnpm run start -- --web`；Desktop：在安装的 DSH Desktop 客户端中加载待测插件版本后人工走查（见下） |
 | 纯文档与构建产物 | 文档站构建环境 | `pnpm run build -- --docs` 与 `git diff --check` |
 
-DSH Web 本地测试的统一约定：
+**兼容基线**：除 fnOS 插件只需兼容真实 NAS 外，其他 DSH 插件**至少同时兼容 DSH Web 与 DSH Desktop**；测试用例必须覆盖两个客户端，只记录单一客户端结果不构成该插件的完成结论。
+
+### DSH Web 本地测试
 
 - **启动命令**：`pnpm run start -- --web`（需要同时 watch 插件时加 `--plugin`，详见[本地 DSH Web](../development/local-dsh-web.md)）；不要手工另起 DSH 进程。
 - **`DSH_HOME` 必须指向项目的 `.dsh` 目录**：CLI 的 `start --web` 已自动注入（`<repo>/.dsh`），手工执行 `dsh` 命令核对配置时同样必须带 `DSH_HOME="$PWD/.dsh"`；禁止把本地测试指向 `$HOME/.dsh` 或其他检出目录。
 - 本地端口固定 `8070`，与 FPK 网关的 `127.0.0.1:3080` 互不冲突，可同时运行。
-- 用例的「前置条件」与「执行环境」按上述口径填写；涉及 fnOS 宿主桥接差异的场景（如 SDK 授权接口在 Flutter 壳上的行为）仍以真实 NAS 结论为准。
+
+### DSH Desktop 测试
+
+- **客户端**：使用实际安装的 DSH Desktop（Electron 壳）执行；Desktop 无法由本仓库 CLI 直接拉起，测试前先把待测插件版本装入 Desktop 所用 profile，再启动客户端。
+- **验证重点**：Desktop 与 Web 的宿主差异点优先覆盖——外部链接经系统默认浏览器打开（Electron `setWindowOpenHandler` 语义）、OAuth 授权回流、插件详情页/配置区块渲染、设置页呈现；行为以 Desktop 实测为准，不以 Web 结果外推。
+- **结论登记**：Desktop 走查结论可与同一需求的 Web 走查合并登记在测试用例文档的「测试执行结果」，按客户端分列；涉及真实用户确认的结论按[验收证据规范](../validation/README.md)登记 `docs/validation/`。
+- 用例的「前置条件」与「执行环境」按上述口径填写；执行环境取值使用 `DSH Web`、`DSH Desktop`、`真实 fnOS NAS`、`文档站构建环境`，不使用「本地」等含糊表述。
 
 ## 用例模板
 
@@ -159,7 +167,7 @@ DSH Web 本地测试的统一约定：
 - [ ] 用例文档已加入 `docs/.vitepress/config.mts` 的 `testsSidebar` 并更新 `docs/tests/index.md`。
 - [ ] 元数据含 `id`、`title`、`description`、`requirement`、`plan`、`status`、`lastVerified`、`verifiedAt`。
 - [ ] 功能点、验收条件、计划任务引用全部使用 markdown 链接指向目标文档锚点，无纯文本编号（见[上下文关联](#上下文关联必填)）。
-- [ ] 执行环境按[测试环境执行方式](#测试环境执行方式)填写：fnOS 插件走真实 NAS，其他插件走 `pnpm run start -- --web`（`DSH_HOME` 指向项目 `.dsh`）。
+- [ ] 执行环境按[测试环境执行方式](#测试环境执行方式)填写：fnOS 插件走真实 NAS，其他插件至少覆盖 DSH Web（`pnpm run start -- --web`，`DSH_HOME` 指向项目 `.dsh`）与 DSH Desktop 两个客户端。
 - [ ] 执行结果、Bug、结论仅在执行后回填，用例定义未被改写。
 - [ ] `pnpm run check -- --sdd` 与文档构建通过。
 
@@ -168,6 +176,7 @@ DSH Web 本地测试的统一约定：
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-09-30 | 新增测试环境执行方式 | 明确除 fnOS 插件外的其他插件统一在项目 DSH CLI 启动的 DSH Web 中测试（`pnpm run start -- --web`，`DSH_HOME` 固定指向仓库 `.dsh`），fnOS 插件仍走真实 NAS。 |
+| 2026-09-30 | 补充 Desktop 测试要求 | 非 fnOS 插件至少兼容 DSH Web 与 DSH Desktop 两个客户端并均纳入用例；新增 Desktop 测试执行方式（客户端获取、宿主差异验证重点、结论登记）。 |
 
 ## 回填时机
 
