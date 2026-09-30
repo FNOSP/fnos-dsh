@@ -11,6 +11,6 @@
     "@miletorix/vitepress-image-viewer": "catalog:",
     "vitepress": "catalog:",
     "vitepress-mermaid-renderer": "catalog:",
-    "vitepress-plugin-back-to-top": "catalog:"
+    "vitepress-plugin-back2top": "catalog:"
   }
 }

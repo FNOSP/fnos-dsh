@@ -6,8 +6,6 @@ import ImageViewerP from '@miletorix/vitepress-image-viewer'
 import AppIcon from './components/AppIcon.vue'
 import VersionBadge from './components/VersionBadge.vue'
 import FlowGrid from './components/FlowGrid.vue'
-import vitepressBackToTop from 'vitepress-plugin-back-to-top'
-import 'vitepress-plugin-back-to-top/dist/style.css'
 import '@miletorix/vitepress-image-viewer/style.css'
 import './custom.css'
 
@@ -109,8 +107,6 @@ export default {
   enhanceApp({ app }) {
     app.component('AppIcon', AppIcon)
     app.component('FlowGrid', FlowGrid)
-    // 回到顶部：开源插件在 window load 后挂载独立节点，阈值 320px 与导航栏高度匹配。
-    vitepressBackToTop({ threshold: 320 })
     ImageViewerP(app, {
       autoShowThumbnails: false,
       transparentBg: true

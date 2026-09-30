@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import { back2topPlugin } from 'vitepress-plugin-back2top'
 import packageJson from '../package.json'
 
 const repositoryName = process.env.GITHUB_REPOSITORY?.split('/')[1] || 'fn-os-apps'
@@ -285,6 +286,11 @@ export default defineConfig({
   description: '飞牛 fnOS 的 DeepSeek Harness 应用与 DSH 插件开发文档。',
   base,
   vite: {
+    plugins: [
+      // 回到顶部：向默认主题 Layout 的 doc-after slot 注入按钮；
+      // top 与导航阈值对齐，marginBottom 抬高避开页脚遮挡。
+      back2topPlugin({ top: 320, marginBottom: 96 })
+    ],
     server: {
       port: 8876
     }
