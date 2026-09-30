@@ -38,7 +38,7 @@ issue 是变更入口之一，不直接等于需求规格。维护者确认有�
 
 ## 提交规范
 
-本仓库使用 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/) 规范，提交信息由提交钩子自动校验：
+本仓库使用 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/) 规范，**提交信息使用中文描述**，由提交钩子自动校验格式：
 
 ```text
 <type>(<scope>): <description>
@@ -59,19 +59,19 @@ issue 是变更入口之一，不直接等于需求规格。维护者确认有�
 | `perf` | 性能优化 |
 | `revert` | 回滚提交 |
 
-`scope` 建议使用受影响的应用名、插件名或模块名，例如 `fn-deepseek-harness`、`dsh-fnos`、`hooks`。描述使用祈使句，简明说明结果，不要以句号结尾。
+`scope` 建议使用受影响的应用名、插件名或模块名，例如 `fn-deepseek-harness`、`dsh-fnos`、`hooks`。**描述必须使用中文**，简明说明结果，不要以句号结尾。
 
 ```text
-feat(fn-deepseek-harness): add configurable storage settings
-fix(fn-deepseek-harness): restrict unsupported listen address
-docs(contributing): document commit conventions
-chore(hooks): update lint-staged rules
+feat(fn-deepseek-harness): 新增可配置的存储设置
+fix(fn-deepseek-harness): 限制不支持的监听地址
+docs(contributing): 补充提交规范说明
+chore(hooks): 更新 lint-staged 规则
 ```
 
-复杂变更可以在标题后增加正文，说明背景、实现和影响；涉及不兼容变更时，在正文或页脚注明：
+复杂变更可以在标题后增加正文，正文同样使用中文；涉及不兼容变更时，在正文或页脚注明：
 
 ```text
-BREAKING CHANGE: change the application configuration field name
+BREAKING CHANGE: 应用配置字段名变更为 storage.config
 ```
 
 ### 提交前检查

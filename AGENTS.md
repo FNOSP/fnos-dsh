@@ -62,6 +62,8 @@
 - 修改 DSH Slot 前先检查已有 `id` 和 `priority`；不要制造相同 `id`、相同优先级的列表项。
 - 应用和插件面向用户的说明只维护 `docs/apps/`、`docs/plugins/` 等文档站页面，不把 `README.md` 作为现行说明入口。
 - 不要编造项目中不存在的文档、API 或资源链接。
+- Commit 描述和正文使用中文（type/scope 保持 Conventional Commits 规范），见 [贡献指南](docs/contributing.md)。
+- 代码注释使用中文、保持简洁，删除功能时同步删除对应注释，见 [路径与编码](docs/development/conventions.md)。
 - 官方上游项目只作为契约和行为参考，不直接修改或提交上游代码。
 
 ## 官方文档
