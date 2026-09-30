@@ -44,6 +44,7 @@ status: passed|failed|blocked
 
 ## 当前记录
 
+- [FNOS-007/008 v5.5.0 真实 NAS 安装复验记录（2026-09-30）](/validation/FNOS-007-008-nas-v550-2026-09-30)
 - [FNOS-007 真实 NAS 验收记录（2026-09-30）](/validation/FNOS-007-nas-2026-09-30)
 - [FNOS-007 Web/Desktop 验收记录（2026-09-30）](/validation/FNOS-007-web-desktop-2026-09-30)
 - [FNOS-008-01 fnOS 授权目录真实 NAS 验收记录（2026-09-30）](/validation/FNOS-008-01-nas-2026-09-30)
