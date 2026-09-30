@@ -65,6 +65,12 @@ background: var(--dsw-specific-menu);
 backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%));
 ```
 
+毛玻璃的层级约定（测试按此核对，见[测试用例文档规范](./tests-spec.md)的 UI 测试章节）：
+
+- `backdrop-filter` 尽量加在**父元素**：由承载透明背景的容器统一设置模糊，子元素直接继承模糊后的视觉。
+- 子元素**禁止重复叠加**：不得同时使用 `backdrop-filter` 与透明背景（两层模糊产生重影与性能损耗）；子元素需要自己的表面时用不透明或半透明纯色变量。
+- 一个视觉块只允许一条模糊链路；Safari 18 之前需成对写 `-webkit-backdrop-filter`（共享包主题已处理）。
+
 细节与已知坑见 [DSH Semi UI 共享包](/plugins/dsh-semi-ui)。
 
 ## 共享包维护职责
@@ -85,6 +91,9 @@ backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%));
 - [ ] 新增的通用组件已下沉到共享包并导出，而不是留在单个插件内。
 - [ ] Client 启动安装了 `installSemiDshTheme()`，且通过 `ctx.effect` 清理。
 - [ ] 自定义样式只使用 DSH 语义变量，没有硬编码颜色。
+- [ ] 亮色与暗色主题下的文本、阴影、border 与背景对比都成立，主题切换后无残留单侧样式。
+- [ ] 相邻元素的 padding/margin 叠加与 BFC 行为符合预期；需要隔离时优先 `display: flow-root`。
+- [ ] 毛玻璃 `backdrop-filter` 加在承载透明背景的父元素上，子元素没有重复叠加模糊与透明背景。
 - [ ] 没有插件内的 `.semi-*` 主题覆盖样式；主题调整已提交到共享包。
 - [ ] 涉及共享包或主题修改时，已重建并验证所有消费插件。
 
