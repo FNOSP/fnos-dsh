@@ -59,7 +59,8 @@ flowchart TD
 | FNOS-004 | [DSH 0.1.5-rc.2 适配与 FPK 运行修复](/requirements/FNOS-004-dsh-015-rc2-adaptation) | 已完成 |
 | FNOS-005 | [CodeBuddy 成长任务移植与仓库内 DSH 开发环境](/requirements/FNOS-005-codebuddy-and-local-dsh) | 已完成 |
 | FNOS-006 | [安装脚本与安装流程优化](/requirements/FNOS-006-installation-script-optimization) | 规划中 |
-| FNOS-007 | [DSH 0.1.7-rc.2 适配与插件错误修复](/requirements/FNOS-007-dsh-017-rc2-adaptation) | 规划中 |
-| FNOS-008 | [插件配置统一迁入插件管理页](/requirements/FNOS-008-plugin-config-in-plugin-manager) | 规划中 |
+| FNOS-007 | [DSH 0.1.7-rc.2 适配与插件错误修复](/requirements/FNOS-007-dsh-017-rc2-adaptation) | 已完成 |
+| FNOS-008 | [插件配置统一迁入插件管理页](/requirements/FNOS-008-plugin-config-in-plugin-manager) | 已完成 |
+| FNOS-009 | [DSH 0.2.0-rc.2 插件适配](/requirements/FNOS-009-dsh-020-rc2-adaptation) | 规划中 |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

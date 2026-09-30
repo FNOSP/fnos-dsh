@@ -206,6 +206,10 @@ const requirementsSidebar = [
         text: 'FNOS-008 插件配置统一迁入插件管理页',
         link: '/requirements/FNOS-008-plugin-config-in-plugin-manager'
       },
+      {
+        text: 'FNOS-009 DSH 0.2.0-rc.2 插件适配',
+        link: '/requirements/FNOS-009-dsh-020-rc2-adaptation'
+      },
     ]
   }
 ]
@@ -246,6 +250,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-008 插件配置统一迁入插件管理页',
         link: '/plans/PLAN-FNOS-008-plugin-config-in-plugin-manager'
+      },
+      {
+        text: 'PLAN-FNOS-009 DSH 0.2.0-rc.2 插件适配',
+        link: '/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation'
       },
     ]
   }
