@@ -103,9 +103,13 @@ verifiedAt: 2026-09-30
 
 - **客户端**：使用实际安装的 DSH Desktop（Electron 壳）执行；Desktop 无法由本仓库 CLI 直接拉起，测试前先把待测插件版本装入 Desktop 所用 profile，再启动客户端。
 - **profile 位置约束（强制）**：Desktop 测试**禁止使用 `~/.dsh/profiles/desktop`**（用户主目录下的个人 profile，含个人凭据与个人配置）；必须使用**项目根目录 `.dsh/profiles/desktop`**，与本地 Web 测试共用同一份 `DSH_HOME=<repo>/.dsh`，使 Desktop 测试与 Web 测试的插件版本、auth 配置备份/恢复（见[账号状态测试顺序与 auth 配置备份](#账号状态测试顺序与-auth-配置备份)）和数据清理作用在同一目录上。
-  - profile 不存在时从项目 `.dsh` 创建：`DSH_HOME="$PWD/.dsh" pnpm exec dsh --from-default-profile desktop`，再用 `DSH_HOME="$PWD/.dsh" pnpm exec dsh plugin --profile desktop add <插件目录>` 链接待测插件（构建产物要求与 Web profile 相同，见[本地 DSH Web](../development/local-dsh-web.md)）。
+  - **profile 由 Desktop 应用自己创建**：`desktop` 是 Electron 应用保留的 profile 名，dsh CLI 一律拒绝操作它（`dsh plugin --profile desktop …` 报 `profile "desktop" is managed exclusively by the Electron application`），且它**不是**随发行版的 profile 模板（`dsh-app-boot` 的 `PROFILE_TEMPLATES` 只有 `acp`、`web`、`headless`、`sdk`、`sdk-minimal`），因此**不能**用 `dsh --from-default-profile desktop` 创建。正确做法是用项目 `DSH_HOME` 启动一次 Desktop，由应用初始化 `.dsh/profiles/desktop`：`DSH_HOME="$PWD/.dsh" open -a "DeepSeek Harness"`。
+  - **用 CDP 驱动 Desktop 界面取证**：Desktop 的界面是 `dsh-app://app/` 自定义协议，浏览器无法直接打开。带 `--remote-debugging-port=9333` 启动后，用 CDP 在渲染进程内求值即可断言插件页、详情页与渲染结果（用法与本规范[真实 NAS 测试](#真实-nas-测试)的 CDP 路径一致）：`DSH_HOME="$PWD/.dsh" open -a "DeepSeek Harness" --args --remote-debugging-port=9333`，再用 `curl http://127.0.0.1:9333/json/version` 确认 UA 含 `@deepseek-ai/dsh-desktop/<版本>`（证明连的是 Desktop 壳而非普通浏览器）。
   - 启动 Desktop 前确认其 `DSH_HOME` 指向项目根 `.dsh`（Desktop 按标准解析顺序读取 `$DSH_HOME`，缺省回落 `~/.dsh`）；从用户主目录 profile 启动的测试结果无效。
   - `~/.dsh/profiles/desktop` 属于个人日常使用环境，不得作为测试对象，也不得把测试改动写回该 profile。
+- **测试完成后必须把 Desktop 改回全局 profile（强制）**：用项目 `DSH_HOME` 启动的 Desktop 会以项目 profile 作为日常环境，测试结束后**必须**以缺省 `DSH_HOME`（即 `~/.dsh`）重启一次 Desktop，把应用交还给用户个人的全局 profile。收尾动作固定为：退出当前 Desktop → 不带 `DSH_HOME` 重新启动 → 确认 profile 已回落。
+  - 本地 Web 测试与 Desktop 测试共用 `<repo>/.dsh`，恢复时**只重启 Desktop**，不影响正在运行的 `pnpm run start -- --web` 实例。
+  - 恢复动作与「测试数据清理」（见[测试数据清理](#测试数据清理)）一并在测试执行结果的备注列登记；未登记的视为测试未收尾。
 - **验证重点**：Desktop 与 Web 的宿主差异点优先覆盖——外部链接经系统默认浏览器打开（Electron `setWindowOpenHandler` 语义）、OAuth 授权回流、插件详情页/配置区块渲染、设置页呈现；行为以 Desktop 实测为准，不以 Web 结果外推。
 - **结论登记**：Desktop 走查结论可与同一需求的 Web 走查合并登记在测试用例文档的「测试执行结果」，按客户端分列；涉及真实用户确认的结论按[验收证据规范](../validation/README.md)登记 `docs/validation/`。
 - 用例的「前置条件」与「执行环境」按上述口径填写；执行环境取值使用 `DSH Web`、`DSH Desktop`、`真实 fnOS NAS`、`文档站构建环境`，不使用「本地」等含糊表述。
@@ -179,7 +183,7 @@ verifiedAt: 2026-09-30
 | 数据位置 | 清理约定 |
 | --- | --- |
 | 本地 Web profile（`<repo>/.dsh`） | 测试产生的会话、测试账号凭据在需求验收完成后删除；`.dsh` 已被 git 忽略，清理不影响仓库 |
-| DSH Desktop | 测试账号在客户端内退出登录并移除；插件偏好如被改动，恢复默认值 |
+| DSH Desktop | 测试账号在客户端内退出登录并移除；插件偏好如被改动，恢复默认值；**以缺省 `DSH_HOME` 重启一次，把 Desktop 交还给 `~/.dsh` 的全局 profile**（见 [DSH Desktop 测试](#dsh-desktop-测试)） |
 | 真实 fnOS NAS | 测试目录、测试文件、测试工作区在验收记录中列出并在设备上删除；NAS 侧数据不进仓库 |
 
 - 清理动作登记在测试执行结果的备注列（如「已清理测试账号 1 个」）；无法当场清理的（如需要保留复现的 Bug 现场），在 Bug 记录中注明保留原因与预计清理时间。
@@ -292,6 +296,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 - [ ] 回归用例标注基线来源并链接原需求/版本；「与基线一致」的预期附带可观察特征（见[回归用例与基线来源](#回归用例与基线来源)）。
 - [ ] 涉及登录状态的测试按「登录态 → 非登录态 → 登录流程」顺序执行；auth 配置备份在 `tmp/auth-back/<插件名称>-<插件版本>-<备份日期>`，移除前已备份、恢复后权限为 `600`（见[账号状态测试顺序与 auth 配置备份](#账号状态测试顺序与-auth-配置备份)）。
 - [ ] Desktop 测试使用项目根 `.dsh/profiles/desktop`，未使用 `~/.dsh/profiles/desktop`，启动前已确认 `DSH_HOME` 指向项目根（见[DSH Desktop 测试](#dsh-desktop-测试)）。
+- [ ] Desktop 测试完成后已以缺省 `DSH_HOME` 重启一次，Desktop 已交还给 `~/.dsh` 的全局 profile，并在执行结果备注登记恢复动作（见[DSH Desktop 测试](#dsh-desktop-测试)）。
 - [ ] NAS 测试在内网 `http://192.168.119.6:5666/` 桌面完成，未存储 NAS 凭据；安装到存储 1，日志从 `/var/log/apps/<应用名称>.log` 取证（见[真实 NAS 测试](#真实-nas-测试)）。
 - [ ] UI 用例在亮色与暗色主题下各执行一遍，已核对文本/阴影/border/背景对比、间距叠加与 BFC、毛玻璃层级（模糊在父元素、子元素不重复叠加）（见[UI 测试](#ui-测试视觉与样式)）。
 - [ ] 测试账号密码、NAS 凭据与 auth 文件未进入仓库（代码、文档、脚本、测试夹具均不含凭据；备份仅在 git 忽略的 `tmp/auth-back/`）。
@@ -310,6 +315,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-09-30 | 约束 Desktop 测试 profile 位置 | Desktop 测试禁止使用 `~/.dsh/profiles/desktop`，必须使用项目根 `.dsh/profiles/desktop`，与 Web 测试共用 `DSH_HOME=<repo>/.dsh`；登记 profile 创建与插件链接命令。 |
 | 2026-09-30 | 新增真实 NAS 测试规范 | 固定测试入口 `http://192.168.119.6:5666/`；禁止存储 NAS 凭据，登录向需求提出人询问或走 trim-cli OAuth；安装走 trim-cli（`app install-fpk --volume-id`）或 Chrome CDP 应用中心，目标存储为存储 1；日志在 `/var/log/apps/<应用名称>.log`。测试账号密码与 auth 文件禁止上传仓库（代码与测试通用红线）。 |
 | 2026-09-30 | 新增 UI 测试规范 | UI 用例亮暗主题各执行一遍并核对文本/阴影/border/背景对比；检查 padding/margin 叠加与 BFC（margin 折叠、穿透、浮层裁剪）；毛玻璃加在父元素，子元素禁止重复叠加 backdrop-filter 与透明背景；CSS 变量优先使用 DSH 官方变量。 |
+| 2026-10-06 | 修正 Desktop profile 创建方式并新增测试后恢复全局 profile | `desktop` 为 Electron 应用保留名且非内置模板，原 `dsh --from-default-profile desktop` 命令无法执行；改为用项目 `DSH_HOME` 启动 Desktop 由应用创建 profile，并补充 CDP（`--remote-debugging-port`）驱动 Desktop 界面取证的方法。新增强制收尾：测试完成后以缺省 `DSH_HOME` 重启一次，把 Desktop 交还 `~/.dsh` 全局 profile，并在执行结果备注登记。 |
 
 ## 回填时机
 
