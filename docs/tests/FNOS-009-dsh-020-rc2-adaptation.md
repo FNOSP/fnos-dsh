@@ -123,6 +123,9 @@ verifiedAt: 2026-09-30
 | — | [FNOS-009-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-03) | 本机 DSH Web 0.2.0-rc.2 | 部分通过 | 2026-09-30 | AC-02 模型目录与分组弹层正常；登录与用量待复验 |
 | — | [FNOS-009-05](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-05) | 本机 DSH Web 与 Desktop 运行时 | 通过 | 2026-09-30 | 两处运行时上展示页与组件分组均正常渲染；证据见本地 Web 与 Desktop 运行时验证记录 |
 | — | [FNOS-009-05](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-05) | **DSH Desktop（真实 Electron 壳 + 项目 profile）** | **通过** | **2026-10-06** | 插件通过兼容门禁并正常加载，插件页与详情页无异常；逐组件渲染结论见 [本地 Web 验证记录](/validation/FNOS-009-local-web-2026-09-30) |
+| — | [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01) | **DSH Desktop 暗色主题** | **通过** | **2026-10-07** | `color-scheme` 由 `light` 切到 `dark`，设置浮层背景 `rgb(255,255,255)`→`rgb(44,44,46)`；暗色下插件页「异常」0 次、三插件均在；无残留样式；证据见 [Desktop 补充验证记录](/validation/FNOS-009-desktop-cdp-theme-2026-10-07) |
+| — | [FNOS-009-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-04) | **DSH Desktop 暗色主题** | **部分通过** | **2026-10-07** | 暗色下账号管理区正常渲染（6 个账号、剩余额度、已签到标记），可读性满足 WCAG AA（对比度 17.45）；登录流程与用量仍待复验 |
+| — | [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01) | **DSH Desktop 宿主差异点** | **部分通过** | **2026-10-07** | 外部链接交系统默认浏览器打开（前台由 DeepSeek Harness 切到 Google Chrome，应用内无新 target）通过；设置页呈现（5 个分组 + 通用设置 10 项）通过；OAuth 授权回流未走查 |
 | TC-014–TC-017 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 单测（schema/宿主持久化） | 通过 | 2026-09-30 | 字段缺省、去重保序、持久化优先、写入失败保留 |
 | TC-001–TC-005 | [FNOS-009-11](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-11) | 单测（删除计划与跨度换算） | 通过 | 2026-09-30 | 取消父目录只移除父项跨度；反向、取消子项、重复勾选、三层链均覆盖；浏览器走查待补 |
 | TC-018–TC-022 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 单测（SDK 校验服务） | 通过 | 2026-09-30 | 逐项通过/剔除、桥接不可用降级；真实 NAS 桥接待复验 |
@@ -151,12 +154,16 @@ verifiedAt: 2026-09-30
 未完成（需真实 fnOS NAS 或桌面壳内操作）：
 - fnOS 插件在真实 NAS 上的功能与数据兼容（FNOS-009-02、06 的 fnOS 部分、09/10 的 SDK 桥接）。
 - Codex Auth 与 CodeBuddy 的真实登录/用量走查（FNOS-009-03/04 的账号相关验收）：Desktop 侧已验账号管理区与额度渲染，登录流程与用量数据待复验。
-- **Desktop 暗色主题未覆盖**：按 [UI 测试规范](/charter/tests-spec#ui-测试视觉与样式)要求 UI 用例应在亮暗两主题各执行一遍，本次只采集到亮色主题。
-- **Desktop 宿主差异点未逐一走查**：外部链接经系统默认浏览器打开（`setWindowOpenHandler` 语义）、OAuth 授权回流、设置页呈现。规范明确「行为以 Desktop 实测为准，不以 Web 结果外推」，故这些点不能由 Web 结论替代。
+- **Desktop OAuth 授权回流未走查**：需真实完成一次登录授权流程。规范明确「行为以 Desktop 实测为准，不以 Web 结果外推」，不能由 Web 结论替代。
+- **「网页链接默认打开方式」的对话内路径未验证**：该设置项作用域是「对话中网页链接的打开位置」，需在真实对话内点击链接才能覆盖「应用内侧边栏」取值。
 - FNOS-009-11 的浏览器实机走查：本仓库无 jsdom/happy-dom 与 lexical，无法建 DOM 渲染测试；
   解耦逻辑已作为纯函数覆盖（含删除计划与跨度换算），但「挂载后的编辑器接受该跨度且
   子项 occurrenceId 保持稳定」这一环仅通过阅读 DSH 源码验证，需人工在运行中的 DSH Web 上走查。
 - FNOS-009-07 的上游增量变化逐项走查清单。
+
+已补齐（原列在未完成项，2026-10-07 完成，证据见 [Desktop 补充验证记录](/validation/FNOS-009-desktop-cdp-theme-2026-10-07)）：
+- **Desktop 暗色主题**：按 UI 测试规范在亮暗两主题各执行一遍；实测 `color-scheme` 由 `light` 切到 `dark`，无残留样式，可读性满足 WCAG AA，暗色下插件页与详情页均正常。
+- **Desktop 宿主差异点（部分）**：外部链接交系统默认浏览器打开、设置页呈现均已实测；毛玻璃与间距/BFC 亦按 UI 规范核对。
 
 真实 NAS 执行证据按规范登记 `docs/validation/`，本页结论引用该证据。
 
@@ -169,3 +176,4 @@ verifiedAt: 2026-09-30
 | 2026-09-30 | 登记 FNOS-009-12 用例 | 新增 TC-006–TC-013，覆盖自有与三方插件安装放行、历史残留场景、失败可诊断、手动安装策略不变与归档替换不回归；测试范围与环境同步到 FNOS-009-12。用例先登记，执行结果待阶段七完成后回填。 |
 | 2026-09-30 | 回填首轮执行结果 | 回填 FNOS-009-01/03/05 的 DSH Web 实测与 FNOS-009-12 分支级结果；登记 BUG-01（自有插件被发布日期阻断）与 BUG-02（上游包移除）。结论更新为「部分通过」，未完成项与目标环境证据缺口列在结论中。 |
 | 2026-10-06 | 回填 Desktop 真实壳执行结果 | 按[DSH Desktop 测试](/charter/tests-spec#dsh-desktop-测试)的项目 profile 约束，在真实 Electron 壳内用 CDP 取证，新增 FNOS-009-01/04/05 的 DSH Desktop 执行结果；2026-09-30 那次隔离探针结论因不满足 profile 约束被标注为已被取代。未完成项补充 Desktop 暗色主题与宿主差异点。证据见 [Desktop 验证记录](/validation/FNOS-009-desktop-cdp-2026-10-06)。 |
+| 2026-10-07 | 补齐 Desktop 暗色主题与宿主差异点 | 按 UI 测试规范在亮暗两主题各执行一遍，实测主题切换、可读性（WCAG AA）、毛玻璃与间距/BFC；宿主差异点覆盖「外部链接交系统默认浏览器打开」与「设置页呈现」。OAuth 授权回流与「网页链接默认打开方式」的对话内路径列为遗留。证据见 [Desktop 补充验证记录](/validation/FNOS-009-desktop-cdp-theme-2026-10-07)。 |
