@@ -41,7 +41,7 @@ verifiedAt: 2026-09-30
 | [01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01)、[03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-03)、[04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-04)、[05](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-05)、[07](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-07) | DSH Web、DSH Desktop | Web：`pnpm run start -- --web`（`DSH_HOME=<repo>/.dsh`）；Desktop：客户端内加载插件走查；两者均需覆盖 |
 | [02](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-02)、[06（fnOS 部分）](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-06)、[09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09)、[10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | DSH Web + 真实 fnOS NAS | Web 部分：`pnpm run start -- --web`；fnOS 桥接部分：真实 NAS 部署执行 |
 | [06（其他）](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-06)、[08](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-08) | DSH Web/Desktop、文档站构建环境 | Web 走查 + `pnpm run build -- --docs` |
-| [11](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-11) | DSH Web | `pnpm run start -- --web`（`DSH_HOME=<repo>/.dsh`） |
+| [11](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-11) | 真实 fnOS NAS | 选择树依赖 fnOS 宿主桥接的目录树，属 fnOS 插件功能，只记 NAS 结果 |
 | [12](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 真实 fnOS NAS（安装回调链路）；本地 shell 分支断言 | NAS 部署执行；分支断言走 `packages/fnos-gateway` 本地测试 |
 
 ## 测试用例
