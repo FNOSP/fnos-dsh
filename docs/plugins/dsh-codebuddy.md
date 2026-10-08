@@ -40,6 +40,8 @@ DSH Desktop 会在系统默认浏览器中打开授权页面。完成授权后�
 
 账号卡片还会显示可用额度、资源包和到期时间。选择「刷新」可重新获取账号状态。某些账号类型不支持的功能不会显示。
 
+![CodeBuddy 账号管理面板：额度总览与账号卡片](</images/plugins/dsh-codebuddy/account-management.png>)
+
 ## 使用模型
 
 在 DSH 的模型选择器中选择 CodeBuddy 提供的模型即可使用，无需在插件面板另行添加模型。可用模型及其能力由服务提供方决定。
@@ -57,6 +59,10 @@ DSH Desktop 会在系统默认浏览器中打开授权页面。完成授权后�
 - **显示额度余量**：控制输入框旁是否显示 CodeBuddy 用量指示器。
 
 管理面板可从「管理面板」入口或输入区附近的管理图标打开。账号管理页可查看额度总览和资源包详情；「Token 统计」页可按时间范围查看 CodeBuddy 调用的 Token 用量、趋势及模型或工作区分布。统计范围可选近 7、30 或 90 天；数据取自本地 DSH 会话记录，不上传到 CodeBuddy。插件详情页里的「账号管理」与「Token 统计」是同级区块，标题常驻，进入即可看到内容。
+
+![CodeBuddy Token 统计：用量总览与年度活跃热力图](</images/plugins/dsh-codebuddy/token-stats.png>)
+
+![CodeBuddy 用量趋势、用量分布与会话排名](</images/plugins/dsh-codebuddy/usage-trend.png>)
 
 ## 常见问题
 

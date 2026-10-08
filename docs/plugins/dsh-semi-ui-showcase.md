@@ -15,6 +15,8 @@ description: 在 DSH 中集中检查共享 Semi Design 组件及主题状态。
 
 总览包含按钮、图标、Tooltip、Dropdown、Cascader、Tree、TreeSelect、Modal、Popover、Progress、Spin 和 Toast，用于检查浅色、深色及系统主题下的组件状态和 Portal 浮层。
 
+![DSH Semi UI Showcase 插件详情页](</images/plugins/dsh-semi-ui-showcase/plugin-detail.png>)
+
 Dropdown 页面与 Semi 官方文档保持同一组核心示例：基本菜单、嵌套菜单、弹出位置、`hover`/`focus`/`click`/`custom`/`contextMenu` 触发、菜单事件和 JSON `menu` 配置，并展示 `Title`、`Item`、`Divider`、图标、类型、禁用和激活状态。
 
 ## 开发检查

@@ -29,6 +29,8 @@ flowchart TD
 
 ![Codex Auth 插件管理页](</images/plugins/dsh-codex-auth/settings.jpg>)
 
+![Codex Auth 登录状态与全局模型设置](</images/plugins/dsh-codex-auth/auth-panel.png>)
+
 ## 模型与用量
 
 登录后可在模型选择器中选择账号可用的 Codex 模型。可在插件详情页的「全局模型」中设置新会话默认使用的模型和思考强度；对话中仍可临时切换模型。
