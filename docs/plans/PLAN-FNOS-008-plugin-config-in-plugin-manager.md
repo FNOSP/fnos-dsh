@@ -72,13 +72,13 @@ sequenceDiagram
 
 | 需求功能 | 代码模块 | 配置/数据 | 测试 | 文档 | 目标环境 |
 | --- | --- | --- | --- | --- | --- |
-| FNOS-008-01 | `plugins/dsh-fnos-plugin`（client 注册、授权目录卡片） | 无迁移 | 契约测试、卡片行为测试 | `docs/plugins/dsh-fnos.md` | DSH Web、真实 NAS |
-| FNOS-008-02 | `plugins/dsh-codebuddy-plugin`（client 注册、CodeBuddySection） | 无迁移 | 现有组件测试回归 | `docs/plugins/dsh-codebuddy.md` | DSH Web、DSH Desktop |
-| FNOS-008-03 | `plugins/dsh-codex-auth-plugin`（client 注册、CodexAuthSection） | 无迁移 | 现有组件测试回归 | `docs/plugins/dsh-codex-auth.md` | DSH Web、DSH Desktop |
-| FNOS-008-04 | 由上面三项注册移除自动达成 | 无 | 契约测试断言更新 | 需求/计划/索引 | DSH Web、DSH Desktop |
-| FNOS-008-05 | 无（数据层不动） | 既有配置数据保持 | 按插件升级前后数据对照 | — | fnOS 授权目录：真实 NAS；其他插件：DSH Web、DSH Desktop |
-| FNOS-008-06 | `plugins/dsh-codebuddy-plugin` Host/Client、Remote 与 Web bridge | 既有凭据、偏好、任务状态保持 | Desktop transport、OAuth opener、生命周期和 Web 回归 | `docs/plugins/dsh-codebuddy.md`、验证证据 | DSH Web、DSH Desktop |
-| FNOS-008-07 | `plugins/dsh-codex-auth-plugin` Client 登录开窗与取消 | 既有 OAuth 凭据、设置不变 | 登录 `null` 开窗、取消、复制与回归 | `docs/plugins/dsh-codex-auth.md`、验证证据 | DSH Web、DSH Desktop |
+| FNOS-008-01 | `plugins/dsh-fnos-plugin`（client 注册、授权目录卡片） | 无迁移 | 契约测试<br>卡片行为测试 | `docs/plugins/dsh-fnos.md` | DSH Web<br>真实 NAS |
+| FNOS-008-02 | `plugins/dsh-codebuddy-plugin`（client 注册、CodeBuddySection） | 无迁移 | 现有组件测试回归 | `docs/plugins/dsh-codebuddy.md` | DSH Web<br>DSH Desktop |
+| FNOS-008-03 | `plugins/dsh-codex-auth-plugin`（client 注册、CodexAuthSection） | 无迁移 | 现有组件测试回归 | `docs/plugins/dsh-codex-auth.md` | DSH Web<br>DSH Desktop |
+| FNOS-008-04 | 由上面三项注册移除自动达成 | 无 | 契约测试断言更新 | 需求/计划/索引 | DSH Web<br>DSH Desktop |
+| FNOS-008-05 | 无（数据层不动） | 既有配置数据保持 | 按插件升级前后数据对照 | — | fnOS 授权目录：真实 NAS<br>其他插件：DSH Web<br>DSH Desktop |
+| FNOS-008-06 | `plugins/dsh-codebuddy-plugin` Host/Client<br>Remote 与 Web bridge | 既有凭据<br>偏好<br>任务状态保持 | Desktop transport<br>OAuth opener<br>生命周期和 Web 回归 | `docs/plugins/dsh-codebuddy.md`<br>验证证据 | DSH Web<br>DSH Desktop |
+| FNOS-008-07 | `plugins/dsh-codex-auth-plugin` Client 登录开窗与取消 | 既有 OAuth 凭据<br>设置不变 | 登录 `null` 开窗<br>取消<br>复制与回归 | `docs/plugins/dsh-codex-auth.md`<br>验证证据 | DSH Web<br>DSH Desktop |
 
 不涉及：应用 manifest、wizard、`cmd/` 脚本、网关、FPK 构建门禁、`published-dsh-plugins.json`。
 

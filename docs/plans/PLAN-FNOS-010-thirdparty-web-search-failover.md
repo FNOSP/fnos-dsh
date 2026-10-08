@@ -151,14 +151,14 @@ stateDiagram-v2
 
 | 需求功能 | 代码模块 | 配置/数据 | 测试 | 文档 | 目标环境 |
 | --- | --- | --- | --- | --- | --- |
-| FNOS-010-01/02/03 | `plugins/dsh-failover-search-plugin`（新）：src/host 复合提供方与两个来源适配 | 插件 Config（每平台多 key、顺序、超时）；组合 `web` 行 patch | 来源适配单元测试（fetch mock）、转移顺序用例、取消用例；patch 契约测试 | `docs/plugins/dsh-failover-search.md`（新） | DSH Web 与 DSH Desktop，真实 key/网络 |
-| FNOS-010-04 | 插件 Config schema：每平台 key 列表（secret 角色）+ 顺序 + 超时（DSH 自动生成配置表单） | key 以 secret 角色存储；保存即生效（提供方按次快照配置） | 配置读写、多 key 增删与生效时机用例 | 同上 | DSH Web 与 DSH Desktop |
+| FNOS-010-01/02/03 | `plugins/dsh-failover-search-plugin`（新）：src/host 复合提供方与两个来源适配 | 插件 Config（每平台多 key、顺序、超时）<br>组合 `web` 行 patch | 来源适配单元测试（fetch mock）<br>转移顺序用例<br>取消用例<br>patch 契约测试 | `docs/plugins/dsh-failover-search.md`（新） | DSH Web 与 DSH Desktop，真实 key/网络 |
+| FNOS-010-04 | 插件 Config schema：每平台 key 列表（secret 角色）+ 顺序 + 超时（DSH 自动生成配置表单） | key 以 secret 角色存储<br>保存即生效（提供方按次快照配置） | 配置读写<br>多 key 增删与生效时机用例 | 同上 | DSH Web 与 DSH Desktop |
 | FNOS-010-05 | 两个来源适配的字段映射与日期容错解析 | 无持久化数据 | 映射与日期解析单元测试（含相对时间/英文日期/RFC2822） | 同上 | DSH Web 与 DSH Desktop |
 | FNOS-010-06 | 组合包 patch 的生命周期（随插件启停生效/失效） | 无用户数据残留 | 禁用后 `web` 行回落 base 的契约测试 | 同上 | DSH Web 与 DSH Desktop |
-| FNOS-010-07 | src/host 账号池（每平台一个）：轮转均摊 + 健康度跳过 + 账号级失败转移 | 本地限流窗口记账（内存态）；均摊游标（内存态） | 均摊分布用例、账号失败转移用例、平台顺序不乱序用例、单账号退化用例 | 同上 | DSH Web 与 DSH Desktop，同平台至少两个真实账号 |
-| FNOS-010-08 | src/host/usage-store（用量快照缓存与后台刷新）+ 详情页用量区块（client 半侧新增，参照 fnOS 详情页挂载先例） | 用量快照（内存缓存，含获取时间；不落盘） | 快照刷新用例、端点失败容错用例、展示数据一致性用例 | 同上 | DSH Web 与 DSH Desktop，真实用量查询 |
-| FNOS-010-09 | 复合提供方与账号池的探测接入（快照过期退化为响应式） | 同上快照 | 探测跳过用例、快照过期退化用例、快照恢复后重新参与用例 | 同上 | DSH Web 与 DSH Desktop |
-| 文档与发布 | `docs/plugins/index.md`、`app/published-dsh-plugins.json`、插件 `README.md`/`compatibility.json` | 发布清单版本一致性 | 发布清单与安装命令一致性用例（沿用既有门禁） | 插件文档站页面 | 发布环境 |
+| FNOS-010-07 | src/host 账号池（每平台一个）：轮转均摊 + 健康度跳过 + 账号级失败转移 | 本地限流窗口记账（内存态）<br>均摊游标（内存态） | 均摊分布用例<br>账号失败转移用例<br>平台顺序不乱序用例<br>单账号退化用例 | 同上 | DSH Web 与 DSH Desktop，同平台至少两个真实账号 |
+| FNOS-010-08 | src/host/usage-store（用量快照缓存与后台刷新）+ 详情页用量区块（client 半侧新增，参照 fnOS 详情页挂载先例） | 用量快照（内存缓存，含获取时间、不落盘） | 快照刷新用例<br>端点失败容错用例<br>展示数据一致性用例 | 同上 | DSH Web 与 DSH Desktop，真实用量查询 |
+| FNOS-010-09 | 复合提供方与账号池的探测接入（快照过期退化为响应式） | 同上快照 | 探测跳过用例<br>快照过期退化用例<br>快照恢复后重新参与用例 | 同上 | DSH Web 与 DSH Desktop |
+| 文档与发布 | `docs/plugins/index.md`<br>`app/published-dsh-plugins.json`<br>插件 `README.md`/`compatibility.json` | 发布清单版本一致性 | 发布清单与安装命令一致性用例（沿用既有门禁） | 插件文档站页面 | 发布环境 |
 
 不改动：`apps/fn-deepseek-harness` 应用代码与 manifest 行为、官方插件行（`web-search-deepseek`、`web-fetch-http`、`tool-web`）、共享包 `@tnnevol/dsh-semi-ui`（本插件无 client 半侧）。
 

@@ -326,14 +326,36 @@
   white-space: nowrap;
 }
 
-/* 表格内的长文本可换行，避免单列把整表撑得过宽；代码片段仍保持不换行。 */
+/*
+ * 表格内的长文本可换行，避免单列把整表撑得过宽。
+ *
+ * 用 `break-word` 而不是 `anywhere`：后者会把 min-content 宽度算成 1 个字符，
+ * 于是窄屏下列可以被压到任意窄，文字被逐字折断（`package.j` / `son`）。
+ * `break-word` 不参与 min-content 计算，长单词会把列撑开，超出部分交给表格的
+ * 横向滚动处理。
+ */
 .vp-doc table td {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
-.vp-doc table td > code,
-.vp-doc table th > code {
-  white-space: nowrap;
+/* 列宽下限：仅在窄屏生效，避免为了塞进容器把列压到几个字符宽。 */
+@media (max-width: 768px) {
+  .vp-doc table th,
+  .vp-doc table td {
+    min-width: 7rem;
+  }
+}
+
+/*
+ * 单元格里的行内代码（多为插件路径、文件名）允许在列内折行。
+ *
+ * 不要设成 `nowrap`：长路径（例如 `plugins/dsh-codex-auth-plugin`）会把该列
+ * 撑到几百像素，整表随之溢出。多值单元格已用 `<br>` 分行，无需靠不换行维持
+ * 可读性。
+ */
+.vp-doc table td > code {
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .vp-doc table th.status-column,

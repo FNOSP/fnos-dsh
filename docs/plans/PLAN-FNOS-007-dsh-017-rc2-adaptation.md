@@ -90,17 +90,17 @@ sequenceDiagram
 
 | 需求功能 | 源码和配置 | 用户数据/运行时 | 测试和证据 | 目标环境 |
 | --- | --- | --- | --- | --- |
-| FNOS-007-01 | `pnpm-workspace.yaml`、lockfile、DSH 运行时与构建 CLI | 应用运行基线 | 干净 profile 安装、启动与升级 | DSH Web、真实 NAS |
-| FNOS-007-02 | 插件 package/compatibility 配置、构建 CLI | 四个插件的安装门禁 | peer 兼容性断言、干净 profile 安装 | `dsh-fnos`：DSH Web 与真实 NAS；其他插件：DSH Web 与 Desktop |
-| FNOS-007-03 | `dsh-fnos` Host/Client、设置卡片 | 主题、授权目录、代理路径、设置 profile | 设置读写、升级前后 profile 对照 | DSH Web、真实 NAS |
-| FNOS-007-09 | 设置入口、图标和输入契约 | 设置卡片、会话入口和模型图标 | 配置/入口显示与交互回归 | DSH Web/Desktop；fnOS 设置卡片另在真实 NAS 验收 |
-| FNOS-007-04、05 | CodeBuddy/Codex Auth serializer、图片请求和凭据模块 | 工具结果、图片内容、凭据、模型目录 | 工具调用、图片、登录、用量和配置回归 | DSH Web 与 Desktop；登录另需真实网络/账号 |
-| FNOS-007-06 | Semi UI 共享包和总览插件 | 组件、主题和卸载状态 | 构建、渲染、主题和卸载测试 | DSH Web 与 Desktop |
-| FNOS-007-07、08、10 | FPK manifest、生命周期、网关、native、会话读取边界 | FPK 运行时、旧会话、网关和插件归档 | FPK 构建/安装、旧会话导出、升级与回滚 | 真实 NAS；客户端功能另在 DSH Web 验收 |
-| FNOS-007-12 | dshmarket 安装清单与版本收敛 | 已安装插件版本 | 缺失、版本不一致和同版本场景回归 | DSH Web 与 Desktop，不要求 NAS 插件验收 |
-| FNOS-007-13 | attachment-local 安装解析与持久化补丁 | FPK 运行时和附件持久化目录 | 依赖解析、补丁幂等和附件可用性 | 真实 NAS（应用运行时验收） |
-| FNOS-007-11 | `docs/package.json`、VitePress config/theme | 文档图表渲染方式 | 全部 Mermaid 图表和文档构建 | 浏览器、文档构建 |
-| ~~FNOS-007-15~~（已废弃） | 原设想为 `apps/fn-deepseek-harness/cmd/main` 的环境导出段；实际改由网关 `buildDshRuntimeEnv()` 注入 | 终端进程默认 Shell、终端继承环境 | 网关环境回归、终端打开和命令执行回归 | 真实 NAS |
+| FNOS-007-01 | `pnpm-workspace.yaml`<br>lockfile<br>DSH 运行时与构建 CLI | 应用运行基线 | 干净 profile 安装<br>启动与升级 | DSH Web<br>真实 NAS |
+| FNOS-007-02 | 插件 package/compatibility 配置<br>构建 CLI | 四个插件的安装门禁 | peer 兼容性断言<br>干净 profile 安装 | `dsh-fnos`：DSH Web 与真实 NAS<br>其他插件：DSH Web 与 Desktop |
+| FNOS-007-03 | `dsh-fnos` Host/Client<br>设置卡片 | 主题<br>授权目录<br>代理路径<br>设置 profile | 设置读写<br>升级前后 profile 对照 | DSH Web<br>真实 NAS |
+| FNOS-007-09 | 设置入口<br>图标和输入契约 | 设置卡片<br>会话入口和模型图标 | 配置/入口显示与交互回归 | DSH Web/Desktop<br>fnOS 设置卡片另在真实 NAS 验收 |
+| FNOS-007-04、05 | CodeBuddy/Codex Auth serializer<br>图片请求和凭据模块 | 工具结果<br>图片内容<br>凭据<br>模型目录 | 工具调用<br>图片<br>登录<br>用量和配置回归 | DSH Web 与 Desktop<br>登录另需真实网络/账号 |
+| FNOS-007-06 | Semi UI 共享包和总览插件 | 组件<br>主题和卸载状态 | 构建<br>渲染<br>主题和卸载测试 | DSH Web 与 Desktop |
+| FNOS-007-07、08、10 | FPK manifest<br>生命周期<br>网关<br>native<br>会话读取边界 | FPK 运行时<br>旧会话<br>网关和插件归档 | FPK 构建/安装<br>旧会话导出<br>升级与回滚 | 真实 NAS<br>客户端功能另在 DSH Web 验收 |
+| FNOS-007-12 | dshmarket 安装清单与版本收敛 | 已安装插件版本 | 缺失<br>版本不一致和同版本场景回归 | DSH Web 与 Desktop，不要求 NAS 插件验收 |
+| FNOS-007-13 | attachment-local 安装解析与持久化补丁 | FPK 运行时和附件持久化目录 | 依赖解析<br>补丁幂等和附件可用性 | 真实 NAS（应用运行时验收） |
+| FNOS-007-11 | `docs/package.json`<br>VitePress config/theme | 文档图表渲染方式 | 全部 Mermaid 图表和文档构建 | 浏览器<br>文档构建 |
+| ~~FNOS-007-15~~（已废弃） | 原设想为 `apps/fn-deepseek-harness/cmd/main` 的环境导出段<br>实际改由网关 `buildDshRuntimeEnv()` 注入 | 终端进程默认 Shell<br>终端继承环境 | 网关环境回归<br>终端打开和命令执行回归 | 真实 NAS |
 
 ## 源文件与生成产物边界
 

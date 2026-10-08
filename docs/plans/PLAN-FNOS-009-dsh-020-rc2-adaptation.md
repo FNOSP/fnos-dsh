@@ -161,16 +161,16 @@ sequenceDiagram
 
 | 需求功能 | 代码模块 | 配置/数据 | 测试 | 文档 | 目标环境 |
 | --- | --- | --- | --- | --- | --- |
-| FNOS-009-01 | 四插件 `package.json`、`compatibility.json`、根 `pnpm-workspace.yaml` | 无迁移 | 各插件契约测试（锚定断言） | `docs/plugins/index.md` | DSH Web、DSH Desktop |
-| FNOS-009-02 | `plugins/dsh-fnos-plugin`（如接缝适配需要） | 授权目录数据保持 | 插件现有测试回归 | `docs/plugins/dsh-fnos.md` | DSH Web、真实 NAS |
-| FNOS-009-03 | `plugins/dsh-codex-auth-plugin`（pi-ai 声明；如接缝适配需要） | OAuth 凭据、模型配置保持 | 插件现有测试回归 | `docs/plugins/dsh-codex-auth.md` | DSH Web、DSH Desktop |
-| FNOS-009-04 | `plugins/dsh-codebuddy-plugin`（如接缝适配需要） | 账号、偏好、统计数据保持 | 插件现有测试回归 | `docs/plugins/dsh-codebuddy.md` | DSH Web、DSH Desktop |
-| FNOS-009-05 | `plugins/dsh-semi-ui-showcase-plugin` | 无 | 插件现有测试回归 | — | DSH Web、DSH Desktop |
-| FNOS-009-06 | 无（数据层不动） | 升级前后对照 | 升级兼容走查 | — | fnOS 部分：NAS；其他：Web、Desktop |
-| FNOS-009-07 | 按验证结论定位（预期无需修改） | 无 | 回归走查 | — | DSH Web、DSH Desktop |
-| FNOS-009-08 | `docs/plugins/*.md`、`docs/plugins/index.md`、`docs/apps/fn-deepseek-harness.md` | 无 | 文档构建 | 全部插件文档 | 文档站 |
-| FNOS-009-09 | `plugins/dsh-fnos-plugin`：settings schema/契约、Host 列表读取与剔除回写、Client 卡片加载 | 新增 settings 字段 `authorizedDirectories`；升级保留既有数据 | 契约测试、Host 路由测试、Client 合并/降级单测 | `docs/plugins/dsh-fnos.md` | DSH Web、真实 NAS |
-| FNOS-009-10 | `plugins/dsh-fnos-plugin`：Client SDK 校验服务（`authorizeSharedFile`/`authorizeUserFile`）、剔除回写 | 持久化记录剔除 | SDK 校验单测（mock 桥接）、剔除与降级路径测试 | `docs/plugins/dsh-fnos.md` | DSH Web、真实 NAS |
+| FNOS-009-01 | 四插件 `package.json`<br>`compatibility.json`<br>根 `pnpm-workspace.yaml` | 无迁移 | 各插件契约测试（锚定断言） | `docs/plugins/index.md` | DSH Web<br>DSH Desktop |
+| FNOS-009-02 | `plugins/dsh-fnos-plugin`（如接缝适配需要） | 授权目录数据保持 | 插件现有测试回归 | `docs/plugins/dsh-fnos.md` | DSH Web<br>真实 NAS |
+| FNOS-009-03 | `plugins/dsh-codex-auth-plugin`（pi-ai 声明、如接缝适配需要） | OAuth 凭据<br>模型配置保持 | 插件现有测试回归 | `docs/plugins/dsh-codex-auth.md` | DSH Web<br>DSH Desktop |
+| FNOS-009-04 | `plugins/dsh-codebuddy-plugin`（如接缝适配需要） | 账号<br>偏好<br>统计数据保持 | 插件现有测试回归 | `docs/plugins/dsh-codebuddy.md` | DSH Web<br>DSH Desktop |
+| FNOS-009-05 | `plugins/dsh-semi-ui-showcase-plugin` | 无 | 插件现有测试回归 | — | DSH Web<br>DSH Desktop |
+| FNOS-009-06 | 无（数据层不动） | 升级前后对照 | 升级兼容走查 | — | fnOS 部分：NAS<br>其他：Web<br>Desktop |
+| FNOS-009-07 | 按验证结论定位（预期无需修改） | 无 | 回归走查 | — | DSH Web<br>DSH Desktop |
+| FNOS-009-08 | `docs/plugins/*.md`<br>`docs/plugins/index.md`<br>`docs/apps/fn-deepseek-harness.md` | 无 | 文档构建 | 全部插件文档 | 文档站 |
+| FNOS-009-09 | `plugins/dsh-fnos-plugin`：settings schema/契约<br>Host 列表读取与剔除回写<br>Client 卡片加载 | 新增 settings 字段 `authorizedDirectories`<br>升级保留既有数据 | 契约测试<br>Host 路由测试<br>Client 合并/降级单测 | `docs/plugins/dsh-fnos.md` | DSH Web<br>真实 NAS |
+| FNOS-009-10 | `plugins/dsh-fnos-plugin`：Client SDK 校验服务（`authorizeSharedFile`/`authorizeUserFile`）<br>剔除回写 | 持久化记录剔除 | SDK 校验单测（mock 桥接）<br>剔除与降级路径测试 | `docs/plugins/dsh-fnos.md` | DSH Web<br>真实 NAS |
 | FNOS-009-11 | `plugins/dsh-fnos-plugin/src/components/FnosAuthorizedPathPicker.tsx` | 无 | 选择器勾选独立性单测 | — | DSH Web |
 | FNOS-009-12 | `apps/fn-deepseek-harness/cmd/install_callback`（自有插件 registry 安装/升级分支） | 无 | `packages/fnos-gateway/tests/bundled-plugin-install.spec.ts` 分支断言 | `docs/development/app-structure.md`（如安装说明涉及） | 真实 fnOS NAS |
 
