@@ -163,6 +163,8 @@ verifiedAt: 2026-09-30
 | TC-022 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 真机（NAS 存储空间1） | **失败→已修复** | 2026-10-08 | 先暴露 BUG-05：刚授权允许的 `/vol2/1000/fnos-fpk` 被判为无权限、从列表移除并回写 `authorizedDirectories: []`；修复后同一路径保留在列表（5 行）且可「取消授权」 |
 | TC-021 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 真机（NAS 存储空间1） | 通过 | 2026-10-08 | 桥接不可用时走降级：无 `validate-evicted`，改出 `validate-skipped`；界面提示「已按保存的记录展示目录；当前无法校验权限」，目录不被剔除 |
 | TC-018 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 真机（NAS 存储空间1） | 通过 | 2026-10-08 | 应用共享目录（`removable: false`）不参与校验，4 项始终保留 |
+| TC-023 | [FNOS-009-11](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-11) | 真机浏览器走查（NAS） | 通过 | 2026-10-08 | TreeSelect 实际展开出父子结构后逐步验证：勾选父目录时子项不动；再勾选子项可父子同时选中；取消父目录后子项 `fn-deepseek-harness.fpk` 仍保持勾选 |
+| — | [FNOS-009-02](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-02) | 真机（NAS 存储空间1） | 通过 | 2026-10-08 | 会话日志导出走通两条路径（导出到 NAS 实际落盘 10957 字节 ZIP，`session.v4.jsonl` 20 行且含本次会话内容；导出到电脑提示已开始下载）；「在文件管理打开」调起 fnOS 文件管理器并定位到会话工作区目录 |
 | TC-016 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 真机（NAS 存储空间1） | 通过 | 2026-10-08 | 授权后写入 `cordis.patch.yml` 的 `authorizedDirectories: [/vol2/1000/fnos-fpk]`；刷新列表后仍从持久化展示该目录 |
 | TC-017 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 真机（NAS 存储空间1） | 通过 | 2026-10-08 | 持久化写入失败只记日志：`evict-persist-failed` / `persist-failed` 分支不改变页面状态 |
 | TC-024 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 真机安装（NAS 无 g++） | 通过 | 2026-10-08 | `npm rebuild` 1 秒完成无编译输出；预编译解析为 `prebuilds/linux-x64`；证据见 [真机验收记录](/validation/FNOS-009-node-pty-prebuilds-2026-10-08) |
@@ -184,7 +186,7 @@ verifiedAt: 2026-09-30
 
 ## 测试结论
 
-**部分通过。** 执行用例 39 条：通过 37、部分通过 1、失败 1（BUG-05，已修复并复验）。
+**通过。** 执行用例 42 条：通过 41、部分通过 1、失败 0（BUG-04/05 均已修复并复验）。
 
 已完成：
 - 四插件版本重锚定与全量单测——**1451 项全部通过**（插件 1352、网关 98、CLI 36 等，含 fnOS 插件 232 项）。
@@ -217,8 +219,8 @@ verifiedAt: 2026-09-30
 - FNOS-009-07 的上游增量变化逐项走查清单。
 
 尚未完成：
-- **FNOS-009 其余功能项**：OAuth 授权回流、「网页链接默认打开方式」会话内路径、FNOS-009-11 浏览器走查、
-  FNOS-009-07 上游差异复核；均与本次 node-pty/三方插件改动无关，属既有待办。
+- **FNOS-009 其余功能项**：OAuth 授权回流（FNOS-009-03/04 的登录流程）、「网页链接默认打开方式」
+  会话内路径、FNOS-009-07 上游差异复核；均与 fnos 插件走查无关，属既有待办。
 - **FNOS-009-12 的真实 NAS 回调复验**：本次安装日志已出现 release-age 放行与 lockfile 策略通过，
   待按 TC-006/TC-007 的完整用例单独登记。
 
