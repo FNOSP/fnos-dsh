@@ -59,3 +59,20 @@ pnpm run version -- plugin
 插件版本与 DSH 基线是两套独立的值：`0.1.7-rc.2` 是 DSH 运行时基线（同时锁定在 `.github/config/dsh-native-0.1.7-rc.2.env` 与 `cmd/install_callback`），插件可以在该基线上独立发布为 `0.1.7-rc.2.1` 这样的版本。因此**不要**把插件版本绑定到 `DSH_VERSION`，也不要为插件版本在校验代码里新增常量：一旦插件单独发版，被重复写下的那份值就会过期，构建会在一个本可以自动推导的字段上失败（v5.5.0 发布即为此类事故——插件已到 `0.1.7-rc.2.1`，脚本里仍写着 `0.1.7-rc.2`）。
 
 只有无法从本仓库推导的值才作为常量维护：`dshmarket` 是第三方包，注册表版本就是契约本身；`DSH_VERSION` 与 `PNPM_VERSION` 属于 DSH 基线，判断依据是它们与 `cmd/install_callback`、native 配置之间的**一致性**。
+
+### 更新 DSH 基线时必须同步三方插件版本
+
+DSH 运行时对插件做兼容性门禁：插件 `peerDependencies` 里的 `@deepseek-ai/dsh*` 必须满足当前运行时版本，否则安装被**明确拒绝**（`installation rejected: Plugin <name> is incompatible with dsh <版本>`）。第三方插件的 peer 范围由上游维护，通常滞后于我们的重锚定。
+
+因此**每次更新 DSH 版本（`DSH_VERSION`）时，必须同步检查并更新三方插件的版本**，不能只改基线：
+
+1. 对清单里的每个三方插件（当前为 `dshmarket`）查询其可用版本，并核对目标版本的 `peerDependencies` 是否已覆盖新的 DSH 版本：
+   ```bash
+   npm view <包名> versions --json
+   npm view <包名>@<目标版本> peerDependencies --json
+   ```
+2. 选定**已声明支持新基线**的版本，更新 `apps/fn-deepseek-harness/app/published-dsh-plugins.json` 中该插件的 `version`。
+3. 在 FPK 安装或升级的真机验证中确认该插件安装通过；若被门禁拒绝，说明版本选错或该插件尚无兼容版本，需回到第 1 步。
+4. 若上游确实没有兼容版本，只有两条路：等待上游发布，或在安装回调中显式授予精确版本豁免（`dsh plugin allow-version ... --accept-risk`）——后者是**接受风险**的例外，必须在变更记录中说明原因与回滚方式。
+
+**为什么写进规范**：`dshmarket@1.66.3` 在 DSH `0.2.0-rc.2` 上被门禁拒绝，导致 FPK 安装最后一步失败。它的 peer 范围停留在 `^0.1.x`；上游在 `1.66.11` 补上了 `|| ^0.2.0-rc.1` 才兼容。这类失败发生在**安装期的最后一步**，前面步骤全部成功，因此很容易在本地测试中被漏掉，只有真机安装才会暴露。

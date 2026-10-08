@@ -14,7 +14,6 @@ DSH_VERSION="0.2.0-rc.2"
 TRIM_CLI_PACKAGE="@trimjs/trim-cli"
 PNPM_VERSION="11.7.0"
 PNPM_BIN="${NPM_CONFIG_PREFIX}/bin/pnpm"
-DSH_VERSION_FILE="${APP_DEST}/dsh-version"
 DSH_INSTALL_CALLBACK_HELPER="${APP_DEST}/scripts/install-callback-helper.mjs"
 DSH_PUBLISHED_PLUGIN_MANIFEST="${APP_DEST}/published-dsh-plugins.json"
 DSH_BUNDLED_PLUGIN_DIRECTORY="${APP_DEST}/bundled-dsh-plugins"
@@ -292,12 +291,6 @@ read_package_version() {
     run_install_callback_helper package-version "${package_json}" 2>/dev/null || true
 }
 
-read_trimmed_file() {
-    local file="$1"
-    [ -f "${file}" ] || return 0
-    tr -d '[:space:]' <"${file}"
-}
-
 validate_install_configuration() {
     [ -f "${PROXY_SCRIPT}" ] ||
         fail_install "DeepSeek Harness gateway proxy is not available at ${PROXY_SCRIPT}"
@@ -312,11 +305,10 @@ validate_install_configuration() {
 run_node_pty_script() {
     local run_dependency_scripts="$1"
 
+    # node-pty 自带随 npm 发布的平台预编译产物，安装时不再需要 g++ 或 FPK 内置的
+    # 原生产物，因此这里只传依赖树位置；registry 由安装流程写入的 .npmrc 决定，
+    # 不在这里追加任何 --registry 参数。
     DSH_HOME="${DSH_HOME}" \
-        DSH_VERSION="${DSH_VERSION}" \
-        DSH_VERSION_FILE="${DSH_VERSION_FILE}" \
-        DSH_NATIVE_BUNDLE="${APP_DEST}/native/node-pty" \
-        NODE_PTY_VERSIONS_FILE="${APP_DEST}/node-pty-versions" \
         DSH_PACKAGE_DIR="${DSH_PACKAGE_DIR}" \
         NPM_GLOBAL_ROOT="${NPM_GLOBAL_ROOT}" \
         NODE_BIN="${NODE_BIN}" \
@@ -325,19 +317,13 @@ run_node_pty_script() {
         PACKAGE_MANAGER_BIN="${NPM_BIN}" \
         DSH_RUN_DEPENDENCY_SCRIPTS="${run_dependency_scripts}" \
         "${NODE_BIN}/node" "${DSH_INSTALL_CALLBACK_HELPER}" prepare-node-pty ||
-        fail_install "Unable to prepare the bundled node-pty dependencies"
+        fail_install "Unable to prepare the node-pty dependencies"
 }
 
 has_required_dsh() {
     [ -x "${DSH_BIN}" ] || return 1
     [ "$(read_package_version "${DSH_PACKAGE_DIR}/package.json")" = "${DSH_VERSION}" ] || return 1
     [ "$("${DSH_BIN}" --version 2>/dev/null || true)" = "${DSH_VERSION}" ]
-}
-
-has_bundled_node_pty() {
-    [ "$(read_trimmed_file "${DSH_VERSION_FILE}")" = "${DSH_VERSION}" ] &&
-        [ -s "${APP_DEST}/node-pty-versions" ] &&
-        [ -d "${APP_DEST}/native/node-pty" ]
 }
 
 main() {
@@ -397,12 +383,10 @@ main() {
         RUN_NODE_PTY_DEPENDENCY_SCRIPTS=1
     fi
 
-    if has_bundled_node_pty; then
-        log_info "Using FPK bundled node-pty native files when the NAS compiler is unavailable."
-    else
-        log_info "FPK has no bundled node-pty native files; the NAS must provide g++ for native compilation."
-        RUN_NODE_PTY_DEPENDENCY_SCRIPTS=1
-    fi
+    # node-pty 使用随 npm 包发布的平台预编译产物，安装不再依赖 NAS 上的 g++；
+    # 依赖脚本仍要跑，以便 dsh 其余依赖的 install 脚本正常执行。
+    log_info "Preparing node-pty from the published platform prebuilds."
+    RUN_NODE_PTY_DEPENDENCY_SCRIPTS=1
 
     LOCAL_VERSION="$(read_package_version "${DSH_PACKAGE_DIR}/package.json")"
     [ "${LOCAL_VERSION}" = "${DSH_VERSION}" ] ||

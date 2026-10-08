@@ -271,6 +271,21 @@ sequenceDiagram
 | PLAN-FNOS-009-T07-01 | FNOS-009-12 / AC-01、AC-03 | `install_callback` 的 `install_published_dsh_plugins`：自有插件的 registry 安装/升级分支改为与 `thirdparty` 相同的放行调用，去掉按 `source` 分派的二选一；`force_install_bundled_plugin` 的归档替换保持现状 | 无 | 分支断言：自有插件与三方插件均走放行调用；FPK 归档路径仍走 `remove`→`add` |
 | PLAN-FNOS-009-T07-02 | FNOS-009-12 / AC-01、AC-03 | 加固与验证：确认放行只作用于安装回调自身发起的调用，未改动插件市场/DSH 插件管理的默认策略；真实类 pnpm 端到端复现「新发布版本 + 历史同包名残留」场景 | T07-01 | `bundled-plugin-install.spec.ts` 全绿；端到端记录（安装成功且无发布日期报错） |
 
+### 阶段八：node-pty 免编译安装与跨平台构建（T08-01–T08-03）
+
+| 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
+| --- | --- | --- | --- | --- |
+| PLAN-FNOS-009-T08-01 | FNOS-009-13 / AC-01、AC-02、AC-05 | `install-callback-helper` 的 `node-pty.ts`：删除 g++ 存在性判断与 `installBundledNodePty`，改为校验依赖树内 node-pty 的 `prebuilds/<platform>-<arch>/pty.node` 是否存在；依赖脚本执行期间始终临时替换 node-pty 的 install 脚本 | 无 | 单测：预编译存在时通过、缺失时报可诊断错误；上游移除依赖时跳过而非失败 |
+| PLAN-FNOS-009-T08-02 | FNOS-009-13 / AC-03、AC-04 | `install_callback` 去掉内置产物相关环境变量与 `has_bundled_node_pty`；删除 `prepare-dsh-native.sh`、native 配置、`--bundle-dsh-native`/`--skip-bundle-dsh-native`、平台限制与交互询问；更新 CI workflow | T08-01 | `bash -n` 语法检查；`build.ts` 无 native 引用；macOS 上 `--fpk` 构建成功且 FPK 内无原生产物 |
+| PLAN-FNOS-009-T08-03 | FNOS-009-13 / AC-01、AC-03 | 在真实 fnOS NAS 上卸载重装，确认无 g++ 环境下安装成功、侧边栏终端可用 | T08-01、T08-02 | NAS 安装日志无编译器相关失败；PTY 终端可正常打开并执行命令 |
+
+### 阶段九：三方插件版本随 DSH 基线同步（T09-01–T09-02）
+
+| 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
+| --- | --- | --- | --- | --- |
+| PLAN-FNOS-009-T09-01 | FNOS-009-14 / AC-01、AC-02 | 核对 `published-dsh-plugins.json` 内三方插件版本，选择 `peerDependencies` 已覆盖新 DSH 基线的版本并更新 | 无 | `npm view <包名>@<版本> peerDependencies` 显示覆盖目标基线；清单版本无末尾换行缺失等格式问题 |
+| PLAN-FNOS-009-T09-02 | FNOS-009-14 / AC-02、AC-03 | 在 `docs/build/versioning.md` 增加「更新 DSH 基线时必须同步三方插件版本」的核对步骤与失败样例说明 | T09-01 | 规范包含查询命令、选择准则、真机验证要求与豁免的例外条件 |
+
 ### 任务依赖
 
 ```mermaid
@@ -305,6 +320,12 @@ flowchart TD
     T06a --> T06b[T06-02 父子解耦修复]
     T06b --> T06c[T06-03 Web 走查]
     T07a[T07-01 自有插件统一放行] --> T07b[T07-02 加固与端到端验证]
+    T06a --> T08a[T08-01 免编译准备逻辑]
+    T08a --> T08b[T08-02 构建管线清理]
+    T08b --> T08c[T08-03 NAS 安装验证]
+    T08c --> T09a[T09-01 三方插件版本核对]
+    T09a --> T09b[T09-02 规范登记]
+    T04b --> T08c
 ```
 
 ## 交互和行为设计
@@ -371,11 +392,15 @@ FNOS-009-09/10 的用户可见变化仅限授权目录管理页：
 | 阶段五：授权目录持久化与权限校验 | <Badge type="info" text="本地完成，待目标环境验收" /> |
 | 阶段六：插入选择树父子解耦 | <Badge type="info" text="本地完成，待目标环境验收" /> |
 | 阶段七：插件安装发布日期放行统一 | <Badge type="info" text="本地完成，待目标环境验收" /> |
+| 阶段八：node-pty 免编译安装与跨平台构建 | <Badge type="tip" text="已完成（含真机验收）" /> |
+| 阶段九：三方插件版本随 DSH 基线同步 | <Badge type="tip" text="已完成（含真机验收）" /> |
 
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
-| --- | --- | --- |
+| --- | --- | | 2026-10-08 | 新增阶段九（T09-01–T09-02） | 真机安装暴露三方插件 `dshmarket@1.66.3` 被 DSH `0.2.0-rc.2` 兼容门禁拒绝；更新为 `1.66.11` 并在版本管理规范中登记「更新 DSH 基线时同步三方插件版本」的核对步骤。 |
+| 2026-10-07 | 新增阶段八（T08-01–T08-03） | node-pty 改用上游 npm 包自带的平台预编译产物：删除 `prepare-dsh-native.sh`、native 配置与 `--bundle-dsh-native` 参数，去掉 Linux 构建机限制与 g++ 判断，macOS 可直接构建可用 FPK；安装流程不新增下载、不追加 `--registry`。 |
+--- |
 | 2026-09-30 | 初始计划 | 建立 PLAN-FNOS-009，覆盖 FNOS-009-01 至 FNOS-009-08；门禁机制与两版本差异已在 `dsh-v0.2.0-rc.2` checkout 源码核实。插件版本号按用户决定取 `0.2.0-rc.2.0`。 |
 | 2026-09-30 | 新增阶段五 | 覆盖 FNOS-009-09/10：授权目录列表持久化（`dsh-fnos` settings 新字段，持久化优先展示）、`@trimjs/web-app` 无交互授权接口逐项校验与失效剔除（T05-01–T05-05）；SDK 事实已在插件依赖的 `@trimjs/web-app` dist 源码核实，扩展桥不支持形态登记为降级路径。同步更新影响矩阵、数据约束、风险与回滚。 |
 | 2026-09-30 | 新增阶段六 | 覆盖 FNOS-009-11：「插入 NAS 文件或目录」选择树父子勾选解耦（T06-01–T06-03）；Semi 源码核实 `checkRelation="unRelated"` 语义为逐 key 独立增删，修复优先走 props 与受控 value，必要时 onChange 求差兜底。同步更新影响矩阵与依赖图。 |

@@ -42,29 +42,22 @@ dsh plugin --profile web remove <plugin>
 dsh web --no-open --host <host> --port <port> --trusted-host <authority...>
 ```
 
-## node-pty native 文件
+## node-pty 原生依赖
 
-正式 FPK 需要在 Linux 构建机上准备 node-pty native 文件。构建机必须有 Node.js 24、g++、make 和 python3。
+node-pty 由上游 `@deepseek-ai/dsh-subprocess-local` 引入，其 npm 包**自带各平台的预编译产物**。
+fnOS 目标平台固定为 x86_64 Linux，因此统一使用 `prebuilds/linux-x64/pty.node`，不做运行时平台判断。
+node-pty 的加载器按 `build/Release` → `build/Debug` → `prebuilds/<platform>-<arch>` 的顺序查找，因此：
 
-从仓库根目录构建时，选择内置 node-pty，或使用非交互参数：
+- **构建与安装都不需要 g++**，FPK 也不再内置 node-pty 原生产物；
+- 安装时由安装回调校验依赖树里 node-pty 的预编译目录是否存在，不复制、不编译；
+- 安装流程使用向导写入 `.npmrc` 的 registry，不额外传 `--registry`。
 
 ```bash
-pnpm run build -- \
-  --fpk \
-  --app fn-deepseek-harness \
-  --bundle-dsh-native \
-  --skip-bundle-dsh-plugins
+pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins
 ```
 
-构建流程会执行 `.github/scripts/prepare-dsh-native.sh`，并将文件写入：
-
-```text
-app/native/node-pty/<version>/pty.node
-app/dsh-version
-app/node-pty-versions
-```
-
-直接在应用目录执行 `fnpack build` 不会准备 native 文件。没有 native 文件且 NAS 没有 g++ 时，安装会失败。
+依赖脚本仍然会执行（`npm rebuild`），以便 dsh 其余依赖的 install 脚本正常运行；node-pty
+自身的 install 脚本在执行期间被临时替换，避免触发本地编译。
 
 ## 数据目录
 
@@ -79,10 +72,11 @@ app/node-pty-versions
 ## 构建
 
 ```bash
-pnpm run build -- --fpk --app fn-deepseek-harness --bundle-dsh-native --skip-bundle-dsh-plugins
+pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins
 ```
 
-生成的 FPK 位于 `apps/fn-deepseek-harness/`。正式发布包由 GitHub Actions 在 Linux runner 上构建。
+生成的 FPK 位于 `apps/fn-deepseek-harness/`。正式发布包由 GitHub Actions 构建；由于不再需要
+编译原生依赖，macOS 与 Linux 均可直接构建。
 
 ## 卸载
 

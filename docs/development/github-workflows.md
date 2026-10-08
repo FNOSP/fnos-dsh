@@ -55,7 +55,6 @@ sequenceDiagram
   participant prepare as prepare-release<br/>创建或重置草稿 Release
   participant dsh as build-dsh<br/>可复用工作流
   participant gateway as build:gateway<br/>构建 fnOS Gateway
-  participant native as prepare_dsh<br/>准备 DSH native
   participant dshBuild as build<br/>构建 Harness FPK + 上传
   participant publish as publish-release<br/>等待构建任务
   participant notes as pnpm run release:notes<br/>调用 changelogithub
@@ -66,8 +65,6 @@ sequenceDiagram
   prepare->>dsh: workflow_call(release_tag, release_id)
   dsh->>gateway: fnos-dsh-cli build:gateway
   gateway->>dsh: Gateway bundle
-  dsh->>native: prepare-dsh-native.sh
-  native->>dsh: resolved DSH_VERSION
   dsh->>dshBuild: fnos-dsh-cli build --fpk
   dshBuild->>dsh: FPK asset uploaded
   dsh->>publish: completed
@@ -98,20 +95,15 @@ flowchart TD
   tooling["Node 24 + pnpm 11"]
   install["安装 fnos-gateway... 与 CLI 依赖"]
   gateway["fnos-dsh-cli build:gateway"]
-  native["prepare-dsh-native.sh"]
-  nativeStatus{"DSH_VERSION 已解析？"}
   fnpack["安装 fnpack 1.2.1"]
   build["fnos-dsh-cli build --fpk --app fn-deepseek-harness"]
   rename["重命名并附加 DSH_VERSION"]
   upload["上传 Harness FPK 到 Release"]
   status{"上传成功？"}
   done["是：构建完成"]
-  nativeFail["否：native 准备失败"]
   uploadFail["否：重试 5 次后失败"]
 
-  workflow --> checkout --> tooling --> install --> gateway --> native --> nativeStatus
-  nativeStatus -->|是| fnpack
-  nativeStatus -->|否| nativeFail
+  workflow --> checkout --> tooling --> install --> gateway --> fnpack
   fnpack --> build --> rename --> upload --> status
   status -->|是| done
   status -->|否| uploadFail
@@ -160,8 +152,6 @@ flowchart LR
 
   subgraph tools["外部工具与发布服务"]
     fnpack["fnpack 1.2.1（CI）"]
-    native[".github/scripts/prepare-dsh-native.sh"]
-    nativeConfig[".github/config/dsh-native-0.1.7-rc.2.env"]
     github["GitHub Release / Pages API"]
   end
 
@@ -169,8 +159,6 @@ flowchart LR
   release --> releaseNotes
   dsh -->|build:gateway + FPK| build
   dsh --> gateway
-  dsh --> native
-  dsh --> nativeConfig
   dsh --> harnessApp
   dsh --> fnpack
   dsh -->|上传 FPK| github
@@ -199,7 +187,7 @@ flowchart LR
 | 工作流 | 触发方式 | 主要职责 | 关键输入 |
 | --- | --- | --- | --- |
 | `build-release.yml` | 推送 `v*` Tag | 创建草稿 Release、调用 FPK 构建、发布 Release | `github.ref_name`、Release ID |
-| `build-app.yml` | 仅 `workflow_call` | 构建 Gateway、准备 DSH native、构建 Harness FPK | `release_tag`、`release_id`、native 配置 |
+| `build-app.yml` | 仅 `workflow_call` | 构建 Gateway、构建 Harness FPK | `release_tag`、`release_id` |
 | `deploy-docs.yml` | `v*` Tag / 手动 | 构建 VitePress 并部署 GitHub Pages | `DOCS_BASE=/` |
 | `sdd-check.yml` | Pull Request / 手动 | 执行完整 SDD、文档、包和 harness 插件检查 | 变更路径 |
 
@@ -220,7 +208,7 @@ git push origin v<版本号>
 `build-app.yml` 的顺序不能省略：
 
 1. 安装 Gateway 和 FPK 构建依赖。
-2. 执行 `pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --bundle-dsh-native --skip-bundle-dsh-plugins`，由构建流程先编译 Gateway，再按 `.github/config/dsh-native-0.1.7-rc.2.env` 准备并内置 native 依赖。
+2. 执行 `pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins`，由构建流程先编译 Gateway，再构建 FPK；node-pty 使用上游 npm 包自带的平台预编译产物，构建阶段不再准备原生产物。
 3. 按 Release Tag 和 DSH 版本重命名并上传 FPK。
 
 ### 3. 发布 Release
@@ -251,10 +239,10 @@ pnpm run check -- --all
 - [ ] 新增或修改触发器后，更新本页的触发条件和总览图。
 - [ ] 可复用工作流的输入、输出和 `needs` 关系保持一致。
 - [ ] FPK 构建继续通过 `fnos-dsh-cli` 和 `fnpack`，不在工作流中复制 CLI 逻辑。
-- [ ] 版本、DSH native 和 fnpack 版本来源与配置文件保持一致。
+- [ ] 版本与 fnpack 版本来源保持一致；node-pty 的预编译产物由上游 npm 包提供，不在仓库内固定。
 - [ ] 文档或 Mermaid 图改动通过 `pnpm run build -- --docs`。
 - [ ] 提交前运行 `pnpm run check -- --all`。
-- [ ] 不把 `.fpk`、native 临时目录或 GitHub Token 写入仓库。
+- [ ] 不把 `.fpk` 或 GitHub Token 写入仓库。
 
 ## 相关文档
 

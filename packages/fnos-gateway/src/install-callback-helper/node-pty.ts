@@ -1,11 +1,13 @@
 import { spawnSync } from 'node:child_process'
-import { constants, readFileSync } from 'node:fs'
-import { access, chmod, copyFile, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { access, chmod, copyFile, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { readJson } from './common.ts'
 import { createLogger, fail } from './logger.ts'
 
 const logger = createLogger('install-node-pty')
+
+/** 持有 node-pty 依赖的上游包；用于日志与「上游移除依赖」时的可读说明。 */
+const DSH_SUBPROCESS_PACKAGE = '@deepseek-ai/dsh-subprocess-local'
 
 function failNodePty(message: string): never {
   return fail('install-node-pty', message)
@@ -15,29 +17,6 @@ function requiredEnv(name: string): string {
   const value = process.env[name]
   if (!value) failNodePty(`${name} is required`)
   return value
-}
-
-function hasCompiler(): boolean {
-  return spawnSync('g++', ['--version'], { stdio: 'ignore' }).status === 0
-}
-
-function readVersionList(path: string): string[] {
-  try {
-    return readFileSync(path, 'utf8')
-      .split(/\r?\n/)
-      .filter(line => /\S/.test(line))
-      .map(line => line.replace(/\s/g, ''))
-  } catch {
-    return []
-  }
-}
-
-function validateVersions(versions: string[]): void {
-  for (const version of versions) {
-    if (!/^[A-Za-z0-9_.+-]+$/.test(version)) {
-      failNodePty(`invalid packaged node-pty version: ${version}`)
-    }
-  }
 }
 
 async function findNodePtyPackages(root: string, result: string[] = []): Promise<string[]> {
@@ -119,16 +98,10 @@ async function runDshDependencyScripts(
   packageFiles: string[],
   backupDir: string,
   npmBin: string,
-  compilerAvailable: boolean,
 ): Promise<void> {
-  let backups: PackageBackup[] = []
-  if (compilerAvailable) {
-    logger.info('g++ detected; running node-pty lifecycle scripts without the native compilation patch.')
-  } else {
-    backups = await disableNodePtyInstallScripts(packageFiles, backupDir)
-    logger.info(`Temporarily disabling lifecycle scripts for ${packageFiles.length} node-pty package(s); other DSH dependency scripts remain enabled.`)
-    logger.info('Running DSH dependency lifecycle scripts with node-pty native compilation disabled.')
-  }
+  const backups = await disableNodePtyInstallScripts(packageFiles, backupDir)
+  logger.info(`Temporarily disabling lifecycle scripts for ${packageFiles.length} node-pty package(s); other DSH dependency scripts remain enabled.`)
+  logger.info('Running DSH dependency lifecycle scripts with the node-pty native build left to the published prebuilds.')
 
   const startedAt = Date.now()
   logger.info('START: npm rebuild --global --foreground-scripts')
@@ -144,69 +117,53 @@ async function runDshDependencyScripts(
     logger.error(`FAILED: npm rebuild --global --foreground-scripts (exit=${status}, elapsed=${elapsed}s)`)
   }
 
-  if (!compilerAvailable) {
-    try {
-      await restorePackageMetadata(backups)
-    } catch {
-      await rm(backupDir, { recursive: true, force: true })
-      failNodePty('Unable to restore node-pty package metadata')
-    }
+  try {
+    await restorePackageMetadata(backups)
+  } catch {
+    await rm(backupDir, { recursive: true, force: true })
+    failNodePty('Unable to restore node-pty package metadata')
   }
   await rm(backupDir, { recursive: true, force: true })
   if (status !== 0) failNodePty('Failed to run DSH dependency lifecycle scripts')
   logger.info('DSH dependency lifecycle scripts completed.')
 }
 
-async function copyDirectoryContents(source: string, target: string): Promise<void> {
-  await mkdir(target, { recursive: true })
-  for (const entry of await readdir(source, { withFileTypes: true })) {
-    const sourcePath = join(source, entry.name)
-    const targetPath = join(target, entry.name)
-    if (entry.isDirectory()) {
-      await copyDirectoryContents(sourcePath, targetPath)
-    } else {
-      await copyFile(sourcePath, targetPath)
-      await chmod(targetPath, (await stat(sourcePath)).mode & 0o777)
-    }
-  }
-}
+/**
+ * node-pty 在 fnOS 目标平台上的预编译目录名。
+ *
+ * 固定为 `linux-x64`：fnOS 应用只在 x86_64 的 Linux 上安装，node-pty 的加载器
+ * 也按 `prebuilds/${process.platform}-${process.arch}` 查找，两者在目标平台一致。
+ * 不做运行时平台判断，避免安装回调在非目标平台上得出误导性的结论。
+ */
+const FNOS_PREBUILD_DIRECTORY = 'linux-x64'
 
-async function installBundledNodePty(packageFiles: string[], versions: string[], nativeBundle: string): Promise<void> {
-  let packageCount = 0
-  const foundVersions = new Set<string>()
+/**
+ * 校验已安装的 node-pty 自带可用预编译产物。
+ *
+ * node-pty 的加载器按 `build/Release` → `build/Debug` → `prebuilds/<platform>-<arch>`
+ * 的顺序查找 `pty.node`，因此只要预编译目录存在，就不需要 g++ 现场编译。
+ * 这里只做存在性校验并记录选中的目录，不做任何复制：把产物强行拷进
+ * `build/Release` 反而会掩盖预编译缺失这类真实问题。
+ *
+ * @param packageFiles - 已安装 node-pty 包的 `package.json` 绝对路径列表。
+ * @returns 每个包解析到的预编译目录描述。
+ */
+async function verifyNodePtyPrebuilds(packageFiles: string[]): Promise<Array<{ packageJson: string, prebuildDirectory: string }>> {
+  const resolved: Array<{ packageJson: string, prebuildDirectory: string }> = []
   for (const packageJson of packageFiles) {
-    const manifest = await readJson(packageJson)
-    const candidateVersion = manifest?.version
-    if (typeof candidateVersion !== 'string' || candidateVersion === '') continue
-    if (!versions.includes(candidateVersion)) {
-      failNodePty(`Installed node-pty ${candidateVersion} is not present in the FPK dependency set`)
-    }
-
-    const bundleDir = join(nativeBundle, candidateVersion)
+    const packageRoot = dirname(packageJson)
+    const prebuildDirectory = join(packageRoot, 'prebuilds', FNOS_PREBUILD_DIRECTORY)
     try {
-      await stat(join(bundleDir, 'pty.node'))
+      await stat(join(prebuildDirectory, 'pty.node'))
     } catch {
-      failNodePty(`The FPK does not contain node-pty ${candidateVersion} native files`)
+      failNodePty(
+        `node-pty package at ${packageRoot} has no ${FNOS_PREBUILD_DIRECTORY} prebuild; ` +
+        'the published package is expected to ship one and no compiler is required',
+      )
     }
-
-    await copyDirectoryContents(bundleDir, join(dirname(packageJson), 'build', 'Release'))
-    try {
-      const helperPath = join(dirname(packageJson), 'build', 'Release', 'spawn-helper')
-      await chmod(helperPath, (await stat(helperPath)).mode | 0o111)
-    } catch {
-      // The helper is optional on some node-pty builds.
-    }
-    packageCount += 1
-    foundVersions.add(candidateVersion)
+    resolved.push({ packageJson, prebuildDirectory })
   }
-
-  if (packageCount === 0) failNodePty('Unable to locate any node-pty package in the installed dsh dependency tree')
-  for (const expectedVersion of versions) {
-    if (!foundVersions.has(expectedVersion)) {
-      failNodePty(`Installed dsh dependency tree is missing node-pty ${expectedVersion}`)
-    }
-  }
-  logger.info(`Installed bundled node-pty versions: ${[...foundVersions].join(',')}.`)
+  return resolved
 }
 
 export async function prepareNodePty(): Promise<void> {
@@ -215,10 +172,6 @@ export async function prepareNodePty(): Promise<void> {
   const packageManager = process.env.PACKAGE_MANAGER || 'npm'
   const packageManagerBin = process.env.PACKAGE_MANAGER_BIN || npmBin
   const dshHome = requiredEnv('DSH_HOME')
-  const dshVersion = requiredEnv('DSH_VERSION')
-  const dshVersionFile = requiredEnv('DSH_VERSION_FILE')
-  const nativeBundle = requiredEnv('DSH_NATIVE_BUNDLE')
-  const versionsFile = requiredEnv('NODE_PTY_VERSIONS_FILE')
   const packageDir = requiredEnv('DSH_PACKAGE_DIR')
   const npmGlobalRoot = requiredEnv('NPM_GLOBAL_ROOT')
 
@@ -229,64 +182,28 @@ export async function prepareNodePty(): Promise<void> {
     failNodePty(`Package manager is not executable: ${packageManagerBin}`)
   }
 
-  const versions = readVersionList(versionsFile)
-  validateVersions(versions)
-  const nativeBundleExists = await (async () => {
-    try {
-      return (await stat(nativeBundle)).isDirectory()
-    } catch {
-      return false
-    }
-  })()
-  const hasBundledNodePty = versions.length > 0 && nativeBundleExists
-  if (versions.length > 0 || nativeBundleExists) {
-    if (!hasBundledNodePty) failNodePty('The FPK node-pty native bundle is incomplete')
+  // node-pty 是否仍被 dsh 需要由依赖树决定，不写死在这里：包一旦被上游移除，
+  // 下面的查找会返回空列表，流程自然跳过，而不是报一个过时的错误。
+  const packageFiles = await uniqueNodePtyPackages([packageDir, npmGlobalRoot])
+  if (packageFiles.length === 0) {
+    logger.info(`${DSH_SUBPROCESS_PACKAGE} no longer depends on node-pty; nothing to prepare.`)
+    return
   }
+  logger.info(`Found ${packageFiles.length} node-pty package(s) in the installed dsh dependency tree.`)
 
   const runDependencyScripts = process.env.DSH_RUN_DEPENDENCY_SCRIPTS === '1'
-  const packageFiles = runDependencyScripts || hasBundledNodePty
-    ? await uniqueNodePtyPackages([packageDir, npmGlobalRoot])
-    : []
-  if ((runDependencyScripts || hasBundledNodePty) && packageFiles.length === 0) {
-    failNodePty(runDependencyScripts
-      ? 'Unable to locate any node-pty package before running dependency scripts'
-      : 'Unable to locate any node-pty package in the installed dsh dependency tree')
-  }
-
-  if (hasBundledNodePty) {
-    try {
-      const packagedVersion = (await readFile(dshVersionFile, 'utf8')).replace(/\s/g, '')
-      if (packagedVersion !== dshVersion) {
-        failNodePty(`The FPK native files target DSH ${packagedVersion || 'unknown'}, expected ${dshVersion}`)
-      }
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith('[')) throw error
-      failNodePty(`The FPK DSH version file is not available: ${dshVersionFile}`)
-    }
-    logger.info(`Preparing node-pty native files for DSH ${dshVersion}.`)
-  }
-
-  const compilerAvailable = hasCompiler()
-  if (!hasBundledNodePty && !compilerAvailable) {
-    failNodePty('The FPK has no bundled node-pty native files and g++ is not available on this NAS')
-  }
-
   const backupDir = await mkdtemp(join(dshHome, '.node-pty-scripts.'))
   try {
-    if (runDependencyScripts) await runDshDependencyScripts(packageFiles, backupDir, npmBin, compilerAvailable)
+    if (runDependencyScripts) await runDshDependencyScripts(packageFiles, backupDir, npmBin)
     else await rm(backupDir, { recursive: true, force: true })
-
-    if (hasBundledNodePty) {
-      if (!compilerAvailable || !runDependencyScripts) {
-        await installBundledNodePty(packageFiles, versions, nativeBundle)
-      } else {
-        logger.info('g++ detected; using the node-pty native build from the NAS environment.')
-      }
-    } else {
-      logger.info('Using the node-pty native build from the NAS environment.')
-    }
   } finally {
     await rm(backupDir, { recursive: true, force: true })
   }
-  logger.info('node-pty preparation completed.')
+
+  // 依赖脚本运行后再校验，因为 `npm rebuild` 可能重装 node-pty 包。
+  const resolved = await verifyNodePtyPrebuilds(await uniqueNodePtyPackages([packageDir, npmGlobalRoot]))
+  for (const entry of resolved) {
+    logger.info(`node-pty prebuilds available at ${entry.prebuildDirectory}.`)
+  }
+  logger.info('node-pty preparation completed; the published prebuilds are used without a compiler.')
 }

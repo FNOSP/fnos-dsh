@@ -108,16 +108,18 @@ describe('FNOS-007 DSH baseline', () => {
     }
     expect(published.plugins).toHaveLength(4)
     // Third-party dshmarket has no local source, so its exact pin stays a
-    // literal: the registry version is the contract, not a copy.
-    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.66.3', source: 'thirdparty' })
+    // literal: the registry version is the contract, not a copy. 每次更新 DSH
+    // 基线都要同步升级它，否则其 peer 范围可能不覆盖新基线而被兼容门禁拒绝。
+    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.66.11', source: 'thirdparty' })
     expect(published.registry).toBeUndefined()
     expect(published.bundled ?? []).toEqual([])
 
-    const nativeConfig = await readFile(new URL('../../../.github/config/dsh-native-0.2.0-rc.2.env', import.meta.url), 'utf8')
-    expect(nativeConfig).toContain('DSH_VERSION="0.2.0-rc.2"')
-    expect(nativeConfig).toContain('NODE_MAJOR="24"')
-    expect(nativeConfig).toContain('NODE_PTY_VERSION="1.2.0-beta.15"')
-    expect(nativeConfig).toContain('NODE_GYP_VERSION="11.0.0"')
+    // node-pty 使用随 npm 包发布的平台预编译产物，安装不再需要 g++，FPK 也不再
+    // 内置原生产物；这里锁住该约束，避免旧的内置管线被重新引入。
+    const callback = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/install_callback', import.meta.url), 'utf8')
+    expect(callback).not.toContain('DSH_NATIVE_BUNDLE')
+    expect(callback).not.toContain('has_bundled_node_pty')
+    expect(callback).not.toContain('node-pty-versions')
   })
 
   it('requires every DSH peer on the target runtime baseline', async () => {

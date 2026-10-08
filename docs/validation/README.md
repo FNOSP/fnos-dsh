@@ -45,6 +45,7 @@ status: passed|failed|blocked
 ## 当前记录
 
 - [FNOS-009 DSH Desktop 补充验证记录：暗色主题、设置页与宿主差异点（2026-10-07）](/validation/FNOS-009-desktop-cdp-theme-2026-10-07)
+- [FNOS-009-13 node-pty 免编译安装真机验收记录（2026-10-08）](/validation/FNOS-009-node-pty-prebuilds-2026-10-08)
 - [FNOS-009 插件重锚定 DSH Desktop 验证记录（2026-10-06）](/validation/FNOS-009-desktop-cdp-2026-10-06)
 - [FNOS-009-09 授权目录持久化运行时验证记录（2026-09-30）](/validation/FNOS-009-09-persistence-runtime-2026-09-30)
 - [FNOS-009 插件重锚定 DSH Desktop 运行时验证记录（2026-09-30）](/validation/FNOS-009-desktop-runtime-2026-09-30)

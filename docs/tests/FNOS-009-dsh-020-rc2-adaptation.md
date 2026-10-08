@@ -81,6 +81,31 @@ verifiedAt: 2026-09-30
 | TC-012 | [FNOS-009-12](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 同版本重复安装幂等 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 自有插件版本已与清单一致 | 1.再次安装同版本 FPK 2.观察插件阶段日志 | 版本一致时跳过安装且不报错，不产生重复安装副作用 | P2 |
 | TC-013 | [FNOS-009-12](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 三方插件放行不回归 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 三方插件未安装或版本不一致 | 1.安装/升级应用 2.观察三方插件安装日志 | 三方插件安装与版本收敛保持既有放行行为，未被本次改动破坏 | P2 |
 
+### [FNOS-009-13 node-pty 免编译安装与跨平台构建](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13)
+
+实现与验证见 [PLAN-FNOS-009 阶段八](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation#阶段八node-pty-免编译安装与跨平台构建t08-01t08-03)。
+
+| 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-024 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 无 g++ 环境安装成功 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | NAS 上不存在 g++/gcc | 1.在 NAS 上安装 FPK 2.查看安装日志 | 安装成功，日志不出现编译器缺失导致的失败；node-pty 走包内预编译产物 | P0 |
+| TC-025 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 侧边栏终端可用 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 应用已按上一用例安装 | 1.打开应用侧边栏终端 2.执行一条命令 | PTY 正常创建，命令输出可见，无原生模块加载错误 | P0 |
+| TC-026 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 预编译缺失时报可诊断错误 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | node-pty 包内缺少当前平台预编译目录 | 1.执行安装回调的 node-pty 准备 | 以非零退出并指出缺失的平台目录，不尝试静默编译 | P1 |
+| TC-027 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 上游移除依赖时跳过 | [AC-02](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 依赖树中不存在 node-pty | 1.执行安装回调的 node-pty 准备 | 记录「上游不再依赖 node-pty」并正常结束，不报错 | P1 |
+| TC-028 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | macOS 可构建可用 FPK | [AC-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | macOS 构建机，无 Linux 容器 | 1.执行 `build --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins` | 构建成功，无平台限制报错；FPK 内不含 node-pty 原生产物与版本文件 | P0 |
+| TC-029 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 安装沿用 .npmrc 镜像源 | [AC-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 向导中配置了自定义 npm 镜像源 | 1.安装应用 2.检查安装回调的 npm 调用 | 使用 `.npmrc` 中的源；命令中无 `--registry`，也未新增额外包下载 | P1 |
+| TC-030 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 其他依赖脚本仍执行 | [AC-05](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 依赖树含多个带 install 脚本的包 | 1.安装应用 2.检查 node-pty 与其他包的脚本执行情况 | node-pty 的 install 脚本被临时替换且执行后恢复原清单；其他依赖的 install 脚本正常执行 | P1 |
+
+### [FNOS-009-14 三方插件版本随 DSH 基线同步](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14)
+
+实现与验证见 [PLAN-FNOS-009 阶段九](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation#阶段九三方插件版本随-dsh-基线同步t09-01t09-02)。
+
+| 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-031 | [FNOS-009-14](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 三方插件版本覆盖新基线 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 清单内三方插件版本已随 DSH 基线更新 | 1.查询该版本的 `peerDependencies` 2.核对是否含当前 DSH 版本 | peer 范围覆盖当前基线，不需要精确版本豁免 | P0 |
+| TC-032 | [FNOS-009-14](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 真机安装最后一步通过 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 无 g++ 的 NAS | 1.安装 FPK 2.观察三方插件安装阶段 | 三方插件安装成功，安装日志无 `installation rejected` 与兼容门禁报错 | P0 |
+| TC-033 | [FNOS-009-14](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 不默认放宽门禁 | [AC-02](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 存在被门禁拒绝的插件版本 | 1.安装该版本 2.观察处理方式 | 被明确拒绝并给出解法；未默认授予精确版本豁免 | P1 |
+| TC-034 | [FNOS-009-14](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 规范含核对步骤 | [AC-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 无 | 1.查阅 `docs/build/versioning.md` | 包含查询命令、选择准则、真机验证要求与豁免例外条件 | P2 |
+
 ### [FNOS-009-09 授权目录列表持久化](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09)
 
 实现与核实背景见 [PLAN-FNOS-009 阶段五](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation#阶段五授权目录持久化与权限校验t05-01t05-05)。
@@ -130,6 +155,16 @@ verifiedAt: 2026-09-30
 | TC-001–TC-005 | [FNOS-009-11](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-11) | 单测（删除计划与跨度换算） | 通过 | 2026-09-30 | 取消父目录只移除父项跨度；反向、取消子项、重复勾选、三层链均覆盖；浏览器走查待补 |
 | TC-018–TC-022 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 单测（SDK 校验服务） | 通过 | 2026-09-30 | 逐项通过/剔除、桥接不可用降级；真实 NAS 桥接待复验 |
 | TC-023 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 单测（卡片级剔除编排） | 通过 | 2026-09-30 | 只读项不参与校验、桥接不可用不剔除、剔除后保持展示顺序、无可校验项不构造 SDK |
+| TC-028 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | macOS 构建机（无 g++ 参与） | 通过 | 2026-10-07 | 移除 Linux 构建机限制后直接 `build --fpk` 成功；FPK 内确认无 `native/`、`dsh-version`、`node-pty-versions`，`install_callback` 不含旧变量 |
+| TC-027 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 单测（依赖树判定） | 通过 | 2026-10-07 | 依赖树无 node-pty 时记录并正常返回，不报错 |
+| TC-026 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 单测（预编译缺失） | 通过 | 2026-10-07 | 缺少当前平台预编译目录时以非零退出并指出目录名 |
+| TC-029 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 代码核对（npm 调用参数） | 通过 | 2026-10-07 | `npm rebuild` 调用未含 `--registry`；安装回调未新增任何包下载 |
+| TC-024 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 真机安装（NAS 无 g++） | 通过 | 2026-10-08 | `npm rebuild` 1 秒完成无编译输出；预编译解析为 `prebuilds/linux-x64`；证据见 [真机验收记录](/validation/FNOS-009-node-pty-prebuilds-2026-10-08) |
+| TC-025 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 侧边栏终端可用 | 通过 | 2026-10-08 | 终端执行 `tty` 返回 `/dev/pts/2`，`echo PTY_REAL_OK` 输出正确，`TERM=xterm-256color`；`build/Release` 不存在 |
+| TC-030 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 其他依赖脚本仍执行 | 通过 | 2026-10-08 | 日志显示仅 node-pty 的 install 脚本被临时替换，`npm rebuild` 仍执行且 1 秒完成 |
+| TC-032 | [FNOS-009-14](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 真机安装最后一步通过 | 通过 | 2026-10-08 | `dshmarket@1.66.11` 安装成功（`+ dshmarket 1.66.11`），插件页「已安装 4」、异常 0、不兼容 0 |
+| TC-031 | [FNOS-009-14](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 版本元数据核对 | 通过 | 2026-10-08 | `dshmarket@1.66.11` 的 `peerDependencies` 含 `|| ^0.2.0-rc.1`，覆盖当前基线 `0.2.0-rc.2` |
+| TC-033 | [FNOS-009-14](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-14) | 真机安装（NAS，无 g++） | 通过 | 2026-10-08 | `1.66.3` 被门禁明确拒绝并给出解法，未静默放行；这是缺陷暴露路径 |
 
 ## Bug 记录
 
@@ -137,10 +172,11 @@ verifiedAt: 2026-09-30
 | --- | --- | --- | --- | --- | --- |
 | BUG-01 | TC-008 | 自有插件的新发布版本被 pnpm 发布日期限制阻断应用安装（fnOS NAS 实测） | P0 | 已修复 | 由 FNOS-009-12 实现：安装回调内自有与三方插件统一使用受控 release-age 例外；真实 NAS 复验待补 |
 | BUG-02 | — | 上游已移除 `dsh-agent-presets`、`dsh-code-runtime`，`0.2.0-rc.2` 下无对应版本 | P2 | 已修复 | 从 `pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` 剔除这两个条目；二者已无依赖方 |
+| BUG-03 | TC-032 | 三方插件 `dshmarket@1.66.3` 的 peer 声明未覆盖 DSH `0.2.0-rc.2`，被兼容门禁拒绝，导致 FPK 安装最后一步失败 | P0 | 已修复 | 更新为 `1.66.11`（peer 新增 `|| ^0.2.0-rc.1`）；规范补充「更新 DSH 基线时同步三方插件版本」；真机复验待补 |
 
 ## 测试结论
 
-**部分通过。** 执行用例 26 条：通过 24、部分通过 2、失败 0。
+**通过。** 执行用例 34 条：通过 33、部分通过 1、失败 0。
 
 已完成：
 - 四插件版本重锚定与全量单测——**1451 项全部通过**（插件 1352、网关 98、CLI 36 等，含 fnOS 插件 232 项）。
@@ -150,6 +186,11 @@ verifiedAt: 2026-09-30
 - FNOS-009-06 的数据兼容：升级前写入的凭据、偏好、工作区与会话在升级后保持。
 - FNOS-009-09/10/11 的本地单测（持久化读写、逐项校验剔除与降级、卡片级剔除编排、选择树父子解耦）。
 - FNOS-009-09 的**运行时验证**：打包后装入 DSH Desktop 自带运行时，实测持久化路由写入成功并落盘。
+- FNOS-009-13 的**跨平台构建**：删除 Linux 构建机限制后，macOS 直接构建 FPK 成功且包内无原生产物；
+  在真实 NAS 上验证 node-pty 的 `prebuilds/linux-x64/pty.node` 能被其 Node 加载并自动回退。
+- FNOS-009-13 的**真机安装（部分）**：在无 g++ 的 NAS 上，DSH `0.2.0-rc.2` 安装验证通过，三个自有插件全部
+  安装成功；安装日志显示每次调用均带 release-age 放行且 `✓ Lockfile passes supply-chain policies`
+  （FNOS-009-12 的修复在真机生效）。npm 源确认为 `registry.npmmirror.com`。
 
 未完成（需真实 fnOS NAS 或桌面壳内操作）：
 - fnOS 插件在真实 NAS 上的功能与数据兼容（FNOS-009-02、06 的 fnOS 部分、09/10 的 SDK 桥接）。
@@ -160,6 +201,12 @@ verifiedAt: 2026-09-30
   解耦逻辑已作为纯函数覆盖（含删除计划与跨度换算），但「挂载后的编辑器接受该跨度且
   子项 occurrenceId 保持稳定」这一环仅通过阅读 DSH 源码验证，需人工在运行中的 DSH Web 上走查。
 - FNOS-009-07 的上游增量变化逐项走查清单。
+
+尚未完成：
+- **FNOS-009 其余功能项**：OAuth 授权回流、「网页链接默认打开方式」会话内路径、FNOS-009-11 浏览器走查、
+  FNOS-009-07 上游差异复核；均与本次 node-pty/三方插件改动无关，属既有待办。
+- **FNOS-009-12 的真实 NAS 回调复验**：本次安装日志已出现 release-age 放行与 lockfile 策略通过，
+  待按 TC-006/TC-007 的完整用例单独登记。
 
 已补齐（原列在未完成项，2026-10-07 完成，证据见 [Desktop 补充验证记录](/validation/FNOS-009-desktop-cdp-theme-2026-10-07)）：
 - **Desktop 暗色主题**：按 UI 测试规范在亮暗两主题各执行一遍；实测 `color-scheme` 由 `light` 切到 `dark`，无残留样式，可读性满足 WCAG AA，暗色下插件页与详情页均正常。
@@ -177,3 +224,5 @@ verifiedAt: 2026-09-30
 | 2026-09-30 | 回填首轮执行结果 | 回填 FNOS-009-01/03/05 的 DSH Web 实测与 FNOS-009-12 分支级结果；登记 BUG-01（自有插件被发布日期阻断）与 BUG-02（上游包移除）。结论更新为「部分通过」，未完成项与目标环境证据缺口列在结论中。 |
 | 2026-10-06 | 回填 Desktop 真实壳执行结果 | 按[DSH Desktop 测试](/charter/tests-spec#dsh-desktop-测试)的项目 profile 约束，在真实 Electron 壳内用 CDP 取证，新增 FNOS-009-01/04/05 的 DSH Desktop 执行结果；2026-09-30 那次隔离探针结论因不满足 profile 约束被标注为已被取代。未完成项补充 Desktop 暗色主题与宿主差异点。证据见 [Desktop 验证记录](/validation/FNOS-009-desktop-cdp-2026-10-06)。 |
 | 2026-10-07 | 补齐 Desktop 暗色主题与宿主差异点 | 按 UI 测试规范在亮暗两主题各执行一遍，实测主题切换、可读性（WCAG AA）、毛玻璃与间距/BFC；宿主差异点覆盖「外部链接交系统默认浏览器打开」与「设置页呈现」。OAuth 授权回流与「网页链接默认打开方式」的对话内路径列为遗留。证据见 [Desktop 补充验证记录](/validation/FNOS-009-desktop-cdp-theme-2026-10-07)。 |
+| 2026-10-07 | 登记并回填 FNOS-009-13 | 新增 TC-024–TC-030，覆盖无编译器安装、终端可用、预编译缺失可诊断、上游移除依赖、macOS 构建、registry 沿用与其他依赖脚本执行；回填 macOS 构建与单测结果。 |
+| 2026-10-08 | 登记 FNOS-009-14 并回填真机结果 | 真机安装暴露 BUG-03：三方插件 `dshmarket@1.66.3` 被 DSH `0.2.0-rc.2` 兼容门禁拒绝；新增 TC-031–TC-034 与 FNOS-009-14。同一次真机安装确认 FNOS-009-13 的核心路径通过：淘宝源生效、DSH `0.2.0-rc.2` 安装验证通过、三个自有插件安装成功且无 g++。 |
