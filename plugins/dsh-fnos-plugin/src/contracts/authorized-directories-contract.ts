@@ -28,6 +28,17 @@ export interface AuthorizedDirectory {
   semanticPath: string
   /** Shared application paths are display-only and cannot be removed here. */
   removable: boolean
+  /**
+   * 该目录是否仍在 fnOS 的授权范围内（FNOS-009-10）。
+   *
+   * 由 Host 侧用**无交互**的查询接口（`trim.file.getSharedAccessibleFolders`
+   * 与 `trim.file.getUserAccessibleFolders`）比对得出，而不是逐个路径去
+   * 「申请授权」——后者会弹出确认框并等待用户操作。
+   *
+   * `undefined` 表示**无法判定**（查询接口不可用）。此时必须保留目录，不能
+   * 当成失效剔除：把「问不到」误判成「没权限」会删掉用户的有效授权。
+   */
+  valid?: boolean
 }
 
 export interface AuthorizedDirectoriesResponse {

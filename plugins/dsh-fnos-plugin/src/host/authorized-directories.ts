@@ -467,6 +467,29 @@ export async function loadAuthorizedDirectoryPaths(): Promise<string[]> {
   }
 }
 
+/**
+ * 查询**当前用户**授权给本应用的目录（FNOS-009-10）。
+ *
+ * 与 `authorizeUserFile` 的关键区别：这是后端查询接口，**不弹确认框、不等
+ * 用户操作**。官方文档把 `authorizeUserFile` 定义为「按已知路径重新申请
+ * 授权」，调用会给用户弹出「申请访问以下文件」；用它做校验会让每次刷新
+ * 列表都弹框，且返回值表达的是「这次申请的结果」而不是「当前是否仍有权限」。
+ *
+ * 校验只需把持久化目录与这里返回的集合比对，无需逐个路径申请。
+ *
+ * @returns 用户授权目录；查询接口不可用时返回 `undefined`——表示**无法判定**，
+ * 调用方必须保留目录而不是判为失效。
+ */
+export async function loadUserAuthorizedDirectoryPaths(): Promise<string[] | undefined> {
+  try {
+    const data = await callFnOsApi<SharedAccessibleFolders>('trim.file.getUserAccessibleFolders')
+    return normalizeAuthorizedPaths(data?.paths)
+  } catch (error: unknown) {
+    console.warn('[dsh-fnos] unable to query user-authorized directories; keeping every persisted entry', error)
+    return undefined
+  }
+}
+
 async function readablePathStat(path: string): Promise<Stats | undefined> {
   try {
     const pathStat = await stat(path)
@@ -554,6 +577,36 @@ async function convertDirectories(paths: string[], language: string, readOnlyPat
   const readOnly = new Set(normalizeAuthorizedPaths(readOnlyPaths))
   const converted = await convertPathsForDisplay(paths, language)
   return converted.map(entry => ({ ...entry, removable: !readOnly.has(entry.path) }))
+}
+
+/**
+ * 给每个**可移除**目录标注它是否仍在 fnOS 的授权范围内（FNOS-009-10）。
+ *
+ * 判定依据是两个**无交互**查询接口的返回集合：
+ *
+ * - `trim.file.getSharedAccessibleFolders`（管理员授权给应用的路径）
+ * - `trim.file.getUserAccessibleFolders`（当前用户授权给应用的路径）
+ *
+ * 只读的应用共享路径不参与判定：它们由 fnOS 声明，不属于用户授权，标注
+ * `valid` 没有意义。
+ *
+ * 集合来源不可用时（查询接口抛错）该目录的 `valid` 保持 `undefined`，表示
+ * 「无法判定」。调用方必须保留这类目录——把「问不到」当成「没权限」会删掉
+ * 用户的有效授权记录。
+ *
+ * @param directories - 已组装好的展示列表。
+ * @param knownPaths - 两个查询接口合并出的有效路径集合；`undefined` 表示无法判定。
+ * @returns 标注了 `valid` 的新列表。
+ */
+export function markAuthorizedDirectoryValidity(
+  directories: AuthorizedDirectory[],
+  knownPaths: readonly string[] | undefined,
+): AuthorizedDirectory[] {
+  if (knownPaths === undefined) return directories
+  const known = new Set(knownPaths)
+  return directories.map(directory => directory.removable
+    ? { ...directory, valid: known.has(directory.path) }
+    : directory)
 }
 
 /**
@@ -646,6 +699,18 @@ export async function loadAuthorizedDirectoriesWithPersisted(
   }
   const paths = mergePersistedWithLive(persisted, livePaths, readOnlyPaths)
   return convertDirectories(paths, requestLanguage(req), readOnlyPaths)
+}
+
+/**
+ * 合并两个无交互查询接口的结果，得到「当前有效路径」集合。
+ *
+ * 任一接口失败时整体返回 `undefined`：此时无法区分「没权限」与「问不到」，
+ * 调用方必须跳过剔除。
+ */
+async function knownAuthorizedPaths(): Promise<string[] | undefined> {
+  const [shared, user] = await Promise.all([loadAuthorizedDirectoryPaths(), loadUserAuthorizedDirectoryPaths()])
+  if (user === undefined) return undefined
+  return mergeAuthorizedPaths(shared, user)
 }
 
 function errorResponse(res: ServerResponse, error: unknown): void {
@@ -951,7 +1016,10 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context, options: { setti
                 ctx.settings as unknown as AuthorizedDirectoriesSettings,
                 settingsNamespace,
               )
-            json(res, 200, { directories: await loadAuthorizedDirectoriesWithPersisted(req, persisted) })
+            const directories = await loadAuthorizedDirectoriesWithPersisted(req, persisted)
+            // 权限校验用无交互的查询接口，不逐个路径申请授权（FNOS-009-10）：
+            // 后者会给用户弹确认框，且返回值只说明「这次申请」的结果。
+            json(res, 200, { directories: markAuthorizedDirectoryValidity(directories, await knownAuthorizedPaths()) })
           } catch (error: unknown) {
             errorResponse(res, error)
           }

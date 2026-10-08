@@ -58,14 +58,13 @@ describe('dsh-fnos package contract', () => {
     // 前端 JS SDK 与后端 API 的 scope 归属来自 fnOS 官方文档的能力表。
     const requiredByCall = {
       'sdk.pickSharedFile': 'trim.file.sharedAccess',
-      'sdk.authorizeSharedFile': 'trim.file.sharedAccess',
-      'sdk.authorizeUserFile': 'trim.file.userAccess',
+      'trim.file.getSharedAccessibleFolders': 'trim.file.sharedAccess',
+      'trim.file.getUserAccessibleFolders': 'trim.file.userAccess',
       'trim.file.checkUserACL': 'trim.file.userAcl',
       'trim.file.convertPath': 'trim.file.path',
     } as const
 
     const sources = await Promise.all([
-      'client/services/authorized-directories-validation.ts',
       'client/services/authorized-directories-eviction.ts',
       'client/services/sdk.ts',
       'host/authorized-directories.ts',
@@ -78,6 +77,29 @@ describe('dsh-fnos package contract', () => {
       .map(([call, scope]) => `${call} needs ${scope}`)
 
     expect(missing).toEqual([])
+  })
+
+  it('never probes permissions with the interactive authorize endpoints', async () => {
+    // `authorizeSharedFile` / `authorizeUserFile` 是「申请授权」接口：调用会给
+    // 用户弹出「申请访问以下文件」确认框并等待操作，返回值只说明「这次申请」
+    // 的结果。用它们做列表校验会让每次刷新都弹框，且判定依据本身不成立。
+    // 校验必须走无交互的查询接口（getSharedAccessibleFolders /
+    // getUserAccessibleFolders）并由 Host 标注 `valid`。
+    const clientSources = await Promise.all([
+      'client/services/authorized-directories-eviction.ts',
+      'client/services/sdk.ts',
+      'components/AuthorizedDirectoriesCard.tsx',
+    ].map(path => readFile(new URL(`../../src/${path}`, import.meta.url), 'utf8')))
+    const combined = clientSources.join('\n')
+    // 注释里会提到这两个接口并说明为什么不使用，只检查可执行代码。
+    const code = combined.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+
+    expect(code).not.toContain('authorizeSharedFile')
+    expect(code).not.toContain('authorizeUserFile')
+
+    const host = await readFile(new URL('../../src/host/authorized-directories.ts', import.meta.url), 'utf8')
+    // Host 侧只用查询接口，且必须覆盖用户授权目录这一类。
+    expect(host).toContain('trim.file.getUserAccessibleFolders')
   })
 
   it('registers fn through DSH commandUi and keeps directory browsing as input completion', async () => {

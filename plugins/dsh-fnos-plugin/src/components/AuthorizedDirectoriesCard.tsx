@@ -11,7 +11,7 @@ import {
   requestAuthorizedDirectories,
   requestPersistAuthorizedDirectories,
 } from '../client/services/authorized-directories-client.ts'
-import { evictInvalidDirectories } from '../client/services/authorized-directories-eviction.ts'
+import { evictInvalidAuthorizedDirectories } from '../client/services/authorized-directories-eviction.ts'
 import {
   FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
   type AuthorizedDirectory,
@@ -145,25 +145,17 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
     try {
       const directories = await requestAuthorizedDirectories()
       logAuthorizedDirectoryEvent('refresh-success', { count: directories.length })
-      // 展示前逐项校验权限并剔除失效项（FNOS-009-10）。校验失败不影响展示：
-      // 任何异常都退回未校验列表，绝不因校验问题清空用户的目录。
-      let visible = directories
-      let notice: string | undefined
-      try {
-        const result = await evictInvalidDirectories(directories, createTrimApp)
-        notice = result.noticeKey === undefined ? undefined : t(result.noticeKey)
-        visible = result.directories
-        if (result.evicted) {
-          // 剔除即时生效：同步回写持久化，下次加载不再出现。
-          await requestPersistAuthorizedDirectories(visible.filter(item => item.removable).map(item => item.path))
-            .catch(error => logAuthorizedDirectoryWarning('evict-persist-failed', {
-              message: error instanceof Error ? error.message : undefined,
-            }))
-        }
-      } catch (error: unknown) {
-        logAuthorizedDirectoryWarning('validate-failed', {
-          message: error instanceof Error ? error.message : undefined,
-        })
+      // 剔除失效项（FNOS-009-10）。Host 已用无交互查询接口标注每条目录的
+      // `valid`，这里只做筛选：不再逐个路径申请授权，因此不会弹确认框。
+      const result = evictInvalidAuthorizedDirectories(directories)
+      const notice = result.noticeKey === undefined ? undefined : t(result.noticeKey)
+      const visible = result.directories
+      if (result.evicted) {
+        // 剔除即时生效：同步回写持久化，下次加载不再出现。
+        await requestPersistAuthorizedDirectories(visible.filter(item => item.removable).map(item => item.path))
+          .catch(error => logAuthorizedDirectoryWarning('evict-persist-failed', {
+            message: error instanceof Error ? error.message : undefined,
+          }))
       }
       setValidateNotice(notice)
       directoriesRef.current = visible

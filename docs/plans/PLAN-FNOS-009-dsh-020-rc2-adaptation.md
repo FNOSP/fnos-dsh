@@ -252,9 +252,10 @@ sequenceDiagram
 | --- | --- | --- | --- | --- |
 | PLAN-FNOS-009-T05-01 | FNOS-009-09 / AC-01、AC-03 | settings schema/契约新增 `authorizedDirectories`；Host 剔除回写路由（沿用网关代理路径的原子写与镜像模式或纯 settings 存储，实施时记录决策） | T01-03 | typecheck + Host 路由单测：写入、读取、剔除回写、失败不清空 |
 | PLAN-FNOS-009-T05-02 | FNOS-009-09 / AC-01、AC-02 | Client 卡片加载逻辑：持久化列表优先展示，与实时查询结果合并去重；实时查询失败不丢持久化列表 | T05-01 | Client 单测：合并、优先级、失败降级 |
-| PLAN-FNOS-009-T05-03 | FNOS-009-10 / AC-01 | Client SDK 校验服务：`createTrimApp` 后对持久化列表逐项调用 `authorizeSharedFile`/`authorizeUserFile`（无弹窗），区分单项不通过与整体不可用 | T05-02 | SDK mock 单测：逐项结果、`undefined`/reject 降级路径 |
+| PLAN-FNOS-009-T05-03 | FNOS-009-10 / AC-01 | 权限校验：Host 经**无交互查询接口**（`getSharedAccessibleFolders` / `getUserAccessibleFolders`）取当前有效集合，在列表上标注 `valid`；Client 只做筛选，区分「明确失效」与「无法判定」 | T05-02 | 单测覆盖有效/失效/无法判定三类；契约测试断言客户端代码不含 `authorize*` 申请授权接口 |
 | PLAN-FNOS-009-T05-04 | FNOS-009-10 / AC-02、AC-03、AC-04 | 剔除与恢复闭环：校验不通过项移除展示并回写持久化；SDK 整体不可用时跳过剔除并提示；重新授权后经添加/刷新恢复持久化 | T05-03 | 单测覆盖剔除回写、降级不剔除、恢复再持久化；插件构建通过 |
 | PLAN-FNOS-009-T05-05 | FNOS-009-09/10 全部 AC | 目标环境验收：DSH Web 走查持久化与校验剔除；真实 NAS 验证 SDK 桥接、授权撤销后剔除、升级后数据保持 | T05-04、T04-02 | Web + NAS 证据登记 `docs/validation/` |
+| PLAN-FNOS-009-T05-06 | FNOS-009-10 / AC-05、AC-06 | 修正 T05-03 的接口选择：`authorizeSharedFile` / `authorizeUserFile` 是**申请授权**接口，调用会弹出「申请访问以下文件」确认框；改用查询接口比对有效集合，删除逐项授权探测模块 | T05-03 | 真机确认刷新列表不再弹框；契约测试防止回退 |
 
 ### 阶段六：插入选择树父子解耦（T06-01–T06-03）
 

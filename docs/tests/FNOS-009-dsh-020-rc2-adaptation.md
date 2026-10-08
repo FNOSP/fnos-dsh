@@ -87,6 +87,8 @@ verifiedAt: 2026-09-30
 
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-035 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 刷新列表不弹授权框 | [AC-05](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 已授权若干目录 | 1.反复进入详情页与点「刷新」 2.观察是否出现「申请访问以下文件」弹框 | 全程无授权确认弹框；客户端可执行代码不含 `authorizeSharedFile`/`authorizeUserFile` | P0 |
+| TC-036 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 明确失效才剔除 | [AC-06](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 一组目录分别为有效/明确失效/无法判定 | 1.加载列表 | 仅 `valid === false` 的被剔除并回写持久化；`undefined` 的保留并提示降级 | P0 |
 | TC-024 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 无 g++ 环境安装成功 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | NAS 上不存在 g++/gcc | 1.在 NAS 上安装 FPK 2.查看安装日志 | 安装成功，日志不出现编译器缺失导致的失败；node-pty 走包内预编译产物 | P0 |
 | TC-025 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 侧边栏终端可用 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 应用已按上一用例安装 | 1.打开应用侧边栏终端 2.执行一条命令 | PTY 正常创建，命令输出可见，无原生模块加载错误 | P0 |
 | TC-026 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 预编译缺失时报可诊断错误 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | node-pty 包内缺少当前平台预编译目录 | 1.执行安装回调的 node-pty 准备 | 以非零退出并指出缺失的平台目录，不尝试静默编译 | P1 |
@@ -121,10 +123,10 @@ verifiedAt: 2026-09-30
 
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| TC-018 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 共享接口通过即保留 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 持久化含一个共享目录 | 1.共享接口返回 ok 2.执行校验 | 该项保留，且不再调用用户目录接口（无弹窗） | P0 |
-| TC-019 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 用户目录接口兜底 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 共享接口拒绝该路径 | 1.共享接口返回 ok=false、用户接口返回 ok 2.执行校验 | 该项判定为通过并保留 | P1 |
+| TC-018 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 共享接口通过即保留 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 持久化含一个共享目录 | 1.查询接口返回包含该路径 2.加载列表 | 该项保留；全程无授权确认弹框 | P0 |
+| TC-019 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 用户目录经用户查询接口保留 | [AC-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 用户授权目录不在共享集合中 | 1.共享集合不含该路径、用户集合含该路径 2.加载列表 | 该项判定为有效并保留（两个集合取并集） | P1 |
 | TC-020 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 两个接口都拒绝则剔除 | [AC-02](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 两个接口都返回 ok=false | 1.执行校验 2.观察剔除清单 | 该项进入剔除清单并从展示移除，同步回写持久化 | P0 |
-| TC-021 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 桥接不可用不剔除 | [AC-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 接口返回 `undefined` 或调用抛错 | 1.执行校验 | `available=false`、剔除清单为空、全部路径按保留返回 | P0 |
+| TC-021 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 查询接口不可用时不剔除 | [AC-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 查询接口抛错 | 1.加载列表 2.观察展示 | 每条目录的 `valid` 为 `undefined`；全部保留并提示「已按保存的记录展示目录；当前无法校验权限」 | P0 |
 | TC-022 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 恢复授权后可重新持久化 | [AC-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 目录曾被剔除 | 1.在 fnOS 侧重新授权 2.经「添加/刷新」操作目录 | 目录重新进入列表并被持久化 | P1 |
 
 ### [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01)~[08 版本适配与功能保持](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-08)（规划中，随阶段一~三回填）
@@ -243,3 +245,4 @@ verifiedAt: 2026-09-30
 | 2026-10-07 | 登记并回填 FNOS-009-13 | 新增 TC-024–TC-030，覆盖无编译器安装、终端可用、预编译缺失可诊断、上游移除依赖、macOS 构建、registry 沿用与其他依赖脚本执行；回填 macOS 构建与单测结果。 |
 | 2026-10-08 | 登记 FNOS-009-14 并回填真机结果 | 真机安装暴露 BUG-03：三方插件 `dshmarket@1.66.3` 被 DSH `0.2.0-rc.2` 兼容门禁拒绝；新增 TC-031–TC-034 与 FNOS-009-14。同一次真机安装确认 FNOS-009-13 的核心路径通过：淘宝源生效、DSH `0.2.0-rc.2` 安装验证通过、三个自有插件安装成功且无 g++。 |
 | 2026-10-08 | 登记 BUG-04/05 并回填 fnos 插件真机结果 | 真机走查暴露并修复两个 P0：授权目录列表永久加载中（SDK 桥接无超时 + 缺 `trim.file.userAccess`）、合法授权目录被误剔除并清空持久化（`{ ok }` 与 `AppBridgeResponse` 契约不符）。回填 TC-016/017/018/021/022 与 fnos 插件其余功能结果；新增验收记录。 |
+| 2026-10-08 | FNOS-009-10 校验改用无交互查询接口 | 真机暴露原实现把「申请授权」接口当校验用：每次刷新列表都弹出「申请访问以下文件」确认框，且返回值只表示这次申请的结果。新增 TC-035/036 与 AC-05/06；TC-018/019/021 的预期结果按集合比对改写；删除逐项授权探测模块与对应单测。 |
