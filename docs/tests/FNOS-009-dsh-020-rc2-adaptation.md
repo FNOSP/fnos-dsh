@@ -160,6 +160,11 @@ verifiedAt: 2026-09-30
 | TC-027 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 单测（依赖树判定） | 通过 | 2026-10-07 | 依赖树无 node-pty 时记录并正常返回，不报错 |
 | TC-026 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 单测（预编译缺失） | 通过 | 2026-10-07 | 缺少当前平台预编译目录时以非零退出并指出目录名 |
 | TC-029 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 代码核对（npm 调用参数） | 通过 | 2026-10-07 | `npm rebuild` 调用未含 `--registry`；安装回调未新增任何包下载 |
+| TC-022 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 真机（NAS 存储空间1） | **失败→已修复** | 2026-10-08 | 先暴露 BUG-05：刚授权允许的 `/vol2/1000/fnos-fpk` 被判为无权限、从列表移除并回写 `authorizedDirectories: []`；修复后同一路径保留在列表（5 行）且可「取消授权」 |
+| TC-021 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 真机（NAS 存储空间1） | 通过 | 2026-10-08 | 桥接不可用时走降级：无 `validate-evicted`，改出 `validate-skipped`；界面提示「已按保存的记录展示目录；当前无法校验权限」，目录不被剔除 |
+| TC-018 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 真机（NAS 存储空间1） | 通过 | 2026-10-08 | 应用共享目录（`removable: false`）不参与校验，4 项始终保留 |
+| TC-016 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 真机（NAS 存储空间1） | 通过 | 2026-10-08 | 授权后写入 `cordis.patch.yml` 的 `authorizedDirectories: [/vol2/1000/fnos-fpk]`；刷新列表后仍从持久化展示该目录 |
+| TC-017 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 真机（NAS 存储空间1） | 通过 | 2026-10-08 | 持久化写入失败只记日志：`evict-persist-failed` / `persist-failed` 分支不改变页面状态 |
 | TC-024 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 真机安装（NAS 无 g++） | 通过 | 2026-10-08 | `npm rebuild` 1 秒完成无编译输出；预编译解析为 `prebuilds/linux-x64`；证据见 [真机验收记录](/validation/FNOS-009-node-pty-prebuilds-2026-10-08) |
 | TC-025 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 侧边栏终端可用 | 通过 | 2026-10-08 | 终端执行 `tty` 返回 `/dev/pts/2`，`echo PTY_REAL_OK` 输出正确，`TERM=xterm-256color`；`build/Release` 不存在 |
 | TC-030 | [FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13) | 其他依赖脚本仍执行 | 通过 | 2026-10-08 | 日志显示仅 node-pty 的 install 脚本被临时替换，`npm rebuild` 仍执行且 1 秒完成 |
@@ -174,10 +179,12 @@ verifiedAt: 2026-09-30
 | BUG-01 | TC-008 | 自有插件的新发布版本被 pnpm 发布日期限制阻断应用安装（fnOS NAS 实测） | P0 | 已修复 | 由 FNOS-009-12 实现：安装回调内自有与三方插件统一使用受控 release-age 例外；真实 NAS 复验待补 |
 | BUG-02 | — | 上游已移除 `dsh-agent-presets`、`dsh-code-runtime`，`0.2.0-rc.2` 下无对应版本 | P2 | 已修复 | 从 `pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` 剔除这两个条目；二者已无依赖方 |
 | BUG-03 | TC-032 | 三方插件 `dshmarket@1.66.3` 的 peer 声明未覆盖 DSH `0.2.0-rc.2`，被兼容门禁拒绝，导致 FPK 安装最后一步失败 | P0 | 已修复 | 更新为 `1.66.11`（peer 新增 `|| ^0.2.0-rc.1`）；规范补充「更新 DSH 基线时同步三方插件版本」；真机复验待补 |
+| BUG-04 | TC-022 | 授权目录列表永久停留「正在加载授权目录」，0 行渲染；后端返回 200 且控制台有 `refresh-success`，但无任何 `validate-*` 日志（真机 NAS 实测） | P0 | 已修复 | `authorizeUserFile` 未在 `config/resource` 声明 `trim.file.userAccess`，且 SDK 桥接调用没有超时，任一环节不响应即永久挂起。已补 scope，并为 `sdk.ready()` 与每次授权调用加超时兜底，超时按「校验不可用」降级 |
+| BUG-05 | TC-020 | 刚授权成功的用户目录被判为无权限：从列表移除并**回写持久化记录**，实测 `authorizedDirectories: []`（真机 NAS 实测） | P0 | 已修复 | 校验按 `{ ok: boolean }` 读取 SDK 应答，而真实结构是 `AppBridgeResponse`（`code: 0` 为成功），`ok` 恒为 `undefined`，因此每个可移除目录都必然落到 `return 'invalid'`。改用 `code === 0` 判定；单测替身原先用同一错误契约，因此与实现一起错，现已改用真实结构并新增「调用永不 settle」用例 |
 
 ## 测试结论
 
-**通过。** 执行用例 34 条：通过 33、部分通过 1、失败 0。
+**部分通过。** 执行用例 39 条：通过 37、部分通过 1、失败 1（BUG-05，已修复并复验）。
 
 已完成：
 - 四插件版本重锚定与全量单测——**1451 项全部通过**（插件 1352、网关 98、CLI 36 等，含 fnOS 插件 232 项）。
@@ -189,6 +196,12 @@ verifiedAt: 2026-09-30
 - FNOS-009-09 的**运行时验证**：打包后装入 DSH Desktop 自带运行时，实测持久化路由写入成功并落盘。
 - FNOS-009-13 的**跨平台构建**：删除 Linux 构建机限制后，macOS 直接构建 FPK 成功且包内无原生产物；
   在真实 NAS 上验证 node-pty 的 `prebuilds/linux-x64/pty.node` 能被其 Node 加载并自动回退。
+- FNOS-009-09/10 的**真机验证**：在 fnOS 存储空间1 上走通授权目录添加、持久化落盘
+  （`authorizedDirectories: [/vol2/1000/fnos-fpk]`）与失效降级；过程中暴露并修复 BUG-04
+  （列表永久加载中）与 BUG-05（合法授权目录被误剔除并清空持久化）。详见
+  [fnos 插件真机验收记录](/validation/FNOS-009-fnos-plugin-nas-2026-10-08)。
+- fnos 插件其余功能真机通过：详情页结构（300px 目录上限、无外层框）、应用共享目录只读、
+  主题跟随系统（`data-ds-theme-source=system`）、三方插件 proxy 保存与保留路径校验。
 - FNOS-009-13 的**真机安装（部分）**：在无 g++ 的 NAS 上，DSH `0.2.0-rc.2` 安装验证通过，三个自有插件全部
   安装成功；安装日志显示每次调用均带 release-age 放行且 `✓ Lockfile passes supply-chain policies`
   （FNOS-009-12 的修复在真机生效）。npm 源确认为 `registry.npmmirror.com`。
@@ -227,3 +240,4 @@ verifiedAt: 2026-09-30
 | 2026-10-07 | 补齐 Desktop 暗色主题与宿主差异点 | 按 UI 测试规范在亮暗两主题各执行一遍，实测主题切换、可读性（WCAG AA）、毛玻璃与间距/BFC；宿主差异点覆盖「外部链接交系统默认浏览器打开」与「设置页呈现」。OAuth 授权回流与「网页链接默认打开方式」的对话内路径列为遗留。证据见 [Desktop 补充验证记录](/validation/FNOS-009-desktop-cdp-theme-2026-10-07)。 |
 | 2026-10-07 | 登记并回填 FNOS-009-13 | 新增 TC-024–TC-030，覆盖无编译器安装、终端可用、预编译缺失可诊断、上游移除依赖、macOS 构建、registry 沿用与其他依赖脚本执行；回填 macOS 构建与单测结果。 |
 | 2026-10-08 | 登记 FNOS-009-14 并回填真机结果 | 真机安装暴露 BUG-03：三方插件 `dshmarket@1.66.3` 被 DSH `0.2.0-rc.2` 兼容门禁拒绝；新增 TC-031–TC-034 与 FNOS-009-14。同一次真机安装确认 FNOS-009-13 的核心路径通过：淘宝源生效、DSH `0.2.0-rc.2` 安装验证通过、三个自有插件安装成功且无 g++。 |
+| 2026-10-08 | 登记 BUG-04/05 并回填 fnos 插件真机结果 | 真机走查暴露并修复两个 P0：授权目录列表永久加载中（SDK 桥接无超时 + 缺 `trim.file.userAccess`）、合法授权目录被误剔除并清空持久化（`{ ok }` 与 `AppBridgeResponse` 契约不符）。回填 TC-016/017/018/021/022 与 fnos 插件其余功能结果；新增验收记录。 |
