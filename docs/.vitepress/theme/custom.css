@@ -290,20 +290,49 @@
   color: var(--vp-c-text-1);
 }
 
+/*
+ * 表格宽度与横向滚动。
+ *
+ * 表格最大宽度限制为父容器的 100%，列很多（例如「影响范围分析」的 6 列）时
+ * 不撑破正文栏，改为在表格内部横向滚动。
+ *
+ * 这里**不能**用 `display: table` + `overflow: hidden`：前者让表格按内容
+ * intrinsic 宽度撑开、无视 `width: 100%`，后者又把超出部分裁掉，结果是内容
+ * 直接溢出父元素且无法滚动。VitePress 默认的 `display: block` +
+ * `overflow-x: auto` 才是能滚动的组合，这里在其之上补圆角与边框。
+ */
 .vp-doc table {
-  display: table;
+  display: block;
   width: 100%;
-  overflow: hidden;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  table-layout: auto;
+  border-collapse: collapse;
   border: 1px solid var(--vp-c-divider);
   border-radius: 14px;
   background: var(--vp-c-bg-elv);
   box-shadow: var(--docs-shadow);
 }
 
+/*
+ * 不要给 `thead`/`tbody` 单独设 `display: table`：在 `display: block` 的表格里
+ * 那会把表头与表体拆成两张独立表格，列宽不再对齐。
+ */
 .vp-doc table th {
   background: var(--docs-gradient-soft);
   color: var(--vp-c-text-1);
   font-weight: 650;
+  white-space: nowrap;
+}
+
+/* 表格内的长文本可换行，避免单列把整表撑得过宽；代码片段仍保持不换行。 */
+.vp-doc table td {
+  overflow-wrap: anywhere;
+}
+
+.vp-doc table td > code,
+.vp-doc table th > code {
   white-space: nowrap;
 }
 
