@@ -213,3 +213,72 @@ JSONL：   20 行，首行键 type/version/id/createdAt/cwd/isSeeded/delegationD
 | 会话日志导出（NAS / 电脑） | 通过 |
 | 路径交文件管理器打开 | 通过 |
 | 对话内引用 NAS 文件（父子勾选解耦） | 通过 |
+
+## FNOS-009-06 用户数据兼容
+
+### 升级前基线快照
+
+在 5.5.5 状态、准备下一次升级前记录关键数据文件的哈希，用于升级后逐项比对
+（`sha256` 取前 16 位）：
+
+| 数据文件 | 内容 | sha256(前16) | 大小 |
+| --- | --- | --- | --- |
+| `codebuddy-auth.json` | CodeBuddy 账号凭据（6 个账号） | `2a92dfd037de584d` | 31770 |
+| `.credentials.yaml` | DSH 凭据 | `e13d0fbfa1478e4a` | 161 |
+| `profiles/web/cordis.patch.yml` | 插件设置（授权目录、主题、默认模型） | `97eb09c1ee154b62` | 450 |
+| `storages/workspace.json` | 工作区与会话索引 | `443396b8d585ea9a` | 680 |
+
+### 累计升级过程的保留结果
+
+本设备在 2026-10-08 连续执行 5 次安装/升级：
+
+```text
+5.5.0 → 5.5.2 → 5.5.3 → 5.5.4 → 5.5.5
+```
+
+每次升级后确认以下数据均保留、无需手动迁移：
+
+| 数据项 | 结果 |
+| --- | --- |
+| CodeBuddy 账号凭据 | 6 个账号持续保留（5.5.x 期间未丢失） |
+| 授权目录 | `authorizedDirectories: [/vol2/1000/fnos-fpk]` 保留 |
+| 主题偏好 | `systemTheme: light` 保留 |
+| 默认模型配置 | `provider: codebuddy / model: deepseek-v4.1-flash` 保留 |
+| 工作区与会话 | 1 个工作区、2 个会话保留 |
+
+> 说明：`authorizedDirectories` 在 BUG-05 期间曾被清空一次（缺陷本身，已修复），
+> 修复后重新授权并稳定保留；其余数据项全程未受影响。
+
+## FNOS-009-12 真实 NAS 回调链路
+
+安装日志 `/var/log/apps/fn-deepseek-harness.log` 的全量统计（截至 5.5.5 安装完成）：
+
+| 指标 | 数值 |
+| --- | --- |
+| 带 release-age 放行的插件调用 | **68** 次 |
+| `✓ Lockfile passes supply-chain policies` | **65** 次 |
+| `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` | **0** 次 |
+| 自有插件（`bundled-dsh-plugins` 归档）放行调用 | 36 次 |
+| 三方插件（registry 安装）放行调用 | 2 次 |
+
+日志形态（每次调用都同时出现放行标记与策略通过行）：
+
+```text
+[17:00:42] Running dsh plugin --profile web remove @tnnevol/dsh-codebuddy with the minimum release age disabled.
+✓ Lockfile passes supply-chain policies (verified 7s ago)
+[17:00:43] Running dsh plugin --profile web add file:.../dsh-codebuddy.tgz with the minimum release age disabled.
+✓ Lockfile passes supply-chain policies (verified 1s ago)
+```
+
+判定：**自有插件与三方插件表现一致**，均使用放行调用；真实回调链路全程未出现
+发布日期违规报错，即 FNOS-009-12-AC-01 在真机成立。三方插件 `dshmarket@1.66.11`
+在多次升级中保持 `exact version already matches` 的版本收敛行为。
+
+## FNOS-009-03 未验证说明
+
+Codex Auth 的登录流程（AC-01）与对话区用量显示（AC-03）**未做真机验证**，原因：
+需要真实 ChatGPT/OpenAI 账号完成浏览器授权，本次不具备该条件。已完成的 Web 走查
+覆盖 AC-02（模型目录同步、模型选择与全局模型设置）。
+
+按用户决定（2026-10-08）：本项**不做进一步验证**，保留已完成部分，不作为本次
+验收的完成结论。
