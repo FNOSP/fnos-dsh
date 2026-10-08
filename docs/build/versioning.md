@@ -60,6 +60,26 @@ pnpm run version -- plugin
 
 只有无法从本仓库推导的值才作为常量维护：`dshmarket` 是第三方包，注册表版本就是契约本身；`DSH_VERSION` 与 `PNPM_VERSION` 属于 DSH 基线，判断依据是它们与 `cmd/install_callback`、native 配置之间的**一致性**。
 
+### 装机验证时临时提升 FPK 版本
+
+在真实 fnOS 设备上验证安装或升级时，先把 `apps/fn-deepseek-harness/manifest` 的 `version` 临时
+改成下一个补丁号（`5.5.x` → `5.5.x+1`），验证完成后再决定是否保留：
+
+- **为什么需要**：fnOS 应用中心按版本号判断是否需要安装。版本与已装应用相同时，手动安装会被
+  当作同版本处理，无法走完整的安装/升级链路；只有版本更高才会真正执行安装回调。
+- **怎么改**：只改 `manifest` 的 `version` 一行。应用版本只从 `manifest` 读取
+  （`tooling/fnos-dsh-cli/src/config/workspace.ts`），不需要同步其他地方。
+- **为什么写在规范里**：这是**临时**手段，不是发布流程的一部分。正式发版仍通过
+  `pnpm run version -- project <patch|minor|major>` 由 `bumpp` 统一更新根 `package.json`、
+  文档包、`packages/*`、`tooling/fnos-dsh-cli`、`manifest` 与 README 版本引用并打 Tag。
+- **收尾**：验证结束后，如果该版本要进入正式流程，用 `version -- project patch` 让各处版本
+  重新对齐；如果只是本地验证，把 `manifest` 改回原版本，不要留下与 `package.json` 不一致的
+  应用版本进入发布。
+
+> 注意：插件版本（`plugins/*/package.json`）在验证时**不需要**跟着改。插件版本由
+> `version -- plugin` 独立管理，且构建会校验 `app/published-dsh-plugins.json` 与插件源码一致；
+> 手工改插件版本会让构建失败。
+
 ### 更新 DSH 基线时必须同步三方插件版本
 
 DSH 运行时对插件做兼容性门禁：插件 `peerDependencies` 里的 `@deepseek-ai/dsh*` 必须满足当前运行时版本，否则安装被**明确拒绝**（`installation rejected: Plugin <name> is incompatible with dsh <版本>`）。第三方插件的 peer 范围由上游维护，通常滞后于我们的重锚定。

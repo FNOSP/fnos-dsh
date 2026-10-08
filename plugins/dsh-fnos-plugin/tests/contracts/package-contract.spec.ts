@@ -44,6 +44,42 @@ describe('dsh-fnos package contract', () => {
     expect(typeof (module.Config as { toJSON?: unknown })?.toJSON).toBe('function')
   })
 
+  it('declares every fnOS API scope the client actually calls', async () => {
+    // fnOS 只在 manifest 的 api-scope 里授权能力。调用一个未声明的接口时，
+    // 宿主桥不会 reject，而是**永不 settle**——调用方的 `await` 就此挂起。
+    // 授权目录列表就是这样卡在「正在加载」的：校验逻辑调用了
+    // `authorizeUserFile`（需要 `trim.file.userAccess`），而 resource 里
+    // 只声明了 sharedAccess/userAcl/path。
+    const resource = JSON.parse(
+      await readFile(new URL('../../../../apps/fn-deepseek-harness/config/resource', import.meta.url), 'utf8'),
+    ) as { 'api-scope': string[] }
+    const declared = new Set(resource['api-scope'])
+
+    // 前端 JS SDK 与后端 API 的 scope 归属来自 fnOS 官方文档的能力表。
+    const requiredByCall = {
+      'sdk.pickSharedFile': 'trim.file.sharedAccess',
+      'sdk.authorizeSharedFile': 'trim.file.sharedAccess',
+      'sdk.authorizeUserFile': 'trim.file.userAccess',
+      'trim.file.checkUserACL': 'trim.file.userAcl',
+      'trim.file.convertPath': 'trim.file.path',
+    } as const
+
+    const sources = await Promise.all([
+      'client/services/authorized-directories-validation.ts',
+      'client/services/authorized-directories-eviction.ts',
+      'client/services/sdk.ts',
+      'host/authorized-directories.ts',
+    ].map(path => readFile(new URL(`../../src/${path}`, import.meta.url), 'utf8')))
+    const combined = sources.join('\n')
+
+    const missing = Object.entries(requiredByCall)
+      .filter(([call]) => combined.includes(call))
+      .filter(([, scope]) => !declared.has(scope))
+      .map(([call, scope]) => `${call} needs ${scope}`)
+
+    expect(missing).toEqual([])
+  })
+
   it('registers fn through DSH commandUi and keeps directory browsing as input completion', async () => {
     const source = await readFile(new URL('../../src/client/index.ts', import.meta.url), 'utf8')
     const slashSource = await readFile(new URL('../../src/client/input-references/fnos-command-source.ts', import.meta.url), 'utf8')

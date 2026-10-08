@@ -27,6 +27,29 @@ export type EvictionSdkFactory = () => EvictionSdk
 /** 与卡片一致的日志前缀，抽出来是为了让本模块可独立测试。 */
 const LOG_PREFIX = '[dsh-fnos][authorized-directories]'
 
+/**
+ * `sdk.ready()` 的超时。
+ *
+ * fnOS SDK 的桥接初始化最后一步是 Penpal 握手，而**握手本身没有超时**：宿主
+ * 不回复 SYN-ACK 时 `ready()` 永不 settle。没有这道兜底，界面会永久停在
+ * 「正在加载授权目录」，且不会给出任何提示。
+ */
+const READY_TIMEOUT_MS = 10_000
+
+/** 在超时后以 `undefined` 结束等待；调用方按「桥接不可用」处理。 */
+async function readyWithTimeout(ready: Promise<unknown>, timeoutMs: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const settled = await Promise.race([
+      ready.then(() => true, () => false),
+      new Promise<false>(resolve => { timer = setTimeout(resolve, timeoutMs, false) }),
+    ])
+    if (!settled) throw new Error(`fnOS SDK was not ready within ${timeoutMs}ms`)
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
+}
+
 /** 降级提示的文案键；由调用方翻译后展示。 */
 export type EvictionNoticeKey = 'validateUnavailable'
 
@@ -48,11 +71,13 @@ export interface EvictionResult {
  *
  * @param directories - 当前展示列表。
  * @param createSdk - SDK 构造器，可注入以便测试。
+ * @param timeouts - 可选的超时覆盖，仅测试需要传；生产使用默认值。
  * @returns 剔除结果与可选的降级提示。
  */
 export async function evictInvalidDirectories(
   directories: AuthorizedDirectory[],
   createSdk: EvictionSdkFactory,
+  timeouts: { readyMs?: number, authorizeMs?: number } = {},
 ): Promise<EvictionResult> {
   const candidates = directories.filter(directory => directory.removable).map(directory => directory.path)
   // 没有可校验项时不必构造 SDK：既省一次桥接，也避免纯只读列表被误判为降级。
@@ -61,7 +86,7 @@ export async function evictInvalidDirectories(
   let sdk: EvictionSdk
   try {
     sdk = createSdk()
-    await sdk.ready()
+    await readyWithTimeout(sdk.ready(), timeouts.readyMs ?? READY_TIMEOUT_MS)
   } catch (error: unknown) {
     console.warn(LOG_PREFIX, 'validate-sdk-unavailable', {
       message: error instanceof Error ? error.message : undefined,
@@ -69,7 +94,7 @@ export async function evictInvalidDirectories(
     return { directories, evicted: false, noticeKey: 'validateUnavailable' }
   }
 
-  const outcome = await validateAuthorizedDirectories(sdk, candidates)
+  const outcome = await validateAuthorizedDirectories(sdk, candidates, timeouts.authorizeMs)
   if (!outcome.available) {
     console.info(LOG_PREFIX, 'validate-skipped', { reason: 'sdk-unavailable' })
     return { directories, evicted: false, noticeKey: 'validateUnavailable' }

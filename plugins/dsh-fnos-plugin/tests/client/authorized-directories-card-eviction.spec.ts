@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { evictInvalidDirectories } from '../../src/client/services/authorized-directories-eviction.ts'
+import type { FnosAuthorizeResult } from '../../src/client/services/authorized-directories-validation.ts'
 import type { FnosTrimApp } from '../../src/client/services/sdk.ts'
 import type { AuthorizedDirectory } from '../../src/contracts/authorized-directories-contract.ts'
+
+/** 成功应答：fnOS 的 `AppBridgeResponse` 以 `code: 0` 表示成功（不是 `ok`）。 */
+const accepted = (): FnosAuthorizeResult => ({ code: 0, msg: 'ok', data: [] })
+/** 明确拒绝：非 0 业务码，例如用户目录被共享目录接口拒绝。 */
+const declined = (): FnosAuthorizeResult => ({ code: 1, msg: 'not applicable' })
 
 /**
  * 卡片级「校验并剔除」编排（FNOS-009-10）的 T05-04 验收。
@@ -21,19 +27,21 @@ const mine: AuthorizedDirectory = { path: '/vol4/mine', semanticPath: '我的目
 
 /** SDK 替身：`ready` 与两个授权接口都可指定行为。 */
 function sdkStub(options: {
-  ready?: 'ok' | 'throw'
-  shared?: Record<string, { ok: boolean } | undefined | 'throw'>
-  user?: Record<string, { ok: boolean } | undefined | 'throw'>
+  ready?: 'ok' | 'throw' | 'hang'
+  shared?: Record<string, FnosAuthorizeResult | 'throw' | 'hang'>
+  user?: Record<string, FnosAuthorizeResult | 'throw' | 'hang'>
 }): FnosTrimApp {
-  const call = (table: Record<string, { ok: boolean } | undefined | 'throw'> = {}) =>
-    async (path: string): Promise<{ ok: boolean } | undefined> => {
+  const call = (table: Record<string, FnosAuthorizeResult | 'throw' | 'hang'> = {}) =>
+    async (path: string): Promise<FnosAuthorizeResult> => {
       const value = table[path]
       if (value === 'throw') throw new Error(`bridge failed for ${path}`)
+      if (value === 'hang') return new Promise<undefined>(() => {})
       return value
     }
   return {
     ready: async () => {
       if (options.ready === 'throw') throw new Error('bridge unavailable')
+      if (options.ready === 'hang') await new Promise<void>(() => {})
     },
     authorizeSharedFile: call(options.shared),
     authorizeUserFile: call(options.user),
@@ -43,7 +51,7 @@ function sdkStub(options: {
 describe('evictInvalidDirectories', () => {
   it('keeps every entry when the SDK reports all paths valid', async () => {
     const directories = [mine]
-    const result = await evictInvalidDirectories(directories, () => sdkStub({ shared: { '/vol4/mine': { ok: true } } }))
+    const result = await evictInvalidDirectories(directories, () => sdkStub({ shared: { '/vol4/mine': accepted() } }))
 
     expect(result.evicted).toBe(false)
     expect(result.directories).toEqual([mine])
@@ -54,7 +62,7 @@ describe('evictInvalidDirectories', () => {
     const gone: AuthorizedDirectory = { path: '/vol4/gone', semanticPath: '已失效', removable: true }
     const result = await evictInvalidDirectories(
       [mine, gone],
-      () => sdkStub({ shared: { '/vol4/mine': { ok: true }, '/vol4/gone': { ok: false } }, user: { '/vol4/gone': undefined } }),
+      () => sdkStub({ shared: { '/vol4/mine': accepted(), '/vol4/gone': declined() }, user: { '/vol4/gone': undefined } }),
     )
 
     // `user` 返回 undefined 表示桥接不可用 → 整体降级、不剔除。
@@ -67,7 +75,7 @@ describe('evictInvalidDirectories', () => {
     const gone: AuthorizedDirectory = { path: '/vol4/gone', semanticPath: '已失效', removable: true }
     const result = await evictInvalidDirectories(
       [mine, gone],
-      () => sdkStub({ shared: { '/vol4/mine': { ok: true }, '/vol4/gone': { ok: false } }, user: { '/vol4/gone': { ok: false } } }),
+      () => sdkStub({ shared: { '/vol4/mine': accepted(), '/vol4/gone': declined() }, user: { '/vol4/gone': declined() } }),
     )
 
     expect(result.evicted).toBe(true)
@@ -76,7 +84,7 @@ describe('evictInvalidDirectories', () => {
   })
 
   it('never asks the bridge about read-only app share paths', async () => {
-    const shared = vi.fn(async () => ({ ok: true }))
+    const shared = vi.fn(async () => (accepted()))
     const sdk = { ready: async () => undefined, authorizeSharedFile: shared, authorizeUserFile: vi.fn() } as unknown as FnosTrimApp
 
     const result = await evictInvalidDirectories([readOnly], () => sdk)
@@ -127,11 +135,37 @@ describe('evictInvalidDirectories', () => {
     const result = await evictInvalidDirectories(
       [a, b, c],
       () => sdkStub({
-        shared: { '/vol4/a': { ok: true }, '/vol4/b': { ok: false }, '/vol4/c': { ok: true } },
-        user: { '/vol4/b': { ok: false } },
+        shared: { '/vol4/a': accepted(), '/vol4/b': declined(), '/vol4/c': accepted() },
+        user: { '/vol4/b': declined() },
       }),
     )
 
     expect(result.directories.map(item => item.path)).toEqual(['/vol4/a', '/vol4/c'])
+  })
+
+  it('degrades instead of hanging when the SDK never becomes ready', async () => {
+    // 桥接握手没有超时；没有兜底时界面会永久停在「正在加载授权目录」。
+    const result = await evictInvalidDirectories(
+      [mine],
+      () => sdkStub({ ready: 'hang' }),
+      { readyMs: 20 },
+    )
+
+    expect(result.directories).toEqual([mine])
+    expect(result.evicted).toBe(false)
+    expect(result.noticeKey).toBe('validateUnavailable')
+  })
+
+  it('degrades instead of evicting when a check never answers', async () => {
+    // 授权确认框弹出而用户未操作时，SDK 调用不会返回；此时必须保留目录。
+    const result = await evictInvalidDirectories(
+      [mine],
+      () => sdkStub({ shared: { '/vol4/mine': 'hang' } }),
+      { authorizeMs: 20 },
+    )
+
+    expect(result.directories).toEqual([mine])
+    expect(result.evicted).toBe(false)
+    expect(result.noticeKey).toBe('validateUnavailable')
   })
 })
