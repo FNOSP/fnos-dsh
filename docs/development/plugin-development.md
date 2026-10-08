@@ -64,6 +64,18 @@ pnpm run check -- --packages --plugins
 
 插件的单元测试集中放在 workspace 同级 `tests/`，通过 `test` 调用该 workspace 的 `vitest.config.ts`。新增测试应放入对应 workspace 的 `tests/`，按被测模块组织文件；不要把跨 workspace 的测试复制到根目录，也不要把测试混入 `apps/` 下的 fnOS 应用目录。
 
+## 插件截图
+
+插件功能截图服务于两处：DSH 文档站页面（`docs/plugins/`）与插件市场收录（awesome-dsh-plugin、dsh-market 读取仓库内 `screenshots.json`）。截图只维护**一份**，统一放 `docs/public/images/plugins/<插件名>/`。
+
+约束：
+
+- `plugins/<插件名>/screenshots.json` 声明 1–8 张截图，内容为 **GitHub 托管的 https 绝对 URL**（`https://raw.githubusercontent.com/FNOSP/fnos-dsh/main/docs/public/images/plugins/...`）。市场与收录流程不读 npm 包，截图不会进入 `npm publish`（各插件 `files` 白名单不含 `screenshots.json` 与图片）。
+- **不要**在插件子目录内再复制一份 `assets/` 截图，也不要用 `../` 相对路径引用插件目录之外的文件——收录校验会拒绝相对路径跳出插件目录。
+- 依赖 fnOS 宿主环境的插件（如 `@tnnevol/dsh-fnos`）在真机上补拍截图后再声明。
+- 发布前核对描述与截图不含账号昵称、手机号、账号 ID 等敏感信息；用浏览器演示截图时先在 DOM 层脱敏，不改插件代码。
+- 移动或改名 `docs/public/images/plugins/` 下的图片时，必须同步更新对应插件的 `screenshots.json`——绝对 URL 在源文件移动后会静默失效。
+
 ## 相关页面
 
 - [插件 UI 规范](/charter/plugin-ui-standards)

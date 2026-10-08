@@ -65,3 +65,6 @@ data/
 # 本地 DSH_HOME（profile、凭据、会话），由 `pnpm run start` 的 DSH Web 使用
 .dsh/
 .dsh-*
+
+# 插件截图工作底稿（成图已归档至插件 assets/ 与 docs/public/）
+.screenshots-tmp/
