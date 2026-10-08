@@ -20,6 +20,25 @@ describe('fnOS authorized-directory client response', () => {
     ])
   })
 
+  it('carries the host validity flag through instead of dropping it', () => {
+    // Host 用 `valid` 标注该目录是否仍在 fnOS 授权范围内。解析时丢掉这个字段，
+    // 客户端会把每条目录都当成「无法判定」，于是即使 Host 已正确判定为有效，
+    // 界面仍永久停留在降级提示上。
+    const parsed = directoriesFromResponse({
+      directories: [
+        { path: '/vol4/ok', semanticPath: '存储空间4/ok', removable: true, valid: true },
+        { path: '/vol4/stale', semanticPath: '存储空间4/stale', removable: true, valid: false },
+        { path: '/vol4/unknown', semanticPath: '存储空间4/unknown', removable: true },
+      ],
+    })
+
+    expect(parsed.map(entry => entry.valid)).toEqual([true, false, undefined])
+    // 只读项不参与判定：Host 不给 valid 时不得凭空生成。
+    expect(directoriesFromResponse({
+      directories: [{ path: '/vol4/app', semanticPath: '存储空间4/app', removable: false }],
+    })[0]?.valid).toBeUndefined()
+  })
+
   it('normalizes readable path responses and ignores malformed duplicates', () => {
     expect(readablePathsFromResponse({
       paths: [

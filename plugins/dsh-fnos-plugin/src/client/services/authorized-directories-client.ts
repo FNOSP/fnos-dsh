@@ -55,7 +55,10 @@ export function directoriesFromResponse(value: AuthorizedDirectoriesResponse): A
       const removable = entry.removable !== false
       if (path.length === 0 || semanticPath.length === 0 || seen.has(path)) return []
       seen.add(path)
-      return [{ path, semanticPath, removable }]
+      // `valid` 必须一起带上：Host 用它标注该目录是否仍在 fnOS 授权范围内。
+      // 丢了这个字段，客户端会把每条目录都看成「无法判定」而永久降级。
+      const valid = typeof entry.valid === 'boolean' ? entry.valid : undefined
+      return [{ path, semanticPath, removable, ...(valid === undefined ? {} : { valid }) }]
     }
     if (typeof entry !== 'string' || entry.length === 0 || seen.has(entry)) return []
     seen.add(entry)
