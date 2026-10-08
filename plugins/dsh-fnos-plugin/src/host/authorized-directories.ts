@@ -475,14 +475,20 @@ export async function loadAuthorizedDirectoryPaths(): Promise<string[]> {
  * 授权」，调用会给用户弹出「申请访问以下文件」；用它做校验会让每次刷新
  * 列表都弹框，且返回值表达的是「这次申请的结果」而不是「当前是否仍有权限」。
  *
- * 校验只需把持久化目录与这里返回的集合比对，无需逐个路径申请。
+ * `uid` 是该接口的**必填**参数，指当前使用用户（浏览器用户），取自 fnOS 统一
+ * 网关注入的 `X-Trim-Userid`。不要用 `TRIM_UID`——那是应用服务账号。
  *
- * @returns 用户授权目录；查询接口不可用时返回 `undefined`——表示**无法判定**，
+ * @param uid - 当前用户 UID；缺失时无法查询。
+ * @returns 用户授权目录；uid 缺失或查询失败时返回 `undefined`——表示**无法判定**，
  * 调用方必须保留目录而不是判为失效。
  */
-export async function loadUserAuthorizedDirectoryPaths(): Promise<string[] | undefined> {
+export async function loadUserAuthorizedDirectoryPaths(uid: number | undefined): Promise<string[] | undefined> {
+  if (uid === undefined) {
+    console.warn('[dsh-fnos] no gateway user id; keeping every persisted entry')
+    return undefined
+  }
   try {
-    const data = await callFnOsApi<SharedAccessibleFolders>('trim.file.getUserAccessibleFolders')
+    const data = await callFnOsApi<SharedAccessibleFolders>('trim.file.getUserAccessibleFolders', { uid })
     return normalizeAuthorizedPaths(data?.paths)
   } catch (error: unknown) {
     console.warn('[dsh-fnos] unable to query user-authorized directories; keeping every persisted entry', error)
@@ -707,8 +713,11 @@ export async function loadAuthorizedDirectoriesWithPersisted(
  * 任一接口失败时整体返回 `undefined`：此时无法区分「没权限」与「问不到」，
  * 调用方必须跳过剔除。
  */
-async function knownAuthorizedPaths(): Promise<string[] | undefined> {
-  const [shared, user] = await Promise.all([loadAuthorizedDirectoryPaths(), loadUserAuthorizedDirectoryPaths()])
+async function knownAuthorizedPaths(req: IncomingMessage): Promise<string[] | undefined> {
+  const [shared, user] = await Promise.all([
+    loadAuthorizedDirectoryPaths(),
+    loadUserAuthorizedDirectoryPaths(gatewayUserId(req)),
+  ])
   if (user === undefined) return undefined
   return mergeAuthorizedPaths(shared, user)
 }
@@ -1019,7 +1028,7 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context, options: { setti
             const directories = await loadAuthorizedDirectoriesWithPersisted(req, persisted)
             // 权限校验用无交互的查询接口，不逐个路径申请授权（FNOS-009-10）：
             // 后者会给用户弹确认框，且返回值只说明「这次申请」的结果。
-            json(res, 200, { directories: markAuthorizedDirectoryValidity(directories, await knownAuthorizedPaths()) })
+            json(res, 200, { directories: markAuthorizedDirectoryValidity(directories, await knownAuthorizedPaths(req)) })
           } catch (error: unknown) {
             errorResponse(res, error)
           }
