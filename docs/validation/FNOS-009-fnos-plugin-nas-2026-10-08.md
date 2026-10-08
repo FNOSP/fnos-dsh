@@ -282,3 +282,35 @@ Codex Auth 的登录流程（AC-01）与对话区用量显示（AC-03）**未做
 
 按用户决定（2026-10-08）：本项**不做进一步验证**，保留已完成部分，不作为本次
 验收的完成结论。
+
+## FNOS-009-07 上游增量逐项核对
+
+依据本地 checkout `~/workspace/fork-pj/deepseek-harness` 的 `dsh-v0.1.7-rc.2` 与
+`dsh-v0.2.0-rc.2` 两个 tag，对四个插件实际消费的接缝逐项核实。
+
+### 插件消费的接缝与对应增量
+
+| 接缝 / 用法 | 上游包 | 两版本差异 | 判定 |
+| --- | --- | --- | --- |
+| `plugins.detail.section` | `client/ui-plugin-manager` | `renderSlot('plugins.detail.section', { subject })` 调用形参**完全一致**，仅行号从 452/496 变为 485/529；该包 17 个文件变化集中在刷新 toast、安装输入脱敏与测试 | 无回归 |
+| `conversation.session.header.utilities`<br>`conversation.input.left` / `.right` | `client/ui-slots`<br>`client/ui-input-trigger` | 两包各仅 1 个文件变化（`package.json` 版本） | 无回归 |
+| `submit()` 相关 | `client/ui-conversation` | 签名由 `submit(mode)` 变为 `submit(mode, source?)`，`source` 为**可选**参数；插件未调用 `submit` | 无回归 |
+| `SessionRowOwnerProps.displayTitle` | `client/ui-workspace` | 类型声明两版本均为 `displayTitle: string`，语义未变；插件未引用 | 无回归 |
+| `fork()` 回调 | `client/api-session-controller` | 新增可选 `onCreated`；插件未使用该接口 | 无回归 |
+| `MenuGroup` / `pointerModality` | `client/ui-primitives` | v0.1.7 中 `MenuGroup` 出现 0 次、v0.2.0 中 4 处，确认为**纯新增导出** | 无回归（增量导出） |
+
+### 字号范围变化（12–17 → 10–22）
+
+`FONT_SIZE_MIN` 由 12 降到 10、`FONT_SIZE_MAX` 由 17 升到 22。核对了落地方式：
+
+- 主题通过 `document.body.style.setProperty('--dsh-content-font-size', ...)` 应用字号；
+- 该变量名与用法在 **v0.1.7-rc.2 与 v0.2.0-rc.2 完全一致**（两版本各出现 1 次）；
+- 插件的 `styles/index.scss` 使用固定 px（11/12/13/15px），不消费该变量 —— 行为与升级前**逐字相同**，扩大取值范围只是放宽可选区间，对固定值样式没有影响。
+
+判定：**范围放宽属宽松化变更，无回归**。
+
+### 结论
+
+四插件消费的全部接缝在两版本间**均无破坏性变更**：5 项为可选增量或未引用、1 项为纯新增导出、
+字号范围为宽松化调整。逐项核对未发现需要处置的行为回归，FNOS-009-07-AC-01 成立，
+无需按 AC-02 登记新的处置结论。
