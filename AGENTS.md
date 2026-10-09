@@ -24,6 +24,7 @@
 | fnOS 应用、Manifest、生命周期、权限 | `docs/development/` |
 | DSH 插件 | [`docs/development/plugin-development.md`](docs/development/plugin-development.md) |
 | 构建、版本、发布 | `docs/build/` |
+| 应用上架申请 | [`docs/charter/app-listing-spec.md`](docs/charter/app-listing-spec.md) |
 | 真实 NAS 验收 | `docs/validation/` |
 | 仅文档或格式调整 | 对应文档、文档构建和 `git diff --check` |
 
@@ -38,6 +39,7 @@
 | VitePress 文档菜单规范 | [`docs/charter/vitepress-document-menu.md`](docs/charter/vitepress-document-menu.md) |
 | 插件 UI 规范（Semi UI 与共享包主题） | [`docs/charter/plugin-ui-standards.md`](docs/charter/plugin-ui-standards.md) |
 | 目录结构规范 | [`docs/charter/directory-structure.md`](docs/charter/directory-structure.md) |
+| 应用上架规范 | [`docs/charter/app-listing-spec.md`](docs/charter/app-listing-spec.md) |
 | 需求清单 | [`docs/requirements/index.md`](docs/requirements/index.md) |
 | 实施计划 | [`docs/plans/index.md`](docs/plans/index.md) |
 | 测试用例 | [`docs/tests/index.md`](docs/tests/index.md) |

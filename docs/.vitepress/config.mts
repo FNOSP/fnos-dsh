@@ -141,7 +141,8 @@ const charterItems = [
   { text: '测试用例文档规范', link: '/charter/tests-spec' },
   { text: 'VitePress 文档菜单规范', link: '/charter/vitepress-document-menu' },
   { text: '插件 UI 规范', link: '/charter/plugin-ui-standards' },
-  { text: '目录结构规范', link: '/charter/directory-structure' }
+  { text: '目录结构规范', link: '/charter/directory-structure' },
+  { text: '应用上架规范', link: '/charter/app-listing-spec' }
 ]
 
 // 开发指南按主题分组：环境与工具、应用开发、插件开发、任务与构建、协作与规范。
