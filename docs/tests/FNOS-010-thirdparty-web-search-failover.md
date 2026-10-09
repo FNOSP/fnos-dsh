@@ -206,6 +206,7 @@ verifiedAt: 2026-10-09
 | TC-043 | FNOS-010-01-AC-01 | DSH Desktop 会话 | 通过 | 2026-10-09 | 意图级三方优先：Desktop 会话内提问联网搜索，TinyFish 请求日志新增两条（`07:08:48` UTC 对应界面 15:08，各 200 / 10 条），`total` 52→54 |
 | TC-044 | FNOS-010-05-AC-01 | DSH Desktop 会话 | 通过 | 2026-10-09 | 搜索卡片与来源链接在 Desktop 正常呈现（回答含标题 + 链接），与 Web 表现一致 |
 | TC-045 | FNOS-010-10-AC-02 | DSH Desktop | 通过 | 2026-10-09 | 插件管理页显示「Failover Search」与中文简介，与 Web、发布清单一致 |
+| TC-047 | FNOS-010-04-AC-04 / 08-AC-03（暗色主题） | DSH Web | 通过 | 2026-10-09 | 按[UI 测试](/charter/tests-spec#ui-测试视觉与样式)清单在暗色主题逐项核对：① 对比度——配置区标题 17.45、提示/空状态 8.54、错误文案 5.55（均 ≥ 4.5）；② border——账号卡与账号行的 `.5px solid var(--dsw-alias-border-l3/l2)` 在暗色下解析为 `rgba(255,255,255,.16/.12)`，分隔可见、无「隐约中间态」；③ 硬编码残留——插件全部样式声明均为 `--dsw-*` 语义变量，未发现亮色残留（computed 里大量近白 border-color 为 `border-top-style: none` 的继承默认值，不绘制，经样式表声明逐条甄别排除）；④ 毛玻璃——插件区块自身 0 条 backdrop-filter 链路，无重复叠加；⑤ 主题往返切换（暗→亮→暗）后全部自定义样式跟随，无残留；⑥ 错误态（无效 key 触发 `HTTP 401` 提示）在暗色下可读且信息不含 key 明文 |
 | TC-046 | FNOS-010-01-AC-01（日志级归因） | DSH Desktop 会话 | 通过 | 2026-10-09 | 把 Cordis 控制台导出器阈值降到 debug（`logger-console` 插件，`levels.default: 3`）后，会话内搜索的宿主控制台出现插件自身尝试事件：`[D] dsh-failover-search [failover-search] tinyfish/desktop-tinyfish succeeded (1125ms)` 与 `(1263ms)` 两条；同一轮 TinyFish 请求日志 `total` 61→63，日志行数与平台新增条目数一致——插件内部「选账号 → 发请求 → 成功」的逐次事件与平台侧记录互相印证 |
 | TC-039 | FNOS-010-03-AC-02 / 02-AC-03 | DSH Web 会话 | 通过 | 2026-10-09 | 意图级全链失败回落：三方凭据全部置为无效后提问，模型回报「联网搜索因缺少 `DEEPSEEK_API_KEY` 凭证而失败」——证明请求已走完三方并回落官方，官方按无凭据给出明确错误码，链路未挂起、未返回空结果 |
 | TC-020 | FNOS-010-06-AC-01 | DSH Web | 通过 | 2026-10-09 | 三方凭据全部失效时回落官方路径已在会话内实证（同 TC-039）；组合行 `searchProvider: dsh-failover-search` 与 `fetchProvider: http` 由 `--dump-config` 确认（同 TC-019），禁用后回落 base 层官方配置机制不变 |
@@ -249,11 +250,11 @@ verifiedAt: 2026-10-09
 **整体结论：部分通过。**
 
 - 已通过：`FNOS-010-01`、`02`、`03`、`06`、`09` 的全部验收条件在单元、真实网络与会话内三层均通过；`FNOS-010-04`（配置区与账号管理）在 DSH Web 与 DSH Desktop 两个客户端通过；`FNOS-010-05`（结果归一、截断与卡片呈现）经真实会话走查通过；`FNOS-010-07-AC-01` 的真实多账号分摊经 TinyFish 双账号实测通过；`FNOS-010-08`（两个用量端点）在 Web 与 Desktop 渲染通过；`FNOS-010-10`（命名契约）通过。
-- 未完成：亮暗主题中的**暗色主题**未走查；本地 profile 中的测试账号待清理（`.dsh/profiles/web/cordis.patch.yml` 与 `.dsh/profiles/desktop/cordis.patch.yml`）。
+- 未完成：**npm 发布未执行**（`npm whoami` 返回 401，凭据失效；发布动作由用户在登录后执行）。测试数据清理已完成：两份 profile 的测试账号已清空（`tinyfishAccounts: []` / `tavilyAccounts: []`），配置原文按[插件配置备份](/charter/directory-structure#插件配置备份)约定备份至 `tmp/plugin-backup/dsh-failover-search-2026-10-09/`（git 忽略，未进仓库）；暗色主题走查已完成（TC-047）。
 - 已修正的前述结论：早期登记的「Desktop 全部用例未执行」、「会话搜索卡片未走查」、「禁用回落未走查」与「缺第二个真实账号」均已在本轮补齐（见 TC-037～TC-045）。
 - 遗留风险：
   - 上游响应契约不是稳定接口：`url` 的相对重定向包装（BUG-02）与 `date` 字段的时有时无都来自实测；平台变更格式时，相关条目会被跳过或省略日期，搜索本身仍成功。
   - `FNOS-010-08` 的 Tavily `key` 层 `limit` 在当前 key 档位为 `null`；实现据此不做 key 级触限判定、只按账户层 `plan_usage >= plan_limit` 判定，档位变化后需要复核该判定。
 - 结果同时覆盖 DSH Web 与 DSH Desktop 两个客户端（插件兼容基线要求的最低组合），Desktop 侧使用 `fork-pj/deepseek-harness` 检出的开发态构建。
 - 归因方法分两层：早期用平台侧日志与排除法（TC-037～TC-039），最后一轮用插件自身的 debug 日志（TC-046）直接观测到逐次尝试事件。后者依赖两个临时手段——profile 插入 `logger-console`（`levels.default: 3`）并把该包 symlink 进 profile 的 `node_modules`（bare specifier 以 profile 目录为解析基准）；两项都是测试期改动，验证后已还原，未进入仓库。
-- 剩余缺口只有暗色主题与测试数据清理两项；在补齐前 `FNOS-010` 仍不标记为「已完成」，需求状态维持「待完成」。
+- 剩余缺口只有 npm 发布一项（凭据在用户侧）；在发布完成前 `FNOS-010` 仍不标记为「已完成」，需求状态维持「待完成」。
