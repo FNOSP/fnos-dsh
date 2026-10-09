@@ -293,21 +293,26 @@
 /*
  * 表格宽度与横向滚动。
  *
- * 表格最大宽度限制为父容器的 100%，列很多（例如「影响范围分析」的 6 列）时
- * 不撑破正文栏，改为在表格内部横向滚动。
+ * 表格由 `wrapTablesForScroll`（见 `.vitepress/config.mts`）包进
+ * `.docs-table-scroll`，这里分工如下：
  *
- * 这里**不能**用 `display: table` + `overflow: hidden`：前者让表格按内容
- * intrinsic 宽度撑开、无视 `width: 100%`，后者又把超出部分裁掉，结果是内容
- * 直接溢出父元素且无法滚动。VitePress 默认的 `display: block` +
- * `overflow-x: auto` 才是能滚动的组合，这里在其之上补圆角与边框。
+ * - 外层容器 `overflow-x: auto`：列多或单元格文字长时在表格内部横向滚动，
+ *   不撑破正文栏。
+ * - 内层表格 `display: table` + `width: 100%`：宽度撑满正文栏，且**列也跟着
+ *   撑满**，右侧不留空白。
+ *
+ * 为什么要分两层：`display: block` 的表格虽然能自身滚动，但列仍按内容宽度
+ * 排列、右侧留白；`display: table` 的表格列能撑满，但自身不能滚动，内容超宽
+ * 会把整页撑出横向滚动条。滚动交给外层、撑满交给内层，两个要求才能同时满足。
  */
-.vp-doc table {
-  display: block;
-  width: 100%;
-  max-width: 100%;
+.docs-table-scroll {
   overflow-x: auto;
-  overflow-y: hidden;
-  table-layout: auto;
+  margin: 20px 0;
+}
+
+.vp-doc table {
+  display: table;
+  width: 100%;
   border-collapse: collapse;
   border: 1px solid var(--vp-c-divider);
   border-radius: 14px;
@@ -315,9 +320,14 @@
   box-shadow: var(--docs-shadow);
 }
 
+/* 外层容器已经提供外边距，避免叠加。 */
+.docs-table-scroll > table {
+  margin: 0;
+}
+
 /*
- * 不要给 `thead`/`tbody` 单独设 `display: table`：在 `display: block` 的表格里
- * 那会把表头与表体拆成两张独立表格，列宽不再对齐。
+ * 不要给 `thead`/`tbody` 单独设 `display: table`：那会把表头与表体变成两张
+ * 独立表格，列宽不再对齐。表格自身已是 `display: table`，无需再补。
  */
 .vp-doc table th {
   background: var(--docs-gradient-soft);

@@ -48,8 +48,46 @@ const markStatusTableColumns = (md: Parameters<NonNullable<Parameters<typeof def
   })
 }
 
+/**
+ * 给每个表格套一层滚动容器。
+ *
+ * 表格需要同时满足两件事：宽度撑满正文栏，且列也跟着撑满（不留右侧空白）；
+ * 列很多时又要在表格内部横向滚动而不是撑破正文栏。
+ *
+ * 这两件事无法用单个元素的 CSS 同时做到：
+ *
+ * - `display: block` 的表格能在自身内部滚动，但它不是表格布局，`width: 100%`
+ *   只撑开盒子，列仍按内容宽度排列，右侧留出空白。
+ * - `display: table` 的表格列会随容器撑满，但它自身不能滚动；内容超宽时会把
+ *   整页撑出横向滚动条。
+ *
+ * 因此把表格包进一层容器：外层 `overflow-x: auto` 负责滚动，内层保持
+ * `display: table` 与 `width: 100%` 负责撑满。
+ */
+const wrapTablesForScroll = (md: Parameters<NonNullable<Parameters<typeof defineConfig>[0]['markdown']>['config']>[0]) => {
+  md.core.ruler.after('block', 'wrap-tables-for-scroll', (state) => {
+    const { tokens } = state
+
+    for (let index = tokens.length - 1; index >= 0; index -= 1) {
+      if (tokens[index].type !== 'table_open') continue
+
+      const closeIndex = tokens.findIndex((token, i) => i > index && token.type === 'table_close')
+      if (closeIndex === -1) continue
+
+      const open = new state.Token('html_block', '', 0)
+      open.content = '<div class="docs-table-scroll">'
+      const close = new state.Token('html_block', '', 0)
+      close.content = '</div>'
+
+      tokens.splice(closeIndex + 1, 0, close)
+      tokens.splice(index, 0, open)
+    }
+  })
+}
+
 const configureMarkdown = (md: Parameters<NonNullable<Parameters<typeof defineConfig>[0]['markdown']>['config']>[0]) => {
   markStatusTableColumns(md)
+  wrapTablesForScroll(md)
 }
 
 const appItems = [
