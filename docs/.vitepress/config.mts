@@ -1,11 +1,28 @@
 import { defineConfig } from 'vitepress'
+import type { MarkdownOptions } from 'vitepress'
 import { back2topPlugin } from 'vitepress-plugin-back2top'
 import packageJson from '../package.json'
+
+// markdown.config 回调的参数类型：从 MarkdownOptions['config'] 推导，与
+// defineConfig 的 markdown 字段同源，vitepress 升级时类型自动跟随。
+type MarkdownConfig = NonNullable<MarkdownOptions['config']>
+type MarkdownIt = Parameters<MarkdownConfig>[0]
+
+/**
+ * vite 双实例垫片。
+ *
+ * vitepress 与 vitepress-plugin-back2top 各自 `import { PluginOption } from 'vite'`，
+ * pnpm 按 peer 组合解析出两份 vite（@types/node 22 / 26 两个副本），两个 `Plugin`
+ * 因 `apply` 回调的 `UserConfig` 来源不同而互不兼容。任何 vite 插件都有 `name`，
+ * 收敛成结构化类型后两侧均可赋值；运行时对象原样传递，vite 的真实检查不受影响。
+ */
+type StructuredVitePlugin = { name: string } & Record<string, unknown>
+const asVitePlugin = (plugin: StructuredVitePlugin): StructuredVitePlugin => plugin
 
 const repositoryName = process.env.GITHUB_REPOSITORY?.split('/')[1] || 'fn-os-apps'
 const base = process.env.DOCS_BASE || (process.env.GITHUB_ACTIONS === 'true' ? `/${repositoryName}/` : '/')
 
-const markStatusTableColumns = (md: Parameters<NonNullable<Parameters<typeof defineConfig>[0]['markdown']>['config']>[0]) => {
+const markStatusTableColumns = (md: MarkdownIt) => {
   md.core.ruler.after('block', 'status-table-columns', (state) => {
     const { tokens } = state
 
@@ -64,7 +81,7 @@ const markStatusTableColumns = (md: Parameters<NonNullable<Parameters<typeof def
  * 因此把表格包进一层容器：外层 `overflow-x: auto` 负责滚动，内层保持
  * `display: table` 与 `width: 100%` 负责撑满。
  */
-const wrapTablesForScroll = (md: Parameters<NonNullable<Parameters<typeof defineConfig>[0]['markdown']>['config']>[0]) => {
+const wrapTablesForScroll = (md: MarkdownIt) => {
   md.core.ruler.after('block', 'wrap-tables-for-scroll', (state) => {
     const { tokens } = state
 
@@ -85,7 +102,7 @@ const wrapTablesForScroll = (md: Parameters<NonNullable<Parameters<typeof define
   })
 }
 
-const configureMarkdown = (md: Parameters<NonNullable<Parameters<typeof defineConfig>[0]['markdown']>['config']>[0]) => {
+const configureMarkdown = (md: MarkdownIt) => {
   markStatusTableColumns(md)
   wrapTablesForScroll(md)
 }
@@ -349,7 +366,8 @@ export default defineConfig({
     plugins: [
       // 回到顶部：向默认主题 Layout 的 doc-after slot 注入按钮；
       // top 与导航阈值对齐，marginBottom 抬高避开页脚遮挡。
-      back2topPlugin({ top: 320, marginBottom: 96 })
+      // 经结构化垫片转换，绕开两份 vite 类型的 Plugin 不兼容（见上）。
+      asVitePlugin(back2topPlugin({ top: 320, marginBottom: 96 }) as StructuredVitePlugin)
     ],
     server: {
       port: 8876
@@ -367,7 +385,9 @@ export default defineConfig({
       src: DSH_LOGO,
       alt: 'DeepSeek Harness'
     },
-    version: packageJson.version,
+    // 自定义扩展字段：VitePress 1.6 的主题类型没有 version（消费端
+    // VersionBadge.vue 以 `as { version?: string }` 读取），写入端对称断言。
+    ...( { version: packageJson.version } as { version: string } ),
     nav: [
       {
         text: '开发指南',
