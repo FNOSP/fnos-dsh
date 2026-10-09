@@ -29,12 +29,12 @@ issue 是变更入口之一，不直接等于需求规格。维护者确认有�
 
 ## 修改流程
 
-1. 从 `main` 创建分支。
+1. **计划功能默认直接在 `main` 分支实施**，不创建执行专用分支或 worktree。开始前确认当前分支为 `main`，检查工作区状态，并避免覆盖与本计划无关的已有改动。
 2. 按 [SDD 维护规范](/charter/sdd-workflow) 判断是否需要更新需求和计划；实现针对某个 issue 时在提交中关联它。
 3. 修改对应应用、插件或文档。
 4. 运行与改动相关的校验，包括 `pnpm run check -- --all`。
-5. 使用 Conventional Commits 创建提交。
-6. 推送分支并提交 Pull Request，填写仓库 PR 检查清单。
+5. 使用 Conventional Commits 创建提交；直接在 `main` 实施的计划任务按仓库维护流程留存提交记录。
+6. 只有用户明确要求采用分支协作或该改动需通过外部项目的 Pull Request 流程时，才切换到分支并提交 Pull Request；Pull Request 仍填写仓库 PR 检查清单。
 
 ## 提交规范
 
