@@ -49,5 +49,6 @@ flowchart TD
 | PLAN-FNOS-008 | [插件配置统一迁入插件管理页](/plans/PLAN-FNOS-008-plugin-config-in-plugin-manager) | 已完成 |
 | PLAN-FNOS-009 | [DSH 0.2.0-rc.2 插件适配](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation) | 规划中（含授权目录持久化阶段五） |
 | PLAN-FNOS-010 | [三方搜索接入与官方兜底](/plans/PLAN-FNOS-010-thirdparty-web-search-failover) | 规划中 |
+| PLAN-FNOS-011 | [凭据文件权限异常的可诊断性](/plans/PLAN-FNOS-011-credential-permission-diagnostics) | 规划中 |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

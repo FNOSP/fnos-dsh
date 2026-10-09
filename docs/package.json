@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@miletorix/vitepress-image-viewer": "catalog:",
+    "mermaid": "catalog:",
     "vitepress": "catalog:",
     "vitepress-mermaid-renderer": "catalog:",
     "vitepress-plugin-back2top": "catalog:"

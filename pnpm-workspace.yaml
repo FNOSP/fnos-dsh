@@ -53,9 +53,11 @@ catalog:
   typescript: ^5.9.3
   vitepress: 1.6.4
   # Mermaid 图由 vitepress-mermaid-renderer 在客户端渲染。该包把 `mermaid`
-  # 与 `vue` 声明为 peer dependency，由 pnpm 自动安装；它的依赖链由 Vite
-  # 按 ESM 正常解析，不再需要在 optimizeDeps 中逐项列出 CJS 传递依赖。
+  # 与 `vue` 声明为 peer dependency：pnpm 会把它装进该包的 node_modules，
+  # 但**消费方必须自己声明 mermaid**，否则渲染器里的 `import "mermaid"` 在
+  # 文档构建时解析不到，图表静默退化为源码文本（构建无告警）。docs 包已声明。
   vitepress-mermaid-renderer: 1.2.2
+  mermaid: 11.17.2
   vitest: ^4.1.8
   commander: 14.0.1
 

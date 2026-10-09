@@ -216,6 +216,10 @@ const requirementsSidebar = [
         text: 'FNOS-010 三方搜索接入与官方兜底',
         link: '/requirements/FNOS-010-thirdparty-web-search-failover'
       },
+      {
+        text: 'FNOS-011 凭据文件权限异常的可诊断性',
+        link: '/requirements/FNOS-011-credential-permission-diagnostics'
+      },
       ]
   }
 ]
@@ -264,6 +268,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-010 三方搜索接入与官方兜底',
         link: '/plans/PLAN-FNOS-010-thirdparty-web-search-failover'
+      },
+      {
+        text: 'PLAN-FNOS-011 凭据文件权限异常的可诊断性',
+        link: '/plans/PLAN-FNOS-011-credential-permission-diagnostics'
       },
     ]
   }
