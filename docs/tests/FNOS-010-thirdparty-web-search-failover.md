@@ -206,6 +206,7 @@ verifiedAt: 2026-10-09
 | TC-043 | FNOS-010-01-AC-01 | DSH Desktop 会话 | 通过 | 2026-10-09 | 意图级三方优先：Desktop 会话内提问联网搜索，TinyFish 请求日志新增两条（`07:08:48` UTC 对应界面 15:08，各 200 / 10 条），`total` 52→54 |
 | TC-044 | FNOS-010-05-AC-01 | DSH Desktop 会话 | 通过 | 2026-10-09 | 搜索卡片与来源链接在 Desktop 正常呈现（回答含标题 + 链接），与 Web 表现一致 |
 | TC-045 | FNOS-010-10-AC-02 | DSH Desktop | 通过 | 2026-10-09 | 插件管理页显示「Failover Search」与中文简介，与 Web、发布清单一致 |
+| TC-046 | FNOS-010-01-AC-01（日志级归因） | DSH Desktop 会话 | 通过 | 2026-10-09 | 把 Cordis 控制台导出器阈值降到 debug（`logger-console` 插件，`levels.default: 3`）后，会话内搜索的宿主控制台出现插件自身尝试事件：`[D] dsh-failover-search [failover-search] tinyfish/desktop-tinyfish succeeded (1125ms)` 与 `(1263ms)` 两条；同一轮 TinyFish 请求日志 `total` 61→63，日志行数与平台新增条目数一致——插件内部「选账号 → 发请求 → 成功」的逐次事件与平台侧记录互相印证 |
 | TC-039 | FNOS-010-03-AC-02 / 02-AC-03 | DSH Web 会话 | 通过 | 2026-10-09 | 意图级全链失败回落：三方凭据全部置为无效后提问，模型回报「联网搜索因缺少 `DEEPSEEK_API_KEY` 凭证而失败」——证明请求已走完三方并回落官方，官方按无凭据给出明确错误码，链路未挂起、未返回空结果 |
 | TC-020 | FNOS-010-06-AC-01 | DSH Web | 通过 | 2026-10-09 | 三方凭据全部失效时回落官方路径已在会话内实证（同 TC-039）；组合行 `searchProvider: dsh-failover-search` 与 `fetchProvider: http` 由 `--dump-config` 确认（同 TC-019），禁用后回落 base 层官方配置机制不变 |
 | TC-022 | FNOS-010-07-AC-01 | DSH Web | **未完成** | — | 见下方缺口说明 |
@@ -254,4 +255,5 @@ verifiedAt: 2026-10-09
   - 上游响应契约不是稳定接口：`url` 的相对重定向包装（BUG-02）与 `date` 字段的时有时无都来自实测；平台变更格式时，相关条目会被跳过或省略日期，搜索本身仍成功。
   - `FNOS-010-08` 的 Tavily `key` 层 `limit` 在当前 key 档位为 `null`；实现据此不做 key 级触限判定、只按账户层 `plan_usage >= plan_limit` 判定，档位变化后需要复核该判定。
 - 结果同时覆盖 DSH Web 与 DSH Desktop 两个客户端（插件兼容基线要求的最低组合），Desktop 侧使用 `fork-pj/deepseek-harness` 检出的开发态构建。
+- 归因方法分两层：早期用平台侧日志与排除法（TC-037～TC-039），最后一轮用插件自身的 debug 日志（TC-046）直接观测到逐次尝试事件。后者依赖两个临时手段——profile 插入 `logger-console`（`levels.default: 3`）并把该包 symlink 进 profile 的 `node_modules`（bare specifier 以 profile 目录为解析基准）；两项都是测试期改动，验证后已还原，未进入仓库。
 - 剩余缺口只有暗色主题与测试数据清理两项；在补齐前 `FNOS-010` 仍不标记为「已完成」，需求状态维持「待完成」。
