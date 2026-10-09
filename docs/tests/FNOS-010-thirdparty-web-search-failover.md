@@ -45,7 +45,8 @@ verifiedAt: 2026-10-09
 | DSH 运行时 | `0.2.0-rc.2`（仓库根 `@deepseek-ai/dsh`，profile `web`） |
 | 插件构建版本 | `@tnnevol/dsh-failover-search@0.2.0-rc.2.0` |
 | 本地 Web `DSH_HOME` | `<repo>/.dsh`（端口 8070） |
-| 三方账号 | TinyFish 2 个真实 key；Tavily 2 个真实 key（两个 Tavily key 的账户用量计数独立，为不同账户） |
+| 三方账号 | TinyFish 2 个真实 key；Tavily 2 个真实 key |
+| DSH Desktop | `fork-pj/deepseek-harness` 检出 `639ed01539`（`0.2.0-rc.2`），开发态构建标识 `0.2.0-rc.2-639ed01`，Electron 44.0.0 / Chrome 152；经 `DSH_DESKTOP_RENDERER_DEBUG_PORT=9333` 的 CDP 驱动，`DSH_HOME` 指向项目根 `.dsh` |
 
 ## 测试用例
 
@@ -181,7 +182,7 @@ verifiedAt: 2026-10-09
 | TC-025 | FNOS-010-08-AC-01 | 真实网络 | 通过 | 2026-10-09 | 两个 Tavily 账号独立查询：套餐均为 Researcher，`planUsage` 分别为 `0 / 1000` 与 `6 / 1000`（计数器独立，证明分属不同账户） |
 | TC-026 | FNOS-010-08-AC-02 | 真实网络 | 通过 | 2026-10-09 | TinyFish 钱包余额 `11.6 USD`、自动充值 `unconfigured` |
 | TC-029 | FNOS-010-09-AC-01 | 真实网络 | 通过 | 2026-10-09 | 两个真实账号下，快照标记已满的账号被跳过，请求落到另一账号 |
-| TC-022 | FNOS-010-07-AC-01 | 真实网络 + 同平台**两个真实账号**（TinyFish 与 Tavily 各 2 个） | 通过 | 2026-10-09 | TinyFish 连续 4 次请求分布 `tinyfish-1, tinyfish-2, tinyfish-1, tinyfish-2`；Tavily 两个账号在用量端点显示独立计数（0 与 6），确认为不同账户 |
+| TC-022 | FNOS-010-07-AC-01 | 真实网络 + 同平台**两个真实账号**（TinyFish 与 Tavily 各 2 个） | 通过 | 2026-10-09 | TinyFish 连续 4 次请求分布 `tinyfish-1, tinyfish-2, tinyfish-1, tinyfish-2`（TinyFish 限流按 key 计，均摊效果可核对）；Tavily 侧因用量计数非实时（见 BUG-08）无法用计数归因，**两 key 是否同账户未核实** |
 
 ### DSH Web UI 走查（本地 `DSH_HOME=<repo>/.dsh`，端口 8070，亮色主题）
 
@@ -199,6 +200,12 @@ verifiedAt: 2026-10-09
 | TC-018 | FNOS-010-05-AC-01/02 | DSH Web 会话 | 通过 | 2026-10-09 | 真实会话（GLM-5.3-Flash）内三次联网问答均触发 `web_search` 工具；TinyFish 请求日志逐条记下轨迹里的原始 query（`DeepSeek Harness 是什么`、`DeepSeek Harness GitHub`），结果在回答中以标题 + 链接呈现 |
 | TC-037 | FNOS-010-01-AC-01 | DSH Web 会话 | 通过 | 2026-10-09 | 意图级三方优先：接入后发一句需联网的问题，模型调用 `web_search`，TinyFish 请求日志出现该次 query（`06:33:02`/`06:33:04` UTC 与轨迹时间戳对应，各 200、10 条结果），官方未被调用 |
 | TC-038 | FNOS-010-02-AC-02 / 03-AC-01 | DSH Web 会话 | 通过 | 2026-10-09 | 意图级来源跳过：把 TinyFish 置空、仅留 Tavily 后再次联网提问，搜索仍正常返回；TinyFish 日志无新增条目（`total=52`、最新仍为 `06:33:04`），证明未配置来源被零请求跳过 |
+| TC-040 | FNOS-010-04-AC-01/04 | DSH Desktop | 通过 | 2026-10-09 | 详情页配置区正常渲染（8 个输入框、2 个自绘开关）；经 Desktop 界面新增账号后列表显示掩码 `sk-tin…KFFtn`，配置落盘到 `.dsh/profiles/desktop/cordis.patch.yml` |
+| TC-041 | FNOS-010-04-AC-05/06 | DSH Desktop | 通过 | 2026-10-09 | 账号行的「编辑 / 复制 key / 删除」在 Desktop 上渲染正常，与 Web 一致 |
+| TC-042 | FNOS-010-08-AC-01/02 | DSH Desktop | 通过 | 2026-10-09 | 用量区块在 Desktop 渲染，位置在「包含的组件」之前（`平台用量` 索引 < `包含的组件`）；未配置平台显示「未配置账号」 |
+| TC-043 | FNOS-010-01-AC-01 | DSH Desktop 会话 | 通过 | 2026-10-09 | 意图级三方优先：Desktop 会话内提问联网搜索，TinyFish 请求日志新增两条（`07:08:48` UTC 对应界面 15:08，各 200 / 10 条），`total` 52→54 |
+| TC-044 | FNOS-010-05-AC-01 | DSH Desktop 会话 | 通过 | 2026-10-09 | 搜索卡片与来源链接在 Desktop 正常呈现（回答含标题 + 链接），与 Web 表现一致 |
+| TC-045 | FNOS-010-10-AC-02 | DSH Desktop | 通过 | 2026-10-09 | 插件管理页显示「Failover Search」与中文简介，与 Web、发布清单一致 |
 | TC-039 | FNOS-010-03-AC-02 / 02-AC-03 | DSH Web 会话 | 通过 | 2026-10-09 | 意图级全链失败回落：三方凭据全部置为无效后提问，模型回报「联网搜索因缺少 `DEEPSEEK_API_KEY` 凭证而失败」——证明请求已走完三方并回落官方，官方按无凭据给出明确错误码，链路未挂起、未返回空结果 |
 | TC-020 | FNOS-010-06-AC-01 | DSH Web | 通过 | 2026-10-09 | 三方凭据全部失效时回落官方路径已在会话内实证（同 TC-039）；组合行 `searchProvider: dsh-failover-search` 与 `fetchProvider: http` 由 `--dump-config` 确认（同 TC-019），禁用后回落 base 层官方配置机制不变 |
 | TC-022 | FNOS-010-07-AC-01 | DSH Web | **未完成** | — | 见下方缺口说明 |
@@ -216,7 +223,7 @@ verifiedAt: 2026-10-09
 1. ~~**TC-022（同平台多账号分摊效果）未完成**~~ → **已补测通过**：补入第二个真实 TinyFish key 后，真实网络下连续 4 次请求分布为 `tinyfish-1, tinyfish-2, tinyfish-1, tinyfish-2`，满足需求「使用同平台至少两个真实账号验证」的口径。
 2. ~~**TC-018（会话搜索卡片走查）未执行**~~ → **已补做通过**：本地 `web` profile 的模型路由（codebuddy / GLM-5.3-Flash）凭据有效，已在其真实会话内完成三次联网问答走查（TC-037/TC-038/TC-039），搜索卡片与来源链接正常呈现。
 3. ~~**TC-020（禁用插件后回落）未执行**~~ → **已补做通过**：全链失败后回落官方路径已在会话内实证（TC-039），官方按无凭据返回明确错误码而非空结果。
-4. **DSH Desktop 全部用例未执行**：尚未在项目 `DSH_HOME` 下启动 `fork-pj/deepseek-harness` 检出的开发态 Desktop（见[测试用例文档规范](/charter/tests-spec)的 DSH Desktop 测试章节）。按[测试用例文档规范](/charter/tests-spec)的兼容基线要求，其他 DSH 插件**至少同时兼容 DSH Web 与 DSH Desktop**，只记录单一客户端结果不构成完成结论。
+4. ~~**DSH Desktop 全部用例未执行**~~ → **已补做通过**：按规范用 `fork-pj/deepseek-harness` 检出的开发态 Desktop（`0.2.0-rc.2-639ed01`，UA 含 `@deepseek-ai/dsh-desktop/0.2.0-rc.2`）、`DSH_HOME` 指向项目根 `.dsh`、CDP `9333` 完成走查，结果见下方 TC-040～TC-045。用户全局 profile（`~/.dsh/profiles/desktop`）未被改动。
 5. **暗色主题未执行**：TC-028 与 TC-013 的 UI 走查只在亮色主题下完成；UI 测试清单要求亮暗各执行一遍。
 6. **凭据清理**：本地 profile 的测试账号写入 `<repo>/.dsh/profiles/web/cordis.patch.yml`（该目录已被 git 忽略，未进入仓库）。**测试账号与用量刷新产生的配置仍留在本地 profile**，验收完成后需删除。
 
@@ -240,9 +247,11 @@ verifiedAt: 2026-10-09
 
 **整体结论：部分通过。**
 
-- 已通过：`FNOS-010-01`、`02`、`03`、`09` 的全部验收条件在单元与真实网络两层均通过；`FNOS-010-05`（归一与截断）、`FNOS-010-06`（组合契约）、`FNOS-010-08`（两个用量端点）、`FNOS-010-10`（命名契约）在可执行的范围内通过；`FNOS-010-04` 在 DSH Web 亮色主题下通过。
-- 未完成：`FNOS-010-07-AC-01` 的真实多账号分摊效果核对（环境缺第二个真实账号）；`FNOS-010-05` 的会话搜索卡片走查；`FNOS-010-06` 的禁用回落走查；DSH Desktop 全部用例；亮暗主题中的暗色部分。
+- 已通过：`FNOS-010-01`、`02`、`03`、`06`、`09` 的全部验收条件在单元、真实网络与会话内三层均通过；`FNOS-010-04`（配置区与账号管理）在 DSH Web 与 DSH Desktop 两个客户端通过；`FNOS-010-05`（结果归一、截断与卡片呈现）经真实会话走查通过；`FNOS-010-07-AC-01` 的真实多账号分摊经 TinyFish 双账号实测通过；`FNOS-010-08`（两个用量端点）在 Web 与 Desktop 渲染通过；`FNOS-010-10`（命名契约）通过。
+- 未完成：亮暗主题中的**暗色主题**未走查；本地 profile 中的测试账号待清理（`.dsh/profiles/web/cordis.patch.yml` 与 `.dsh/profiles/desktop/cordis.patch.yml`）。
+- 已修正的前述结论：早期登记的「Desktop 全部用例未执行」、「会话搜索卡片未走查」、「禁用回落未走查」与「缺第二个真实账号」均已在本轮补齐（见 TC-037～TC-045）。
 - 遗留风险：
   - 上游响应契约不是稳定接口：`url` 的相对重定向包装（BUG-02）与 `date` 字段的时有时无都来自实测；平台变更格式时，相关条目会被跳过或省略日期，搜索本身仍成功。
   - `FNOS-010-08` 的 Tavily `key` 层 `limit` 在当前 key 档位为 `null`；实现据此不做 key 级触限判定、只按账户层 `plan_usage >= plan_limit` 判定，档位变化后需要复核该判定。
-- 目标环境验收未完成前，`FNOS-010` 不得标记为「已完成」；需求状态按本文件结论回写为「部分通过/待完成」。
+- 结果同时覆盖 DSH Web 与 DSH Desktop 两个客户端（插件兼容基线要求的最低组合），Desktop 侧使用 `fork-pj/deepseek-harness` 检出的开发态构建。
+- 剩余缺口只有暗色主题与测试数据清理两项；在补齐前 `FNOS-010` 仍不标记为「已完成」，需求状态维持「待完成」。
