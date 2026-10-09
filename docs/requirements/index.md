@@ -64,5 +64,6 @@ flowchart TD
 | FNOS-009 | [DSH 0.2.0-rc.2 插件适配](/requirements/FNOS-009-dsh-020-rc2-adaptation) | 规划中（含授权目录持久化 FNOS-009-09/10） |
 | FNOS-010 | [三方搜索接入与官方兜底](/requirements/FNOS-010-thirdparty-web-search-failover) | 待完成（实现完成，目标环境验收进行中） |
 | FNOS-011 | [凭据文件权限异常的可诊断性](/requirements/FNOS-011-credential-permission-diagnostics) | 规划中 |
+| FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/requirements/FNOS-012-codebuddy-model-speed-and-client-version) | 规划中 |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。
