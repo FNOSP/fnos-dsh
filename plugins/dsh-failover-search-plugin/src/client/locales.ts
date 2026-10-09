@@ -36,7 +36,9 @@ export const zh = {
   accountKey: 'API key',
   accountKeyPlaceholder: '粘贴平台 API key',
   accountLabel: '备注名',
-  accountLabelPlaceholder: '例如 tinyfish-1',
+  accountLabelPlaceholderTinyfish: '例如 tinyfish-1',
+  accountLabelPlaceholderTavily: '例如 tavily-1',
+  accountLabelPlaceholder: '例如 platform-1',
   accountAdd: '添加账号',
   accountRemove: '删除',
   accountCancel: '取消',
@@ -104,7 +106,9 @@ export const en = {
   accountKey: 'API key',
   accountKeyPlaceholder: 'Paste the platform API key',
   accountLabel: 'Label',
-  accountLabelPlaceholder: 'for example tinyfish-1',
+  accountLabelPlaceholderTinyfish: 'for example tinyfish-1',
+  accountLabelPlaceholderTavily: 'for example tavily-1',
+  accountLabelPlaceholder: 'for example platform-1',
   accountAdd: 'Add account',
   accountRemove: 'Remove',
   accountCancel: 'Cancel',
@@ -141,3 +145,10 @@ export const en = {
 
 /** 用量区块与配置表单的文案键。 */
 export type UsageLocaleKey = keyof typeof zh
+
+/** 备注名 placeholder 的 locale key：按平台给专属示例，未知平台回落通用文案。 */
+export function labelPlaceholderKey(platform: string): UsageLocaleKey {
+  if (platform === 'tinyfish') return 'accountLabelPlaceholderTinyfish'
+  if (platform === 'tavily') return 'accountLabelPlaceholderTavily'
+  return 'accountLabelPlaceholder'
+}

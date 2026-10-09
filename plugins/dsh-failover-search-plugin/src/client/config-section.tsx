@@ -26,6 +26,7 @@ import type { SettingsFormModel } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { OFFICIAL_SOURCE_ID, TAVILY_PLATFORM_ID, TINYFISH_PLATFORM_ID } from '../contracts/constants.ts'
 import { appendAccountOp, editAccountPatch, mergeAccountRows, removeAccountOp, updateAccountOp } from './account-list.ts'
+import { labelPlaceholderKey } from './locales.ts'
 import type { AccountSummaryView, SettingsFormPathOp } from './account-list.ts'
 import type { UsageLocaleKey } from './locales.ts'
 
@@ -367,7 +368,7 @@ function AccountList({ platform, title, accounts, summaries, t, disabled, onAdd,
                             <DshInput
                               value={editLabel}
                               disabled={disabled}
-                              placeholder={t('accountLabelPlaceholder')}
+                              placeholder={t(labelPlaceholderKey(platform))}
                               aria-label={t('accountLabel')}
                               onChange={value => { setEditLabel(value) }}
                             />
@@ -446,7 +447,7 @@ function AccountList({ platform, title, accounts, summaries, t, disabled, onAdd,
         <DshInput
           value={draftLabel}
           disabled={disabled}
-          placeholder={t('accountLabelPlaceholder')}
+          placeholder={t(labelPlaceholderKey(platform))}
           aria-label={t('accountLabel')}
           onChange={value => { setDraftLabel(value) }}
         />
