@@ -211,12 +211,18 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | --- | --- | --- |
 | Codex Auth（`dsh-codex-auth`） | `.openai-codex-auth.json` | 单文件承载 OAuth 凭据 |
 | CodeBuddy（`dsh-codebuddy`） | `codebuddy-auth.json` 及同目录兄弟文件 `.auto-switch.json`、`.auto-checkin.json`、`.auto-travel.json` | 账号凭据与自动行为偏好；涉及对应功能时一并备份 |
+| DSH 自身（`dsh-credentials-local`） | `.credentials.yaml` | 模型 provider 的 API key 等凭据。**该文件读不了会让 `credentials` 插件初始化失败，连带 11 个依赖插件挂起并使 DSH Web 直接退出**，恢复时优先级最高 |
 
 **备份与恢复规则**：
 
 - 备份目录：`<repo>/tmp/auth-back/`；`tmp/` 不入库（保持 git 忽略），备份不得写入受版本管理的路径。
 - 备份目录名：`<插件名称>-<插件版本>-<备份日期>`，日期格式 `yyyy-MM-dd hh:mm:ss`，示例：`tmp/auth-back/dsh-codex-auth-0.2.0-rc.2.0-2026-09-30 14:30:05/`、`tmp/auth-back/dsh-codebuddy-0.2.0-rc.2.0-2026-09-30 15:02:11/`。
-- **移除登录配置前必须先完成备份**：把上表的配置文件原样复制进对应备份目录；恢复登录则从备份目录原样复制回 `DSH_HOME`，恢复后文件权限保持 `600`（Codex Auth 会拒绝放宽权限的凭据文件）。
+- **移除登录配置前必须先完成备份**：把上表的配置文件原样复制进对应备份目录；恢复登录则从备份目录原样复制回 `DSH_HOME`。
+- **恢复后必须显式 `chmod 600`，不能只依赖 `cp -p`**：`cp -p` 会保留源文件的权限位，而 fnOS 的共享文件夹（如 `/vol2/1000/...`）走 ACL，其传统权限位常显示为 `0000`。把这样的文件复制回 `DSH_HOME`（btrfs）后，文件真的变成属主也不可读，恢复动作会直接制造下一次启动失败。恢复命令应写成：
+  ```sh
+  cp -p "$BACKUP/$file" "$DSH_HOME/$file" && chmod 600 "$DSH_HOME/$file"
+  ```
+- **恢复后逐一核对权限**：用 `stat -c '%a %n'` 检查每个恢复的凭据文件为 `600`；出现 `0` 即视为恢复失败，必须立刻 `chmod 600` 再继续。仅比对 `sha256` 只能证明内容一致，不能证明可读。
 - 每次进入新插件版本测试时新建一份备份目录，不覆盖旧备份；备份中包含真实凭据，禁止提交、截图或粘贴到任何受版本管理与共享的位置。
 - 测试全部结束后，确认 `DSH_HOME` 中的 auth 配置与测试前状态一致（恢复备份或保留新登录），并在测试执行结果备注登记状态切换与恢复动作。
 - **仓库红线（代码与测试通用）**：测试账号密码、NAS 凭据和 auth 相关文件一律不得上传到仓库——不进受版本管理的代码、文档、脚本、`.env`、测试夹具和测试用例；`.gitignore` 已忽略 `tmp/` 与 `.dsh/`，凭据只允许存在于这两类位置或 `trim-cli` 的 session 存储。提交前用 `git status` 与 `git diff --check` 确认无凭据文件混入。
@@ -314,6 +320,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 
 | 日期 | 变更 | 说明 |
 | --- | | 2026-10-08 | 明确 fnOS 插件以真实 NAS 为唯一验收环境 | 增加说明：`@tnnevol/dsh-fnos` 的功能依赖 fnOS 宿主桥接，真实 NAS 走查通过即通过，不需要 Web/Desktop 复验；并给出判断依据（实现是否落在 `plugins/dsh-fnos-plugin/` 且依赖桥接），避免把 `/fn` 引用选择树这类界面控件误判为需要双客户端覆盖。 |
+| 2026-10-09 | 凭据恢复补充 `chmod 600` 与权限核对要求 | 真机暴露：用 `cp -p` 从共享文件夹恢复 `.credentials.yaml` 时带回了 `0000` 权限，导致 `credentials` 插件 `EACCES` 失败、11 个依赖插件挂起、DSH Web 以 code 1 退出。配置表补上 DSH 自身的 `.credentials.yaml`；恢复规则要求恢复后显式 `chmod 600` 并用 `stat` 逐一核对（仅比对哈希不能证明可读）。 |
 --- | --- |
 | 2026-09-30 | 新增测试环境执行方式 | 明确除 fnOS 插件外的其他插件统一在项目 DSH CLI 启动的 DSH Web 中测试（`pnpm run start -- --web`，`DSH_HOME` 固定指向仓库 `.dsh`），fnOS 插件仍走真实 NAS。 |
 | 2026-09-30 | 补充 Desktop 测试要求 | 非 fnOS 插件至少兼容 DSH Web 与 DSH Desktop 两个客户端并均纳入用例；新增 Desktop 测试执行方式（客户端获取、宿主差异验证重点、结论登记）。 |
