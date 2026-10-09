@@ -1,0 +1,106 @@
+{
+  "name": "@tnnevol/dsh-failover-search",
+  "displayName": "Failover Search",
+  "type": "module",
+  "version": "0.2.0-rc.2.0",
+  "description": "Composite DSH web-search provider that fails over TinyFish → Tavily → official DeepSeek, spreads requests across multiple accounts per platform, and shows platform usage on the plugin page.",
+  "author": "tnnevol",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-failover-search.html",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FNOSP/fnos-dsh.git",
+    "directory": "plugins/dsh-failover-search-plugin"
+  },
+  "documentation": "https://fnapps-doc.tnnevol.cn/plugins/dsh-failover-search",
+  "bugs": {
+    "url": "https://github.com/FNOSP/fnos-dsh/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./compatibility.json": "./compatibility.json",
+    "./package.json": "./package.json"
+  },
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "README.md",
+    "compatibility.json",
+    "cordis.patch.yml",
+    "lib"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "pnpm run typecheck && pnpm run test",
+    "prepublishOnly": "pnpm run check",
+    "publish:next": "pnpm publish --tag next --access public",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@deepseek-ai/dsh-client-connection": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-locale": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-settings": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-credentials": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-launch-environment": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-settings": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-web": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-web-search-deepseek": "0.2.0-rc.2",
+    "@deepseek-ai/schemastery": "catalog:",
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@deepseek-ai/dsh-client-connection": "catalog:dsh",
+    "@deepseek-ai/dsh-client-locale": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-primitives": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-renderer": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-settings": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-slots": "catalog:dsh",
+    "@deepseek-ai/dsh-credentials": "catalog:dsh",
+    "@deepseek-ai/dsh-launch-environment": "catalog:dsh",
+    "@deepseek-ai/dsh-settings": "catalog:dsh",
+    "@deepseek-ai/dsh-web": "catalog:dsh",
+    "@deepseek-ai/dsh-web-search-deepseek": "catalog:dsh",
+    "@deepseek-ai/schemastery": "catalog:",
+    "@tnnevol/dsh-semi-ui": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "react": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

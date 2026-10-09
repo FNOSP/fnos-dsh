@@ -18,5 +18,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | 编号 | 需求 | 关联计划 | 测试状态 | 最终结论 |
 | --- | --- | --- | --- | --- |
 | FNOS-009 | [DSH 0.2.0-rc.2 插件适配](/tests/FNOS-009-dsh-020-rc2-adaptation) | [PLAN-FNOS-009](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation) | 规划中 | 尚未执行 |
+| FNOS-010 | [三方搜索接入与官方兜底](/tests/FNOS-010-thirdparty-web-search-failover) | [PLAN-FNOS-010](/plans/PLAN-FNOS-010-thirdparty-web-search-failover) | 部分通过 | 单元与真实网络两层通过；同平台多账号分摊、会话卡片走查、禁用回落与 DSH Desktop 待验收 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

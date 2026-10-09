@@ -1,0 +1,306 @@
+/**
+ * 配置区与用量区块的样式。
+ *
+ * 只使用 DSH 语义变量（`--dsw-*`），不硬编码颜色，保证亮色与暗色主题自动切换。
+ * 这一层不引入独立的模糊链路：气泡浮层的毛玻璃由共享包主题统一负责，这里只用纯色
+ * 语义表面，避免子元素重复叠加 `backdrop-filter`。
+ */
+
+.dsh-failover-config {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.dsh-failover-config__group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dsh-failover-config__groupTitle {
+  margin: 0;
+}
+
+.dsh-failover-config__hint {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-failover-config__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dsh-failover-config__order {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dsh-failover-config__orderLabel {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.dsh-failover-config__orderValue {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.dsh-failover-config__switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dsh-failover-config__switchMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dsh-failover-config__switchLabel {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dsh-failover-config__switchHint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-failover-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.dsh-failover-accounts__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsh-failover-accounts__title {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.dsh-failover-accounts__empty,
+.dsh-failover-accounts__hint {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-failover-accounts__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-failover-accounts__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.dsh-failover-accounts__item:last-child {
+  border-bottom: 0;
+}
+
+.dsh-failover-accounts__index {
+  color: var(--dsw-alias-label-caption);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-failover-accounts__label {
+  flex: 1;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+/* key 掩码：等宽显示，便于逐字符比对同平台的多个账号。 */
+.dsh-failover-accounts__key {
+  flex: none;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+  font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11.5px;
+  line-height: 16px;
+}
+
+/* 新增行：窄容器下换行，避免输入框被压到无法使用。 */
+.dsh-failover-accounts__add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.dsh-failover-accounts__add > *:nth-child(1) {
+  flex: 2 1 200px;
+}
+
+.dsh-failover-accounts__add > *:nth-child(2) {
+  flex: 1 1 140px;
+}
+
+/* ── 用量区块 ─────────────────────────────────────────────────────── */
+
+.dsh-failover-usage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dsh-failover-usage__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dsh-failover-usage__title {
+  margin: 0;
+}
+
+.dsh-failover-usage__hint,
+.dsh-failover-usage__fetched,
+.dsh-failover-usage__error,
+.dsh-failover-usage__empty,
+.dsh-failover-usage__accountError {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-failover-usage__error,
+.dsh-failover-usage__accountError {
+  color: var(--dsw-alias-state-error-primary);
+  overflow-wrap: anywhere;
+}
+
+.dsh-failover-usage__loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-failover-usage__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.dsh-failover-usage__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dsh-failover-usage__groupTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.dsh-failover-usage__accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-failover-usage__account {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.dsh-failover-usage__accountHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsh-failover-usage__accountLabel {
+  flex: 1;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.dsh-failover-usage__entries {
+  display: grid;
+  grid-template-columns: minmax(88px, max-content) 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.dsh-failover-usage__entry {
+  display: contents;
+}
+
+.dsh-failover-usage__entry dt {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-failover-usage__entry dd {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.dsh-failover-usage__emptyState {
+  margin-top: 4px;
+}

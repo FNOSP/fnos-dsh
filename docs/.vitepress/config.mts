@@ -101,7 +101,8 @@ const pluginItems = [
   { text: '插件总览', link: '/plugins/' },
   { text: 'dsh-fnos', link: '/plugins/dsh-fnos' },
   { text: 'dsh-codex-auth', link: '/plugins/dsh-codex-auth' },
-  { text: 'dsh-codebuddy', link: '/plugins/dsh-codebuddy' }
+  { text: 'dsh-codebuddy', link: '/plugins/dsh-codebuddy' },
+  { text: 'dsh-failover-search', link: '/plugins/dsh-failover-search' }
 ]
 
 const sharedUiItems = [
@@ -324,6 +325,10 @@ const testsSidebar = [
       {
         text: 'FNOS-009 DSH 0.2.0-rc.2 插件适配',
         link: '/tests/FNOS-009-dsh-020-rc2-adaptation'
+      },
+      {
+        text: 'FNOS-010 三方搜索接入与官方兜底',
+        link: '/tests/FNOS-010-thirdparty-web-search-failover'
       },
     ]
   }

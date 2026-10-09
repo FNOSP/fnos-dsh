@@ -1,0 +1,15 @@
+# @tnnevol/dsh-failover-search 组合包 patch。
+#
+# 搜索来源由本插件的复合提供方接管；官方搜索插件行保持原样，作为链条末端兜底。
+#
+# `web` 行的 `config` 是**整行替换**而不是深度合并（发行版组合基线语义）：
+# 重写 `searchProvider` 时必须完整重述 `fetchProvider`，否则 fetch 配置丢失、
+# 网页抓取回落为不可用。契约测试钉住这两个键，防止后续改动把 fetch 漏掉。
+- id: web
+  config:
+    searchProvider: dsh-failover-search
+    fetchProvider: http
+
+- insert:
+    - id: dsh-failover-search
+      name: '@tnnevol/dsh-failover-search'
