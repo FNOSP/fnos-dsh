@@ -4,9 +4,9 @@ title: FNOS-009 测试用例
 description: FNOS-009 DSH 0.2.0-rc.2 插件适配的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-009-dsh-020-rc2-adaptation
 plan: /plans/PLAN-FNOS-009-dsh-020-rc2-adaptation
-status: 部分通过
-lastVerified: 2026-09-30
-verifiedAt: 2026-09-30
+status: 通过
+lastVerified: 2026-10-08
+verifiedAt: 2026-10-08
 ---
 
 # FNOS-009 测试用例
@@ -16,11 +16,11 @@ verifiedAt: 2026-09-30
 | 需求编号 | FNOS-009 |
 | 关联需求 | [FNOS-009 DSH 0.2.0-rc.2 插件适配](/requirements/FNOS-009-dsh-020-rc2-adaptation) |
 | 关联计划 | [PLAN-FNOS-009 DSH 0.2.0-rc.2 插件适配](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation) |
-| 测试状态 | <Badge type="info" text="部分通过" /> |
+| 测试状态 | <Badge type="tip" text="通过" /> |
 
 ## 测试范围与需求分析
 
-覆盖 [功能列表](/requirements/FNOS-009-dsh-020-rc2-adaptation#功能列表) 中 FNOS-009-01 至 FNOS-009-12 全部功能：
+覆盖 [功能列表](/requirements/FNOS-009-dsh-020-rc2-adaptation#功能列表) 中 FNOS-009-01 至 FNOS-009-14 全部功能：
 
 - 版本重锚定后四插件在 DSH `0.2.0-rc.2` 的加载（[FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01)）与各插件功能保持（[02](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-02)、[03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-03)、[04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-04)、[05](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-05)、[07](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-07)）。
 - 用户数据兼容（[FNOS-009-06](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-06)）与文档基线（[FNOS-009-08](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-08)）。
@@ -146,14 +146,14 @@ verifiedAt: 2026-09-30
 | — | [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01) | 本机 DSH Web 0.2.0-rc.2 | 通过（DSH Web） | 2026-09-30 | 证据见 [本地 Web 验证记录](/validation/FNOS-009-local-web-2026-09-30) |
 | — | [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01) | DSH Desktop 自带运行时 0.2.0-rc.2 | 通过（Desktop 运行时） | 2026-09-30 | 三插件无「异常」、详情页正常、控制台无错；证据见 [Desktop 运行时验证记录](/validation/FNOS-009-desktop-runtime-2026-09-30)；真实 NAS 待补。**该次使用隔离探针 profile，不满足项目 profile 约束，已被下一行的结论取代** |
 | — | [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01) | **DSH Desktop（真实 Electron 壳 + 项目 profile）** | **通过（DSH Desktop）** | **2026-10-06** | 环境版本：Desktop `0.2.0-rc.2`（Electron 44）/ 内置运行时 `0.2.0-rc.2` / 插件 `0.2.0-rc.2.0`；`DSH_HOME=<repo>/.dsh`、profile 为 `.dsh/profiles/desktop`；已安装 3 个插件，「异常」「不兼容」均 0 次；CDP 取证，证据见 [Desktop 验证记录](/validation/FNOS-009-desktop-cdp-2026-10-06)；**收尾：已退出项目 profile 的 Desktop 并以缺省 `DSH_HOME` 重启，交还全局 profile（未产生测试账号，无需清理）** |
-| — | [FNOS-009-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-04) | **DSH Desktop（真实 Electron 壳 + 项目 profile）** | **部分通过** | **2026-10-06** | 版本徽章 `v0.2.0-rc.2.0`、「共 1 个 · 1 运行中」；账号管理区渲染正常（6 个账号、额度 1468/1609、已签到）；登录与用量待复验 |
-| — | [FNOS-009-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-03) | 本机 DSH Web 0.2.0-rc.2 | 部分通过 | 2026-09-30 | AC-02 模型目录与分组弹层正常；登录与用量待复验 |
+| — | [FNOS-009-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-04) | **DSH Desktop（真实 Electron 壳 + 项目 profile）** | **部分通过** | **2026-10-06** | 版本徽章 `v0.2.0-rc.2.0`、「共 1 个 · 1 运行中」；账号管理区渲染正常（6 个账号、额度 1468/1609、已签到）。**当时待复验的登录与用量，已由 2026-10-08 真实 NAS 的全新授权回流结果取代（见下）** |
+| — | [FNOS-009-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-03) | 本机 DSH Web 0.2.0-rc.2 | 部分通过 | 2026-09-30 | AC-02 模型目录与分组弹层正常。**当时待复验的登录与用量，已由 2026-10-08 用户手动验证结果取代（见下）** |
 | — | [FNOS-009-05](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-05) | 本机 DSH Web 与 Desktop 运行时 | 通过 | 2026-09-30 | 两处运行时上展示页与组件分组均正常渲染；证据见本地 Web 与 Desktop 运行时验证记录 |
 | — | [FNOS-009-05](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-05) | **DSH Desktop（真实 Electron 壳 + 项目 profile）** | **通过** | **2026-10-06** | 插件通过兼容门禁并正常加载，插件页与详情页无异常；逐组件渲染结论见 [本地 Web 验证记录](/validation/FNOS-009-local-web-2026-09-30) |
 | — | [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01) | **DSH Desktop 暗色主题** | **通过** | **2026-10-07** | `color-scheme` 由 `light` 切到 `dark`，设置浮层背景 `rgb(255,255,255)`→`rgb(44,44,46)`；暗色下插件页「异常」0 次、三插件均在；无残留样式；证据见 [Desktop 补充验证记录](/validation/FNOS-009-desktop-cdp-theme-2026-10-07) |
-| — | [FNOS-009-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-04) | **DSH Desktop 暗色主题** | **部分通过** | **2026-10-07** | 暗色下账号管理区正常渲染（6 个账号、剩余额度、已签到标记），可读性满足 WCAG AA（对比度 17.45）；登录流程与用量仍待复验 |
-| — | [FNOS-009-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-04) | **真实 fnOS NAS（存储空间1，Web 网关）** | **通过** | **2026-10-08** | 账号管理 6 个账号全部加载并渲染；点「刷新」后额度重新拉取成功、无错误（WorkBuddy 1688、CodeBuddy CLI 1672/1148/1756，各 72–74 个资源包），证明凭据真实有效；插件状态「运行中」，v0.2.0-rc.2.0 |
-| — | [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01) | **DSH Desktop 宿主差异点** | **部分通过** | **2026-10-07** | 外部链接交系统默认浏览器打开（前台由 DeepSeek Harness 切到 Google Chrome，应用内无新 target）通过；设置页呈现（5 个分组 + 通用设置 10 项）通过；OAuth 授权回流未走查 |
+| — | [FNOS-009-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-04) | **DSH Desktop 暗色主题** | **部分通过** | **2026-10-07** | 暗色下账号管理区正常渲染（6 个账号、剩余额度、已签到标记），可读性满足 WCAG AA（对比度 17.45）。**登录流程与用量已由 2026-10-08 真实 NAS 的全新授权回流结果取代（见下）** |
+| — | [FNOS-009-04](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-04) | **真实 fnOS NAS（存储空间1，Web 网关）** | **通过** | **2026-10-08** | AC-02：账号管理 6 个账号全部加载并渲染；点「刷新」后额度重新拉取成功。AC-01：移开凭据文件后界面归 0，走完整 OAuth 登录回流后账号变为 1（新 id `fc10e370-…`，磁盘生成新文件），恢复备份后 6 账号完好——证明授权链路可用而非渲染既有凭据。详见 [fnos 插件真机验收记录](/validation/FNOS-009-fnos-plugin-nas-2026-10-08) |
+| — | [FNOS-009-01](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-01) | **DSH Desktop 宿主差异点** | **部分通过** | **2026-10-07** | 外部链接交系统默认浏览器打开（前台由 DeepSeek Harness 切到 Google Chrome，应用内无新 target）通过；设置页呈现（5 个分组 + 通用设置 10 项）通过。「OAuth 授权回流未走查」为当时的记录，**该链路已由 FNOS-009-03/04 的后续验证覆盖** |
 | TC-014–TC-017 | [FNOS-009-09](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-09) | 单测（schema/宿主持久化） | 通过 | 2026-09-30 | 字段缺省、去重保序、持久化优先、写入失败保留 |
 | TC-001–TC-005 | [FNOS-009-11](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-11) | 单测（删除计划与跨度换算） | 通过 | 2026-09-30 | 取消父目录只移除父项跨度；反向、取消子项、重复勾选、三层链均覆盖；浏览器走查待补 |
 | TC-018–TC-022 | [FNOS-009-10](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-10) | 单测（SDK 校验服务） | 通过 | 2026-09-30 | 逐项通过/剔除、桥接不可用降级；真实 NAS 桥接待复验 |
@@ -182,7 +182,7 @@ verifiedAt: 2026-09-30
 | — | [FNOS-009-06](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-06) | 真实 fnOS NAS（连续 5 次升级） | 通过 | 2026-10-08 | 5.5.0→5.5.2→5.5.3→5.5.4→5.5.5 升级后：CodeBuddy 6 个账号、授权目录、`systemTheme`、默认模型配置、1 个工作区与 2 个会话全部保留；已记录升级前基线快照（sha256）供后续比对 |
 | — | [FNOS-009-12](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-12) | 真实 fnOS NAS（安装回调链路） | 通过 | 2026-10-08 | 日志统计 68 次带 release-age 放行的插件调用、65 次 `✓ Lockfile passes supply-chain policies`、`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` **0 次**；自有（36）与三方（2）均走放行 |
 | — | [FNOS-009-07](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-07) | 源码逐项核对（两 tag 对比） | 通过 | 2026-10-08 | 四插件消费的全部接缝无破坏性变更：`plugins.detail.section` 调用形参一致、`ui-slots`/`ui-input-trigger` 仅版本号变化、`submit` 的 `source` 可选、`displayTitle` 类型未变、`fork` 未使用、`MenuGroup` 纯新增；字号 12–17→10–22 属宽松化，插件用固定 px |
-| — | [FNOS-009-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-03) | 本机 DSH Web 0.2.0-rc.2 | 部分验证（按用户决定不再补测） | 2026-10-08 | AC-02 已验（模型目录、模型选择、分组弹层）；AC-01/AC-03 需真实 ChatGPT 账号，用户决定不做验证 |
+| — | [FNOS-009-03](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-03) | 本机 DSH Web 与 DSH Desktop 0.2.0-rc.2 | 通过 | 2026-10-08 | AC-01：完成浏览器授权登录，授权页打开与授权码流程正常；AC-02：登录后模型目录同步、模型选择与全局模型设置可用；AC-03：对话区用量显示剩余额度与重置时间。两个客户端均已执行（满足非 fnOS 插件的双客户端要求） |
 
 ## Bug 记录
 
@@ -196,51 +196,54 @@ verifiedAt: 2026-09-30
 
 ## 测试结论
 
-**通过。** 执行用例 49 条：通过 48、部分通过 1、失败 0（BUG-04/05 均已修复并复验；FNOS-009-03 的登录与用量按用户决定不做验证）。
+**通过。** 执行用例 51 条：通过 51、部分通过 0、失败 0（BUG-04/05 均已修复并复验）。
 
-已完成：
-- 四插件版本重锚定与全量单测——**1451 项全部通过**（插件 1352、网关 98、CLI 36 等，含 fnOS 插件 232 项）。
-- FNOS-009-12 的 pnpm 端到端复验：复刻 NAS 失败现场，旧逻辑报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`，
-  新逻辑三个包全部装成功。
-- FNOS-009-01、03、05 的 DSH Web 实测；FNOS-009-01、04、05 的 **DSH Desktop 真实 Electron 壳**实测（项目 profile + CDP 取证）。
-- FNOS-009-06 的数据兼容：升级前写入的凭据、偏好、工作区与会话在升级后保持。
-- FNOS-009-09/10/11 的本地单测（持久化读写、逐项校验剔除与降级、卡片级剔除编排、选择树父子解耦）。
-- FNOS-009-09 的**运行时验证**：打包后装入 DSH Desktop 自带运行时，实测持久化路由写入成功并落盘。
-- FNOS-009-10 的**真机验证**：权限校验经四层修复后真正生效（应答契约 → 无交互查询接口 →
-  补必填 `uid` → 客户端保留 `valid`）——后端返回 `valid: true`，界面无弹框、无降级提示，
-  目录保留且刷新幂等。
-- FNOS-009-13 的**跨平台构建**：删除 Linux 构建机限制后，macOS 直接构建 FPK 成功且包内无原生产物；
-  在真实 NAS 上验证 node-pty 的 `prebuilds/linux-x64/pty.node` 能被其 Node 加载并自动回退。
-- FNOS-009-09/10 的**真机验证**：在 fnOS 存储空间1 上走通授权目录添加、持久化落盘
-  （`authorizedDirectories: [/vol2/1000/fnos-fpk]`）与失效降级；过程中暴露并修复 BUG-04
-  （列表永久加载中）与 BUG-05（合法授权目录被误剔除并清空持久化）。详见
-  [fnos 插件真机验收记录](/validation/FNOS-009-fnos-plugin-nas-2026-10-08)。
-- fnos 插件其余功能真机通过：详情页结构（300px 目录上限、无外层框）、应用共享目录只读、
-  主题跟随系统（`data-ds-theme-source=system`）、三方插件 proxy 保存与保留路径校验。
-- FNOS-009-13 的**真机安装（部分）**：在无 g++ 的 NAS 上，DSH `0.2.0-rc.2` 安装验证通过，三个自有插件全部
-  安装成功；安装日志显示每次调用均带 release-age 放行且 `✓ Lockfile passes supply-chain policies`
-  （FNOS-009-12 的修复在真机生效）。npm 源确认为 `registry.npmmirror.com`。
+### 按功能项的最终状态
 
-未完成（需真实 fnOS NAS 或桌面壳内操作）：
-- fnOS 插件在真实 NAS 上的功能与数据兼容（FNOS-009-02、06 的 fnOS 部分、09/10 的 SDK 桥接）。
-- Codex Auth 与 CodeBuddy 的真实登录/用量走查（FNOS-009-03/04 的账号相关验收）：Desktop 侧已验账号管理区与额度渲染，登录流程与用量数据待复验。
-- **Desktop OAuth 授权回流未走查**：需真实完成一次登录授权流程。规范明确「行为以 Desktop 实测为准，不以 Web 结果外推」，不能由 Web 结论替代。
-- **「网页链接默认打开方式」的对话内路径未验证**：该设置项作用域是「对话中网页链接的打开位置」，需在真实对话内点击链接才能覆盖「应用内侧边栏」取值。
-- FNOS-009-11 的浏览器实机走查：本仓库无 jsdom/happy-dom 与 lexical，无法建 DOM 渲染测试；
-  解耦逻辑已作为纯函数覆盖（含删除计划与跨度换算），但「挂载后的编辑器接受该跨度且
-  子项 occurrenceId 保持稳定」这一环仅通过阅读 DSH 源码验证，需人工在运行中的 DSH Web 上走查。
-- FNOS-009-07 的上游增量变化逐项走查清单。
+| 功能项 | 状态 | 关键证据 |
+| --- | --- | --- |
+| FNOS-009-01 插件加载 | 通过 | DSH Web、Desktop 真实 Electron 壳、真实 NAS 三处：插件页「已安装 4」，异常与不兼容均为 0 |
+| FNOS-009-02 fnOS 插件功能 | 通过 | 真机走查详情页结构、主题跟随、应用共享目录只读、三方插件 proxy |
+| FNOS-009-03 Codex Auth | 通过 | AC-01/02/03 全部成立（登录、模型目录、对话区用量）；DSH Web 与 DSH Desktop 均已执行 |
+| FNOS-009-04 CodeBuddy | 通过 | 真实 NAS 完成**全新授权回流**（账号 0→1，生成新 id），恢复后 6 账号完好；账号管理、额度、签到可用 |
+| FNOS-009-05 Showcase | 通过 | DSH Web 与 Desktop 两处运行时，展示页与组件分组正常渲染 |
+| FNOS-009-06 用户数据兼容 | 通过 | 连续 5 次升级（5.5.0→5.5.5）凭据、授权目录、偏好、模型配置、工作区与会话全部保留；已记录升级前 `sha256` 基线 |
+| FNOS-009-07 上游增量 | 通过 | 两个 tag 逐项核对四插件消费的接缝，未发现破坏性变更 |
+| FNOS-009-08 文档基线 | 通过 | 插件文档与总览版本号、安装命令、兼容基线指向 `0.2.0-rc.2`；文档站构建通过 |
+| FNOS-009-09 授权目录持久化 | 通过 | 真机：`authorizedDirectories` 落盘，重启与刷新后保持 |
+| FNOS-009-10 权限校验与剔除 | 通过 | 真机：后端 `valid: true`，界面**无弹框、无降级提示**，目录保留且刷新幂等 |
+| FNOS-009-11 父子勾选解耦 | 通过 | 真机：取消父目录勾选不影响已选子项 |
+| FNOS-009-12 安装不受新发布阻断 | 通过 | 安装日志 68 次放行、65 次 lockfile 策略通过、`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` **0 次** |
+| FNOS-009-13 node-pty 免编译 | 通过 | NAS 无 g++ 安装成功；`prebuilds/linux-x64/pty.node` 可用，终端 `tty` 正常；macOS 亦可构建 |
+| FNOS-009-14 三方插件版本同步 | 通过 | 真机安装最后一步通过，`dshmarket@1.66.11` 不再被兼容门禁拒绝 |
 
-尚未完成：
-- **FNOS-009-03 的登录与用量**（P0，部分）：需要真实 ChatGPT 账号完成浏览器授权；
-  **按用户决定不做验证**，保留 AC-02 的完成部分，不作为本次验收的完成结论。
-- 「网页链接默认打开方式」的对话内路径：需在真实对话内点击链接，属既有待办。
+### 已完成的关键验证
 
-已补齐（原列在未完成项，2026-10-07 完成，证据见 [Desktop 补充验证记录](/validation/FNOS-009-desktop-cdp-theme-2026-10-07)）：
-- **Desktop 暗色主题**：按 UI 测试规范在亮暗两主题各执行一遍；实测 `color-scheme` 由 `light` 切到 `dark`，无残留样式，可读性满足 WCAG AA，暗色下插件页与详情页均正常。
-- **Desktop 宿主差异点（部分）**：外部链接交系统默认浏览器打开、设置页呈现均已实测；毛玻璃与间距/BFC 亦按 UI 规范核对。
+- 四插件版本重锚定与全量单测 **1451 项全部通过**（含 fnOS 插件 237 项，本轮由 232 增加）。
+- FNOS-009-10 的**真机修复链**：应答契约（按 `code` 而非 `ok` 判定）→ 改用无交互查询接口
+  （原实现误用「申请授权」接口，导致每次刷新弹确认框）→ 补必填 `uid` →
+  客户端保留 Host 标注的 `valid`。四层逐层在真机复验，最终后端返回 `valid: true`、
+  界面无弹框无降级提示。
+- FNOS-009-04 的**全新授权回流**：从零开始（移开凭据文件 → 界面归 0 → 走登录 → 账号 1），
+  证明授权链路可用而非靠既有凭据渲染。
+- FNOS-009-12 的本地端到端复验：复刻 NAS 失败现场，旧逻辑报
+  `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`，新逻辑三个包全部装成功。
+- FNOS-009-13 的跨平台构建：删除 Linux 构建机限制后 macOS 直接构建 FPK 成功且包内无原生产物。
 
-真实 NAS 执行证据按规范登记 `docs/validation/`，本页结论引用该证据。
+### 未完成
+
+- **「网页链接默认打开方式」的对话内路径**：需在真实对话内点击链接才能覆盖「应用内侧边栏」取值，
+  属既有待办，与 FNOS-009 的功能项无直接关联。
+
+### 已补齐（原列在未完成项）
+
+以下各项在本轮及 2026-10-07 的补充验证中完成，证据见对应验收记录：
+
+- Desktop 暗色主题：亮暗两主题各执行一遍，`color-scheme light→dark`，无残留样式，可读性满足 WCAG AA。
+- fnOS 插件真机功能与数据兼容（FNOS-009-02、06 的 fnOS 部分、09/10 的 SDK 桥接）。
+- FNOS-009-11 的浏览器实机走查：真机验证父子勾选解耦（规范要求的实机证据）。
+- FNOS-009-07 的上游增量逐项核对：按两 tag 逐项确认无破坏性变更。
+- FNOS-009-03 的登录与用量：在 DSH Web 与 DSH Desktop 各执行一次，三项 AC 全部成立。
 
 ## 变更记录
 
@@ -259,3 +262,5 @@ verifiedAt: 2026-09-30
 | 2026-10-08 | FNOS-009-10 真机验证通过 | 回填 TC-035/036，TC-021 补记降级路径的实测版本；FNOS-009-10 由「降级已验证」转「真机已验证」。结论更新为 44 条全通过。 |
 | 2026-10-08 | 回填 01/05/06/12 结果并登记 03 结论 | 补齐 01（NAS 插件页无异常）、05（早期证据已齐，徽标未同步）、06（连续 5 次升级数据保留 + 基线快照）、12（68 次放行 0 违规）的执行结果；03 按用户决定标为「部分验证」并登记原因。结论更新为 48 条：通过 47、部分通过 1。 |
 | 2026-10-08 | FNOS-009-07 上游增量核对完成 | 依据两 tag 对四插件消费的接缝逐项核实，未发现破坏性变更（5 项可选增量或未引用、1 项纯新增导出、字号范围属宽松化）。07 转「已完成」；结论更新为 49 条：通过 48、部分通过 1。 |
+| 2026-10-08 | FNOS-009 验收收尾 | 回填 FNOS-009-04 的真实 NAS 全新授权回流结果（AC-01 + AC-02 均成立），该功能项由「待完成」转「真机已验证」；重写测试结论段——原结论把 5 项已完成内容列为「未完成」，现按功能项给出最终状态表。用例数更新为 51 条：通过 50、部分通过 1。 |
+| 2026-10-08 | FNOS-009-03 登录与用量验证通过 | 由用户手动验证：AC-01（浏览器授权登录、授权页与授权码流程）、AC-02（模型目录同步、模型选择、全局模型设置）、AC-03（对话区用量显示剩余额度与重置时间）全部成立，DSH Web 与 DSH Desktop 均已执行，满足非 fnOS 插件的双客户端要求。该功能项由「部分验证」转「通过」。用例数更新为 51 条全部通过，无部分通过项。 |

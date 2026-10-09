@@ -18,7 +18,7 @@ lastVerified: 2026-09-30
 | 对应需求 | [FNOS-009 DSH 0.2.0-rc.2 插件适配](/requirements/FNOS-009-dsh-020-rc2-adaptation) |
 | 本轮功能 | FNOS-009-01 至 FNOS-009-12 全部进入本轮实施 |
 | 上游依据 | 本地 Harness checkout `dsh-v0.2.0-rc.2`（`~/workspace/fork-pj/deepseek-harness`）；与 `dsh-v0.1.7-rc.2` 的全量源码对比；`@trimjs/web-app` SDK 类型与实现源码（插件 `node_modules` 内 `dist/index.js`、`dist/*.d.ts`） |
-| 计划状态 | <Badge type="info" text="规划中" /> |
+| 计划状态 | <Badge type="tip" text="已完成（随 v5.6.0 发布）" /> |
 
 ## 计划目标
 
@@ -386,13 +386,13 @@ FNOS-009-09/10 的用户可见变化仅限授权目录管理页：
 
 | 阶段 | 状态 |
 | --- | --- |
-| 阶段一：版本重锚定与构建 | <Badge type="info" text="本地完成，待目标环境验收" /> |
-| 阶段二：功能回归与接缝适配 | <Badge type="info" text="本地完成，待目标环境验收" /> |
-| 阶段三：数据兼容与文档 | <Badge type="info" text="本地完成，待目标环境验收" /> |
-| 阶段四：目标环境验收 | <Badge type="info" text="待执行（DSH Web 部分已验，Desktop 与真实 NAS 待补）" /> |
-| 阶段五：授权目录持久化与权限校验 | <Badge type="warning" text="真机降级已验证；校验生效待确认接口应答" /> |
+| 阶段一：版本重锚定与构建 | <Badge type="tip" text="已完成（含真机验收）" /> |
+| 阶段二：功能回归与接缝适配 | <Badge type="tip" text="已完成（含真机验收）" /> |
+| 阶段三：数据兼容与文档 | <Badge type="tip" text="已完成" /> |
+| 阶段四：目标环境验收 | <Badge type="tip" text="已完成（Web、Desktop 与真实 NAS）" /> |
+| 阶段五：授权目录持久化与权限校验 | <Badge type="tip" text="已完成（含真机验收）" /> |
 | 阶段六：插入选择树父子解耦 | <Badge type="tip" text="已完成（含真机走查）" /> |
-| 阶段七：插件安装发布日期放行统一 | <Badge type="info" text="本地完成，待目标环境验收" /> |
+| 阶段七：插件安装发布日期放行统一 | <Badge type="tip" text="已完成（含真机验收）" /> |
 | 阶段八：node-pty 免编译安装与跨平台构建 | <Badge type="tip" text="已完成（含真机验收）" /> |
 | 阶段九：三方插件版本随 DSH 基线同步 | <Badge type="tip" text="已完成（含真机验收）" /> |
 
