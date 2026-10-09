@@ -5,12 +5,12 @@
   "version": "5.6.0",
   "description": "Shared Semi Design components themed for DeepSeek Harness.",
   "author": "tnnevol",
-  "documentation": "https://fnapps-doc.tnnevol.cn/plugins/",
+  "documentation": "https://fndsh-doc.tnnevol.cn/plugins/",
   "publishConfig": {
     "access": "public"
   },
   "license": "AGPL-3.0-only",
-  "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-semi-ui.html",
+  "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-semi-ui",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/FNOSP/fnos-dsh.git",

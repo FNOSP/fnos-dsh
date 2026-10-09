@@ -6,13 +6,13 @@
   "description": "fnOS-specific integrations for DeepSeek Harness.",
   "author": "tnnevol",
   "license": "AGPL-3.0-only",
-  "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-fnos.html",
+  "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-fnos",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/FNOSP/fnos-dsh.git",
     "directory": "plugins/dsh-fnos-plugin"
   },
-  "documentation": "https://fnapps-doc.tnnevol.cn/plugins/dsh-fnos",
+  "documentation": "https://fndsh-doc.tnnevol.cn/plugins/dsh-fnos",
   "bugs": {
     "url": "https://github.com/FNOSP/fnos-dsh/issues"
   },

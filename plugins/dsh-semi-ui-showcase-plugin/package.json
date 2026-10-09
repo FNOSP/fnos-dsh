@@ -5,12 +5,12 @@
   "version": "0.2.0-rc.2.0",
   "description": "Component showcase for the shared DSH-themed Semi Design package.",
   "author": "tnnevol",
-  "documentation": "https://fnapps-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase",
+  "documentation": "https://fndsh-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase",
   "publishConfig": {
     "access": "public"
   },
   "license": "AGPL-3.0-only",
-  "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase.html",
+  "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/FNOSP/fnos-dsh.git",
