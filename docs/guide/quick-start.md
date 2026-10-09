@@ -16,7 +16,7 @@ fnOS 设备侧还需要安装应用声明的运行时或中间件依赖，例如
 
 ```bash
 git clone https://github.com/FNOSP/fnos-dsh.git
-cd fn-os-apps
+cd fnos-dsh
 pnpm install
 ```
 
