@@ -59,6 +59,7 @@
 - 涉及用户行为、权限、数据、网关或插件契约的改动，先更新需求和计划。
 - 本地通过不等于 fnOS 验收完成；涉及 NAS 的功能必须记录真实环境证据。
 - 新增目录或文件前必须遵循 [`目录结构规范`](docs/charter/directory-structure.md)，不得在根目录或模块内随意堆积。
+- 临时脚本统一写在 `tmp/`（git 忽略）；禁止写到项目根目录或自行新建临时目录，见 [`目录结构规范`](docs/charter/directory-structure.md)。
 - 受版本管理的文件不得写入开发者本机绝对路径；使用相对路径、包名别名或运行时解析。
 - 文档不写「当前机器」「本机」这类无法确认指代的说法；说明执行环境时写成确定对象（如 DSH Desktop、真实 fnOS NAS）。含义确定的既成用语（`当前与目标设计`、`当前开发中的需求`）照常使用，见[文档措辞规范](docs/charter/sdd-workflow.md#文档措辞规范)。
 - DSH Desktop 测试使用上游源码检出 `fork-pj/deepseek-harness` 的开发态 Desktop（检出位置由 `DSH_DESKTOP_APP_DIR` 指定），不使用系统安装的发行版壳；profile 仍指向项目 `.dsh/profiles/desktop`，见[测试用例文档规范](docs/charter/tests-spec.md#dsh-desktop-测试)。
