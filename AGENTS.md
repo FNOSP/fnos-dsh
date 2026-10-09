@@ -58,6 +58,8 @@
 - 本地通过不等于 fnOS 验收完成；涉及 NAS 的功能必须记录真实环境证据。
 - 新增目录或文件前必须遵循 [`目录结构规范`](docs/charter/directory-structure.md)，不得在根目录或模块内随意堆积。
 - 受版本管理的文件不得写入开发者本机绝对路径；使用相对路径、包名别名或运行时解析。
+- 文档不写「当前机器」「本机」这类无法确认指代的说法；说明执行环境时写成确定对象（如 DSH Desktop、真实 fnOS NAS）。含义确定的既成用语（`当前与目标设计`、`当前开发中的需求`）照常使用，见[文档措辞规范](docs/charter/sdd-workflow.md#文档措辞规范)。
+- DSH Desktop 测试使用上游源码检出 `fork-pj/deepseek-harness` 的开发态 Desktop（检出位置由 `DSH_DESKTOP_APP_DIR` 指定），不使用系统安装的发行版壳；profile 仍指向项目 `.dsh/profiles/desktop`，见[测试用例文档规范](docs/charter/tests-spec.md#dsh-desktop-测试)。
 - `manifest` 使用 INI 格式，不改成 JSON。
 - Native 应用使用 `defaults.run-as: "package"` 和 `username`，不要使用 `docker-<appname>` 前缀。
 - 入口配置 `app/ui/config` 根据应用形态选择 `type: "url"` 或 `type: "iframe"`；Native 网关应用可使用 iframe。

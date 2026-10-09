@@ -107,17 +107,26 @@ verifiedAt: 2026-09-30
 
 ### DSH Desktop 测试
 
-- **客户端**：使用实际安装的 DSH Desktop（Electron 壳）执行；Desktop 无法由本仓库 CLI 直接拉起，测试前先把待测插件版本装入 Desktop 所用 profile，再启动客户端。
+- **客户端（固定）**：Desktop 测试**不使用**系统安装的 `/Applications/DeepSeek Harness.app`，改用**上游源码检出 `fork-pj/deepseek-harness` 的开发态 Desktop**。理由有两条：一是需要跟随待测插件与其依赖的最新行为，已安装的发行版壳无法替换；二是开发态启动器天然暴露 CDP 调试端口，取证路径可脚本化。
+  - 检出位置由环境变量 **`DSH_DESKTOP_APP_DIR`** 指定（指向该检出根的绝对路径），不写进受版本管理的文件——它属于[编码边界](./sdd-workflow#禁止绝对路径)明令禁止的「指向其他检出的路径」，写死后换机器或换检出即失效。未设置时该检出按与本仓库同级的工作区目录解析（`<工作区根>/fork-pj/deepseek-harness`）。
+  - 首次使用需在该检出内安装依赖（`pnpm install`）。`dev:desktop` 会自行构建（根与 `apps/desktop` 两次 `build`）并校验产物存在，因此**不需要**手动预构建；只有确信产物最新时才加 `--skip-build`。缺依赖的检出会直接启动失败，不要据此判定插件缺陷。
+  - 启动命令（**必须显式传 `DSH_HOME`**，见下方 profile 约束；端口按需覆盖）：
+    ```bash
+    DSH_HOME="<repo>/.dsh" DSH_DESKTOP_RENDERER_DEBUG_PORT=9333 \
+      pnpm --dir "$DSH_DESKTOP_APP_DIR" run dev:desktop
+    ```
+    开发态启动器读取 `DSH_HOME` 作为 profile 根（未设置时回落到该检出的构建目录），并把 `DSH_DESKTOP_USER_DATA_DIR`（同样缺省落在构建目录）作为 Electron 用户数据目录；两者都不要指向用户主目录。
 - **profile 位置约束（强制）**：Desktop 测试**禁止使用 `~/.dsh/profiles/desktop`**（用户主目录下的个人 profile，含个人凭据与个人配置）；必须使用**项目根目录 `.dsh/profiles/desktop`**，与本地 Web 测试共用同一份 `DSH_HOME=<repo>/.dsh`，使 Desktop 测试与 Web 测试的插件版本、auth 配置备份/恢复（见[账号状态测试顺序与 auth 配置备份](#账号状态测试顺序与-auth-配置备份)）和数据清理作用在同一目录上。
-  - **profile 由 Desktop 应用自己创建**：`desktop` 是 Electron 应用保留的 profile 名，dsh CLI 一律拒绝操作它（`dsh plugin --profile desktop …` 报 `profile "desktop" is managed exclusively by the Electron application`），且它**不是**随发行版的 profile 模板（`dsh-app-boot` 的 `PROFILE_TEMPLATES` 只有 `acp`、`web`、`headless`、`sdk`、`sdk-minimal`），因此**不能**用 `dsh --from-default-profile desktop` 创建。正确做法是用项目 `DSH_HOME` 启动一次 Desktop，由应用初始化 `.dsh/profiles/desktop`：`DSH_HOME="$PWD/.dsh" open -a "DeepSeek Harness"`。
-  - **用 CDP 驱动 Desktop 界面取证**：Desktop 的界面是 `dsh-app://app/` 自定义协议，浏览器无法直接打开。带 `--remote-debugging-port=9333` 启动后，用 CDP 在渲染进程内求值即可断言插件页、详情页与渲染结果（用法与本规范[真实 NAS 测试](#真实-nas-测试)的 CDP 路径一致）：`DSH_HOME="$PWD/.dsh" open -a "DeepSeek Harness" --args --remote-debugging-port=9333`，再用 `curl http://127.0.0.1:9333/json/version` 确认 UA 含 `@deepseek-ai/dsh-desktop/<版本>`（证明连的是 Desktop 壳而非普通浏览器）。
+  - **profile 由 Desktop 应用自己创建**：`desktop` 是 Electron 应用保留的 profile 名，dsh CLI 一律拒绝操作它（`dsh plugin --profile desktop …` 报 `profile "desktop" is managed exclusively by the Electron application`），且它**不是**随发行版的 profile 模板（`dsh-app-boot` 的 `PROFILE_TEMPLATES` 只有 `acp`、`web`、`headless`、`sdk`、`sdk-minimal`），因此**不能**用 `dsh --from-default-profile desktop` 创建。正确做法是用项目 `DSH_HOME` 启动一次 Desktop，由应用初始化 `.dsh/profiles/desktop`。
   - 启动 Desktop 前确认其 `DSH_HOME` 指向项目根 `.dsh`（Desktop 按标准解析顺序读取 `$DSH_HOME`，缺省回落 `~/.dsh`）；从用户主目录 profile 启动的测试结果无效。
   - `~/.dsh/profiles/desktop` 属于个人日常使用环境，不得作为测试对象，也不得把测试改动写回该 profile。
-- **测试完成后必须把 Desktop 改回全局 profile（强制）**：用项目 `DSH_HOME` 启动的 Desktop 会以项目 profile 作为日常环境，测试结束后**必须**以缺省 `DSH_HOME`（即 `~/.dsh`）重启一次 Desktop，把应用交还给用户个人的全局 profile。收尾动作固定为：退出当前 Desktop → 不带 `DSH_HOME` 重新启动 → 确认 profile 已回落。
-  - 本地 Web 测试与 Desktop 测试共用 `<repo>/.dsh`，恢复时**只重启 Desktop**，不影响正在运行的 `pnpm run start -- --web` 实例。
+- **用 CDP 驱动 Desktop 界面取证**：Desktop 的界面是 `dsh-app://app/` 自定义协议，浏览器无法直接打开。开发态启动器的渲染进程调试端口由 `DSH_DESKTOP_RENDERER_DEBUG_PORT` 指定（缺省 `9222`，本规范统一用 `9333` 以免与本地 Web 调试冲突）。连通性用 `curl http://127.0.0.1:9333/json/version` 确认后，用 CDP 在渲染进程内求值即可断言插件页、详情页与渲染结果（用法与本规范[真实 NAS 测试](#真实-nas-测试)的 CDP 路径一致）。
+  - 开发态启动器缺省同时打开 DevTools（`DSH_DESKTOP_OPEN_DEVTOOLS=0` 可关闭），取证时注意区分应用窗口与 DevTools 目标。
+- **测试完成后必须把 Desktop 改回全局 profile（强制）**：用项目 `DSH_HOME` 启动的 Desktop 会以项目 profile 作为日常环境，测试结束后把应用交还给用户个人的全局 profile。若测试期间**同时**启动过系统安装的 Desktop（缺省 `DSH_HOME` 即 `~/.dsh`），收尾动作固定为：退出该实例 → 不带 `DSH_HOME` 重新启动 → 确认 profile 已回落。
+  - 开发态 Desktop 与本地 Web 测试共用 `<repo>/.dsh`；收尾时**只处理 Desktop 实例**，不影响正在运行的 `pnpm run start -- --web`。
   - 恢复动作与「测试数据清理」（见[测试数据清理](#测试数据清理)）一并在测试执行结果的备注列登记；未登记的视为测试未收尾。
 - **验证重点**：Desktop 与 Web 的宿主差异点优先覆盖——外部链接经系统默认浏览器打开（Electron `setWindowOpenHandler` 语义）、OAuth 授权回流、插件详情页/配置区块渲染、设置页呈现；行为以 Desktop 实测为准，不以 Web 结果外推。
-- **结论登记**：Desktop 走查结论可与同一需求的 Web 走查合并登记在测试用例文档的「测试执行结果」，按客户端分列；涉及真实用户确认的结论按[验收证据规范](../validation/README.md)登记 `docs/validation/`。
+- **结论登记**：Desktop 走查结论可与同一需求的 Web 走查合并登记在测试用例文档的「测试执行结果」，按客户端分列；涉及真实用户确认的结论按[验收证据规范](../validation/README.md)登记 `docs/validation/`。结论中必须写明所用 Desktop 的来源（`fork-pj/deepseek-harness` 检出）与其版本，便于复现。
 - 用例的「前置条件」与「执行环境」按上述口径填写；执行环境取值使用 `DSH Web`、`DSH Desktop`、`真实 fnOS NAS`、`文档站构建环境`，不使用「本地」等含糊表述。
 
 ### 真实 NAS 测试

@@ -211,7 +211,7 @@ verifiedAt: 2026-10-09
 1. ~~**TC-022（同平台多账号分摊效果）未完成**~~ → **已补测通过**：补入第二个真实 TinyFish key 后，真实网络下连续 4 次请求分布为 `tinyfish-1, tinyfish-2, tinyfish-1, tinyfish-2`，满足需求「使用同平台至少两个真实账号验证」的口径。
 2. **TC-018（会话搜索卡片走查）未执行**：本地 `web` profile 的模型路由是 codebuddy，headless profile 无可用模型凭据（`MISSING_CREDENTIAL: llm-deepseek`），因此无法在真实会话中让模型调用 `web_search`。已用接缝级链路（真实 key 的 `scripts/e2e.ts`）覆盖归一结果，但搜索卡片的渲染层未被真实会话走过。
 3. **TC-020（禁用插件后回落）未执行**：需要重启 Web 后在真实界面上禁用插件并复验搜索可用；本次只验证了组合行未破坏官方行（TC-019）。
-4. **DSH Desktop 全部用例未执行**：本机未在项目 `DSH_HOME` 下启动 Desktop 客户端。按[测试用例文档规范](/charter/tests-spec)的兼容基线要求，其他 DSH 插件**至少同时兼容 DSH Web 与 DSH Desktop**，只记录单一客户端结果不构成完成结论。
+4. **DSH Desktop 全部用例未执行**：尚未在项目 `DSH_HOME` 下启动 `fork-pj/deepseek-harness` 检出的开发态 Desktop（见[测试用例文档规范](/charter/tests-spec)的 DSH Desktop 测试章节）。按[测试用例文档规范](/charter/tests-spec)的兼容基线要求，其他 DSH 插件**至少同时兼容 DSH Web 与 DSH Desktop**，只记录单一客户端结果不构成完成结论。
 5. **暗色主题未执行**：TC-028 与 TC-013 的 UI 走查只在亮色主题下完成；UI 测试清单要求亮暗各执行一遍。
 6. **凭据清理**：本地 profile 的测试账号写入 `<repo>/.dsh/profiles/web/cordis.patch.yml`（该目录已被 git 忽略，未进入仓库）。**测试账号与用量刷新产生的配置仍留在本地 profile**，验收完成后需删除。
 

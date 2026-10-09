@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | Node.js | 24，最低 `>=24.0.0` | `.nvmrc`、根 `package.json#engines` |
 | pnpm | `>=11.16.0`，项目固定 `11.16.0` | 根 `package.json#packageManager`、CI |
-| [fnpack](https://developer.fnnas.com/docs/cli/fnpack/) | 本地 `1.2.3`；CI 构建工作流当前使用 `1.2.1` | 本机 `PATH`、`.github/workflows/build-*.yml` |
+| [fnpack](https://developer.fnnas.com/docs/cli/fnpack/) | 本地 `1.2.3`；CI 构建工作流当前使用 `1.2.1` | 开发机 `PATH`、`.github/workflows/build-*.yml` |
 | [dsh](https://github.com/deepseek-ai/deepseek-harness) | 与插件兼容声明和锁定版本一致（当前 `0.1.7-rc.2`） | 根 `package.json`、`pnpm-lock.yaml` |
 
 ## 初始化
@@ -30,7 +30,7 @@ pnpm exec lefthook install
 
 ## 设备与工具
 
-除本机环境外，部分工作依赖外部条件：
+除开发机环境外，部分工作依赖外部条件：
 
 | 项目 | 用途 |
 | --- | --- |
