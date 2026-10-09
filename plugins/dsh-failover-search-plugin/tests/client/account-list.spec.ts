@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appendAccountOp, mergeAccountRows, removeAccountOp, updateAccountOp } from '../../src/client/account-list.ts'
+import { appendAccountOp, editAccountPatch, mergeAccountRows, removeAccountOp, updateAccountOp } from '../../src/client/account-list.ts'
 import type { SettingsFormPathOp } from '../../src/client/account-list.ts'
 
 describe('FNOS-010-04 账号列表的配置写入模型', () => {
@@ -95,5 +95,40 @@ describe('FNOS-010-04 账号行的 key 展示', () => {
     )
 
     expect(rows[0]?.maskedKey).toBeUndefined()
+  })
+})
+
+describe('FNOS-010-04 账号编辑的字段收敛', () => {
+  it('只改备注名时，patch 不含 key（不会把已存的 key 覆盖掉）', () => {
+    const patch = editAccountPatch({ label: 'old' }, { label: 'new' })
+
+    expect(patch).toEqual({ label: 'new' })
+    expect('key' in patch).toBe(false)
+  })
+
+  it('只换 key 时，patch 不含 label（不会把已存的备注名清掉）', () => {
+    const patch = editAccountPatch({ label: 'keep-me' }, { key: 'sk-new' })
+
+    expect(patch).toEqual({ key: 'sk-new' })
+    expect('label' in patch).toBe(false)
+  })
+
+  it('两者都没动时返回空 patch（不产生空写入）', () => {
+    expect(editAccountPatch({ label: 'same' }, { label: 'same' })).toEqual({})
+    expect(editAccountPatch({}, {})).toEqual({})
+  })
+
+  it('空白 key 视为「不修改」，不会把 key 写成空串', () => {
+    const patch = editAccountPatch({ label: 'x' }, { key: '   ' })
+
+    expect('key' in patch).toBe(false)
+  })
+
+  it('key 两侧空白被裁剪后才写入', () => {
+    expect(editAccountPatch({}, { key: '  sk-padded  ' })).toEqual({ key: 'sk-padded' })
+  })
+
+  it('备注名清空是有效修改（写空串以删除备注），与「未修改」区分开', () => {
+    expect(editAccountPatch({ label: 'remove-me' }, { label: '' })).toEqual({ label: '' })
   })
 })

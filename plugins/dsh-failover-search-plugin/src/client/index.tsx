@@ -25,8 +25,8 @@ import { installSemiDshTheme } from '@tnnevol/dsh-semi-ui'
 import { SettingsFormModel, settingsNumberField } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { FAILOVER_PACKAGE_NAME, FAILOVER_SETTINGS_NAMESPACE } from '../contracts/constants.ts'
-import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from '../contracts/usage-rpc.ts'
-import type { AccountsSnapshot, UsageSnapshot } from '../contracts/usage-rpc.ts'
+import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from '../contracts/usage-rpc.ts'
+import type { AccountsSnapshot, RevealKeySnapshot, UsageSnapshot } from '../contracts/usage-rpc.ts'
 import type { AccountSummaryView } from './account-list.ts'
 import { FailoverConfigSection } from './config-section.tsx'
 import type { PluginSettings } from './config-section.tsx'
@@ -108,6 +108,26 @@ export function apply(ctx: ClientContext): void {
     }
   }
 
+  /**
+   * 复制某个账号的 key 到剪贴板。
+   *
+   * 明文是 secret 角色、不随配置读取面跨线，所以这里按「平台 + 代号」向 host 取一次，
+   * 取到立刻写剪贴板，**不放进组件状态**——放进去就等于把明文留在内存与重渲染路径上，
+   * 也失去了「只在用户点击时取」这个约束。
+   *
+   * 返回是否成功，供按钮显示「已复制」；失败不抛给调用方，避免一次复制失败打断列表渲染。
+   */
+  const copyKey = async (platform: string, label: string): Promise<boolean> => {
+    try {
+      const result = await rpc.call<RevealKeySnapshot>(FAILOVER_USAGE_CHANNEL, FAILOVER_REVEAL_ENDPOINT, { platform, label })
+      if (!result.ok) return false
+      await navigator.clipboard.writeText(result.value.key)
+      return true
+    } catch {
+      return false
+    }
+  }
+
   // ── 配置区：`plugins.bundle.config`（keyed，key = 组合包名）。
   ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
     name: 'plugins.bundle.config',
@@ -122,7 +142,7 @@ export function apply(ctx: ClientContext): void {
     // 挂到座位渲染器的 hook 链上，顺序一乱就破坏 hook 规则。
     return (
       <>
-        <FailoverConfigSection t={t} form={form} model={model} loadSummaries={loadSummaries} />
+        <FailoverConfigSection t={t} form={form} model={model} loadSummaries={loadSummaries} copyKey={copyKey} />
         <FailoverUsageSection t={t} load={load} revision={form.getSnapshot().revision} />
       </>
     )

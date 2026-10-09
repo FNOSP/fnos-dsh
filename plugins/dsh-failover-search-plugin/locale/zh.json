@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Failover Search",
+    "description": "复合网页搜索提供方：按 TinyFish → Tavily → 官方 DeepSeek 的顺序转移，同一平台的多个账号之间轮转分摊请求，并在插件详情页展示各平台用量。"
+  }
+}

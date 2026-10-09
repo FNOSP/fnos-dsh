@@ -130,6 +130,36 @@
   border-bottom: 0;
 }
 
+/* 编辑态占满整行：key 与备注名并排，操作与提示在下。 */
+.dsh-failover-accounts__editor {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dsh-failover-accounts__editrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsh-failover-accounts__editactions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dsh-failover-accounts__edithint {
+  flex: 1;
+  min-width: 0;
+  color: var(--dsw-alias-label-caption);
+  font-size: 12px;
+  line-height: 18px;
+}
+
 .dsh-failover-accounts__index {
   color: var(--dsw-alias-label-caption);
   font-variant-numeric: tabular-nums;
@@ -149,7 +179,7 @@
 /* key 掩码：等宽显示，便于逐字符比对同平台的多个账号。 */
 .dsh-failover-accounts__key {
   flex: none;
-  max-width: 46%;
+  max-width: 34%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -25,7 +25,7 @@ import { SettingsForm, SettingsValueField } from '@deepseek-ai/dsh-client-ui-pri
 import type { SettingsFormModel } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { OFFICIAL_SOURCE_ID, TAVILY_PLATFORM_ID, TINYFISH_PLATFORM_ID } from '../contracts/constants.ts'
-import { appendAccountOp, mergeAccountRows, removeAccountOp } from './account-list.ts'
+import { appendAccountOp, editAccountPatch, mergeAccountRows, removeAccountOp, updateAccountOp } from './account-list.ts'
 import type { AccountSummaryView, SettingsFormPathOp } from './account-list.ts'
 import type { UsageLocaleKey } from './locales.ts'
 
@@ -73,6 +73,12 @@ export interface ConfigSectionProps {
    * 「这一行是哪个 key」。取不到时返回空数组，界面回落到「已保存」状态。
    */
   readonly loadSummaries: () => Promise<readonly AccountSummaryView[]>
+  /**
+   * 复制某个账号的 key 到剪贴板。
+   *
+   * 明文只在这一步由 host 按「平台 + 代号」取回一次，取到即写剪贴板，不进入任何状态。
+   */
+  readonly copyKey: (platform: string, label: string) => Promise<boolean>
 }
 
 /** 三个来源的展示顺序（与默认转移顺序一致）。 */
@@ -108,7 +114,7 @@ interface ConfigRenderState {
  * @param props.model - 官方草稿模型：标量字段的暂存与保存。
  * @returns 配置区元素。
  */
-export function FailoverConfigSection({ t, form, model, loadSummaries }: ConfigSectionProps): ReactNode {
+export function FailoverConfigSection({ t, form, model, loadSummaries, copyKey }: ConfigSectionProps): ReactNode {
   // 掩码在挂载时取一次，并在配置快照变化（新增/删除账号）后重取。
   const [summaries, setSummaries] = useState<readonly AccountSummaryView[]>([])
   const hostRevision = form.getSnapshot().revision
@@ -202,6 +208,8 @@ export function FailoverConfigSection({ t, form, model, loadSummaries }: ConfigS
             disabled={!shell.writable}
             onAdd={account => { changeAccounts('tinyfishAccounts', appendAccountOp('tinyfishAccounts', values.tinyfishAccounts.length, account)) }}
             onRemove={index => { changeAccounts('tinyfishAccounts', removeAccountOp('tinyfishAccounts', index)) }}
+            onEdit={(index, patch) => { changeAccounts('tinyfishAccounts', updateAccountOp('tinyfishAccounts', index, patch)) }}
+            onCopy={copyKey}
           />
           <AccountList
             platform={TAVILY_PLATFORM_ID}
@@ -212,6 +220,8 @@ export function FailoverConfigSection({ t, form, model, loadSummaries }: ConfigS
             disabled={!shell.writable}
             onAdd={account => { changeAccounts('tavilyAccounts', appendAccountOp('tavilyAccounts', values.tavilyAccounts.length, account)) }}
             onRemove={index => { changeAccounts('tavilyAccounts', removeAccountOp('tavilyAccounts', index)) }}
+            onEdit={(index, patch) => { changeAccounts('tavilyAccounts', updateAccountOp('tavilyAccounts', index, patch)) }}
+            onCopy={copyKey}
           />
         </section>
 
@@ -274,14 +284,46 @@ interface AccountListProps {
   readonly onAdd: (account: AccountConfig) => void
   /** 删除指定下标的账号。 */
   readonly onRemove: (index: number) => void
+  /** 编辑指定下标的账号（只提交真正改动的字段）。 */
+  readonly onEdit: (index: number, patch: { key?: string, label?: string }) => void
+  /** 复制本平台某个账号的 key 到剪贴板；返回是否成功。 */
+  readonly onCopy: (platform: string, label: string) => Promise<boolean>
 }
 
 /** 账号列表：官方配置里承载、Semi UI 自绘交互。 */
-function AccountList({ platform, title, accounts, summaries, t, disabled, onAdd, onRemove }: AccountListProps): ReactNode {
+function AccountList({ platform, title, accounts, summaries, t, disabled, onAdd, onRemove, onEdit, onCopy }: AccountListProps): ReactNode {
   const [draftKey, setDraftKey] = useState('')
   const [draftLabel, setDraftLabel] = useState('')
+  const [editing, setEditing] = useState<number | undefined>(undefined)
+  const [editKey, setEditKey] = useState('')
+  const [editLabel, setEditLabel] = useState('')
+  const [copied, setCopied] = useState<number | undefined>(undefined)
   const canAdd = draftKey.trim().length > 0 && !disabled
   const rows = mergeAccountRows(accounts, summaries, platform)
+
+  const startEdit = (index: number, label: string): void => {
+    setEditing(index)
+    // key 明文永远拿不到（secret 角色），编辑框一律从空开始：
+    // 留空即「不改 key」，这由 editAccountPatch 收敛。
+    setEditKey('')
+    setEditLabel(label)
+  }
+
+  const commitEdit = (index: number): void => {
+    onEdit(index, editAccountPatch(accounts[index] ?? {}, { key: editKey, label: editLabel }))
+    setEditing(undefined)
+    setEditKey('')
+    setEditLabel('')
+  }
+
+  const copy = (index: number, label: string): void => {
+    void onCopy(platform, label).then(ok => {
+      if (!ok) return
+      setCopied(index)
+      // 复制反馈是瞬时的：2 秒后回到常态按钮。
+      setTimeout(() => { setCopied(current => (current === index ? undefined : current)) }, 2000)
+    })
+  }
 
   const add = () => {
     const key = draftKey.trim()
@@ -308,23 +350,85 @@ function AccountList({ platform, title, accounts, summaries, t, disabled, onAdd,
                 // 身份做 key，重命名或换 key 会让 React 复用错行的输入态，而这里
                 // 每行只有只读文本与一个删除按钮，下标稳定性正好与配置语义一致。
                 <li className="dsh-failover-accounts__item" key={`${account.label ?? ''}-${index}`}>
-                  <span className="dsh-failover-accounts__index">{`${t('accountIndex')} ${index + 1}`}</span>
-                  <span className="dsh-failover-accounts__label">{account.label ?? '—'}</span>
-                  {/* key 的明文不跨线：这里展示 host 送来的不可还原掩码，让用户能辨认
-                      这一行配的是哪个 key（同平台多账号时尤其必要）。掩码尚未取到时
-                      回落到「已保存」状态。 */}
-                  <span className="dsh-failover-accounts__key" title={t('accountKeySet')}>
-                    {rows[index]?.maskedKey ?? t('accountKeySet')}
-                  </span>
-                  <DshButton
-                    theme="borderless"
-                    type="danger"
-                    size="small"
-                    disabled={disabled}
-                    onClick={() => { onRemove(index) }}
-                  >
-                    {t('accountRemove')}
-                  </DshButton>
+                  {editing === index
+                    ? (
+                        // 编辑态：key 输入框从空开始（明文拿不到），留空即不修改；
+                        // 备注名带出当前值，清空即删除备注。
+                        <div className="dsh-failover-accounts__editor">
+                          <div className="dsh-failover-accounts__editrow">
+                            <DshInput
+                              mode="password"
+                              value={editKey}
+                              disabled={disabled}
+                              placeholder={t('accountEditKeyPlaceholder')}
+                              aria-label={t('accountKey')}
+                              onChange={value => { setEditKey(value) }}
+                            />
+                            <DshInput
+                              value={editLabel}
+                              disabled={disabled}
+                              placeholder={t('accountLabelPlaceholder')}
+                              aria-label={t('accountLabel')}
+                              onChange={value => { setEditLabel(value) }}
+                            />
+                          </div>
+                          <div className="dsh-failover-accounts__editactions">
+                            <span className="dsh-failover-accounts__edithint">{t('accountEditHint')}</span>
+                            <DshButton theme="borderless" size="small" onClick={() => { setEditing(undefined) }}>
+                              {t('accountCancel')}
+                            </DshButton>
+                            <DshButton
+                              theme="solid"
+                              type="primary"
+                              size="small"
+                              disabled={disabled}
+                              onClick={() => { commitEdit(index) }}
+                            >
+                              {t('accountSave')}
+                            </DshButton>
+                          </div>
+                        </div>
+                      )
+                    : (
+                        <>
+                          <span className="dsh-failover-accounts__index">{`${t('accountIndex')} ${index + 1}`}</span>
+                          <span className="dsh-failover-accounts__label">{account.label ?? '—'}</span>
+                          {/* key 的明文不跨线：这里展示 host 送来的不可还原掩码，让用户能
+                              辨认这一行配的是哪个 key（同平台多账号时尤其必要）。掩码尚未
+                              取到时回落到「已保存」状态。 */}
+                          <span className="dsh-failover-accounts__key" title={t('accountKeySet')}>
+                            {rows[index]?.maskedKey ?? t('accountKeySet')}
+                          </span>
+                          <DshButton
+                            theme="borderless"
+                            size="small"
+                            disabled={disabled}
+                            aria-label={`${t('accountEdit')} ${account.label ?? String(index + 1)}`}
+                            onClick={() => { startEdit(index, account.label ?? '') }}
+                          >
+                            {t('accountEdit')}
+                          </DshButton>
+                          {/* 复制按「那一行」取明文：host 侧按平台 + 代号定位，成功即写剪贴板。 */}
+                          <DshButton
+                            theme="borderless"
+                            size="small"
+                            disabled={disabled}
+                            aria-label={`${t('accountCopy')} ${account.label ?? String(index + 1)}`}
+                            onClick={() => { copy(index, account.label ?? '') }}
+                          >
+                            {copied === index ? t('accountCopied') : t('accountCopy')}
+                          </DshButton>
+                          <DshButton
+                            theme="borderless"
+                            type="danger"
+                            size="small"
+                            disabled={disabled}
+                            onClick={() => { onRemove(index) }}
+                          >
+                            {t('accountRemove')}
+                          </DshButton>
+                        </>
+                      )}
                 </li>
               ))}
             </ul>

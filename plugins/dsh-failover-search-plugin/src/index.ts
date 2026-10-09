@@ -19,8 +19,8 @@ import type {} from '@deepseek-ai/dsh-web'
 import { Config, readSettings } from './contracts/config.ts'
 import type { FailoverSearchConfig } from './contracts/config.ts'
 import { FAILOVER_PROVIDER_ID, OFFICIAL_SOURCE_ID, TAVILY_PLATFORM_ID, TINYFISH_PLATFORM_ID } from './contracts/constants.ts'
-import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
-import type { AccountsSnapshot, UsageSnapshot } from './contracts/usage-rpc.ts'
+import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
+import type { AccountsSnapshot, RevealKeyRequest, RevealKeySnapshot, UsageSnapshot } from './contracts/usage-rpc.ts'
 import type { AccountConfig } from './contracts/config.ts'
 import type { AccountSummary } from './contracts/usage-rpc.ts'
 import { buildPool } from './host/account-pool.ts'
@@ -35,7 +35,7 @@ import { UsageStore } from './host/usage-store.ts'
 export { Config } from './contracts/config.ts'
 export type { FailoverSearchConfig, FailoverSearchSettings, AccountConfig } from './contracts/config.ts'
 export { FAILOVER_PROVIDER_ID, FAILOVER_ROW_ID, FAILOVER_SETTINGS_NAMESPACE } from './contracts/constants.ts'
-export { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
+export { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
 export type { UsageSnapshot } from './contracts/usage-rpc.ts'
 export { FailoverSearchProvider } from './host/failover-provider.ts'
 export { UsageStore } from './host/usage-store.ts'
@@ -157,7 +157,7 @@ export function apply(ctx: Context, config: FailoverSearchConfig = Config({}) as
   ctx.inject(['connection', 'webServer'], connectionCtx => {
     const injected = connectionCtx as unknown as { connection?: { rpc: { handle: (channel: string, handler: ConnectionRpcHandler) => () => Promise<void> } } }
     if (injected.connection === undefined) return
-    injected.connection.rpc.handle(FAILOVER_USAGE_CHANNEL, async endpoint => {
+    injected.connection.rpc.handle(FAILOVER_USAGE_CHANNEL, async (endpoint, payload) => {
       if (endpoint === FAILOVER_USAGE_ENDPOINT) {
         const snapshot: UsageSnapshot = {
           accounts: usage.snapshot(),
@@ -165,6 +165,21 @@ export function apply(ctx: Context, config: FailoverSearchConfig = Config({}) as
           ...(refreshedAt === undefined ? {} : { fetchedAt: refreshedAt }),
         }
         return { ok: true, value: snapshot }
+      }
+      if (endpoint === FAILOVER_REVEAL_ENDPOINT) {
+        // 只在用户点击「复制」时按单个账号取明文：取回后由客户端直接写剪贴板，
+        // 服务端不留存、不记录。账号不存在（并发删除、代号变更）时明确报错，
+        // 不回落成「随便返回一个 key」。
+        const request = (payload ?? {}) as Partial<RevealKeyRequest>
+        const current = readSettings(config)
+        const accounts = request.platform === TAVILY_PLATFORM_ID
+          ? current.tavilyAccounts
+          : request.platform === TINYFISH_PLATFORM_ID ? current.tinyfishAccounts : []
+        const pool = buildPool(request.platform === TAVILY_PLATFORM_ID ? 'tavily' : 'tinyfish', accounts)
+        const match = pool.find(account => account.label === request.label)
+        if (match === undefined) throw new Error(`unknown account: ${String(request.platform)}/${String(request.label)}`)
+        const revealed: RevealKeySnapshot = { key: match.key }
+        return { ok: true, value: revealed }
       }
       if (endpoint === FAILOVER_ACCOUNTS_ENDPOINT) {
         // key 明文不跨线：这里只送出不可还原的掩码，让用户能辨认「这一行是哪个 key」。

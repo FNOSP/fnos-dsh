@@ -15,6 +15,9 @@ export const FAILOVER_USAGE_ENDPOINT = 'usage'
 /** 配置区调用的端点：读取账号的 key 掩码（secret 明文永不出现在返回里）。 */
 export const FAILOVER_ACCOUNTS_ENDPOINT = 'accounts'
 
+/** 配置区调用的端点：按账号取出 key 明文，仅供用户点击「复制」时使用。 */
+export const FAILOVER_REVEAL_ENDPOINT = 'reveal-key'
+
 /** 一个账号在配置区的展示信息。 */
 export interface AccountSummary {
   /** 平台 id：`tinyfish` / `tavily`。 */
@@ -34,6 +37,31 @@ export interface AccountSummary {
 export interface AccountsSnapshot {
   /** 两个平台的账号信息，按平台分组前的平铺列表。 */
   readonly accounts: readonly AccountSummary[]
+}
+
+/**
+ * 取单个账号 key 明文的请求。
+ *
+ * 平台 + 账号代号共同定位账号，不用下标：下标在并发增删后会指向另一个账号，而用户
+ * 点「复制」的意图是**那一个**账号（与 `buildPool` 的代号生成规则一致）。
+ */
+export interface RevealKeyRequest {
+  /** 平台 id：`tinyfish` / `tavily`。 */
+  readonly platform: string
+  /** 账号代号（备注名或 `平台-序号`）。 */
+  readonly label: string
+}
+
+/** 取单个账号 key 明文的返回面。 */
+export interface RevealKeySnapshot {
+  /**
+   * key 明文。
+   *
+   * 只在这个显式端点里跨线：配置读取面（`settings.describe`）按 secret 角色把明文整体
+   * 移除，因此日常渲染路径拿不到它；这里由用户点击复制触发，取回后立即写入剪贴板，
+   * 不落任何缓存与日志。
+   */
+  readonly key: string
 }
 
 /** 用量端点的返回面。 */

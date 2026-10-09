@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Failover Search",
+    "description": "Composite web-search provider that fails over TinyFish → Tavily → official DeepSeek, spreads requests across multiple accounts per platform, and shows platform usage on the plugin page."
+  }
+}

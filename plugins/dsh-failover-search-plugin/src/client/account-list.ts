@@ -74,6 +74,35 @@ export function updateAccountOp(field: AccountField, index: number, patch: { key
 }
 
 /**
+ * 把编辑表单的输入收敛成「真正改动了的字段」。
+ *
+ * 为什么要收敛而不是直接提交用户看到的值：`key` 是 secret 角色、读取面永远拿不到
+ * 明文，编辑框里的初始 state 是空的。若把空 key 当成用户输入提交，就会把已存储的
+ * key 抹掉。因此空白 key 一律判为「没改」，只有真正填了新值才写。
+ *
+ * 备注名相反：它的初值来自配置（可读），把备注名清空是**有效**修改，所以空串要照写。
+ * 两者用「是否传了该字段」区分，而不是用「是否为空」。
+ *
+ * @param current - 该账号当前可读的字段（只有备注名可读）。
+ * @param draft - 编辑表单里用户填的值；`key` 为 undefined 表示没填。
+ * @returns 需要写入的字段；没有任何改动时为空对象。
+ */
+export function editAccountPatch(
+  current: { label?: string | undefined },
+  draft: { key?: string | undefined, label?: string | undefined },
+): { key?: string, label?: string } {
+  const patch: { key?: string, label?: string } = {}
+
+  const key = draft.key?.trim()
+  if (key !== undefined && key.length > 0) patch.key = key
+
+  // 备注名按「字段是否传了」判断：传了就写，空串表示删除备注。
+  if (draft.label !== undefined && draft.label !== (current.label ?? '')) patch.label = draft.label
+
+  return patch
+}
+
+/**
  * 判断一组 op 是否仍与读取时的列表一致。
  *
  * 提交前用当前快照的下标与长度复核：列表被并发改动（删除/新增）后，闭包里记下的
