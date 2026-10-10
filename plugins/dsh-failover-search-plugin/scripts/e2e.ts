@@ -44,7 +44,11 @@ function keys(name: string): string[] {
   )
   const webRow = /- id: web\n {2}name: '@deepseek-ai\/dsh-web'\n {2}config:\n((?: {4}.*\n)+)/u.exec(dump)?.[1] ?? ''
   check('T04 组合行：searchProvider 指向本插件', webRow.includes('searchProvider: dsh-failover-search'), webRow.trim().replaceAll('\n', ' / '))
-  check('T04 组合行：fetchProvider 未被 patch 漏掉', webRow.includes('fetchProvider: http'), webRow.includes('fetchProvider: http') ? 'fetch 保持 http' : 'fetch 配置丢失')
+  // FNOS-010-11 起 fetchProvider 也指向本插件（复合抓取：本地优先 + 平台兜底）；
+  // 该检查点的原意是「patch 整行替换时不得漏掉 fetch 键」，因此断言「已声明且
+  // 指向本插件」——写成 http 会让平台兜底永不触发（接缝按 id 固定选择 provider）。
+  const fetchDeclared = /fetchProvider:\s*dsh-failover-search/u.test(webRow)
+  check('T04 组合行：fetchProvider 未被 patch 漏掉且指向本插件', fetchDeclared, fetchDeclared ? 'fetch 由本插件接管' : 'fetch 配置丢失或未指向本插件')
   check('T04 组合行：插件行已插入', /- id: dsh-failover-search\n {2}name: '@tnnevol\/dsh-failover-search'/u.test(dump), 'insert 行存在')
   check('FNOS-010-06 回滚：官方搜索行未被禁用', /- id: web-search-deepseek\n {2}name: '@deepseek-ai\/dsh-web-search-deepseek'/u.test(dump), '官方行保持原样（兜底级仍在注册表）')
 }
