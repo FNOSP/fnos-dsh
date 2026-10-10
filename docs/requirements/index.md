@@ -62,7 +62,7 @@ flowchart TD
 | FNOS-007 | [DSH 0.1.7-rc.2 适配与插件错误修复](/requirements/FNOS-007-dsh-017-rc2-adaptation) | 已完成 |
 | FNOS-008 | [插件配置统一迁入插件管理页](/requirements/FNOS-008-plugin-config-in-plugin-manager) | 已完成 |
 | FNOS-009 | [DSH 0.2.0-rc.2 插件适配](/requirements/FNOS-009-dsh-020-rc2-adaptation) | 规划中（含授权目录持久化 FNOS-009-09/10） |
-| FNOS-010 | [三方搜索接入与官方兜底](/requirements/FNOS-010-thirdparty-web-search-failover) | 待完成（实现完成，目标环境验收进行中） |
+| FNOS-010 | [三方搜索接入与官方兜底](/requirements/FNOS-010-thirdparty-web-search-failover) | 已完成（随插件 v0.2.0-rc.2.1 发布；DSH Web 与 DSH Desktop 验收通过） |
 | FNOS-011 | [凭据文件权限异常的可诊断性](/requirements/FNOS-011-credential-permission-diagnostics) | 规划中 |
 | FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/requirements/FNOS-012-codebuddy-model-speed-and-client-version) | 规划中 |
 
