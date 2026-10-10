@@ -20,6 +20,22 @@ export const FAILOVER_USAGE_ENDPOINT = 'usage'
  */
 export const FAILOVER_REFRESH_ENDPOINT = 'refresh'
 
+/**
+ * 会话级「智能搜索」开关的读取端点（FNOS-010-12）。
+ *
+ * 开关状态是**会话级**的（不写全局配置），因此请求必须带 `sessionId`：客户端从
+ * 座位上下文拿到它会话的身份，宿主按该 id 查状态。这与用量端点不同——用量是全局
+ * 快照，开关是每会话一份。
+ */
+export const FAILOVER_TOGGLE_ENDPOINT = 'toggle'
+
+/**
+ * 会话级「智能搜索」开关的写入端点（FNOS-010-12-AC-04）。
+ *
+ * 写后立即生效：宿主的状态容器被 provider 的每次调用现读，不需要重启或重开会话。
+ */
+export const FAILOVER_TOGGLE_SET_ENDPOINT = 'toggle-set'
+
 /** 配置区调用的端点：读取账号的 key 掩码（secret 明文永不出现在返回里）。 */
 export const FAILOVER_ACCOUNTS_ENDPOINT = 'accounts'
 
@@ -80,4 +96,18 @@ export interface UsageSnapshot {
   readonly fetchedAt?: string
   /** 快照是否仍在新鲜期内。 */
   readonly fresh: boolean
+}
+
+/** 会话级开关请求：读取与写入都要带会话身份。 */
+export interface ToggleRequest {
+  /** 会话 id（客户端从会话座位上下文取得）。 */
+  readonly sessionId?: string
+  /** 写入目标状态（仅写入端点使用）。 */
+  readonly enabled?: boolean
+}
+
+/** 会话级开关的返回面。 */
+export interface ToggleSnapshot {
+  /** 该会话当前是否接入本插件。 */
+  readonly enabled: boolean
 }

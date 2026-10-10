@@ -16,6 +16,7 @@ import type { FetchBackend } from '../../src/host/fetch-failover-provider.ts'
 import { FailoverSearchProvider } from '../../src/host/failover-provider.ts'
 import type { SourceAdapter } from '../../src/contracts/types.ts'
 import { TAVILY_PLATFORM_ID, TINYFISH_PLATFORM_ID } from '../../src/contracts/constants.ts'
+import { SessionToggleStore, runWithSession, shouldBypassActiveSession } from '../../src/host/session-toggle.ts'
 
 const settings = (overrides: Record<string, unknown> = {}) => ({
   tinyfishAccounts: [{ key: 'sk-t', label: 'tinyfish-1' }],
@@ -286,5 +287,48 @@ describe('TC-055/TC-056/TC-057 新功能边界与独立性', () => {
     await expect(fetchProvider.fetch({ url: 'https://a.example' })).rejects.toBeDefined()
     const result = await search.search({ query: 'independent' })
     expect(result.sources.length).toBeGreaterThan(0)
+  })
+})
+
+describe('FNOS-010-12 抓取侧门控（AC-03：关闭时不走三方兜底）', () => {
+  it('关闭时会话的抓取只用本地跳，平台零调用', async () => {
+    const store = new SessionToggleStore()
+    store.setEnabled('sess-off', false)
+    let platformCalls = 0
+
+    const provider = new CompositeFetchProvider({
+      id: 'dsh-failover-search',
+      local: { fetch: async () => { throw new WebError('blocked', 'WEB_INVALID_URL') } },
+      platforms: [{
+        platform: TINYFISH_PLATFORM_ID,
+        backend: { fetch: async () => { platformCalls += 1; throw new Error('should not reach') } },
+      }],
+      // 门控：关闭该会话时平台跳整体不可用。
+      shouldBypass: () => shouldBypassActiveSession(store),
+    })
+
+    await runWithSession('sess-off', store, async () => {
+      await expect(provider.fetch({ url: 'https://example.com' })).rejects.toBeDefined()
+    })
+    expect(platformCalls).toBe(0) // 三方零调用
+  })
+
+  it('开启时会话的抓取仍走平台兜底（行为不变，AC-02）', async () => {
+    const store = new SessionToggleStore()
+    let platformCalls = 0
+
+    const provider = new CompositeFetchProvider({
+      id: 'dsh-failover-search',
+      local: { fetch: async () => { throw new WebError('blocked', 'WEB_INVALID_URL') } },
+      platforms: [{
+        platform: TINYFISH_PLATFORM_ID,
+        backend: { fetch: async (req) => { platformCalls += 1; return { url: req.url, statusCode: 200, body: { kind: 'text', content: 'ok' }, truncated: false } } },
+      }],
+      shouldBypass: () => shouldBypassActiveSession(store),
+    })
+
+    const result = await runWithSession('sess-on', store, () => provider.fetch({ url: 'https://example.com' }))
+    expect(result.body).toEqual({ kind: 'text', content: 'ok' })
+    expect(platformCalls).toBe(1)
   })
 })

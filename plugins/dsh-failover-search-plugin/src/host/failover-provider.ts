@@ -56,6 +56,14 @@ export interface FailoverProviderOptions {
   readonly official: OfficialFallback
   /** 请求前探测的数据面；省略表示不做探测（退化为纯响应式转移）。 */
   readonly usage?: ProbeSource | undefined
+  /**
+   * 门控：本次调用是否绕过本插件（FNOS-010-12-AC-03）。
+   *
+   * 由会话级「智能搜索」开关驱动：关闭时该会话不接入本插件，因此跳过全部三方
+   * 来源、直接走官方——三方账号与配额零消耗。缺省（不传）时永不绕过，保持开关
+   * 引入前的行为。判定在每次调用时求值，切换对下一次搜索立即生效（AC-04）。
+   */
+  readonly shouldBypass?: (() => boolean) | undefined
   /** 每级尝试的脱敏事件回调。 */
   readonly onAttempt: (event: ProviderAttemptEvent) => void
 }
@@ -118,6 +126,15 @@ export class FailoverSearchProvider implements WebSearchProvider {
     const settings = this.options.readSettings()
     const failures: string[] = []
     this.credentialFailure = undefined
+
+    // 会话级门控（FNOS-010-12-AC-03）：该会话关掉「智能搜索」时不接入本插件——
+    // 直接走官方，三方来源一次都不尝试（配额零消耗）。门控在**每次调用**时求值，
+    // 因此切换开关对下一次搜索立即生效（AC-04）。
+    if (this.options.shouldBypass?.() === true) {
+      const result = await this.tryOfficial(request, signal, failures)
+      if (result !== undefined) return result
+      throw this.finalError(failures)
+    }
 
     for (const sourceId of this.normalizedOrder(settings)) {
       if (sourceId === OFFICIAL_SOURCE_ID) {

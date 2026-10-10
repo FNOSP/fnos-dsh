@@ -346,3 +346,27 @@
 .dsh-failover-usage__emptyState {
   margin-top: 4px;
 }
+
+/* ── 消息框左下角的「智能搜索」开关（FNOS-010-12）─────────────────────────
+   与官方左侧控件行同高对齐：用 inline-flex + 居中，避免在不同行高下与
+   相邻控件（如「深度思考」）错位。 */
+.dsh-failover-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* 只使用 DSH 语义变量：亮暗主题由宿主切换，插件不自带硬编码色值。 */
+  color: var(--dsw-alias-text-secondary);
+}
+
+.dsh-failover-toggle__label {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* 键盘聚焦时给出可见焦点环（A11y：可见性不得只依赖鼠标）。 */
+.dsh-failover-toggle__label:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

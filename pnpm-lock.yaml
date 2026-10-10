@@ -161,6 +161,9 @@ catalogs:
       specifier: ^4.1.8
       version: 4.1.10
   dsh:
+    '@deepseek-ai/dsh-agent':
+      specifier: 0.2.0-rc.2
+      version: 0.2.0-rc.2
     '@deepseek-ai/dsh-agent-default-model':
       specifier: 0.2.0-rc.2
       version: 0.2.0-rc.2
@@ -252,6 +255,9 @@ catalogs:
       specifier: 0.2.0-rc.2
       version: 0.2.0-rc.2
     '@deepseek-ai/dsh-settings':
+      specifier: 0.2.0-rc.2
+      version: 0.2.0-rc.2
+    '@deepseek-ai/dsh-tools':
       specifier: 0.2.0-rc.2
       version: 0.2.0-rc.2
     '@deepseek-ai/dsh-web':
@@ -598,10 +604,16 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4(@deepseek-ai/cordis-plugin-include@1.0.9)(@deepseek-ai/cordis-plugin-loader@1.0.5)
+      '@deepseek-ai/dsh-agent':
+        specifier: catalog:dsh
+        version: 0.2.0-rc.2(fee0e653b72a3883e0f0da2d9a46bb50)
       '@deepseek-ai/dsh-client-connection':
         specifier: catalog:dsh
         version: 0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4))(@deepseek-ai/dsh-scope@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)))
       '@deepseek-ai/dsh-client-locale':
+        specifier: catalog:dsh
+        version: 0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)
+      '@deepseek-ai/dsh-client-ui-conversation':
         specifier: catalog:dsh
         version: 0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)
       '@deepseek-ai/dsh-client-ui-plugin-manager':
@@ -628,6 +640,9 @@ importers:
       '@deepseek-ai/dsh-settings':
         specifier: catalog:dsh
         version: 0.2.0-rc.2(558744ad0b2505c8f61f84b8cc031afc)
+      '@deepseek-ai/dsh-tools':
+        specifier: catalog:dsh
+        version: 0.2.0-rc.2(52b5a8ab481be2b3d891c22a71641755)
       '@deepseek-ai/dsh-web':
         specifier: catalog:dsh
         version: 0.2.0-rc.2(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-llm@0.2.0-rc.2(@deepseek-ai/cordis@4.0.4))

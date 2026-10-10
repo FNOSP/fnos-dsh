@@ -10,6 +10,7 @@
  */
 import '../styles/index.scss'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -19,10 +20,11 @@ import { installSemiDshTheme } from '@tnnevol/dsh-semi-ui'
 import { SettingsFormModel, settingsNumberField } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { FAILOVER_PACKAGE_NAME, FAILOVER_SETTINGS_NAMESPACE } from '../contracts/constants.ts'
-import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from '../contracts/usage-rpc.ts'
-import type { AccountsSnapshot, RevealKeySnapshot, UsageSnapshot } from '../contracts/usage-rpc.ts'
+import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_TOGGLE_ENDPOINT, FAILOVER_TOGGLE_SET_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from '../contracts/usage-rpc.ts'
+import type { AccountsSnapshot, RevealKeySnapshot, ToggleSnapshot, UsageSnapshot } from '../contracts/usage-rpc.ts'
 import type { AccountSummaryView } from './account-list.ts'
 import { FailoverConfigSection } from './config-section.tsx'
+import { SmartSearchToggle } from './smart-search-toggle.tsx'
 import type { PluginSettings } from './config-section.tsx'
 import { en, zh } from './locales.ts'
 import type { UsageLocaleKey } from './locales.ts'
@@ -81,6 +83,25 @@ export function apply(ctx: ClientContext): void {
    */
   const load = async (): Promise<UsageSnapshot> => {
     const result = await rpc.call<UsageSnapshot>(FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT, {})
+    if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+    return result.value
+  }
+
+  /**
+   * 读取某会话的「智能搜索」开关状态（FNOS-010-12）。
+   *
+   * 会话身份由座位上下文提供（`conversation.input.left` 是 session 作用域），
+   * 状态存在宿主内存里、不写全局配置，因此 A 会话的切换不会影响 B 会话（AC-04）。
+   */
+  const loadToggle = async (sessionId: string): Promise<ToggleSnapshot> => {
+    const result = await rpc.call<ToggleSnapshot>(FAILOVER_USAGE_CHANNEL, FAILOVER_TOGGLE_ENDPOINT, { sessionId })
+    if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+    return result.value
+  }
+
+  /** 写入某会话的开关状态；返回写入后的实际状态（AC-04：写后立即生效）。 */
+  const setToggle = async (sessionId: string, enabled: boolean): Promise<ToggleSnapshot> => {
+    const result = await rpc.call<ToggleSnapshot>(FAILOVER_USAGE_CHANNEL, FAILOVER_TOGGLE_SET_ENDPOINT, { sessionId, enabled })
     if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
     return result.value
   }
@@ -172,6 +193,27 @@ export function apply(ctx: ClientContext): void {
       </>
     )
   }))
+
+  /**
+   * 消息框左下角的「智能搜索」开关（FNOS-010-12）。
+   *
+   * 座位 `conversation.input.left` 是 **list** 且 `scope: session`：它是消息框左下角
+   * 的控件行（截图里与「深度思考」同一行区域），`inject` 收到 `sessionId`——正好用来
+   * 做会话级开关。开关默认开启（AC-01），关闭时该会话不接入本插件（AC-03）。
+   *
+   * 座位在插件被禁用/卸载时自然消失，界面不留残影（AC-05）。
+   */
+  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
+    name: 'conversation.input.left',
+    id: 'dsh-failover-search-toggle',
+    order: 10,
+    locale: NS,
+    inject: (sessionId: string) => ({
+      t,
+      load: () => loadToggle(sessionId),
+      set: (enabled: boolean) => setToggle(sessionId, enabled),
+    }),
+  }, SmartSearchToggle))
 }
 
 /** `plugins.detail.section` 的 owner props 子集：只关心正在打开的页面主题。 */

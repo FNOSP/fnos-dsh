@@ -62,6 +62,13 @@ export interface CompositeFetchProviderOptions {
   readonly local: FetchBackend
   /** 平台兜底跳，按尝试顺序排列。 */
   readonly platforms: readonly PlatformFetchHop[]
+  /**
+   * 门控：本次取回是否绕过平台跳（FNOS-010-12-AC-03）。
+   *
+   * 由会话级「智能搜索」开关驱动：关闭时该会话不接入本插件，因此只用本地跳
+   * （等同未安装插件时的官方行为），平台零调用。缺省时不绕过。
+   */
+  readonly shouldBypass?: () => boolean
   /** 逐跳事件回调（可选）：诊断「这次取回走了哪一跳」。 */
   readonly onHop?: (event: FetchHopEvent) => void
 }
@@ -73,12 +80,14 @@ export class CompositeFetchProvider implements WebFetchProvider {
   private readonly platforms: readonly PlatformFetchHop[]
 
   private readonly onHop: ((event: FetchHopEvent) => void) | undefined
+  private readonly shouldBypass: (() => boolean) | undefined
 
   constructor(options: CompositeFetchProviderOptions) {
     this.id = options.id
     this.local = options.local
     this.platforms = options.platforms
     this.onHop = options.onHop
+    this.shouldBypass = options.shouldBypass
   }
 
   /** 本地跳可用即可用：平台的缺位只影响兜底深度，不影响基本能力。 */
@@ -131,9 +140,15 @@ export class CompositeFetchProvider implements WebFetchProvider {
       call: (request: WebFetchRequest, signal?: AbortSignal) => backend.fetch(request, signal),
       available: backend.available === undefined ? undefined : () => backend.available?.() === true,
     })
+    // 会话级门控（FNOS-010-12-AC-03）：该会话关掉「智能搜索」时不接入本插件——
+    // 只保留本地跳（等同未安装插件时的官方行为），平台跳整体不参与，因此平台
+    // 零调用。判定在**每次调用**时求值，切换开关对下一次取回立即生效（AC-04）。
+    const platformHops = this.shouldBypass?.() === true
+      ? []
+      : this.platforms.map(hop => ({ platform: hop.platform, ...wrap(hop.backend) }))
     return [
       { platform: 'local', ...wrap(this.local) },
-      ...this.platforms.map(hop => ({ platform: hop.platform, ...wrap(hop.backend) })),
+      ...platformHops,
     ]
   }
 }

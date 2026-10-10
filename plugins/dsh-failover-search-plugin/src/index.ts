@@ -23,11 +23,13 @@ import { DEFAULT_USER_AGENT, HttpFetchProvider } from '@deepseek-ai/dsh-web-fetc
 import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type {} from '@deepseek-ai/dsh-web'
+import type {} from '@deepseek-ai/dsh-tools'
+import type {} from '@deepseek-ai/dsh-agent'
 import { Config, readSettings } from './contracts/config.ts'
 import type { FailoverSearchConfig } from './contracts/config.ts'
 import { FAILOVER_PROVIDER_ID, OFFICIAL_SOURCE_ID, TAVILY_PLATFORM_ID, TINYFISH_PLATFORM_ID } from './contracts/constants.ts'
-import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
-import type { AccountsSnapshot, RevealKeyRequest, RevealKeySnapshot, UsageSnapshot } from './contracts/usage-rpc.ts'
+import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_TOGGLE_ENDPOINT, FAILOVER_TOGGLE_SET_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
+import type { AccountsSnapshot, RevealKeyRequest, RevealKeySnapshot, ToggleRequest, ToggleSnapshot, UsageSnapshot } from './contracts/usage-rpc.ts'
 import type { AccountConfig } from './contracts/config.ts'
 import type { AccountSummary } from './contracts/usage-rpc.ts'
 import { buildPool } from './host/account-pool.ts'
@@ -38,13 +40,15 @@ import { maskApiKey } from './host/mask.ts'
 import { TavilyAdapter, TavilyUsageAdapter } from './host/tavily-provider.ts'
 import { TinyFishAdapter, TinyFishUsageAdapter } from './host/tinyfish-provider.ts'
 import { resolveOfficialOptions } from './host/official-fallback.ts'
+import { SessionToggleStore, runWithSession, shouldBypassActiveSession } from './host/session-toggle.ts'
 import { usageFingerprint } from './host/usage-fingerprint.ts'
 import { UsageStore } from './host/usage-store.ts'
 
 export { Config } from './contracts/config.ts'
 export type { FailoverSearchConfig, FailoverSearchSettings, AccountConfig } from './contracts/config.ts'
 export { FAILOVER_PROVIDER_ID, FAILOVER_ROW_ID, FAILOVER_SETTINGS_NAMESPACE } from './contracts/constants.ts'
-export { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
+export { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_TOGGLE_ENDPOINT, FAILOVER_TOGGLE_SET_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
+export { SessionToggleStore } from './host/session-toggle.ts'
 export type { UsageSnapshot } from './contracts/usage-rpc.ts'
 export { FailoverSearchProvider } from './host/failover-provider.ts'
 export { UsageStore } from './host/usage-store.ts'
@@ -64,8 +68,16 @@ const CONFIG_WATCH_INTERVAL_MS = 5 * 1000
 /** Cordis 插件名，用于 Loader 诊断。 */
 export const name = FAILOVER_PROVIDER_ID
 
-/** 需要的宿主服务：`web` 是搜索接缝，`credentials` 解析官方兜底凭据。 */
-export const inject = ['web']
+/**
+ * 需要的宿主服务。
+ *
+ * - `web`：搜索与抓取接缝（注册两个复合 provider）。
+ * - `tools`：**会话级门控的前提**。`tools/pre-execute` 是 `tools` 服务的事件，
+ *   未声明该依赖时订阅不会生效（Cordis 按 inject 门控服务与其事件），表现为
+ *   「开关关闭但三方仍被调用」——这个缺陷真实发生过一次，契约测试钉住此声明。
+ * - `credentials`：解析官方兜底凭据。
+ */
+export const inject = ['web', 'tools', 'credentials']
 
 /**
  * 注册复合搜索提供方，并挂上详情页用量区块的只读 RPC。
@@ -94,6 +106,35 @@ export function apply(ctx: Context, config: FailoverSearchConfig = Config({}) as
   }))
   let refreshedAt: string | undefined
 
+  /**
+   * 会话级「智能搜索」开关（FNOS-010-12）。
+   *
+   * 一个 store 同时驱动搜索与抓取两条链路：关闭时该会话的搜索跳过全部三方来源、
+   * 抓取裁掉全部平台跳，都回落到官方（AC-03）。
+   */
+  const toggle = new SessionToggleStore()
+
+  /**
+   * 工具分发门控：把会话身份放进 AsyncLocalStorage 作用域后再派发调用。
+   *
+   * 为什么在这里、而不是 `tools/pre-execute`：两者的**派发位置**不同。
+   * `pre-execute` 只返回一个决定（allow/deny/ask），注册表拿到决定后**另起调用链**
+   * 派发工具本体，钩子里建立的作用域因此不会覆盖到工具执行——实测表现为「钩子里读到
+   * 关闭、provider 里读到默认开启」，三方被照常调用。`tools/execute` 是 around-dispatch
+   * 水位钩子，它的 `next()` **就是**派发动作（下一层包装或工具本体），所以包住 `next()`
+   * 的作用域能真正覆盖工具执行，provider 内的 `AsyncLocalStorage` 读取才拿得到会话身份。
+   *
+   * 为什么需要这个作用域：搜索接缝 `WebSearchRequest` 不含会话标识、`ctx.web` 是全局
+   * 单例，provider 无法知道自己为哪个会话服务；而 `exec.agent.session` 是现成的会话
+   * 身份。作用域绑定后不必改动接缝契约（AC-03/AC-04 都依赖它）。
+   */
+  ctx.on('tools/execute', (exec, next) => {
+    // 只包装网页工具：其余调用原样放行，不做任何多余包装。
+    if (exec.name !== 'web_search' && exec.name !== 'web_fetch') return next()
+    const sessionId = (exec.agent as { id?: string } | undefined)?.id
+    return runWithSession(sessionId, toggle, () => next())
+  })
+
   const provider = new FailoverSearchProvider({
     readSettings: () => readSettings(config),
     adapters: {
@@ -111,6 +152,8 @@ export function apply(ctx: Context, config: FailoverSearchConfig = Config({}) as
       isFresh: () => usage.isFresh(),
       locallyLimited: label => usage.locallyLimited('tinyfish', label),
     },
+    // 门控在每次调用时求值：切换开关对下一次搜索立即生效（AC-04）。
+    shouldBypass: () => shouldBypassActiveSession(toggle),
     onAttempt: event => ctx.logger.debug('[failover-search] %s/%s %s (%dms)', event.platform, event.account, event.outcome, event.durationMs),
   })
 
@@ -129,6 +172,7 @@ export function apply(ctx: Context, config: FailoverSearchConfig = Config({}) as
   const fetchProvider = new CompositeFetchProvider({
     id: FAILOVER_PROVIDER_ID,
     // 与搜索侧 onAttempt 对称：抓取也记逐跳事件，供诊断「这次取回走了哪一跳」。
+    shouldBypass: () => shouldBypassActiveSession(toggle),
     onHop: event => ctx.logger.debug('[failover-search:fetch] %s %s %s (%dms)', event.platform, event.outcome, event.url, event.durationMs),
     // limits 照抄官方 `Config` 的默认值（5e6 / 1e5 / 3e4 / 5 + 官方 UA）：
     // 本地跳要与「未接管 fetch 时的官方行为」逐项一致，否则兜底层一接管就
@@ -225,6 +269,20 @@ export function apply(ctx: Context, config: FailoverSearchConfig = Config({}) as
           ...(refreshedAt === undefined ? {} : { fetchedAt: refreshedAt }),
         }
         return { ok: true, value: snapshot }
+      }
+      if (endpoint === FAILOVER_TOGGLE_ENDPOINT) {
+        // 会话级读取：请求必须带 sessionId（客户端从会话座位上下文取得）。
+        const request = (payload ?? {}) as Partial<ToggleRequest>
+        const value: ToggleSnapshot = { enabled: toggle.isEnabled(request.sessionId) }
+        return { ok: true, value }
+      }
+      if (endpoint === FAILOVER_TOGGLE_SET_ENDPOINT) {
+        // 会话级写入：写后立即生效（provider 每次调用现读状态，AC-04）。
+        const request = (payload ?? {}) as Partial<ToggleRequest>
+        if (request.sessionId === undefined) throw new Error('toggle-set requires a sessionId')
+        toggle.setEnabled(request.sessionId, request.enabled === true)
+        const value: ToggleSnapshot = { enabled: toggle.isEnabled(request.sessionId) }
+        return { ok: true, value }
       }
       if (endpoint === FAILOVER_REFRESH_ENDPOINT) {
         // 手动刷新（FNOS-010-08-AC-04）：强制重查两个平台的用量端点，然后回送新快照。
