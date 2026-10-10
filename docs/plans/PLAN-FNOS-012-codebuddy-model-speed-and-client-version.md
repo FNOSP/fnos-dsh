@@ -39,12 +39,14 @@ lastVerified: 2026-10-09
 | FNOS-012-02 | `plugins/dsh-codebuddy-plugin/src/contracts/constants.ts`、`host/risk-headers.ts` 消费处 | 无 | 版本常量断言与风控头指纹测试更新 | — | DSH Web、DSH Desktop |
 | FNOS-012-03 | `apps/fn-deepseek-harness/cmd/install_callback`（或 `packages/fnos-gateway/src/install-callback-helper/` helper） | 失效豁免条目触发 lockfile 与 node_modules 清理重建（均为可重建产物；`minimumReleaseAgeExclude` 字段保留） | 检测/清理/重装分支的本地自动化断言 | 排错文档如涉及发布日期问题则更新 | 真实 fnOS NAS |
 | FNOS-012-04 | 无代码改动；npm registry 运维操作 | npm dist-tags（`latest` → `0.1.7-rc.2.2`） | dist-tags 查询核对 | npm registry | npm registry（操作者需发布权限） |
+| FNOS-012-05 | `@tnnevol/dsh-failover-search` 的 `compatibility.json`（源码已在提交 `f86a7e7` 修正） | 无 | `keeps each compatibility package list aligned with source imports` 用例；发布后解包核对 | — | npm registry（随下次发布） |
+| FNOS-012-06 | `plugins/dsh-failover-search-plugin/src/client/smart-search-toggle.tsx`、`toggle-view.ts`、`styles.scss`、`locales.ts` | 无 | 药丸按钮三态（激活/普通/主题）单测与走查；FNOS-010-12 既有开关行为回归 | `docs/plugins/dsh-failover-search.md` 如有控件说明则更新 | DSH Web、DSH Desktop |
 
-不涉及：DSH 官方源码、模型路由与预算逻辑、积分计费、登录流程与已保存凭据、其他插件、用户主目录 `~/.dsh` 与其他 profile。
+不涉及：DSH 官方源码、模型路由与预算逻辑、积分计费、登录流程与已保存凭据、其他插件、用户主目录 `~/.dsh` 与其他 profile；FNOS-012-06 不改变智能搜索的会话级语义、默认开启与搜索提供方门控逻辑（仅视觉形态）。
 
 ## 分阶段任务
 
-### 阶段一：实现与验证（T01-01–T01-09）
+### 阶段一：实现与验证（T01-01–T01-11）
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
@@ -57,12 +59,14 @@ lastVerified: 2026-10-09
 | PLAN-FNOS-012-T01-07 | FNOS-012-04 / AC-03 | 把「`latest` 由发布命令自动维护」的约定写入 [发布流程](../build/release.md)：`pnpm run publish` 完成后自动处理，无需每次发布后手动设置 dist-tag；文档说明代际规则、可用命令（`npm dist-tag add/rm/ls`）与应急校正方式 | T01-06 | 文档构建通过；下次发布验证自动化生效 |
 | PLAN-FNOS-012-T01-08 | FNOS-012-05 / AC-01 | `@tnnevol/dsh-failover-search` 的 `compatibility.json` 包清单与实际依赖对齐：`dshPluginApi.packages` 取 `package.json` 的 `@deepseek-ai/dsh-*` peer 集合（当前 16 个；补 `dsh-tools`、`dsh-agent`、`dsh-client-ui-conversation`、`dsh-web-fetch-http` 等）。**该项源码已在提交 `f86a7e7` 完成**，本任务负责随版本发布进入线上包 | 源码已修 | `keeps each compatibility package list aligned with source imports` 用例通过；发布后解包核对清单含全部依赖 |
 | PLAN-FNOS-012-T01-09 | FNOS-012-05 / AC-03 | 发布前复核产物的约定：把「发布后若源码又改动产物相关文件（`compatibility.json`、`cordis.patch.yml`、`package.json`）则须随下次版本发布，不得让线上包与源码长期不一致」写入 [发布流程](../build/release.md)；并说明现有两条用例的边界——它们只校验**仓库内**清单与安装命令，**不校验已发布包的产物**，因此发布时序需要人工把关 | T01-08 | 文档构建通过；发布流程含该约定 |
+| PLAN-FNOS-012-T01-10 | FNOS-012-06 / AC-01、AC-02 | `smart-search-toggle.tsx` 重构：移除 `DshSwitch`，改为药丸按钮（`<button>` 承载「智能搜索」文案）；开启时 `is-active` 激活态、关闭时普通态；沿用既有乐观更新/失败回滚与会话级状态逻辑（`toggle-view.ts` 的可访问名称 helper 复用或简化） | 无 | 组件单测：激活态类名随 `enabled` 切换、点击切换、busy 禁用；FNOS-010-12 既有开关行为回归通过 |
+| PLAN-FNOS-012-T01-11 | FNOS-012-06 / AC-03 | `styles.scss` 药丸样式：圆角全圆、DSH 语义变量着色（激活态与普通态两套），亮暗主题可读；`locales.ts` 的 `toggleOn`/`toggleOff` 双态文案收敛为单一「智能搜索」文案 | T01-10 | Web 走查（亮/暗各一遍）；键盘可达（Enter/Space）核对 |
 
 ### 阶段二：目标环境验收（T02-01）
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
-| PLAN-FNOS-012-T02-01 | FNOS-012-01、02 全部 AC | DSH Desktop 验收：模型列表倍速可见、版本指纹一致、既有凭据继续有效 | 阶段一完成 | Desktop 走查证据登记 `docs/validation/` |
+| PLAN-FNOS-012-T02-01 | FNOS-012-01、02、06 全部 AC | DSH Desktop 验收：模型列表倍速可见、版本指纹一致、既有凭据继续有效；智能搜索药丸按钮在 Desktop 可用且激活态正确 | 阶段一完成 | Desktop 走查证据登记 `docs/validation/` |
 
 ## 数据、权限和错误处理
 

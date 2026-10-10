@@ -20,7 +20,7 @@ verifiedAt: 2026-10-10
 
 ## 测试范围与需求分析
 
-覆盖 [功能列表](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#功能列表) 中 FNOS-012-01 至 FNOS-012-05 全部功能：
+覆盖 [功能列表](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#功能列表) 中 FNOS-012-01 至 FNOS-012-06 全部功能：
 
 - `/model` 模型列表展示倍速，目录未披露时不编造（[FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01)）。
 - 插件请求携带的 CLI / WorkBuddy 客户端版本与官方一致（[FNOS-012-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-02)）。
@@ -104,7 +104,6 @@ verifiedAt: 2026-10-10
 | TC-022 | [FNOS-012-04](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-04) | 发布流程文档含 latest 约定 | [AC-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-04) | 文档可读 | 阅读 [发布流程](/build/release) 中 dist-tag 相关章节 | 明确「`latest` 由发布命令自动维护」、给出代际规则与应急校正命令（`npm dist-tag add/rm/ls`），并说明 registry 全量写的备选方式 | P2 | 新增行为，无回归基线 |
 
 ### [FNOS-012-05 插件发布内容完整性校正](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05)
-
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TC-023 | [FNOS-012-05](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 清单与 peer 依赖集合一致 | [AC-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 源码可读 | 1.读 `compatibility.json` 的 `dshPluginApi.packages` 2.读 `package.json` 的 `@deepseek-ai/dsh-*` peer 集合 3.比对 | 两者完全相等（当前 16 个包），含 `dsh-tools`、`dsh-agent`、`dsh-client-ui-conversation`、`dsh-web-fetch-http`——无缺口、无多余 | P0 | 基线：修正前清单（10 个包） |
@@ -112,6 +111,19 @@ verifiedAt: 2026-10-10
 | TC-025 | [FNOS-012-05](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 线上包确实含修正后的清单 | [AC-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 修正已随某版本发布 | 1.`npm pack <包>@<版本>` 下载已发布产物 2.解包读取其 `compatibility.json` | 包内清单**已含全部 16 个依赖**——不是只看 `package.json` 版本号，而是核对产物内容 | P0 | 基线：`0.2.0-rc.2.1` 的线上包（仍为旧清单 10 个包） |
 | TC-026 | [FNOS-012-05](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 发布前复核产物的约定已落文档 | [AC-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 发布流程文档可读 | 阅读 [发布流程](/build/release) 中产物复核相关章节 | 明确「发布后若源码再改动产物相关文件（`compatibility.json`、`cordis.patch.yml`、`package.json`）须随下次版本发布」；说明现有两条用例只校验仓库内清单、不校验已发布产物的边界 | P1 | 新增行为，无回归基线 |
 | TC-027 | [FNOS-012-05](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 安装命令版本与已发布版本一致 | [AC-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 文档与发布清单可读 | 运行 `keeps every documented install command on the released plugin version` 用例 | 用例通过；每个文档页的安装命令版本等于该插件当前发布版本（用户照抄不会装到旧包） | P1 | 新增行为，无回归基线 |
+
+### [FNOS-012-06 智能搜索控件改为药丸按钮样式](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06)
+
+实现见 [PLAN-FNOS-012 T01-10/T01-11](/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version#阶段一实现与验证t01-01t01-11)；行为基线沿用 [FNOS-010-12 会话级智能搜索开关](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12)。
+
+| 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-028 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | 控件呈药丸按钮形态且无 Switch | [AC-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web 已启动，插件已启用 | 1.观察消息框左下角控件 | 控件为药丸按钮形态、仅含「智能搜索」文案；原 Switch 不再出现 | P0 | 基线：[FNOS-010-12 的 Switch+文案形态](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12) |
+| TC-029 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | 开启时激活态、关闭时普通态 | [AC-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | 控件可见（默认开启） | 1.观察开启态样式 2.点击切到关闭 3.再切回 | 开启呈激活态样式、关闭呈普通态，两态视觉可辨；切换后下一次搜索行为与 [FNOS-010-12-AC-02/03](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12) 一致 | P0 | 基线：[FNOS-010-12 开关行为](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12) |
+| TC-030 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | 亮暗主题下两态均可辨 | [AC-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | 控件可见 | 1.亮色主题观察激活/普通两态 2.切暗色主题重复 | 两个主题下激活态与普通态对比清晰，样式使用 DSH 语义变量 | P1 | 新增行为，无回归基线 |
+| TC-031 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | 键盘可达与可访问名称保持 | [AC-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | 控件可见 | 1.用 Tab 聚焦控件 2.按 Enter/Space 切换 | 聚焦可见、键盘切换生效；可访问名称随状态更新（沿用 [FNOS-010-12 TC-080](/tests/FNOS-010-thirdparty-web-search-failover) 约束） | P1 | 基线：[FNOS-010-12 键盘可达约束](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12) |
+| TC-032 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | 会话级语义与默认开启不变 | [AC-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | 打开两个会话 | 1.确认新会话默认开启 2.在 A 会话关闭 3.切到 B 会话观察 | 新会话默认开启；A 会话关闭不影响 B 会话（沿用 [FNOS-010-12-AC-01/04](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12)） | P1 | 基线：[FNOS-010-12 会话级语义](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12) |
+| TC-033 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | Desktop 端药丸按钮一致 | [AC-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06)、[AC-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Desktop（项目 `.dsh/profiles/desktop`） | 1.在 Desktop 中执行 TC-028/TC-029 | Desktop 与 Web 形态、激活态一致 | P1 | 新增行为，无回归基线 |
 
 ## 测试执行结果
 
@@ -156,3 +168,9 @@ verifiedAt: 2026-10-10
   - 发布类用例（TC-019–TC-022、TC-025）依赖 npm 发布权限；当前环境 `npm whoami` 曾返回 401，执行前需 `npm login`，无权限时标记「阻塞」。
   - FNOS-012-03 的自愈涉及删除 lockfile 与 `node_modules`：本地与 NAS 验证都必须先备份用户配置与凭据，TC-016 的 hash 比对是防数据丢失的关键断言，不可省略。
   - FNOS-012-01 的倍速字段依赖 CodeBuddy 服务端目录返回 `credits`；目录契约变更时该字段可能缺失，属外部依赖风险，用例 TC-002 已覆盖「缺失时不编造」的降级路径。
+
+## 变更记录
+
+| 日期 | 变更 | 说明 |
+| --- | --- | --- |
+| 2026-10-10 | 新增 FNOS-012-06 用例 | 智能搜索控件改为药丸按钮：TC-028~TC-033 覆盖形态、激活/普通两态、亮暗主题可辨、键盘可达与会话级语义回归（沿用 FNOS-012-06 行为约束——仅改视觉，不改 FNOS-010-12 行为）；测试范围与环境同步到 06。 |
