@@ -285,9 +285,19 @@ function AccountsPage({
   }
 
   if (loading && data === undefined) return <PageLoading variant="accounts" />
+  // 「凭据存在但读不了」与「未登录」此前是同一个空列表（FNOS-011-04）；host 在
+  // panelStatus 里携带 credentialState=unusable 时，这里给出修复指引而不是把
+  // 异常呈现成普通的「暂无已登录账号」。
+  const credentialUnusable = (data as { credentialState?: string } | undefined)?.credentialState === 'unusable'
   return (
     <div className="dsh-codebuddy-panel-page">
       <PanelRefreshOverlay visible={loading} />
+      {credentialUnusable ? (
+        <div className="dsh-codebuddy-credential-alert" role="alert">
+          <strong>{t('credentialUnusable')}</strong>
+          <span>{t('credentialUnusableHint')}</span>
+        </div>
+      ) : null}
       {loginWaiting ? <p className="dsh-codebuddy-muted">{t('waiting')}</p> : null}
       <div className="dsh-codebuddy-panel-section-head">
         <div className="dsh-codebuddy-accounts-head-lead">

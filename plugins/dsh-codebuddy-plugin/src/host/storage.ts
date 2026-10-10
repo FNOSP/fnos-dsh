@@ -19,6 +19,7 @@ import { promises as fs } from 'node:fs'
 import { dirname } from 'node:path'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
+import { assessCredentialFile, type CredentialFileState } from '@tnnevol/dsh-plugin-kit'
 import { SerialQueue } from './concurrency.ts'
 import {
   CODEBUDDY_CLIENT_ENDPOINTS,
@@ -390,17 +391,48 @@ async function listLegacySiblings(path: string): Promise<string[]> {
  * @returns 文件不存在（尚无可保护之物）或以仅属主权限存在时为 true；
  *   文件存在且已暴露时为 false。
  */
-async function isOwnerOnly(path: string): Promise<boolean> {
-  if (process.platform === 'win32') return true
-  let mode: number
-  try {
-    mode = (await fs.stat(path)).mode
-  } catch {
-    // 不存在不算暴露；调用方把它当作"没有凭据"。
-    return true
+/**
+ * 路径的凭据可用性三态（FNOS-011-01/04）。
+ *
+ * 判定收敛到 `@tnnevol/dsh-plugin-kit` 的共享实现（FNOS-011-05）：group/other
+ * 位为空**且属主可读**。旧实现只查 group/other 位，属主不可读的 `0000` 会被
+ * 当作「安全且可读」放行，随后 `readFile` 失败又被吞掉，把「凭据坏了」呈现成
+ * 「未登录」。Windows 没有 POSIX mode，跳过检查——保护程度取决于创建与替换
+ * API 所表达的内容，与 dsh-credentials-local 相同。
+ * @param path - 凭据文件路径。
+ * @returns 三态结论。
+ */
+async function credentialFileState(path: string): Promise<CredentialFileState> {
+  if (process.platform === 'win32') {
+    try {
+      await fs.stat(path)
+      return 'usable'
+    } catch {
+      return 'absent'
+    }
   }
-  // 0o077 = group + other 的读/写/执行位。
-  return (mode & 0o077) === 0
+  return assessCredentialFile((target) => fs.stat(target), path)
+}
+
+/**
+ * 凭据文件的可用性快照（FNOS-011-04）。
+ *
+ * 「未登录」（文件不存在）与「凭据不可读」（文件在、权限位异常）此前是同一个
+ * 答案，账号列表静默变空；界面需要区分这两种情形并给出修复指引。读取路径
+ * 继续按既有语义把两者都当「没有可用凭据」处理，本函数供呈现层单独查询。
+ * @returns 三态结论。
+ */
+export async function storageFileState(): Promise<CredentialFileState> {
+  return credentialFileState(getStoragePath())
+}
+
+/**
+ * 「凭据存在但读不了」的诊断日志行（只含路径与权限位，无凭据内容）。
+ * @param path - 凭据文件路径。
+ * @returns 一行可读的中文诊断。
+ */
+function unusableDiagnostic(path: string): string {
+  return `codebuddy-auth: 凭据文件存在但属主不可读（权限位异常），已按未登录处理：${path}；执行 chmod 600 ${path} 修复后重启`
 }
 
 /**
@@ -462,7 +494,15 @@ function asDocument(storage: CodeBuddyStorage): CodeBuddyDocument {
 async function readDocument(): Promise<CodeBuddyDocument | undefined> {
   const path = getStoragePath()
   try {
-    if (!(await isOwnerOnly(path))) return undefined
+    const state = await credentialFileState(path)
+    if (state === 'absent') return undefined
+    if (state === 'unusable') {
+      // 不再静默呈现为「未登录」（FNOS-011-04）：给出一次可诊断的日志行，
+      // 只引用路径与权限位，不打印任何凭据内容；呈现层经 storageFileState()
+      // 区分这两种情形并展示修复指引。
+      console.warn(unusableDiagnostic(path))
+      return undefined
+    }
     const raw = await fs.readFile(path, 'utf-8')
     const parsed = JSON.parse(raw) as unknown
     if (parsed === null || typeof parsed !== 'object') return undefined

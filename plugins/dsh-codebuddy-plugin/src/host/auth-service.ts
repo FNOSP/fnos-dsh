@@ -43,6 +43,7 @@ import {
   activeEntry,
   nextActiveId,
   resolveEntryEndpoint,
+  storageFileState,
   loadAutoSwitchConfig,
   saveAutoSwitchConfig,
   loadAutoCheckinConfig,
@@ -1224,7 +1225,12 @@ export class CodeBuddyAuthService {
   /** 基于当前文档的账号投影。 */
   private async projectAccounts(): Promise<CodeBuddyAccountsResult> {
     const storage = await loadStorage()
-    if (storage === undefined) return { loggedIn: false, accounts: [] }
+    if (storage === undefined) {
+      // 未登录与「凭据存在但读不了」此前是同一个答案；现在把凭据文件状态带给
+      // 呈现层，让它能提示修复指引而不是静默变空（FNOS-011-04）。
+      const credentialState = await storageFileState()
+      return { loggedIn: false, accounts: [], ...(credentialState !== 'absent' ? { credentialState } : {}) }
+    }
     const activeId = storage.accounts.some(entry => entry.id === storage.activeId)
       ? storage.activeId
       : storage.accounts[0]!.id
@@ -1726,7 +1732,12 @@ export class CodeBuddyAuthService {
    */
   async panelStatus(signal?: AbortSignal): Promise<unknown> {
     const storage = await loadStorage()
-    if (storage === undefined) return { accounts: [], currentId: undefined }
+    if (storage === undefined) {
+      // 凭据文件状态随面板数据一并下发，详情页据此区分「未登录」与「凭据异常」
+      // （FNOS-011-04）；absent 是普通未登录，省略字段保持既有形状。
+      const credentialState = await storageFileState()
+      return { accounts: [], currentId: undefined, ...(credentialState === 'unusable' ? { credentialState } : {}) }
+    }
     const activeId = storage.activeId
     const rows = await this.forEachAccount(async item => {
       // 企业账号不支持签到，也不支持成长中心（旅行）：都不探测。

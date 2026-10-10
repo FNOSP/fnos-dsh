@@ -52,6 +52,21 @@
   font-size: 14px;
 }
 
+/* 凭据文件不可读的警示块（FNOS-011-04）：与普通「未登录」区分的异常提示。
+   颜色走 DSH 语义变量，亮暗主题下都成立；两行文案左对齐，第二行说明修复方式。 */
+.dsh-codebuddy-credential-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-danger, rgba(229, 72, 77, 0.4));
+  border-radius: 8px;
+  color: var(--dsw-alias-label-danger, #e5484d);
+  font-size: 14px;
+  line-height: 20px;
+}
+
 .dsh-codebuddy-actions {
   display: flex;
   gap: 8px;

@@ -52,6 +52,8 @@ export const zh: { [Key in CodeBuddyLocaleKey]: string } = {
   createUserGo: '打开登录',
   accountsEmpty: '暂无已登录账号。',
   accountsError: '账号列表加载失败。',
+  credentialUnusable: '凭据文件存在但不可读（权限位异常），账号列表无法显示。',
+  credentialUnusableHint: '在宿主机执行 chmod 600 修复凭据文件权限后重启 DSH；不需要重新登录。',
   accountOffline: '已掉线',
   accountRelogin: '重新登录',
   accountExpiredTitle: '登录凭据已过期',

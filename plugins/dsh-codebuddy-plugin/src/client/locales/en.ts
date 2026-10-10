@@ -53,6 +53,8 @@ export const en = {
   createUserGo: 'Open sign-in',
   accountsEmpty: 'No accounts signed in.',
   accountsError: 'Could not load the account list.',
+  credentialUnusable: 'The credential file exists but is unreadable (abnormal permission bits); the account list is unavailable.',
+  credentialUnusableHint: 'Run chmod 600 on the credential file on the host, then restart DSH; signing in again is not required.',
   accountOffline: 'Signed out',
   accountRelogin: 'Sign in again',
   accountExpiredTitle: 'Account credentials expired',

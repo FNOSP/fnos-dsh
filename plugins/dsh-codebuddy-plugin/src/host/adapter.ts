@@ -169,25 +169,35 @@ export function httpErrorCode(status: number, error?: WireError): string {
   return `HTTP_${status}`
 }
 
+/** 倍速与模型名称之间的分隔符（小尾巴形态：「Hy3 · x0.05」）。 */
+const CREDITS_SEPARATOR = ' · '
+
 /** 为一条目录条目构建 harness 模型描述符。 */
 function modelInfo(provider: string, model: CodeBuddyModel): LlmModelInfo {
-  // credit 标签放进 `description`——"user-facing distinction from
-  // otherwise similar models"（与相似模型对用户可见的区分）——而不是拼进
-  // `name`。保持 `name` 为 CodeBuddy 自己的名字，意味着 credit 变化（
-  // CodeBuddy 随时可能做）不再看起来像模型被改名了。注意这只是展示元数据：
-  // harness 不据此做路由或预算。随包发布的 composer ModelSelect 只渲染
-  // `model.name`，所以倍率在那里不可见——它仍可通过 `/model` 弹窗的详情行看到。
+  // 倍速以「名称小尾巴」承载：`name = "Hy3 · x0.05"`。
   //
-  // 网络值本身就是已格式化的倍率（"x3.33"、"x0.05"），所以直接裸展示：
-  // 它就是这个字段在此处的全部意义，而且选择器把 `description` 渲染在单行
-  // 不换行加省略号上，每多一个词都在消耗可见信息。`x0.00` 保留而不是隐藏——
-  // 零倍率模型是一个值得展示的事实，压掉它会让这个字段看起来像坏了。
+  // 为什么放 name 而不是 description：倍速的展示位置是模型选择器（/model 弹窗
+  // 与 composer 菜单），而 DSH 0.2.0-rc.2 起 `ui-model-selection` 有意不再渲染
+  // 目录 `description`（上游提交 b6c5aa7516/45368fb158，README 明确「不显示
+  // catalog descriptions」），两个选择面都只渲染 `model.name`——description
+  // 在 GUI 里已没有任何渲染点。name 是官方目录的「user-facing 展示名」字段，
+  // 且插件 adapter 本就拥有该字段的命名权（官方 DeepSeek 适配器也在此提供
+  // `name`），因此它是唯一不经官方 UI 改动就能让倍速可见的官方契约字段。
+  //
+  // 代价（已接受）：CodeBuddy 调整倍率时，名称看起来像被改了——但变化本身就
+  // 发生在每次打开选择器时，用户看到的始终是当前倍率，不存在「旧值缓存」问题。
+  // 路由与请求不受影响：请求用的是 `model.id`，`name` 纯展示。
+  //
+  // 网络值本身就是已格式化的倍率（"x3.33"、"x0.05"），直接裸拼接不二次格式化。
+  // `x0.00` 保留而不是隐藏——零倍率模型是一个值得展示的事实，压掉它会让这个
+  // 字段看起来像坏了。目录未披露倍速（缺省或空）的模型保持原名，不编造数值。
   const credits = model.credits?.trim()
   return {
     provider,
     id: model.id,
-    name: model.name,
-    ...credits === undefined || credits.length === 0 ? {} : { description: credits },
+    name: credits === undefined || credits.length === 0
+      ? model.name
+      : `${model.name}${CREDITS_SEPARATOR}${credits}`,
     inputModalities: model.supportsImages === true ? ['text', 'image'] : ['text'],
   }
 }

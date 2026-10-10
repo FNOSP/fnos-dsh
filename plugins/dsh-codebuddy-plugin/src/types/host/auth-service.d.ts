@@ -107,6 +107,11 @@ export interface CodeBuddyAccountsResult {
   current?: CodeBuddyAccountView
   /** 每个存储账号一条，当前账号在前，其余按存储顺序。 */
   accounts: CodeBuddyAccountView[]
+  /**
+   * 凭据文件可用性（FNOS-011-04）：`unusable` 表示文件存在但权限位异常，
+   * 界面应提示凭据异常与修复命令而不是呈现「未登录」；`absent` 即普通未登录。
+   */
+  credentialState?: 'absent' | 'usable' | 'unusable'
 }
 /** `removeAccount` / `switchAccount` 返回给客户端的形状。 */
 export interface CodeBuddyAccountsChanged {

@@ -1,7 +1,7 @@
 /** 成长任务动作：覆盖可自动化的行为上报与真实对话链路。 */
 
 import { randomUUID } from 'node:crypto'
-import { CODEBUDDY_ENDPOINT } from '../contracts/constants.ts'
+import { CODEBUDDY_CLIENT_VERSIONS, CODEBUDDY_ENDPOINT } from '../contracts/constants.ts'
 import type { CodeBuddyIdentity } from './codebuddy.ts'
 import {
   accountRiskHeaders,
@@ -152,11 +152,11 @@ function desktopEvent(identity: CodeBuddyIdentity, eventCode: string, fields: Gr
     product: 'SaaS',
     ideName: 'WorkBuddy',
     ideType: 'WorkBuddy',
-    ideVersion: '5.6.2',
+    ideVersion: CODEBUDDY_CLIENT_VERSIONS.workbuddy,
     machineId: stableDeviceId(identity, 'machine'),
     sessionId: stableDeviceId(identity, 'session'),
     extName: 'workbuddy-desktop',
-    extVersion: '5.6.2',
+    extVersion: CODEBUDDY_CLIENT_VERSIONS.workbuddy,
     os: 'win32',
     arch: 'x64',
     osVersion: '10.0.26220',
@@ -494,7 +494,7 @@ async function runExpertChat(identity: CodeBuddyIdentity, expertId: string, sign
       'X-Agent-Type': 'main',
       'X-IDE-Name': 'WorkBuddy',
       'X-IDE-Type': 'WorkBuddy',
-      'X-IDE-Version': '5.6.2',
+      'X-IDE-Version': CODEBUDDY_CLIENT_VERSIONS.workbuddy,
       'x-codebuddy-request': '1',
       'User-Agent': DESKTOP_USER_AGENT,
       ...(expertId.length === 0 ? {} : { 'X-Expert-Id': expertId }),

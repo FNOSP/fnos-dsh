@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import type { Credential, CredentialInfo, CredentialStore, OAuthCredential } from '@earendil-works/pi-ai'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { assessCredentialFile, ownerUnreadableError } from '@tnnevol/dsh-plugin-kit'
 import { CODEX_PROVIDER } from '../contracts/provider.ts'
 
 /** Re-exported so the host's existing `from './store.ts'` imports keep working. */
@@ -23,21 +24,21 @@ function isENOENT(error: unknown): boolean {
   return (error as NodeJS.ErrnoException | null)?.code === 'ENOENT'
 }
 
+/**
+ * 凭据文档必须仅属主可读，且属主**可读**。
+ *
+ * 判定收敛到 `@tnnevol/dsh-plugin-kit` 的共享实现（FNOS-011-05）：group/other
+ * 位为空**且属主可读**。旧条件 `(mode & 0o077) !== 0` 只覆盖 group/other 位，
+ * 属主不可读的 `0000` 会被放行，随后 `readFile` 抛出裸 `EACCES`。错误文案与
+ * 既有「权限过宽」分支同构：路径 + 当前权限位 + 修复命令，不含凭据内容。
+ * Windows 没有 POSIX mode，跳过检查（与上游 dsh-credentials-local 一致）。
+ */
 async function assertOwnerOnly(filename: string): Promise<void> {
-  let mode: number
-  try {
-    mode = (await stat(filename)).mode
-  } catch (error) {
-    if (isENOENT(error)) return
-    throw error
-  }
   if (process.platform === 'win32') return
-  if ((mode & 0o077) !== 0) {
-    throw new Error(
-      `codex-auth: ${filename} is readable beyond its owner (mode ${(mode & 0o777).toString(8)});`
-      + ` run "chmod 600 ${filename}" before starting again`,
-    )
-  }
+  const state = await assessCredentialFile((target) => stat(target), filename)
+  if (state !== 'unusable') return
+  const mode = (await stat(filename)).mode
+  throw ownerUnreadableError(filename, mode, 'codex-auth')
 }
 
 function parseDocument(text: string, filename: string): AuthDocument {

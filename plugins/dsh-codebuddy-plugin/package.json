@@ -2,7 +2,7 @@
   "name": "@tnnevol/dsh-codebuddy",
   "displayName": "CodeBuddy",
   "type": "module",
-  "version": "0.2.0-rc.2.0",
+  "version": "0.2.0-rc.2.2",
   "description": "Tencent CodeBuddy provider plugin for DeepSeek Harness, with browser OAuth sign-in and quota display.",
   "author": "tnnevol",
   "license": "AGPL-3.0-only",
@@ -84,6 +84,7 @@
   "dependencies": {
     "@nanostores/persistent": "catalog:",
     "@nanostores/react": "catalog:",
+    "@tnnevol/dsh-plugin-kit": "workspace:*",
     "dayjs": "catalog:",
     "echarts": "catalog:",
     "eventsource-parser": "catalog:",

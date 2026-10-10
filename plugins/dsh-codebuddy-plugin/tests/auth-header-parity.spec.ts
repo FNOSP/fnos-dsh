@@ -5,7 +5,7 @@ import { srcPath } from './paths.ts'
 /**
  * 与官方 CLI（`@tencent-ai/codebuddy-code`）的 auth 请求头对齐。
  *
- * 核对方式：解包全局安装的 2.159.0，读它 `dist/codebuddy.js` 里四条 auth 请求的
+ * 核对方式：解包全局安装的 2.163.0，读它 `dist/codebuddy.js` 里四条 auth 请求的
  * 头构造，逐条比对。CLI 是这份契约的参考实现——服务端会按它演进，我们只是复刻。
  *
  * 两处此前缺失（均非刻意省略，源码里也没有「为什么不带」的说明）：
