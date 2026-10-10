@@ -67,19 +67,20 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 
 无需每次发布后手动调整；发布输出中打印 `latest` 变更，可审计。
 
-**应急手工校正**（自动化未覆盖或需要立即修正时）：
+**dist-tag 设置的可用方式**（`npm dist-tag set` 并非有效子命令，实际命令体系如下）：
 
-```bash
-npm dist-tag set @tnnevol/<包名>@<版本> latest   # 手工校正
-pnpm view @tnnevol/<包名> dist-tags               # 核对
-```
+| 方式 | 命令 | 说明 |
+| --- | --- | --- |
+| 官方 CLI 子命令 | `npm dist-tag add <pkg>@<version> latest` | 标准做法；另有 `dist-tag rm <pkg> <tag>`、`dist-tag ls [<pkg>]`（`dist-tags` 是别名） |
+| 发布时直接指定 | `pnpm publish --tag latest`（插件脚本已用 `--tag next`） | 发布那一刻就把版本挂到指定 tag；无需二次校正，但只对新发布的版本有效 |
+| registry HTTP API | `PUT https://registry.npmjs.org/-/package/<pkg>/dist-tags`（body 为完整 dist-tags JSON） | 需 `Authorization: Bearer <token>`；适合脚本化批处理，自动化实现可选此路 |
 
-选择 `0.1.7-rc.2.2` 而非 `0.2.0-rc.2.0` 的理由：rc 版进入 `latest` 会让不关心预发布的普通用户默认装到 rc；`next` 继续承载 rc 迭代，等 harness 出稳定版再把 `latest` 整体切到新版（与 rc 阶段 pin 策略一致）。
+自动化的实现三选一：`npm dist-tag add`（简单直接）、或 registry HTTP PUT（一次请求写全量 tags，避免 add/rm 交错）。选择在实现时定案并登记。
 
 ### 风险
 
 - 校正 `latest` 后，已按 `latest` 安装 `0.1.0-rc.7` 等旧版的用户会收到「可更新到 0.1.7-rc.2.2」的提示——这是期望行为（把用户引向正确的上一代稳定版）。
-- `npm dist-tag set` 立即生效且可重复执行、可随时再校正，无数据迁移与回滚成本。
+- `npm dist-tag add` 立即生效且可重复执行、可随时再校正，无数据迁移与回滚成本。
 
 ## 功能列表
 
@@ -87,7 +88,7 @@ pnpm view @tnnevol/<包名> dist-tags               # 核对
 | --- | --- | --- | --- | --- |
 | FNOS-012-01 | P1 | 模型列表展示倍速 | `/model` 模型列表窗口中，有倍速的模型条目展示其倍速（如 `x3.33`）；目录未披露倍速的模型不编造数值、不显示倍速位 | <Badge type="info" text="规划中" /> |
 | FNOS-012-02 | P1 | 客户端版本更新 | 插件请求携带的 CLI 版本为 `2.163.0`、WorkBuddy 版本为 `5.77`，登录与请求行为与官方客户端一致 | <Badge type="info" text="规划中" /> |
-| FNOS-012-03 | P1 | profile 移除 minimumReleaseAgeExclude 自愈 | DSH web profile 安装/升级时检测 pnpm-workspace.yaml 中的 `minimumReleaseAgeExclude` 残留并移除；移除后清理 lockfile 与 node_modules 并在 profile 目录重新 `pnpm install`，插件安装不再受旧豁免规则影响 | <Badge type="info" text="规划中" /> |
+| FNOS-012-03 | P1 | profile 依赖重建自愈 | DSH web profile 安装/升级时检测 pnpm-workspace.yaml 中 `minimumReleaseAgeExclude` 条目指向的版本是否已失效（与清单版本不一致）；存在失效条目时清理 lockfile 与 node_modules 并在 profile 目录重新 `pnpm install`，使豁免规则与实际安装版本重新对齐，插件安装恢复正常 | <Badge type="info" text="规划中" /> |
 | FNOS-012-04 | P1 | npm latest 标签校正 | 四个插件 npm 的 `latest` 指向 `0.1.7-rc.2.2`；`npm i @tnnevol/<插件>` 默认安装到上一代稳定版而非 `0.1.0-rc.7` 等早期版本；`0.2.0-rc.2.0` 继续通过 `next` 获取 | <Badge type="info" text="规划中" /> |
 
 ## 行为约束
@@ -96,7 +97,7 @@ pnpm view @tnnevol/<包名> dist-tags               # 核对
 - 目录未披露倍速（`credits` 缺省或为空）的模型保持现状——不显示倍速，也不补 `x0.00` 之外的编造值；`x0.00` 的零倍率模型是有效事实，照常展示。
 - 模型名称保持 CodeBuddy 自己的名称，倍速不拼进名称（倍率变化不应表现为模型改名）。
 - 版本常量只影响客户端指纹与兼容性声明，不改变请求结构、业务逻辑和已保存凭据；用户数据不受影响。
-- `minimumReleaseAgeExclude` 的检测与移除只在 DSH web profile 的安装/升级链路内进行，不影响用户主目录 `~/.dsh` 与其他 profile；清理动作（删 lockfile、删 node_modules、重装）只作用于该 profile 目录，安装失败不得回滚或删除用户配置。
+- `minimumReleaseAgeExclude` 的**作用是让新发布的插件版本绕过 pnpm 发布冷静期正常安装，字段本身保留，不删除**；自愈只针对「豁免条目指向的版本与实际安装版本不一致」的失效状态：清理该 profile 的 lockfile 与 node_modules 并重新 `pnpm install`，使豁免规则与实际版本重新对齐。检测与重建只发生在 DSH web profile 的安装/升级链路内，不影响用户主目录 `~/.dsh` 与其他 profile；安装失败不得回滚或删除用户配置。
 - 实现方式与展示位置由对应计划决定；不改 DSH 官方源码。
 
 ## 不在本次范围内
@@ -120,10 +121,10 @@ pnpm view @tnnevol/<包名> dist-tags               # 核对
 
 ### FNOS-012-03
 
-- `FNOS-012-03-AC-01`：web profile 的 pnpm-workspace.yaml 存在 `minimumReleaseAgeExclude` 时，安装/升级链路自动移除该字段，移除后 profile 的 lockfile 与 node_modules 被清理并重新完成 `pnpm install`。
-- `FNOS-012-03-AC-02`：不存在 `minimumReleaseAgeExclude` 的 profile 不触发清理与重装，安装/升级流程与现状一致。
+- `FNOS-012-03-AC-01`：web profile 的 pnpm-workspace.yaml 存在指向失效版本的 `minimumReleaseAgeExclude` 条目（版本与清单不一致）时，安装/升级链路自动清理该 profile 的 lockfile 与 node_modules，并在 profile 目录重新完成 `pnpm install`。
+- `FNOS-012-03-AC-02`：豁免条目与清单版本一致（含不存在 `minimumReleaseAgeExclude` 的 profile）时不触发清理与重装，安装/升级流程与现状一致；`minimumReleaseAgeExclude` 字段本身不被删除。
 - `FNOS-012-03-AC-03`：清理重装后，清单内的插件全部按清单版本安装成功，`NO_MATURE_MATCHING_VERSION` 类发布日期拦截不再出现。
-- `FNOS-012-03-AC-04`：清理过程不删除、不改写用户的插件配置与凭据数据。
+- `FNOS-012-03-AC-04`：清理过程不删除、不改写用户的插件配置与凭据数据；`minimumReleaseAgeExclude` 的让新发布插件正常安装的能力保持可用。
 
 ### FNOS-012-04
 
@@ -144,5 +145,6 @@ pnpm view @tnnevol/<包名> dist-tags               # 核对
 | --- | --- | --- |
 | 2026-10-09 | 初始登记 | 建立 FNOS-012：/model 模型列表补充倍速展示（目录 `credits` 字段已存在，composer 选择组件不渲染 description 为缺失原因）；CLI 版本 `2.159.0 → 2.163.0`、WorkBuddy `5.6.2 → 5.77`。关联 PLAN-FNOS-012。 |
 | 2026-10-09 | 初始登记 | 建立 FNOS-012：/model 模型列表补充倍速展示（目录 `credits` 字段已存在，composer 选择组件不渲染 description 为缺失原因）；CLI 版本 `2.159.0 → 2.163.0`、WorkBuddy `5.6.2 → 5.77`。关联 PLAN-FNOS-012。 |
-| 2026-10-09 | 新增 FNOS-012-03 | 范围扩展：web profile 安装/升级链路检测并移除 pnpm-workspace.yaml 的 `minimumReleaseAgeExclude` 残留，随后清理 lockfile 与 node_modules 并重新 `pnpm install` 自愈。依据：本地 profile 实测残留旧锚定；Discussions #11 证实 pnpm 豁免规则 First-Match-Wins 陷阱；安装回调已用 `--config.minimum-release-age=0` 统一放行，profile 级豁免已被取代。 |
+| 2026-10-09 | 新增 FNOS-012-03 | 范围扩展：web profile 安装/升级链路检测 `minimumReleaseAgeExclude` 失效条目（版本与清单不一致），随后清理 lockfile 与 node_modules 并重新 `pnpm install` 自愈；字段保留不删除。依据：本地 profile 实测残留旧锚定；Discussions #11 证实 pnpm 豁免规则 First-Match-Wins 陷阱；字段的作用是让新发布插件正常安装，保留。 |
+| 2026-10-09 | 修正 FNOS-012-03/04 表述 | 03 由「移除字段」修正为「失效条目触发依赖重建，字段保留」；04 命令修正为 `npm dist-tag add`（`dist-tag set` 非有效子命令），补充 `pnpm publish --tag` 与 registry HTTP PUT 两种方式。 |
 | 2026-10-09 | 新增 FNOS-012-04 | 范围扩展：npm `latest` 标签校正。原因分析——发布链路只发 `next`、`latest` 从未跟随迭代且无校正机制，导致四个插件 `latest` 停在早期版本（`dsh-codex-auth` → `0.1.0-rc.7`）。解决方式——`latest` 维护自动化进 publish 命令（新代际首版发布时自动指向上一代最新稳定版 `0.1.7-rc.2.2`，同代际迭代不动 `latest`），并附应急手工校正命令；执行需 npm 发布权限（当前环境 token 失效，待权限恢复后执行）。 |
