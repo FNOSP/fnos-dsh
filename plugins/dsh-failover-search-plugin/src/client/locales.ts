@@ -5,6 +5,8 @@ export const zh = {
   // 区块标题
   sectionTitle: '平台用量',
   refreshHint: '用量来自平台免费查询端点，后台自动刷新',
+  refresh: '刷新',
+  refreshing: '刷新中',
   loading: '正在读取用量快照…',
   unavailable: '用量快照不可用',
   stale: '快照已过期，搜索仍会正常发起',
@@ -77,6 +79,8 @@ export const zh = {
 export const en = {
   sectionTitle: 'Platform usage',
   refreshHint: 'Usage comes from free platform query endpoints and refreshes in the background',
+  refresh: 'Refresh',
+  refreshing: 'Refreshing',
   loading: 'Reading the usage snapshot…',
   unavailable: 'Usage snapshot unavailable',
   stale: 'The snapshot is stale; searches still run normally',

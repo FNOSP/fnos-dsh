@@ -219,6 +219,18 @@
   gap: 10px;
 }
 
+/* 刷新入口推到头部右端，与「快照已过期」标签同组。 */
+.dsh-failover-usage__headactions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+
+.dsh-failover-usage__refresh {
+  flex: none;
+}
+
 .dsh-failover-usage__title {
   margin: 0;
 }

@@ -112,3 +112,30 @@ export function latestFetchedAt(snapshot: readonly AccountUsage[]): string | und
 
 /** 官方兜底级在展示层的固定代号（不参与用量分组，仅用于文案对照）。 */
 export const OFFICIAL_LABEL = OFFICIAL_SOURCE_ID
+
+/** 刷新入口的两种状态。 */
+export type RefreshStatus = 'idle' | 'refreshing'
+
+/** 刷新入口的呈现状态。 */
+export interface RefreshButtonState {
+  /** 是否禁用（刷新中必须禁用，避免重复触发平台端点请求）。 */
+  readonly disabled: boolean
+  /** 是否呈加载态（按钮显示 spinner）。 */
+  readonly busy: boolean
+  /** 文案键：空闲为 `refresh`，刷新中为 `refreshing`。 */
+  readonly labelKey: 'refresh' | 'refreshing'
+}
+
+/**
+ * 刷新入口的呈现状态（FNOS-010-08-AC-04）。
+ *
+ * 「刷新中不可重复触发」是这里唯一的约束原因：每次触发都会真实打到两个平台的
+ * 免费查询端点，重复点击不只是视觉问题，而是多余的平台请求。
+ *
+ * @param status - 当前刷新状态。
+ * @returns 按钮的禁用、加载与文案状态。
+ */
+export function refreshButtonState(status: RefreshStatus): RefreshButtonState {
+  if (status === 'refreshing') return { disabled: true, busy: true, labelKey: 'refreshing' }
+  return { disabled: false, busy: false, labelKey: 'refresh' }
+}

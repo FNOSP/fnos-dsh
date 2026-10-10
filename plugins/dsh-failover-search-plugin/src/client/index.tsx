@@ -19,7 +19,7 @@ import { installSemiDshTheme } from '@tnnevol/dsh-semi-ui'
 import { SettingsFormModel, settingsNumberField } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { FAILOVER_PACKAGE_NAME, FAILOVER_SETTINGS_NAMESPACE } from '../contracts/constants.ts'
-import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from '../contracts/usage-rpc.ts'
+import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from '../contracts/usage-rpc.ts'
 import type { AccountsSnapshot, RevealKeySnapshot, UsageSnapshot } from '../contracts/usage-rpc.ts'
 import type { AccountSummaryView } from './account-list.ts'
 import { FailoverConfigSection } from './config-section.tsx'
@@ -81,6 +81,19 @@ export function apply(ctx: ClientContext): void {
    */
   const load = async (): Promise<UsageSnapshot> => {
     const result = await rpc.call<UsageSnapshot>(FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT, {})
+    if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
+    return result.value
+  }
+
+  /**
+   * 强制重查平台用量端点并返回新快照（FNOS-010-08-AC-04）。
+   *
+   * 与 `load` 分成两条 RPC：`load` 只读内存快照（打开页面就该用这个，不产生外部
+   * 请求），`refresh` 才真实打到两个平台的免费查询端点。宿主侧复用后台刷新用的
+   * 同一个 `refreshUsage`，因此单个账号查询失败不会让整次刷新失败。
+   */
+  const refresh = async (): Promise<UsageSnapshot> => {
+    const result = await rpc.call<UsageSnapshot>(FAILOVER_USAGE_CHANNEL, FAILOVER_REFRESH_ENDPOINT, {})
     if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`)
     return result.value
   }
@@ -155,7 +168,7 @@ export function apply(ctx: ClientContext): void {
     return (
       <>
         <FailoverConfigSection t={t} form={form} model={model} loadSummaries={loadSummaries} copyKey={copyKey} />
-        <FailoverUsageSection t={t} load={load} revision={form.getSnapshot().revision} />
+        <FailoverUsageSection t={t} load={load} refresh={refresh} revision={form.getSnapshot().revision} />
       </>
     )
   }))

@@ -26,7 +26,7 @@ import type {} from '@deepseek-ai/dsh-web'
 import { Config, readSettings } from './contracts/config.ts'
 import type { FailoverSearchConfig } from './contracts/config.ts'
 import { FAILOVER_PROVIDER_ID, OFFICIAL_SOURCE_ID, TAVILY_PLATFORM_ID, TINYFISH_PLATFORM_ID } from './contracts/constants.ts'
-import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
+import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
 import type { AccountsSnapshot, RevealKeyRequest, RevealKeySnapshot, UsageSnapshot } from './contracts/usage-rpc.ts'
 import type { AccountConfig } from './contracts/config.ts'
 import type { AccountSummary } from './contracts/usage-rpc.ts'
@@ -44,7 +44,7 @@ import { UsageStore } from './host/usage-store.ts'
 export { Config } from './contracts/config.ts'
 export type { FailoverSearchConfig, FailoverSearchSettings, AccountConfig } from './contracts/config.ts'
 export { FAILOVER_PROVIDER_ID, FAILOVER_ROW_ID, FAILOVER_SETTINGS_NAMESPACE } from './contracts/constants.ts'
-export { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
+export { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
 export type { UsageSnapshot } from './contracts/usage-rpc.ts'
 export { FailoverSearchProvider } from './host/failover-provider.ts'
 export { UsageStore } from './host/usage-store.ts'
@@ -219,6 +219,18 @@ export function apply(ctx: Context, config: FailoverSearchConfig = Config({}) as
     if (injected.connection === undefined) return
     injected.connection.rpc.handle(FAILOVER_USAGE_CHANNEL, async (endpoint, payload) => {
       if (endpoint === FAILOVER_USAGE_ENDPOINT) {
+        const snapshot: UsageSnapshot = {
+          accounts: usage.snapshot(),
+          fresh: usage.isFresh(),
+          ...(refreshedAt === undefined ? {} : { fetchedAt: refreshedAt }),
+        }
+        return { ok: true, value: snapshot }
+      }
+      if (endpoint === FAILOVER_REFRESH_ENDPOINT) {
+        // 手动刷新（FNOS-010-08-AC-04）：强制重查两个平台的用量端点，然后回送新快照。
+        // 复用后台刷新用的同一个 refreshUsage——它已把失败折成日志（单个账号查询失败
+        // 不影响其它账号），因此刷新端点不会因平台侧错误而整体失败。
+        await refreshUsage()
         const snapshot: UsageSnapshot = {
           accounts: usage.snapshot(),
           fresh: usage.isFresh(),

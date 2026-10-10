@@ -12,6 +12,14 @@ export const FAILOVER_USAGE_CHANNEL = '/dsh-failover-search'
 /** 用量区块调用的端点：读取当前快照（只读，不触发刷新）。 */
 export const FAILOVER_USAGE_ENDPOINT = 'usage'
 
+/**
+ * 用量区块手动刷新调用的端点（FNOS-010-08-AC-04）：强制重查两个平台的用量端点。
+ *
+ * 与 `usage` 分开而不是给它加参数：只读端点被搜索链路与其它读取方复用，让「读」
+ * 顺带触发平台请求会让每次读取都产生外部调用。刷新是显式的写意图，单独一个端点。
+ */
+export const FAILOVER_REFRESH_ENDPOINT = 'refresh'
+
 /** 配置区调用的端点：读取账号的 key 掩码（secret 明文永不出现在返回里）。 */
 export const FAILOVER_ACCOUNTS_ENDPOINT = 'accounts'
 
