@@ -2,7 +2,7 @@
   "name": "@tnnevol/dsh-failover-search",
   "displayName": "Failover Search",
   "type": "module",
-  "version": "0.2.0-rc.2.0",
+  "version": "0.2.0-rc.2.1",
   "description": "Composite DSH web-search provider that fails over TinyFish → Tavily → official DeepSeek, spreads requests across multiple accounts per platform, and shows platform usage on the plugin page.",
   "author": "tnnevol",
   "license": "AGPL-3.0-only",
