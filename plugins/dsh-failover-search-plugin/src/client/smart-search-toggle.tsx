@@ -1,9 +1,13 @@
 /**
- * 消息框左下角的「智能搜索」开关（FNOS-010-12）。
+ * 消息框左下角的「智能搜索」药丸按钮（FNOS-010-12 / FNOS-012-06）。
  *
  * 位置：`conversation.input.left` 座位（消息框左下角，与「深度思考」同一行区域）。
  * 该座位是 **list**（非 keyed）且 `scope: session`——页面会给每个会话渲染，控件因此
  * 按**会话**读写开关状态，而不是读写全局配置。
+ *
+ * 形态（FNOS-012-06）：一个药丸按钮，可见文案固定为「智能搜索」——状态不进文案，
+ * 只靠激活态/普通态样式区分；原 Switch 与「智能搜索已关」类状态文案不再出现。
+ * 可访问名称是例外：读屏用户无法感知样式，名称仍须含状态描述。
  *
  * 语义：开启（默认）时该会话接入本插件（三方搜索优先、官方兜底；三方抓取兜底）；
  * 关闭时该会话完全不接入本插件，搜索与抓取回落官方、三方账号零消耗（AC-03）。
@@ -14,9 +18,8 @@
  */
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useState } from 'react'
-import { DshSwitch, DshTypography } from '@tnnevol/dsh-semi-ui'
+import { toggleAccessibleName } from './toggle-view.ts'
 import type { ToggleSnapshot } from '../contracts/usage-rpc.ts'
-import { toggleAccessibleName, toggleLabelKey } from './toggle-view.ts'
 import type { UsageLocaleKey } from './locales.ts'
 
 /** 会话级开关组件的参数。 */
@@ -30,10 +33,10 @@ export interface SmartSearchToggleProps {
 }
 
 /**
- * 智能搜索开关。
+ * 智能搜索药丸按钮。
  *
  * @param props - 组件参数。
- * @param props.t - 本地化函数。
+ * @param props.t - 本地化函数（可见文案固定取 `toggleOn`，即「智能搜索」）。
  * @param props.load - 读取该会话状态。
  * @param props.set - 写入该会话状态。
  * @returns 开关控件。
@@ -59,7 +62,7 @@ export function SmartSearchToggle({ t, load, set }: SmartSearchToggleProps): Rea
     if (busy) return
     const next = !enabled
     setBusy(true)
-    setEnabled(next) // 乐观更新：开关必须立刻跟手
+    setEnabled(next) // 乐观更新：按钮状态必须立刻跟手
     void set(next).then(
       snapshot => { setEnabled(snapshot.enabled) },
       () => { setEnabled(!next) }, // 回滚：写入失败时不能让界面撒谎
@@ -67,30 +70,15 @@ export function SmartSearchToggle({ t, load, set }: SmartSearchToggleProps): Rea
   }, [busy, enabled, set])
 
   return (
-    <div className="dsh-failover-toggle">
-      <DshSwitch
-        size="small"
-        checked={enabled}
-        disabled={busy}
-        aria-label={toggleAccessibleName(enabled)}
-        onChange={toggle}
-      />
-      <DshTypography.Text
-        className="dsh-failover-toggle__label"
-        onClick={toggle}
-        role="button"
-        tabIndex={0}
-        aria-label={toggleAccessibleName(enabled)}
-        onKeyDown={(event: KeyboardEvent) => {
-          // 键盘可达（TC-080）：Enter/Space 与点击等价。
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            toggle()
-          }
-        }}
-      >
-        {t(toggleLabelKey(enabled))}
-      </DshTypography.Text>
-    </div>
+    <button
+      type="button"
+      className={enabled ? 'dsh-failover-pill dsh-failover-pill--active' : 'dsh-failover-pill'}
+      aria-pressed={enabled}
+      aria-label={toggleAccessibleName(enabled)}
+      disabled={busy}
+      onClick={toggle}
+    >
+      {t('toggleOn')}
+    </button>
   )
 }

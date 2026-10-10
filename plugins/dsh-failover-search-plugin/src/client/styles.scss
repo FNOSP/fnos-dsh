@@ -347,26 +347,45 @@
   margin-top: 4px;
 }
 
-/* ── 消息框左下角的「智能搜索」开关（FNOS-010-12）─────────────────────────
-   与官方左侧控件行同高对齐：用 inline-flex + 居中，避免在不同行高下与
-   相邻控件（如「深度思考」）错位。 */
-.dsh-failover-toggle {
+/* ── 消息框左下角的「智能搜索」药丸按钮（FNOS-010-12 / FNOS-012-06）────────
+   FNOS-012-06 起 Switch + 状态文案改为单一药丸按钮：可见文案固定为「智能搜索」，
+   状态只靠激活态/普通态样式区分。与官方左侧控件行同高对齐（inline-flex + 居中），
+   避免在不同行高下与相邻控件（如「深度思考」）错位。 */
+.dsh-failover-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  padding: 2px 12px;
+  border: 1px solid var(--dsw-alias-border-secondary, rgba(128, 128, 128, 0.35));
+  border-radius: 999px;
+  background: transparent;
   /* 只使用 DSH 语义变量：亮暗主题由宿主切换，插件不自带硬编码色值。 */
   color: var(--dsw-alias-text-secondary);
-}
-
-.dsh-failover-toggle__label {
+  font-size: 12px;
+  line-height: 20px;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+/* 激活态（开启，默认）：品牌色描边 + 淡填充，与普通态仅样式区分。 */
+.dsh-failover-pill--active {
+  border-color: var(--dsw-alias-brand-primary);
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);
+  color: var(--dsw-alias-brand-primary);
+}
+
+.dsh-failover-pill:hover {
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.dsh-failover-pill:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 /* 键盘聚焦时给出可见焦点环（A11y：可见性不得只依赖鼠标）。 */
-.dsh-failover-toggle__label:focus-visible {
+.dsh-failover-pill:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary);
   outline-offset: 2px;
-  border-radius: 2px;
 }
