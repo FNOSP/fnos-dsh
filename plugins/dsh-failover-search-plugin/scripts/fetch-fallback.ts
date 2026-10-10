@@ -5,6 +5,10 @@
  * 1. 本地跳用一个必然失败的 stub（模拟 fake-ip DNS 被拒的 WEB_INVALID_URL）；
  * 2. 平台跳用真实 key 调 TinyFish Fetch / Tavily Extract；
  * 3. 断言取回真实正文，且两平台都失败时抛本地错误码。
+ *
+ * 目标站点用 `TARGET_URL` 覆盖，便于按**站点类型**验证兜底的普适性：
+ * 文档站（默认，服务端静态渲染）、代码托管站（JS 重度 + 反爬策略）、
+ * 动态应用页等。不同站点类型的抓取难度差异很大，只看一个站点不足以说明能力。
  */
 import { WebError } from '@deepseek-ai/dsh-web'
 import { CompositeFetchProvider } from '../src/host/fetch-failover-provider.ts'
@@ -12,7 +16,8 @@ import { TavilyExtractAdapter, TinyfishFetchAdapter } from '../src/host/fetch-pl
 
 const tinyfishKey = process.env.DSH_TINYFISH_KEYS?.split(',')[0] ?? ''
 const tavilyKey = process.env.DSH_TAVILY_KEYS?.split(',')[0] ?? ''
-const target = 'https://docs.tavily.com/documentation/api-reference/endpoint/extract'
+// 目标站点：默认文档站；用 TARGET_URL 换其他站点类型重复验证。
+const target = process.env.TARGET_URL ?? 'https://docs.tavily.com/documentation/api-reference/endpoint/extract'
 
 const results: string[] = []
 const check = (name: string, ok: boolean, detail: string) => {
@@ -31,7 +36,8 @@ const check = (name: string, ok: boolean, detail: string) => {
   })
   const r = await provider.fetch({ url: target })
   const len = r.body.content.length
-  check('本地失败 → TinyFish Fetch 取回', len > 500, `${len} 字符，status=${r.statusCode}`)
+  // 阈值 200 字符：足以排除「取回一个空壳/错误页」，又不假设目标站点篇幅。
+  check('本地失败 → TinyFish Fetch 取回', len > 200, `${len} 字符，status=${r.statusCode}`)
 }
 
 // 2) 本地失败 + TinyFish 不可用 → Tavily 兜底
@@ -46,7 +52,7 @@ const check = (name: string, ok: boolean, detail: string) => {
   })
   const r = await provider.fetch({ url: target })
   const len = r.body.content.length
-  check('TinyFish 不可用 → Tavily Extract 取回', len > 500, `${len} 字符，status=${r.statusCode}`)
+  check('TinyFish 不可用 → Tavily Extract 取回', len > 200, `${len} 字符，status=${r.statusCode}`)
 }
 
 // 3) 本地成功 → 平台零调用，且**原型方法形状**的本地跳能正常被调用。
@@ -105,6 +111,7 @@ const check = (name: string, ok: boolean, detail: string) => {
   check('全跳失败 → 保留本地错误码', code === 'WEB_INVALID_URL', `code=${code}`)
 }
 
+console.log(`目标站点: ${target}`)
 console.log(results.join('\n'))
 const failed = results.filter(r => r.startsWith('FAIL')).length
 console.log(`\n合计 ${results.length} 项，通过 ${results.length - failed} 项，失败 ${failed} 项`)

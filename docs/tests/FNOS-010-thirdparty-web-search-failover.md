@@ -145,10 +145,25 @@ verifiedAt: 2026-10-09
 | TC-063 | FNOS-010-11-AC-01/AC-03 | DSH Desktop 会话 + 三方账号，插件 debug 日志 | 会话内让模型 `web_fetch` 抓一个本地被拒的 URL | 日志级证据 `local failed → tinyfish succeeded`；模型拿到 HTTP 200 正文并正确总结（兜底在 Desktop 同样生效） | P0 |
 | TC-064 | 回归（Desktop 搜索链路） | 同上 | 会话内发起一次搜索 | 搜索仍走三方（日志 `tinyfish/tinyfish-1 succeeded`），新版 fetch provider 未干扰搜索链路 | P0 |
 
+### 站点类型覆盖（FNOS-010-11 兜底的普适性）
+
+抓取难度随站点类型差异很大（静态文档站、JS 重度代码托管站、纯文本 raw 资源），单一站点不足以说明兜底能力。验证脚本支持 `TARGET_URL` 覆盖目标，便于按站点类型重复验证。
+
+| 用例 | 站点类型 | 覆盖 | 前置条件 | 步骤 | 预期 | 优先级 |
+| --- | --- | --- | --- | --- | --- | --- |
+| TC-065 | 代码托管站（HTML，JS 重度） | FNOS-010-11-AC-01/02 | 复合 provider + 真实 key | 以 GitHub 仓库页为目标跑兜底验证 | 本地失败后 TinyFish 与 Tavily 均取回正文；两平台都不可用时保留本地错误码 | P1 |
+| TC-066 | 代码托管站（会话内） | FNOS-010-11-AC-03 | DSH Desktop 会话 + debug 日志 | 会话内让模型 `web_fetch` 抓 GitHub 仓库页 | 日志 `local failed → tinyfish succeeded`；模型读到 README 实质内容（项目定位、架构、启动方式），非泛泛而谈 | P1 |
+| TC-067 | 纯文本 raw 资源 | FNOS-010-11-AC-01/02 | 同上 | 以 `raw.githubusercontent.com` 的 README 为目标 | 两平台均取回纯文本正文（本地 provider 本身支持 `text/plain`） | P2 |
+| TC-068 | 站点内容质量对照 | FNOS-010-11-AC-02（次序依据） | 同上 | 对同一站点比对两平台返回 | TinyFish 返回干净正文；Tavily 返回整页转换（含导航样板与大量链接）——为「TinyFish 优先」提供事实依据 | P2 |
+
 ### FNOS-010-08 用量展示补充（手动刷新）
 
 | 用例 | 覆盖 | 前置条件 | 步骤 | 预期 | 优先级 |
 | --- | --- | --- | --- | --- | --- |
+| TC-065 | GitHub 站点类型 | 真实网络 | 通过 | 2026-10-10 | 仓库页 4/4：TinyFish 2597 字符、Tavily 53091 字符（含 11 处导航样板、375 个链接）；issues 页 4/4：2526 / 8361 字符。两平台的取回均成功、失败语义正确 |
+| TC-066 | GitHub 站点类型（会话内） | DSH Desktop + debug 日志 | 通过 | 2026-10-10 | 日志取证 `[failover-search:fetch] local failed (5ms)` → `tinyfish succeeded (1178ms)`；模型总结读到 README 实质内容（「一切皆插件」理念、Cordis 架构、开发者预览阶段、`npx @deepseek-ai/dsh web` 启动方式、社区入口）——只可能来自真实抓取 |
+| TC-067 | 纯文本 raw 资源 | 真实网络 | 通过 | 2026-10-10 | `raw.githubusercontent.com/.../master/README.md` 4/4：TinyFish 2601 字符、Tavily 2634 字符。**过程记录**：首次误用不存在的 `main` 分支（实际为 `master`），该 URL 本身 404，两平台对 404 空正文均报「empty content」——这是**正确的失败处理**，不是能力缺陷；换有效 URL 后正常 |
+| TC-068 | 内容质量对照 | 真实网络 | 通过 | 2026-10-10 | 同站点对照：TinyFish 2597 字符 / 0 处导航样板 / 0 个多余链接；Tavily 53091 字符 / 11 处导航样板 / 375 个链接。TinyFish 返回干净正文而 Tavily 返回整页转换——为需求里「TinyFish Fetch 优先」的排序提供了实测依据 |
 | TC-061 | 客户端兼容回归 | DSH Desktop | 通过 | 2026-10-10 | Desktop（`fork-pj/deepseek-harness` 开发态，profile 指向项目 `.dsh/profiles/desktop`）实测：区块文本索引 395 < 568 < 967（顺序与 Web 一致）；刷新入口存在且 `aria-label="刷新"`；配置区渲染、1 个账号读出、保存按钮在位 |
 | TC-062 | 客户端兼容回归 | DSH Desktop | 通过 | 2026-10-10 | 点击前 `12:26:05` → 点击中 `disabled=true` 且文案「刷新中」→ 完成后 `12:26:44`；状态序列仅 `true\|刷新中` → `false\|刷新`。Desktop 的 connection 链路同样承载新增的 refresh 端点 |
 | TC-063 | 客户端兼容回归 | DSH Desktop + debug 日志 | 通过 | 2026-10-10 | 日志级取证：`[failover-search:fetch] local failed (22ms)` → `tinyfish succeeded (1537ms)`；模型回答正确总结 Tavily Extract API 文档（含 POST /extract、basic/advanced、results/failed_results 结构），主对话区无错误 |
