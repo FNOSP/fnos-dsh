@@ -95,7 +95,7 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 | FNOS-012-03 | P1 | profile 依赖重建自愈 | DSH web profile 安装/升级时检测 pnpm-workspace.yaml 中 `minimumReleaseAgeExclude` 条目指向的版本是否已失效（与清单版本不一致）；存在失效条目时清理 lockfile 与 node_modules 并在 profile 目录重新 `pnpm install`，使豁免规则与实际安装版本重新对齐，插件安装恢复正常 | <Badge type="info" text="规划中" /> |
 | FNOS-012-04 | P1 | npm latest 标签校正 | 四个插件 npm 的 `latest` 指向 `0.1.7-rc.2.2`；`npm i @tnnevol/<插件>` 默认安装到上一代稳定版而非 `0.1.0-rc.7` 等早期版本；`0.2.0-rc.2.0` 继续通过 `next` 获取 | <Badge type="info" text="规划中" /> |
 | FNOS-012-05 | P1 | 插件发布内容完整性校正 | `@tnnevol/dsh-failover-search` 的 `compatibility.json` 包清单与实际依赖一致（含本轮新增的 `dsh-tools`、`dsh-agent`、`dsh-client-ui-conversation`、`dsh-web-fetch-http`）；新发布的插件包内该清单不再落后于源码 | <Badge type="info" text="规划中" /> |
-| FNOS-012-06 | P2 | 智能搜索控件改为药丸按钮样式 | `dsh-failover-search` 消息框左下角的「智能搜索」控件改为药丸按钮：开启时呈激活态样式、关闭时为普通态；移除 Switch，仅保留「智能搜索」文案；位置、会话级语义与默认开启不变 | <Badge type="info" text="规划中" /> |
+| FNOS-012-06 | P2 | 智能搜索控件改为药丸按钮样式 | `dsh-failover-search` 消息框左下角的「智能搜索」控件改为药丸按钮：开启时呈激活态样式、关闭时为普通态；移除 Switch，仅保留「智能搜索」文案（状态不进文案，只靠样式区分）；位置、会话级语义与默认开启不变 | <Badge type="info" text="规划中" /> |
 
 ## 行为约束
 
@@ -104,7 +104,7 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 - 模型名称保持 CodeBuddy 自己的名称，倍速不拼进名称（倍率变化不应表现为模型改名）。
 - 版本常量只影响客户端指纹与兼容性声明，不改变请求结构、业务逻辑和已保存凭据；用户数据不受影响。
 - `minimumReleaseAgeExclude` 的**作用是让新发布的插件版本绕过 pnpm 发布冷静期正常安装，字段本身保留，不删除**；自愈只针对「豁免条目指向的版本与实际安装版本不一致」的失效状态：清理该 profile 的 lockfile 与 node_modules 并重新 `pnpm install`，使豁免规则与实际版本重新对齐。检测与重建只发生在 DSH web profile 的安装/升级链路内，不影响用户主目录 `~/.dsh` 与其他 profile；安装失败不得回滚或删除用户配置。
-- 智能搜索控件（FNOS-012-06）只改视觉形态：会话级语义、默认开启、按会话独立与即时生效等行为全部沿用 [FNOS-010-12](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12) 的既有约定；样式使用 DSH 语义变量，亮暗主题下激活态与普通态均可读。
+- 智能搜索控件（FNOS-012-06）只改视觉形态：会话级语义、默认开启、按会话独立与即时生效等行为全部沿用 [FNOS-010-12](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12) 的既有约定；样式使用 DSH 语义变量，亮暗主题下激活态与普通态均可读。**可见文案固定为「智能搜索」，状态不进文案**（不得出现「智能搜索已关」类文案）；可访问名称是例外——读屏用户无法感知样式，名称仍须含状态描述。
 - 实现方式与展示位置由对应计划决定；不改 DSH 官方源码。
 
 ## 不在本次范围内
@@ -147,9 +147,9 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 
 ### FNOS-012-06
 
-- `FNOS-012-06-AC-01`：消息框左下角的智能搜索控件为药丸按钮形态，仅含「智能搜索」文案，原 Switch 控件不再出现。
-- `FNOS-012-06-AC-02`：开启（默认）时药丸按钮呈激活态样式，关闭时呈普通态，两种状态视觉可辨；点击切换行为与 [FNOS-010-12-AC-02/03](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12) 一致。
-- `FNOS-012-06-AC-03`：亮色与暗色主题下激活态与普通态均清晰可辨，样式使用 DSH 语义变量；键盘可达与可访问名称保持（沿用 FNOS-010-12 的 TC-080 约束）。
+- `FNOS-012-06-AC-01`：消息框左下角的智能搜索控件为药丸按钮形态，仅含「智能搜索」文案，原 Switch 控件与「智能搜索已关」类状态文案不再出现。
+- `FNOS-012-06-AC-02`：开启（默认）时药丸按钮呈激活态样式，关闭时呈普通态，两种状态仅通过样式区分且视觉可辨；点击切换行为与 [FNOS-010-12-AC-02/03](/requirements/FNOS-010-thirdparty-web-search-failover#fnos-010-12) 一致。
+- `FNOS-012-06-AC-03`：亮色与暗色主题下激活态与普通态均清晰可辨，样式使用 DSH 语义变量；键盘可达与可访问名称保持——可访问名称仍含状态描述（读屏用户无法感知样式，需要靠它判断当前状态）。
 
 ### 验收环境范围
 

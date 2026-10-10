@@ -60,7 +60,7 @@ lastVerified: 2026-10-09
 | PLAN-FNOS-012-T01-08 | FNOS-012-05 / AC-01 | `@tnnevol/dsh-failover-search` 的 `compatibility.json` 包清单与实际依赖对齐：`dshPluginApi.packages` 取 `package.json` 的 `@deepseek-ai/dsh-*` peer 集合（当前 16 个；补 `dsh-tools`、`dsh-agent`、`dsh-client-ui-conversation`、`dsh-web-fetch-http` 等）。**该项源码已在提交 `f86a7e7` 完成**，本任务负责随版本发布进入线上包 | 源码已修 | `keeps each compatibility package list aligned with source imports` 用例通过；发布后解包核对清单含全部依赖 |
 | PLAN-FNOS-012-T01-09 | FNOS-012-05 / AC-03 | 发布前复核产物的约定：把「发布后若源码又改动产物相关文件（`compatibility.json`、`cordis.patch.yml`、`package.json`）则须随下次版本发布，不得让线上包与源码长期不一致」写入 [发布流程](../build/release.md)；并说明现有两条用例的边界——它们只校验**仓库内**清单与安装命令，**不校验已发布包的产物**，因此发布时序需要人工把关 | T01-08 | 文档构建通过；发布流程含该约定 |
 | PLAN-FNOS-012-T01-10 | FNOS-012-06 / AC-01、AC-02 | `smart-search-toggle.tsx` 重构：移除 `DshSwitch`，改为药丸按钮（`<button>` 承载「智能搜索」文案）；开启时 `is-active` 激活态、关闭时普通态；沿用既有乐观更新/失败回滚与会话级状态逻辑（`toggle-view.ts` 的可访问名称 helper 复用或简化） | 无 | 组件单测：激活态类名随 `enabled` 切换、点击切换、busy 禁用；FNOS-010-12 既有开关行为回归通过 |
-| PLAN-FNOS-012-T01-11 | FNOS-012-06 / AC-03 | `styles.scss` 药丸样式：圆角全圆、DSH 语义变量着色（激活态与普通态两套），亮暗主题可读；`locales.ts` 的 `toggleOn`/`toggleOff` 双态文案收敛为单一「智能搜索」文案 | T01-10 | Web 走查（亮/暗各一遍）；键盘可达（Enter/Space）核对 |
+| PLAN-FNOS-012-T01-11 | FNOS-012-06 / AC-03 | `styles.scss` 药丸样式：圆角全圆、DSH 语义变量着色（激活态与普通态两套），亮暗主题可读；`locales.ts` 移除 `toggleOff`（「智能搜索已关」）键，`toggleOn` 收敛为唯一可见文案「智能搜索」；`toggle-view.ts` 的 `toggleLabelKey` 相应简化为常量，**可访问名称保留状态描述**（读屏用户无法感知样式） | T01-10 | Web 走查（亮/暗各一遍）：可见文案固定、无状态文案残留；键盘可达（Enter/Space）核对 |
 
 ### 阶段二：目标环境验收（T02-01）
 
