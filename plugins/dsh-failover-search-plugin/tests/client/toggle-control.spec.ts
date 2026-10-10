@@ -74,14 +74,28 @@ describe('FNOS-012-06-AC-02 两态仅样式区分', () => {
     expect(source).toContain(": 'dsh-failover-pill'")
   })
 
-  it('样式定义激活态与普通态，均使用 DSH 语义变量', async () => {
+  it('几何与配色对齐官方「深度思考」chip（business 语义色，非自造描边）', async () => {
     const styles = await readToggleStyles()
 
     expect(styles).toContain('.dsh-failover-pill')
     expect(styles).toContain('.dsh-failover-pill--active')
-    // 只用语义变量，不硬编码色值（color-mix 的 12% 是比例不是色值）。
-    expect(styles).toMatch(/--dsw-alias-brand-primary/u)
-    expect(styles).toMatch(/--dsw-alias-text-secondary/u)
+    // 与官方 chip 同款：28px 高、--dsw-radius-sm、business 语义色激活态。
+    expect(styles).toMatch(/height: 28px/u)
+    expect(styles).toMatch(/var\(--dsw-radius-sm\)/u)
+    expect(styles).toMatch(/var\(--dsw-alias-state-business-tertiary\)/u)
+    expect(styles).toMatch(/var\(--dsw-alias-state-business-primary\)/u)
+    // 不再使用自造的品牌色描边粉彩底。
+    expect(styles).not.toMatch(/--dsw-alias-brand-primary/u)
+    expect(styles).not.toMatch(/border-radius: 999px/u)
+  })
+
+  it('带 14px 地球图标位（glyph 槽随文字取色）', async () => {
+    const source = await readToggleComponent()
+
+    expect(source).toContain('dsh-failover-pill__glyph')
+    expect(source).toMatch(/IconGlobeOutlineRegular/u)
+    const styles = await readToggleStyles()
+    expect(styles).toMatch(/\.dsh-failover-pill__glyph[\s\S]*?width: 14px/u)
   })
 
   it('切换行为与状态所有权沿用（乐观更新 + 失败回滚）', async () => {

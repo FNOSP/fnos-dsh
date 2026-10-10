@@ -349,34 +349,44 @@
 
 /* ── 消息框左下角的「智能搜索」药丸按钮（FNOS-010-12 / FNOS-012-06）────────
    FNOS-012-06 起 Switch + 状态文案改为单一药丸按钮：可见文案固定为「智能搜索」，
-   状态只靠激活态/普通态样式区分。与官方左侧控件行同高对齐（inline-flex + 居中），
-   避免在不同行高下与相邻控件（如「深度思考」）错位。 */
+   状态只靠激活态/普通态样式区分。几何与官方「深度思考」chip 同款（28px 高、
+   --dsw-radius-sm 圆角、13px/20px medium、14px 图标位），视觉上与相邻的官方
+   控件读作同一族；只使用 DSH 语义变量，亮暗主题由宿主切换。 */
 .dsh-failover-pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 12px;
-  border: 1px solid var(--dsw-alias-border-secondary, rgba(128, 128, 128, 0.35));
-  border-radius: 999px;
-  background: transparent;
-  /* 只使用 DSH 语义变量：亮暗主题由宿主切换，插件不自带硬编码色值。 */
-  color: var(--dsw-alias-text-secondary);
-  font-size: 12px;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-interactive-bg, transparent);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  font-weight: 500;
   line-height: 20px;
-  cursor: pointer;
-  user-select: none;
   white-space: nowrap;
-  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+  cursor: pointer;
+  transition: background-color 100ms ease, color 100ms ease;
 }
 
-/* 激活态（开启，默认）：品牌色描边 + 淡填充，与普通态仅样式区分。 */
+/* 激活态（开启，默认）：与官方「深度思考」chip 同一配色族（business 语义色），
+   与普通态仅样式区分。 */
 .dsh-failover-pill--active {
-  border-color: var(--dsw-alias-brand-primary);
-  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent);
-  color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-state-business-tertiary);
+  color: var(--dsw-alias-state-business-primary);
 }
 
-.dsh-failover-pill:hover {
-  border-color: var(--dsw-alias-brand-primary);
+.dsh-failover-pill:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.dsh-failover-pill--active:hover:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--dsw-alias-state-business-tertiary),
+    var(--dsw-alias-state-business-primary) 6%
+  );
 }
 
 .dsh-failover-pill:disabled {
@@ -384,8 +394,18 @@
   opacity: 0.6;
 }
 
+/* 14px 图标位（与官方 chip 的 glyph 槽同规格），随文字取色。 */
+.dsh-failover-pill__glyph {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: currentColor;
+}
+
 /* 键盘聚焦时给出可见焦点环（A11y：可见性不得只依赖鼠标）。 */
 .dsh-failover-pill:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline: var(--dsw-focus-ring-width, 2px) solid
+    var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 2px;
 }

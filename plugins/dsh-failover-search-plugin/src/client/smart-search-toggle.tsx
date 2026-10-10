@@ -18,6 +18,7 @@
  */
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useState } from 'react'
+import { IconGlobeOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { toggleAccessibleName } from './toggle-view.ts'
 import type { ToggleSnapshot } from '../contracts/usage-rpc.ts'
 import type { UsageLocaleKey } from './locales.ts'
@@ -78,6 +79,9 @@ export function SmartSearchToggle({ t, load, set }: SmartSearchToggleProps): Rea
       disabled={busy}
       onClick={toggle}
     >
+      <span className="dsh-failover-pill__glyph" aria-hidden>
+        <IconGlobeOutlineRegular size={14} />
+      </span>
       {t('toggleOn')}
     </button>
   )
