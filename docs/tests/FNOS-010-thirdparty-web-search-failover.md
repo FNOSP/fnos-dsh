@@ -145,6 +145,17 @@ verifiedAt: 2026-10-09
 | TC-063 | FNOS-010-11-AC-01/AC-03 | DSH Desktop 会话 + 三方账号，插件 debug 日志 | 会话内让模型 `web_fetch` 抓一个本地被拒的 URL | 日志级证据 `local failed → tinyfish succeeded`；模型拿到 HTTP 200 正文并正确总结（兜底在 Desktop 同样生效） | P0 |
 | TC-064 | 回归（Desktop 搜索链路） | 同上 | 会话内发起一次搜索 | 搜索仍走三方（日志 `tinyfish/tinyfish-1 succeeded`），新版 fetch provider 未干扰搜索链路 | P0 |
 
+### 端到端全流程（搜索 → 网页内容获取）
+
+真实使用是**串联**的：先搜索、拿到来源、再读某一篇全文（`web_search` 的结果里带 `Follow up with web_fetch ...` 引导）。既有 smoke 只测搜索、fetch 脚本只测抓取，都不覆盖串联——本组补齐。
+
+| 用例 | 站点类型 | 覆盖 | 前置条件 | 步骤 | 预期（可观察） | 优先级 |
+| --- | --- | --- | --- | --- | --- | --- |
+| TC-081 | 包管理站（npm） | FNOS-010-01 + 010-11 | 三方 key 已配置 | 1.搜索 npm 上的包 2.从返回的来源里挑一条 3.取回其正文 | 搜索有来源（≥1 条）；来源 URL 可被取回正文（>200 字符）；搜索与抓取分别有成功的 attempt/hop 记录 | P0 |
+| TC-082 | 代码托管站（GitHub） | 同上 | 同上 | 同上，目标是 GitHub 仓库 | 同上；站点类型不影响链路可完成性 | P0 |
+| TC-083 | npm + GitHub | 同上（会话内） | DSH Web 会话 + debug 日志 | 会话内让模型「搜索 X，然后 fetch 选中的页面并总结」 | 日志同时出现搜索成功与抓取降级记录（`local failed → tinyfish succeeded`）且抓取的 URL 来自搜索结果；模型回答含**只可能来自页面正文**的细节 | P0 |
+| TC-084 | 同上 | FNOS-010-12-AC-03（关闭态对照） | 同上，开关关闭 | 关闭开关后重复 TC-083 | 三方零调用（平台计数不增、日志无 `tinyfish succeeded`）；模型仍可工作（走官方路径） | P0 |
+
 ### FNOS-010-12 会话级「智能搜索」开关
 
 功能拆解（按测试架构师视角）：
@@ -169,6 +180,11 @@ verifiedAt: 2026-10-09
 
 | 用例 | 覆盖 | 分类 | 前置条件 | 步骤 | 预期（可观察） | 优先级 |
 | --- | --- | --- | --- | --- | --- | --- |
+| TC-081 | npm 全流程 | 真实网络（脚本） | 通过 | 2026-10-10 | 搜索返回 10 条来源；挑中的来源 `https://www.npmjs.com/package/@deepseek-ai/dsh` 取回 **6641 字符**正文；日志 `tinyfish/tinyfish-1 succeeded` + `hop local failed (0ms) → hop tinyfish succeeded (986ms)` |
+| TC-082 | GitHub 全流程 | 真实网络（脚本） | 通过 | 2026-10-10 | 搜索返回 7 条来源；`https://github.com/deepseek-ai/deepseek-harness` 取回 **2597 字符**；抓取降级记录同 TC-081 |
+| TC-083 | npm 会话内全流程 | DSH Web + debug 日志 | 通过 | 2026-10-10 | 模型自主完成「搜索 → 挑 URL → 取正文」：搜索 `tinyfish/tinyfish-1 succeeded (1469ms)`，抓取 `local failed (17ms) → tinyfish succeeded (1232ms)`，抓取 URL 正是搜索结果里的 npm 包页。回答含只可能来自页面的细节：**最新版本 0.2.0-rc.2**、约 7 天前发布、「一切皆插件、以 profile 启动」、**web/headless/sdk/sdk-minimal/acp** 五种入口模式、`dsh plugin` 转发 pnpm、peer 版本校验 |
+| TC-083b | GitHub 会话内全流程 | DSH Web + debug 日志 | 通过 | 2026-10-10 | 模型读 GitHub 仓库后**自行判断 README 未含目录树、追加用 GitHub API 补拉**（`api.github.com/repos/.../contents/`，`local failed (12ms) → tinyfish succeeded (1440ms)`）；回答列出真实目录 `packages/`、`apps/`、`python/`、`native/`、`examples/`、`docs/`、`website/`、`scripts/`、`patches/`——含 README 之外的 API 内容 |
+| TC-084 | 关闭态对照 | 平台计数 + debug 日志 | 通过 | 2026-10-10 | 关闭开关后做同样的事：TinyFish 平台计数 101 → **101（未增加）**；抓取日志只有 `local failed`（对 3 个 URL：GitHub API、raw README、npm registry）**无任何 `tinyfish succeeded`**；搜索无三方 attempt——门控对搜索与抓取**两条链路同时**生效 |
 | TC-069 | FNOS-010-12-AC-01 | 正向 | 插件已启用，打开任一会话 | 1.观察消息框左下角 2.核对控件文案与初始状态 | 出现「智能搜索」开关；初始为**开启**态；控件在「深度思考」同一行区域、位于消息框左下 | P0 |
 | TC-070 | FNOS-010-12-AC-02 | 正向（基线一致） | 开关开启，已配三方 key | 1.发起一次搜索 2.查看插件 debug 日志 | 走三方：日志 `[failover-search] tinyfish/tinyfish-1 succeeded`；与开关引入前逐项一致（基线：TC-001/TC-052 同特征） | P0 |
 | TC-071 | FNOS-010-12-AC-03 | 逆向（核心） | 开关**关闭**，已配三方 key | 1.发起一次搜索 2.核对 TinyFish 请求日志条数 3.查看插件日志 | 三方**零调用**（TinyFish 日志 `total` 不增加、无 `[failover-search]` 尝试记录）；结果由官方返回或按官方语义提示；配额零消耗 | P0 |
