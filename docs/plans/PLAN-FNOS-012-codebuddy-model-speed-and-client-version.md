@@ -44,7 +44,7 @@ lastVerified: 2026-10-09
 
 ## 分阶段任务
 
-### 阶段一：实现与验证（T01-01–T01-07）
+### 阶段一：实现与验证（T01-01–T01-09）
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
@@ -55,6 +55,8 @@ lastVerified: 2026-10-09
 | PLAN-FNOS-012-T01-05 | FNOS-012-03 / AC-03、AC-04 | 自愈与插件安装顺序核对：清理重装发生在插件安装之前，`NO_MATURE_MATCHING_VERSION` 不再出现；清理过程不触碰用户配置与凭据文件 | T01-04 | 本地 profile 模拟残留场景端到端走查；失败时不回滚用户数据 |
 | PLAN-FNOS-012-T01-06 | FNOS-012-04 / AC-01、AC-02 | **`latest` 校正自动化进发布命令**：`tooling/fnos-dsh-cli` 的 `runPublish` 在每个插件 `publish:next` 成功后，读取该包 `package.json` 的 `version`，按代际规则自动维护 `latest`——新代际首版（如 `0.2.0-rc.2.0` 相对上一代 `0.1.7-*`）发布时把 `latest` 指向**上一代最新稳定版**；同代际迭代版（如 `0.2.0-rc.2.1`）不动 `latest`。上一代最新版通过 `npm view <name> versions` 解析预发布代际后取最大序，或在发布前缓存 dist-tags 后计算；写入方式实现时三选一：`npm dist-tag add <name>@<version> latest`（标准子命令，无 `set`）、registry HTTP `PUT /-/package/<pkg>/dist-tags`（全量写）、或改插件脚本 `pnpm publish --tag <tag>` 直接指定。本次需要的一次性校正（`0.1.7-rc.2.2`）由同一段逻辑在下次发布时自动完成，无需单独手工执行 | npm 发布权限（当前环境 token 失效 401，执行前需 `npm login`） | CLI 单测：代际判定逻辑（新代际→动 latest、同代际→不动）；真实发布后 `pnpm view <包> dist-tags` 核对 |
 | PLAN-FNOS-012-T01-07 | FNOS-012-04 / AC-03 | 把「`latest` 由发布命令自动维护」的约定写入 [发布流程](../build/release.md)：`pnpm run publish` 完成后自动处理，无需每次发布后手动设置 dist-tag；文档说明代际规则、可用命令（`npm dist-tag add/rm/ls`）与应急校正方式 | T01-06 | 文档构建通过；下次发布验证自动化生效 |
+| PLAN-FNOS-012-T01-08 | FNOS-012-05 / AC-01 | `@tnnevol/dsh-failover-search` 的 `compatibility.json` 包清单与实际依赖对齐：`dshPluginApi.packages` 取 `package.json` 的 `@deepseek-ai/dsh-*` peer 集合（当前 16 个；补 `dsh-tools`、`dsh-agent`、`dsh-client-ui-conversation`、`dsh-web-fetch-http` 等）。**该项源码已在提交 `f86a7e7` 完成**，本任务负责随版本发布进入线上包 | 源码已修 | `keeps each compatibility package list aligned with source imports` 用例通过；发布后解包核对清单含全部依赖 |
+| PLAN-FNOS-012-T01-09 | FNOS-012-05 / AC-03 | 发布前复核产物的约定：把「发布后若源码又改动产物相关文件（`compatibility.json`、`cordis.patch.yml`、`package.json`）则须随下次版本发布，不得让线上包与源码长期不一致」写入 [发布流程](../build/release.md)；并说明现有两条用例的边界——它们只校验**仓库内**清单与安装命令，**不校验已发布包的产物**，因此发布时序需要人工把关 | T01-08 | 文档构建通过；发布流程含该约定 |
 
 ### 阶段二：目标环境验收（T02-01）
 
@@ -115,4 +117,4 @@ lastVerified: 2026-10-09
 | 2026-10-09 | 初始计划 | 建立 PLAN-FNOS-012，覆盖 FNOS-012-01/02；倍速字段与版本常量位置已在插件源码核实，composer 渲染路径核实为 T01-01 前置任务。 |
 | 2026-10-09 | 新增 FNOS-012-03（T01-04/T01-05） | web profile 安装/升级链路检测 `minimumReleaseAgeExclude` 失效条目（版本与清单不一致），随后删 lockfile 与 node_modules 并在 profile 目录重新 `pnpm install` 自愈；字段保留不删除（其作用是让新发布插件正常安装）。同步更新目标设计、影响矩阵、风险与参考资料。 |
 | 2026-10-09 | 修正 03/04 表述 | FNOS-012-03 由「移除字段」修正为「失效条目触发依赖重建，字段保留」（字段是让新发布插件正常安装的机制，不删）；FNOS-012-04 命令修正为 `npm dist-tag add`（`dist-tag set` 非有效子命令），并补充 `pnpm publish --tag` 与 registry HTTP PUT 两种可用方式。 |
-| 2026-10-09 | 新增 FNOS-012-04（T01-06/T01-07） | npm `latest` 校正到 `0.1.7-rc.2.2`（四包一致，运维操作需发布权限；当前环境 npm token 失效 401，执行前需 `npm login`）；并把「发布后维护 `latest`」约定写入发布流程文档防复发。原因分析与命令登记在需求文档「问题分析」章节。 |
+| 2026-10-09 | 新增 FNOS-012-04（T01-06/T01-07） | npm `latest` 校正到 `0.1.7-rc.2.2`（四包一致，运维操作需发布权限；当前环境 npm token 失效 401，执行前需 `npm login`）；并把「发布后维护 `latest`」约定写入发布流程文档防复发。原因分析与命令登记在需求文档「问题分析」章节。 || 2026-10-10 | 新增 FNOS-012-05（T01-08/T01-09） | `@tnnevol/dsh-failover-search` 的 `compatibility.json` 包清单落后（10 → 16 个包）：本轮新增的 `dsh-tools`/`dsh-agent`/`dsh-client-ui-conversation`/`dsh-web-fetch-http` 未声明。源码已在 `f86a7e7` 修正，但晚于 `v0.2.0-rc.2.1` 发布数十秒，**未进入线上包**——与 FNOS-012-04 同源（发布产物与实际不符），并入本需求。T01-08 负责随版本发布；T01-09 把「发布前复核产物」写入发布流程，并登记现有两条用例不覆盖已发布包的边界。 |

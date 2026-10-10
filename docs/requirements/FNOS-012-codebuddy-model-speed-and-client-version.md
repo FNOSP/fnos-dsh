@@ -38,6 +38,10 @@ CodeBuddy 插件通过 `/model` 指令打开模型列表窗口选择模型。用
 | npm 上四个插件的 `latest` dist-tag 全部停留在早期版本（`dsh-codex-auth` → `0.1.0-rc.7`、`dsh-codebuddy` → `0.1.2-rc.1.2`、`dsh-fnos` → `0.1.1-rc.2.0`、`dsh-semi-ui-showcase` → `0.1.2-rc.1`），新版本只挂在 `next`（`0.2.0-rc.2.0`）；`npm i` 不带 tag 会装到旧版 | npm registry `dist-tags` 实测（2026-10-09）；[Discussions #11](https://github.com/FNOSP/fnos-dsh/discussions/11) 社区同报 | FNOS-012-04 | 已核实 |
 | `latest` 失效的直接原因：发布链路只发 `next`（`publish:next` 脚本固定 `--tag next`），从无维护 `latest` 的步骤；`latest` 停在各插件历史早期版本 | 插件 `package.json` 的 `publish:next` 脚本；`tooling/fnos-dsh-cli` publish 命令 | FNOS-012-04 | 已核实 |
 | `latest` 的正确指向为各插件上一代最新版 `0.1.7-rc.2.2`（四个插件一致）；rc 版进 `latest` 会让普通用户提前装到预发布版，与 rc 阶段 pin 版本策略冲突 | npm 版本序列核对；维护者 rc 策略回复（Discussions #11） | FNOS-012-04 | 已核实 |
+| `@tnnevol/dsh-failover-search` 的 `compatibility.json` 包清单长期停留在 10 个包；该插件实际依赖 16 个 `@deepseek-ai/dsh-*` 包——本轮新增的 `dsh-tools`（会话级门控）、`dsh-agent`（读 `exec.agent`）、`dsh-client-ui-conversation`（`conversation.input.left` 座位类型）、`dsh-web-fetch-http`（复用 `HttpFetchProvider`）均未声明 | 源码 import 扫描与 `package.json` peerDependencies 比对（2026-10-10） | FNOS-012-05 | 已核实 |
+| 缺失后果：该清单约束宿主的兼容门禁提示，漏声明时「宿主缺包」不会被安装期拦下，要到编译或运行才失败；与 `latest` 问题同属**发布产物与实际不符** | `tooling/fnos-dsh-cli` 的 `keeps each compatibility package list aligned with source imports` 用例（从源码扫 import 与声明面比对） | FNOS-012-05 | 已核实 |
+| 发布时序导致的漏网：清单修正（提交 `f86a7e7`）晚于 `v0.2.0-rc.2.1` 发布（`2026-10-10T05:45:38Z`）数十秒，因此该修正**不在已发布的包里**——源码已修但线上包仍是旧清单 | npm 发布时间与提交时间戳比对；已发布包解包核对 | FNOS-012-05 | 已核实（本次实例） |
+| 同类问题的检测手段已有：`keeps each compatibility package list aligned with source imports` 会捕获清单与源码不一致；`keeps every documented install command on the released plugin version` 会捕获安装命令版本落后。但两者都**不校验已发布包的产物**——发布后源码再改就会漏网 | 两条用例的断言范围 | FNOS-012-05 | 已核实（改进方向） |
 
 ## 需求目标
 
@@ -90,6 +94,7 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 | FNOS-012-02 | P1 | 客户端版本更新 | 插件请求携带的 CLI 版本为 `2.163.0`、WorkBuddy 版本为 `5.77`，登录与请求行为与官方客户端一致 | <Badge type="info" text="规划中" /> |
 | FNOS-012-03 | P1 | profile 依赖重建自愈 | DSH web profile 安装/升级时检测 pnpm-workspace.yaml 中 `minimumReleaseAgeExclude` 条目指向的版本是否已失效（与清单版本不一致）；存在失效条目时清理 lockfile 与 node_modules 并在 profile 目录重新 `pnpm install`，使豁免规则与实际安装版本重新对齐，插件安装恢复正常 | <Badge type="info" text="规划中" /> |
 | FNOS-012-04 | P1 | npm latest 标签校正 | 四个插件 npm 的 `latest` 指向 `0.1.7-rc.2.2`；`npm i @tnnevol/<插件>` 默认安装到上一代稳定版而非 `0.1.0-rc.7` 等早期版本；`0.2.0-rc.2.0` 继续通过 `next` 获取 | <Badge type="info" text="规划中" /> |
+| FNOS-012-05 | P1 | 插件发布内容完整性校正 | `@tnnevol/dsh-failover-search` 的 `compatibility.json` 包清单与实际依赖一致（含本轮新增的 `dsh-tools`、`dsh-agent`、`dsh-client-ui-conversation`、`dsh-web-fetch-http`）；新发布的插件包内该清单不再落后于源码 | <Badge type="info" text="规划中" /> |
 
 ## 行为约束
 
@@ -132,6 +137,12 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 - `FNOS-012-04-AC-02`：`npm i @tnnevol/<插件>`（不带 tag）安装到 `0.1.7-rc.2.2`，不再落在 `0.1.0-rc.7` 等早期版本；`0.2.0-rc.2.0` 仍通过 `next` 标签获取。
 - `FNOS-012-04-AC-03`：后续发布流程包含 `latest` 维护约定，避免 `latest` 再次长期滞留。
 
+### FNOS-012-05
+
+- `FNOS-012-05-AC-01`：`@tnnevol/dsh-failover-search` 的 `compatibility.json` 的 `dshPluginApi.packages` 与 `package.json` 的 `@deepseek-ai/dsh-*` peer 依赖集合一致（当前为 16 个包）——源码与声明面不再有缺口。
+- `FNOS-012-05-AC-02`：修正随下一次插件版本发布进入线上包；下载该版本解包核对其 `compatibility.json` 已含全部依赖（不只看版本号）。
+- `FNOS-012-05-AC-03`：发布链路对该类「源码已修、线上包未含」的漏网有约束——发布后源码发生与产物相关的改动时，要么随下次版本发布并在发布前复核产物，要么在发布前完成；不得让线上包与仓库源码长期不一致。
+
 ### 验收环境范围
 
 - FNOS-012-01 在 DSH Web 与 DSH Desktop 验收。
@@ -148,3 +159,4 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 | 2026-10-09 | 新增 FNOS-012-03 | 范围扩展：web profile 安装/升级链路检测 `minimumReleaseAgeExclude` 失效条目（版本与清单不一致），随后清理 lockfile 与 node_modules 并重新 `pnpm install` 自愈；字段保留不删除。依据：本地 profile 实测残留旧锚定；Discussions #11 证实 pnpm 豁免规则 First-Match-Wins 陷阱；字段的作用是让新发布插件正常安装，保留。 |
 | 2026-10-09 | 修正 FNOS-012-03/04 表述 | 03 由「移除字段」修正为「失效条目触发依赖重建，字段保留」；04 命令修正为 `npm dist-tag add`（`dist-tag set` 非有效子命令），补充 `pnpm publish --tag` 与 registry HTTP PUT 两种方式。 |
 | 2026-10-09 | 新增 FNOS-012-04 | 范围扩展：npm `latest` 标签校正。原因分析——发布链路只发 `next`、`latest` 从未跟随迭代且无校正机制，导致四个插件 `latest` 停在早期版本（`dsh-codex-auth` → `0.1.0-rc.7`）。解决方式——`latest` 维护自动化进 publish 命令（新代际首版发布时自动指向上一代最新稳定版 `0.1.7-rc.2.2`，同代际迭代不动 `latest`），并附应急手工校正命令；执行需 npm 发布权限（当前环境 token 失效，待权限恢复后执行）。 |
+| 2026-10-10 | 新增 FNOS-012-05 | 范围扩展：`@tnnevol/dsh-failover-search` 的 `compatibility.json` 包清单落后于实际依赖（10 → 应为 16 个包），本轮新增的 `dsh-tools`/`dsh-agent`/`dsh-client-ui-conversation`/`dsh-web-fetch-http` 均未声明。源码已在提交 `f86a7e7` 修正，但**晚于 `v0.2.0-rc.2.1` 发布数十秒，未进入线上包**。与 FNOS-012-04 同源（发布产物与实际不符），故并入本需求而非另立。依据：源码 import 与 peerDependencies 比对、npm 发布时间与提交时间戳核对、已发布包解包验证。 |
