@@ -60,22 +60,21 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 
 ### 解决方式
 
-**一次性校正**（需持有 npm 发布权限者执行；当前环境 token 已失效 401，需先 `npm login`）：
+**`latest` 维护自动化进发布命令**：`tooling/fnos-dsh-cli` 的 publish 命令在发布循环中自动维护 `latest`——每个插件 `publish:next` 成功后按**代际规则**处理：
+
+- **新代际首版**（如 `0.2.0-rc.2.0` 相对上一代 `0.1.7-*`）：把 `latest` 指向**上一代最新稳定版**——本次需要的一次性校正（`0.1.7-rc.2.2`）由该逻辑在下次发布时自动完成，无需单独手工执行。
+- **同代际迭代版**（修订号递增，如 `0.2.0-rc.2.1`）：不动 `latest`，只更新 `next`。
+
+无需每次发布后手动调整；发布输出中打印 `latest` 变更，可审计。
+
+**应急手工校正**（自动化未覆盖或需要立即修正时）：
 
 ```bash
-# 四个插件的上一代最新版均为 0.1.7-rc.2.2（已核对各包版本序列）
-npm dist-tag set @tnnevol/dsh-codex-auth@0.1.7-rc.2.2 latest
-npm dist-tag set @tnnevol/dsh-codebuddy@0.1.7-rc.2.2 latest
-npm dist-tag set @tnnevol/dsh-fnos@0.1.7-rc.2.2 latest
-npm dist-tag set @tnnevol/dsh-semi-ui-showcase@0.1.7-rc.2.2 latest
-
-# 校正后核对
-for p in dsh-codex-auth dsh-codebuddy dsh-fnos dsh-semi-ui-showcase; do pnpm view @tnnevol/$p dist-tags; done
+npm dist-tag set @tnnevol/<包名>@<版本> latest   # 手工校正
+pnpm view @tnnevol/<包名> dist-tags               # 核对
 ```
 
 选择 `0.1.7-rc.2.2` 而非 `0.2.0-rc.2.0` 的理由：rc 版进入 `latest` 会让不关心预发布的普通用户默认装到 rc；`next` 继续承载 rc 迭代，等 harness 出稳定版再把 `latest` 整体切到新版（与 rc 阶段 pin 策略一致）。
-
-**流程约定（防复发）**：后续发布流程在 `next` 发布后维护 `latest`——每次发布新代际的稳定候选时同步校正 `latest`；rc 迭代版只更新 `next`。约定落点为发布流程文档，具体机制由计划安排。
 
 ### 风险
 
@@ -146,4 +145,4 @@ for p in dsh-codex-auth dsh-codebuddy dsh-fnos dsh-semi-ui-showcase; do pnpm vie
 | 2026-10-09 | 初始登记 | 建立 FNOS-012：/model 模型列表补充倍速展示（目录 `credits` 字段已存在，composer 选择组件不渲染 description 为缺失原因）；CLI 版本 `2.159.0 → 2.163.0`、WorkBuddy `5.6.2 → 5.77`。关联 PLAN-FNOS-012。 |
 | 2026-10-09 | 初始登记 | 建立 FNOS-012：/model 模型列表补充倍速展示（目录 `credits` 字段已存在，composer 选择组件不渲染 description 为缺失原因）；CLI 版本 `2.159.0 → 2.163.0`、WorkBuddy `5.6.2 → 5.77`。关联 PLAN-FNOS-012。 |
 | 2026-10-09 | 新增 FNOS-012-03 | 范围扩展：web profile 安装/升级链路检测并移除 pnpm-workspace.yaml 的 `minimumReleaseAgeExclude` 残留，随后清理 lockfile 与 node_modules 并重新 `pnpm install` 自愈。依据：本地 profile 实测残留旧锚定；Discussions #11 证实 pnpm 豁免规则 First-Match-Wins 陷阱；安装回调已用 `--config.minimum-release-age=0` 统一放行，profile 级豁免已被取代。 |
-| 2026-10-09 | 新增 FNOS-012-04 | 范围扩展：npm `latest` 标签校正。原因分析——发布链路只发 `next`、`latest` 从未跟随迭代且无校正机制，导致四个插件 `latest` 停在早期版本（`dsh-codex-auth` → `0.1.0-rc.7`）。解决方式——一次性 `npm dist-tag set … latest` 校正到上一代最新 `0.1.7-rc.2.2`（四包一致），后续发布流程含 `latest` 维护约定；执行需 npm 发布权限（当前环境 token 失效，待权限恢复后执行）。 |
+| 2026-10-09 | 新增 FNOS-012-04 | 范围扩展：npm `latest` 标签校正。原因分析——发布链路只发 `next`、`latest` 从未跟随迭代且无校正机制，导致四个插件 `latest` 停在早期版本（`dsh-codex-auth` → `0.1.0-rc.7`）。解决方式——`latest` 维护自动化进 publish 命令（新代际首版发布时自动指向上一代最新稳定版 `0.1.7-rc.2.2`，同代际迭代不动 `latest`），并附应急手工校正命令；执行需 npm 发布权限（当前环境 token 失效，待权限恢复后执行）。 |
