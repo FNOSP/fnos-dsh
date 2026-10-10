@@ -100,6 +100,7 @@ catalogs:
     '@deepseek-ai/dsh-timeout': 0.2.0-rc.2
     '@deepseek-ai/dsh-tools': 0.2.0-rc.2
     '@deepseek-ai/dsh-web': 0.2.0-rc.2
+    '@deepseek-ai/dsh-web-fetch-http': 0.2.0-rc.2
     '@deepseek-ai/dsh-web-search-deepseek': 0.2.0-rc.2
   codex-peer:
     '@deepseek-ai/cordis': ^4.0.1-rc.1

@@ -7,12 +7,21 @@ async function read(relative: string): Promise<string> {
 }
 
 describe('FNOS-010-01/06/10 组合包 patch 契约', () => {
-  it('web 行整行替换时完整重述 fetchProvider（patch 不做深度合并）', async () => {
+  it('web 行整行替换时完整重述两个 provider 键（patch 不做深度合并）', async () => {
     const patch = await read('cordis.patch.yml')
 
     // 发行版基线的 `web` 行是 `searchProvider: deepseek-official` + `fetchProvider: http`；
-    // patch 的 config 是整行替换，漏掉 fetchProvider 会让网页抓取配置丢失。
-    expect(patch).toMatch(/- id: web\n\s+config:\n\s+searchProvider: dsh-failover-search\n\s+fetchProvider: http\n/u)
+    // patch 的 config 是整行替换，漏掉任一个都会让该能力回落为不可用。
+    expect(patch).toMatch(/- id: web\n\s+config:\n\s+searchProvider: dsh-failover-search\n\s+fetchProvider: dsh-failover-search\n/u)
+  })
+
+  it('fetchProvider 指向本插件 id 而非 http（否则平台兜底走不到）', async () => {
+    const patch = await read('cordis.patch.yml')
+
+    // 接缝的选择语义：配置了哪个 id 就固定用哪个。写 `http` 会让本地 provider
+    // 独占，FNOS-010-11 的平台兜底永远不会被调用。
+    expect(patch).not.toMatch(/fetchProvider:\s*http\b/u)
+    expect(patch).toMatch(/fetchProvider:\s*dsh-failover-search/u)
   })
 
   it('插入本插件行，行 id 与搜索提供方 id 同名', async () => {

@@ -113,6 +113,8 @@ interface ConfigRenderState {
  * @param props.t - 本地化函数。
  * @param props.form - 共享配置表单（读取与写入）。
  * @param props.model - 官方草稿模型：标量字段的暂存与保存。
+ * @param props.loadSummaries - 读取账号 key 掩码（供列表展示）。
+ * @param props.copyKey - 复制指定账号的 key 到剪贴板。
  * @returns 配置区元素。
  */
 export function FailoverConfigSection({ t, form, model, loadSummaries, copyKey }: ConfigSectionProps): ReactNode {

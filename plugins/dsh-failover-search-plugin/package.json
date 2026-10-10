@@ -78,6 +78,7 @@
     "@deepseek-ai/dsh-launch-environment": "0.2.0-rc.2",
     "@deepseek-ai/dsh-settings": "0.2.0-rc.2",
     "@deepseek-ai/dsh-web": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-web-fetch-http": "0.2.0-rc.2",
     "@deepseek-ai/dsh-web-search-deepseek": "0.2.0-rc.2",
     "@deepseek-ai/schemastery": "catalog:",
     "react": "catalog:"
@@ -95,6 +96,7 @@
     "@deepseek-ai/dsh-launch-environment": "catalog:dsh",
     "@deepseek-ai/dsh-settings": "catalog:dsh",
     "@deepseek-ai/dsh-web": "catalog:dsh",
+    "@deepseek-ai/dsh-web-fetch-http": "catalog:dsh",
     "@deepseek-ai/dsh-web-search-deepseek": "catalog:dsh",
     "@deepseek-ai/schemastery": "catalog:",
     "@tnnevol/dsh-semi-ui": "workspace:*",

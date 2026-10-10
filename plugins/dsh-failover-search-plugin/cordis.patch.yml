@@ -1,14 +1,21 @@
 # @tnnevol/dsh-failover-search 组合包 patch。
 #
-# 搜索来源由本插件的复合提供方接管；官方搜索插件行保持原样，作为链条末端兜底。
+# 搜索与抓取来源都由本插件的复合提供方接管：
+# - searchProvider：TinyFish → Tavily → 官方（官方插件行保持原样作链尾兜底）；
+# - fetchProvider：本地 HTTP 抓取为第一跳，失败时按 TinyFish Fetch → Tavily
+#   Extract 兜底（FNOS-010-11）。
+#
+# 两个能力面都注册同一个 id，`fetchProvider` 因此不能再写 `http`——接缝在选择
+# provider 时，配置了哪个 id 就固定用哪个，写 `http` 会让本地 provider 独占，
+# 平台兜底永远不会被走到。
 #
 # `web` 行的 `config` 是**整行替换**而不是深度合并（发行版组合基线语义）：
-# 重写 `searchProvider` 时必须完整重述 `fetchProvider`，否则 fetch 配置丢失、
-# 网页抓取回落为不可用。契约测试钉住这两个键，防止后续改动把 fetch 漏掉。
+# 两个 provider 键都必须显式写出，漏掉任何一个都会让该能力回落为不可用。
+# 契约测试钉住这两个键，防止后续改动把它们漏掉。
 - id: web
   config:
     searchProvider: dsh-failover-search
-    fetchProvider: http
+    fetchProvider: dsh-failover-search
 
 - insert:
     - id: dsh-failover-search

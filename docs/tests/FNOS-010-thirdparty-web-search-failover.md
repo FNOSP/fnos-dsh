@@ -207,6 +207,9 @@ verifiedAt: 2026-10-09
 | TC-044 | FNOS-010-05-AC-01 | DSH Desktop 会话 | 通过 | 2026-10-09 | 搜索卡片与来源链接在 Desktop 正常呈现（回答含标题 + 链接），与 Web 表现一致 |
 | TC-045 | FNOS-010-10-AC-02 | DSH Desktop | 通过 | 2026-10-09 | 插件管理页显示「Failover Search」与中文简介，与 Web、发布清单一致 |
 | TC-047 | FNOS-010-04-AC-04 / 08-AC-03（暗色主题） | DSH Web | 通过 | 2026-10-09 | 按[UI 测试](/charter/tests-spec#ui-测试视觉与样式)清单在暗色主题逐项核对：① 对比度——配置区标题 17.45、提示/空状态 8.54、错误文案 5.55（均 ≥ 4.5）；② border——账号卡与账号行的 `.5px solid var(--dsw-alias-border-l3/l2)` 在暗色下解析为 `rgba(255,255,255,.16/.12)`，分隔可见、无「隐约中间态」；③ 硬编码残留——插件全部样式声明均为 `--dsw-*` 语义变量，未发现亮色残留（computed 里大量近白 border-color 为 `border-top-style: none` 的继承默认值，不绘制，经样式表声明逐条甄别排除）；④ 毛玻璃——插件区块自身 0 条 backdrop-filter 链路，无重复叠加；⑤ 主题往返切换（暗→亮→暗）后全部自定义样式跟随，无残留；⑥ 错误态（无效 key 触发 `HTTP 401` 提示）在暗色下可读且信息不含 key 明文 |
+| TC-048 | FNOS-010-11-AC-01 | 真实网络 | 通过 | 2026-10-10 | 复合 provider 单测 4 项全过；真实网络 4/4：本地失败→TinyFish Fetch 取回 11579 字符、TinyFish 不可用→Tavily Extract 取回 12832 字符、本地成功→平台零调用、全跳失败→保留本地错误码 `WEB_INVALID_URL` |
+| TC-049 | FNOS-010-11-AC-03 | DSH Web 会话 | 通过 | 2026-10-10 | 会话内让模型 `web_fetch` 抓 `docs.tavily.com`（本机 fake-ip 环境本地跳必被拒）：debug 日志显示 `local failed (42ms)` → `tinyfish succeeded (1562ms)`，模型拿到 HTTP 200 正文并正确总结——兜底对模型透明 |
+| TC-050 | FNOS-010-11-AC-02/04 | 契约 + 单测 | 通过 | 2026-10-10 | 契约测试钉住 patch 的 `fetchProvider` 指向本插件 id（写 `http` 会让平台兜底永不触发，已加反向断言）；单测覆盖 TinyFish→Tavily 次序、平台间转移、逐跳事件（`skipped` 与 `failed` 区分）、账号复用 010-04 账号池 |
 | TC-046 | FNOS-010-01-AC-01（日志级归因） | DSH Desktop 会话 | 通过 | 2026-10-09 | 把 Cordis 控制台导出器阈值降到 debug（`logger-console` 插件，`levels.default: 3`）后，会话内搜索的宿主控制台出现插件自身尝试事件：`[D] dsh-failover-search [failover-search] tinyfish/desktop-tinyfish succeeded (1125ms)` 与 `(1263ms)` 两条；同一轮 TinyFish 请求日志 `total` 61→63，日志行数与平台新增条目数一致——插件内部「选账号 → 发请求 → 成功」的逐次事件与平台侧记录互相印证 |
 | TC-039 | FNOS-010-03-AC-02 / 02-AC-03 | DSH Web 会话 | 通过 | 2026-10-09 | 意图级全链失败回落：三方凭据全部置为无效后提问，模型回报「联网搜索因缺少 `DEEPSEEK_API_KEY` 凭证而失败」——证明请求已走完三方并回落官方，官方按无凭据给出明确错误码，链路未挂起、未返回空结果 |
 | TC-020 | FNOS-010-06-AC-01 | DSH Web | 通过 | 2026-10-09 | 三方凭据全部失效时回落官方路径已在会话内实证（同 TC-039）；组合行 `searchProvider: dsh-failover-search` 与 `fetchProvider: http` 由 `--dump-config` 确认（同 TC-019），禁用后回落 base 层官方配置机制不变 |
@@ -249,7 +252,7 @@ verifiedAt: 2026-10-09
 
 **整体结论：部分通过。**
 
-- 已通过：`FNOS-010-01`、`02`、`03`、`06`、`09` 的全部验收条件在单元、真实网络与会话内三层均通过；`FNOS-010-04`（配置区与账号管理）在 DSH Web 与 DSH Desktop 两个客户端通过；`FNOS-010-05`（结果归一、截断与卡片呈现）经真实会话走查通过；`FNOS-010-07-AC-01` 的真实多账号分摊经 TinyFish 双账号实测通过；`FNOS-010-08`（两个用量端点）在 Web 与 Desktop 渲染通过；`FNOS-010-10`（命名契约）通过。
+- 已通过：`FNOS-010-01`、`02`、`03`、`06`、`09` 的全部验收条件在单元、真实网络与会话内三层均通过；`FNOS-010-11`（网页抓取三方兜底）经单测、真实网络与会话内 debug 日志级三层验证通过（TC-048～TC-050）；`FNOS-010-04`（配置区与账号管理）在 DSH Web 与 DSH Desktop 两个客户端通过；`FNOS-010-05`（结果归一、截断与卡片呈现）经真实会话走查通过；`FNOS-010-07-AC-01` 的真实多账号分摊经 TinyFish 双账号实测通过；`FNOS-010-08`（两个用量端点）在 Web 与 Desktop 渲染通过；`FNOS-010-10`（命名契约）通过。
 - 未完成：**npm 发布未执行**（`npm whoami` 返回 401，凭据失效；发布动作由用户在登录后执行）。测试数据清理已完成：两份 profile 的测试账号已清空（`tinyfishAccounts: []` / `tavilyAccounts: []`），配置原文按[插件配置备份](/charter/directory-structure#插件配置备份)约定备份至 `tmp/plugin-backup/dsh-failover-search-2026-10-09/`（git 忽略，未进仓库）；暗色主题走查已完成（TC-047）。
 - 已修正的前述结论：早期登记的「Desktop 全部用例未执行」、「会话搜索卡片未走查」、「禁用回落未走查」与「缺第二个真实账号」均已在本轮补齐（见 TC-037～TC-045）。
 - 遗留风险：
