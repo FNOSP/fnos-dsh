@@ -1,0 +1,47 @@
+{
+  "name": "@tnnevol/dsh-plugin-kit",
+  "displayName": "DSH Plugin Kit",
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Shared host-side helpers for DSH plugins in this repository, starting with credential-file permission assessment.",
+  "author": "tnnevol",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://fndsh-doc.tnnevol.cn/plugins/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FNOSP/fnos-dsh.git",
+    "directory": "packages/dsh-plugin-kit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "README.md",
+    "lib"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "pnpm run typecheck && pnpm run test",
+    "prepublishOnly": "pnpm run check",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

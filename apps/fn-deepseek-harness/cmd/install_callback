@@ -82,6 +82,39 @@ run_install_callback_helper() {
     "${NODE_BIN}/node" "${DSH_INSTALL_CALLBACK_HELPER}" "$@"
 }
 
+# Rebuild the Web profile's dependencies when a minimumReleaseAgeExclude entry
+# anchors a version the profile manifest no longer pins.
+#
+# pnpm resolves each exclusion First-Match-Wins, so an entry pinned to a
+# superseded version silently stops exempting anything and freezes a lockfile
+# built around it; installs then fail with NO_MATURE_MATCHING_VERSION even
+# though the manifest versions are installable. The field itself stays (it is
+# what lets fresh plugin releases bypass the publication cooldown); only the
+# rebuildable artifacts — pnpm-lock.yaml and node_modules — are removed, and
+# the plugin installs below then re-resolve them against the live manifest.
+# User configuration and credentials live elsewhere in DSH_HOME and are never
+# touched. When nothing is stale this prints nothing and removes nothing.
+heal_profile_release_age_exclusions() {
+    local stale
+    stale="$(run_install_callback_helper stale-release-age-exclusions \
+        "${DSH_PROFILE_DIRECTORY}/pnpm-workspace.yaml" \
+        "${DSH_PROFILE_DIRECTORY}/package.json" \
+        "${DSH_PUBLISHED_PLUGIN_MANIFEST}" 2>/dev/null || true)"
+    [ -n "${stale}" ] || return 0
+    log_info "Detected stale minimumReleaseAgeExclude entries in the Web profile; rebuilding dependencies:"
+    printf '%s\n' "${stale}" | while IFS= read -r entry; do
+        [ -n "${entry}" ] || continue
+        log_info "  stale exclusion: ${entry}"
+    done
+    run_install_callback_helper remove-profile-build-artifacts \
+        "${DSH_PROFILE_DIRECTORY}/pnpm-lock.yaml" "${DSH_PROFILE_DIRECTORY}/node_modules" ||
+        fail_install "Unable to remove the Web profile lockfile and node_modules for the dependency rebuild"
+    log_info "Reinstalling the Web profile dependencies from the current manifest..."
+    (cd "${DSH_PROFILE_DIRECTORY}" && "${PNPM_BIN}" install --config.minimum-release-age=0) ||
+        fail_install "Unable to reinstall the Web profile dependencies after the release-age rebuild"
+    log_info "Web profile dependency rebuild completed."
+}
+
 remove_legacy_pnpm_store_config() {
     [ -f "${NPM_USER_CONFIG_FILE}" ] || return 0
     run_install_callback_helper remove-legacy-pnpm-store-config "${NPM_USER_CONFIG_FILE}" ||
@@ -403,6 +436,7 @@ main() {
         fail_install "dsh --version reported ${DSH_REPORTED_VERSION:-unknown}; expected ${DSH_VERSION}"
 
     log_info "dsh ${DSH_PACKAGE}@${DSH_VERSION} installation verified at ${DSH_BIN}."
+    heal_profile_release_age_exclusions
     install_trim_cli
     install_published_dsh_plugins
 }
