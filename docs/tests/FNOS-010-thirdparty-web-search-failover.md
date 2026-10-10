@@ -134,10 +134,25 @@ verifiedAt: 2026-10-09
 | TC-033 | FNOS-010-10-AC-01 | 构建产物与源码 | 核对命名定义各标识符 | 包名、目录、显示名、行 id、提供方 id、配置命名空间与计划「命名定义」一致 | P1 |
 | TC-034 | FNOS-010-10-AC-02 | 本地 DSH Web 与文档站 | 核对三处插件名称 | 插件管理页、文档站、发布清单名称一致 | P1 |
 
+### 客户端兼容回归（DSH Web 与 DSH Desktop）
+
+需求要求 FNOS-010-01 至 FNOS-010-11 在两个客户端验收。本组用例覆盖最近三轮改动（抓取兜底、座位迁移、刷新入口）在 DSH Desktop 上的回归。
+
+| 用例 | 覆盖 | 前置条件 | 步骤 | 预期 | 优先级 |
+| --- | --- | --- | --- | --- | --- |
+| TC-061 | FNOS-010-04-AC-04 / FNOS-010-08-AC-05 | DSH Desktop（fork 检出开发态）已打开本插件详情页 | 核对区块顺序、刷新入口与配置区 | 顺序为「包含的组件 → 平台账号 → … → 平台用量」；刷新入口存在且带可访问名称；配置区渲染、账号读出、保存按钮在位——与 DSH Web 逐项一致 | P0 |
+| TC-062 | FNOS-010-08-AC-04 | 同上，快照就绪 | 点击刷新并观察按钮状态与获取时间 | 点击中禁用且文案「刷新中」；完成后获取时间更新——Desktop 的 RPC 链路同样承载刷新端点 | P0 |
+| TC-063 | FNOS-010-11-AC-01/AC-03 | DSH Desktop 会话 + 三方账号，插件 debug 日志 | 会话内让模型 `web_fetch` 抓一个本地被拒的 URL | 日志级证据 `local failed → tinyfish succeeded`；模型拿到 HTTP 200 正文并正确总结（兜底在 Desktop 同样生效） | P0 |
+| TC-064 | 回归（Desktop 搜索链路） | 同上 | 会话内发起一次搜索 | 搜索仍走三方（日志 `tinyfish/tinyfish-1 succeeded`），新版 fetch provider 未干扰搜索链路 | P0 |
+
 ### FNOS-010-08 用量展示补充（手动刷新）
 
 | 用例 | 覆盖 | 前置条件 | 步骤 | 预期 | 优先级 |
 | --- | --- | --- | --- | --- | --- |
+| TC-061 | 客户端兼容回归 | DSH Desktop | 通过 | 2026-10-10 | Desktop（`fork-pj/deepseek-harness` 开发态，profile 指向项目 `.dsh/profiles/desktop`）实测：区块文本索引 395 < 568 < 967（顺序与 Web 一致）；刷新入口存在且 `aria-label="刷新"`；配置区渲染、1 个账号读出、保存按钮在位 |
+| TC-062 | 客户端兼容回归 | DSH Desktop | 通过 | 2026-10-10 | 点击前 `12:26:05` → 点击中 `disabled=true` 且文案「刷新中」→ 完成后 `12:26:44`；状态序列仅 `true\|刷新中` → `false\|刷新`。Desktop 的 connection 链路同样承载新增的 refresh 端点 |
+| TC-063 | 客户端兼容回归 | DSH Desktop + debug 日志 | 通过 | 2026-10-10 | 日志级取证：`[failover-search:fetch] local failed (22ms)` → `tinyfish succeeded (1537ms)`；模型回答正确总结 Tavily Extract API 文档（含 POST /extract、basic/advanced、results/failed_results 结构），主对话区无错误 |
+| TC-064 | 客户端兼容回归 | DSH Desktop + debug 日志 | 通过 | 2026-10-10 | 搜索侧日志 `tinyfish/tinyfish-1 succeeded (1870ms)` 与 `(2001ms)` 各一次——搜索仍走三方，新版 fetch provider 未干扰搜索链路 |
 | TC-058 | FNOS-010-08-AC-05 | 插件详情页已打开 | 核对用量区块的交互控件 | 区块含「平台用量」标题与手动刷新入口；入口带可访问名称（`aria-label` 取自动态文案键）；入口在加载、就绪、失败三种状态下都渲染 | P0 |
 | TC-059 | FNOS-010-08-AC-04 | 已配置三方账号，快照就绪 | 1.记录当前获取时间 2.点击刷新 3.观察按钮状态 4.等待完成 | 点击后立即重查两个平台端点，获取时间更新为当前时刻；刷新期间入口禁用且文案变「刷新中」（不可重复触发）；完成后回到「刷新」可点击 | P0 |
 | TC-060 | FNOS-010-08-AC-04 | 刷新端点与只读端点分离 | 1.检查契约常量 2.检查宿主 handler | `usage` 端点保持只读（读取不触发平台请求）；`refresh` 是独立端点且复用后台的 `refreshUsage`（单个账号失败不使整次刷新失败） | P1 |
@@ -302,7 +317,7 @@ verifiedAt: 2026-10-09
   - 上游响应契约不是稳定接口：`url` 的相对重定向包装（BUG-02）与 `date` 字段的时有时无都来自实测；平台变更格式时，相关条目会被跳过或省略日期，搜索本身仍成功。
   - `FNOS-010-08` 的 Tavily `key` 层 `limit` 在当前 key 档位为 `null`；实现据此不做 key 级触限判定、只按账户层 `plan_usage >= plan_limit` 判定，档位变化后需要复核该判定。
 - **控件维度已补测**：BUG-10 暴露的漏测根因是「用例只测数据、不测控件」。已新增 AC-05 把用量区块的交互控件清单固化为验收条件，并补 TC-058（控件存在性 + 可访问名称 + 三态可见）。
-- **回归验证已完成**：本轮三项改动（新增复合 fetch provider、座位迁移到 `detail.section`、重写组合行 `fetchProvider`）均属规范定义的「回归验证类」。回归用例 TC-052～TC-054 全部通过——既有 smoke 9/9、e2e 8/8 在改动后仍全过；配置读写路径经真实界面操作确认与迁移前一致；本地抓取语义（零平台调用、`html` kind、非 2xx 语义、limits）经变异检验确认受断言保护。回归过程发现 BUG-09（e2e 断言陈旧），已修复。
+- **回归验证已在 DSH Web 与 DSH Desktop 两个客户端完成**：本轮改动（新增复合 fetch provider、座位迁移到 `detail.section`、重写组合行 `fetchProvider`、新增刷新端点）均属规范定义的「回归验证类」。Desktop 侧由 TC-061~TC-064 覆盖——界面结构与 Web 逐项一致、刷新端点可用、抓取兜底经日志级取证生效、搜索链路未受影响。回归用例 TC-052～TC-054 全部通过——既有 smoke 9/9、e2e 8/8 在改动后仍全过；配置读写路径经真实界面操作确认与迁移前一致；本地抓取语义（零平台调用、`html` kind、非 2xx 语义、limits）经变异检验确认受断言保护。回归过程发现 BUG-09（e2e 断言陈旧），已修复。
 - 结果同时覆盖 DSH Web 与 DSH Desktop 两个客户端（插件兼容基线要求的最低组合），Desktop 侧使用 `fork-pj/deepseek-harness` 检出的开发态构建。
 - 归因方法分两层：早期用平台侧日志与排除法（TC-037～TC-039），最后一轮用插件自身的 debug 日志（TC-046）直接观测到逐次尝试事件。后者依赖两个临时手段——profile 插入 `logger-console`（`levels.default: 3`）并把该包 symlink 进 profile 的 `node_modules`（bare specifier 以 profile 目录为解析基准）；两项都是测试期改动，验证后已还原，未进入仓库。
 - 剩余缺口只有 npm 发布一项（凭据在用户侧）；在发布完成前 `FNOS-010` 仍不标记为「已完成」，需求状态维持「待完成」。
