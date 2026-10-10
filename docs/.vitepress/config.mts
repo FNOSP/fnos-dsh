@@ -277,6 +277,10 @@ const requirementsSidebar = [
         text: 'FNOS-011 凭据文件权限异常的可诊断性',
         link: '/requirements/FNOS-011-credential-permission-diagnostics'
       },
+      {
+        text: 'FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新',
+        link: '/requirements/FNOS-012-codebuddy-model-speed-and-client-version'
+      },
       ]
   }
 ]
@@ -329,6 +333,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-011 凭据文件权限异常的可诊断性',
         link: '/plans/PLAN-FNOS-011-credential-permission-diagnostics'
+      },
+      {
+        text: 'PLAN-FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新',
+        link: '/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version'
       },
     ]
   }
