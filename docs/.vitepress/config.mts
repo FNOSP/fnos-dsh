@@ -356,6 +356,14 @@ const testsSidebar = [
         text: 'FNOS-010 三方搜索接入与官方兜底',
         link: '/tests/FNOS-010-thirdparty-web-search-failover'
       },
+      {
+        text: 'FNOS-011 凭据文件权限异常的可诊断性',
+        link: '/tests/FNOS-011-credential-permission-diagnostics'
+      },
+      {
+        text: 'FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新',
+        link: '/tests/FNOS-012-codebuddy-model-speed-and-client-version'
+      },
     ]
   }
 ]
