@@ -1,16 +1,10 @@
 /**
  * FNOS-010 插件的浏览器半侧：插件详情页的配置区与用量区块。
  *
- * 两块都在 `plugins.bundle.config` 座位上渲染（keyed，按组合包名分派），顺序为
- * 「配置表单 → 平台用量」。上游 `PackageDetail` 的渲染顺序是
- *
- *   1. `plugins.bundle.config`
- *   2. 「包含的组件」（`RowsSection`）
- *   3. `plugins.detail.section`
- *
- * 需求要求用量排在「包含的组件」**之前**，因此它必须落在 `bundle.config` 里：
- * `detail.section` 永远在组件列表下方。配置区用官方 `SettingsForm` 渲染标量字段、
- * Semi UI 自绘账号列表与开关，保存走官方 `mutate`。
+ * 两块都在 `plugins.detail.section` 座位上渲染，顺序为「配置表单 → 平台用量」，
+ * 整体位于「包含的组件」**之后**（上游 `PackageDetail` 的固定顺序：
+ * `bundle.config` → 包含的组件 → `detail.section`）。配置区用官方 `SettingsForm`
+ * 渲染标量字段、Semi UI 自绘账号列表与开关，保存走官方 `mutate`。
  *
  * 搜索本身完全在 host 侧（复合提供方），浏览器不参与检索。
  */
@@ -128,15 +122,33 @@ export function apply(ctx: ClientContext): void {
     }
   }
 
-  // ── 配置区：`plugins.bundle.config`（keyed，key = 组合包名）。
-  ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
-    name: 'plugins.bundle.config',
-    key: FAILOVER_PACKAGE_NAME,
-    locale: NS,
-    inject: () => t,
-  }, (props: { view?: string, t?: (key: UsageLocaleKey) => string }) => {
-    // keyed 座位上 `view` 恒为 'page'（该座只渲染页面形态）。
-    if (props.view !== 'page') return null
+  /**
+   * 详情页区块：配置区 + 平台用量，都挂在 `plugins.detail.section`。
+   *
+   * 座位选择理由（与其他插件一致）：上游 `PackageDetail` 的固定顺序是
+   *
+   *   1. `plugins.bundle.config`（组合包自己的配置）
+   *   2. 「包含的组件」（`RowsSection`，插件自己那一行）
+   *   3. `plugins.detail.section`（本座位）
+   *
+   * `bundle.config` **永远**排在「包含的组件」之前，插件无法用它把内容放到组件
+   * 列表下方；而需求要的顺序是「包含的组件 → 配置区 → 平台用量」。因此用
+   * `detail.section`。换座位不影响写入路径：配置表单仍经 `configForms` 按**插件
+   * 入口 id** 取得，与座位无关，读写照样走官方 `mutate`。
+   *
+   * 该座位是 **list**（不是 keyed）：页面会给打开的任何详情页都渲染它，因此必须
+   * 自己判断 `subject`——不是本插件的组合包就返回 `null`，否则这段界面会出现在
+   * 别的插件详情页上。list 座位要求 `id`，且不能声明 `inject`（owner props 由
+   * 页面传入）。
+   */
+  ctx.slots.inject('plugins.detail.section', () => ctx.slots.register({
+    name: 'plugins.detail.section',
+    id: 'dsh-failover-search',
+    order: 70,
+  }, (props: { subject?: FailoverSubject }) => {
+    if (props.subject === undefined) return null
+    if (props.subject.kind !== 'bundle') return null
+    if (props.subject.pkg?.name !== FAILOVER_PACKAGE_NAME) return null
     // 掩码由组件自己持有并刷新：slot 渲染函数不适合挂插件级状态，交给组件更直接。
     // 用 JSX 元素而不是直接调用组件函数：两个子组件各自持有 hooks，直接调用会把它们
     // 挂到座位渲染器的 hook 链上，顺序一乱就破坏 hook 规则。
@@ -147,4 +159,10 @@ export function apply(ctx: ClientContext): void {
       </>
     )
   }))
+}
+
+/** `plugins.detail.section` 的 owner props 子集：只关心正在打开的页面主题。 */
+interface FailoverSubject {
+  readonly kind?: string
+  readonly pkg?: { readonly name?: string } | undefined
 }

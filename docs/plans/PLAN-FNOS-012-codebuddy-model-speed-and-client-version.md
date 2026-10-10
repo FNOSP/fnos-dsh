@@ -44,7 +44,7 @@ lastVerified: 2026-10-09
 
 ## 分阶段任务
 
-### 阶段一：实现与验证（T01-01–T01-06）
+### 阶段一：实现与验证（T01-01–T01-07）
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
@@ -53,8 +53,8 @@ lastVerified: 2026-10-09
 | PLAN-FNOS-012-T01-03 | FNOS-012-02 / AC-01、AC-02 | `CODEBUDDY_CLI_VERSION` → `'2.163.0'`、WorkBuddy → `'5.77'`；更新受影响的指纹断言测试 | 无 | 常量/指纹单测通过；真实账号回归登录、对话、用量 |
 | PLAN-FNOS-012-T01-04 | FNOS-012-03 / AC-01、AC-02 | 安装/升级链路新增 profile 自愈步骤：检测 web profile 的 pnpm-workspace.yaml 是否含 `minimumReleaseAgeExclude`；存在则移除该字段、删除该 profile 的 pnpm-lock.yaml 与 node_modules，并在 profile 目录重新 `pnpm install`；字段不存在时跳过全部清理 | 无 | 本地自动化：三态断言（有字段→清理重装、无字段→跳过、重装后插件清单版本齐平） |
 | PLAN-FNOS-012-T01-05 | FNOS-012-03 / AC-03、AC-04 | 自愈与插件安装顺序核对：清理重装发生在插件安装之前，`NO_MATURE_MATCHING_VERSION` 不再出现；清理过程不触碰用户配置与凭据文件 | T01-04 | 本地 profile 模拟残留场景端到端走查；失败时不回滚用户数据 |
-| PLAN-FNOS-012-T01-06 | FNOS-012-04 / AC-01、AC-02 | npm `latest` 校正：对四个插件执行 `npm dist-tag set @tnnevol/<包>@0.1.7-rc.2.2 latest`（命令见需求文档「问题分析」）；执行后核对 dist-tags 与默认安装行为 | npm 发布权限（当前环境 token 失效，执行前需 `npm login`） | `pnpm view @tnnevol/<包> dist-tags` 四包 `latest=0.1.7-rc.2.2`；`npm i --dry-run` 默认落 `0.1.7-rc.2.2` |
-| PLAN-FNOS-012-T01-07 | FNOS-012-04 / AC-03 | 把「发布后维护 `latest`」的约定写入 [发布流程](../build/release.md)：rc 迭代版只更新 `next`，新代际稳定候选发布时同步校正 `latest` | T01-06 | 文档构建通过；下次发布按约定执行 |
+| PLAN-FNOS-012-T01-06 | FNOS-012-04 / AC-01、AC-02 | **`latest` 校正自动化进发布命令**：`tooling/fnos-dsh-cli` 的 `runPublish` 在每个插件 `publish:next` 成功后，读取该包 `package.json` 的 `version`，按代际规则自动维护 `latest`——新代际首版（如 `0.2.0-rc.2.0` 相对上一代 `0.1.7-*`）发布时把 `latest` 指向**上一代最新稳定版**；同代际迭代版（如 `0.2.0-rc.2.1`）不动 `latest`。上一代最新版通过 `npm view <name> versions` 解析预发布代际后取最大序，或在发布前缓存 dist-tags 后计算；命令为 `npm dist-tag set <name>@<version> latest`。本次需要的一次性校正（`0.1.7-rc.2.2`）由同一段逻辑在下次发布时自动完成，无需单独手工执行 | npm 发布权限（当前环境 token 失效 401，执行前需 `npm login`） | CLI 单测：代际判定逻辑（新代际→动 latest、同代际→不动）；真实发布后 `pnpm view <包> dist-tags` 核对 |
+| PLAN-FNOS-012-T01-07 | FNOS-012-04 / AC-03 | 把「`latest` 由发布命令自动维护」的约定写入 [发布流程](../build/release.md)：`pnpm run publish` 完成后自动处理，无需每次发布后手动 `npm dist-tag set`；文档说明代际规则与手工校正命令（应急用） | T01-06 | 文档构建通过；下次发布验证自动化生效 |
 
 ### 阶段二：目标环境验收（T02-01）
 
@@ -78,6 +78,8 @@ lastVerified: 2026-10-09
 | 决策：版本值取用户提供的官方当前版本 | CLI `2.163.0`、WorkBuddy `5.77` | — |
 | 决策：移除 `minimumReleaseAgeExclude` 而非改写为单行 `||` 联合 | 安装回调已用 `--config.minimum-release-age=0` 统一放行发布日期校验，profile 级豁免职责已被取代；残留条目指向失效版本，维护负担大于收益（Discussions #11 的 First-Match-Wins 陷阱随字段移除一并消失） | — |
 | 决策：`latest` 校正到 `0.1.7-rc.2.2` 而非 `0.2.0-rc.2.0` | rc 版进 `latest` 会让默认安装的普通用户装到预发布版，与 rc 阶段 pin 策略冲突；`0.2.0-rc.2.0` 继续走 `next`，出稳定版后整体切换（Discussions #11 维护者策略回复） | — |
+| 决策：`latest` 维护自动化进 `pnpm run publish` 命令，而非每次发布后手动执行 | 发布是本地 CLI 操作（`runPublish` 串行执行 `publish:next`），npm 凭据与发布时机天然可得；手动 dist-tag 易漏（本次四包全部滞留即为证据）。规则：新代际首版发布时把 `latest` 指向上一代最新稳定版，同代际迭代版不动 `latest`——与 rc pin 策略一致且无需人工记忆 | 代际判定逻辑进 CLI 单测；发布输出中打印 latest 变更，可审计 |
+| 风险：代际判定规则在特殊版本号下误判 | 当前版本形态固定为 `<上游版本>.<修订>`（如 `0.2.0-rc.2.0`），代际 = 去掉最后修订段的前缀；规则覆盖现有全部版本序列 | CLI 单测覆盖既有 21 个历史版本形态；出现新版本形态时先补规则再发布 |
 | 风险：`latest` 校正后旧版用户收到更新提示 | `0.1.0-rc.7` 等旧版用户会提示更新到 `0.1.7-rc.2.2`——期望行为（引向正确的上一代稳定版） | `npm dist-tag set` 立即生效、可重复执行、可随时再校正，无回滚成本 |
 | 回滚 | 常量回退到 `2.159.0`/`5.6.2`；展示改动按插件独立回退；自愈步骤回退即移除检测逻辑（已清理的 profile 无需恢复字段）；`latest` 可随时再 `npm dist-tag set` 校正回来 | 无数据风险 |
 
