@@ -65,11 +65,11 @@ verifiedAt: 2026-10-10
 
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TC-001 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 有倍速的模型展示倍速值 | [AC-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | CodeBuddy 已登录，模型目录可获取 | 1.会话内执行 `/model` 2.观察有 `credits` 的模型条目 | 条目可见倍速（如 `x3.33`），数值与模型目录返回的 `credits` 一致 | P0 | 新增行为，无回归基线 |
-| TC-002 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 目录未披露倍速时不编造数值 | [AC-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 目录中存在 `credits` 缺省或为空的模型 | 1.`/model` 打开列表 2.定位 `credits` 缺省的模型条目 | 该条目**不显示**倍速位（既不显示 `x0.00` 也不显示任何占位），其余条目不受影响 | P0 | 新增行为，无回归基线 |
-| TC-003 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 零倍率模型照常展示 x0.00 | [AC-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 目录中存在 `credits` 为 0 的免费模型 | 1.`/model` 打开列表 2.定位该模型 | 显示 `x0.00`——零倍率是有效事实，与「未披露」区分处理 | P1 | 新增行为，无回归基线 |
+| TC-001 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 有倍速的模型名称带倍速小尾巴 | [AC-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | CodeBuddy 已登录，模型目录可获取 | 1.会话内执行 `/model` 2.观察有 `credits` 的模型条目名称 | 条目名称带倍速小尾巴（如 `Hy3 · x3.33`），数值与模型目录返回的 `credits` 一致 | P0 | 新增行为，无回归基线 |
+| TC-002 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 目录未披露倍速时保持原名 | [AC-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 目录中存在 `credits` 缺省或为空的模型 | 1.`/model` 打开列表 2.定位 `credits` 缺省的模型条目 | 该条目保持模型原名（无 `·` 小尾巴、无占位数值），其余条目不受影响 | P0 | 新增行为，无回归基线 |
+| TC-003 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 零倍率模型照常带 x0.00 小尾巴 | [AC-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 目录中存在 `credits` 为 0 的免费模型 | 1.`/model` 打开列表 2.定位该模型 | 名称带 `· x0.00` 小尾巴——零倍率是有效事实，与「未披露」区分处理 | P1 | 新增行为，无回归基线 |
 | TC-004 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 倍速不影响模型选择与请求行为 | [FNOS-012-01 行为约束](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#行为约束) | 已展示倍速 | 1.选择一个带倍速的模型 2.发送一轮对话 3.核对实际请求的模型 id | 请求使用所选模型 id；倍速未参与路由、预算或请求参数——展示信息不改变行为 | P0 | 新增行为，无回归基线 |
-| TC-005 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 亮色与暗色主题下可读且不重叠 | [AC-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 列表窗口可打开 | 1.亮色主题下打开列表，观察倍速文本 2.切到暗色主题重复 | 两种主题下文本均清晰可读（对比度 ≥ 4.5:1）；倍速不与模型名称、选中态重叠或截断 | P1 | 新增行为，无回归基线 |
+| TC-005 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 亮色与暗色主题下名称小尾巴可读 | [AC-03（修订后路由不变性）](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 已展示倍速 | 1.选择一个带倍速的模型并发送对话 2.核对实际请求的模型 id 与目录一致性 | 倍速仅存在于 `name` 展示字段；请求使用模型 `id`，路由、预算与请求参数不含倍速 | P0 | 新增行为，无回归基线（原「主题可读性」验收随承载方式修订并入本地走查） |
 | TC-006 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 超长模型名与超长倍速的布局边界 | [AC-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 构造超长模型名条目 | 1.打开列表 2.观察超长名称与倍速的排布 | 名称按既有规则截断/换行，倍速位不被挤出容器或覆盖名称 | P3 | 新增行为，无回归基线 |
 
 ### [FNOS-012-02 客户端版本更新](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-02)
@@ -144,7 +144,11 @@ verifiedAt: 2026-10-10
 | --- | --- | --- | --- |
 | TC-023 | 阻塞→已提前修复 | 2026-10-10 | 修正前 `compatibility.json` 声明 10 个包、实际依赖 16 个；已在提交 `f86a7e7` 补齐并加入守门用例（TC-024）。**但该修正晚于 `v0.2.0-rc.2.1` 发布数十秒，未进入线上包**——故 TC-025 仍待随下次版本发布后核对 |
 | TC-025 | 未通过（基线确认） | 2026-10-10 | 解包 `0.2.0-rc.2.1` 线上产物：其 `compatibility.json` 仍为 10 个包（缺 `dsh-tools`/`dsh-agent`/`dsh-client-ui-conversation`/`dsh-web-fetch-http`）。该结果即本功能的立项依据 |
-| 其余 | 未执行 | — | 待实施阶段执行 |
+| TC-028（自动化部分） | 通过 | 2026-10-10 | `tests/client/toggle-control.spec.ts`（FNOS-012-06）：控件为单个 button（`dsh-failover-pill`）、无 `DshSwitch`/`dsh-failover-toggle` 残留、可见文案固定 `toggleOn`、locales 无「智能搜索已关」 |
+| TC-029（自动化部分） | 通过 | 2026-10-10 | 激活态 `--active` 类独立、样式用 DSH 语义变量、乐观更新 + 失败回滚沿用 |
+| TC-031（自动化部分） | 通过 | 2026-10-10 | button 原生键盘可达、`aria-pressed` + `aria-label` 含状态描述 |
+| TC-030、TC-032、TC-033 | 待验收 | — | 亮暗主题两态可辨、会话级语义、Desktop 形态一致性：需 Web/Desktop 走查（FNOS-012-06） |
+| 其余（TC-001~TC-027 本地部分） | 通过 | 2026-10-10 | FNOS-012-01~05 本地自动化全绿（kit 12 / codebuddy 909 / codex-auth 137 / gateway 116 / cli 46）；Registry/Desktop/NAS 部分待验收 |
 
 ## Bug 记录
 

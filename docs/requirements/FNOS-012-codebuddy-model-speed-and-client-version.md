@@ -1,11 +1,11 @@
 ---
 id: FNOS-012
 title: FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新
-description: CodeBuddy 插件的 /model 指令模型列表窗口补充展示模型倍速字段，并将 CLI 客户端版本更新为 2.163.0、WorkBuddy 客户端版本更新为 5.77，使模型选择信息完整且与官方客户端保持一致。
+description: CodeBuddy 插件把模型倍速以名称小尾巴的形式送进模型选择器（上游 0.2.0-rc.2 有意移除了目录 description 的渲染，名称是唯一仍被渲染的展示字段），并将 CLI 客户端版本更新为 2.163.0、WorkBuddy 客户端版本更新为 5.77；同时覆盖 web profile 失效豁免自愈、npm latest 标签校正与发布产物完整性。
 status: planned
 owner: tnnevol
 targetVersion: 5.7.0
-lastVerified: 2026-10-09
+lastVerified: 2026-10-10
 ---
 
 # FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新
@@ -29,7 +29,7 @@ CodeBuddy 插件通过 `/model` 指令打开模型列表窗口选择模型。用
 | 结论 | 出处 | 影响的功能 | 状态 |
 | --- | --- | --- | --- |
 | 模型目录的每个模型已带倍速字段 `credits`（网络值即已格式化的倍率字符串，如 `x3.33`；可能缺省或为空） | `dsh-codebuddy` 插件 `CodeBuddyModel.credits` 类型定义；`dsh-codebuddy` 适配器 `modelInfo()` 已读取该字段 | FNOS-012-01 | 已核实 |
-| 适配器把 `credits` 写入模型条目的 `description`（`LlmModelInfo.description` 为官方模型信息上的可选展示字段），但 composer 的模型选择组件只渲染 `name`，`description` 在 `/model` 模型列表窗口中**不可见**——这是倍速缺失的直接原因 | `LlmModelInfo.description` 字段定义（`dsh-llm` 0.2.0-rc.2 类型注释“user-facing distinction from otherwise similar models”）；适配器内既有注释记录“composer ModelSelect 只渲染 `model.name`” | FNOS-012-01 | 已核实 |
+| 适配器把 `credits` 写入模型条目的 `description`，但 DSH `0.2.0-rc.2` 起 `ui-model-selection` **有意移除**了目录 description 的渲染（上游提交 `b6c5aa7516` 隐藏 composer 菜单描述、`45368fb158` 把 `/model` 弹窗行的 `detail` 换成分组标题，README 明确「不显示 catalog descriptions」；`0.1.7-rc.2` 及更早版本会渲染 `detail`，与本应用 v5.5.0 → v5.6.0 的表现变化吻合）——`description` 在 GUI 里已没有任何渲染点，模型选择器两个面都只渲染 `model.name`，这是倍速消失的**根本原因** | 上游源码逐版本比对（`0.1.5-rc.2`/`0.1.7-rc.2`/`0.2.0-rc.2`/`0.2.1-alpha.1`/`master` 的 `optionsOf` 与 `ModelSelect`）；`SelectOption.detail` 与 `PopupSelectView` 的渲染代码仍在（渲染能力未删，删的是业务侧填值）；`LlmModelInfo.description` 字段定义原样保留 | FNOS-012-01 | 已核实（2026-10-10 修正：原登记的「composer 组件只渲染 name」表述不准确） |
 | 客户端版本指纹由常量表统一维护：`CODEBUDDY_CLI_VERSION` 当前为 `2.159.0`，WorkBuddy 版本当前为 `5.6.2`，两者进入请求头 User-Agent（`WorkBuddy/<版本> CLI/<版本>`）等指纹 | `dsh-codebuddy` 插件 `contracts/constants.ts`、`host/risk-headers.ts` | FNOS-012-02 | 已核实 |
 | 官方客户端当前版本：CLI `2.163.0`、WorkBuddy `5.77` | 用户提供的官方版本信息 | FNOS-012-02 | 已核实 |
 | 本地 web profile 的 pnpm-workspace.yaml 残留 `minimumReleaseAgeExclude: ['@tnnevol/dsh-codebuddy@0.1.7-rc.2']`，而插件清单已是 `0.2.0-rc.2.0`——旧豁免条目指向失效版本，属于历史锚定残留 | 项目 `.dsh/profiles/web/pnpm-workspace.yaml` 实测 | FNOS-012-03 | 已核实 |
@@ -90,12 +90,12 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-012-01 | P1 | 模型列表展示倍速 | `/model` 模型列表窗口中，有倍速的模型条目展示其倍速（如 `x3.33`）；目录未披露倍速的模型不编造数值、不显示倍速位 | <Badge type="info" text="规划中" /> |
+| FNOS-012-01 | P1 | 模型列表展示倍速 | 模型选择器（`/model` 弹窗与 composer 菜单）中，有倍速的模型条目名称带倍速小尾巴（如 `Hy3 · x3.33`）；目录未披露倍速的模型保持原名，不编造数值 | <Badge type="info" text="规划中" /> |
 | FNOS-012-02 | P1 | 客户端版本更新 | 插件请求携带的 CLI 版本为 `2.163.0`、WorkBuddy 版本为 `5.77`，登录与请求行为与官方客户端一致 | <Badge type="info" text="规划中" /> |
 | FNOS-012-03 | P1 | profile 依赖重建自愈 | DSH web profile 安装/升级时检测 pnpm-workspace.yaml 中 `minimumReleaseAgeExclude` 条目指向的版本是否已失效（与清单版本不一致）；存在失效条目时清理 lockfile 与 node_modules 并在 profile 目录重新 `pnpm install`，使豁免规则与实际安装版本重新对齐，插件安装恢复正常 | <Badge type="info" text="规划中" /> |
 | FNOS-012-04 | P1 | npm latest 标签校正 | 四个插件 npm 的 `latest` 指向 `0.1.7-rc.2.2`；`npm i @tnnevol/<插件>` 默认安装到上一代稳定版而非 `0.1.0-rc.7` 等早期版本；`0.2.0-rc.2.0` 继续通过 `next` 获取 | <Badge type="info" text="规划中" /> |
 | FNOS-012-05 | P1 | 插件发布内容完整性校正 | `@tnnevol/dsh-failover-search` 的 `compatibility.json` 包清单与实际依赖一致（含本轮新增的 `dsh-tools`、`dsh-agent`、`dsh-client-ui-conversation`、`dsh-web-fetch-http`）；新发布的插件包内该清单不再落后于源码 | <Badge type="info" text="规划中" /> |
-| FNOS-012-06 | P2 | 智能搜索控件改为药丸按钮样式 | `dsh-failover-search` 消息框左下角的「智能搜索」控件改为药丸按钮：开启时呈激活态样式、关闭时为普通态；移除 Switch，仅保留「智能搜索」文案（状态不进文案，只靠样式区分）；位置、会话级语义与默认开启不变 | <Badge type="info" text="规划中" /> |
+| FNOS-012-06 | P2 | 智能搜索控件改为药丸按钮样式 | `dsh-failover-search` 消息框左下角的「智能搜索」控件改为药丸按钮：开启时呈激活态样式、关闭时为普通态；移除 Switch，仅保留「智能搜索」文案（状态不进文案，只靠样式区分）；位置、会话级语义与默认开启不变 | <Badge type="tip" text="已实现（本地）" /> |
 
 ## 行为约束
 
@@ -117,9 +117,10 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 
 ### FNOS-012-01
 
-- `FNOS-012-01-AC-01`：`/model` 模型列表窗口中，目录披露了倍速的模型条目可见其倍速值，值与模型目录一致。
-- `FNOS-012-01-AC-02`：目录未披露倍速的模型条目不显示倍速，无编造数值；`x0.00` 模型正常展示 `x0.00`。
-- `FNOS-012-01-AC-03`：亮色与暗色主题下倍速文本可读，布局不与模型名称、选中态重叠。
+- `FNOS-012-01-AC-01`：模型选择器（`/model` 弹窗与 composer 菜单）中，目录披露了倍速的模型条目名称带倍速小尾巴（`名称 · 倍率`），值与模型目录一致。
+- `FNOS-012-01-AC-02`：目录未披露倍速的模型条目保持原名，无编造数值；`x0.00` 模型正常展示 `x0.00`。
+- `FNOS-012-01-AC-03`：倍速不参与模型路由与请求：请求使用模型 `id`，选择带倍速的模型后对话正常路由到该模型。
+- `FNOS-012-01-AC-04`（实现方式约束，2026-10-10 修订）：不改 DSH 官方源码、不向上游提报，倍速经插件 adapter 在模型 `name` 上承载——`name` 是选择器唯一仍被渲染的展示字段；原「`/model` 弹窗内逐行独立展示倍速」的表述随上游 0.2.0-rc.2 移除 `detail` 填值而废弃。
 
 ### FNOS-012-02
 
@@ -169,4 +170,5 @@ npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `d
 | 2026-10-09 | 新增 FNOS-012-03 | 范围扩展：web profile 安装/升级链路检测 `minimumReleaseAgeExclude` 失效条目（版本与清单不一致），随后清理 lockfile 与 node_modules 并重新 `pnpm install` 自愈；字段保留不删除。依据：本地 profile 实测残留旧锚定；Discussions #11 证实 pnpm 豁免规则 First-Match-Wins 陷阱；字段的作用是让新发布插件正常安装，保留。 |
 | 2026-10-09 | 修正 FNOS-012-03/04 表述 | 03 由「移除字段」修正为「失效条目触发依赖重建，字段保留」；04 命令修正为 `npm dist-tag add`（`dist-tag set` 非有效子命令），补充 `pnpm publish --tag` 与 registry HTTP PUT 两种方式。 |
 | 2026-10-09 | 新增 FNOS-012-04 | 范围扩展：npm `latest` 标签校正。原因分析——发布链路只发 `next`、`latest` 从未跟随迭代且无校正机制，导致四个插件 `latest` 停在早期版本（`dsh-codex-auth` → `0.1.0-rc.7`）。解决方式——`latest` 维护自动化进 publish 命令（新代际首版发布时自动指向上一代最新稳定版 `0.1.7-rc.2.2`，同代际迭代不动 `latest`），并附应急手工校正命令；执行需 npm 发布权限（当前环境 token 失效，待权限恢复后执行）。 |
+| 2026-10-10 | 修正 FNOS-012-01 原因与承载方式 | 实施排查发现原登记的原因（「composer 组件只渲染 name」）不准确：真实原因是上游 DSH `0.2.0-rc.2` **有意移除**目录 description 渲染（提交 `b6c5aa7516`、`45368fb158`；`0.1.7-rc.2` 仍渲染——与本应用 v5.5.0 → v5.6.0 表现变化吻合，官方 DeepSeek 模型的描述同样消失，排除插件侧回归）。上游未提供替代展示位置；`SelectOption.detail` 渲染能力仍在但业务侧不再填值。经确认：不改官方代码、不向上游提报，倍速改为插件 adapter 在模型 `name` 上拼小尾巴（`名称 · 倍率`）承载；AC-03 由主题可读性改挂路由不变性，新增 AC-04 登记实现方式约束。 |
 | 2026-10-10 | 新增 FNOS-012-05 | 范围扩展：`@tnnevol/dsh-failover-search` 的 `compatibility.json` 包清单落后于实际依赖（10 → 应为 16 个包），本轮新增的 `dsh-tools`/`dsh-agent`/`dsh-client-ui-conversation`/`dsh-web-fetch-http` 均未声明。源码已在提交 `f86a7e7` 修正，但**晚于 `v0.2.0-rc.2.1` 发布数十秒，未进入线上包**。与 FNOS-012-04 同源（发布产物与实际不符），故并入本需求而非另立。依据：源码 import 与 peerDependencies 比对、npm 发布时间与提交时间戳核对、已发布包解包验证。 |

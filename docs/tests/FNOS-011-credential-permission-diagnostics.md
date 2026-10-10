@@ -4,9 +4,9 @@ title: FNOS-011 测试用例
 description: FNOS-011 凭据文件权限异常的可诊断性测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-011-credential-permission-diagnostics
 plan: /plans/PLAN-FNOS-011-credential-permission-diagnostics
-status: 规划中
-lastVerified: 2026-10-09
-verifiedAt: 2026-10-09
+status: 执行中
+lastVerified: 2026-10-10
+verifiedAt: 2026-10-10
 ---
 
 # FNOS-011 测试用例
@@ -16,7 +16,7 @@ verifiedAt: 2026-10-09
 | 需求编号 | FNOS-011 |
 | 关联需求 | [FNOS-011 凭据文件权限异常的可诊断性](/requirements/FNOS-011-credential-permission-diagnostics) |
 | 关联计划 | [PLAN-FNOS-011 凭据文件权限异常的可诊断性](/plans/PLAN-FNOS-011-credential-permission-diagnostics) |
-| 测试状态 | <Badge type="info" text="规划中" /> |
+| 测试状态 | <Badge type="tip" text="自动化已执行（Web 侧）" /> |
 
 ## 测试范围与需求分析
 
@@ -62,7 +62,9 @@ verifiedAt: 2026-10-09
 
 ### [FNOS-011-02 DSH 凭据不可读时给出可诊断错误](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-02)
 
-实现见 [PLAN-FNOS-011 T03-01](/plans/PLAN-FNOS-011-credential-permission-diagnostics#分阶段任务)。
+> <Badge type="danger" text="废弃（2026-10-10）" /> 功能 FNOS-011-02 经维护者确认废弃、不做排期（影响上游包，不修改官方代码）；本组用例随之废弃，不再执行。保留原文供追溯。
+
+实现见 [PLAN-FNOS-011 T03-01](/plans/PLAN-FNOS-011-credential-permission-diagnostics#分阶段任务)（已废弃）。
 
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -72,7 +74,9 @@ verifiedAt: 2026-10-09
 
 ### [FNOS-011-03 凭据失败不导致整个 DSH Web 退出](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-03)
 
-实现见 [PLAN-FNOS-011 T03-02](/plans/PLAN-FNOS-011-credential-permission-diagnostics#分阶段任务)。
+> <Badge type="danger" text="废弃（2026-10-10）" /> 功能 FNOS-011-03 随 FNOS-011-02 一并废弃、不做排期；本组用例不再执行。保留原文供追溯。
+
+实现见 [PLAN-FNOS-011 T03-02](/plans/PLAN-FNOS-011-credential-permission-diagnostics#分阶段任务)（已废弃）。
 
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -106,7 +110,16 @@ verifiedAt: 2026-10-09
 
 | 用例ID | 功能点 | 执行环境 | 结果 | 执行日期 | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| — | — | — | — | — | 尚未执行 |
+| TC-001~005 | FNOS-011-01 | DSH Web（本地单测注入 stat） | 通过 | 2026-10-10 | `packages/dsh-plugin-kit/tests/credential-permission.spec.ts` 12 条：`600`/`644`/`0000`/`400`/`440`/`444`/`700`、ENOENT→absent、非 ENOENT 上抛、文案断言 |
+| TC-006 | FNOS-011-01 | 真实 NAS（ACL 卷现场） | 待执行 | — | 需真实 fnOS 环境 |
+| TC-007~009 | FNOS-011-02 | 真实 NAS | 废弃 | 2026-10-10 | 功能废弃，不再执行 |
+| TC-010~012 | FNOS-011-03 | 真实 NAS | 废弃 | 2026-10-10 | 功能废弃，不再执行 |
+| TC-013（自动化部分） | FNOS-011-04 | DSH Web（本地单测） | 通过 | 2026-10-10 | `plugins/dsh-codebuddy-plugin/tests/storage-file-state.spec.ts` 5 条：absent/600/0000/644 三态 + panelStatus 载荷区分；界面走查与 Desktop 复核待验收 |
+| TC-014 | FNOS-011-04 | DSH Web | 通过（自动化部分） | 2026-10-10 | absent 时 panelStatus 不带 credentialState，与既有形状一致 |
+| TC-015 | FNOS-011-04 | DSH Desktop | 待执行 | — | 需 Desktop 环境 |
+| TC-016 | FNOS-011-05 | 本地源码扫描 | 通过 | 2026-10-10 | `tests/permission-predicate-convergence.spec.ts`：两插件源码剥注释后无 `0o077`/`isOwnerOnly`，均引用共享包 |
+| TC-017 | FNOS-011-05 | 本地单测 | 通过 | 2026-10-10 | 五种输入齐备（见 TC-001~005 备注） |
+| TC-018 | FNOS-011-05 | 本地回归 | 通过 | 2026-10-10 | codebuddy 909 条、codex-auth 137 条全绿 |
 
 ## Bug 记录
 
@@ -116,7 +129,11 @@ verifiedAt: 2026-10-09
 
 ## 测试结论
 
-**尚未执行。** 用例已登记；真实 NAS 部分（TC-007~TC-012）执行证据登记 `docs/validation/`，本页结论引用该证据。
+**自动化部分已通过（2026-10-10），真实 NAS 与 Desktop 部分待验收。**
+
+- FNOS-011-01/04/05 的本地自动化全部通过（共享判定 12 条 + 插件三态 5 条 + 收敛守门 2 条，插件全量 909+137 回归绿）。
+- FNOS-011-02/03 已随功能废弃，对应用例不再执行。
+- 待验收：TC-006（NAS ACL 现场）、TC-013 界面走查与 TC-015（Desktop）。
 
 ## 变更记录
 
