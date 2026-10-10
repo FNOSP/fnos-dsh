@@ -43,7 +43,7 @@ verifiedAt: 2026-10-09
 | 环境 | 版本 |
 | --- | --- |
 | DSH 运行时 | `0.2.0-rc.2`（仓库根 `@deepseek-ai/dsh`，profile `web`） |
-| 插件构建版本 | `@tnnevol/dsh-failover-search@0.2.0-rc.2.0` |
+| 插件构建版本 | `@tnnevol/dsh-failover-search@0.2.0-rc.2.1` |
 | 本地 Web `DSH_HOME` | `<repo>/.dsh`（端口 8070） |
 | 三方账号 | TinyFish 2 个真实 key；Tavily 2 个真实 key |
 | DSH Desktop | `fork-pj/deepseek-harness` 检出 `639ed01539`（`0.2.0-rc.2`），开发态构建标识 `0.2.0-rc.2-639ed01`，Electron 44.0.0 / Chrome 152；经 `DSH_DESKTOP_RENDERER_DEBUG_PORT=9333` 的 CDP 驱动，`DSH_HOME` 指向项目根 `.dsh` |
@@ -389,15 +389,17 @@ verifiedAt: 2026-10-09
 
 ## 测试结论
 
-**整体结论：部分通过。**
+**整体结论：通过。**
 
 - 已通过：`FNOS-010-01`、`02`、`03`、`06`、`09` 的全部验收条件在单元、真实网络与会话内三层均通过；`FNOS-010-11`（网页抓取三方兜底）经单测、真实网络与会话内 debug 日志级三层验证通过（TC-048～TC-050）；`FNOS-010-04`（配置区与账号管理）在 DSH Web 与 DSH Desktop 两个客户端通过；`FNOS-010-05`（结果归一、截断与卡片呈现）经真实会话走查通过；`FNOS-010-07-AC-01` 的真实多账号分摊经 TinyFish 双账号实测通过；`FNOS-010-08`（两个用量端点）在 Web 与 Desktop 渲染通过；`FNOS-010-10`（命名契约）通过。
-- 未完成：**npm 发布未执行**（`npm whoami` 返回 401，凭据失效；发布动作由用户在登录后执行）。测试数据清理已完成：两份 profile 的测试账号已清空（`tinyfishAccounts: []` / `tavilyAccounts: []`），配置原文按[插件配置备份](/charter/directory-structure#插件配置备份)约定备份至 `tmp/plugin-backup/dsh-failover-search-2026-10-09/`（git 忽略，未进仓库）；暗色主题走查已完成（TC-047）。
+- 发布：插件版本已升至 `0.2.0-rc.2.1` 并在 npm 发布（`dist-tags` 为 `next`）。该版本覆盖本轮全部改动（网页抓取三方兜底、会话级「智能搜索」开关、用量区块手动刷新、详情页区块顺序）。
+- 测试数据清理已完成：两份 profile 的测试账号已清空（`tinyfishAccounts: []` / `tavilyAccounts: []`），配置原文按[插件配置备份](/charter/directory-structure#插件配置备份)约定备份至 `tmp/plugin-backup/dsh-failover-search-2026-10-09/`（git 忽略，未进仓库）；暗色主题走查已完成（TC-047）。
 - 已修正的前述结论：早期登记的「Desktop 全部用例未执行」、「会话搜索卡片未走查」、「禁用回落未走查」与「缺第二个真实账号」均已在本轮补齐（见 TC-037～TC-045）。
 - 遗留风险：
   - 上游响应契约不是稳定接口：`url` 的相对重定向包装（BUG-02）与 `date` 字段的时有时无都来自实测；平台变更格式时，相关条目会被跳过或省略日期，搜索本身仍成功。
   - `FNOS-010-08` 的 Tavily `key` 层 `limit` 在当前 key 档位为 `null`；实现据此不做 key 级触限判定、只按账户层 `plan_usage >= plan_limit` 判定，档位变化后需要复核该判定。
 - **会话级开关（FNOS-010-12）核心语义经平台侧计数验证**：关闭后 TinyFish 平台计数不变（三方零调用）、开启后恢复增加，且同一会话内切换无需重启即生效。该功能的实现踩到两个真实接缝陷阱（`inject` 缺 `tools`、`pre-execute` 与 `execute` 的派发位置差异），均已修复并由契约测试钉住（BUG-11、BUG-12）。
+- **发布前修正**：`compatibility.json` 的 `dshPluginApi.packages` 原先停留在 10 个包，未随本轮新增依赖同步——实测由 `tooling/fnos-dsh-cli` 的 `keeps each compatibility package list aligned with source imports` 用例守住（该用例从源码扫 import 并与声明面比对）。已补至 16 个包（覆盖 `dsh-tools`、`dsh-agent`、`dsh-client-ui-conversation`、`dsh-web-fetch-http` 等本轮新增依赖）；同时修正 `docs/plugins/dsh-failover-search.md` 的安装命令版本（版本升级脚本未覆盖该页，由 `keeps every documented install command on the released plugin version` 用例发现）。
 - **控件维度已补测**：BUG-10 暴露的漏测根因是「用例只测数据、不测控件」。已新增 AC-05 把用量区块的交互控件清单固化为验收条件，并补 TC-058（控件存在性 + 可访问名称 + 三态可见）。
 - **回归验证已在 DSH Web 与 DSH Desktop 两个客户端完成**：本轮改动（新增复合 fetch provider、座位迁移到 `detail.section`、重写组合行 `fetchProvider`、新增刷新端点）均属规范定义的「回归验证类」。Desktop 侧由 TC-061~TC-064 覆盖——界面结构与 Web 逐项一致、刷新端点可用、抓取兜底经日志级取证生效、搜索链路未受影响。回归用例 TC-052～TC-054 全部通过——既有 smoke 9/9、e2e 8/8 在改动后仍全过；配置读写路径经真实界面操作确认与迁移前一致；本地抓取语义（零平台调用、`html` kind、非 2xx 语义、limits）经变异检验确认受断言保护。回归过程发现 BUG-09（e2e 断言陈旧），已修复。
 - 结果同时覆盖 DSH Web 与 DSH Desktop 两个客户端（插件兼容基线要求的最低组合），Desktop 侧使用 `fork-pj/deepseek-harness` 检出的开发态构建。
