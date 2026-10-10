@@ -35,12 +35,52 @@ CodeBuddy 插件通过 `/model` 指令打开模型列表窗口选择模型。用
 | 本地 web profile 的 pnpm-workspace.yaml 残留 `minimumReleaseAgeExclude: ['@tnnevol/dsh-codebuddy@0.1.7-rc.2']`，而插件清单已是 `0.2.0-rc.2.0`——旧豁免条目指向失效版本，属于历史锚定残留 | 项目 `.dsh/profiles/web/pnpm-workspace.yaml` 实测 | FNOS-012-03 | 已核实 |
 | pnpm 的 `minimumReleaseAgeExclude` 采用首项命中即返回（First-Match-Wins）：同一包多版本按行分列时后续条目被短路忽略，触发 `NO_MATURE_MATCHING_VERSION` 拦截非交互安装；社区已实测该机制并给出单行 `\|\|` 联合的规避写法 | [Discussions #11（discussioncomment-18833751）](https://github.com/FNOSP/fnos-dsh/discussions/11#discussioncomment-18833751) | FNOS-012-03 | 已核实 |
 | 安装回调已统一以 `--config.minimum-release-age=0` 放行发布日期校验（自有与三方一致），profile 级 `minimumReleaseAgeExclude` 的豁免职责已被取代，残留只带来维护负担 | `cmd/install_callback` 的 `run_dsh_plugin_with_release_age`；提交 `b4d21cf` | FNOS-012-03 | 已核实 |
+| npm 上四个插件的 `latest` dist-tag 全部停留在早期版本（`dsh-codex-auth` → `0.1.0-rc.7`、`dsh-codebuddy` → `0.1.2-rc.1.2`、`dsh-fnos` → `0.1.1-rc.2.0`、`dsh-semi-ui-showcase` → `0.1.2-rc.1`），新版本只挂在 `next`（`0.2.0-rc.2.0`）；`npm i` 不带 tag 会装到旧版 | npm registry `dist-tags` 实测（2026-10-09）；[Discussions #11](https://github.com/FNOSP/fnos-dsh/discussions/11) 社区同报 | FNOS-012-04 | 已核实 |
+| `latest` 失效的直接原因：发布链路只发 `next`（`publish:next` 脚本固定 `--tag next`），从无维护 `latest` 的步骤；`latest` 停在各插件历史早期版本 | 插件 `package.json` 的 `publish:next` 脚本；`tooling/fnos-dsh-cli` publish 命令 | FNOS-012-04 | 已核实 |
+| `latest` 的正确指向为各插件上一代最新版 `0.1.7-rc.2.2`（四个插件一致）；rc 版进 `latest` 会让普通用户提前装到预发布版，与 rc 阶段 pin 版本策略冲突 | npm 版本序列核对；维护者 rc 策略回复（Discussions #11） | FNOS-012-04 | 已核实 |
 
 ## 需求目标
 
 - 用户打开 `/model` 模型列表窗口时，每个模型条目能看到自己的倍速，无需离开窗口查询。
 - 插件对 CodeBuddy 服务端声明的客户端版本与官方当前版本一致，降低旧版本指纹带来的行为差异风险。
 - DSH web profile 不再残留历史 `minimumReleaseAgeExclude` 规则，插件安装不再被旧豁免清单与 lockfile 残留阻塞。
+- npm `latest` 标签与 rc 阶段发布策略一致，社区用户按默认方式安装不会误装早期版本或误降级（回应 [Discussions #11](https://github.com/FNOSP/fnos-dsh/discussions/11) 的 dist-tags 反馈）。
+
+## 问题分析：npm latest 标签失效的原因与解决方式（FNOS-012-04）
+
+### 现象
+
+npm 上四个自有插件的 `latest` dist-tag 均停留在早期版本（如 `dsh-codex-auth` → `0.1.0-rc.7`），而适配 DSH `0.2.0-rc.2` 的新版本 `0.2.0-rc.2.0` 只发布在 `next` 标签。后果：`npm i @tnnevol/<插件>` 不带 tag 时安装到旧版；按 npm 默认规则检查更新的客户端工具误报「可更新」甚至误触发向旧版降级——即 [Discussions #11](https://github.com/FNOSP/fnos-dsh/discussions/11) 社区反馈的 dist-tags 问题。
+
+### 原因
+
+1. **发布链路只写 `next`**：各插件 `package.json` 的 `publish:next` 脚本固定 `pnpm publish --tag next`，CLI 的 publish 命令也只走该脚本；整条发布链路没有任何维护 `latest` 的步骤。
+2. **`latest` 从未跟随迭代**：npm 的 `latest` 只在发布时不指定 tag 的情况下才会移动；自改为 `next` 发布后，`latest` 冻结在各插件最后一次无 tag 发布的版本（时间较早）。
+3. **无校正机制**：rc 阶段刻意 pin 版本（rc 策略，见 Discussions #11 维护者回复），`next` 与 `latest` 的分层是合理的；缺的只是把 `latest` 校正到「上一代最新稳定候选」的一次性动作与后续约定。
+
+### 解决方式
+
+**一次性校正**（需持有 npm 发布权限者执行；当前环境 token 已失效 401，需先 `npm login`）：
+
+```bash
+# 四个插件的上一代最新版均为 0.1.7-rc.2.2（已核对各包版本序列）
+npm dist-tag set @tnnevol/dsh-codex-auth@0.1.7-rc.2.2 latest
+npm dist-tag set @tnnevol/dsh-codebuddy@0.1.7-rc.2.2 latest
+npm dist-tag set @tnnevol/dsh-fnos@0.1.7-rc.2.2 latest
+npm dist-tag set @tnnevol/dsh-semi-ui-showcase@0.1.7-rc.2.2 latest
+
+# 校正后核对
+for p in dsh-codex-auth dsh-codebuddy dsh-fnos dsh-semi-ui-showcase; do pnpm view @tnnevol/$p dist-tags; done
+```
+
+选择 `0.1.7-rc.2.2` 而非 `0.2.0-rc.2.0` 的理由：rc 版进入 `latest` 会让不关心预发布的普通用户默认装到 rc；`next` 继续承载 rc 迭代，等 harness 出稳定版再把 `latest` 整体切到新版（与 rc 阶段 pin 策略一致）。
+
+**流程约定（防复发）**：后续发布流程在 `next` 发布后维护 `latest`——每次发布新代际的稳定候选时同步校正 `latest`；rc 迭代版只更新 `next`。约定落点为发布流程文档，具体机制由计划安排。
+
+### 风险
+
+- 校正 `latest` 后，已按 `latest` 安装 `0.1.0-rc.7` 等旧版的用户会收到「可更新到 0.1.7-rc.2.2」的提示——这是期望行为（把用户引向正确的上一代稳定版）。
+- `npm dist-tag set` 立即生效且可重复执行、可随时再校正，无数据迁移与回滚成本。
 
 ## 功能列表
 
@@ -49,6 +89,7 @@ CodeBuddy 插件通过 `/model` 指令打开模型列表窗口选择模型。用
 | FNOS-012-01 | P1 | 模型列表展示倍速 | `/model` 模型列表窗口中，有倍速的模型条目展示其倍速（如 `x3.33`）；目录未披露倍速的模型不编造数值、不显示倍速位 | <Badge type="info" text="规划中" /> |
 | FNOS-012-02 | P1 | 客户端版本更新 | 插件请求携带的 CLI 版本为 `2.163.0`、WorkBuddy 版本为 `5.77`，登录与请求行为与官方客户端一致 | <Badge type="info" text="规划中" /> |
 | FNOS-012-03 | P1 | profile 移除 minimumReleaseAgeExclude 自愈 | DSH web profile 安装/升级时检测 pnpm-workspace.yaml 中的 `minimumReleaseAgeExclude` 残留并移除；移除后清理 lockfile 与 node_modules 并在 profile 目录重新 `pnpm install`，插件安装不再受旧豁免规则影响 | <Badge type="info" text="规划中" /> |
+| FNOS-012-04 | P1 | npm latest 标签校正 | 四个插件 npm 的 `latest` 指向 `0.1.7-rc.2.2`；`npm i @tnnevol/<插件>` 默认安装到上一代稳定版而非 `0.1.0-rc.7` 等早期版本；`0.2.0-rc.2.0` 继续通过 `next` 获取 | <Badge type="info" text="规划中" /> |
 
 ## 行为约束
 
@@ -85,15 +126,24 @@ CodeBuddy 插件通过 `/model` 指令打开模型列表窗口选择模型。用
 - `FNOS-012-03-AC-03`：清理重装后，清单内的插件全部按清单版本安装成功，`NO_MATURE_MATCHING_VERSION` 类发布日期拦截不再出现。
 - `FNOS-012-03-AC-04`：清理过程不删除、不改写用户的插件配置与凭据数据。
 
+### FNOS-012-04
+
+- `FNOS-012-04-AC-01`：npm 上 `@tnnevol/dsh-codex-auth`、`@tnnevol/dsh-codebuddy`、`@tnnevol/dsh-fnos`、`@tnnevol/dsh-semi-ui-showcase` 四个包的 `latest` 标签指向 `0.1.7-rc.2.2`。
+- `FNOS-012-04-AC-02`：`npm i @tnnevol/<插件>`（不带 tag）安装到 `0.1.7-rc.2.2`，不再落在 `0.1.0-rc.7` 等早期版本；`0.2.0-rc.2.0` 仍通过 `next` 标签获取。
+- `FNOS-012-04-AC-03`：后续发布流程包含 `latest` 维护约定，避免 `latest` 再次长期滞留。
+
 ### 验收环境范围
 
 - FNOS-012-01 在 DSH Web 与 DSH Desktop 验收。
 - FNOS-012-02 在 DSH Web 与 DSH Desktop 验收；涉及真实服务端交互的部分按既有网络/账号条件验证。
 - FNOS-012-03 在真实 fnOS NAS 验收（安装/升级链路整体走通）；检测与清理分支由本地自动化覆盖。
+- FNOS-012-04 在 npm registry 验收（dist-tags 查询与默认安装行为核对），由持有发布权限者执行。
 
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-09 | 初始登记 | 建立 FNOS-012：/model 模型列表补充倍速展示（目录 `credits` 字段已存在，composer 选择组件不渲染 description 为缺失原因）；CLI 版本 `2.159.0 → 2.163.0`、WorkBuddy `5.6.2 → 5.77`。关联 PLAN-FNOS-012。 |
+| 2026-10-09 | 初始登记 | 建立 FNOS-012：/model 模型列表补充倍速展示（目录 `credits` 字段已存在，composer 选择组件不渲染 description 为缺失原因）；CLI 版本 `2.159.0 → 2.163.0`、WorkBuddy `5.6.2 → 5.77`。关联 PLAN-FNOS-012。 |
 | 2026-10-09 | 新增 FNOS-012-03 | 范围扩展：web profile 安装/升级链路检测并移除 pnpm-workspace.yaml 的 `minimumReleaseAgeExclude` 残留，随后清理 lockfile 与 node_modules 并重新 `pnpm install` 自愈。依据：本地 profile 实测残留旧锚定；Discussions #11 证实 pnpm 豁免规则 First-Match-Wins 陷阱；安装回调已用 `--config.minimum-release-age=0` 统一放行，profile 级豁免已被取代。 |
+| 2026-10-09 | 新增 FNOS-012-04 | 范围扩展：npm `latest` 标签校正。原因分析——发布链路只发 `next`、`latest` 从未跟随迭代且无校正机制，导致四个插件 `latest` 停在早期版本（`dsh-codex-auth` → `0.1.0-rc.7`）。解决方式——一次性 `npm dist-tag set … latest` 校正到上一代最新 `0.1.7-rc.2.2`（四包一致），后续发布流程含 `latest` 维护约定；执行需 npm 发布权限（当前环境 token 失效，待权限恢复后执行）。 |
