@@ -26,9 +26,8 @@ import type { ReactNode } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import {
   DshButton,
-  DshIconButton,
+  DshCheckbox,
   DshIconCopy,
-  DshIconPlus,
   DshInput,
   DshSelect,
   DshTag,
@@ -83,7 +82,8 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   const [customKey, setCustomKey] = useState('')
   const [editingKey, setEditingKey] = useState(false)
   const [models, setModels] = useState<string[]>([])
-  const [modelDraft, setModelDraft] = useState('')
+  // 只看支持图片的模型（默认开启）：Midscene 靠截图理解页面，文本模型选进来也跑不了。
+  const [visionOnly, setVisionOnly] = useState(true)
 
   /** 读一次状态（失败呈现为可重试的错误，不静默留空）。 */
   const reload = useCallback(async (): Promise<void> => {
@@ -133,6 +133,14 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
     )
   }
 
+  // 下拉可选项：默认只列支持图片的模型（Midscene 的硬要求）；已选中的项始终保留，
+  // 否则用户看不到自己选了什么、也无法取消。
+  const selectableModels = snapshot.availableModels.filter(model =>
+    !visionOnly || model.vision || models.includes(model.id))
+  // 已配置但当前目录里没有的模型：如实提示，不静默丢弃（可能是提供方被卸载或模型改名）。
+  const availableIds = new Set(snapshot.availableModels.map(model => model.id))
+  const staleModels = models.filter(id => !availableIds.has(id))
+
   const copyEnv = async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(snapshot.envFile)
@@ -143,25 +151,17 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
     }
   }
 
-  const addModel = (): void => {
-    const value = modelDraft.trim()
-    if (value === '') return
-    // 去重：同一模型重复出现没有意义（按顺序取第一个可用者，第二个永远不会被选中）。
-    // 去重后模型名在列表内唯一，可直接作渲染 key。
-    if (models.includes(value)) {
-      setModelDraft('')
-      return
-    }
-    const next = [...models, value]
-    setModels(next)
-    setModelDraft('')
-    void submit({ action: 'update', models: next })
-  }
-
-  const removeModel = (index: number): void => {
-    const next = models.filter((_, position) => position !== index)
-    setModels(next)
-    void submit({ action: 'update', models: next })
+  /**
+   * 提交模型选择。
+   *
+   * 下拉的多选值直接就是完整列表（含顺序），因此一次提交整组：不做增量增删，
+   * 避免「先删后加」两次写入之间出现短暂的空列表。去重由 `DshSelect` 保证，
+   * 这里再兜一次以防目录里出现重复 id。
+   */
+  const applyModels = (next: readonly string[]): void => {
+    const deduped = [...new Set(next)]
+    setModels(deduped)
+    void submit({ action: 'update', models: deduped })
   }
 
   return (
@@ -226,31 +226,35 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
       </Field>
 
       <Field label={t('modelsLabel')} hint={t('modelsHint')}>
-        <div className={`${ROOT}__models`}>
-          {models.length === 0
-            ? <span className={`${ROOT}__hint`}>{t('modelsEmpty')}</span>
-            : models.map((model, index) => (
-                // key 用模型名：列表已按名去重，名字唯一且稳定；用下标会在删除中间项时
-                // 让 React 复用错位节点（表现为删掉 A 却像是删了 B）。
-                <DshTag key={model} size="small" closable onClose={() => { removeModel(index) }}>
-                  {model}
-                </DshTag>
-              ))}
-        </div>
-        <DshInput
+        <DshSelect
+          multiple
+          filter
           size="small"
           style={{ width: 420 }}
-          value={modelDraft}
-          placeholder={t('modelsPlaceholder')}
-          onChange={(value: string) => { setModelDraft(value) }}
-          suffix={(
-            <DshIconButton
-              icon={<DshIconPlus />}
-              size="small"
-              onClick={addModel}
-            />
-          )}
-        />
+          value={models}
+          placeholder={models.length === 0 ? t('modelsNoneSelected') : t('modelsPlaceholder')}
+          onChange={(value: string[]) => { applyModels(value) }}
+        >
+          {selectableModels.map(model => (
+            <DshSelect.Option key={model.id} value={model.id}>
+              {/* 无图片能力的选项标注出来：Midscene 需要视觉能力，选错只会在跑的时候才失败。 */}
+              {model.vision ? model.id : `${model.id} · ${t('modelsNoVision')}`}
+            </DshSelect.Option>
+          ))}
+        </DshSelect>
+        <DshCheckbox
+          checked={visionOnly}
+          // Semi 的 Checkbox onChange 传的是事件对象而非布尔值（与仓库既有用法一致，
+          // 见展示插件的示例）：受控组件直接翻转自身状态即可，不用读事件参数。
+          onChange={() => { setVisionOnly(value => !value) }}
+        >
+          {t('modelsVisionOnly')}
+        </DshCheckbox>
+        {staleModels.length === 0 ? null : (
+          <DshTag color="orange" size="small">
+            {t('modelsStale')}: {staleModels.join(', ')}
+          </DshTag>
+        )}
       </Field>
 
       <Field label={t('envLabel')} hint={t('envHint')}>

@@ -36,10 +36,29 @@ import {
 } from '../contracts/config.ts'
 import { MIDSCENE_SETTINGS_NAMESPACE, MIDSCENE_SETTINGS_STATUS_PATH, MIDSCENE_SETTINGS_UPDATE_PATH } from '../contracts/settings-rpc.ts'
 
+/** 设置界面可选的模型条目。 */
+export interface SelectableModel {
+  /** 「提供方/模型」标识。 */
+  readonly id: string
+  /** 可读名（有则展示）。 */
+  readonly name?: string
+  /** 是否具备图片输入能力（Midscene 需要）。 */
+  readonly vision: boolean
+}
+
 /** 端点所需的宿主能力。 */
 export interface SettingsRouteDeps {
   /** 读当前配置（volatile 解包后）。 */
   readonly readConfig: () => BridgeConfig
+  /**
+   * 读可选模型目录。
+   *
+   * 设置界面的「指定测试模型」改为下拉选择而不是手填：手填要求用户记住
+   * 「提供方/模型」全称（如 `codebuddy/glm-5.3-flash`），写错只会在真正跑
+   * Midscene 时才报错，且用户无从知道有哪些可用值。目录来自宿主模型层，
+   * 与桥 /v1/models 同源。
+   */
+  readonly listModels: () => Promise<readonly SelectableModel[]>
   /** 写配置字段。 */
   readonly update: (patch: Record<string, unknown>) => Promise<void>
   /** 记录一行日志。 */
@@ -127,10 +146,20 @@ function readJsonBody(request: IncomingMessage): Promise<unknown> {
  * @param deps - 端点依赖。
  * @returns 状态快照。
  */
-function statusSnapshot(deps: SettingsRouteDeps): Record<string, unknown> {
+export async function statusSnapshotForTest(
+  deps: Pick<SettingsRouteDeps, 'readConfig' | 'listModels'>,
+): Promise<Record<string, unknown>> {
   const config = deps.readConfig()
   const apiKey = config.apiKey.length > 0 ? config.apiKey : generateApiKey()
+  // 目录读取失败不应让整个设置页打不开：退化为空列表，界面允许在无目录时
+  // 保持已配置的值可见（用户仍能改家族与密钥）。
+  const available = await deps.listModels().catch(() => [] as readonly SelectableModel[])
   return {
+    availableModels: available.map(model => ({
+      id: model.id,
+      vision: model.vision,
+      ...model.name === undefined ? {} : { name: model.name },
+    })),
     namespace: MIDSCENE_SETTINGS_NAMESPACE,
     apiKey,
     family: config.family,
@@ -144,7 +173,7 @@ function statusSnapshot(deps: SettingsRouteDeps): Record<string, unknown> {
 }
 
 /** 校验并归一化一次配置写入请求。 */
-function normalizePatch(input: Record<string, unknown>): Record<string, unknown> {
+export function normalizePatchForTest(input: Record<string, unknown>): Record<string, unknown> {
   const patch: Record<string, unknown> = {}
   if (typeof input.family === 'string') {
     // 家族必须落在 Midscene 的白名单里：传未知值会在 Midscene 运行时才失败
@@ -183,20 +212,22 @@ export function registerMidsceneSettingsRoutes(ctx: Context, deps: SettingsRoute
       kind: 'exact',
       path: MIDSCENE_SETTINGS_STATUS_PATH,
       handler: (request, response) => {
-        if (request.method !== 'GET') {
-          sendJson(response, 405, { error: 'method not allowed' })
-          return
-        }
-        if (!trustedRequest(request)) {
-          sendJson(response, 403, { error: 'untrusted origin' })
-          return
-        }
-        try {
-          sendJson(response, 200, statusSnapshot(deps))
-        } catch (error) {
-          deps.log(`[midscene] 读取接入设置失败: ${String(error)}`)
-          sendJson(response, 500, { error: 'failed to read bridge settings' })
-        }
+        void (async () => {
+          if (request.method !== 'GET') {
+            sendJson(response, 405, { error: 'method not allowed' })
+            return
+          }
+          if (!trustedRequest(request)) {
+            sendJson(response, 403, { error: 'untrusted origin' })
+            return
+          }
+          try {
+            sendJson(response, 200, await statusSnapshotForTest(deps))
+          } catch (error) {
+            deps.log(`[midscene] 读取接入设置失败: ${String(error)}`)
+            sendJson(response, 500, { error: 'failed to read bridge settings' })
+          }
+        })()
       },
     })
 
@@ -232,7 +263,7 @@ export function registerMidsceneSettingsRoutes(ctx: Context, deps: SettingsRoute
               }
               await deps.update({ apiKey: key })
             } else {
-              const patch = normalizePatch(body)
+              const patch = normalizePatchForTest(body)
               if (Object.keys(patch).length === 0) {
                 sendJson(response, 400, { error: 'no supported field in request' })
                 return
@@ -240,7 +271,7 @@ export function registerMidsceneSettingsRoutes(ctx: Context, deps: SettingsRoute
               await deps.update(patch)
             }
             // 回送写入后的真实状态：界面据此校正，避免显示与配置不一致。
-            sendJson(response, 200, statusSnapshot(deps))
+            sendJson(response, 200, await statusSnapshotForTest(deps))
           } catch (error) {
             deps.log(`[midscene] 写入接入设置失败: ${String(error)}`)
             sendJson(response, 400, { error: String((error as Error).message) })

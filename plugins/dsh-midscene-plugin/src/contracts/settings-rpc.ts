@@ -40,6 +40,13 @@ export interface MidsceneSettingsSnapshot {
   readonly defaultFamily: string
   /** 指定用于测试的模型列表；空表示跟随 DSH 会话模型。 */
   readonly models: readonly string[]
+  /**
+   * 可供选择的模型目录（设置界面下拉选项）。
+   *
+   * 界面用下拉而非手填：手填要求用户记住「提供方/模型」全称，写错只会在真正
+   * 跑 Midscene 时才暴露，且用户无从知道有哪些可用值。
+   */
+  readonly availableModels: readonly { readonly id: string, readonly name?: string, readonly vision: boolean }[]
   /** 固定模型名（`MIDSCENE_MODEL_NAME` 的值）。 */
   readonly fixedModelName: string
   /** 桥地址（`.env` 里 `MIDSCENE_MODEL_BASE_URL` 的值）。 */

@@ -175,6 +175,16 @@ export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unkn
     }
     registerMidsceneSettingsRoutes(scoped as unknown as Context, {
       readConfig: () => effective,
+      // 复用桥的目录缓存：设置界面的下拉与 /v1/models 同源，不会出现「界面上有、
+      // 桥上查不到」的不一致；提供方变化时缓存失效逻辑也只需要维护一处。
+      listModels: async () => {
+        const snapshot = await bridge.catalog.get()
+        return snapshot.entries.map(entry => ({
+          id: entry.id,
+          vision: entry.vision === true,
+          ...entry.name === undefined ? {} : { name: entry.name },
+        }))
+      },
       update: async patch => { await settings.update(MIDSCENE_SETTINGS_NAMESPACE, patch) },
       log,
     })

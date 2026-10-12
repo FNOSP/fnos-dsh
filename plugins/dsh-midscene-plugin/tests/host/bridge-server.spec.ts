@@ -500,6 +500,45 @@ describe('固定模型名 dsh-model（FNOS-013-05 零配置接入）', () => {
   })
 })
 
+describe('设置界面的模型选择（下拉而非手填）', () => {
+  it('可选模型目录与 /v1/models 同源，并带视觉能力标记', async () => {
+    // 手填的问题是用户无从知道有哪些合法值、写错只在真正跑 Midscene 时才暴露；
+    // 下拉的选项必须与桥能路由的模型完全一致（同源读取目录，不另建一份清单）。
+    const { llm } = fakeLlm({
+      providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],
+      models: {
+        codebuddy: [
+          { provider: 'codebuddy', id: 'glm-5.3-flash', name: 'GLM-5.3-Flash', inputModalities: ['text', 'image'] },
+          { provider: 'codebuddy', id: 'text-only', name: 'TextOnly' },
+        ],
+      },
+    })
+    const { port } = await startBridge({}, { llm })
+    const response = await fetch(`http://127.0.0.1:${port}/v1/models`)
+    const body = await response.json() as { data: { id: string, vision: boolean }[] }
+    // 目录端点是下拉的数据来源（设置端点复用同一份目录缓存）。
+    expect(body.data.map(m => m.id)).toContain('codebuddy/glm-5.3-flash')
+    expect(body.data.find(m => m.id === 'codebuddy/glm-5.3-flash')?.vision).toBe(true)
+    expect(body.data.find(m => m.id === 'codebuddy/text-only')?.vision).toBe(false)
+  })
+
+  it('候选模型数量与目录一致（下拉不会漏项）', async () => {
+    const { llm } = fakeLlm({
+      providers: [{ id: 'p', name: 'P' }],
+      models: {
+        p: [
+          { provider: 'p', id: 'a', name: 'A', inputModalities: ['text', 'image'] },
+          { provider: 'p', id: 'b', name: 'B' },
+          { provider: 'p', id: 'c', name: 'C', inputModalities: ['text', 'image'] },
+        ],
+      },
+    })
+    const { port } = await startBridge({}, { llm })
+    const body = await (await fetch(`http://127.0.0.1:${port}/v1/models`)).json() as { data: unknown[] }
+    expect(body.data).toHaveLength(3)
+  })
+})
+
 describe('接入密钥鉴权', () => {
   it('推理端点不带密钥时被拒（401）', async () => {
     // 密钥守住的是会消耗提供方额度的推理调用。
