@@ -203,25 +203,25 @@ verifiedAt: 2026-10-12
 | TC-024 | [FNOS-013-04](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-04) | DSH Web | 通过 | 2026-10-12 | 实测 `deepseek-official/deepseek-flash`（未配置 API key）返回 400 + `code: MISSING_CREDENTIAL`，消息含「提供方/模型」、宿主原始原因与设置指引；其它路由不受影响 |
 | TC-025 | [FNOS-013-04](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-04) | DSH Web + 本地测试 | 通过 | 2026-10-12 | **实测发现的缺陷已修（BUG-01）**：宿主把提供方失败编码在 `finish` 分片里，原先被当作正常结束而返回空回答；现非流式返回标准错误、流式先发错误分片再正常收尾 |
 | TC-026 | [FNOS-013-04](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-04) | 本地测试 | 通过 | 2026-10-12 | HTTP 测试在无附件服务时断言 `attachments: false`；图片请求返回 503 级明确错误 |
-| TC-027 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | DSH Web | 未执行 | — | 需安装 Midscene CLI（`npx @midscene/web`）并完成接入配置；本轮受本机 npm 缓存权限与时间限制未执行 |
-| TC-028 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | DSH Web | 未执行 | — | 依赖 TC-027 与预研 T00-01 的精度基线 |
-| TC-029 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | DSH Web | 未执行 | — | 需与 TC-027 同一环境对照 |
+| TC-027 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | DSH Web | 通过 | 2026-10-12 | SDK 路径实测：用 PuppeteerPageAgent 附加既有 Chrome（视口 1512×945）执行 aiAct 点击左侧边栏插件菜单项，act 自述成功后经 CDP 读 DOM 独立核实 hasAddPlugin: true、hasMidscene: true（页面真的跳转）。CLI 路径同指令未通过，原因与坐标数据见 TC-042 与 BUG-03 |
+| TC-028 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | DSH Web | 通过 | 2026-10-12 | 两项基线均通过（同样经 CDP 独立核实，不采信 act 自述）：① 页签切换「已安装」→ ok: true；② 密集列表中精确定位 @tnnevol/dsh-midscene 条目 → hasSettings: true（真的点开了插件详情页并显示接入设置区块）。**精度余量偏小**：同一按钮实测落点 SDK 为 (86,130)、YAML 运行器为 (68,110)/(200,110)/(201,110)，而按钮真实区域 y∈[120,156] —— 余量在 10px 量级，见 BUG-03 与结论 |
+| TC-029 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | DSH Web | 通过 | 2026-10-12 | 同一任务（点「插件」并断言插件列表）分别用 Midscene 与 CDP 脚本执行：CDP 在页面内直接 element.click() 立即生效（hasAddPlugin: true）；Midscene 的 act 需视口足够宽（≥1440）才可能命中。对照结论：CDP 稳定且精确，Midscene 在窄视口下不可用、宽视口下有落点偏差；两者定位到同一真实按钮位置 (14,120,252,36) |
 | TC-030 | [FNOS-013-06](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-06) | 文档站 | 通过 | 2026-10-12 | 说明页含安装命令、接入配置模板、模型选择指引（`vision: true`）、额度提示、9 行故障排查表与配置项表；链接经文档检查 |
 | TC-031 | [FNOS-013-06](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-06) | 文档站 | 通过 | 2026-10-12 | 插件总览表格新增一行并同步「六个运行时插件」表述；VitePress 侧边栏 `pluginItems` 加入条目 |
 | TC-032 | [FNOS-013-07](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-07) | 文档站 | 通过 | 2026-10-12 | 规范新增「Midscene 浏览器自动化测试」章节：适用范围表、项目环境前置条件、三类环境接入表、执行与证据、与人工走查/CDP 取证的工分表 |
 | TC-033 | [FNOS-013-07](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-07) | 文档站 | 通过 | 2026-10-12 | 章节明确沿用既有执行环境/版本记录/auth 备份约束；`pnpm run check -- --sdd` 通过（13 需求 / 13 计划 / 4 测试文档）；顺带修复该文档变更记录表分隔行损坏 |
-| TC-034 | [FNOS-013-08](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-08) | DSH Web | 未执行 | — | 需 Midscene CLI 与接入配置 |
+| TC-034 | [FNOS-013-08](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-08) | DSH Web | 通过 | 2026-10-12 | 干净目录（tmp/clean-verify）按插件说明页逐步执行：① curl /v1/health → status: ok；② 一条命令生成 .env（5 行，四行固定值）；③ curl /v1/models 正常返回。**首次执行时第 ③ 步失败**（/v1/models 当时要求密钥返回 401），据此修复为只读发现类端点免鉴权（BUG-04），修复后三步全部通过 |
 | TC-035 | [FNOS-013-08](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-08) | DSH Web | 通过 | 2026-10-12 | 本轮未创建接入配置；`git status` 核对无配置文件混入（`.env` 未生成） |
-| TC-036 | [FNOS-013-08](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-08) | 文档站 | 未执行 | — | 需按章节从干净环境逐步复现一遍 |
-| TC-037 | [FNOS-013-09](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-09) | DSH Web | 未执行 | — | 需 Midscene 端到端能力（依赖 TC-034） |
-| TC-038 | [FNOS-013-09](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-09) | 文档站 | 未执行 | — | 依赖 TC-037 产生证据 |
+| TC-036 | [FNOS-013-08](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-08) | 文档站 | 通过 | 2026-10-12 | 上述流程即按文档站章节从干净环境逐步复现，未遇到文档未覆盖的步骤；.env 为固定四行、换模型不需修改（与文档描述一致）。发现的文档与实现不一致处见 BUG-04（已随代码修复，文档命令无需再加密钥） |
+| TC-037 | [FNOS-013-09](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-09) | DSH Web | 通过 | 2026-10-12 | 经桥完成多步自然语言流程：点击「插件」→ 断言列表 → 点击「已安装」页签 → 点击具体插件条目进入详情页并显示设置区块；每步均用 CDP 读 DOM 独立核实（TC-027/TC-028 的 ok: true、hasSettings: true） |
+| TC-038 | [FNOS-013-09](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-09) | 文档站 | 通过 | 2026-10-12 | 证据即上述执行产生的 Midscene HTML 报告（含每步截图与规划过程）与独立核实的 DOM 快照；报告经 midscene_run/report/ 生成，关键结论已登记本表。报告未入库（体积 3 MB 级），按验收证据规范只引用结论 |
 | TC-039 | [FNOS-013-09](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-09) | DSH Web | 通过 | 2026-10-12 | 本轮走查全程使用既有 CDP 与浏览器自动化方式（插件管理页与技能目录核对），证明既有路径未受影响 |
 | TC-040 | [FNOS-013-10](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-10) | 文档站 | 通过 | 2026-10-12 | 规范「相关页面」加插件说明页链接；验收证据规范新增「Midscene 执行证据登记」小节并互相引用；`--sdd` 检查与文档构建通过 |
-| TC-041 | [FNOS-013-11](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-11) | DSH Web | 未执行 | — | 需 `@midscene/cli` 与接入配置 |
-| TC-042 | [FNOS-013-11](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-11) | DSH Web | 未执行 | — | 同上 |
-| TC-043 | [FNOS-013-11](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-11) | DSH Web | 未执行 | — | 同上 |
-| TC-044 | [FNOS-013-12](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-12) | DSH Web | 未执行 | — | 需 `@midscene/test`（Beta）与接入配置 |
-| TC-045 | [FNOS-013-12](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-12) | 文档站 | 未执行 | — | 依赖 TC-044 的实测版本 |
+| TC-041 | [FNOS-013-11](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-11) | DSH Web | 通过 | 2026-10-12 | npx @midscene/cli@1 model verify 三项全 PASS：planning Text response 1917ms、insight Image understanding 8768ms、default AI locate 4129ms，请求全部发往 http://127.0.0.1:8787/v1/chat/completions（3 次请求 / 3 项通过）。**其中 Image understanding PASS 补上了 TC-014 一直缺的「真实视觉回答」验证** |
+| TC-042 | [FNOS-013-11](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-11) | DSH Web | 失败 | 2026-10-12 | @midscene/cli 默认启动浏览器失败（spawn Unknown system error -88，本机沙箱拒绝启动，且 CLI 无法传 --no-sandbox）。改用 YAML 的 web.cdpEndpoint 附加既有 Chrome 后运行器正常执行：任务一 aiAssert **pass: true**（正确读出 DSH Web 界面细节），任务二定位失败 —— 点击落点 (68,110)，真实按钮区域 y∈[120,156]，落在按钮上方。见 BUG-03 |
+| TC-043 | [FNOS-013-11](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-11) | DSH Web | 失败 | 2026-10-12 | 同上（YAML 运行器的交互步骤）。--deep-locate 重跑仍失败，落点 (200,110)。结论：YAML 运行器**断言能力经桥可用**、**交互步骤在本页面定位精度不足** |
+| TC-044 | [FNOS-013-12](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-12) | DSH Web | 通过 | 2026-10-12 | @midscene/test 1.15.1 经 createCaseRunner + 自定义 Node（execute）跑通：status: success，两步（附加页面 / aiAssert 首页可见）均执行；断言思考内容描述了真实截图细节（deepseek 标志、HARNESS 标签、「新会话」按钮、输入框占位文字），证明模型确实经桥读取了页面截图 |
+| TC-045 | [FNOS-013-12](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-12) | 文档站 | 通过 | 2026-10-12 | @midscene/test 与 @midscene/cli 实测版本均为 **1.15.1**（@midscene/web 1.15.0），Node.js v24.17.0，插件 0.2.0-rc.2.0，DSH 运行时 0.2.0-rc.2；接入配置为插件生成的固定四行 |
 | TC-046 | [FNOS-013-13](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-13) | DSH Web | 通过 | 2026-10-12 | **实测**：重启后在会话中查询技能目录，`browser-automation` 在列（会话目录共 78 个技能）；已确认用户目录与项目技能目录均无同名技能，故来源唯一为插件内置分发 |
 | TC-047 | [FNOS-013-13](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-13) | 本地测试 | 通过 | 2026-10-12 | 包内技能为官方 `skills/browser/SKILL.md` 原文（sha256 前 16 位 `9aa7c602a7004e53`）；`SOURCE.md` 登记上游提交、同步日期、许可（MIT）与同步方式 |
 | TC-048 | [FNOS-013-13](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-13) | DSH Web | 通过 | 2026-10-12 | **实测**：禁用插件并重启后，agent 在会话中回答「没有」（技能已从目录消失）；同时桥接端口释放 |
@@ -240,22 +240,32 @@ verifiedAt: 2026-10-12
 
 ## 测试结论
 
-**整体结论：部分通过（桥接服务与文档交付已通过本地与 DSH Web 验证；Midscene 端到端待验收）。**
+**整体结论：部分通过（桥接服务、设置界面、文档交付与 Midscene 端到端全部完成验证；YAML 运行器的交互步骤存在定位偏差，已定位并给出规避方式）。**
 
-- 执行用例总数 **53**，通过 **38**，失败 **0**，未执行 **15**（TC-027～TC-029、TC-034、TC-036～TC-038、TC-041～TC-045），遗留 Bug **2**（BUG-01、BUG-02，均已修复）。
-- **FNOS-013-01～04（桥接服务本体）本地与 DSH Web 全部通过**——这是本需求的核心风险面，13 条用例覆盖服务托管、端口策略、目录映射、对话补全（流式/非流式/推理分片/图片门控）、多提供方路由、凭据边界与错误归因。真实调用链已验证：经桥调用 CodeBuddy 与 Codex 各返回完整回答，未配置凭据的提供方返回可诊断错误。
-- **FNOS-013-13（内置技能）三项关键验收在真实 DSH Web 上实测通过**：技能可见（TC-046）、禁用后消失（TC-048）、只内置 Web 场景技能（TC-050）；来源登记完整（TC-047）。
-- **FNOS-013-14（插件图标）实测通过**：亮暗主题下均显示，来源与体积校验合规（TC-051～TC-053）。
-- **文档交付（06、07、10）通过**：插件说明页、插件总览与侧边栏、测试规范的 Midscene 章节、验收证据规范的执行证据小节、三处交叉引用齐备；`pnpm run check -- --sdd` 与文档构建通过。顺带修复了测试规范变更记录表的分隔行损坏。
-- **未执行的主体是 Midscene 端到端（05、08、09）与 YAML/Test 接入（11、12）**：需要安装 `@midscene/web`、`@midscene/cli`、`@midscene/test` 并写接入配置。本轮受**本机 npm 缓存目录权限问题**（`~/.npm` 不可写，`npm view` 报 `EPERM`）与时间限制未执行；可用 `npm_config_cache` 指向可写目录绕过（已在走查中验证 registry 可达）。
-- 遗留风险：
-  - **需求登记的三项「待核实」全部仍待核实**：真实网页坐标定位精度、DSH 可用模型的家族协议兼容性、Desktop 渲染进程的 CDP 附加兼容性。这三项决定 FNOS-013-05/09 能否成立，且都不在桥接服务侧（桥已完成它该做的部分）。
-  - **DSH Desktop 未执行**：01～04、13、14 的 Desktop 侧结论缺失，按[兼容基线](/charter/tests-spec#测试环境执行方式)要求只记录单一客户端不构成完成结论。
-  - **插件的启用开关状态**：以 `link:` 开发态 + 手工 profile patch 行装载时，官方插件管理页把本插件显示为「未启用」（开关关闭），而桥接实际在运行——该状态由插件管理器的 bundle 记录语义决定，与手工装载方式有关。以官方 npm 安装流程装入时的表现未验证。
-- 测试数据清理：走查期间在项目 `.dsh/profiles/web` 的 `cordis.patch.yml` 与 `package.json` 中加入插件行与 `link:` 依赖作为**开发态装载**（enable 状态已恢复、无 `disabled` 残留）；未创建 `.env` 接入配置；无测试账号新增。
+- 执行用例总数 **53**，通过 **51**，失败 **2**（TC-042、TC-043，均为同一定位问题的表现），未执行 **0**，遗留 Bug **4**（BUG-01、BUG-02、BUG-04 已修复；BUG-03 属上游定位精度，已定位并规避）。
+- **FNOS-013-01～04（桥接服务本体）本地与 DSH Web 全部通过**：服务托管、端口策略、目录映射、对话补全（流式/非流式/推理分片/图片门控）、多提供方路由、凭据边界与错误归因。本轮新增真实视觉验证：`model verify` 的 `Image understanding` 通过（补上 TC-014 缺口）。
+- **FNOS-013-05（Midscene 端到端）三项通过**：SDK 路径完成「点击 → 断言」并经 CDP 独立核实页面真的跳转；密集列表中的条目定位准确（真的点开了插件详情页并显示接入设置区块）。
+- **FNOS-013-11/12（YAML 运行器与 Test 框架）**：`@midscene/cli` 1.15.1 的 `model verify` 3/3 通过、YAML 运行器的 `aiAssert` 通过（证明断言链路经桥可用）；`@midscene/test` 1.15.1 经 `createCaseRunner` + 自定义 Node 跑通（`status: success`，断言思考内容与真实截图一致）。**YAML 运行器的交互步骤未通过**（TC-042/043），原因是视觉定位对 36px 小控件的落点偏差（BUG-03）。
+- **FNOS-013-13/14（内置技能与图标）**：技能可见、禁用后消失、来源登记完整；图标亮暗主题显示正常。
+- **设置界面（本轮新增能力）实测通过**：插件详情页渲染于「包含的组件」之后，密钥显示/重新生成/自定义、家族下拉、指定模型、`.env` 预览与复制可用；设置写入立即作用于运行中的桥（家族与密钥都已实测生效，旧密钥 401）。
+- **文档交付（06、07）与证据规范（10）通过**：插件说明页、总览与侧边栏、测试规范 Midscene 章节、验收证据小节与交叉引用齐备。
 
-## 变更记录
+### 未通过项与遗留风险
 
-| 日期 | 变更 | 说明 |
+| 项 | 状态 | 说明 |
 | --- | --- | --- |
-| 2026-10-12 | 建立 FNOS-013 测试用例文档 | 按 14 个功能点建立 53 条用例（TC-001～TC-053）；回填本地与 DSH Web 的 38 条执行结果，登记实测发现的 BUG-01（流内失败丢失原因）与 BUG-02（缺 `dsh.bundle` 致管理页不收录）；未执行项与遗留风险如实登记。 |
+| TC-042、TC-043（YAML 运行器交互步骤） | 失败 | 视觉定位落点偏差（BUG-03）。运行器本身可用（断言通过），失败仅在「点击小控件」；用宽视口 + CDP 独立核实可规避 |
+| DSH Desktop 侧 | 未执行 | 01～04、13、14 的 Desktop 结论缺失；按兼容基线要求，只记录单一客户端不构成完成结论 |
+| BUG-03 根治 | 未做 | 属上游（Midscene）视觉定位精度，本仓库不改上游代码；已在插件说明页与测试规范登记规避方式（宽视口、`--use-mock-keychain`、CDP 独立核实） |
+
+### 本轮测试环境（版本三元组）
+
+| 项 | 值 |
+| --- | --- |
+| DSH 运行时 | `0.2.0-rc.2` |
+| 插件 | `@tnnevol/dsh-midscene` `0.2.0-rc.2.0`（本地加载，profile `.dsh/profiles/web`） |
+| 被测客户端 | DSH Web（`127.0.0.1:8070`，token 鉴权） |
+| 浏览器 | Chrome for Testing `150.0.7871.24`（`--use-mock-keychain --no-sandbox --headless=new --window-size=1512,945`） |
+| Midscene | `@midscene/web` 1.15.0、`@midscene/cli` 1.15.1、`@midscene/test` 1.15.1 |
+| Node.js | v24.17.0 |
+| 模型 | `codebuddy/glm-5.3-flash`（家族 `glm-v`），经桥 `dsh-model` 解析 |

@@ -274,14 +274,17 @@ export class BridgeServer {
       // 接入密钥校验：桥只绑回环，但同一台机器上的其它进程也能访问回环端口；
       // 密钥把「本机任意进程」与「持有配置的 Midscene」区分开。
       //
-      // 两个端点刻意豁免（否则新用户无法完成接入——密钥正是从前者取得的，
-      // 这是自举问题；后者用于诊断，不该被密钥挡住）：
-      // - `/v1/midscene-env`：它返回的就是这份密钥，且只含本机模型名与家族，
-      //   没有凭据、没有页面数据；回环绑定已限制可达范围。
+      // **密钥守住的是「推理」**（会消耗提供方额度的那次调用），只读的发现类端点
+      // 不校验——它们不含凭据、不产生额度消耗，且不校验才能让文档里的快速接入步骤
+      // 可直接复制执行（此前 `/v1/models` 也校验，导致按文档逐步执行会拿到 401，
+      // 由 TC-034/036 的干净环境复现抓出）：
+      // - `/v1/midscene-env`：返回的就是这份密钥（自举）；只含本机模型名与家族。
       // - `/v1/health`：诊断用，不含敏感信息。
-      const isBootstrap = path === `${OPENAI_API_PREFIX}/midscene-env`
-      const isHealth = path === `${OPENAI_API_PREFIX}/health`
-      if (!isBootstrap && !isHealth && !this.#authorized(request)) {
+      // - `/v1/models`：模型目录；只暴露已配置模型标识，不含凭据。
+      const isDiscovery = path === `${OPENAI_API_PREFIX}/midscene-env`
+        || path === `${OPENAI_API_PREFIX}/health`
+        || path === `${OPENAI_API_PREFIX}/models`
+      if (!isDiscovery && !this.#authorized(request)) {
         sendJson(response, 401, {
           error: {
             message: 'invalid API key; use the value from DSH plugin settings (or GET '

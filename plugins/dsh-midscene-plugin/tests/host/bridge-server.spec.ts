@@ -501,34 +501,47 @@ describe('固定模型名 dsh-model（FNOS-013-05 零配置接入）', () => {
 })
 
 describe('接入密钥鉴权', () => {
-  it('不带密钥的请求被拒（401）', async () => {
+  it('推理端点不带密钥时被拒（401）', async () => {
+    // 密钥守住的是会消耗提供方额度的推理调用。
     const { port } = await startBridge()
-    const response = await fetch(`http://127.0.0.1:${port}/v1/models`)
+    const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'p/m', messages: [{ role: 'user', content: 'hi' }] }),
+    })
     expect(response.status).toBe(401)
     const body = await response.json() as { error: { code: string } }
     expect(body.error.code).toBe('invalid_api_key')
   })
 
-  it('密钥错误时被拒', async () => {
+  it('推理端点密钥错误时被拒', async () => {
     const { port } = await startBridge()
-    const response = await fetch(`http://127.0.0.1:${port}/v1/models`, {
-      headers: { authorization: 'Bearer wrong-key' },
+    const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer wrong-key' },
+      body: JSON.stringify({ model: 'p/m', messages: [{ role: 'user', content: 'hi' }] }),
     })
     expect(response.status).toBe(401)
   })
 
-  it('x-api-key 头同样有效', async () => {
+  it('x-api-key 头同样有效（可通过鉴权进入推理）', async () => {
     const { port } = await startBridge()
-    const response = await fetch(`http://127.0.0.1:${port}/v1/models`, {
-      headers: { 'x-api-key': 'test-key' },
+    const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': 'test-key' },
+      body: JSON.stringify({ model: 'codebuddy/glm-5.3-flash', messages: [{ role: 'user', content: 'hi' }] }),
     })
-    expect(response.status).toBe(200)
+    // 通过鉴权即可（模型是否存在于 fixture 不影响本用例：非 401 即说明鉴权放行）。
+    expect(response.status).not.toBe(401)
   })
 
-  it('健康检查不需要密钥（诊断用，且不含敏感信息）', async () => {
+  it('只读发现类端点不校验密钥（文档快速接入步骤可直接复制执行）', async () => {
+    // 由 TC-034/036 的干净环境复现抓出：这三个端点若校验密钥，按文档逐步执行会 401。
     const { port } = await startBridge()
-    const response = await fetch(`http://127.0.0.1:${port}/v1/health`)
-    expect(response.status).toBe(200)
+    for (const path of ['/v1/health', '/v1/models', '/v1/midscene-env']) {
+      const response = await fetch(`http://127.0.0.1:${port}${path}`)
+      expect(response.status, path).toBe(200)
+    }
   })
 })
 
