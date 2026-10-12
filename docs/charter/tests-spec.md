@@ -178,6 +178,59 @@ verifiedAt: 2026-09-30
 - 一个视觉块只允许一条模糊链路：出现嵌套的两层 `backdrop-filter` 即判定为缺陷，需把模糊上移到父级。
 - 核对亮暗两个主题下毛玻璃的可读性：模糊后的文字对比度仍满足第 1 条。
 
+### Midscene 浏览器自动化测试
+
+**按用例类型选择执行方式，不是所有 UI 用例都必须自动化。** 本节新增一条可选执行路径，人工走查与 CDP 取证的地位不变（[执行环境](#测试环境执行方式)的既有约束继续适用）。
+
+Midscene 用自然语言驱动浏览器完成「打开页面 → 交互 → 断言」，模型请求经 [Midscene Bridge](/plugins/dsh-midscene) 插件托管的本地桥接服务走 DSH 已配置的模型。适用与不适用：
+
+| 适用 | 不适用 |
+| --- | --- |
+| 多步骤 UI 走查（点开若干页面、逐项核对） | 单点断言（某元素是否存在）——CDP 脚本更快 |
+| 需要留存可读证据与复跑能力的 E2E 交互断言 | 单元测试、类型检查、构建验证（既有命令不变） |
+| 需要视觉判断的验收（布局、主题、图标、空状态） | 真实 NAS 的写操作（安装/卸载/设置变更）——仍走 trim-cli 或应用中心人工流程 |
+
+#### 前置条件（项目测试环境）
+
+1. 桥接插件已装入项目 `.dsh` 的 web profile 且健康检查可用：
+   ```sh
+   curl -s http://127.0.0.1:8787/v1/health
+   ```
+2. 运行 Midscene 的工作目录有 `.env` 接入配置（[模板见插件说明页](/plugins/dsh-midscene#接入-midscene)）：
+   ```sh
+   MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"
+   MIDSCENE_MODEL_API_KEY="local-bridge"
+   MIDSCENE_MODEL_NAME="codebuddy/glm-5.3-flash"
+   MIDSCENE_MODEL_FAMILY="glm-v"
+   ```
+3. 选 `vision: true` 的模型（`curl -s http://127.0.0.1:8787/v1/models` 查看）——Midscene 靠截图理解页面，文本模型无法定位元素。
+
+#### 三类被测环境的接入方式
+
+| 被测环境 | 接入方式 | 备注 |
+| --- | --- | --- |
+| 本地 DSH Web 页面 | 默认 Puppeteer 模式，`connect --url http://127.0.0.1:8070/?token=…` | 需要带 token 的完整 URL；token 从 `pnpm run start -- --web` 的输出里取 |
+| DSH Desktop | CDP 模式附加渲染进程调试端口（[Desktop 测试](#dsh-desktop-测试)的端口约定） | 兼容性以实测为准；失败时回退人工走查 + CDP 取证，并在用例文档如实标注 |
+| 真实 fnOS NAS 桌面网页 | 只读走查（打开页面、读状态、截图） | 一律不做写操作；写操作走既有流程 |
+
+#### 执行与证据
+
+- **用例写法**：把「测试步骤」写成自然语言指令（`act --prompt "…"`），「预期结果」写成自然语言断言（`assert --prompt "…"`）；执行方式在执行结果备注栏标注「Midscene」。
+- **证据登记**：Midscene 生成的 HTML 报告与截图是执行证据；需要长期留存的按[验收证据规范](../validation/README.md)登记 `docs/validation/`，正文引用报告路径与关键结论，不复制大段报告内容。
+- **版本记录**：本节的版本三元组按[客户端与基线版本记录](#客户端与基线版本记录)执行；额外记录 Midscene CLI 版本（`npx -y @midscene/web@1 --version`）与所选「提供方/模型」。
+- **额度提示**：Midscene 每步都调视觉模型，按所选提供方计费。用例设计应避免无意义的重复步骤；长任务先在小页面验证流程。
+- **测试数据清理**：Midscene 运行产生的 `midscene_run/` 报告目录与截图按[测试数据清理](#测试数据清理)处理；接入配置（`.env`）**不入仓库**——它虽只含占位密钥，仍按「配置文件不进版本管理」的既有红线执行，测试结束用 `git status` 确认无混入。
+
+#### 与人工走查、CDP 取证的分工
+
+| 场景 | 首选方式 |
+| --- | --- |
+| 改动小、看一眼就够 | 人工走查 |
+| 需要断言特定 DOM 状态、抓日志、读网络响应 | CDP 脚本 |
+| 多步骤流程、需要可复跑的自然语言用例、需要视觉判断 | Midscene |
+
+三者在同一需求内可并存；用例文档只记录**实际使用的**执行方式及其结论。
+
 ### 客户端与基线版本记录
 
 测试开始前必须记录被测环境的版本三元组，写入「测试执行结果」的备注或该需求的测试环境章节；缺版本记录的执行结果不可作为结论依据：
@@ -323,14 +376,15 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 - [ ] 测试账号密码、NAS 凭据与 auth 文件未进入仓库（代码、文档、脚本、测试夹具均不含凭据；备份仅在 git 忽略的 `tmp/auth-back/`）。
 - [ ] 测试数据清理动作已登记，无个人生产账号（见[测试数据清理](#测试数据清理)）。
 - [ ] 执行结果、Bug、结论仅在执行后回填，用例定义未被改写。
+- [ ] 用 Midscene 执行的用例：执行结果备注标注「Midscene」与 Midscene CLI 版本；接入配置（`.env`）未进仓库（`git status` 核对）；`midscene_run/` 产物已按测试数据清理处理（见 [Midscene 浏览器自动化测试](#midscene-浏览器自动化测试)）。
 - [ ] `pnpm run check -- --sdd` 与文档构建通过。
 
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
-| --- | | 2026-10-08 | 明确 fnOS 插件以真实 NAS 为唯一验收环境 | 增加说明：`@tnnevol/dsh-fnos` 的功能依赖 fnOS 宿主桥接，真实 NAS 走查通过即通过，不需要 Web/Desktop 复验；并给出判断依据（实现是否落在 `plugins/dsh-fnos-plugin/` 且依赖桥接），避免把 `/fn` 引用选择树这类界面控件误判为需要双客户端覆盖。 |
+| --- | --- | --- |
+| 2026-10-08 | 明确 fnOS 插件以真实 NAS 为唯一验收环境 | 增加说明：`@tnnevol/dsh-fnos` 的功能依赖 fnOS 宿主桥接，真实 NAS 走查通过即通过，不需要 Web/Desktop 复验；并给出判断依据（实现是否落在 `plugins/dsh-fnos-plugin/` 且依赖桥接），避免把 `/fn` 引用选择树这类界面控件误判为需要双客户端覆盖。 |
 | 2026-10-09 | 凭据恢复补充 `chmod 600` 与权限核对要求 | 真机暴露：用 `cp -p` 从共享文件夹恢复 `.credentials.yaml` 时带回了 `0000` 权限，导致 `credentials` 插件 `EACCES` 失败、11 个依赖插件挂起、DSH Web 以 code 1 退出。配置表补上 DSH 自身的 `.credentials.yaml`；恢复规则要求恢复后显式 `chmod 600` 并用 `stat` 逐一核对（仅比对哈希不能证明可读）。 |
---- | --- |
 | 2026-09-30 | 新增测试环境执行方式 | 明确除 fnOS 插件外的其他插件统一在项目 DSH CLI 启动的 DSH Web 中测试（`pnpm run start -- --web`，`DSH_HOME` 固定指向仓库 `.dsh`），fnOS 插件仍走真实 NAS。 |
 | 2026-09-30 | 补充 Desktop 测试要求 | 非 fnOS 插件至少兼容 DSH Web 与 DSH Desktop 两个客户端并均纳入用例；新增 Desktop 测试执行方式（客户端获取、宿主差异验证重点、结论登记）。 |
 | 2026-09-30 | 新增版本记录、数据清理与基线来源要求 | 执行前记录环境版本三元组并校验 Desktop 运行时与插件锚定版本匹配；测试数据按位置约定清理并登记；回归用例标注基线来源，「与基线一致」须附可观察特征。用例模板增加基线来源列。 |
@@ -339,6 +393,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-09-30 | 新增真实 NAS 测试规范 | 固定测试入口 `http://192.168.119.6:5666/`；禁止存储 NAS 凭据，登录向需求提出人询问或走 trim-cli OAuth；安装走 trim-cli（`app install-fpk --volume-id`）或 Chrome CDP 应用中心，目标存储为存储 1；日志在 `/var/log/apps/<应用名称>.log`。测试账号密码与 auth 文件禁止上传仓库（代码与测试通用红线）。 |
 | 2026-09-30 | 新增 UI 测试规范 | UI 用例亮暗主题各执行一遍并核对文本/阴影/border/背景对比；检查 padding/margin 叠加与 BFC（margin 折叠、穿透、浮层裁剪）；毛玻璃加在父元素，子元素禁止重复叠加 backdrop-filter 与透明背景；CSS 变量优先使用 DSH 官方变量。 |
 | 2026-10-06 | 修正 Desktop profile 创建方式并新增测试后恢复全局 profile | `desktop` 为 Electron 应用保留名且非内置模板，原 `dsh --from-default-profile desktop` 命令无法执行；改为用项目 `DSH_HOME` 启动 Desktop 由应用创建 profile，并补充 CDP（`--remote-debugging-port`）驱动 Desktop 界面取证的方法。新增强制收尾：测试完成后以缺省 `DSH_HOME` 重启一次，把 Desktop 交还 `~/.dsh` 全局 profile，并在执行结果备注登记。 |
+| 2026-10-12 | 新增「Midscene 浏览器自动化测试」章节 | 新增可选执行路径：Midscene 以自然语言驱动浏览器完成「打开页面 → 交互 → 断言」，模型请求经 [Midscene Bridge](/plugins/dsh-midscene) 走 DSH 已配置模型。章节含适用边界（按用例类型选择，不是强制自动化）、项目测试环境前置条件（桥健康检查 + `.env` 接入配置 + `vision: true` 模型）、三类被测环境接入（本地 Web 直连 / Desktop CDP 附加以实测为准 / NAS 只读走查）、证据登记与版本记录要求、接入配置不入仓库红线、与人工走查/CDP 取证的工分表。顺带修复本文档变更记录表的分隔行损坏（2026-10-08 行误占分隔行位置）。依据：FNOS-013-07。 |
 
 ## 回填时机
 
@@ -351,4 +406,5 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 - [SDD 维护规范](./sdd-workflow)
 - [需求文档规范](./requirements-spec)
 - [计划文档规范](./plans-spec)
+- [Midscene Bridge 插件](/plugins/dsh-midscene)——Midscene 浏览器自动化的桥接服务与接入配置
 - [验收证据规范](../validation/README.md)

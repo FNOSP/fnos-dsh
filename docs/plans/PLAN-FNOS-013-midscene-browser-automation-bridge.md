@@ -191,8 +191,8 @@ sequenceDiagram
 # 运行 npx @midscene/web 的工作区 .env
 MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"
 MIDSCENE_MODEL_API_KEY="local-bridge"
-MIDSCENE_MODEL_NAME="codebuddy/glm-5.3-flash"   # 「提供方/模型」任选 DSH 可用模型
-MIDSCENE_MODEL_FAMILY="glm-v"                    # 家族值随所选模型确定；兼容性以 T00-02 预研结论为准
+MIDSCENE_MODEL_NAME="codebuddy/glm-5.3-flash" # 「提供方/模型」任选 DSH 可用模型
+MIDSCENE_MODEL_FAMILY="glm-v"                 # 家族值随所选模型确定；兼容性以 T00-02 预研结论为准
 ```
 
 模型名按 T00-02 定案的「提供方/模型」形式填写；需要双模型分工时，`MIDSCENE_PLANNING_MODEL_*` 与 `MIDSCENE_INSIGHT_MODEL_*` 可分别指向不同「提供方/模型」（如规划用文本强模型、理解断言用图片模型）——全部经同一桥接服务路由。验证序列：`connect` 连接页面 → `act` 执行交互 → `assert` 视觉断言。
@@ -292,10 +292,10 @@ flowchart LR
 
 | 阶段 | 状态 |
 | --- | --- |
-| 阶段〇：预研与原型验证（T00） | <Badge type="info" text="规划中" /> |
-| 阶段一：桥接插件实现（T01） | <Badge type="info" text="规划中" /> |
-| 阶段二：安装验证与 Midscene 接入（T02） | <Badge type="info" text="规划中" /> |
-| 阶段三：文档与测试体系适配（T03） | <Badge type="info" text="规划中" /> |
+| 阶段〇：预研与原型验证（T00） | <Badge type="info" text="待执行（需 Midscene 侧包）" /> |
+| 阶段一：桥接插件实现（T01-01～T01-06） | <Badge type="tip" text="已完成（本地）" /> |
+| 阶段二：安装验证与 Midscene 接入（T02-01 已完成；T02-02/T02-03 待执行） | <Badge type="warning" text="部分完成" /> |
+| 阶段三：文档与测试体系适配（T03-01～T03-03、T03-08 完成；T03-04～T03-07、T03-09/T03-10 待执行） | <Badge type="warning" text="部分完成" /> |
 
 ## 变更记录
 
@@ -308,3 +308,4 @@ flowchart LR
 | 2026-10-10 | 架构修订：模型来源改为宿主模型层（原方案废弃） | 需求方澄清后修订：桥不再直连 CodeBuddy 凭据（删凭据读取/风控头/token 续期三任务与对应风险 R4/R5），改为注入 `ctx.llm`（`inject: ['llm']`）作为标准消费者——模型目录全量映射 `listProviders/listModels`（「提供方/模型」命名，T00-02 补解析规则预研），调用走 `ctx.llm.stream()`，凭据与续期留在各提供方插件内（桥零凭据）。任务重排为 T01-01～06（目录、调用、生命周期、技能内置、插件图标）；风险表新增命名冲突、`ctx.llm` 契约出入、图片块转换三条并移除两条凭据风险；决策 D1 修订为「接入宿主模型层」。理由：Midscene 应能使用 DSH 全部可用模型而非限于 CodeBuddy。 |
 | 2026-10-10 | 新增 FNOS-013-14（T01-06） | 范围扩展：插件图标。机制核实——`package.json` 顶层 `icon` 字段（相对包根、SVG/PNG/JPEG/WebP、≤256 KiB、realpath 不逃逸包目录，`dsh-app-boot` 实现源码核实；本仓库四插件首例）。资产来源——用户提供的 GitHub 签名 URL 已过期（实测 404），候选改用官方站点 favicon（600×600 PNG 99 KiB，已存 `tmp/midscene-logo/` 供评审），用户提供原图后可替换；商标使用约定核实列为 T01-06 前置，约定不允许时回退自绘通用图标。 |
 | 2026-10-12 | 图标资产定案 | 用户确认采用官方站点 favicon（`https://midscenejs.com/favicon.png`，600×600 PNG 99 KiB，sha256 `78cd10d7…`，已存 `tmp/midscene-logo/`）；Midscene 主仓库 MIT 许可核实，来源 URL 与取用日期随包内附注文件登记；T01-06 由「候选评估」改为「按定案资产落位」，商标风险降级为「上游后续约束时替换（零成本）」。 |
+| 2026-10-12 | 阶段一完成、阶段二/三部分完成 | **已交付**：新建 `plugins/dsh-midscene-plugin`（`@tnnevol/dsh-midscene` 0.2.0-rc.2.0）——桥接服务（目录映射「提供方/模型」命名、流式/非流式补全、图片经宿主附件服务落盘并按能力门控、错误带归因）、生命周期（回环绑定、端口占用 fail-fast、stop 等端口真正释放）、内置技能（SkillProvider + 包内 `skills/browser-automation`，上游 MIT，`SOURCE.md` 登记来源）、插件图标（`icon` 字段 + 包内 PNG）。97 条包级测试全绿；真实 DSH Web 验证：4 提供方 24 模型、CodeBuddy/Codex 实际调用通过、技能可见与被禁用后消失、图标亮暗显示、端口无残留。文档：插件说明页、插件总览与侧边栏、测试规范 Midscene 章节（顺带修复其变更记录表损坏）、验收证据规范执行证据小节、交叉引用与测试用例文档（53 条用例）。**实测发现并修复两个缺陷**：① 宿主把提供方失败编码在 `finish.reason.failure`，桥原先当作正常结束而返回空回答（真实原因丢失）——改为非流式返回标准错误、流式先发错误分片；② `package.json` 缺 `dsh.bundle.patch` 声明，宿主不把插件当组合包，插件管理页不收录（图标也无处显示）——补齐后收录。**待执行**：T00 两条预研、T02-02/03 与 T03-04～T03-07 的 Midscene 端到端（需安装 `@midscene/web` 等包，本轮受本机 npm 缓存权限限制）、T03-09/T03-10 的 YAML 与 Test 接入。 |

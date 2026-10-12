@@ -19,8 +19,9 @@
 | `@tnnevol/dsh-fnos` | `0.2.0-rc.2.0` | 在 fnOS 中补充主题、授权目录、NAS 文件访问和会话日志导出 | [fnOS](/plugins/dsh-fnos) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-fnos-plugin) |
 | `@tnnevol/dsh-semi-ui-showcase` | `0.2.0-rc.2.0` | 展示 Semi UI 共享组件、主题和交互状态 | [Semi UI 总览](/plugins/dsh-semi-ui-showcase) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-semi-ui-showcase-plugin) |
 | `@tnnevol/dsh-failover-search` | `0.2.0-rc.2.1` | 接入 TinyFish 与 Tavily 搜索并按 TinyFish → Tavily → 官方顺序转移，支持同平台多账号分摊与用量展示 | [Failover Search](/plugins/dsh-failover-search) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-failover-search-plugin) |
+| `@tnnevol/dsh-midscene` | `0.2.0-rc.2.0` | 托管本地 OpenAI 兼容桥接服务，把 Midscene 浏览器自动化接到 DSH 全部已配置模型；内置浏览器自动化技能 | [Midscene Bridge](/plugins/dsh-midscene) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-midscene-plugin) |
 
-DSH 运行时和五个运行时插件的发布版本与兼容性基线统一为 `0.2.0-rc.2`。手动安装请使用精确版本，不使用 `latest`、`next` 或范围版本。
+DSH 运行时和六个运行时插件的发布版本与兼容性基线统一为 `0.2.0-rc.2`。手动安装请使用精确版本，不使用 `latest`、`next` 或范围版本。
 
 `dsh-fnos` 是 [DeepSeek Harness 应用适配](/apps/adaptation)的核心部分，负责 DSH 与 fnOS 之间的系统集成。
 

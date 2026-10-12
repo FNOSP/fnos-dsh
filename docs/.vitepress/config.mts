@@ -119,7 +119,8 @@ const pluginItems = [
   { text: 'dsh-fnos', link: '/plugins/dsh-fnos' },
   { text: 'dsh-codex-auth', link: '/plugins/dsh-codex-auth' },
   { text: 'dsh-codebuddy', link: '/plugins/dsh-codebuddy' },
-  { text: 'dsh-failover-search', link: '/plugins/dsh-failover-search' }
+  { text: 'dsh-failover-search', link: '/plugins/dsh-failover-search' },
+  { text: 'dsh-midscene', link: '/plugins/dsh-midscene' }
 ]
 
 const sharedUiItems = [
@@ -371,6 +372,10 @@ const testsSidebar = [
       {
         text: 'FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新',
         link: '/tests/FNOS-012-codebuddy-model-speed-and-client-version'
+      },
+      {
+        text: 'FNOS-013 Midscene 浏览器自动化桥接插件',
+        link: '/tests/FNOS-013-midscene-browser-automation-bridge'
       },
     ]
   }
