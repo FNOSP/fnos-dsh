@@ -281,6 +281,10 @@ const requirementsSidebar = [
         text: 'FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新',
         link: '/requirements/FNOS-012-codebuddy-model-speed-and-client-version'
       },
+      {
+        text: 'FNOS-013 Midscene 浏览器自动化桥接插件',
+        link: '/requirements/FNOS-013-midscene-browser-automation-bridge'
+      },
       ]
   }
 ]
@@ -337,6 +341,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新',
         link: '/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version'
+      },
+      {
+        text: 'PLAN-FNOS-013 Midscene 浏览器自动化桥接插件',
+        link: '/plans/PLAN-FNOS-013-midscene-browser-automation-bridge'
       },
     ]
   }
