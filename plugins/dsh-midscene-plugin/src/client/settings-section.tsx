@@ -49,7 +49,14 @@ export interface MidsceneSettingsSectionProps {
 /** 区块根节点类名（样式在 plugin-ui 语义变量下维护）。 */
 const ROOT = 'dsh-midscene-settings'
 
-/** 逐字段渲染一个设置项。 */
+/**
+ * 逐字段渲染一个设置项。
+ * @param props - 字段参数。
+ * @param props.label - 字段标题。
+ * @param props.hint - 字段说明（可选）。
+ * @param props.children - 控件内容。
+ * @returns 字段区块。
+ */
 function Field({ label, hint, children }: { label: string, hint?: string, children: ReactNode }): ReactNode {
   return (
     <div className={`${ROOT}__field`}>
@@ -63,6 +70,9 @@ function Field({ label, hint, children }: { label: string, hint?: string, childr
 /**
  * 接入设置区块。
  * @param props - 区块参数。
+ * @param props.t - 本地化函数。
+ * @param props.load - 读取当前设置（含明文密钥与 `.env` 文本）。
+ * @param props.update - 提交一次设置写入。
  * @returns 设置区块。
  */
 export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSectionProps): ReactNode {
@@ -136,6 +146,12 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   const addModel = (): void => {
     const value = modelDraft.trim()
     if (value === '') return
+    // 去重：同一模型重复出现没有意义（按顺序取第一个可用者，第二个永远不会被选中）。
+    // 去重后模型名在列表内唯一，可直接作渲染 key。
+    if (models.includes(value)) {
+      setModelDraft('')
+      return
+    }
     const next = [...models, value]
     setModels(next)
     setModelDraft('')
@@ -214,7 +230,9 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
           {models.length === 0
             ? <span className={`${ROOT}__hint`}>{t('modelsEmpty')}</span>
             : models.map((model, index) => (
-                <DshTag key={`${model}-${index}`} size="small" closable onClose={() => { removeModel(index) }}>
+                // key 用模型名：列表已按名去重，名字唯一且稳定；用下标会在删除中间项时
+                // 让 React 复用错位节点（表现为删掉 A 却像是删了 B）。
+                <DshTag key={model} size="small" closable onClose={() => { removeModel(index) }}>
                   {model}
                 </DshTag>
               ))}

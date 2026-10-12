@@ -464,6 +464,13 @@ In CDP or Bridge mode, keep your usual `--cdp` / `--bridge` flags alongside thes
 - Image input rejected (400) → the resolved model has no vision capability. See Step 3.
 - Model listed but wrong element targeting → either the family does not match the model, or the
   page is dense. Re-check the family first; `--deep-locate` also helps.
+### macOS Keychain Prompt (CDP mode)
+- A system dialog asking to use "Chromium Safe Storage" means Chrome for Testing is reading the
+  real keychain. It is **adhoc-signed with no Team ID**, so macOS cannot remember the grant.
+- Launch Chrome with `--use-mock-keychain` and a **fixed** `--user-data-dir` (a new directory
+  re-runs secure-storage setup). Without the flag the cookie store never initializes.
+- `--password-store=basic` does **not** fix it (measured: cookie store stays empty).
+
 ### Timeouts
 - Web pages may take time to load. After connecting, take a screenshot to verify readiness before interacting.
 - For slow pages, wait briefly between steps.

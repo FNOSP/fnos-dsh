@@ -128,6 +128,9 @@ export function volatileValue<T>(value: Volatile<T> | T | undefined): T | undefi
  * 只需改插件设置，不必动这个文件。`MIDSCENE_MODEL_NAME` 固定为 {@link FIXED_MODEL_NAME}，
  * 由桥决定实际用哪个模型。
  * @param config - 桥接配置中与接入文件相关的三项。
+ * @param config.port - 桥监听端口。
+ * @param config.apiKey - 桥接入密钥。
+ * @param config.family - Midscene 协议家族。
  * @returns `.env` 文本。
  */
 export function renderEnvFile(config: { readonly port: number, readonly apiKey: string, readonly family: string }): string {

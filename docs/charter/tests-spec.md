@@ -199,8 +199,8 @@ Midscene 用自然语言驱动浏览器完成「打开页面 → 交互 → 断�
 2. 运行 Midscene 的工作目录有一份接入配置，**由插件生成、不需要任何模型密钥**（[详见插件说明页](/plugins/dsh-midscene#接入-midscene)）：
    ```sh
    # 在即将运行 Midscene 的目录执行；插件会算好四个变量
-   curl -s http://127.0.0.1:8787/v1/midscene-env \
-     | python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" > .env
+   curl -s http://127.0.0.1:8787/v1/midscene-env |
+       python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" >.env
    ```
    生成的 `MIDSCENE_MODEL_API_KEY` 是占位值（桥不做鉴权、不转发凭据）；模型来自 DSH 已配置的提供方，因此**不要**为 Midscene 准备第三方 API key。
 3. 模型必须 `vision: true`（`curl -s http://127.0.0.1:8787/v1/models`，或让插件自动挑：不传 `?model=` 时它优先选「有图片能力且家族可推断」的模型）——Midscene 靠截图理解页面。若响应带 `familyWarning`，该模型未匹配到 Midscene 已知家族，应按插件说明页的指引换模型或补 `MIDSCENE_MODEL_FAMILY`。
@@ -220,6 +220,32 @@ Midscene 用自然语言驱动浏览器完成「打开页面 → 交互 → 断�
 - **版本记录**：本节的版本三元组按[客户端与基线版本记录](#客户端与基线版本记录)执行；额外记录 Midscene CLI 版本（`npx -y @midscene/web@1 --version`）与所选「提供方/模型」。
 - **额度提示**：Midscene 每步都调视觉模型，按所选提供方计费。用例设计应避免无意义的重复步骤；长任务先在小页面验证流程。
 - **测试数据清理**：Midscene 运行产生的 `midscene_run/` 报告目录与截图按[测试数据清理](#测试数据清理)处理；接入配置（`.env`）**不入仓库**——它虽只含占位密钥，仍按「配置文件不进版本管理」的既有红线执行，测试结束用 `git status` 确认无混入。
+
+#### CDP 模式的环境前置（macOS 钥匙串授权）
+
+在 macOS 上用 CDP 模式驱动 Chrome 时，**每次新建用户数据目录都可能弹出系统钥匙串授权**（「Google Chrome for Testing 想要使用你储存在钥匙串的 Chromium Safe Storage 中的机密信息」）。根因是 Puppeteer 下载的 Chrome for Testing 是 **adhoc 签名、无 Team ID**，系统无法把它与钥匙串条目的既有授权绑定，于是每次访问都要求重新确认。
+
+实测结论（同一台开发机，Chrome for Testing 150.0.7871.24）：
+
+| 启动参数 | 结果 |
+| --- | --- |
+| 无 | Cookie 库无法建立（20 秒后仍无 `Cookies` 文件），等待弹窗授权时**存储不可用** |
+| `--password-store=basic` | 同样无法建立 Cookie 库（0 字节） |
+| `--use-mock-keychain` | Cookie 库正常建立（20 KiB），不触碰真实钥匙串，**无弹窗** |
+
+因此本规范统一要求：**CDP 模式一律加 `--use-mock-keychain`**，并使用**固定的用户数据目录**（如 `~/.cache/dsh-midscene-cdp-profile`，不要每次 `mktemp` 新建——新目录会重新走一遍安全存储初始化）：
+
+```sh
+"$CHROME" --remote-debugging-port=9222 \
+    --user-data-dir="$HOME/.cache/dsh-midscene-cdp-profile" \
+    --use-mock-keychain --no-sandbox --disable-gpu --headless=new "http://127.0.0.1:8070/?token=…"
+```
+
+补充说明：
+
+- `--use-mock-keychain` 让 Chrome 使用内存中的模拟钥匙串，**不写入也不读取**系统钥匙串。代价是该 profile 里保存的密码/令牌不跨进程持久；对「打开页面 → 交互 → 断言」的测试用例无影响。
+- 无头模式下 Chrome 需 `--no-sandbox` 才能启动（本会话文件沙箱下 `sandbox initialization failed: Operation not permitted`）。这是开发机环境限制，与插件无关。
+- 如果仍然弹出授权窗口，选择「始终允许」只对该**二进制与签名**生效；换 Chrome for Testing 版本（如 149 → 150，CDHash 变化）后需要重新授权——这也是统一加 `--use-mock-keychain` 的原因。
 
 #### 与人工走查、CDP 取证的分工
 
@@ -409,3 +435,4 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 - [Midscene Bridge 插件](/plugins/dsh-midscene)——Midscene 浏览器自动化的桥接服务与接入配置
 - [验收证据规范](../validation/README.md)
 | 2026-10-12 | Midscene 章节改为「桥接服务零配置」 | 原章节要求用户手写四个 `MIDSCENE_MODEL_*` 变量并自行确定家族值，与插件定位（让 Midscene 用 DSH 已有的模型、用户不需要任何第三方密钥）冲突。改为：接入配置由 `/v1/midscene-env` 生成（一条命令），模型自动挑选（优先有图片能力且家族可推断者），并说明 `familyWarning` 的含义与处理。 |
+| 2026-10-12 | Midscene 章节补 CDP 模式 macOS 钥匙串前置 | 实测 Puppeteer 的 Chrome for Testing 为 adhoc 签名（无 Team ID），每次新建用户数据目录都可能弹系统钥匙串授权；无参数与 `--password-store=basic` 下 Cookie 库无法建立，`--use-mock-keychain` 下正常建立且不触碰真实钥匙串。统一要求 CDP 模式加该参数并使用固定用户数据目录。依据：本机实测（Chrome for Testing 150.0.7871.24）。 |

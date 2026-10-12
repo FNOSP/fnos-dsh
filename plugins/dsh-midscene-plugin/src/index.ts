@@ -70,7 +70,7 @@ export const inject = ['llm']
 /**
  * 插件入口。
  * @param ctx - Cordis 上下文。
- * @param config - 插件配置（默认值来自 `Config`）。
+ * @param rawConfig - 插件配置（默认值来自 `Config`；volatile 字段为引用，见 liveConfig）。
  */
 export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unknown as BridgeConfig): void {
   const logger = ctx.logger
