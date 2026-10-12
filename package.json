@@ -30,6 +30,7 @@
     "@deepseek-ai/dsh": "catalog:",
     "@deepseek-ai/dsh-llm-pi-ai": "catalog:dsh",
     "@eslint-react/eslint-plugin": "catalog:",
+    "@midscene/test": "catalog:",
     "@miletorix/vitepress-image-viewer": "catalog:",
     "@tnnevol/fnos-dsh-cli": "workspace:*",
     "@types/node": "catalog:",

@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 3,
+  "runId": "20261012183839-8eafe07a",
+  "startedAt": "2026-10-12T10:38:39.522Z",
+  "endedAt": "2026-10-12T10:41:03.421Z",
+  "durationMs": 143899,
+  "status": "success",
+  "exitCode": 0,
+  "projectRoot": "/Users/tnnevol/workspace/fn-packages/fnos-dsh/plugins/dsh-failover-search-plugin",
+  "configPath": "/Users/tnnevol/workspace/fn-packages/fnos-dsh/plugins/dsh-failover-search-plugin/tests/e2e/midscene.config.ts",
+  "factsRoot": ".",
+  "reportDir": "../../../midscene_run/report",
+  "report": "../../../midscene_run/report/midscene-e2e-20261012183839-8eafe07a/index.html",
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "notRun": 0,
+    "passedAfterRetry": 0,
+    "finalPassRate": 1,
+    "firstPassRate": 1,
+    "filtered": 0,
+    "collectionErrors": 0,
+    "documentFailures": 0,
+    "projectFailures": 0
+  },
+  "projects": [
+    {
+      "projectId": "project-0",
+      "name": "dsh-web",
+      "status": "success",
+      "retry": 0,
+      "fileSelection": {
+        "include": [
+          "tests/e2e/cases/**/*.yaml"
+        ]
+      },
+      "tagSelection": {
+        "include": [],
+        "exclude": []
+      },
+      "sourceCount": 1,
+      "selectedCaseCount": 3,
+      "filteredCaseCount": 0,
+      "lifecycle": {
+        "status": "success",
+        "startedAt": "2026-10-12T10:38:40.089Z",
+        "endedAt": "2026-10-12T10:41:03.421Z",
+        "durationMs": 143332
+      },
+      "cases": [
+        {
+          "documentRunId": "b8f3599d-75a0-42b9-8fcf-e1f83b1620e4",
+          "documentId": "3dd939e2fea507aea99ec80c251a99578396259d08bac45b9df25d6b37dfb8e4",
+          "caseId": "64f2425ee24e2f605e37198d6b5e0d6bd6d461dad7224ec18d5b44339c455d8f",
+          "sourcePath": "tests/e2e/cases/FNOS-012-smart-search-pill.yaml",
+          "caseIndex": 0,
+          "name": "TC-028 控件呈药丸按钮形态且无 Switch 与状态文案",
+          "status": "success",
+          "attempts": [
+            {
+              "attemptId": "74611e12-76b0-458d-819e-2b84dae9fdb5",
+              "attemptIndex": 0,
+              "status": "success",
+              "resultFile": "project-0/documents/3dd939e2fea507aea99ec80c251a99578396259d08bac45b9df25d6b37dfb8e4/cases/64f2425ee24e2f605e37198d6b5e0d6bd6d461dad7224ec18d5b44339c455d8f/74611e12-76b0-458d-819e-2b84dae9fdb5.json",
+              "reports": [
+                "../../../midscene_run/report/page-over-chrome-extension-bridge-2026-10-12_18-39-22-271d8062.html"
+              ]
+            }
+          ]
+        },
+        {
+          "documentRunId": "b8f3599d-75a0-42b9-8fcf-e1f83b1620e4",
+          "documentId": "3dd939e2fea507aea99ec80c251a99578396259d08bac45b9df25d6b37dfb8e4",
+          "caseId": "ea70174b12eaa528011da295c71436f7eea3389b6d6b3f58312df8c3b60c326a",
+          "sourcePath": "tests/e2e/cases/FNOS-012-smart-search-pill.yaml",
+          "caseIndex": 1,
+          "name": "TC-029 开启时激活态、关闭时普通态（仅样式区分）",
+          "status": "success",
+          "attempts": [
+            {
+              "attemptId": "8359a184-0fba-4eae-955d-500fa6e52127",
+              "attemptIndex": 0,
+              "status": "success",
+              "resultFile": "project-0/documents/3dd939e2fea507aea99ec80c251a99578396259d08bac45b9df25d6b37dfb8e4/cases/ea70174b12eaa528011da295c71436f7eea3389b6d6b3f58312df8c3b60c326a/8359a184-0fba-4eae-955d-500fa6e52127.json",
+              "reports": [
+                "../../../midscene_run/report/page-over-chrome-extension-bridge-2026-10-12_18-39-22-271d8062.html"
+              ]
+            }
+          ]
+        },
+        {
+          "documentRunId": "b8f3599d-75a0-42b9-8fcf-e1f83b1620e4",
+          "documentId": "3dd939e2fea507aea99ec80c251a99578396259d08bac45b9df25d6b37dfb8e4",
+          "caseId": "d0442272e52d3ea4b0fdc07da233701d49652903d8c46a42969701c601be84b4",
+          "sourcePath": "tests/e2e/cases/FNOS-012-smart-search-pill.yaml",
+          "caseIndex": 2,
+          "name": "TC-030 亮暗主题下两态均可辨",
+          "status": "success",
+          "attempts": [
+            {
+              "attemptId": "09036cf5-6899-4569-9ce6-a1ed5ab2ea78",
+              "attemptIndex": 0,
+              "status": "success",
+              "resultFile": "project-0/documents/3dd939e2fea507aea99ec80c251a99578396259d08bac45b9df25d6b37dfb8e4/cases/d0442272e52d3ea4b0fdc07da233701d49652903d8c46a42969701c601be84b4/09036cf5-6899-4569-9ce6-a1ed5ab2ea78.json",
+              "reports": [
+                "../../../midscene_run/report/page-over-chrome-extension-bridge-2026-10-12_18-39-22-271d8062.html"
+              ]
+            }
+          ]
+        }
+      ],
+      "documents": [
+        {
+          "documentId": "3dd939e2fea507aea99ec80c251a99578396259d08bac45b9df25d6b37dfb8e4",
+          "sourcePath": "tests/e2e/cases/FNOS-012-smart-search-pill.yaml",
+          "status": "success",
+          "resultFile": "project-0/documents/3dd939e2fea507aea99ec80c251a99578396259d08bac45b9df25d6b37dfb8e4/document.json"
+        }
+      ],
+      "collectionErrors": []
+    }
+  ]
+}

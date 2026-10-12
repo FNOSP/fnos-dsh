@@ -103,6 +103,15 @@ packages/<package-name>/
 
 `src/` 内按职责建立子目录。当前仓库使用的典型职责包括：`client/`、`server/`、`config/`、`constants/`、`middleware/`、`types/` 和 `install-callback-helper/`。只有出现明确的模块边界时才新增子目录，不为单个工具函数创建目录。
 
+当前 `packages/` 下的公共包：
+
+| 包 | 职责 |
+| --- | --- |
+| `dsh-plugin-kit` | 插件的宿主侧共享助手（凭据文件权限评估等） |
+| `dsh-semi-ui` | 共享 UI 组件与主题 |
+| `fnos-gateway` | fnOS 网关 |
+| `dsh-e2e-kit` | 交互测试的共享装配：Midscene Bridge Mode 项目 setup、标签页纪律、交互结果核实、接入配置获取（见[测试用例文档规范](./tests-spec.md)的 Midscene 章节） |
+
 ## DSH 插件目录：`plugins/`
 
 每个插件使用 `plugins/<plugin-name>/`，插件目录名使用小写短横线命名，并保持包名、文档名和发布名一致。
@@ -118,6 +127,7 @@ plugins/<plugin-name>/
 │   ├── styles/              # 插件样式
 │   └── index.ts             # 插件主入口
 ├── tests/                   # 插件测试，与源码职责对应
+│   └── e2e/                 # Midscene Test 交互用例（midscene.config.ts + cases/*.yaml），按需创建
 ├── package.json
 ├── tsconfig.json
 ├── tsdown.config.ts
@@ -193,7 +203,7 @@ tooling/<tool-name>/
 禁止以下做法：
 
 - 在根目录新建 `src/`、`components/`、`utils/`、`common/`、`temp/` 等无归属目录。
-- 把临时脚本散落在项目根目录，或绕过 `tmp/` 自行新建临时目录；临时脚本统一进 `tmp/`（见[临时脚本目录](#临时脚本目录-tmp)）。
+- 把临时脚本散落在项目根目录，或绕过 `tmp/` 自行新建临时目录；临时脚本统一进 `tmp/`（见[临时脚本目录](#临时脚本目录tmp)）。
 - 在包根目录直接堆积大量源码文件，绕过已有的 `src/` 分层。
 - 把测试、截图、日志、构建输出或本地凭据放进源码目录。
 - 为了复用而提前创建空的 `api/`、`hooks/`、`store/` 等目录。

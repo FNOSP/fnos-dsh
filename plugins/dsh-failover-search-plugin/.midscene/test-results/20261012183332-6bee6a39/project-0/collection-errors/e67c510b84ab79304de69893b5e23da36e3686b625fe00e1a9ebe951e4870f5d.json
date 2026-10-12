@@ -1,0 +1,15 @@
+{
+  "kind": "collection-error",
+  "projectId": "project-0",
+  "projectName": "dsh-web",
+  "sourcePath": "<project>",
+  "error": {
+    "name": "WorkflowParseError",
+    "message": "No workflow YAML files found for project \"dsh-web\" in /Users/tnnevol/workspace/fn-packages/fnos-dsh/plugins/dsh-failover-search-plugin.",
+    "code": "WORKFLOW_PARSE_ERROR",
+    "details": {
+      "projectName": "dsh-web",
+      "projectRoot": "/Users/tnnevol/workspace/fn-packages/fnos-dsh/plugins/dsh-failover-search-plugin"
+    }
+  }
+}

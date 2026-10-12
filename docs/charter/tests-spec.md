@@ -238,6 +238,37 @@ curl -s "http://127.0.0.1:$PORT/v1/midscene-env" |
 pnpm --filter @tnnevol/dsh-midscene run test:bridge "<目标URL>"
 ```
 
+#### Midscene Test 项目（交互用例的正式载体）
+
+交互类用例用 [Midscene Test](https://midscenejs.com/zh/midscene-test/configuration.html) 承载：YAML 描述步骤、`midscene.config.ts` 声明运行环境。本仓库的装配层封装在共享包 `packages/dsh-e2e-kit`（`@tnnevol/dsh-e2e-kit`），各插件只需写自己的用例与一份极薄的配置。
+
+**位置约定**
+
+| 内容 | 位置 |
+| --- | --- |
+| 共享装配（Bridge setup、标签页纪律、结果核实、接入配置） | `packages/dsh-e2e-kit/` |
+| 某插件的交互用例与项目配置 | `plugins/<插件>/tests/e2e/`（配置 `midscene.config.ts`，用例 `cases/*.yaml`） |
+| 运行入口 | 插件 `package.json` 的 `test:e2e`（`midscene-test --config tests/e2e/midscene.config.ts`） |
+
+`files.include` **相对执行目录**（插件根）解析，不是相对配置文件所在目录——写成 `tests/e2e/cases/**/*.yaml`。
+
+**用例与测试文档的对应**（避免两处定义漂移）
+
+- 测试文档（`docs/tests/`）是**权威台账**：登记用例编号、判定标准、执行结果、Bug 与结论；
+- YAML 是**执行载体**：`name` 字段以 `TC-0xx` 开头与文档编号对齐（如 `TC-029 开启时激活态、关闭时普通态`），`tags` 标注需求编号与类型（`ui`/`interactive`/`theme`），便于分级执行；
+- 两侧都要能独立读懂，不互相复制长段落。
+
+**写用例的四条实测约束**（都踩过，务必遵守）
+
+1. **YAML 会插值**：`${name}` 是**项目变量**（缺失即解析报错），`${{NAME}}` 才是环境变量。因此 `javascript` 步骤里不要写模板字面量（用字符串拼接），跨步骤状态也不要挂 `window.__x`（同样会被扫描）。
+2. **用例必须自己建立起始状态**：有头浏览器复用真实页面，前一个用例可能把控件留在任意状态。实测 TC-029 按「默认开启」写，被前序用例切到关闭态后必然失败。每个用例先用步骤把状态归一。
+3. **归一动作必须用真实点击**（`aiAct`），不能用 `javascript` 里的 `element.click()`：实测程序化点击**不会**切换 React 受控状态（`aria-pressed` 不变）。
+4. **断言分工**：精确状态（开关、文案、类名）交给 `javascript` 读 DOM/属性；视觉观感（形态、图标、对比）交给 `aiAssert`。**否定式判断不要交给视觉模型**——实测它把药丸按钮本身误判成「开关式控件」；「不存在 X」用 `javascript` 表达。
+
+**状态依据从组件源码取，不靠猜**：如 `dsh-failover-search` 的药丸按钮，源码里 `className` 带 `--active` 才是激活态、`aria-pressed` 是状态属性、`aria-label` 含状态文案（`src/client/smart-search-toggle.tsx` 与 `styles.scss`）。用例按这些稳定契约断言，而非背景色等易变表现。
+
+**僵尸页面的自动降级**：桥接复用到的页可能已被浏览器冻结/丢弃（实测实例重启后遗留的页上任何 `evaluateJavaScript` 都会挂到 Midscene 自身的 30s 超时，导致整轮用例 `not run`）。共享包在绑定后**先探活再动页面**，不可用则重建 Agent 换一个新页——因此切页只能靠重建 Agent（`setActiveTabId` 只能绑定一次）。
+
 #### 有头浏览器（Bridge Mode）的标签页纪律
 
 用有头浏览器测试时，浏览器的标签页是**用户真实工作环境**的一部分，必须遵守四条纪律（脚本已实现）：
@@ -515,3 +546,4 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-10-12 | Midscene 章节改为「端口按实际值」 | 桥接端口不再固定：默认 8787，被占用时自动向上尝试（最多 20 个）并把实际端口写回配置。章节的前置条件由写死 8787 改为先发现实际端口（健康响应的 `port` 字段为权威值）再用它生成 `.env`；跳号后 `.env` 需重新拉取。依据：FNOS-013-01 行为约束修订。 |
 | 2026-10-12 | Midscene 章节新增 Bridge Mode 并升为首选接入方式 | 按 Midscene 官方《Chrome 桥接模式》验证：脚本作 server（默认 127.0.0.1:3766），用户真实 Chrome 里的 Midscene 扩展反向连接，因此浏览器用户可见、复用真实 cookies 与登录态、无 macOS 钥匙串弹窗、视口即真实窗口（实测 1920×906）。实测同一任务在 Bridge Mode 下完整通过（首页断言 → 点击「插件」→ 独立核实进入插件列表 → 列表断言），而 CDP 直连需应对 756×413 窄视口与钥匙串授权。据此把接入方式改为三级优先级（Bridge Mode > 默认 Puppeteer > CDP），CDP 章节标注为备选。验证脚本入仓：`plugins/dsh-midscene-plugin/scripts/bridge-smoke.ts`（`pnpm --filter @tnnevol/dsh-midscene run test:bridge`）。 |
 | 2026-10-12 | Midscene 章节新增「有头浏览器的标签页纪律」 | 针对有头（Bridge Mode）测试新增四条纪律：先查后复用（同源同路径视为同一页，避免 DSH Web 的 `?token=` 变化导致复用失效）、复用后回到确定起点（复用页可能停在上次测试状态）、收尾至少保留一个目标页、只关闭本次新建的重复页。实测依据：`setActiveTabId` 只能绑定一次（因此必须「先查后绑定」）、`destroy(closeTab)` 仅关闭 `newlyCreatedTabIds`。验证：连续三轮测试后浏览器 8070 目标页恒为 1 张、总页数无堆积。 |
+| 2026-10-12 | Midscene 章节新增「Midscene Test 项目」小节 | 交互用例的正式载体落定为 Midscene Test：共享装配放 `packages/dsh-e2e-kit`，各插件在 `tests/e2e/` 放配置与用例、以 `test:e2e` 为入口。明确用例与测试文档的对应关系（文档是权威台账、YAML 的 `name` 以 `TC-0xx` 对齐）。登记四条实测约束：YAML 的 `${}` 插值是项目变量（javascript 步骤不能用模板字面量）、用例必须自建起始状态、归一状态必须用真实点击（程序化 click 不切换 React 受控状态）、断言分工（精确判定用 javascript、否定式判断不交给视觉模型）。状态依据从组件源码取。新增僵尸页自动降级说明。验证：FNOS-012 的 TC-028/029/030 经 `pnpm --filter @tnnevol/dsh-failover-search run test:e2e` 全部通过。 |

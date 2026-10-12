@@ -1,0 +1,299 @@
+{
+  "caseId": "ea70174b12eaa528011da295c71436f7eea3389b6d6b3f58312df8c3b60c326a",
+  "projectName": "dsh-web",
+  "attemptIndex": 0,
+  "name": "TC-029 开启时激活态、关闭时普通态（仅样式区分）",
+  "sourcePath": "tests/e2e/cases/FNOS-012-smart-search-pill.yaml",
+  "caseIndex": 1,
+  "status": "success",
+  "beforeEach": [],
+  "steps": [
+    {
+      "node": "javascript",
+      "phase": "steps",
+      "stepIndex": 0,
+      "input": {
+        "script": "(() => {\n  const b = document.querySelector('.dsh-failover-pill');\n  if (!b) throw new Error('未找到 .dsh-failover-pill 控件');\n  return { pressed: b.getAttribute('aria-pressed') };\n})()\n"
+      },
+      "meta": {
+        "continueOnError": false
+      },
+      "startedAt": "2026-10-12T10:39:32.357Z",
+      "endedAt": "2026-10-12T10:39:32.359Z",
+      "durationMs": 2,
+      "status": "success",
+      "continuedAfterError": false,
+      "output": {
+        "data": {
+          "result": {
+            "className": "Object",
+            "description": "Object",
+            "objectId": "8293314082734932499.1.2",
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "node": "aiAct",
+      "phase": "steps",
+      "stepIndex": 1,
+      "input": {
+        "prompt": "如果「智能搜索」按钮当前是关闭状态，就点击它把它打开；如果已经是开启状态则不要点击"
+      },
+      "meta": {
+        "continueOnError": false
+      },
+      "startedAt": "2026-10-12T10:39:32.359Z",
+      "endedAt": "2026-10-12T10:39:36.986Z",
+      "durationMs": 4627,
+      "status": "success",
+      "continuedAfterError": false,
+      "output": {
+        "summary": "「智能搜索」按钮当前已是开启状态（蓝色高亮显示），根据指令无需点击，任务完成。"
+      },
+      "report": {
+        "traces": [
+          {
+            "type": "midscene-execution",
+            "executionId": "ccb0a643-0293-4534-bc2a-d502a350e3c8"
+          }
+        ]
+      }
+    },
+    {
+      "node": "javascript",
+      "phase": "steps",
+      "stepIndex": 2,
+      "input": {
+        "script": "(() => {\n  const b = document.querySelector('.dsh-failover-pill');\n  const pressed = b.getAttribute('aria-pressed');\n  if (pressed !== 'true') throw new Error('未能把按钮置为开启态，当前 aria-pressed=' + pressed);\n  // 组件源码：className 上带 --active 才是「激活态」的样式表达\n  // （styles.scss 里 .dsh-failover-pill--active 才有高亮背景）。\n  if (!b.classList.contains('dsh-failover-pill--active')) throw new Error('开启态却缺少 --active 类');\n  return { pressed: pressed, activeClass: true };\n})()\n"
+      },
+      "meta": {
+        "continueOnError": false
+      },
+      "startedAt": "2026-10-12T10:39:36.986Z",
+      "endedAt": "2026-10-12T10:39:36.987Z",
+      "durationMs": 1,
+      "status": "success",
+      "continuedAfterError": false,
+      "output": {
+        "data": {
+          "result": {
+            "className": "Object",
+            "description": "Object",
+            "objectId": "8293314082734932499.1.3",
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "node": "aiAssert",
+      "phase": "steps",
+      "stepIndex": 3,
+      "input": {
+        "prompt": "「智能搜索」按钮有明显的高亮背景，呈激活态外观"
+      },
+      "meta": {
+        "continueOnError": false
+      },
+      "startedAt": "2026-10-12T10:39:36.987Z",
+      "endedAt": "2026-10-12T10:39:42.302Z",
+      "durationMs": 5315,
+      "status": "success",
+      "continuedAfterError": false,
+      "output": {
+        "summary": "Assertion passed: 「智能搜索」按钮有明显的高亮背景，呈激活态外观",
+        "data": {
+          "pass": true,
+          "thought": "截图中底部输入框工具栏从左到右依次为：加号按钮、「工作区内修改」（带下拉箭头）、「智能搜索」。其中「工作区内修改」为纯文字样式，无底色；而「智能搜索」左侧带蓝色圆形图标，文字为白/浅色，并且整体呈现一块与周围深色背景明显区分的浅色（偏蓝灰）胶囊状底色，形成高亮/激活态外观。因此该按钮看起来处于选中激活状态。"
+        }
+      },
+      "report": {
+        "traces": [
+          {
+            "type": "midscene-execution",
+            "executionId": "1107b543-f5df-4610-9048-ea5831c78320"
+          }
+        ]
+      }
+    },
+    {
+      "node": "javascript",
+      "phase": "steps",
+      "stepIndex": 4,
+      "input": {
+        "script": "(() => {\n  const b = document.querySelector('.dsh-failover-pill');\n  const text = (b.textContent || '').trim();\n  if (text !== '智能搜索') throw new Error('可见文案不是「智能搜索」，实际为：' + text);\n  return { textBeforeToggle: text, pressedBeforeToggle: b.getAttribute('aria-pressed') };\n})()\n"
+      },
+      "meta": {
+        "continueOnError": false
+      },
+      "startedAt": "2026-10-12T10:39:42.302Z",
+      "endedAt": "2026-10-12T10:39:42.303Z",
+      "durationMs": 1,
+      "status": "success",
+      "continuedAfterError": false,
+      "output": {
+        "data": {
+          "result": {
+            "className": "Object",
+            "description": "Object",
+            "objectId": "8293314082734932499.1.4",
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "node": "aiAct",
+      "phase": "steps",
+      "stepIndex": 5,
+      "input": {
+        "prompt": "点击「智能搜索」按钮，把它切换一次状态"
+      },
+      "meta": {
+        "continueOnError": false
+      },
+      "startedAt": "2026-10-12T10:39:42.304Z",
+      "endedAt": "2026-10-12T10:39:49.549Z",
+      "durationMs": 7245,
+      "status": "success",
+      "continuedAfterError": false,
+      "output": {
+        "summary": "已点击「智能搜索」按钮，成功切换了一次状态。"
+      },
+      "report": {
+        "traces": [
+          {
+            "type": "midscene-execution",
+            "executionId": "af038a36-f53d-47cc-8bf3-3fe54f82846c"
+          }
+        ]
+      }
+    },
+    {
+      "node": "javascript",
+      "phase": "steps",
+      "stepIndex": 6,
+      "input": {
+        "script": "(() => {\n  const b = document.querySelector('.dsh-failover-pill');\n  const text = (b.textContent || '').trim();\n  if (text !== '智能搜索') throw new Error('切换后可见文案变化为：' + text);\n  const pressed = b.getAttribute('aria-pressed');\n  if (pressed !== 'false') throw new Error('未切换为关闭态，aria-pressed=' + pressed);\n  if (b.classList.contains('dsh-failover-pill--active')) throw new Error('关闭态却仍带 --active 类');\n  return { textUnchanged: true, text: text, pressed: pressed };\n})()\n"
+      },
+      "meta": {
+        "continueOnError": false
+      },
+      "startedAt": "2026-10-12T10:39:49.550Z",
+      "endedAt": "2026-10-12T10:39:49.551Z",
+      "durationMs": 1,
+      "status": "success",
+      "continuedAfterError": false,
+      "output": {
+        "data": {
+          "result": {
+            "className": "Object",
+            "description": "Object",
+            "objectId": "8293314082734932499.1.5",
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "node": "aiAssert",
+      "phase": "steps",
+      "stepIndex": 7,
+      "input": {
+        "prompt": "此时「智能搜索」按钮没有高亮背景，呈普通态外观"
+      },
+      "meta": {
+        "continueOnError": false
+      },
+      "startedAt": "2026-10-12T10:39:49.551Z",
+      "endedAt": "2026-10-12T10:39:54.498Z",
+      "durationMs": 4947,
+      "status": "success",
+      "continuedAfterError": false,
+      "output": {
+        "summary": "Assertion passed: 此时「智能搜索」按钮没有高亮背景，呈普通态外观",
+        "data": {
+          "pass": true,
+          "thought": "截图中输入框下方工具栏可见「智能搜索」按钮，其图标与文字呈灰色，背景为深色普通胶囊样式，未出现高亮选中背景（如蓝色或更亮底色），与旁边「工作区内修改」按钮外观一致，属于普通态。"
+        }
+      },
+      "report": {
+        "traces": [
+          {
+            "type": "midscene-execution",
+            "executionId": "5571f164-4c05-4fbd-bd2a-9416b1a98bfd"
+          }
+        ]
+      }
+    },
+    {
+      "node": "aiAct",
+      "phase": "steps",
+      "stepIndex": 8,
+      "input": {
+        "prompt": "点击「智能搜索」按钮把它重新打开"
+      },
+      "meta": {
+        "continueOnError": false
+      },
+      "startedAt": "2026-10-12T10:39:54.498Z",
+      "endedAt": "2026-10-12T10:40:03.219Z",
+      "durationMs": 8721,
+      "status": "success",
+      "continuedAfterError": false,
+      "output": {
+        "summary": "已点击「智能搜索」按钮，该按钮现已呈高亮激活状态，成功重新打开。"
+      },
+      "report": {
+        "traces": [
+          {
+            "type": "midscene-execution",
+            "executionId": "696a32a3-2180-43ab-8c55-8c9325e8aad7"
+          }
+        ]
+      }
+    },
+    {
+      "node": "javascript",
+      "phase": "steps",
+      "stepIndex": 9,
+      "input": {
+        "script": "(() => {\n  const b = document.querySelector('.dsh-failover-pill');\n  if (b.getAttribute('aria-pressed') !== 'true') throw new Error('收尾失败：未恢复开启态');\n  return { restored: true };\n})()\n"
+      },
+      "meta": {
+        "continueOnError": false
+      },
+      "startedAt": "2026-10-12T10:40:03.219Z",
+      "endedAt": "2026-10-12T10:40:03.220Z",
+      "durationMs": 1,
+      "status": "success",
+      "continuedAfterError": false,
+      "output": {
+        "data": {
+          "result": {
+            "className": "Object",
+            "description": "Object",
+            "objectId": "8293314082734932499.1.6",
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
+  "afterEach": [],
+  "reportPaths": [
+    "/Users/tnnevol/workspace/fn-packages/fnos-dsh/plugins/dsh-failover-search-plugin/midscene_run/report/page-over-chrome-extension-bridge-2026-10-12_18-39-22-271d8062.html"
+  ],
+  "reportSources": [
+    {
+      "sourcePath": "/Users/tnnevol/workspace/fn-packages/fnos-dsh/plugins/dsh-failover-search-plugin/midscene_run/report/page-over-chrome-extension-bridge-2026-10-12_18-39-22-271d8062.html",
+      "dumpPath": "/Users/tnnevol/workspace/fn-packages/fnos-dsh/plugins/dsh-failover-search-plugin/midscene_run/report/page-over-chrome-extension-bridge-2026-10-12_18-39-22-271d8062.html.8359a184-0fba-4eae-955d-500fa6e52127.json"
+    }
+  ],
+  "startedAt": "2026-10-12T10:39:32.357Z",
+  "endedAt": "2026-10-12T10:40:03.223Z",
+  "durationMs": 30866,
+  "attemptId": "8359a184-0fba-4eae-955d-500fa6e52127"
+}

@@ -1,0 +1,139 @@
+# FNOS-012 智能搜索药丸按钮（FNOS-012-06）的 Midscene Test 用例。
+#
+# 用例编号与 docs/tests/FNOS-012-codebuddy-model-speed-and-client-version.md 对齐：
+# 测试文档是权威台账（记录结果与结论），本文件是**执行载体**。
+#
+# ## 两条硬约束（试点实测踩出来的，写用例前务必先读）
+#
+# 1. **YAML 会插值**：`${name}` 被当作**项目变量**（缺失即报错），`${{NAME}}` 才是环境
+#    变量。因此 javascript 步骤里不要写模板字面量，改用字符串拼接；跨步骤状态也不要
+#    挂在 `window.__x`（同样会被扫描到）。
+#
+# 2. **用例必须自己建立起始状态**：有头浏览器是可复用的真实页面，前一个用例可能把
+#    控件留在任意状态（实测：TC-029 被前序用例切到关闭态后，按「默认开启」写的断言
+#    必然失败）。因此每个用例先用 javascript 把状态**归一**到已知值，再开始断言。
+#
+# ## 断言策略：状态用属性，观感用视觉
+#
+# - **精确状态**（开启/关闭）→ `javascript` 读 `aria-pressed`：确定、快、不受模型影响；
+# - **视觉观感**（药丸形态、图标、对比是否清晰）→ `aiAssert`：这是 Midscene 的强项。
+#
+# 两者分工明确，不要让自然语言断言去承担可以精确判定的东西。
+cases:
+  - name: TC-028 控件呈药丸按钮形态且无 Switch 与状态文案
+    tags: [FNOS-012, ui]
+    steps:
+      # 本用例只关心「形态与文案」，与开关状态无关，因此无需归一状态。
+      - aiAssert: 消息输入框的左下角有一个药丸形状的按钮，可见文案是「智能搜索」，按钮左侧带一个地球图标
+      # **否定式断言交给 javascript**（试点教训）：让视觉模型断言「不存在 X」很不可靠
+      # ——实测它把药丸按钮本身当成了「开关式控件」。这类判定用 DOM 精确表达。
+      - javascript: |
+          (() => {
+            const b = document.querySelector('.dsh-failover-pill');
+            if (!b) throw new Error('未找到 .dsh-failover-pill 控件');
+            const text = (b.textContent || '').trim();
+            if (text !== '智能搜索') throw new Error('可见文案不是「智能搜索」，实际为：' + text);
+            if (b.getAttribute('aria-pressed') === null) throw new Error('缺少 aria-pressed 状态属性');
+            if (!b.querySelector('svg')) throw new Error('按钮内未找到图标');
+            // 形态是药丸按钮而非 Switch：不应存在 switch 角色的控件
+            const switchNearby = document.querySelectorAll('[role="switch"], input[type="checkbox"]');
+            if (switchNearby.length > 0) {
+              throw new Error('输入框附近存在开关式控件（' + switchNearby.length + ' 个）');
+            }
+            // 不应出现「智能搜索已关」这类状态文案
+            const bodyText = document.body.innerText || '';
+            for (const phrase of ['智能搜索已关', '智能搜索已开启', '智能搜索已关闭']) {
+              if (bodyText.includes(phrase)) throw new Error('出现了状态文案：' + phrase);
+            }
+            return { text: text, pressed: b.getAttribute('aria-pressed'), hasIcon: true, noSwitchRole: true, noStateText: true };
+          })()
+
+  - name: TC-029 开启时激活态、关闭时普通态（仅样式区分）
+    tags: [FNOS-012, ui, interactive]
+    steps:
+      # **归一状态的正确做法**：程序化 `element.click()` 不会切换 React 状态（实测
+      # aria-pressed 不变），因此必须用自然语言真实点击（aiAct）。
+      # 这里先用属性判定当前状态，若为关闭则真实点击一次切到开启。
+      - javascript: |
+          (() => {
+            const b = document.querySelector('.dsh-failover-pill');
+            if (!b) throw new Error('未找到 .dsh-failover-pill 控件');
+            return { pressed: b.getAttribute('aria-pressed') };
+          })()
+      - aiAct: 如果「智能搜索」按钮当前是关闭状态，就点击它把它打开；如果已经是开启状态则不要点击
+      - javascript: |
+          (() => {
+            const b = document.querySelector('.dsh-failover-pill');
+            const pressed = b.getAttribute('aria-pressed');
+            if (pressed !== 'true') throw new Error('未能把按钮置为开启态，当前 aria-pressed=' + pressed);
+            // 组件源码：className 上带 --active 才是「激活态」的样式表达
+            // （styles.scss 里 .dsh-failover-pill--active 才有高亮背景）。
+            if (!b.classList.contains('dsh-failover-pill--active')) throw new Error('开启态却缺少 --active 类');
+            return { pressed: pressed, activeClass: true };
+          })()
+      - aiAssert: 「智能搜索」按钮有明显的高亮背景，呈激活态外观
+      # 「仅样式区分」是本用例的核心断言点：真实点击切换后，可见文案必须不变。
+      - javascript: |
+          (() => {
+            const b = document.querySelector('.dsh-failover-pill');
+            const text = (b.textContent || '').trim();
+            if (text !== '智能搜索') throw new Error('可见文案不是「智能搜索」，实际为：' + text);
+            return { textBeforeToggle: text, pressedBeforeToggle: b.getAttribute('aria-pressed') };
+          })()
+      - aiAct: 点击「智能搜索」按钮，把它切换一次状态
+      - javascript: |
+          (() => {
+            const b = document.querySelector('.dsh-failover-pill');
+            const text = (b.textContent || '').trim();
+            if (text !== '智能搜索') throw new Error('切换后可见文案变化为：' + text);
+            const pressed = b.getAttribute('aria-pressed');
+            if (pressed !== 'false') throw new Error('未切换为关闭态，aria-pressed=' + pressed);
+            if (b.classList.contains('dsh-failover-pill--active')) throw new Error('关闭态却仍带 --active 类');
+            return { textUnchanged: true, text: text, pressed: pressed };
+          })()
+      # 只断言「本状态自身的样式」——同一时刻只能看见一个状态，不能要求与不可见的另一态对比。
+      - aiAssert: 此时「智能搜索」按钮没有高亮背景，呈普通态外观
+      # 收尾：切回开启，避免把状态留给下一个用例。
+      - aiAct: 点击「智能搜索」按钮把它重新打开
+      - javascript: |
+          (() => {
+            const b = document.querySelector('.dsh-failover-pill');
+            if (b.getAttribute('aria-pressed') !== 'true') throw new Error('收尾失败：未恢复开启态');
+            return { restored: true };
+          })()
+
+  - name: TC-030 亮暗主题下两态均可辨
+    tags: [FNOS-012, ui, theme]
+    steps:
+      # **用例设计要点**（试点暴露）：同一时刻只能看见一个状态，因此不能断言「激活态与
+      # 普通态可辨」——那需要两张截图对比，单步断言做不到。改为逐步：在每个状态下断言
+      # 「本按钮相对参照控件有可见差异」，两态都成立即说明两态可辨。
+      - aiAct: 如果「智能搜索」按钮当前是关闭状态，就点击它把它打开；如果已经是开启状态则不要点击
+      - javascript: |
+          (() => {
+            const b = document.querySelector('.dsh-failover-pill');
+            if (!b) throw new Error('未找到 .dsh-failover-pill 控件');
+            if (b.getAttribute('aria-pressed') !== 'true') throw new Error('未置为开启态');
+            if (!b.classList.contains('dsh-failover-pill--active')) throw new Error('开启态却缺少 --active 类');
+            const cs = getComputedStyle(b);
+            return { state: 'on', bg: cs.backgroundColor };
+          })()
+      - aiAssert: 当前主题下，「智能搜索」按钮有明显的高亮背景（属于激活态的外观）
+      - aiAct: 点击「智能搜索」按钮把它切换到关闭状态
+      - javascript: |
+          (() => {
+            const b = document.querySelector('.dsh-failover-pill');
+            if (b.getAttribute('aria-pressed') !== 'false') throw new Error('未切到关闭态');
+            if (b.classList.contains('dsh-failover-pill--active')) throw new Error('关闭态却仍带 --active 类');
+            const cs = getComputedStyle(b);
+            return { state: 'off', bg: cs.backgroundColor };
+          })()
+      - aiAssert: 当前主题下，「智能搜索」按钮没有高亮背景（属于普通态的外观）
+      # 收尾：恢复默认开启。
+      - aiAct: 点击「智能搜索」按钮把它重新打开
+      - javascript: |
+          (() => {
+            const b = document.querySelector('.dsh-failover-pill');
+            if (b.getAttribute('aria-pressed') !== 'true') throw new Error('收尾失败：未恢复开启态');
+            return { restored: true };
+          })()
