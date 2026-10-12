@@ -11,6 +11,10 @@
 | 上游提交 | `dec1d1c55252ecb1a90c4ecbcfd0d2cb3ce0ac7b`（2026-08-14） |
 | 同步日期 | 2026-10-12 |
 | 许可 | MIT（Copyright (c) 2024-present Bytedance, Inc. and its affiliates.） |
+| 上游原文 sha256（前 16 位） | `9aa7c602a7004e53`——用于核对「同步到的原件是否正确」 |
+| 本地副本 sha256（前 16 位） | `079f64377697ad06`——含下述本地改动，**不等于**上游原文 |
+
+> 两个哈希都要记：上游原文哈希用于同步时确认拉到的原件版本，本地副本哈希用于确认本仓库这一份未被人手改动。只记一个会让人误以为「本地副本 = 上游原文」。
 
 ## 本地改动（相对上游原文）
 
@@ -28,12 +32,20 @@
 
 ```bash
 git clone --depth 1 https://github.com/web-infra-dev/midscene-skills.git /tmp/midscene-skills
+# 1) 先核对拿到的是哪个上游版本（记下新的 commit 与 sha256）
+git -C /tmp/midscene-skills log -1 --format=%H
+shasum -a 256 /tmp/midscene-skills/skills/browser/SKILL.md
+
+# 2) 覆盖后按上表重新施加三处改动（frontmatter 一句、Prerequisites 整节、Troubleshooting 一小节）
 cp /tmp/midscene-skills/skills/browser/SKILL.md \
    plugins/dsh-midscene-plugin/skills/browser-automation/SKILL.md
-# 然后按上表重新施加三处改动，并更新本文件的「上游提交 / 同步日期」
+
+# 3) 更新本文件的上游提交 / 同步日期 / 两个 sha256
 ```
 
-同步后必须重新施加上述三处改动——直接覆盖会把第三方 key 配置带回来。改动点已尽量收敛（一节 + 一句 + 一小节），便于上游更新时快速重做。
+**第 3 步不能省**：同步后必须重新施加三处改动——直接覆盖会把第三方 key 配置带回来。漏做不会静默通过：`tests/host/skills.spec.ts` 里有硬断言（技能必须含 `do not ask the user for API keys` 与 `/v1/midscene-env`，且不得含 `your-google-api-key` 等 8 个第三方配置字符串），跑 `pnpm --filter @tnnevol/dsh-midscene test` 即报红并指名缺什么。
+
+改动点已尽量收敛（三个连续区块），便于上游更新时快速重做。若某次上游把 Prerequisites 整节重写，则按新结构重新组织这三步——**判断标准始终是：技能不得引导 agent 去要模型 API key。**
 
 ## 只内置 Web 场景技能
 

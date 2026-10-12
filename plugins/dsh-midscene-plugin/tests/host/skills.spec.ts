@@ -165,6 +165,19 @@ describe('包内技能资产（AC-02）', () => {
     }
   })
 
+  it('本地副本 sha256 与 SOURCE.md 登记一致（改动后必须同步更新登记）', async () => {
+    // 技能含本地补丁，因此「本地副本 = 上游原文」不再成立；两个哈希都登记在
+    // SOURCE.md。本断言挡住「改了技能但忘了更新登记」——否则下次同步时无人
+    // 知道本仓库这一份是否被意外改动过。
+    const { createHash } = await import('node:crypto')
+    const { readFile } = await import('node:fs/promises')
+    const root = bundledSkillsDir()
+    const skillPath = join(root, 'browser-automation', 'SKILL.md')
+    const digest = createHash('sha256').update(await readFile(skillPath)).digest('hex').slice(0, 16)
+    const source = await readFile(join(root, 'SOURCE.md'), 'utf8')
+    expect(source).toContain(digest)
+  })
+
   it('来源标注文件存在且登记上游提交、许可与本地改动点', async () => {
     const source = await import('node:fs/promises').then(async fs => fs.readFile(join(bundledSkillsDir(), 'SOURCE.md'), 'utf8'))
     expect(source).toContain('web-infra-dev/midscene-skills')
