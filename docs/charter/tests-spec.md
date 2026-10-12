@@ -238,6 +238,23 @@ curl -s "http://127.0.0.1:$PORT/v1/midscene-env" |
 pnpm --filter @tnnevol/dsh-midscene run test:bridge "<目标URL>"
 ```
 
+#### 有头浏览器（Bridge Mode）的标签页纪律
+
+用有头浏览器测试时，浏览器的标签页是**用户真实工作环境**的一部分，必须遵守四条纪律（脚本已实现）：
+
+| 纪律 | 做法 | 原因 |
+| --- | --- | --- |
+| **先查后复用** | 连接前先 `getBrowserTabList()`，目标页已打开就直接绑定它 | 重复开页会在用户浏览器里堆积标签页；同源同路径即视为同一页（DSH Web 的 `?token=` 会随实例重启变化，按完整 URL 比较会导致复用失效） |
+| **复用后回到确定起点** | 复用页先把目标 URL 重新走一遍再开始用例 | 复用页可能停在上次测试留下的状态（如停在插件列表页），直接断言「首页可见」会误判为失败 |
+| **收尾至少保留一个目标页** | 断开时不要把唯一的目标页关掉 | 保留一个目标页便于用户复核，也是「测试完毕页面可查」的取证前提 |
+| **关闭本次多开的重复页** | 只关闭本次运行**新建**的页 | 重复页属于测试副作用，应清理；复用来的页不属于本次副作用，不动 |
+
+**实现依据**（Midscene 扩展侧 `ChromeExtensionProxyPage`，实测确认）：
+
+- `setActiveTabId` 内部为 `if (this.activeTabId) throw …`——**活动页只能绑定一次**；而 `connectCurrentTab()` 会立刻绑定当前活动页。因此必须**在绑定之前**查列表并选定目标页，否则一旦绑定就再也切不过去。
+- `destroy(closeTab)` 只关闭 `newlyCreatedTabIds` 里记录的页（`chrome.tabs.remove` 逐个关闭），**复用来的页不受影响**——「关闭重复页、保留原有页」正是它的语义。
+- 扩展侧只有 `chrome.tabs.{get,query,update,remove}` 等有限能力，**没有通用的「关闭任意页」入口**；因此关闭重复页只能靠 Midscene 自身的 `destroy` 记录，脚本不应也无法越权关闭用户手动打开的页。
+
 Bridge Mode 的硬性要求：**模型配置在 Node 侧**（终端环境变量），不在浏览器侧——这与本仓库「接入配置放 `.env`」的约定一致。桥接模式会忽略 `viewportWidth`、`userAgent`、`cookie`、`extraHTTPHeaders`、`chromeArgs` 等选项（复用桌面浏览器配置）。
 
 #### 三类被测环境的接入方式
@@ -497,3 +514,4 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-10-12 | Midscene 章节补视口与定位精度实测约束 | 本轮 FNOS-013 实测确认：headless 默认视口 756×413 下 DSH 侧边栏为图标态、文字菜单项不存在，`act` 会「点到位置但页面不跳转」并自述成功（假成功），因此视口须 ≥1440 宽且交互结果必须独立取证；同一 36px 高控件上 SDK 落点 (86,130) 命中、YAML 运行器 (68,110)/(200,110) 落空（含 `--deep-locate`），故小控件点击优先 CDP、Midscene 用于断言与多步流程。依据：TC-027/028/042/043 与 BUG-03。 |
 | 2026-10-12 | Midscene 章节改为「端口按实际值」 | 桥接端口不再固定：默认 8787，被占用时自动向上尝试（最多 20 个）并把实际端口写回配置。章节的前置条件由写死 8787 改为先发现实际端口（健康响应的 `port` 字段为权威值）再用它生成 `.env`；跳号后 `.env` 需重新拉取。依据：FNOS-013-01 行为约束修订。 |
 | 2026-10-12 | Midscene 章节新增 Bridge Mode 并升为首选接入方式 | 按 Midscene 官方《Chrome 桥接模式》验证：脚本作 server（默认 127.0.0.1:3766），用户真实 Chrome 里的 Midscene 扩展反向连接，因此浏览器用户可见、复用真实 cookies 与登录态、无 macOS 钥匙串弹窗、视口即真实窗口（实测 1920×906）。实测同一任务在 Bridge Mode 下完整通过（首页断言 → 点击「插件」→ 独立核实进入插件列表 → 列表断言），而 CDP 直连需应对 756×413 窄视口与钥匙串授权。据此把接入方式改为三级优先级（Bridge Mode > 默认 Puppeteer > CDP），CDP 章节标注为备选。验证脚本入仓：`plugins/dsh-midscene-plugin/scripts/bridge-smoke.ts`（`pnpm --filter @tnnevol/dsh-midscene run test:bridge`）。 |
+| 2026-10-12 | Midscene 章节新增「有头浏览器的标签页纪律」 | 针对有头（Bridge Mode）测试新增四条纪律：先查后复用（同源同路径视为同一页，避免 DSH Web 的 `?token=` 变化导致复用失效）、复用后回到确定起点（复用页可能停在上次测试状态）、收尾至少保留一个目标页、只关闭本次新建的重复页。实测依据：`setActiveTabId` 只能绑定一次（因此必须「先查后绑定」）、`destroy(closeTab)` 仅关闭 `newlyCreatedTabIds`。验证：连续三轮测试后浏览器 8070 目标页恒为 1 张、总页数无堆积。 |

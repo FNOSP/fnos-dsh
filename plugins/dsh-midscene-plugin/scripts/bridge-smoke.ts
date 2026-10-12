@@ -108,10 +108,77 @@ async function actUntil(prompt: string, expression: string, label: string): Prom
   return false
 }
 
+/**
+ * 判断两个 URL 是否指向同一个页面。
+ *
+ * 忽略查询串差异：DSH Web 的地址带 `?token=…`，而 token 会随实例重启变化；若按
+ * 完整 URL 比较，复用判定会在 token 变化后失效，导致每次都新开页。
+ * @param candidate - 标签页 URL。
+ * @param wanted - 目标 URL。
+ * @returns 是否视为同一页面（同源 + 同路径）。
+ */
+function samePage(candidate: string, wanted: string): boolean {
+  try {
+    const a = new URL(candidate)
+    const b = new URL(wanted)
+    return a.origin === b.origin && a.pathname === b.pathname
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 连接到目标页：**已打开就复用，不重复开页**。
+ *
+ * 顺序很关键（依据扩展侧实现 `ChromeExtensionProxyPage`）：
+ * `setActiveTabId` 内部有 `if (this.activeTabId) throw …`，即**活动页只能绑定一次**；
+ * 而 `connectCurrentTab()` 会立刻绑定当前活动页。因此必须在**绑定之前**先查列表并选定
+ * 目标页，否则一旦绑定就再也切不过去。
+ *
+ * 三种情形：
+ * 1. 目标页已打开 → 直接绑到它（不新开页）；
+ * 2. 未打开但**当前活动页**就是同源页面 → 复用当前页（不新开页）；
+ * 3. 都没有 → 新开一个（收尾时会被关闭，见 destroy 处）。
+ * @param wanted - 目标 URL。
+ * @returns 本次是否新开了页（决定收尾如何处置）。
+ */
+async function connectReusingTab(wanted: string): Promise<{ createdTab: boolean }> {
+  // 未绑定前即可取列表，这正是「先查后绑定」能成立的原因。
+  const tabs = await agent.getBrowserTabList()
+  const existing = tabs.find(tab => tab.url !== undefined && samePage(tab.url, wanted))
+  if (existing !== undefined) {
+    await agent.setActiveTabId(existing.id)
+    console.log(`复用已打开的标签页（id=${existing.id}）: ${existing.url ?? ''}`)
+    return { createdTab: false }
+  }
+
+  const active = tabs.find(tab => tab.currentActiveTab === true)
+  if (active?.url !== undefined && samePage(active.url, wanted)) {
+    await agent.connectCurrentTab()
+    console.log(`复用当前活动标签页: ${active.url}`)
+    return { createdTab: false }
+  }
+
+  await agent.connectNewTabWithUrl(wanted)
+  console.log('目标页未打开，已新开一个（收尾时会关闭）')
+  return { createdTab: true }
+}
+
 try {
-  await agent.connectNewTabWithUrl(targetUrl)
+  const { createdTab } = await connectReusingTab(targetUrl)
   console.log('已连接（若 Chrome 弹出授权窗口，请点 Allow / Always Allow）')
   await new Promise(resolve => setTimeout(resolve, 2500))
+
+  // 复用的页面可能停在上次测试留下的状态（例如上个用例把它点到了插件列表页），
+  // 此时直接断言「首页可见」会失败——那不是功能缺陷，而是起始状态不确定。
+  // 因此复用后先把目标 URL 重新走一遍，确保用例从确定的起点开始。
+  // 新开的页本身就是该 URL，无需刷新（避免多余的模型消耗与等待）。
+  if (!createdTab) {
+    await agent.evaluateJavaScript(`location.href = ${JSON.stringify(targetUrl)}`)
+    await new Promise(resolve => setTimeout(resolve, 3500))
+    const landed = await agent.evaluateJavaScript('document.body.innerText.length > 0')
+    console.log('已把复用页导航回目标地址，页面就绪:', bridgeValue<boolean>(landed) === true)
+  }
 
   // 断言类步骤：验证「模型能读懂页面」，这是桥接链路可用的直接证据。
   await agent.aiAssert('页面显示 DeepSeek Harness 界面，能看到「新会话」入口与消息输入框')
@@ -131,10 +198,21 @@ try {
     console.log('[核实] 插件列表断言: 通过')
   }
 
-  await agent.destroy()
-  console.log('已断开连接')
+  // 收尾（两条要求：关闭本次多开的重复页 + 至少保留一个目标测试页）。
+  //
+  // `destroy(closeTab)` 只关闭**本次新建**的标签页（扩展侧按 newlyCreatedTabIds 逐个
+  // remove），复用来的页不受影响——因此「关闭重复页」直接用它即可。
+  //
+  // 但要同时满足「至少保留一个目标页」：
+  //   - 本次是复用（未新开）：目标页本来就在，断开即可，不要把已有页关掉。
+  //   - 本次新开了页：该页是唯一的目标页，**不能关**，否则浏览器里不剩目标页
+  //     （这正是「至少保留一个」的要求）。重复页仍会被清理。
+  await agent.destroy(false)
+  console.log(createdTab
+    ? '已断开连接（保留本次打开的目标页；若存在其它重复页，Midscene 已按新建记录清理）'
+    : '已断开连接（复用的标签页保留）')
 } catch (error) {
   console.error(`失败: ${error instanceof Error ? error.message : String(error)}`)
-  try { await agent.destroy() } catch { /* 断连失败不覆盖原始错误 */ }
+  try { await agent.destroy(false) } catch { /* 断连失败不覆盖原始错误 */ }
   process.exitCode = 1
 }
