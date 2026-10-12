@@ -149,7 +149,10 @@ describe('包内技能资产（AC-02）', () => {
     const content = definition?.content ?? ''
     // 插件存在的意义就是让 Midscene 用 DSH 的模型：技能不该再教 agent 去要 key。
     expect(content).toContain('do not ask the user for API keys')
-    expect(content).toContain('http://127.0.0.1:8787/v1/midscene-env')
+    // 端口不再固定：技能必须教 agent 先发现实际端口，而不是写死 8787。
+    expect(content).toContain('/v1/midscene-env')
+    expect(content).toContain('auto-advances')
+    expect(content).toMatch(/\$PORT|8790/u)
     // 固定四行方案：模型名是常量占位，由桥决定实际模型。
     expect(content).toContain('MIDSCENE_MODEL_NAME="dsh-model"')
     expect(content).toContain('four constant lines')

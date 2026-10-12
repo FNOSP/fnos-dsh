@@ -196,14 +196,17 @@ Midscene 用自然语言驱动浏览器完成「打开页面 → 交互 → 断�
    ```sh
    curl -s http://127.0.0.1:8787/v1/health
    ```
-2. 运行 Midscene 的工作目录有一份接入配置，**由插件生成、不需要任何模型密钥**（[详见插件说明页](/plugins/dsh-midscene#接入-midscene)）：
+2. 运行 Midscene 的工作目录有一份接入配置，**由插件生成、不需要任何模型密钥**（[详见插件说明页](/plugins/dsh-midscene#接入-midscene)）。**先确认桥的实际端口**——默认 8787，被占用时会自动跳号（8788、8789…），写死端口会在跳号后连不上：
    ```sh
-   # 在即将运行 Midscene 的目录执行；插件会算好四个变量
-   curl -s http://127.0.0.1:8787/v1/midscene-env |
+   # 1) 发现实际端口（也可从插件设置页的「桥接地址」读）
+   PORT=8787
+   curl -s "http://127.0.0.1:$PORT/v1/health" || PORT=8788
+   # 2) 用实际端口生成 .env
+   curl -s "http://127.0.0.1:$PORT/v1/midscene-env" |
        python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" >.env
    ```
-   生成的 `MIDSCENE_MODEL_API_KEY` 是占位值（桥不做鉴权、不转发凭据）；模型来自 DSH 已配置的提供方，因此**不要**为 Midscene 准备第三方 API key。
-3. 模型必须 `vision: true`（`curl -s http://127.0.0.1:8787/v1/models`，或让插件自动挑：不传 `?model=` 时它优先选「有图片能力且家族可推断」的模型）——Midscene 靠截图理解页面。若响应带 `familyWarning`，该模型未匹配到 Midscene 已知家族，应按插件说明页的指引换模型或补 `MIDSCENE_MODEL_FAMILY`。
+   生成的 `MIDSCENE_MODEL_API_KEY` 是占位值（桥不做鉴权、不转发凭据）；模型来自 DSH 已配置的提供方，因此**不要**为 Midscene 准备第三方 API key。健康响应里的 `port` 字段是权威值。
+3. 模型必须 `vision: true`（`curl -s "http://127.0.0.1:$PORT/v1/models"`，或让插件自动挑：不传 `?model=` 时它优先选「有图片能力且家族可推断」的模型）——Midscene 靠截图理解页面。若响应带 `familyWarning`，该模型未匹配到 Midscene 已知家族，应按插件说明页的指引换模型或补 `MIDSCENE_MODEL_FAMILY`。
 
 #### 三类被测环境的接入方式
 
@@ -458,3 +461,4 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-10-12 | Midscene 章节改为「桥接服务零配置」 | 原章节要求用户手写四个 `MIDSCENE_MODEL_*` 变量并自行确定家族值，与插件定位（让 Midscene 用 DSH 已有的模型、用户不需要任何第三方密钥）冲突。改为：接入配置由 `/v1/midscene-env` 生成（一条命令），模型自动挑选（优先有图片能力且家族可推断者），并说明 `familyWarning` 的含义与处理。 |
 | 2026-10-12 | Midscene 章节补 CDP 模式 macOS 钥匙串前置 | 实测 Puppeteer 的 Chrome for Testing 为 adhoc 签名（无 Team ID），每次新建用户数据目录都可能弹系统钥匙串授权；无参数与 `--password-store=basic` 下 Cookie 库无法建立，`--use-mock-keychain` 下正常建立且不触碰真实钥匙串。统一要求 CDP 模式加该参数并使用固定用户数据目录。依据：本机实测（Chrome for Testing 150.0.7871.24）。 |
 | 2026-10-12 | Midscene 章节补视口与定位精度实测约束 | 本轮 FNOS-013 实测确认：headless 默认视口 756×413 下 DSH 侧边栏为图标态、文字菜单项不存在，`act` 会「点到位置但页面不跳转」并自述成功（假成功），因此视口须 ≥1440 宽且交互结果必须独立取证；同一 36px 高控件上 SDK 落点 (86,130) 命中、YAML 运行器 (68,110)/(200,110) 落空（含 `--deep-locate`），故小控件点击优先 CDP、Midscene 用于断言与多步流程。依据：TC-027/028/042/043 与 BUG-03。 |
+| 2026-10-12 | Midscene 章节改为「端口按实际值」 | 桥接端口不再固定：默认 8787，被占用时自动向上尝试（最多 20 个）并把实际端口写回配置。章节的前置条件由写死 8787 改为先发现实际端口（健康响应的 `port` 字段为权威值）再用它生成 `.env`；跳号后 `.env` 需重新拉取。依据：FNOS-013-01 行为约束修订。 |

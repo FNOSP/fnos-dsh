@@ -17,13 +17,25 @@ import type { Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 
 /**
- * 桥接服务的默认端口。
+ * 桥接服务的首选端口。
  *
- * 决策 D4：端口固定、占用即报错，不做自动换端口——静默换端口会让工作区接入
- * 配置（`.env` 里的 `MIDSCENE_MODEL_BASE_URL`）失配，故障更难排查。
  * 选 8787 避开项目内其它端口（DSH Web 8070、FPK 网关 3080、Desktop CDP 9333）。
+ *
+ * 端口**不固定**：被占用时自动向上尝试（见 {@link PORT_SCAN_LIMIT}）。这与
+ * 「`.env` 四行固定」并不矛盾——实际使用的端口会写回插件配置，并由
+ * `/v1/midscene-env` 与设置页如实呈现，用户重新拉一次配置即可；换来的是
+ * 「端口冲突不再导致插件不可用」。原设计（D4）选 fail-fast 是为了避免静默失配，
+ * 该顾虑由「写回 + 如实呈现 + 设置页提示」承接。
  */
 export const DEFAULT_BRIDGE_PORT = 8787
+
+/**
+ * 端口被占用时向上尝试的次数上限。
+ *
+ * 逐个尝试 `首选端口 + n`（n 从 0 到 {@link PORT_SCAN_LIMIT} - 1）。设上限是为了
+ * 不无限占用端口、也让「全都不可用」这种情况有明确终点（报错而不是一直找）。
+ */
+export const PORT_SCAN_LIMIT = 20
 
 /** 桥接只监听回环地址（需求行为约束：不向局域网暴露）。 */
 export const BRIDGE_HOST = '127.0.0.1'
@@ -127,8 +139,12 @@ export function volatileValue<T>(value: Volatile<T> | T | undefined): T | undefi
  * 四行都是固定值（基址、密钥、模型名、家族），因此用户可以把 `.env` 写死：换模型
  * 只需改插件设置，不必动这个文件。`MIDSCENE_MODEL_NAME` 固定为 {@link FIXED_MODEL_NAME}，
  * 由桥决定实际用哪个模型。
+ *
+ * **`port` 必须传桥实际监听的端口**（`BridgeServer.port`），不是配置里的首选端口：
+ * 端口被占用而自动跳号时，配置字段与实际情况可能不一致，`.env` 里写错端口会让
+ * Midscene 直接连不上。
  * @param config - 桥接配置中与接入文件相关的三项。
- * @param config.port - 桥监听端口。
+ * @param config.port - 桥**实际**监听的端口。
  * @param config.apiKey - 桥接入密钥。
  * @param config.family - Midscene 协议家族。
  * @returns `.env` 文本。
@@ -162,7 +178,7 @@ interface BridgeConfigShape {
  */
 export const Config: z<Schemastery.ObjectS<NoInfer<BridgeConfigShape>>, Schemastery.ObjectT<NoInfer<BridgeConfigShape>>, 'plain'> = z.object({
   port: z.natural().default(DEFAULT_BRIDGE_PORT).volatile()
-    .description(`监听端口（默认 ${DEFAULT_BRIDGE_PORT}）；被占用时启动失败并明确报错，不自动更换端口`),
+    .description(`首选监听端口（默认 ${DEFAULT_BRIDGE_PORT}）。被占用时自动向上尝试最多 ${PORT_SCAN_LIMIT} 个端口，并把实际端口写回本字段；实际端口以插件设置页或 /v1/midscene-env 为准`),
   apiKey: z.string().default('').role('secret').volatile()
     .description('桥接接入密钥（安装时自动生成）。Midscene 的 .env 用它；可在设置页重新随机生成或自定义'),
   family: z.string().default(DEFAULT_FAMILY).volatile()
@@ -200,7 +216,13 @@ export function liveConfig(raw: BridgeConfig): BridgeConfig {
 
 /** 解析后的桥接服务配置。 */
 export interface BridgeConfig {
-  /** 监听端口。 */
+  /**
+   * 首选监听端口。
+   *
+   * 首次启动时是用户设定的值；端口被占用而自动改用其它端口后，插件会把**实际**
+   * 端口写回配置，因此本字段之后读到的即为实际端口。运行期实际端口一律以
+   * `BridgeServer.port` 为准（启动完成前配置里的值可能与实际不同）。
+   */
   readonly port: number
   /** 接入密钥。 */
   readonly apiKey: string

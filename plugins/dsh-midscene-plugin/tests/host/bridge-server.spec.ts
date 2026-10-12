@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createServer, type Server } from 'node:http'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { GenerateOptions, LlmModelInfo, LlmRuntime, StreamChunk } from '@deepseek-ai/dsh-llm'
-import { BridgePortInUseError, BridgeServer } from '../../src/host/bridge-server.ts'
-import type { BridgeConfig } from '../../src/contracts/config.ts'
+import { BridgePortExhaustedError, BridgeServer } from '../../src/host/bridge-server.ts'
+import { PORT_SCAN_LIMIT, type BridgeConfig } from '../../src/contracts/config.ts'
 import type { SessionModelReader } from '../../src/host/model-choice.ts'
 
 /**
@@ -131,21 +131,82 @@ describe('FNOS-013-01 服务与健康检查', () => {
     expect((await fetch(`http://127.0.0.1:${port}/v1/health`)).status).toBe(200)
   })
 
-  it('端口被占用时报错并给出处理建议，不静默换端口（AC-03）', async () => {
+  it('端口被占用时自动跳到下一个可用端口（不因冲突而不可用）', async () => {
     const port = await freePort()
     const blocker = createServer()
     await new Promise<void>(resolve => blocker.listen(port, '127.0.0.1', () => resolve()))
     blockers.push(blocker)
 
+    const logs: string[] = []
+    const { llm } = fakeLlm()
     const server = new BridgeServer({
-      llm: fakeLlm().llm,
+      llm,
+      attachments: undefined,
+      config: { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false },
+      sessionModel: { current: () => undefined },
+      log: message => { logs.push(message) },
+    })
+    servers.push(server)
+    const actual = await server.start()
+    // 跳到下一个端口，且服务真的可用。
+    expect(actual).toBe(port + 1)
+    expect(server.port).toBe(port + 1)
+    expect((await fetch(`http://127.0.0.1:${actual}/v1/health`)).status).toBe(200)
+    // 必须告诉用户端口变了并要重拉 .env——这正是原 fail-fast 设计要防的「静默失配」，
+    // 现在用「如实告知」承接，而不是让它静默发生。
+    expect(logs.join('\n')).toMatch(/被占用|改用/u)
+    expect(logs.join('\n')).toContain('midscene-env')
+  })
+
+  it('跳号后的健康端点与 .env 都报实际端口（否则用户拿到连不上的地址）', async () => {
+    const port = await freePort()
+    const blocker = createServer()
+    await new Promise<void>(resolve => blocker.listen(port, '127.0.0.1', () => resolve()))
+    blockers.push(blocker)
+
+    const { llm } = fakeLlm()
+    const server = new BridgeServer({
+      llm,
       attachments: undefined,
       config: { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false },
       sessionModel: { current: () => undefined },
       log: () => {},
     })
-    await expect(server.start()).rejects.toBeInstanceOf(BridgePortInUseError)
-    await expect(server.start()).rejects.toThrow(/端口|占用/)
+    servers.push(server)
+    const actual = await server.start()
+
+    const health = await (await fetch(`http://127.0.0.1:${actual}/v1/health`)).json() as { port: number }
+    expect(health.port).toBe(actual)
+
+    const env = await (await fetch(`http://127.0.0.1:${actual}/v1/midscene-env`)).json() as {
+      variables: Record<string, string>
+      content: string
+    }
+    // .env 里的 BASE_URL 必须带实际端口：写首选端口会让 Midscene 直接连不上。
+    expect(env.variables.MIDSCENE_MODEL_BASE_URL).toBe(`http://127.0.0.1:${actual}/v1`)
+    expect(env.content).toContain(`:${actual}/v1`)
+    expect(env.content).not.toContain(`:${port}/v1`)
+  })
+
+  it('连续 20 个端口都被占用时报错并给出区间与建议', async () => {
+    const port = await freePort()
+    // 占满 PORT_SCAN_LIMIT 个连续端口
+    for (let offset = 0; offset < PORT_SCAN_LIMIT; offset += 1) {
+      const blocker = createServer()
+      await new Promise<void>(resolve => blocker.listen(port + offset, '127.0.0.1', () => resolve()))
+      blockers.push(blocker)
+    }
+    const { llm } = fakeLlm()
+    const server = new BridgeServer({
+      llm,
+      attachments: undefined,
+      config: { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false },
+      sessionModel: { current: () => undefined },
+      log: () => {},
+    })
+    // 全部被占时必须有明确终点，不能一直找下去。
+    await expect(server.start()).rejects.toBeInstanceOf(BridgePortExhaustedError)
+    await expect(server.start()).rejects.toThrow(/均被占用/u)
   })
 
   it('stop 后端口真正释放，可被新实例立即复用（AC-02）', async () => {

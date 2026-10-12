@@ -1,17 +1,18 @@
 /**
  * 本地 OpenAI 兼容桥接服务（FNOS-013-01、03、04）。
  *
- * 用 Node 内置 `http` 而不是引入框架：端点只有四个，需求明确不做设置 UI 与
- * 鉴权（回环绑定 + 本机使用），引框架只会增加一份需要跟随上游升级的依赖。
+ * 用 Node 内置 `http` 而不是引入框架：端点只有四个，引框架只会增加一份需要
+ * 跟随上游升级的依赖。
  *
- * 服务只绑回环地址（需求行为约束）；端口被占用时**不静默换端口**，直接把
- * `EADDRINUSE` 抛给宿主——静默换端口会让工作区 `.env` 的接入配置失配
- * （决策 D4）。
+ * 服务只绑回环地址（需求行为约束）；端口被占用时**自动向上尝试**下一个端口
+ * （最多 {@link PORT_SCAN_LIMIT} 个），避免「端口冲突导致插件不可用」。实际端口
+ * 通过 {@link BridgeServer.port} 暴露，由调用方写回配置并呈现给用户——这正是
+ * 原设计（D4 fail-fast）要防的「静默失配」：不静默，而是写回 + 如实呈现。
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { GenerateOptions, LlmRuntime } from '@deepseek-ai/dsh-llm'
-import { BRIDGE_HOST, FIXED_MODEL_NAME, OPENAI_API_PREFIX, renderEnvFile, type BridgeConfig } from '../contracts/config.ts'
+import { BRIDGE_HOST, FIXED_MODEL_NAME, OPENAI_API_PREFIX, PORT_SCAN_LIMIT, renderEnvFile, type BridgeConfig } from '../contracts/config.ts'
 import { resolveModelName } from '../contracts/model-name.ts'
 import { buildCatalog, type ModelCatalogSnapshot } from './catalog.ts'
 import { chooseModel, type SessionModelReader } from './model-choice.ts'
@@ -30,20 +31,34 @@ export interface BridgeDeps {
   readonly log: (message: string) => void
 }
 
-/** 端口被占用：带处理建议的明确错误（AC-03）。 */
-export class BridgePortInUseError extends Error {
+/**
+ * 连续尝试的端口全部被占用：带处理建议的明确错误。
+ *
+ * 只在「整段可用端口都被占」时抛出——单个端口被占用会继续向下尝试，不再报错。
+ */
+export class BridgePortExhaustedError extends Error {
   /**
-   * @param port - 冲突端口。
-   * @param cause - 原始错误。
+   * @param from - 起始（首选）端口。
+   * @param attempts - 已尝试的端口列表。
+   * @param cause - 最后一次的原始错误。
    */
-  constructor(readonly port: number, cause: unknown) {
+  constructor(readonly from: number, readonly attempts: readonly number[], cause: unknown) {
+    const range = attempts.length === 0 ? `${from}` : `${attempts[0]}–${attempts.at(-1)}`
     super(
-      `Midscene 桥接服务无法启动：端口 ${port} 已被其它进程占用。`
-      + `请释放该端口（如 lsof -i :${port} 找到进程后停止它），或修改插件配置的 port 后重启 DSH。`
-      + '本插件不会自动更换端口——静默换端口会让工作区 .env 的接入配置失配。',
+      `Midscene 桥接服务无法启动：从端口 ${from} 起连续尝试的 ${attempts.length} 个端口（${range}）均被占用。`
+      + `请释放其中一个（如 lsof -i :${from} 找到进程后停止它），或把插件配置的 port 改到空闲区间后重启 DSH。`,
       { cause },
     )
-    this.name = 'BridgePortInUseError'
+    this.name = 'BridgePortExhaustedError'
+  }
+}
+
+/** 端口被占用时继续尝试下一个（内部信号，不对外抛出）。 */
+class PortInUseSignal extends Error {
+  /** @param port - 被占用的端口。 */
+  constructor(readonly port: number) {
+    super(`port ${port} in use`)
+    this.name = 'PortInUseSignal'
   }
 }
 
@@ -170,6 +185,8 @@ function sendError(response: ServerResponse, error: unknown, attribution?: strin
  */
 export class BridgeServer {
   #server: Server | undefined
+  /** 实际监听端口；启动成功前为 undefined。 */
+  #port: number | undefined
   readonly catalog: CatalogCache
 
   /**
@@ -188,37 +205,88 @@ export class BridgeServer {
   }
 
   /**
+   * 实际监听的端口。
+   *
+   * 与 `deps.config.port` 的区别：端口被占用而自动跳号后，配置字段在写回完成前
+   * 仍是首选值，而本属性始终是**真正在监听**的那个端口。`.env` 渲染、健康端点与
+   * 设置页都必须用它，否则用户会拿到连不上的地址。
+   * @returns 实际端口；尚未启动时为配置里的首选端口。
+   */
+  get port(): number {
+    return this.#port ?? this.deps.config.port
+  }
+
+  /**
    * 启动服务。
    *
-   * 端口被占用时抛 {@link BridgePortInUseError}；其余监听错误原样抛出。等待
+   * 端口被占用时**自动向上尝试**下一个端口（最多 {@link PORT_SCAN_LIMIT} 个），
+   * 全部被占用才抛 {@link BridgePortExhaustedError}；其余监听错误原样抛出。等待
    * `listening` 事件而不是立刻返回，保证调用方拿到的是一个已就绪的服务。
-   * @returns 服务就绪后的 Promise。
+   *
+   * 每次尝试都用**新的 server 实例**：`listen` 失败后同一个实例不可复用。
+   * @returns 服务就绪后的 Promise，值为**实际监听端口**（调用方据此写回配置）。
    */
-  async start(): Promise<void> {
-    if (this.#server !== undefined) return
+  async start(): Promise<number> {
+    if (this.#server !== undefined) return this.port
+    const preferred = this.deps.config.port
+    const attempts: number[] = []
+    let lastError: unknown
+    for (let offset = 0; offset < PORT_SCAN_LIMIT; offset += 1) {
+      const candidate = preferred + offset
+      attempts.push(candidate)
+      try {
+        const server = await this.#listenOn(candidate)
+        this.#server = server
+        this.#port = candidate
+        if (candidate !== preferred) {
+          // 改成 error 级之外的 info：这不是故障，但用户必须知道端口变了（.env 要重拉）。
+          this.deps.log(
+            `首选端口 ${preferred} 被占用，已改用 ${candidate}；`
+            + '请重新执行 /v1/midscene-env 更新工作区的 .env（或到插件设置页复制新的接入配置）',
+          )
+        }
+        this.deps.log(`Midscene 桥接服务已就绪：http://${BRIDGE_HOST}:${candidate}${OPENAI_API_PREFIX}`)
+        return candidate
+      } catch (error) {
+        if (!(error instanceof PortInUseSignal)) throw error
+        lastError = error
+      }
+    }
+    throw new BridgePortExhaustedError(preferred, attempts, lastError)
+  }
+
+  /**
+   * 在指定端口上创建并监听一个服务实例。
+   *
+   * 先挂错误监听再 `listen`：`EADDRINUSE` 是异步事件，晚挂会漏掉。端口被占用时
+   * 关闭实例并抛 {@link PortInUseSignal}，交由 {@link start} 决定是否继续尝试。
+   * @param port - 本次尝试的端口。
+   * @returns 已就绪的服务实例。
+   */
+  #listenOn(port: number): Promise<Server> {
     const server = createServer((request, response) => {
       void this.#handle(request, response)
     })
     // 长连接与 SSE 场景：禁用请求超时（模型调用可能持续数分钟）。
     server.requestTimeout = 0
     server.headersTimeout = 0
-    // 先挂错误监听再 listen：EADDRINUSE 是异步事件，晚挂会漏掉。
-    await new Promise<void>((resolve, reject) => {
+    return new Promise<Server>((resolve, reject) => {
       const onError = (error: NodeJS.ErrnoException): void => {
         server.removeListener('listening', onListening)
-        if (error.code === 'EADDRINUSE') reject(new BridgePortInUseError(this.deps.config.port, error))
-        else reject(error)
+        if (error.code === 'EADDRINUSE') {
+          // 释放可能已建立的内部句柄，避免扫描过程中累积。
+          server.close()
+          reject(new PortInUseSignal(port))
+        } else reject(error)
       }
       const onListening = (): void => {
         server.removeListener('error', onError)
-        resolve()
+        resolve(server)
       }
       server.once('error', onError)
       server.once('listening', onListening)
-      server.listen(this.deps.config.port, BRIDGE_HOST)
+      server.listen(port, BRIDGE_HOST)
     })
-    this.#server = server
-    this.deps.log(`Midscene 桥接服务已就绪：http://${BRIDGE_HOST}:${this.deps.config.port}${OPENAI_API_PREFIX}`)
   }
 
   /**
@@ -317,7 +385,8 @@ export class BridgeServer {
         sendJson(response, 200, {
           status: 'ok',
           host: BRIDGE_HOST,
-          port: this.deps.config.port,
+          // 实际端口（端口被占用跳号后与配置里的首选值可能不同）。
+          port: this.port,
           // Midscene 侧固定使用的模型名；桥按它决定实际模型。
           fixedModelName: FIXED_MODEL_NAME,
           family: this.deps.config.family,
@@ -334,9 +403,9 @@ export class BridgeServer {
         const snapshot = await this.catalog.get()
         const choice = chooseModel(snapshot, this.deps.config.models, this.deps.sessionModel)
         sendJson(response, 200, {
-          content: renderEnvFile(this.deps.config),
+          content: renderEnvFile({ ...this.deps.config, port: this.port }),
           variables: {
-            MIDSCENE_MODEL_BASE_URL: `http://${BRIDGE_HOST}:${this.deps.config.port}${OPENAI_API_PREFIX}`,
+            MIDSCENE_MODEL_BASE_URL: `http://${BRIDGE_HOST}:${this.port}${OPENAI_API_PREFIX}`,
             MIDSCENE_MODEL_API_KEY: this.deps.config.apiKey,
             MIDSCENE_MODEL_NAME: FIXED_MODEL_NAME,
             MIDSCENE_MODEL_FAMILY: this.deps.config.family,

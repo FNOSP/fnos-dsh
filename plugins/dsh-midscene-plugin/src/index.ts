@@ -51,7 +51,7 @@ export { buildCatalog, modelSupportsImage, toOpenAiModel } from './host/catalog.
 export type { ModelCatalogSnapshot, OpenAiModelEntry } from './host/catalog.ts'
 export { convertMessages, convertTools, parseDataUri, RequestConversionError } from './host/convert.ts'
 export { aggregateStream, makeChunk, sseLine, toFinishReason, toOpenAiError } from './host/stream.ts'
-export { BridgeServer, BridgePortInUseError, CatalogCache } from './host/bridge-server.ts'
+export { BridgeServer, BridgePortExhaustedError, CatalogCache } from './host/bridge-server.ts'
 export type { BridgeDeps } from './host/bridge-server.ts'
 export { createBundledSkillProvider, registerBundledSkills, bundledSkillsDir, listBundledSkills, SKILL_PROVIDER_NAME } from './host/skills.ts'
 
@@ -138,12 +138,28 @@ export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unkn
   })
 
   ctx.effect(() => {
-    void bridge.start().catch((error: unknown) => {
-      // 启动失败必须让用户看见原因（端口占用是最常见的一种）：记 error 级日志。
-      // 不 rethrow——effect 回调是同步的，抛出会变成未处理的拒绝；日志是用户
-      // 在 DSH 启动输出里能看到的位置。
-      logger.error(`[midscene] ${error instanceof Error ? error.message : String(error)}`)
-    })
+    void bridge.start().then(
+      actualPort => {
+        // 端口被占用而自动跳号时把**实际**端口写回配置：这样重启后首选端口就是
+        // 可用的那个，不会每次都重新扫描；用户重新拉 .env 也能拿到一致的地址。
+        if (actualPort === undefined || actualPort === live.port) return
+        ctx.inject(['settings'], (scoped) => {
+          const settings = scoped.settings as unknown as {
+            update: (ns: string, patch: object) => Promise<void>
+          }
+          void settings.update(MIDSCENE_SETTINGS_NAMESPACE, { port: actualPort }).then(
+            () => { log(`已将实际端口 ${actualPort} 写回插件配置`) },
+            (error: unknown) => { log(`写回实际端口失败：${String(error)}（本次运行仍使用 ${actualPort}）`) },
+          )
+        })
+      },
+      (error: unknown) => {
+        // 启动失败必须让用户看见原因（整段端口被占用是最常见的一种）：记 error 级
+        // 日志。不 rethrow——effect 回调是同步的，抛出会变成未处理的拒绝；日志是
+        // 用户在 DSH 启动输出里能看到的位置。
+        logger.error(`[midscene] ${error instanceof Error ? error.message : String(error)}`)
+      },
+    )
     // 释放时等 stop 完成（端口真正释放后才返回），否则 HMR 后新实例会撞上
     // 尚未释放的端口。
     return async () => { await bridge.stop() }

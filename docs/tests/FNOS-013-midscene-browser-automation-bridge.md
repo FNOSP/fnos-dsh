@@ -52,7 +52,7 @@ verifiedAt: 2026-10-12
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TC-001 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 插件装入后桥接服务可用 | [AC-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 插件已装入项目 `.dsh` web profile，DSH Web 已重启 | 1.`curl http://127.0.0.1:8787/v1/health` 2.核对返回的提供方与模型数 | 健康检查返回 `status: ok`，`providers` 与 `ctx.llm.listProviders()` 一致，`models` 为各提供方模型总数 | P0 | 新增行为，无回归基线 |
 | TC-002 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 停止 DSH 后端口无残留 | [AC-02](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 桥接服务运行中 | 1.停止 DSH Web 2.`lsof -ti:8787` 3.重启 DSH 后再查 | 停止后无监听进程；重启后服务重新就绪 | P0 | 新增行为，无回归基线 |
-| TC-003 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 端口被占用时明确报错且不静默换端口 | [AC-03](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 8787 已被其它进程占用 | 1.启动 DSH 2.查看启动输出与日志 | 报错明确指出被占用的端口与处理建议；服务不监听其它端口 | P0 | 新增行为，无回归基线 |
+| TC-003 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 端口被占用时明确报错且不静默换端口 | 通过 | 2026-10-12 | 端口冲突行为已按契约变更更新（原「占用即报错」→「自动跳号 + 写回」）：单测与真实环境均验证——占用 8787 后桥自动改用 8788，健康端点报 8788、`.env` 的 BASE_URL 同步为 8788、配置写回 8788 且重启保持（不重复扫描）；连续 20 个端口均被占用时抛 `BridgePortExhaustedError` 并列出尝试区间与建议。原 fail-fast 设计要防的「静默失配」由「写回 + 如实呈现 + 启动日志提示」承接 |
 | TC-004 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 只绑回环地址 | [AC-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 桥接服务运行中 | 1.`lsof -i:8787` 核对监听地址 | 只监听 `127.0.0.1`，不对局域网地址监听 | P0 | 新增行为，无回归基线 |
 | TC-005 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 未知端点返回可诊断的 404 | [AC-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 桥接服务运行中 | 1.请求 `/v1/nope` | 返回 404 且错误信息列出可用端点 | P2 | 新增行为，无回归基线 |
 
@@ -168,6 +168,7 @@ verifiedAt: 2026-10-12
 | TC-051 | [FNOS-013-14](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | 插件管理页显示图标 | [AC-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | 插件已装入且作为 bundle 出现在管理页 | 1.打开插件管理页 2.观察本插件条目 | 显示随包分发的本地图片（无外部请求） | P1 | 新增行为，无回归基线 |
 | TC-052 | [FNOS-013-14](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | 图标来源注明且亮暗主题可见 | [AC-02](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | 同上 | 1.亮暗主题各看一遍 2.核对来源登记 | 两个主题下清晰可见；来源与许可在仓库内注明 | P2 | 新增行为，无回归基线 |
 | TC-053 | [FNOS-013-14](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | 图标符合宿主校验 | [AC-03](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | 包已构建 | 1.核对格式、体积与路径 2.查看加载诊断 | PNG 且 ≤256 KiB；路径在包内；无 icon 相关诊断错误 | P1 | 新增行为，无回归基线 |
+| TC-054 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 端口冲突时自动跳号且接入配置同步 | [AC-03](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 首选端口被其它进程占用 | 1.占用首选端口 2.启动 DSH 3.读健康端点与 `/v1/midscene-env` 4.重启再看首选端口 | 桥改用下一个可用端口；健康端点与 `.env` 的 `BASE_URL` 均为实际端口；实际端口写回配置，重启直接复用 | P1 | 契约变更（原 fail-fast 改为自动跳号） |
 
 ## 测试执行结果
 
@@ -230,6 +231,7 @@ verifiedAt: 2026-10-12
 | TC-051 | [FNOS-013-14](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | DSH Web | 通过 | 2026-10-12 | **实测**（亮色主题）：插件管理页「已安装」从 4 → 5，本插件条目显示 PNG 图标（`data:image/png;base64`，源图 600×600 渲染 36×36），无外部请求 |
 | TC-052 | [FNOS-013-14](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | DSH Web | 通过 | 2026-10-12 | **实测**（暗色主题）：图标在暗色下清晰可见；来源（官方站点 favicon URL、取用日期、MIT 许可）登记在包内 `skills/SOURCE.md` 与插件说明页「图标来源」小节 |
 | TC-053 | [FNOS-013-14](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | DSH Web + 本地测试 | 通过 | 2026-10-12 | PNG 101 331 字节（≤256 KiB）；`package.json` `icon` 字段为包内相对路径且已进 `files` 白名单；启动日志无 icon 相关诊断 |
+| TC-054 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | DSH Web + 本地测试 | 通过 | 2026-10-12 | **实测**：占住 8787 后启动，桥自动改用 8788（`curl 8788/v1/health` → 200）；健康端点 `port: 8788`；`/v1/midscene-env` 的 `MIDSCENE_MODEL_BASE_URL` 与 `content` 均为 8788 且不含 8787；配置写回 `port: 8788`，重启后仍用 8788（不重复扫描）。单测覆盖：跳号后服务可用、端点报实际端口、连续 20 个端口被占抛 `BridgePortExhaustedError` |
 
 ## Bug 记录
 
@@ -242,7 +244,7 @@ verifiedAt: 2026-10-12
 
 **整体结论：部分通过（桥接服务、设置界面、文档交付与 Midscene 端到端全部完成验证；YAML 运行器的交互步骤存在定位偏差，已定位并给出规避方式）。**
 
-- 执行用例总数 **53**，通过 **51**，失败 **2**（TC-042、TC-043，均为同一定位问题的表现），未执行 **0**，遗留 Bug **4**（BUG-01、BUG-02、BUG-04 已修复；BUG-03 属上游定位精度，已定位并规避）。
+- 执行用例总数 **54**，通过 **52**，失败 **2**（TC-042、TC-043，均为同一定位问题的表现），未执行 **0**，遗留 Bug **4**（BUG-01、BUG-02、BUG-04 已修复；BUG-03 属上游定位精度，已定位并规避）。
 - **FNOS-013-01～04（桥接服务本体）本地与 DSH Web 全部通过**：服务托管、端口策略、目录映射、对话补全（流式/非流式/推理分片/图片门控）、多提供方路由、凭据边界与错误归因。本轮新增真实视觉验证：`model verify` 的 `Image understanding` 通过（补上 TC-014 缺口）。
 - **FNOS-013-05（Midscene 端到端）三项通过**：SDK 路径完成「点击 → 断言」并经 CDP 独立核实页面真的跳转；密集列表中的条目定位准确（真的点开了插件详情页并显示接入设置区块）。
 - **FNOS-013-11/12（YAML 运行器与 Test 框架）**：`@midscene/cli` 1.15.1 的 `model verify` 3/3 通过、YAML 运行器的 `aiAssert` 通过（证明断言链路经桥可用）；`@midscene/test` 1.15.1 经 `createCaseRunner` + 自定义 Node 跑通（`status: success`，断言思考内容与真实截图一致）。**YAML 运行器的交互步骤未通过**（TC-042/043），原因是视觉定位对 36px 小控件的落点偏差（BUG-03）。

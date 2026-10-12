@@ -85,7 +85,7 @@ Create this `.env` in the working directory where you launch Midscene (Midscene 
 from its current directory). These four values **never change** when models change:
 
 ```bash
-MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"
+MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"   # 端口以实际值为准（见 Step 1）
 MIDSCENE_MODEL_API_KEY="<see below>"
 MIDSCENE_MODEL_NAME="dsh-model"
 MIDSCENE_MODEL_FAMILY="glm-v"
@@ -103,20 +103,30 @@ MIDSCENE_MODEL_FAMILY="glm-v"
 
 ### Step 1 — Confirm the bridge is up
 
+The bridge listens on loopback, **default port 8787 but it auto-advances when that port is
+taken** (8788, 8789, …). Never assume 8787 — discover the real port:
+
 ```bash
-curl -s http://127.0.0.1:8787/v1/health
+# 1) 先试默认端口；失败就从插件设置页读「桥接地址」，或按序探测
+curl -s http://127.0.0.1:8787/v1/health && echo OK-8787
+for p in 8788 8789 8790; do curl -s -m 1 "http://127.0.0.1:$p/v1/health" && echo "OK-$p"; done
 ```
 
-Expect `{"status":"ok", ...}`. If it fails, the plugin is not running: tell the user to enable
-`@tnnevol/dsh-midscene` in the DSH plugin manager and restart DSH Web. **Do not** fall back to
-configuring an external model provider.
+The health response itself carries the authoritative port in its `port` field, so once any
+port answers, take `port` from that response.
+
+If nothing answers, the plugin is not running: tell the user to enable `@tnnevol/dsh-midscene`
+in the DSH plugin manager and restart DSH Web. **Do not** fall back to configuring an external
+model provider.
 
 ### Step 2 — Get the ready-made `.env` (one command)
 
 The bridge generates the file including its current access key:
 
 ```bash
-curl -s http://127.0.0.1:8787/v1/midscene-env \
+# PORT 用 Step 1 得到的实际端口（默认 8787）
+PORT=8787
+curl -s "http://127.0.0.1:$PORT/v1/midscene-env" \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" > .env
 ```
 
@@ -135,7 +145,7 @@ vision-capable one).
 Midscene understands pages from screenshots, so the model must accept image input:
 
 ```bash
-curl -s http://127.0.0.1:8787/v1/models | python3 -c "
+curl -s "http://127.0.0.1:$PORT/v1/models" | python3 -c "
 import json,sys
 for m in json.load(sys.stdin)['data']:
     if m.get('vision'): print(m['id'])
@@ -452,10 +462,11 @@ In CDP or Bridge mode, keep your usual `--cdp` / `--bridge` flags alongside thes
   user to pick a valid family in the plugin settings, then re-pull `.env`. Passing a made-up
   value (such as `dsh-model`) is rejected by Midscene at runtime.
 - `MIDSCENE_MODEL_API_KEY` mismatch (401 from the bridge) → the `.env` key is stale. Re-pull it
-  with `curl -s http://127.0.0.1:8787/v1/midscene-env`, or have the user regenerate it in the
-  plugin settings.
+  with `curl -s "http://127.0.0.1:$PORT/v1/midscene-env"`, or have the user regenerate it in
+  the plugin settings.
 - Connection refused / `ECONNREFUSED` on the model endpoint → the bridge is not running.
-  Check `curl -s http://127.0.0.1:8787/v1/health`, then ask the user to enable
+  Check the bridge first (Step 1) — **the port may have auto-advanced**; if the user says it
+  worked before, the `.env` likely points at a stale port. Then ask the user to enable
   `@tnnevol/dsh-midscene` and restart DSH Web.
 - `MISSING_CREDENTIAL` (from the bridge) → that DSH provider is not configured. Report the named
   `provider/model` to the user; do not configure credentials yourself.
