@@ -4,7 +4,7 @@ title: FNOS-012 测试用例
 description: FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-012-codebuddy-model-speed-and-client-version
 plan: /plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version
-status: 规划中
+status: 执行中
 lastVerified: 2026-10-10
 verifiedAt: 2026-10-10
 ---
@@ -16,7 +16,7 @@ verifiedAt: 2026-10-10
 | 需求编号 | FNOS-012 |
 | 关联需求 | [FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新](/requirements/FNOS-012-codebuddy-model-speed-and-client-version) |
 | 关联计划 | [PLAN-FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新](/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version) |
-| 测试状态 | <Badge type="info" text="规划中" /> |
+| 测试状态 | <Badge type="tip" text="本地自动化已执行，环境类待验收" /> |
 
 ## 测试范围与需求分析
 
@@ -136,9 +136,11 @@ verifiedAt: 2026-10-10
 | `pnpm --filter fnos-dsh-cli test` | FNOS-012-04/05 仓库级一致性守门（清单、安装命令、latest 代际判定） | 全绿 |
 | `pnpm run check -- --all` | 全仓（含 SDD 文档检查与文档构建） | exit 0 |
 
+实际执行结果（2026-10-10）：`@tnnevol/dsh-plugin-kit` 12 条、`@tnnevol/dsh-codebuddy` 909 条、`@tnnevol/dsh-codex-auth` 137 条、`@tnnevol/dsh-failover-search` 225 条、`fnos-gateway` 116 条、`@tnnevol/fnos-dsh-cli` 46 条，全部通过；`pnpm run check -- --all` 20/20 任务成功。
+
 ### 用例执行记录
 
-> 本需求尚未进入实施（需求状态「规划中」），用例表已按规范建立；执行记录在实施与验收阶段逐条回填。当前仅补充一项**已核实事实**的实测结论：
+> 本地自动化与 DSH Web 走查部分已执行；真实环境类（真实 fnOS NAS、DSH Desktop、npm registry）待验收。用例定义保持原文不改。
 
 | 用例 | 结果 | 日期 | 证据 |
 | --- | --- | --- | --- |
@@ -147,7 +149,12 @@ verifiedAt: 2026-10-10
 | TC-028（自动化部分） | 通过 | 2026-10-10 | `tests/client/toggle-control.spec.ts`（FNOS-012-06）：控件为单个 button（`dsh-failover-pill`）、无 `DshSwitch`/`dsh-failover-toggle` 残留、可见文案固定 `toggleOn`、locales 无「智能搜索已关」 |
 | TC-029（自动化部分） | 通过 | 2026-10-10 | 激活态 `--active` 类独立、样式用 DSH 语义变量、乐观更新 + 失败回滚沿用 |
 | TC-031（自动化部分） | 通过 | 2026-10-10 | button 原生键盘可达、`aria-pressed` + `aria-label` 含状态描述 |
-| TC-030、TC-032、TC-033 | 待验收 | — | 亮暗主题两态可辨、会话级语义、Desktop 形态一致性：需 Web/Desktop 走查（FNOS-012-06） |
+| TC-030（Web 部分） | 通过 | 2026-10-10 | DSH Web 实测两态取值：亮色激活态 `rgb(228,237,253)`/`rgb(65,118,230)`、普通态 `rgba(0,0,0,0)`/`rgb(97,102,107)`；暗色（`body[data-ds-dark-theme]`）激活态 `rgb(52,65,91)`/`rgb(122,170,255)`、普通态透明底/`rgb(207,211,214)`。均为 DSH 语义变量按主题解析（暗色 token 定义 `deepseek-800`/`deepseek-400`），两态对比清晰。Desktop 待验收 |
+| TC-031（Web 部分） | 通过 | 2026-10-10 | DSH Web 实测：控件为原生 `<button type="button">`，可 `focus()`，`:focus-visible` 焦点环 2px，键盘激活后 `aria-pressed` 由 `false` → `true`；`aria-label` 随状态含「已开启/已关闭」描述。Desktop 待验收 |
+| TC-032 | 待验收 | — | 会话级语义与默认开启：需多会话走查 |
+| TC-033 | 待验收 | — | Desktop 端形态一致性：需 DSH Desktop 走查（项目 `.dsh/profiles/desktop`） |
+| TC-001、TC-003、TC-004、TC-005（Web 走查部分） | 通过 | 2026-10-10 | DSH Web 实测模型选择器模型名带倍速小尾巴（`GLM-5.3-Flash · x0.06`），倍速随目录值展示、请求仍用模型 `id`。TC-002（未披露保持原名）由单测覆盖，TC-006 超长布局待专项构造 |
+| TC-007、TC-009、TC-010（真实服务端部分） | 待验收 | — | 请求头指纹需抓包核对；既有凭据有效性与版本不一致诊断需真实账号场景 |
 | 其余（TC-001~TC-027 本地部分） | 通过 | 2026-10-10 | FNOS-012-01~05 本地自动化全绿（kit 12 / codebuddy 909 / codex-auth 137 / gateway 116 / cli 46）；Registry/Desktop/NAS 部分待验收 |
 
 ## Bug 记录

@@ -19,7 +19,7 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | --- | --- | --- | --- | --- |
 | FNOS-009 | [DSH 0.2.0-rc.2 插件适配](/tests/FNOS-009-dsh-020-rc2-adaptation) | [PLAN-FNOS-009](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation) | 规划中 | 尚未执行 |
 | FNOS-010 | [三方搜索接入与官方兜底](/tests/FNOS-010-thirdparty-web-search-failover) | [PLAN-FNOS-010](/plans/PLAN-FNOS-010-thirdparty-web-search-failover) | 通过 | 单元、真实网络、会话内三层通过；DSH Web 与 DSH Desktop 双客户端验收通过；随插件 v0.2.0-rc.2.1 发布 |
-| FNOS-011 | [凭据文件权限异常的可诊断性](/tests/FNOS-011-credential-permission-diagnostics) | [PLAN-FNOS-011](/plans/PLAN-FNOS-011-credential-permission-diagnostics) | 规划中 | 尚未执行 |
-| FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/tests/FNOS-012-codebuddy-model-speed-and-client-version) | [PLAN-FNOS-012](/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version) | 规划中 | 尚未执行；FNOS-012-05 的缺口已在 FNOS-010 发布验收中发现并修复源码，线上包待随版本发布核对 |
+| FNOS-011 | [凭据文件权限异常的可诊断性](/tests/FNOS-011-credential-permission-diagnostics) | [PLAN-FNOS-011](/plans/PLAN-FNOS-011-credential-permission-diagnostics) | 执行中 | 自动化已通过（TC-001~005/013/014/016~018）；TC-006 真实 NAS、TC-013 界面走查、TC-015 Desktop 待验收；TC-007~012 随 FNOS-011-02/03 废弃 |
+| FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/tests/FNOS-012-codebuddy-model-speed-and-client-version) | [PLAN-FNOS-012](/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version) | 执行中 | 本地自动化与 DSH Web 走查已通过；待验收：真实 fnOS NAS（TC-018 等）、DSH Desktop（TC-010/033）、npm registry（TC-019~021）、线上包核对（TC-025） |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。
