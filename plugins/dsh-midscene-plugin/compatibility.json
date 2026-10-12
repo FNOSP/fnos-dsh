@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "dshPluginApi": {
+    "version": "0.2.0-rc.2",
+    "packages": [
+      "@deepseek-ai/dsh-attachment",
+      "@deepseek-ai/dsh-llm",
+      "@deepseek-ai/dsh-skill",
+      "@deepseek-ai/schemastery"
+    ]
+  }
+}

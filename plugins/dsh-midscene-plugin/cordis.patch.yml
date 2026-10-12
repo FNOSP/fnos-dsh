@@ -1,0 +1,9 @@
+# @tnnevol/dsh-midscene 组合包 patch。
+#
+# 本插件不接管任何既有接缝，只新增自己的插件行：桥接服务把标准 OpenAI
+# 请求翻译为宿主模型层（`ctx.llm`）调用，凭据与协议细节留在各提供方插件内。
+#
+# `inject: ['llm']` 声明在 package.json 的 `dsh.bundle`；此处只 insert 插件行。
+- insert:
+    - id: dsh-midscene
+      name: '@tnnevol/dsh-midscene'

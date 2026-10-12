@@ -7,11 +7,13 @@ const targetVersion = '0.2.0-rc.2'
 // （基线、清单一致性、catalog 声明）。漏掉它曾使该插件的
 // compatibility.json 清单无人守门——FNOS-012-05 立项的正是这个缺口，
 // 而当时的守卫在变异检验下对该插件「恒真」。
+// 新增插件必须一并加入本列表：漏项 = 该插件的清单与 catalog 声明无人守门。
 const pluginDirectories = [
   'dsh-codebuddy-plugin',
   'dsh-codex-auth-plugin',
   'dsh-failover-search-plugin',
   'dsh-fnos-plugin',
+  'dsh-midscene-plugin',
   'dsh-semi-ui-showcase-plugin',
 ]
 

@@ -1,0 +1,78 @@
+{
+  "name": "@tnnevol/dsh-midscene",
+  "displayName": "Midscene Bridge",
+  "type": "module",
+  "version": "0.2.0-rc.2.0",
+  "description": "Hosts a loopback OpenAI-compatible bridge that exposes every model configured in DSH (official routes, plugin routes, and user-declared providers) so Midscene browser automation can drive pages with natural language without holding any credential itself.",
+  "author": "tnnevol",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-midscene.html",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FNOSP/fnos-dsh.git",
+    "directory": "plugins/dsh-midscene-plugin"
+  },
+  "documentation": "https://fnapps-doc.tnnevol.cn/plugins/dsh-midscene",
+  "bugs": {
+    "url": "https://github.com/FNOSP/fnos-dsh/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./compatibility.json": "./compatibility.json",
+    "./package.json": "./package.json",
+    "./skills/*": "./skills/*"
+  },
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "icon": "icon.png",
+  "files": [
+    "README.md",
+    "compatibility.json",
+    "cordis.patch.yml",
+    "icon.png",
+    "lib",
+    "skills"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc -p tsconfig.json",
+    "check": "pnpm run typecheck && pnpm run test",
+    "prepublishOnly": "pnpm run check",
+    "publish:next": "pnpm publish --tag next --access public",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@deepseek-ai/dsh-attachment": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-skill": "0.2.0-rc.2",
+    "@deepseek-ai/schemastery": "catalog:"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@deepseek-ai/dsh-attachment": "catalog:dsh",
+    "@deepseek-ai/dsh-llm": "catalog:dsh",
+    "@deepseek-ai/dsh-skill": "catalog:dsh",
+    "@deepseek-ai/schemastery": "catalog:",
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
