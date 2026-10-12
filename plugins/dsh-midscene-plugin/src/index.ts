@@ -18,10 +18,14 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
+import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-llm'
+import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-skill'
-import { Config, generateApiKey } from './contracts/config.ts'
+import { Config, generateApiKey, liveConfig } from './contracts/config.ts'
 import type { BridgeConfig } from './contracts/config.ts'
+import { MIDSCENE_SETTINGS_NAMESPACE } from './contracts/settings-rpc.ts'
+import { registerMidsceneSettingsRoutes } from './host/settings-routes.ts'
 import { BridgeServer } from './host/bridge-server.ts'
 import type { SessionModelReader } from './host/model-choice.ts'
 import { registerBundledSkills } from './host/skills.ts'
@@ -70,15 +74,45 @@ export const inject = ['llm']
  */
 export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unknown as BridgeConfig): void {
   const logger = ctx.logger
-  // 密钥为空（首次安装、旧配置升级）时补一个并在启动日志里说明——用户下一次
-  // 拉 /v1/midscene-env 会拿到它；不做静默补值，否则用户不知道 .env 该填什么。
-  const config: BridgeConfig = rawConfig.apiKey.length > 0
-    ? rawConfig
-    : { ...rawConfig, apiKey: generateApiKey() }
-  if (rawConfig.apiKey.length === 0) {
-    logger.info('[midscene] 已为非空接入密钥生成随机值（可在插件设置页查看或重新生成）')
-  }
   const log = (message: string): void => { logger.info(`[midscene] ${message}`) }
+
+  /**
+   * 配置读取面：每次读取都取当前值。
+   *
+   * 声明为 `.volatile()` 的字段才能被官方设置表单编辑、且热更新无需重挂载插件；代价是
+   * `apply` 收到的字段是**引用**而非值（解包见 `volatileValue`）。因此这里**不能**重建
+   * 配置对象或按字段做「值判断」——那样会把引用拍平成快照，用户在设置页改完就不生效
+   * （家族能改、密钥改不动的差异正是这么来的）。
+   */
+  const live = liveConfig(rawConfig)
+
+  /**
+   * 首次安装时按需生成接入密钥。
+   *
+   * `Config` 的 `apiKey` 默认值是空串而不是随机值：schemastery 的默认值在 schema 求值
+   * 阶段产生，无法带进「写回用户配置」这一步；而且生成后必须**持久化**，否则每次重启
+   * 都换一把key，已经复制到 `.env` 的用户会突然 401。
+   *
+   * 因此这里用「读时兜底 + 一次性持久化」：兜底值在闭包里记忆，保证同一进程内桥与
+   * `/v1/midscene-env` 看到同一把密钥（否则自举端点返回的密钥会与桥实际校验的不一致）；
+   * 持久化在设置服务可用时进行（`ctx.inject(['settings'])` 块内）。
+   */
+  let pendingKey: string | undefined
+  const apiKey = (): string => {
+    const current = live.apiKey
+    if (current.length > 0) return current
+    pendingKey ??= generateApiKey()
+    return pendingKey
+  }
+  // 桥与设置端点都用这一份「有效配置」：密钥经 apiKey() 解析，其余字段直读。
+  const effective: BridgeConfig = {
+    get port() { return live.port },
+    get apiKey() { return apiKey() },
+    get family() { return live.family },
+    get models() { return live.models },
+    get requestTimeoutMs() { return live.requestTimeoutMs },
+    get logRequests() { return live.logRequests },
+  }
 
   // 附件服务：`profile` 未挂载时缺席（图片请求会得到明确错误而不是崩溃）。
   const attachments = (): AttachmentStore | undefined =>
@@ -98,7 +132,7 @@ export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unkn
   const bridge = new BridgeServer({
     llm: ctx.llm,
     attachments: attachments(),
-    config,
+    config: effective,
     sessionModel,
     log,
   })
@@ -123,6 +157,29 @@ export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unkn
     }
     return ctx.on('llm/adapters-updated', refresh)
   }, 'dsh-midscene: catalog invalidation')
+
+  // 设置端点：把设置页的读写能力（密钥显示/重新生成/自定义、家族、指定模型）挂到
+  // DSH 的 Web 服务上。`webServer`/`settings` 缺席时跳过——精简 profile 里桥仍可用，
+  // 只是没有设置界面（配置走 profile 文件）。
+  ctx.inject(['webServer', 'settings'], (scoped) => {
+    const settings = scoped.settings as unknown as {
+      update: (ns: string, patch: object, expectedRevision?: number) => Promise<void>
+    }
+    // registerMidsceneSettingsRoutes 自己用 ctx.effect 托管两个路由的释放。
+    // 首次安装：把兜底密钥写回配置，之后重启保持同一把（否则已复制到 .env 的用户会 401）。
+    if (live.apiKey.length === 0) {
+      void settings.update(MIDSCENE_SETTINGS_NAMESPACE, { apiKey: apiKey() }).then(
+        () => { log('已生成并保存接入密钥（可在插件设置页查看或重新生成）') },
+        (error: unknown) => { log(`保存接入密钥失败：${String(error)}（本次运行使用临时密钥）`) },
+      )
+    }
+    registerMidsceneSettingsRoutes(scoped as unknown as Context, {
+      readConfig: () => effective,
+      update: async patch => { await settings.update(MIDSCENE_SETTINGS_NAMESPACE, patch) },
+      log,
+    })
+    log('已注册接入设置端点')
+  })
 
   // 技能内置分发：注册表缺席（精简 profile）时跳过，不影响桥。
   ctx.effect(() => {

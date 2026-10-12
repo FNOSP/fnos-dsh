@@ -72,7 +72,7 @@ sequenceDiagram
 | Midscene 支持双模型分工（规划模型与页面理解/断言模型可独立配置）；桥接后模型命名空间采用「提供方/模型」形式，Midscene 的模型名参数可承载该形式，是否需要名称映射以实测为准 | [Midscene 官方文档](https://midscenejs.com/zh/)（模型策略与多模型配置）；桥接模型命名设计 | FNOS-013-02、FNOS-013-03 | 待核实 |
 | YAML 脚本运行器（`@midscene/cli`，`tasks/flow` 格式）与 Midscene Test 测试框架（`@midscene/test`）读取同一套模型环境变量约定（模型地址/密钥/名称/家族，`.env` 放工具运行目录），与即席 CLI 的接入方式一致——桥接服务就绪后三种运行方式共用同一份接入配置 | [YAML 脚本运行器](https://midscenejs.com/zh/yaml-script-runner)；[Midscene Test 概览](https://midscenejs.com/zh/midscene-test/overview)（模型配置约定与 dotenv 加载说明） | FNOS-013-11、FNOS-013-12 | 已核实 |
 | Midscene Test 是官方推荐的 YAML 自动化替代方案（声明式 YAML 用例 + TypeScript 自定义 Node 分离，提供生命周期、并发与报告），目前处于 Beta，测试协议与 API 持续演进；旧 `tasks/flow` YAML 链路进入维护状态（保持兼容、不再新增能力） | [Midscene Test 概览](https://midscenejs.com/zh/midscene-test/overview)（Beta 声明与替代关系） | FNOS-013-12 | 已核实（Beta 风险见行为约束） |
-| YAML 脚本运行器与 Midscene Test 要求 Node.js 20.19+/22.12+/24+；与本仓库插件 engines（`^22.19.0 || >=24.0.0`）兼容 | [YAML 脚本运行器](https://midscenejs.com/zh/yaml-script-runner)（安装要求）；仓库 `package.json` engines | FNOS-013-11、FNOS-013-12 | 已核实 |
+| YAML 脚本运行器与 Midscene Test 要求 Node.js 20.19+/22.12+/24+；与本仓库插件 engines（`^22.19.0 \|\| >=24.0.0`）兼容 | [YAML 脚本运行器](https://midscenejs.com/zh/yaml-script-runner)（安装要求）；仓库 `package.json` engines | FNOS-013-11、FNOS-013-12 | 已核实 |
 | CodeBuddy 的 token 刷新协议与凭据存储结构已从 `dsh-codebuddy` 插件源码核实（原直连方案的调研基础）；架构修订后该协议由其插件在宿主内继续使用，桥不复制 | `dsh-codebuddy` 插件源码（凭据存储与刷新实现） | FNOS-013-04 | 已核实 |
 | CodeBuddy 模型目录接口返回完整模型清单，主流模型均声明支持图片输入（21 个模型）——作为宿主内一个提供方的目录样本 | `dsh-codebuddy` 插件源码 + 实测 | FNOS-013-02 | 已核实（单提供方样本） |
 | dsh 插件可托管外部资源（HTTP 服务、文件监听），配置变更触发热重载时必须完整清理；打包、兼容声明与安装方式有成熟先例（四个已发布插件） | [插件开发指南](/development/plugin-development)；`@tnnevol/dsh-codebuddy` 等插件实现 | FNOS-013-01 | 已核实 |

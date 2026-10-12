@@ -13,6 +13,7 @@
  * `Schemastery` 是 schemastery 声明的全局命名空间，无需也不能 import。
  */
 import { randomBytes } from 'node:crypto'
+import type { Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 
 /**
@@ -106,6 +107,21 @@ export function generateApiKey(): string {
 }
 
 /**
+ * 读取一个可能被 Cordis 包装成引用（volatile）的配置字段。
+ *
+ * 声明为 `.volatile()` 的字段才能被官方设置表单编辑、且热更新无需重挂载插件；
+ * 代价是 `apply` 收到的不是值而是稳定引用，必须经这里解包。与 `dsh-fnos-plugin`
+ * 的 `volatileValue` 同形（该写法已在仓库内验证）。
+ * @param value - 配置字段（可能是引用或普通值）。
+ * @returns 解包后的值。
+ */
+export function volatileValue<T>(value: Volatile<T> | T | undefined): T | undefined {
+  if (typeof value !== 'object' || value === null) return value as T | undefined
+  const read = (value as { get?: unknown }).get
+  return typeof read === 'function' ? (read as () => T).call(value) : value as T
+}
+
+/**
  * 生成 Midscene 侧固定四行的接入配置。
  *
  * 四行都是固定值（基址、密钥、模型名、家族），因此用户可以把 `.env` 写死：换模型
@@ -127,12 +143,12 @@ export function renderEnvFile(config: { readonly port: number, readonly apiKey: 
 
 /** 配置字段的推导类型（`z.object` 的泛型参数）。 */
 interface BridgeConfigShape {
-  port: z<NoInfer<number>, NoInfer<number>, 'defined'>
-  apiKey: z<NoInfer<string>, NoInfer<string>, 'defined'>
-  family: z<NoInfer<string>, NoInfer<string>, 'defined'>
-  models: z<NoInfer<string[]>, NoInfer<string[]>, 'defined'>
-  requestTimeoutMs: z<NoInfer<number>, NoInfer<number>, 'defined'>
-  logRequests: z<NoInfer<boolean>, NoInfer<boolean>, 'defined'>
+  port: z<NoInfer<number>, NoInfer<number>, 'volatile-defined'>
+  apiKey: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
+  family: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
+  models: z<NoInfer<string[]>, NoInfer<string[]>, 'volatile-defined'>
+  requestTimeoutMs: z<NoInfer<number>, NoInfer<number>, 'volatile-defined'>
+  logRequests: z<NoInfer<boolean>, NoInfer<boolean>, 'volatile-defined'>
 }
 
 /**
@@ -142,19 +158,42 @@ interface BridgeConfigShape {
  * 目录中找到的模型——这实现「指定用于 Midscene 测试的模型」。
  */
 export const Config: z<Schemastery.ObjectS<NoInfer<BridgeConfigShape>>, Schemastery.ObjectT<NoInfer<BridgeConfigShape>>, 'plain'> = z.object({
-  port: z.natural().default(DEFAULT_BRIDGE_PORT)
+  port: z.natural().default(DEFAULT_BRIDGE_PORT).volatile()
     .description(`监听端口（默认 ${DEFAULT_BRIDGE_PORT}）；被占用时启动失败并明确报错，不自动更换端口`),
-  apiKey: z.string().default('').role('secret')
+  apiKey: z.string().default('').role('secret').volatile()
     .description('桥接接入密钥（安装时自动生成）。Midscene 的 .env 用它；可在设置页重新随机生成或自定义'),
-  family: z.string().default(DEFAULT_FAMILY)
+  family: z.string().default(DEFAULT_FAMILY).volatile()
     .description(`Midscene 协议家族，取值必须来自 Midscene 的白名单（默认 ${DEFAULT_FAMILY}）。它决定 Midscene 的提示词模板与坐标解析协议，换模型时可能需要同步调整`),
-  models: z.array(z.string()).default([])
+  models: z.array(z.string()).default([]).volatile()
     .description('指定用于 Midscene 测试的模型（「提供方/模型」形式，按顺序尝试第一个可用的）。留空则跟随 DSH 当前模型选择'),
-  requestTimeoutMs: z.natural().default(300_000)
+  requestTimeoutMs: z.natural().default(300_000).volatile()
     .description('单次模型请求的超时毫秒数；0 表示不超时'),
-  logRequests: z.boolean().default(true)
+  logRequests: z.boolean().default(true).volatile()
     .description('是否在宿主日志记录每次请求的一行摘要（不含消息内容与图片数据）'),
 })
+
+/**
+ * 把 volatile 配置包装成**每次读取都取当前值**的配置对象。
+ *
+ * 声明为 `.volatile()` 的字段才能被官方设置表单编辑、且热更新无需重挂载插件；代价是
+ * `apply` 收到的字段是稳定引用，值会随用户在设置页的编辑改变。桥如果只读一次快照，
+ * 用户改完家族/密钥就必须重启 DSH 才生效——那与「设置页能改」的承诺不符。这里用取值器
+ * 暴露字段，调用方（桥、状态端点）每次读到的都是最新值。
+ * @param raw - `apply` 收到的原始配置（字段可能为 volatile 引用）。
+ * @returns 每次读取都取当前值的配置对象。
+ */
+export function liveConfig(raw: BridgeConfig): BridgeConfig {
+  const read = <K extends keyof BridgeConfig>(key: K): BridgeConfig[K] =>
+    volatileValue(raw[key]) as BridgeConfig[K]
+  return {
+    get port() { return read('port') },
+    get apiKey() { return read('apiKey') },
+    get family() { return read('family') },
+    get models() { return read('models') ?? [] },
+    get requestTimeoutMs() { return read('requestTimeoutMs') },
+    get logRequests() { return read('logRequests') },
+  }
+}
 
 /** 解析后的桥接服务配置。 */
 export interface BridgeConfig {

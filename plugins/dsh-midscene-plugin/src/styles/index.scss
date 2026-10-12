@@ -1,0 +1,102 @@
+/**
+ * Midscene 接入设置区块的样式。
+ *
+ * 变量名经真实 DSH 页面核对（`getComputedStyle` + 样式表枚举）：DSH 的语义变量里
+ * **没有** `--dsw-alias-fill-secondary` / `--dsw-alias-text-primary` /
+ * `--dsw-alias-border-secondary` 这类名字（写了不会报错，只会让 `background` 解析失败
+ * 而呈现透明）。实际可用的对应关系是：
+ *
+ * | 用途 | 变量 |
+ * | --- | --- |
+ * | 主/次/三级文字 | `--dsw-alias-label-primary` / `-label-secondary` / `-label-tertiary` |
+ * | 卡片与分层背景 | `--dsw-alias-bg-layer-1` / `-bg-layer-2` / `--dsw-alias-settings-card-fill` |
+ * | 描边 | `--dsw-alias-border-l1` / `-border-l2` / `-border-l4` |
+ * | 错误态 | `--dsw-alias-state-error-primary` |
+ * | 等宽字体 | `--dsw-font-family-mono`（DSH 未定义时回落系统等宽） |
+ *
+ * 不使用硬编码颜色（插件 UI 规范），也不针对 Semi 类名写覆盖。
+ */
+
+.dsh-midscene-settings {
+  display: flow-root;
+  margin-top: 8px;
+  padding: 12px 0 4px;
+
+  &__title {
+    margin-bottom: 4px;
+    color: var(--dsw-alias-label-primary);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 22px;
+  }
+
+  &__hint {
+    margin-bottom: 12px;
+    color: var(--dsw-alias-label-tertiary);
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  &__field {
+    display: flow-root;
+    margin-bottom: 16px;
+  }
+
+  &__label {
+    margin-bottom: 6px;
+    color: var(--dsw-alias-label-primary);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+
+  &__control {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__models {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  // 密钥与 .env 用等宽字体呈现：便于用户逐字符核对，避免形近字符看错。
+  &__key {
+    padding: 3px 8px;
+    border: 1px solid var(--dsw-alias-border-l2);
+    border-radius: var(--dsw-radius-sm, 6px);
+    background: var(--dsw-alias-bg-layer-2);
+    color: var(--dsw-alias-label-primary);
+    font-family: var(--dsw-font-family-mono, ui-monospace, monospace);
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  &__env {
+    margin: 8px 0 0;
+    padding: 10px 12px;
+    border: 1px solid var(--dsw-alias-border-l2);
+    border-radius: var(--dsw-radius-sm, 6px);
+    background: var(--dsw-alias-bg-layer-2);
+    color: var(--dsw-alias-label-secondary);
+    font-family: var(--dsw-font-family-mono, ui-monospace, monospace);
+    font-size: 12px;
+    line-height: 18px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  &__error {
+    margin-top: 4px;
+    padding: 6px 10px;
+    border-radius: var(--dsw-radius-sm, 6px);
+    background: var(--dsw-alias-bg-layer-2);
+    color: var(--dsw-alias-state-error-primary);
+    font-size: 12px;
+    line-height: 18px;
+  }
+}
