@@ -28,6 +28,9 @@ desktop.ini
 
 # 临时脚本
 tmp/
+
+# Midscene 运行产物（报告与截图；Bridge Mode 与 CLI 都写这里）
+midscene_run/
 .qwen
 .qoder
 

@@ -179,6 +179,35 @@ Midscene 的三种运行方式读取**同一套模型环境变量**，接入配�
 | `requestTimeoutMs` | `300000` | 单次模型请求超时（毫秒）；`0` 表示不超时 |
 | `logRequests` | `true` | 是否记录每次请求的一行摘要日志 |
 
+## 在真实 Chrome 中驱动（Bridge Mode）
+
+Midscene 官方支持 **Chrome 桥接模式**：本插件的验证脚本作为服务端（默认 `127.0.0.1:3766`），
+**你 Chrome 里的 Midscene 扩展反向连接过来**，从而用自然语言控制你自己的浏览器。
+
+| 维度 | Bridge Mode | CDP 直连 |
+| --- | --- | --- |
+| 浏览器窗口 | **用户可见** | 不可见（headless） |
+| cookies / 登录态 | 复用你的真实环境 | 全新 profile |
+| macOS 钥匙串弹窗 | 无 | 每次新建 profile 都可能弹 |
+| 视口 | 你的真实窗口 | headless 默认 756×413，侧边栏会收缩为图标态 |
+
+前提条件（一次性）：Chrome 安装 [Midscene 扩展](https://midscenejs.com/zh/bridge-mode.html)，首次连接时在扩展弹窗点 **Allow**（或 **Always Allow** 后续免确认）。
+
+```sh
+# 1) 取接入配置（四行固定值；端口以 /v1/health 的 port 字段为准）
+curl -s "http://127.0.0.1:8787/v1/midscene-env" |
+    python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" >.env
+# 2) 运行（目标 URL 用带 token 的完整地址）
+pnpm --filter @tnnevol/dsh-midscene run test:bridge "http://127.0.0.1:8070/?token=…"
+```
+
+脚本位于包内 `scripts/bridge-smoke.ts`。它会做两件事：断言首页可见、点击侧边栏进入插件列表——
+**每步都用页面内状态独立核实**，交互未生效时自动重试一次（Midscene 的单次点击可能不触发行为，
+详见测试规范的 Midscene 章节）。
+
+桥接模式复用桌面浏览器配置，因此 `viewportWidth`、`userAgent`、`cookie`、`extraHTTPHeaders`、
+`chromeArgs` 等选项会被忽略。模型配置必须放在 **Node 侧**（终端环境变量）——本仓库的 `.env` 约定正合此要求。
+
 ## 插件设置页
 
 在 DSH 的插件管理页点开本插件，组件列表**下方**有「Midscene 接入设置」区块：

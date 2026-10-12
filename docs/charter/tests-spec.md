@@ -208,11 +208,43 @@ Midscene 用自然语言驱动浏览器完成「打开页面 → 交互 → 断�
    生成的 `MIDSCENE_MODEL_API_KEY` 是占位值（桥不做鉴权、不转发凭据）；模型来自 DSH 已配置的提供方，因此**不要**为 Midscene 准备第三方 API key。健康响应里的 `port` 字段是权威值。
 3. 模型必须 `vision: true`（`curl -s "http://127.0.0.1:$PORT/v1/models"`，或让插件自动挑：不传 `?model=` 时它优先选「有图片能力且家族可推断」的模型）——Midscene 靠截图理解页面。若响应带 `familyWarning`，该模型未匹配到 Midscene 已知家族，应按插件说明页的指引换模型或补 `MIDSCENE_MODEL_FAMILY`。
 
+#### 接入方式优先级（Bridge Mode 优先）
+
+三种接入方式按下列优先级选择；**前一种可用时不用后一种**：
+
+| 优先级 | 方式 | 适用与代价 |
+| --- | --- | --- |
+| 1 | **Bridge Mode**（推荐） | 由用户真实 Chrome 里的 Midscene 扩展反向连接脚本。浏览器**用户可见**、复用真实 cookies 与登录态、无钥匙串弹窗、视口即真实窗口。前提：Chrome 已装 Midscene 扩展（一次性） |
+| 2 | 默认 Puppeteer 模式 | 脚本自启浏览器（`connect --url …`）。无需扩展，但窗口对用户不可见 |
+| 3 | CDP 模式 | 附加既有调试端口。仅在前两者不可用时使用；有钥匙串与视口两个坑（见下节） |
+
+**Bridge Mode 实测对比**（同一台开发机、同一任务）：
+
+| 维度 | Bridge Mode | CDP 直连 |
+| --- | --- | --- |
+| 浏览器可见性 | 用户可见 | headless，不可见 |
+| cookies / 登录态 | 复用用户真实环境 | 全新 profile |
+| macOS 钥匙串授权 | 无弹窗 | 每次新建 profile 都可能弹（Chrome for Testing 为 adhoc 签名） |
+| 视口 | 用户真实窗口（实测 1920×906） | headless 默认 756×413，侧边栏收缩为图标态（见下节） |
+
+用法（脚本已入仓，模型配置仍指向插件托管的桥）：
+
+```sh
+# 1) 目标页面（带 token 的完整 URL）
+# 2) 放好接入配置（四行固定值，端口以 /v1/health 的 port 为准）
+curl -s "http://127.0.0.1:$PORT/v1/midscene-env" |
+    python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" >.env
+# 3) 运行（Chrome 首次会弹授权窗口，选 Allow 或 Always Allow）
+pnpm --filter @tnnevol/dsh-midscene run test:bridge "<目标URL>"
+```
+
+Bridge Mode 的硬性要求：**模型配置在 Node 侧**（终端环境变量），不在浏览器侧——这与本仓库「接入配置放 `.env`」的约定一致。桥接模式会忽略 `viewportWidth`、`userAgent`、`cookie`、`extraHTTPHeaders`、`chromeArgs` 等选项（复用桌面浏览器配置）。
+
 #### 三类被测环境的接入方式
 
 | 被测环境 | 接入方式 | 备注 |
 | --- | --- | --- |
-| 本地 DSH Web 页面 | 默认 Puppeteer 模式，`connect --url http://127.0.0.1:8070/?token=…` | 需要带 token 的完整 URL；token 从 `pnpm run start -- --web` 的输出里取 |
+| 本地 DSH Web 页面 | **Bridge Mode**（优先）或默认 Puppeteer 模式，`connect --url http://127.0.0.1:8070/?token=…` | 需要带 token 的完整 URL；token 从 `pnpm run start -- --web` 的输出里取 |
 | DSH Desktop | CDP 模式附加渲染进程调试端口（[Desktop 测试](#dsh-desktop-测试)的端口约定） | 兼容性以实测为准；失败时回退人工走查 + CDP 取证，并在用例文档如实标注 |
 | 真实 fnOS NAS 桌面网页 | 只读走查（打开页面、读状态、截图） | 一律不做写操作；写操作走既有流程 |
 
@@ -224,7 +256,7 @@ Midscene 用自然语言驱动浏览器完成「打开页面 → 交互 → 断�
 - **额度提示**：Midscene 每步都调视觉模型，按所选提供方计费。用例设计应避免无意义的重复步骤；长任务先在小页面验证流程。
 - **测试数据清理**：Midscene 运行产生的 `midscene_run/` 报告目录与截图按[测试数据清理](#测试数据清理)处理；接入配置（`.env`）**不入仓库**——它虽只含占位密钥，仍按「配置文件不进版本管理」的既有红线执行，测试结束用 `git status` 确认无混入。
 
-#### CDP 模式的环境前置（macOS 钥匙串授权）
+#### CDP 模式的环境前置（备选方式；macOS 钥匙串授权与视口）
 
 在 macOS 上用 CDP 模式驱动 Chrome 时，**每次新建用户数据目录都可能弹出系统钥匙串授权**（「Google Chrome for Testing 想要使用你储存在钥匙串的 Chromium Safe Storage 中的机密信息」）。根因是 Puppeteer 下载的 Chrome for Testing 是 **adhoc 签名、无 Team ID**，系统无法把它与钥匙串条目的既有授权绑定，于是每次访问都要求重新确认。
 
@@ -251,6 +283,8 @@ Midscene 用自然语言驱动浏览器完成「打开页面 → 交互 → 断�
 - 如果仍然弹出授权窗口，选择「始终允许」只对该**二进制与签名**生效；换 Chrome for Testing 版本（如 149 → 150，CDHash 变化）后需要重新授权——这也是统一加 `--use-mock-keychain` 的原因。
 
 #### 视口与定位精度的实测约束
+
+**这些约束只适用于 CDP 与默认 Puppeteer 模式；Bridge Mode 用用户真实窗口，不存在视口收缩问题**（但仍必须独立核实交互结果，见第 2 条）。
 
 本轮实测（FNOS-013，DSH Web + Chrome for Testing 150.0.7871.24）确认两条会影响结论的约束，Midscene 用例设计必须遵守：
 
@@ -462,3 +496,4 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-10-12 | Midscene 章节补 CDP 模式 macOS 钥匙串前置 | 实测 Puppeteer 的 Chrome for Testing 为 adhoc 签名（无 Team ID），每次新建用户数据目录都可能弹系统钥匙串授权；无参数与 `--password-store=basic` 下 Cookie 库无法建立，`--use-mock-keychain` 下正常建立且不触碰真实钥匙串。统一要求 CDP 模式加该参数并使用固定用户数据目录。依据：本机实测（Chrome for Testing 150.0.7871.24）。 |
 | 2026-10-12 | Midscene 章节补视口与定位精度实测约束 | 本轮 FNOS-013 实测确认：headless 默认视口 756×413 下 DSH 侧边栏为图标态、文字菜单项不存在，`act` 会「点到位置但页面不跳转」并自述成功（假成功），因此视口须 ≥1440 宽且交互结果必须独立取证；同一 36px 高控件上 SDK 落点 (86,130) 命中、YAML 运行器 (68,110)/(200,110) 落空（含 `--deep-locate`），故小控件点击优先 CDP、Midscene 用于断言与多步流程。依据：TC-027/028/042/043 与 BUG-03。 |
 | 2026-10-12 | Midscene 章节改为「端口按实际值」 | 桥接端口不再固定：默认 8787，被占用时自动向上尝试（最多 20 个）并把实际端口写回配置。章节的前置条件由写死 8787 改为先发现实际端口（健康响应的 `port` 字段为权威值）再用它生成 `.env`；跳号后 `.env` 需重新拉取。依据：FNOS-013-01 行为约束修订。 |
+| 2026-10-12 | Midscene 章节新增 Bridge Mode 并升为首选接入方式 | 按 Midscene 官方《Chrome 桥接模式》验证：脚本作 server（默认 127.0.0.1:3766），用户真实 Chrome 里的 Midscene 扩展反向连接，因此浏览器用户可见、复用真实 cookies 与登录态、无 macOS 钥匙串弹窗、视口即真实窗口（实测 1920×906）。实测同一任务在 Bridge Mode 下完整通过（首页断言 → 点击「插件」→ 独立核实进入插件列表 → 列表断言），而 CDP 直连需应对 756×413 窄视口与钥匙串授权。据此把接入方式改为三级优先级（Bridge Mode > 默认 Puppeteer > CDP），CDP 章节标注为备选。验证脚本入仓：`plugins/dsh-midscene-plugin/scripts/bridge-smoke.ts`（`pnpm --filter @tnnevol/dsh-midscene run test:bridge`）。 |

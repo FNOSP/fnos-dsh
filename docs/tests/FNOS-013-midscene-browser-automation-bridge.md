@@ -169,6 +169,7 @@ verifiedAt: 2026-10-12
 | TC-052 | [FNOS-013-14](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | 图标来源注明且亮暗主题可见 | [AC-02](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | 同上 | 1.亮暗主题各看一遍 2.核对来源登记 | 两个主题下清晰可见；来源与许可在仓库内注明 | P2 | 新增行为，无回归基线 |
 | TC-053 | [FNOS-013-14](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | 图标符合宿主校验 | [AC-03](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | 包已构建 | 1.核对格式、体积与路径 2.查看加载诊断 | PNG 且 ≤256 KiB；路径在包内；无 icon 相关诊断错误 | P1 | 新增行为，无回归基线 |
 | TC-054 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 端口冲突时自动跳号且接入配置同步 | [AC-03](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | 首选端口被其它进程占用 | 1.占用首选端口 2.启动 DSH 3.读健康端点与 `/v1/midscene-env` 4.重启再看首选端口 | 桥改用下一个可用端口；健康端点与 `.env` 的 `BASE_URL` 均为实际端口；实际端口写回配置，重启直接复用 | P1 | 契约变更（原 fail-fast 改为自动跳号） |
+| TC-055 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | Bridge Mode 桥接用户真实 Chrome | [AC-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | Chrome 已装 Midscene 扩展；DSH Web 运行中 | 1.运行 `pnpm --filter @tnnevol/dsh-midscene run test:bridge -- "<URL>"` 2.在扩展弹窗点 Allow 3.观察浏览器窗口与页面跳转 | 脚本经扩展控制用户真实 Chrome（窗口用户可见、复用真实登录态、无视口收缩与钥匙串弹窗）；`aiAssert` 与交互步骤均通过，且交互结果经页面内独立核实 | P1 | 新增（Bridge Mode 为首选接入方式） |
 
 ## 测试执行结果
 
@@ -232,6 +233,7 @@ verifiedAt: 2026-10-12
 | TC-052 | [FNOS-013-14](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | DSH Web | 通过 | 2026-10-12 | **实测**（暗色主题）：图标在暗色下清晰可见；来源（官方站点 favicon URL、取用日期、MIT 许可）登记在包内 `skills/SOURCE.md` 与插件说明页「图标来源」小节 |
 | TC-053 | [FNOS-013-14](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-14) | DSH Web + 本地测试 | 通过 | 2026-10-12 | PNG 101 331 字节（≤256 KiB）；`package.json` `icon` 字段为包内相对路径且已进 `files` 白名单；启动日志无 icon 相关诊断 |
 | TC-054 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | DSH Web + 本地测试 | 通过 | 2026-10-12 | **实测**：占住 8787 后启动，桥自动改用 8788（`curl 8788/v1/health` → 200）；健康端点 `port: 8788`；`/v1/midscene-env` 的 `MIDSCENE_MODEL_BASE_URL` 与 `content` 均为 8788 且不含 8787；配置写回 `port: 8788`，重启后仍用 8788（不重复扫描）。单测覆盖：跳号后服务可用、端点报实际端口、连续 20 个端口被占抛 `BridgePortExhaustedError` |
+| TC-055 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | DSH Web（用户真实 Chrome） | 通过 | 2026-10-12 | **实测**（Bridge Mode，Midscene 官方《Chrome 桥接模式》流程）：脚本作 server（默认 `127.0.0.1:3766`），真实 Chrome 里的 Midscene 扩展（v1.105）作为 client 反向连接（日志 `one client connected`、`Bridge connected, cli-side v1.15.1, browser-side v1.15.0`）。用入仓脚本 `scripts/bridge-smoke.ts` 完成：首页 `aiAssert` 通过 → 点击「插件」→ 页面内独立核实 `hasAddPlugin: true` → 插件列表 `aiAssert` 通过。视口为真实窗口 1920×906（无侧边栏收缩），无 macOS 钥匙串弹窗，浏览器窗口用户可见 |
 
 ## Bug 记录
 
@@ -239,15 +241,18 @@ verifiedAt: 2026-10-12
 | --- | --- | --- | --- | --- | --- |
 | BUG-01 | [TC-025](/tests/FNOS-013-midscene-browser-automation-bridge) | 提供方在流内失败时桥返回空回答，真实原因丢失 | P1 | 已修复 | 实测发现：宿主把提供方失败编码在 `finish` 分片的 `reason.failure` 里（此时流无文本产出），桥原先只映射 `finish_reason`，客户端看到的是「成功的空回答」——未配置凭据、额度不足等原因全部消失。修复：聚合时捕获 `failure`，非流式改为返回标准错误（保留提供方 HTTP 状态）、流式先发错误分片再正常收尾。新增 3 条测试（非流式错误、流式错误分片、真实未配置凭据场景） |
 | BUG-02 | [TC-051](/tests/FNOS-013-midscene-browser-automation-bridge) | 插件未声明 `dsh.bundle` 导致不显示在插件管理页 | P2 | 已修复 | 实测发现：`package.json` 的 `dsh` 字段缺失 `bundle.patch`，宿主因此不把本插件当作组合包，插件管理页的「已安装」列表不收录它（图标自然也无处显示）。修复：补 `dsh.bundle.patch` 指向 `cordis.patch.yml`；修复后管理页收录且图标显示 |
+| BUG-03 | [TC-042](/tests/FNOS-013-midscene-browser-automation-bridge)、[TC-055](/tests/FNOS-013-midscene-browser-automation-bridge) | Midscene 交互步骤「点到但不生效」（点击可靠性） | P2 | 已定位并规避（上游侧） | **按 Bridge Mode 的实测证据重新定性**（原结论「定位精度余量不足」不成立）：在用户真实 Chrome（视口 1920×906）里执行同一指令，两次点击坐标 `(108,136)` 与 `(63,138)` **都落在按钮真实区域 `x∈[14,266], y∈[120,156]` 内**，且 `(63,138)` 处 `elementFromPoint` 返回的正是「插件」文字节点（`SPAN.hHd-Xa_panelTitle`）——坐标正确、目标正确。事件捕获器判定性实验：点击成功时派发了完整且 `isTrusted: true` 的事件序列（`pointerdown → mousedown → pointerup → mouseup → click`）。故问题是**单次点击可能不触发目标行为**。**规避**：交互后用页面内状态独立核实、未生效则重试一次（入仓脚本 `scripts/bridge-smoke.ts` 已内置，实测稳定通过）；**不要采信 `ai()` 自述** |
+| BUG-04 | [TC-034](/tests/FNOS-013-midscene-browser-automation-bridge) | 按文档逐步接入时 `/v1/models` 返回 401 | P2 | 已修复 | **由 TC-034/036 的干净环境复现抓出**：桥的接入密钥校验覆盖了 `/v1/models`，而插件说明页的快速接入第 3 步（确认 `vision: true` 模型）用的正是该端点且不带密钥，用户照文档执行会失败。修复：只读发现类端点（`/v1/health`、`/v1/models`、`/v1/midscene-env`）整体豁免，密钥只守住会消耗提供方额度的推理端点。修复后按文档三步走全部通过 |
+| BUG-05 | [TC-027](/tests/FNOS-013-midscene-browser-automation-bridge) | `act` 在窄视口下「假成功」（自述成功但页面未变化） | P2 | 已规避（上游侧） | **实测**：headless 默认视口 756×413 时 DSH 侧边栏收缩为纯图标态，文字菜单项（如「插件」）在 DOM 中不存在；此时 `act` 会点到图标位置并**自述成功**，页面并不跳转。只采信自述会得出「功能正常」的**错误结论**。规避：视口 ≥1440 宽，或改用 Bridge Mode（真实窗口），并对交互结果做页面内独立核实 |
 
 ## 测试结论
 
 **整体结论：部分通过（桥接服务、设置界面、文档交付与 Midscene 端到端全部完成验证；YAML 运行器的交互步骤存在定位偏差，已定位并给出规避方式）。**
 
-- 执行用例总数 **54**，通过 **52**，失败 **2**（TC-042、TC-043，均为同一定位问题的表现），未执行 **0**，遗留 Bug **4**（BUG-01、BUG-02、BUG-04 已修复；BUG-03 属上游定位精度，已定位并规避）。
+- 执行用例总数 **55**，通过 **53**，失败 **2**（TC-042、TC-043，均为同一「点击可靠性」问题的表现），未执行 **0**，遗留 Bug **5**（BUG-01、BUG-02、BUG-04 已修复；BUG-03、BUG-05 属上游交互可靠性，已定位并规避）。
 - **FNOS-013-01～04（桥接服务本体）本地与 DSH Web 全部通过**：服务托管、端口策略、目录映射、对话补全（流式/非流式/推理分片/图片门控）、多提供方路由、凭据边界与错误归因。本轮新增真实视觉验证：`model verify` 的 `Image understanding` 通过（补上 TC-014 缺口）。
 - **FNOS-013-05（Midscene 端到端）三项通过**：SDK 路径完成「点击 → 断言」并经 CDP 独立核实页面真的跳转；密集列表中的条目定位准确（真的点开了插件详情页并显示接入设置区块）。
-- **FNOS-013-11/12（YAML 运行器与 Test 框架）**：`@midscene/cli` 1.15.1 的 `model verify` 3/3 通过、YAML 运行器的 `aiAssert` 通过（证明断言链路经桥可用）；`@midscene/test` 1.15.1 经 `createCaseRunner` + 自定义 Node 跑通（`status: success`，断言思考内容与真实截图一致）。**YAML 运行器的交互步骤未通过**（TC-042/043），原因是视觉定位对 36px 小控件的落点偏差（BUG-03）。
+- **FNOS-013-11/12（YAML 运行器与 Test 框架）**：`@midscene/cli` 1.15.1 的 `model verify` 3/3 通过、YAML 运行器的 `aiAssert` 通过（证明断言链路经桥可用）；`@midscene/test` 1.15.1 经 `createCaseRunner` + 自定义 Node 跑通（`status: success`，断言思考内容与真实截图一致）。**YAML 运行器的交互步骤未通过**（TC-042/043），原因是点击可靠性（BUG-03，已按 Bridge Mode 证据重新定性：坐标为命中，但单次点击可能不触发行为）。**Bridge Mode（TC-055）通过**：脚本经扩展控制用户真实 Chrome，首页与列表断言、点击与独立核实全部通过。
 - **FNOS-013-13/14（内置技能与图标）**：技能可见、禁用后消失、来源登记完整；图标亮暗主题显示正常。
 - **设置界面（本轮新增能力）实测通过**：插件详情页渲染于「包含的组件」之后，密钥显示/重新生成/自定义、家族下拉、指定模型、`.env` 预览与复制可用；设置写入立即作用于运行中的桥（家族与密钥都已实测生效，旧密钥 401）。
 - **文档交付（06、07）与证据规范（10）通过**：插件说明页、总览与侧边栏、测试规范 Midscene 章节、验收证据小节与交叉引用齐备。
@@ -258,7 +263,7 @@ verifiedAt: 2026-10-12
 | --- | --- | --- |
 | TC-042、TC-043（YAML 运行器交互步骤） | 失败 | 视觉定位落点偏差（BUG-03）。运行器本身可用（断言通过），失败仅在「点击小控件」；用宽视口 + CDP 独立核实可规避 |
 | DSH Desktop 侧 | 未执行 | 01～04、13、14 的 Desktop 结论缺失；按兼容基线要求，只记录单一客户端不构成完成结论 |
-| BUG-03 根治 | 未做 | 属上游（Midscene）视觉定位精度，本仓库不改上游代码；已在插件说明页与测试规范登记规避方式（宽视口、`--use-mock-keychain`、CDP 独立核实） |
+| BUG-03 / BUG-05 根治 | 未做 | 属上游（Midscene）交互可靠性与窄视口行为，本仓库不改上游代码；已在测试规范登记规避方式（Bridge Mode 优先、视口 ≥1440、页面内独立核实、必要时重试一次） |
 
 ### 本轮测试环境（版本三元组）
 

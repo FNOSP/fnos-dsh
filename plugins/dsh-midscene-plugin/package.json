@@ -51,7 +51,8 @@
     "check": "pnpm run typecheck && pnpm run test",
     "prepublishOnly": "pnpm run check",
     "publish:next": "pnpm publish --tag next --access public",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts",
+    "test:bridge": "node --experimental-strip-types scripts/bridge-smoke.ts"
   },
   "dsh": {
     "bundle": {
@@ -96,6 +97,7 @@
     "@deepseek-ai/dsh-settings": "catalog:dsh",
     "@deepseek-ai/dsh-skill": "catalog:dsh",
     "@deepseek-ai/schemastery": "catalog:",
+    "@midscene/web": "catalog:",
     "@tnnevol/dsh-semi-ui": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
