@@ -21,7 +21,8 @@
       "@deepseek-ai/dsh-tools",
       "@deepseek-ai/dsh-web",
       "@deepseek-ai/dsh-web-fetch-http",
-      "@deepseek-ai/dsh-web-search-deepseek"
+      "@deepseek-ai/dsh-web-search-deepseek",
+      "@deepseek-ai/schemastery"
     ]
   }
 }

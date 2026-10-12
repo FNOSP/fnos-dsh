@@ -25,6 +25,10 @@ import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type {} from '@deepseek-ai/dsh-web'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-agent'
+// 服务访问型 peer 依赖：本插件经 `ctx.get('settings')` 使用设置能力（不 import
+// 具体导出），按仓库既有约定用空类型 import 标记该依赖（同 dsh-codex-auth-plugin
+// 的 dsh-settings）。声明面必须可见，否则 compatibility.json 的包清单会漏项。
+import type {} from '@deepseek-ai/dsh-settings'
 import { Config, readSettings } from './contracts/config.ts'
 import type { FailoverSearchConfig } from './contracts/config.ts'
 import { FAILOVER_PROVIDER_ID, OFFICIAL_SOURCE_ID, TAVILY_PLATFORM_ID, TINYFISH_PLATFORM_ID } from './contracts/constants.ts'

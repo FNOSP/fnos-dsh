@@ -110,16 +110,26 @@ verifiedAt: 2026-10-10
 
 | 用例ID | 功能点 | 执行环境 | 结果 | 执行日期 | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| TC-001~005 | FNOS-011-01 | DSH Web（本地单测注入 stat） | 通过 | 2026-10-10 | `packages/dsh-plugin-kit/tests/credential-permission.spec.ts` 12 条：`600`/`644`/`0000`/`400`/`440`/`444`/`700`、ENOENT→absent、非 ENOENT 上抛、文案断言 |
-| TC-006 | FNOS-011-01 | 真实 NAS（ACL 卷现场） | 待执行 | — | 需真实 fnOS 环境 |
-| TC-007~009 | FNOS-011-02 | 真实 NAS | 废弃 | 2026-10-10 | 功能废弃，不再执行 |
-| TC-010~012 | FNOS-011-03 | 真实 NAS | 废弃 | 2026-10-10 | 功能废弃，不再执行 |
-| TC-013（自动化部分） | FNOS-011-04 | DSH Web（本地单测） | 通过 | 2026-10-10 | `plugins/dsh-codebuddy-plugin/tests/storage-file-state.spec.ts` 5 条：absent/600/0000/644 三态 + panelStatus 载荷区分；界面走查与 Desktop 复核待验收 |
-| TC-014 | FNOS-011-04 | DSH Web | 通过（自动化部分） | 2026-10-10 | absent 时 panelStatus 不带 credentialState，与既有形状一致 |
-| TC-015 | FNOS-011-04 | DSH Desktop | 待执行 | — | 需 Desktop 环境 |
-| TC-016 | FNOS-011-05 | 本地源码扫描 | 通过 | 2026-10-10 | `tests/permission-predicate-convergence.spec.ts`：两插件源码剥注释后无 `0o077`/`isOwnerOnly`，均引用共享包 |
-| TC-017 | FNOS-011-05 | 本地单测 | 通过 | 2026-10-10 | 五种输入齐备（见 TC-001~005 备注） |
-| TC-018 | FNOS-011-05 | 本地回归 | 通过 | 2026-10-10 | codebuddy 909 条、codex-auth 137 条全绿 |
+| TC-001 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 本地单测 | 通过 | 2026-10-10 | `packages/dsh-plugin-kit/tests/credential-permission.spec.ts`：`600` 判定为 `usable`，正常路径行为不变 |
+| TC-002 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 本地单测 | 通过 | 2026-10-10 | `0000` 判定为 `unusable`（属主可读位缺失），不再放行——这是本次判定补全的核心用例 |
+| TC-003 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 本地单测 | 通过 | 2026-10-10 | `644` 仍判定为 `unusable`，既有拒绝语义未回退 |
+| TC-004 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 本地单测 | 通过 | 2026-10-10 | `400`（属主只读）判定为 `usable`——属主可读位存在即满足本判定；边界结论已记录 |
+| TC-005 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 本地单测 | 通过 | 2026-10-10 | 文件不存在（`ENOENT`）判定为 `absent`，与 `unusable` 三态可区分；非 `ENOENT` 的 stat 失败照常上抛 |
+| TC-006 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 真实 fnOS NAS | 未执行 | — | ACL 卷现场（共享文件夹 `0000` 经 `cp -p` 复制到 btrfs）需真实 NAS 环境 |
+| TC-007 | [FNOS-011-02](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-02) | — | 未执行 | — | 功能 FNOS-011-02 已废弃（2026-10-10，需修改上游包，不修改官方代码），用例不再执行 |
+| TC-008 | [FNOS-011-02](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-02) | — | 未执行 | — | 随 FNOS-011-02 废弃 |
+| TC-009 | [FNOS-011-02](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-02) | — | 未执行 | — | 随 FNOS-011-02 废弃 |
+| TC-010 | [FNOS-011-03](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-03) | — | 未执行 | — | 功能 FNOS-011-03 随 FNOS-011-02 一并废弃，用例不再执行 |
+| TC-011 | [FNOS-011-03](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-03) | — | 未执行 | — | 随 FNOS-011-03 废弃 |
+| TC-012 | [FNOS-011-03](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-03) | — | 未执行 | — | 随 FNOS-011-03 废弃 |
+| TC-013 | [FNOS-011-04](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) | 本地单测 | 通过 | 2026-10-10 | `plugins/dsh-codebuddy-plugin/tests/storage-file-state.spec.ts`：`0000` 时 `storageFileState()` 返回 `unusable` 且 `panelStatus` 载荷带 `credentialState=unusable`（界面据此显示凭据异常警示块）；**界面实际渲染未经真实异常现场走查**（需临时 `chmod 000` 凭据文件），Web 走查未执行 |
+| TC-014 | [FNOS-011-04](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) | 本地单测 | 通过 | 2026-10-10 | 文件不存在（`absent`）时 `panelStatus` 不带 `credentialState`，与既有形状一致，呈现为普通未登录 |
+| TC-015 | [FNOS-011-04](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) | DSH Desktop | 未执行 | — | Desktop 端两种情形的区分需 DSH Desktop 环境 |
+| TC-016 | [FNOS-011-05](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-05) | 本地测试 | 通过 | 2026-10-10 | `tests/permission-predicate-convergence.spec.ts`：剥注释后扫描两插件源码，无 `0o077`／`isOwnerOnly` 手写判定，均引用 `@tnnevol/dsh-plugin-kit` |
+| TC-017 | [FNOS-011-05](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-05) | 本地单测 | 通过 | 2026-10-10 | 五种输入（`600`／`644`／`0000`／`400`／不存在）齐备且通过；另覆盖 `440`／`444`／`700` 与文案断言 |
+| TC-018 | [FNOS-011-05](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-05) | 本地测试 | 通过 | 2026-10-10 | 接入插件回归：codebuddy 909 条、codex-auth 137 条全绿，`600` 正常路径行为不变 |
+
+环境版本三元组：DSH `0.2.0-rc.2` / 插件（`@tnnevol/dsh-codebuddy` `0.2.0-rc.2.2`、`@tnnevol/dsh-codex-auth` `0.2.0-rc.2.0`）/ 共享包 `@tnnevol/dsh-plugin-kit` `0.1.0`。
 
 ## Bug 记录
 
@@ -129,14 +139,18 @@ verifiedAt: 2026-10-10
 
 ## 测试结论
 
-**自动化部分已通过（2026-10-10），界面走查、真实 NAS 与 Desktop 部分待验收。**
+**整体结论：部分通过（本地自动化已通过，环境类待验收）。**
 
-- FNOS-011-01/04/05 的本地自动化全部通过（共享判定 12 条 + 插件三态 5 条 + 收敛守门 2 条，插件全量 909+137 回归绿）。
-- FNOS-011-02/03 已随功能废弃，对应用例不再执行。
-- 待验收：TC-006（NAS ACL 现场）、TC-013 界面走查与 TC-015（Desktop）。
+- 执行用例总数 **18**，通过 **10**，失败 **0**，未执行 **8**（[TC-006](/tests/FNOS-011-credential-permission-diagnostics)、[TC-007~TC-012](/tests/FNOS-011-credential-permission-diagnostics)、[TC-013](/tests/FNOS-011-credential-permission-diagnostics) 的界面走查部分、[TC-015](/tests/FNOS-011-credential-permission-diagnostics)），遗留 Bug **0**。
+- **FNOS-011-01**（判定补全）：本地自动化通过（TC-001~TC-005）。真实 NAS 的 ACL 卷现场（TC-006）待执行。
+- **FNOS-011-02/03**：功能**已废弃**（2026-10-10 经维护者确认——两者都需影响上游包 `@deepseek-ai/dsh-credentials-local`，不修改官方代码、不做排期）；对应 6 条用例（TC-007~TC-012）不再执行，保留原文与编号供追溯。
+- **FNOS-011-04**（插件区分两态）：判定与载荷由本地单测通过（TC-013/TC-014）。**遗留风险：界面实际渲染未经真实异常现场走查**——`credentialState=unusable` 的警示块渲染与文案只由源码契约与单测覆盖，未在 `chmod 000` 的现场看过；Web 走查与 Desktop（TC-015）均待补。
+- **FNOS-011-05**（判定单点收敛）：源码扫描与回归均通过（TC-016~TC-018）。
+- 待验收清单：[TC-006](/tests/FNOS-011-credential-permission-diagnostics)（NAS ACL 现场）、TC-013 界面走查、[TC-015](/tests/FNOS-011-credential-permission-diagnostics)（Desktop）。
 
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-09 | 初始登记 | 建立 FNOS-011 测试用例文档，覆盖 FNOS-011-01~05 共 18 条用例：判定三态与边界（TC-001~006，含 ACL 卷现场）、可诊断错误与凭据红线（TC-007~009）、降级不退出（TC-010~012）、插件两态区分（TC-013~015，Web/Desktop 双端）、单点收敛（TC-016~018）。现场构造与恢复约定按测试规范执行。 |
+| 2026-10-10 | 执行结果按规范逐条回填 | 原表以「TC-001~005」等区间行合并登记、并使用规范未定义的「废弃」取值，不符合[执行结果表](/charter/tests-spec#执行结果与-bug-记录)要求；改为逐条 6 列（用例ID／功能点／执行环境／结果／执行日期／备注）、结果取值收敛为「通过／失败／阻塞／未执行」，废弃功能对应用例记为「未执行」并在备注说明废弃原因；补环境版本三元组与结论的用例计数。 |

@@ -140,48 +140,74 @@ verifiedAt: 2026-10-10
 
 ### 用例执行记录
 
-> 本地自动化与 DSH Web 走查部分已执行；真实环境类（真实 fnOS NAS、DSH Desktop、npm registry）待验收。用例定义保持原文不改。
+> 按[测试用例文档规范](/charter/tests-spec#执行结果与-bug-记录)逐条回填；结果取值「通过 / 失败 / 阻塞 / 未执行」。
+> 环境版本三元组：DSH `0.2.0-rc.2` / 插件（`@tnnevol/dsh-codebuddy` `0.2.0-rc.2.2`、`@tnnevol/dsh-failover-search` `0.2.0-rc.2.1`、`@tnnevol/dsh-plugin-kit` `0.1.0`）/ 应用 `5.7.0`。
+> 执行载体：DSH Web（`DSH_HOME=<repo>/.dsh`，端口 8070）与本地包级测试。DSH Desktop 与真实 fnOS NAS 未执行，对应项记为「未执行」。
 
-| 用例 | 结果 | 日期 | 证据 |
-| --- | --- | --- | --- |
-| TC-023 | 阻塞→已提前修复 | 2026-10-10 | 修正前 `compatibility.json` 声明 10 个包、实际依赖 16 个；已在提交 `f86a7e7` 补齐并加入守门用例（TC-024）。**但该修正晚于 `v0.2.0-rc.2.1` 发布数十秒，未进入线上包**——故 TC-025 仍待随下次版本发布后核对 |
-| TC-025 | 未通过（基线确认） | 2026-10-10 | 解包 `0.2.0-rc.2.1` 线上产物：其 `compatibility.json` 仍为 10 个包（缺 `dsh-tools`/`dsh-agent`/`dsh-client-ui-conversation`/`dsh-web-fetch-http`）。该结果即本功能的立项依据 |
-| TC-028（自动化部分） | 通过 | 2026-10-10 | `tests/client/toggle-control.spec.ts`（FNOS-012-06）：控件为单个 button（`dsh-failover-pill`）、无 `DshSwitch`/`dsh-failover-toggle` 残留、可见文案固定 `toggleOn`、locales 无「智能搜索已关」 |
-| TC-029（自动化部分） | 通过 | 2026-10-10 | 激活态 `--active` 类独立、样式用 DSH 语义变量、乐观更新 + 失败回滚沿用 |
-| TC-031（自动化部分） | 通过 | 2026-10-10 | button 原生键盘可达、`aria-pressed` + `aria-label` 含状态描述 |
-| TC-030（Web 部分） | 通过 | 2026-10-10 | DSH Web 实测两态取值：亮色激活态 `rgb(228,237,253)`/`rgb(65,118,230)`、普通态 `rgba(0,0,0,0)`/`rgb(97,102,107)`；暗色（`body[data-ds-dark-theme]`）激活态 `rgb(52,65,91)`/`rgb(122,170,255)`、普通态透明底/`rgb(207,211,214)`。均为 DSH 语义变量按主题解析（暗色 token 定义 `deepseek-800`/`deepseek-400`），两态对比清晰。Desktop 待验收 |
-| TC-031（Web 部分） | 通过 | 2026-10-10 | DSH Web 实测：控件为原生 `<button type="button">`，可 `focus()`，`:focus-visible` 焦点环 2px，键盘激活后 `aria-pressed` 由 `false` → `true`；`aria-label` 随状态含「已开启/已关闭」描述。Desktop 待验收 |
-| TC-032 | 待验收 | — | 会话级语义与默认开启：需多会话走查 |
-| TC-033 | 待验收 | — | Desktop 端形态一致性：需 DSH Desktop 走查（项目 `.dsh/profiles/desktop`） |
-| TC-001、TC-003、TC-004、TC-005（Web 走查部分） | 通过 | 2026-10-10 | DSH Web 实测模型选择器模型名带倍速小尾巴（`GLM-5.3-Flash · x0.06`），倍速随目录值展示、请求仍用模型 `id`。TC-002（未披露保持原名）由单测覆盖，TC-006 超长布局待专项构造 |
-| TC-007、TC-009、TC-010（真实服务端部分） | 待验收 | — | 请求头指纹需抓包核对；既有凭据有效性与版本不一致诊断需真实账号场景 |
-| 其余（TC-001~TC-027 本地部分） | 通过 | 2026-10-10 | FNOS-012-01~05 本地自动化全绿（kit 12 / codebuddy 909 / codex-auth 137 / gateway 116 / cli 46）；Registry/Desktop/NAS 部分待验收 |
+| 用例ID | 功能点 | 执行环境 | 结果 | 执行日期 | 备注 |
+| --- | --- | --- | --- | --- | --- |
+| TC-001 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | DSH Web | 通过 | 2026-10-10 | 走查实测模型选择器名称带倍速小尾巴（`GLM-5.3-Flash · x0.06`），值与目录 `credits` 一致；单测 `model-credits-suffix.spec.ts` 同时钉住拼接格式 |
+| TC-002 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 本地单测 | 通过 | 2026-10-10 | `credits` 缺省或空白时保持原名、不加分隔符——由 `model-credits-suffix.spec.ts` 覆盖；真实目录未出现未披露倍速的模型，未走查 |
+| TC-003 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | 本地单测 | 通过 | 2026-10-10 | `credits` 为 `x0.00` 时照常拼接（零倍率是有效事实，与「未披露」区分处理） |
+| TC-004 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | DSH Web + 本地单测 | 通过 | 2026-10-10 | 走查确认倍速随目录值展示；单测断言 `id`／`provider` 未被改写，请求仍用模型 `id`（倍速不参与路由、预算与请求参数） |
+| TC-005 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | DSH Web | 通过 | 2026-10-10 | 倍速仅存在于 `name` 展示字段；走查与单测一致（AC 已随承载方式修订为路由不变性） |
+| TC-006 | [FNOS-012-01](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-01) | — | 未执行 | — | 超长模型名与倍速的布局边界需要专项构造目录数据，本轮未做（P3） |
+| TC-007 | [FNOS-012-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-02) | DSH Web | 通过 | 2026-10-10 | 指纹常量已更新为 CLI `2.163.0`／WorkBuddy `5.77`，由 `client-identity`／`auth-header-parity`／`workbuddy-login`／`login-url` 断言请求头与登录 URL 携带新版本；未做抓包核对（真实请求头由上述单测覆盖拼接逻辑） |
+| TC-008 | [FNOS-012-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-02) | 本地单测 | 通过 | 2026-10-10 | 常量表与指纹断言同步更新；`growth-actions` 三处硬编码改为引用 `CODEBUDDY_CLIENT_VERSIONS`（升级只需改常量一处） |
+| TC-009 | [FNOS-012-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-02) | DSH Web | 通过 | 2026-10-10 | 走查期间既有登录凭据继续有效，未重新登录即完成模型选择与对话（版本更新不影响凭据有效性） |
+| TC-010 | [FNOS-012-02](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-02) | — | 未执行 | — | 「服务端拒绝旧版本指纹时的可诊断结果」需构造旧版本号并依赖真实服务端响应，本轮未做 |
+| TC-011 | [FNOS-012-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-03) | 本地测试 | 通过 | 2026-10-10 | 失效条目被识别（`profile-release-age-heal.spec.ts`）；对真实 profile `.dsh/profiles/web` 实测报出 `@tnnevol/dsh-codebuddy@0.1.7-rc.2` |
+| TC-012 | [FNOS-012-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-03) | 本地测试 | 通过 | 2026-10-10 | 条目有效（版本一致）时不报告、不触发清理；该分支与字段缺失分支各有独立用例 |
+| TC-013 | [FNOS-012-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-03) | 本地测试 | 通过 | 2026-10-10 | profile 无 `minimumReleaseAgeExclude` 字段时跳过全部清理逻辑（desktop profile 实测同样跳过） |
+| TC-014 | [FNOS-012-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-03) | 本地测试 | 通过 | 2026-10-10 | 只删除 `pnpm-lock.yaml` 与 `node_modules` 两个重建产物；对路径名不符的输入 fail-loud 拒绝，`pnpm-workspace.yaml` 字段本身保留不删 |
+| TC-015 | [FNOS-012-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-03) | 本地测试 | 通过 | 2026-10-10 | 清理后以 `--config.minimum-release-age=0` 重装；前哨修复（`install_callback` 调用顺序）已由 `bash -n` 与构建验证 |
+| TC-016 | [FNOS-012-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-03) | 本地测试 | 通过 | 2026-10-10 | 清理范围被实现收敛为「只删 lockfile 与 node_modules」且对路径名 fail-loud；配置与凭据不在删除路径内（未做 hash 级前后比对） |
+| TC-017 | [FNOS-012-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-03) | 本地测试 | 通过 | 2026-10-10 | `install_callback` 中自愈调用位于插件安装之前（源码顺序核对） |
+| TC-018 | [FNOS-012-03](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-03) | 真实 fnOS NAS | 未执行 | — | 真机自愈耗时与日志可理解性需真实 NAS 升级链路 |
+| TC-019 | [FNOS-012-04](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-04) | npm registry | 未执行 | — | 需发布权限（本机 `npm whoami` 返回 401）；校正由发布命令在下次发布时自动执行 |
+| TC-020 | [FNOS-012-04](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-04) | npm registry | 未执行 | — | 依赖 TC-019 完成后的 registry 状态 |
+| TC-021 | [FNOS-012-04](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-04) | 本地单测 | 通过 | 2026-10-10 | 代际判定逻辑由 `publish-latest.spec.ts` 10 条覆盖（新代际动 `latest`、同代际不动、裸上游号不构成代际、离线时 skip）；「真实发布一次后核对 dist-tags」未执行（需发布权限） |
+| TC-022 | [FNOS-012-04](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-04) | 文档站 | 通过 | 2026-10-10 | [发布流程](/build/release) 含「`latest` 由发布命令自动维护」、代际规则、`skip` 情形与 `npm dist-tag add/rm/ls` 应急命令及 registry 全量写备选方式 |
+| TC-023 | [FNOS-012-05](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 本地测试 | 通过 | 2026-10-10 | 仓库内清单与源码 import／peer 集合一致；本轮追加发现并修正：`dsh-failover-search-plugin` 的清单缺 `@deepseek-ai/schemastery`（该包在产物中被外置，属真实运行时依赖），且该插件原先不在守门列表内——一并修复后清单 16 → 17 个包 |
+| TC-024 | [FNOS-012-05](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 本地测试 | 通过 | 2026-10-10 | 变异检验：删除受守门插件清单中的一个包 → 用例失败并指名该包（codebuddy 与 failover-search 均已验证）；**修复前**该用例对 `dsh-failover-search-plugin` 恒真（不在 `pluginDirectories` 内），本轮把该插件纳入守门列表 |
+| TC-025 | [FNOS-012-05](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | npm registry | 失败 | 2026-10-10 | 解包 `0.2.0-rc.2.1` 线上产物：`compatibility.json` 仍为 10 个包（缺 `dsh-tools`/`dsh-agent`/`dsh-client-ui-conversation`/`dsh-web-fetch-http`）。该结果即本功能立项依据；修正需随下次发布进入线上包，届时复验 |
+| TC-026 | [FNOS-012-05](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 文档站 | 通过 | 2026-10-10 | [发布流程](/build/release) 含「发布前复核产物」章节，说明现有两条用例只校验仓库内清单与安装命令、不校验已发布产物，须解包核对 |
+| TC-027 | [FNOS-012-05](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-05) | 本地测试 | 通过 | 2026-10-10 | `keeps every documented install command on the released plugin version` 通过；本轮该用例曾因版本 bump 后 README／插件文档未同步而失败，修正 `docs/plugins/dsh-codebuddy.md` 与插件 README 的安装命令为 `0.2.0-rc.2.2` |
+| TC-028 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web + 本地测试 | 通过 | 2026-10-10 | 走查与 `toggle-control.spec.ts` 一致：控件为单个 `<button>`（`dsh-failover-pill`），可见文案固定「智能搜索」，无 `DshSwitch`／`dsh-failover-toggle` 残留，locales 无「智能搜索已关」 |
+| TC-029 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web + 本地测试 | 通过 | 2026-10-10 | 走查：开启 `aria-pressed=true` 且带 `--active` 类，点击后 `false` 且文案不变，再点回开启；乐观更新与失败回滚分支由测试覆盖 |
+| TC-030 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web（亮／暗） | 通过 | 2026-10-10 | 亮色激活态 `rgb(228,237,253)`／`rgb(65,118,230)`、普通态透明底／`rgb(97,102,107)`；暗色激活态 `rgb(52,65,91)`／`rgb(122,170,255)`、普通态透明底／`rgb(207,211,214)`——均为 DSH 语义变量按主题解析，两态可辨 |
+| TC-031 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web | 通过 | 2026-10-10 | 原生 `<button type="button">` 可聚焦，`:focus-visible` 焦点环 2px，键盘激活后 `aria-pressed` 由 `false` → `true`；`aria-label` 随状态含「已开启／已关闭」 |
+| TC-032 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web | 未执行 | — | 会话级语义与默认开启需多会话切换走查（新会话默认开启已由 FNOS-010-12 覆盖，本轮沿用其结论） |
+| TC-033 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Desktop | 未执行 | — | Desktop 端形态一致性需 DSH Desktop（`fork-pj/deepseek-harness` 开发态，项目 `.dsh/profiles/desktop`） |
 
 ## Bug 记录
 
-| 编号 | 问题 | 影响 | 状态 | 关联用例 | 说明 |
+| Bug ID | 关联用例 | 标题 | 严重级别 | 状态 | 修复说明 |
 | --- | --- | --- | --- | --- | --- |
-| BUG-01 | `compatibility.json` 包清单落后于实际依赖（10 vs 16） | 中 | 源码已修，待随版本发布 | TC-023、TC-025 | 漏声明时「宿主缺包」不被安装期拦下，要到编译或运行才失败。源码修正在 `f86a7e7`，因发布时序未进入 `0.2.0-rc.2.1` |
-| BUG-02 | 发布时序漏网：源码已修但线上包未含 | 中 | 待覆盖（AC-03） | TC-025、TC-026 | 现有两条一致性用例只校验仓库内清单与安装命令，**不校验已发布产物**；发布后源码再改即会漏网。AC-03 与 TC-026 用于约束该路径 |
+| BUG-01 | [TC-023](/tests/FNOS-012-codebuddy-model-speed-and-client-version)、[TC-025](/tests/FNOS-012-codebuddy-model-speed-and-client-version) | `compatibility.json` 包清单落后于实际依赖（10 vs 16） | P1 | 已修复（源码） | 漏声明时「宿主缺包」不被安装期拦下，要到编译或运行才失败。源码修正在 `f86a7e7`，因发布时序未进入 `0.2.0-rc.2.1`；线上包复验见 TC-025 |
+| BUG-02 | [TC-025](/tests/FNOS-012-codebuddy-model-speed-and-client-version)、[TC-026](/tests/FNOS-012-codebuddy-model-speed-and-client-version) | 发布时序漏网：源码已修但线上包未含 | P2 | 处理中 | 现有两条一致性用例只校验仓库内清单与安装命令，**不校验已发布产物**；发布后源码再改即会漏网。AC-03 与 TC-026 用于约束该路径 |
+| BUG-03 | [TC-024](/tests/FNOS-012-codebuddy-model-speed-and-client-version) | 清单一致性守门对 `dsh-failover-search-plugin` 恒真，且该插件清单缺 `schemastery` | P1 | 已修复源码（待随下次版本发布进入线上包） | 两层缺陷叠加：① 该插件不在守门用例的 `pluginDirectories` 内，删除其清单条目用例仍通过（变异检验确认）；② 守门正则只采集 `@deepseek-ai/dsh-*`，而 `@deepseek-ai/schemastery` 是该断言显式追踪的例外，导致该包永远进不了 `sourcePackages`、相应断言对任何声明它的插件都无法满足。修复：插件纳入守门列表、正则补 `schemastery`、清单补该包（16 → 17），并以变异检验确认两条路径均有牙齿。与 BUG-01 同因：修复在源码侧完成，需随下次插件版本发布才进入线上包（当前插件版本保持不变，不属本轮的发布动作）。**讽刺之处**：该守门用例正是 FNOS-012-05 为解决同类缺口而新增的，却漏掉了立项所针对的那个插件 |
 
 ## 测试结论
 
-**整体结论：未执行（需求处于规划中）。**
+**整体结论：部分通过（本地自动化与 DSH Web 走查已通过，环境类待验收）。**
 
-- FNOS-012-01 至 05 的用例表已按[测试用例文档规范](/charter/tests-spec#固定章节)建立，每个功能点覆盖正向、逆向、边界、权限（或生命周期）、数据一致性五类中的适用维度：
-  - **正向**：TC-001、TC-003、TC-007、TC-011、TC-019、TC-023；
-  - **逆向**：TC-002（不编造数值）、TC-010（版本不一致）、TC-015（拦截不再出现）、TC-025（线上包核对）；
-  - **边界**：TC-006（超长布局）、TC-013（无字段）、TC-014（字段保留）；
-  - **权限 / 生命周期**：TC-016（清理不触碰凭据）、TC-018（NAS 耗时与降级）、TC-021/TC-022（发布权限与流程约定）；
-  - **数据一致性**：TC-004（倍速不改行为）、TC-012（条目有效不清理）、TC-027（安装命令与发布版本一致）。
-- **唯一已实测的功能是 FNOS-012-05**：其缺口（清单落后 + 发布时序漏网）已在 FNOS-010 的发布验收过程中被发现并登记，源码修正与守门用例已完成，线上包待随版本发布核对（TC-025）。
-- **遗留风险**：
-  - 发布类用例（TC-019–TC-022、TC-025）依赖 npm 发布权限；当前环境 `npm whoami` 曾返回 401，执行前需 `npm login`，无权限时标记「阻塞」。
-  - FNOS-012-03 的自愈涉及删除 lockfile 与 `node_modules`：本地与 NAS 验证都必须先备份用户配置与凭据，TC-016 的 hash 比对是防数据丢失的关键断言，不可省略。
-  - FNOS-012-01 的倍速字段依赖 CodeBuddy 服务端目录返回 `credits`；目录契约变更时该字段可能缺失，属外部依赖风险，用例 TC-002 已覆盖「缺失时不编造」的降级路径。
+- 执行用例总数 **33**，通过 **25**，失败 **1**（[TC-025](/tests/FNOS-012-codebuddy-model-speed-and-client-version)，基线确认：线上包清单仍为旧值，即本功能立项依据），未执行 **7**（[TC-006](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 超长布局、[TC-010](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 旧指纹诊断、[TC-018](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 真实 NAS 自愈、[TC-019](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 与 [TC-020](/tests/FNOS-012-codebuddy-model-speed-and-client-version) registry 侧核对、[TC-032](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 多会话语义、[TC-033](/tests/FNOS-012-codebuddy-model-speed-and-client-version) Desktop 一致性），遗留 Bug **3**（BUG-01 已修复源码待随版本发布、BUG-02 处理中、BUG-03 已修复）。
+- **FNOS-012-01**（倍速名称小尾巴）：单测三态与 DSH Web 走查通过（TC-001~TC-005）；超长布局边界（TC-006）未执行。
+- **FNOS-012-02**（版本指纹）：常量与请求头拼接由 5 个测试文件断言通过（TC-007/TC-008），既有凭据在走查中继续有效（TC-009）；「服务端拒绝旧指纹的诊断」（TC-010）未执行。
+- **FNOS-012-03**（profile 自愈）：检测分支对真实 profile 实测报出 `@tnnevol/dsh-codebuddy@0.1.7-rc.2`，有效条目／字段缺失／路径守卫分支各有用例（TC-011~TC-017）；真实 NAS 耗时与日志可理解性（TC-018）未执行。
+- **FNOS-012-04**（latest 维护）：代际判定由 10 条纯函数单测覆盖、文档约定已落（TC-021/TC-022）；registry 侧核对（TC-019/TC-020）**因当前无发布权限未执行**（`npm whoami` 返回 401），校正将由发布命令在下次发布时自动生效。
+- **FNOS-012-05**（发布产物完整性）：TC-023/TC-024/TC-026/TC-027 通过——**其中 TC-024 的守门用例在执行中发现对 `dsh-failover-search-plugin` 恒真**（该插件不在 `pluginDirectories` 内），已把该插件纳入守门并修正正则对 `@deepseek-ai/schemastery` 的采集遗漏，随后变异检验确认两条路径都有牙齿；TC-025 失败即基线，需随下次发布复验。
+- **FNOS-012-06**（药丸按钮）：DSH Web 亮／暗两态与键盘可达实测通过（TC-028~TC-031）；多会话语义（TC-032）与 Desktop 一致性（TC-033）未执行。
+- 遗留风险：
+  - **FNOS-012-04 的 registry 侧未验证**：`latest` 校正逻辑只在单测层验证，未对真实 registry 生效核对；在具备发布权限前，`npm i @tnnevol/<插件>` 仍可能装到早期版本。
+  - **FNOS-012-05 的线上包仍为旧清单**：源码修正（16 → 17 个包，含本轮发现的 `schemastery`）尚未随版本发布；用户侧兼容门禁提示会继续按旧清单显示。
+  - 版本指纹更新（`2.163.0`／`5.77`）依赖真实服务端接受度，仅在请求头拼接层验证，未做真实服务端回归。
+- 测试数据清理：本轮走查使用项目 profile `.dsh/profiles/web` 的既有登录态，未新增测试账号，无待清理数据。
 
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-10 | 新增 FNOS-012-06 用例 | 智能搜索控件改为药丸按钮：TC-028~TC-033 覆盖形态、激活/普通两态、亮暗主题可辨、键盘可达与会话级语义回归（沿用 FNOS-012-06 行为约束——仅改视觉，不改 FNOS-010-12 行为）；测试范围与环境同步到 06。 |
+| 2026-10-10 | 执行结果按规范逐条回填 | 原表以区间行合并登记、使用规范未定义的取值（如「阻塞→已提前修复」「待验收」），且表头为 4 列；改为逐条 6 列、结果取值收敛为「通过／失败／阻塞／未执行」，补环境版本三元组、结论的用例计数，并把 TC-024 守门用例对本插件恒真的发现登记为 BUG-01。 |

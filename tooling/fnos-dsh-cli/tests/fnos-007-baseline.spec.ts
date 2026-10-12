@@ -3,9 +3,14 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const targetVersion = '0.2.0-rc.2'
+// 覆盖面刻意含 dsh-failover-search-plugin：本列表被多个仓库级守卫共用
+// （基线、清单一致性、catalog 声明）。漏掉它曾使该插件的
+// compatibility.json 清单无人守门——FNOS-012-05 立项的正是这个缺口，
+// 而当时的守卫在变异检验下对该插件「恒真」。
 const pluginDirectories = [
   'dsh-codebuddy-plugin',
   'dsh-codex-auth-plugin',
+  'dsh-failover-search-plugin',
   'dsh-fnos-plugin',
   'dsh-semi-ui-showcase-plugin',
 ]
@@ -290,7 +295,11 @@ describe('FNOS-007 DSH baseline', () => {
           if (entry.isDirectory()) await visit(path)
           else if (/\.(?:ts|tsx)$/u.test(entry.name)) {
             const source = await readFile(path, 'utf8')
-            for (const match of source.matchAll(/(?:from|import\()\s*['"](@deepseek-ai\/(dsh-[^/'"]+))[^'"]*['"]/gu)) sourcePackages.add(match[1]!)
+            // 采集面必须与下面 peerPackages 的过滤条件一致：除 `@deepseek-ai/dsh-*`
+            // 外还含 `@deepseek-ai/schemastery`。只匹配 dsh-* 会让 schemastery 永远
+            // 进不了 sourcePackages，导致「peer 必须被源码引用」这条断言对任何把
+            // schemastery 声明为 peer 的插件恒假（FNOS-012-05 的同类缺口）。
+            for (const match of source.matchAll(/(?:from|import\()\s*['"](@deepseek-ai\/(?:dsh-[^/'"]+|schemastery))[^'"]*['"]/gu)) sourcePackages.add(match[1]!)
           }
         }
       }
