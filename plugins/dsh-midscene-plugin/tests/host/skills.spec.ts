@@ -130,21 +130,50 @@ describe('createBundledSkillProvider', () => {
 })
 
 describe('包内技能资产（AC-02）', () => {
-  it('内置 browser-automation 技能与官方内容一致', async () => {
+  it('内置 browser-automation 技能保留官方操作指令', async () => {
     const root = bundledSkillsDir()
     const candidates = await listBundledSkills(root)
     expect(candidates.map(candidate => candidate.name)).toEqual(['browser-automation'])
     const definition = await loadBundledSkill(root, candidates[0]!)
     // 抽查官方内容特征：技能靠 npx @midscene/web 驱动，且指令里要求同步执行。
+    // 本地补丁只动「模型来源」，这些操作指令必须原样保留。
     expect(definition?.content).toContain('@midscene/web')
     expect(definition?.content).toContain('Never run midscene commands in the background')
+    expect(definition?.content).toContain('### Mode Selection Guide')
   })
 
-  it('来源标注文件存在且登记上游提交与许可', async () => {
+  it('模型来源已改为桥接服务，不再要求第三方 API key（FNOS-013-05 定位）', async () => {
+    const root = bundledSkillsDir()
+    const candidates = await listBundledSkills(root)
+    const definition = await loadBundledSkill(root, candidates[0]!)
+    const content = definition?.content ?? ''
+    // 插件存在的意义就是让 Midscene 用 DSH 的模型：技能不该再教 agent 去要 key。
+    expect(content).toContain('do not ask the user for API keys')
+    expect(content).toContain('http://127.0.0.1:8787/v1/midscene-env')
+    // 上游原文里的第三方服务商示例必须已清除，否则 agent 会照抄去配 Gemini/豆包。
+    for (const leaked of [
+      'your-google-api-key',
+      'your-aliyun-api-key',
+      'your-doubao-api-key',
+      'your-openrouter-api-key',
+      'generativelanguage.googleapis.com',
+      'dashscope.aliyuncs.com',
+      'ark.cn-beijing.volces.com',
+      'If the model is not configured, ask the user to set it up',
+    ]) {
+      expect(content, leaked).not.toContain(leaked)
+    }
+  })
+
+  it('来源标注文件存在且登记上游提交、许可与本地改动点', async () => {
     const source = await import('node:fs/promises').then(async fs => fs.readFile(join(bundledSkillsDir(), 'SOURCE.md'), 'utf8'))
     expect(source).toContain('web-infra-dev/midscene-skills')
     expect(source).toContain('dec1d1c55252ecb1a90c4ecbcfd0d2cb3ce0ac7b')
     expect(source).toContain('MIT')
+    // 本地对官方原文做了「模型来源」补丁，必须如实登记改动点与重新施加步骤，
+    // 否则上游同步时会把第三方 key 配置带回来。
+    expect(source).toContain('本地改动')
+    expect(source).toContain('重新施加')
   })
 
   it('只内置 Web 场景技能，不含未承诺的平台技能', async () => {

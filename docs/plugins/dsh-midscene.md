@@ -21,6 +21,7 @@ dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.0-rc.2.0
 | 端点 | 用途 |
 | --- | --- |
 | `GET /v1/models` | 模型目录：DSH 当前全部可用模型，标识为「提供方/模型」形式 |
+| `GET /v1/midscene-env` | **生成接入配置**：直接给出可写入 `.env` 的四行变量（`?model=` 指定模型，省略则自动挑一个具备图片能力的） |
 | `POST /v1/chat/completions` | 对话补全：流式（SSE）与非流式 |
 | `GET /v1/health` | 健康检查：提供方列表、模型数量、附件服务可用性 |
 
@@ -43,11 +44,22 @@ curl -s http://127.0.0.1:8787/v1/health
 
 ## 接入 Midscene
 
-### 1. 写接入配置
+**不需要准备任何模型 API key。** 插件的存在意义就是让 Midscene 用 DSH 已经配好的模型：凭据在 DSH 的提供方插件里，桥不接触、也不转发。
 
-在**运行 Midscene 命令的工作目录**放一个 `.env`（Midscene 会自动加载当前目录的 `.env`）：
+Midscene 强制要求四个模型环境变量（其中 `MIDSCENE_MODEL_FAMILY` 决定它的提示词模板与坐标解析协议）。插件知道 DSH 里有哪些模型，因此**直接替你算好这份配置**。
+
+### 一条命令生成接入配置
+
+在**运行 Midscene 命令的工作目录**执行（Midscene 只加载当前目录的 `.env`）：
 
 ```sh
+curl -s http://127.0.0.1:8787/v1/midscene-env | python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" >.env
+```
+
+得到的 `.env`：
+
+```sh
+# DSH Midscene Bridge 接入配置（由插件生成，无需填入任何真实密钥）
 MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"
 MIDSCENE_MODEL_API_KEY="local-bridge"
 MIDSCENE_MODEL_NAME="codebuddy/glm-5.3-flash"
@@ -56,22 +68,42 @@ MIDSCENE_MODEL_FAMILY="glm-v"
 
 | 变量 | 说明 |
 | --- | --- |
-| `MIDSCENE_MODEL_BASE_URL` | 固定指向本地桥；不要带尾斜杠以外的路径 |
-| `MIDSCENE_MODEL_API_KEY` | 占位值即可。桥不做鉴权（回环绑定 + 本机使用），**不要**填任何真实密钥——填了也不会被转发 |
-| `MIDSCENE_MODEL_NAME` | 「提供方/模型」形式，从 `curl -s http://127.0.0.1:8787/v1/models` 里选 |
-| `MIDSCENE_MODEL_FAMILY` | 随所选模型确定，取值见 [Midscene 模型配置](https://midscenejs.com/zh/model-common-config) |
+| `MIDSCENE_MODEL_BASE_URL` | 固定指向本地桥 |
+| `MIDSCENE_MODEL_API_KEY` | **占位值**。桥不做鉴权（回环绑定 + 本机使用），填真实密钥也不会被转发 |
+| `MIDSCENE_MODEL_NAME` | 「提供方/模型」形式（DSH 的模型标识），不是厂商模型名 |
+| `MIDSCENE_MODEL_FAMILY` | 由插件按模型 id 推断（如 `glm-5.3` → `glm-v`、`gpt-6-luna` → `gpt-6`、`deepseek-flash` → `deepseek`） |
 
-> **该文件含占位密钥但不含真实凭据**，仍建议放在不入版本管理的位置（如工作区的 `.env`，并确认 `.gitignore` 覆盖它）。
+> 该文件只含占位值，仍建议放在不入版本管理的位置并确认 `.gitignore` 覆盖它。
 
-### 2. 选模型
+### 选模型
+
+不指定模型时，插件自动挑一个**具备图片能力且家族可推断**的模型：
 
 ```sh
-curl -s http://127.0.0.1:8787/v1/models | python3 -m json.tool | head -30
+curl -s http://127.0.0.1:8787/v1/models | python3 -c "
+import json,sys
+for m in json.load(sys.stdin)['data']:
+    print(('IMG ' if m.get('vision') else '    ') + m['id'])
+"
 ```
 
-每条模型带 `vision` 字段：`true` 表示具备图片输入能力。**Midscene 建议选 `vision: true` 的模型**——它靠截图理解页面，文本模型无法定位元素。
+**只有标记 `IMG`（`vision: true`）的模型能驱动 Midscene**——它靠截图理解页面，需要图片输入。
 
-### 3. 跑一条命令
+指定模型时用 `?model=`，返回里会带上该模型的家族与同能力的备选模型：
+
+```sh
+curl -s "http://127.0.0.1:8787/v1/midscene-env?model=codebuddy/glm-5.3-flash"
+```
+
+#### 关于 `MIDSCENE_MODEL_FAMILY`
+
+插件按模型 id 推断家族，覆盖 Midscene 官方支持的主要系列（豆包 Seed、Qwen、智谱 GLM、Gemini、GPT、DeepSeek、Kimi、MiMo、UI-TARS）。
+
+- **推断不出来时不写入该变量**，并在响应里给出 `familyWarning`。这是刻意的保守行为：错的 family 会让坐标定位**静默失准**，比缺值更难排查。
+- 遇到 `familyWarning` 时：换一个已知系列的模型（如目录里的 GLM / DeepSeek / GPT / Kimi 系列），或到 [Midscene 模型配置](https://midscenejs.com/zh/model-common-config)查该模型对应的家族值手动补上。
+- 部分内部代号模型（如 CodeBuddy 的 `hy3`、`space-bunny`、`minimax-m3`）不在 Midscene 官方家族列表内，插件不会替它们猜家族。
+
+### 跑一条命令
 
 ```sh
 npx -y @midscene/web@1 connect --url https://example.com
@@ -115,6 +147,7 @@ Midscene 的三种运行方式读取**同一套模型环境变量**，接入配�
 | 模型家族不匹配 / 定位不准 | `MIDSCENE_MODEL_FAMILY` 与所选模型不符。核对 Midscene 的模型家族取值；也可用 Midscene 的 `--deep-locate` 提升定位精度 |
 | 图片请求被拒（400） | 所选模型不具备图片输入能力。改用 `/v1/models` 里 `vision: true` 的模型 |
 | 技能目录里看不到 `browser-automation` | 插件未启用或未安装。确认插件管理页里本插件为启用状态并重启 DSH；若你自己装过同名技能，以你的版本为准 |
+| 响应里有 `familyWarning` | 所选模型未匹配到 Midscene 已知家族，配置里没有 `MIDSCENE_MODEL_FAMILY`。换一个已知系列的模型，或按官方文档手动补该值 |
 | npm 权限报错 | `npx` 首次运行需要写 npm 缓存目录。按系统提示修正 `~/.npm` 权限，或设置 `npm_config_cache` 指向可写目录 |
 
 ## 隐私与边界
@@ -135,6 +168,10 @@ Midscene 的三种运行方式读取**同一套模型环境变量**，接入配�
 | `defaultProvider` | 空 | 裸模型名（不含 `/`）的默认提供方；留空时只接受「提供方/模型」形式 |
 | `requestTimeoutMs` | `300000` | 单次模型请求超时（毫秒）；`0` 表示不超时 |
 | `logRequests` | `true` | 是否记录每次请求的一行摘要日志 |
+
+## 接入配置由插件生成
+
+`/v1/midscene-env` 生成的配置在每次请求时按当前模型目录实时计算——新增提供方、换模型后重新拉一次即可，不需要记忆任何变量取值，也不需要为任何模型准备密钥。
 
 ## 图标来源
 

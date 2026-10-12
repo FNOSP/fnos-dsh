@@ -18,6 +18,9 @@ description: |
   - Connect to user's Chrome browser, control my browser, operate my Chrome
 
   Powered by Midscene.js (https://midscenejs.com)
+
+  Model access is provided by the DSH Midscene Bridge (local, no API key needed) — never ask
+  the user for a model API key or configure a third-party model provider for this skill.
 allowed-tools:
   - Bash
 ---
@@ -66,52 +69,86 @@ curl -s --max-time 2 -o /dev/null -w "%{http_code}" -H "Upgrade: websocket" -H "
 
 > **Bridge mode has no usable precheck.** Despite port 3766 being involved, the bridge server is started **by the CLI** (`npx ... --bridge connect` opens 3766 itself); the extension is the **client** that hooks in. Checking 3766 before the CLI runs always returns nothing. Just run `--bridge connect` directly — its first log line (`waiting for bridge to connect...` → `one client connected`) tells you whether the extension picked it up.
 
-## Prerequisites
+## Prerequisites (provided by DSH — do not ask the user for API keys)
 
-Midscene requires models with strong visual grounding capabilities. The following environment variables must be configured — either as system environment variables or in a `.env` file in the current working directory (Midscene loads `.env` automatically):
+**This skill runs behind the DSH Midscene Bridge.** The bridge is a local OpenAI-compatible
+endpoint hosted by the `@tnnevol/dsh-midscene` DSH plugin. Every model already configured in
+DSH (DeepSeek, CodeBuddy, Codex, custom endpoints) is reachable through it.
 
-```bash
-MIDSCENE_MODEL_API_KEY="your-api-key"
-MIDSCENE_MODEL_NAME="model-name"
-MIDSCENE_MODEL_BASE_URL="https://..."
-MIDSCENE_MODEL_FAMILY="family-identifier"
-```
+> **Do not ask the user for a model API key, and do not configure a third-party provider.**
+> The whole point of this setup is that Midscene uses the models DSH already has — credentials
+> live inside DSH provider plugins and are never handed to Midscene or to you.
 
-Example: Gemini (Gemini-3-Flash)
-
-```bash
-MIDSCENE_MODEL_API_KEY="your-google-api-key"
-MIDSCENE_MODEL_NAME="gemini-3-flash"
-MIDSCENE_MODEL_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/"
-MIDSCENE_MODEL_FAMILY="gemini"
-```
-
-Example: Qwen 3.5
+### Step 1 — Confirm the bridge is up
 
 ```bash
-MIDSCENE_MODEL_API_KEY="your-aliyun-api-key"
-MIDSCENE_MODEL_NAME="qwen3.5-plus"
-MIDSCENE_MODEL_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
-MIDSCENE_MODEL_FAMILY="qwen3.5"
-MIDSCENE_MODEL_REASONING_ENABLED="false"
-# If using OpenRouter, set:
-# MIDSCENE_MODEL_API_KEY="your-openrouter-api-key"
-# MIDSCENE_MODEL_NAME="qwen/qwen3.5-plus"
-# MIDSCENE_MODEL_BASE_URL="https://openrouter.ai/api/v1"
+curl -s http://127.0.0.1:8787/v1/health
 ```
 
-Example: Doubao Seed 2.0 Lite
+Expect `{"status":"ok", "providers":[…], "models":N, "attachments":true}`.
+
+If this fails, the DSH plugin is not running: tell the user to enable `@tnnevol/dsh-midscene`
+in the DSH plugin manager and restart DSH Web. **Do not** fall back to configuring an external
+model provider — that is not a supported path for this environment.
+
+### Step 2 — Get the ready-made `.env`
+
+The bridge generates the exact model configuration for you. Run this **in the working
+directory where you will launch Midscene** — Midscene loads `.env` from its current directory:
 
 ```bash
-MIDSCENE_MODEL_API_KEY="your-doubao-api-key"
-MIDSCENE_MODEL_NAME="doubao-seed-2-0-lite"
-MIDSCENE_MODEL_BASE_URL="https://ark.cn-beijing.volces.com/api/v3"
-MIDSCENE_MODEL_FAMILY="doubao-seed"
+curl -s http://127.0.0.1:8787/v1/midscene-env > /dev/null  # inspect first if you like
+curl -s http://127.0.0.1:8787/v1/midscene-env | python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" > .env
 ```
 
-Commonly used models: Doubao Seed 2.0 Lite, Qwen 3.5, Zhipu GLM-4.6V, Gemini-3-Pro, Gemini-3-Flash.
+That writes four variables — nothing to look up, nothing secret:
 
-If the model is not configured, ask the user to set it up. See [Model Configuration](https://midscenejs.com/model-common-config) for supported providers.
+```bash
+MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"
+MIDSCENE_MODEL_API_KEY="local-bridge"
+MIDSCENE_MODEL_NAME="codebuddy/glm-5.3-flash"
+MIDSCENE_MODEL_FAMILY="glm-v"
+```
+
+- `MIDSCENE_MODEL_API_KEY` is a **placeholder**. The bridge has no auth (loopback + local use)
+  and forwards no credentials. Never put a real key here.
+- `MIDSCENE_MODEL_NAME` is a `provider/model` id from DSH, not a vendor model name.
+- `MIDSCENE_MODEL_FAMILY` decides which prompt template and coordinate protocol Midscene uses.
+  The bridge infers it from the model id. If the response carries a `familyWarning`, the model
+  did not match a known family — pick a different one (see next step) rather than guessing,
+  because a wrong family makes visual grounding silently inaccurate.
+
+### Step 3 — Pick a model (use the bridge's own list)
+
+```bash
+curl -s http://127.0.0.1:8787/v1/models | python3 -c "
+import json,sys
+for m in json.load(sys.stdin)['data']:
+    print(('IMG ' if m.get('vision') else '    ') + m['id'])
+"
+```
+
+**Only models marked `IMG` (i.e. `vision: true`) can drive Midscene** — it understands pages
+from screenshots and needs image input. Prefer models from a family Midscene officially
+supports (Doubao Seed, Qwen, GLM-V, Gemini, GPT, DeepSeek, Kimi, MiMo, UI-TARS).
+
+To switch models, ask the bridge for the config of a specific one — this also restates the
+inferred family and lists same-capability alternatives:
+
+```bash
+curl -s "http://127.0.0.1:8787/v1/midscene-env?model=codebuddy/glm-5.3-flash"
+```
+
+`deepseek-official/*` requires a DEEPSEEK_API_KEY in DSH; if a model's provider is not
+configured, the bridge returns a `MISSING_CREDENTIAL` error naming the provider — report that
+to the user instead of trying to configure credentials yourself.
+
+### If the bridge and model are not usable
+
+Do not silently switch to another model provider. Report the concrete blocker to the user:
+bridge not running, no `vision: true` model available, provider missing credentials, or quota
+exhausted. See [Model Configuration](https://midscenejs.com/model-common-config) only for
+background on `MIDSCENE_MODEL_FAMILY` values.
 
 ## CDP Mode (Connect to Existing Browser)
 
@@ -393,9 +430,20 @@ In CDP or Bridge mode, keep your usual `--cdp` / `--bridge` flags alongside thes
 - Ensure Chrome/Chromium is installed on the system (Puppeteer downloads its own by default).
 - Check that no firewall blocks local Chrome debugging ports.
 
-### API Key Errors
-- Check `.env` file contains `MIDSCENE_MODEL_API_KEY=<your-key>`.
-- Verify the key is valid for the configured model provider.
+### Model / Configuration Errors (behind the DSH bridge)
+- `MIDSCENE_MODEL_API_KEY` is a placeholder (`local-bridge`) and never needs a real value.
+  If you are being asked for a key, something is off: the bridge is not being used.
+- Connection refused / `ECONNREFUSED` on the model endpoint → the bridge is not running.
+  Check `curl -s http://127.0.0.1:8787/v1/health`, then ask the user to enable
+  `@tnnevol/dsh-midscene` and restart DSH Web.
+- `MISSING_CREDENTIAL` (from the bridge) → that DSH provider is not configured. Report the
+  named `provider/model` to the user; do not configure credentials yourself.
+- `QUOTA` / `ACCOUNT_QUOTA` → the DSH provider is out of quota. Switch to another
+  `vision: true` model from `/v1/models` or report it.
+- Model listed but wrong element targeting → `MIDSCENE_MODEL_FAMILY` does not match the model.
+  Re-fetch the config from `/v1/midscene-env?model=…`, and prefer an officially supported
+  family. `--deep-locate` also helps.
+- Image input rejected (400) → the chosen model has no vision capability. Pick an `IMG` model.
 
 ### Timeouts
 - Web pages may take time to load. After connecting, take a screenshot to verify readiness before interacting.

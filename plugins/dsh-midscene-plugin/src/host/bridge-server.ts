@@ -14,6 +14,7 @@ import type { GenerateOptions, LlmRuntime } from '@deepseek-ai/dsh-llm'
 import { BRIDGE_HOST, OPENAI_API_PREFIX, type BridgeConfig } from '../contracts/config.ts'
 import { resolveModelName } from '../contracts/model-name.ts'
 import { buildCatalog, type ModelCatalogSnapshot } from './catalog.ts'
+import { buildMidsceneEnv, pickDefaultModel } from './midscene-env.ts'
 import { convertMessages, convertTools, RequestConversionError } from './convert.ts'
 import { aggregateStream, makeChunk, sseLine, toFinishReason, toOpenAiError } from './stream.ts'
 
@@ -132,6 +133,9 @@ function sendJson(response: ServerResponse, status: number, body: unknown): void
  * 此时流里没有文本产出。若把它当作正常结束，客户端会看到「成功的空回答」，
  * 真实原因彻底消失（FNOS-013-04-AC-04 要避免的正是这种不可诊断）。
  * @param failure - 宿主给出的失败详情。
+ * @param failure.message - 提供方给出的可读原因。
+ * @param failure.code - 稳定错误码。
+ * @param failure.status - 提供方返回的 HTTP 状态（有则优先采用）。
  * @param attribution - 「提供方/模型」归因。
  * @returns 标准错误映射结果。
  */
@@ -272,12 +276,55 @@ export class BridgeServer {
         })
         return
       }
+      // 接入配置：Midscene 强制要求四个模型环境变量，而用户不该为此去查官方
+      // 文档、更不该准备任何第三方密钥。桥知道 DSH 里有哪些模型，因此直接把
+      // 可用配置算出来——`?model=` 指定模型，省略时自动挑一个具备图片能力的。
+      if (request.method === 'GET' && path === `${OPENAI_API_PREFIX}/midscene-env`) {
+        const snapshot = await this.catalog.get()
+        const requested = url.searchParams.get('model')
+        const chosen = requested === null
+          ? pickDefaultModel(snapshot.entries)
+          : snapshot.entries.find(entry => entry.id === requested)
+              ?? (() => {
+                // 允许用裸模型名（配合 defaultProvider 的语义）指定。
+                const resolved = resolveModelName(requested, snapshot.providers, this.deps.config.defaultProvider)
+                return resolved === undefined
+                  ? undefined
+                  : snapshot.entries.find(entry => entry.id === `${resolved.provider}/${resolved.model}`)
+              })()
+        if (chosen === undefined) {
+          throw new RequestConversionError(
+            requested === null
+              ? `no model available in the catalog; configure a provider in DSH first`
+              : `model "${requested}" is not in the catalog; list ${OPENAI_API_PREFIX}/models for valid ids`,
+            400,
+            'invalid_request_error',
+          )
+        }
+        const env = buildMidsceneEnv({
+          baseUrl: `http://${BRIDGE_HOST}:${this.deps.config.port}${OPENAI_API_PREFIX}`,
+          model: { id: chosen.id, name: chosen.name },
+        })
+        sendJson(response, 200, {
+          model: chosen.id,
+          vision: chosen.vision === true,
+          variables: env.variables,
+          content: env.content,
+          ...env.familyWarning === undefined ? {} : { familyWarning: env.familyWarning },
+          // 备用模型：同系列里其它具备图片能力的选项，便于换一个再试。
+          alternatives: snapshot.entries
+            .filter(entry => entry.vision === true && entry.id !== chosen.id)
+            .slice(0, 10)
+            .map(entry => entry.id),
+        })
+        return
+      }
       if (request.method === 'POST' && path === `${OPENAI_API_PREFIX}/chat/completions`) {
         await this.#chatCompletions(request, response)
         return
       }
       sendJson(response, 404, {
-        error: { message: `unknown endpoint ${path}; available: ${OPENAI_API_PREFIX}/models, ${OPENAI_API_PREFIX}/chat/completions, ${OPENAI_API_PREFIX}/health`, type: 'invalid_request_error', code: null },
+        error: { message: `unknown endpoint ${path}; available: ${OPENAI_API_PREFIX}/models, ${OPENAI_API_PREFIX}/chat/completions, ${OPENAI_API_PREFIX}/midscene-env, ${OPENAI_API_PREFIX}/health`, type: 'invalid_request_error', code: null },
       })
     } catch (error) {
       sendError(response, error)

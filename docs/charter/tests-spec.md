@@ -196,14 +196,14 @@ Midscene 用自然语言驱动浏览器完成「打开页面 → 交互 → 断�
    ```sh
    curl -s http://127.0.0.1:8787/v1/health
    ```
-2. 运行 Midscene 的工作目录有 `.env` 接入配置（[模板见插件说明页](/plugins/dsh-midscene#接入-midscene)）：
+2. 运行 Midscene 的工作目录有一份接入配置，**由插件生成、不需要任何模型密钥**（[详见插件说明页](/plugins/dsh-midscene#接入-midscene)）：
    ```sh
-   MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"
-   MIDSCENE_MODEL_API_KEY="local-bridge"
-   MIDSCENE_MODEL_NAME="codebuddy/glm-5.3-flash"
-   MIDSCENE_MODEL_FAMILY="glm-v"
+   # 在即将运行 Midscene 的目录执行；插件会算好四个变量
+   curl -s http://127.0.0.1:8787/v1/midscene-env \
+     | python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" > .env
    ```
-3. 选 `vision: true` 的模型（`curl -s http://127.0.0.1:8787/v1/models` 查看）——Midscene 靠截图理解页面，文本模型无法定位元素。
+   生成的 `MIDSCENE_MODEL_API_KEY` 是占位值（桥不做鉴权、不转发凭据）；模型来自 DSH 已配置的提供方，因此**不要**为 Midscene 准备第三方 API key。
+3. 模型必须 `vision: true`（`curl -s http://127.0.0.1:8787/v1/models`，或让插件自动挑：不传 `?model=` 时它优先选「有图片能力且家族可推断」的模型）——Midscene 靠截图理解页面。若响应带 `familyWarning`，该模型未匹配到 Midscene 已知家族，应按插件说明页的指引换模型或补 `MIDSCENE_MODEL_FAMILY`。
 
 #### 三类被测环境的接入方式
 
@@ -408,3 +408,4 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 - [计划文档规范](./plans-spec)
 - [Midscene Bridge 插件](/plugins/dsh-midscene)——Midscene 浏览器自动化的桥接服务与接入配置
 - [验收证据规范](../validation/README.md)
+| 2026-10-12 | Midscene 章节改为「桥接服务零配置」 | 原章节要求用户手写四个 `MIDSCENE_MODEL_*` 变量并自行确定家族值，与插件定位（让 Midscene 用 DSH 已有的模型、用户不需要任何第三方密钥）冲突。改为：接入配置由 `/v1/midscene-env` 生成（一条命令），模型自动挑选（优先有图片能力且家族可推断者），并说明 `familyWarning` 的含义与处理。 |
