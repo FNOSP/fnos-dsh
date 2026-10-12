@@ -4,6 +4,7 @@ import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { GenerateOptions, LlmModelInfo, LlmRuntime, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { BridgePortInUseError, BridgeServer } from '../../src/host/bridge-server.ts'
 import type { BridgeConfig } from '../../src/contracts/config.ts'
+import type { SessionModelReader } from '../../src/host/model-choice.ts'
 
 /**
  * 桥接服务的 HTTP 行为（FNOS-013-01/03/04）。
@@ -79,6 +80,7 @@ function fakeAttachments(): AttachmentStore {
 async function startBridge(overrides: Partial<BridgeConfig> = {}, deps: {
   llm?: LlmRuntime
   attachments?: AttachmentStore | undefined
+  sessionModel?: SessionModelReader
 } = {}): Promise<{ port: number, calls: GenerateOptions[] }> {
   const port = await freePort()
   const fake = (deps.llm ?? fakeLlm().llm)
@@ -96,11 +98,14 @@ async function startBridge(overrides: Partial<BridgeConfig> = {}, deps: {
     attachments: 'attachments' in deps ? deps.attachments : fakeAttachments(),
     config: {
       port,
-      defaultProvider: '',
+      apiKey: 'test-key',
+      family: 'glm-v',
+      models: [],
       requestTimeoutMs: 10_000,
       logRequests: false,
       ...overrides,
     },
+    sessionModel: deps.sessionModel ?? { current: () => undefined },
     log: () => {},
   })
   await server.start()
@@ -135,7 +140,8 @@ describe('FNOS-013-01 服务与健康检查', () => {
     const server = new BridgeServer({
       llm: fakeLlm().llm,
       attachments: undefined,
-      config: { port, defaultProvider: '', requestTimeoutMs: 1000, logRequests: false },
+      config: { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false },
+      sessionModel: { current: () => undefined },
       log: () => {},
     })
     await expect(server.start()).rejects.toBeInstanceOf(BridgePortInUseError)
@@ -144,11 +150,11 @@ describe('FNOS-013-01 服务与健康检查', () => {
 
   it('stop 后端口真正释放，可被新实例立即复用（AC-02）', async () => {
     const port = await freePort()
-    const config: BridgeConfig = { port, defaultProvider: '', requestTimeoutMs: 1000, logRequests: false }
-    const first = new BridgeServer({ llm: fakeLlm().llm, attachments: undefined, config, log: () => {} })
+    const config: BridgeConfig = { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false }
+    const first = new BridgeServer({ llm: fakeLlm().llm, attachments: undefined, config, sessionModel: { current: () => undefined }, log: () => {} })
     await first.start()
     await first.stop()
-    const second = new BridgeServer({ llm: fakeLlm().llm, attachments: undefined, config, log: () => {} })
+    const second = new BridgeServer({ llm: fakeLlm().llm, attachments: undefined, config, sessionModel: { current: () => undefined }, log: () => {} })
     // 若 stop 未等端口释放，这里会抛 BridgePortInUseError。
     await second.start()
     servers.push(second)
@@ -166,7 +172,7 @@ describe('FNOS-013-01 服务与健康检查', () => {
 
   it('未知端点返回 404 且列出可用端点', async () => {
     const { port } = await startBridge()
-    const response = await fetch(`http://127.0.0.1:${port}/v1/nope`)
+    const response = await fetch(`http://127.0.0.1:${port}/v1/nope`, { headers: { authorization: 'Bearer test-key' } })
     expect(response.status).toBe(404)
     const body = await response.json() as { error: { message: string } }
     expect(body.error.message).toContain('/v1/models')
@@ -176,7 +182,7 @@ describe('FNOS-013-01 服务与健康检查', () => {
 describe('FNOS-013-02 模型目录端点', () => {
   it('返回标准 OpenAI 列表，标识为「提供方/模型」（AC-01）', async () => {
     const { port } = await startBridge()
-    const response = await fetch(`http://127.0.0.1:${port}/v1/models`)
+    const response = await fetch(`http://127.0.0.1:${port}/v1/models`, { headers: { authorization: 'Bearer test-key' } })
     expect(response.status).toBe(200)
     const body = await response.json() as { object: string, data: Record<string, unknown>[] }
     expect(body.object).toBe('list')
@@ -189,7 +195,7 @@ describe('FNOS-013-02 模型目录端点', () => {
 
   it('图片能力随宿主元数据标注（AC-02）', async () => {
     const { port } = await startBridge()
-    const body = await (await fetch(`http://127.0.0.1:${port}/v1/models`)).json() as { data: Record<string, unknown>[] }
+    const body = await (await fetch(`http://127.0.0.1:${port}/v1/models`, { headers: { authorization: 'Bearer test-key' } })).json() as { data: Record<string, unknown>[] }
     expect(body.data[0]!.vision).toBe(true)
     expect(body.data[0]!.input_modalities).toEqual(['text', 'image'])
   })
@@ -203,7 +209,7 @@ describe('FNOS-013-02 模型目录端点', () => {
       },
     })
     const { port } = await startBridge({}, { llm })
-    const body = await (await fetch(`http://127.0.0.1:${port}/v1/models`)).json() as { data: { id: string }[] }
+    const body = await (await fetch(`http://127.0.0.1:${port}/v1/models`, { headers: { authorization: 'Bearer test-key' } })).json() as { data: { id: string }[] }
     expect(body.data.map(entry => entry.id).sort()).toEqual(['codebuddy/glm', 'deepseek-official/deepseek-chat'])
   })
 })
@@ -213,7 +219,7 @@ describe('FNOS-013-03 对话补全', () => {
     const { port, calls } = await startBridge()
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({
         model: 'codebuddy/glm-5.3-flash',
         messages: [{ role: 'user', content: '你好' }],
@@ -242,7 +248,7 @@ describe('FNOS-013-03 对话补全', () => {
     })
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({
         model: 'codebuddy/glm-5.3-flash',
         messages: [{ role: 'user', content: 'hi' }],
@@ -267,7 +273,7 @@ describe('FNOS-013-03 对话补全', () => {
     const { port } = await startBridge()
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({ model: 'codebuddy/glm-5.3-flash', messages: [{ role: 'user', content: 'hi' }], stream: true }),
     })
     const text = await response.text()
@@ -287,7 +293,7 @@ describe('FNOS-013-03 对话补全', () => {
     const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({
         model: 'codebuddy/glm-5.3-flash',
         messages: [{
@@ -306,7 +312,7 @@ describe('FNOS-013-03 对话补全', () => {
     const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg=='
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({
         model: 'codebuddy/text-only',
         messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: png } }] }],
@@ -322,7 +328,7 @@ describe('FNOS-013-03 对话补全', () => {
     const { port } = await startBridge({}, { llm })
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({ model: 'codebuddy/glm-5.3-flash', messages: [{ role: 'user', content: 'hi' }] }),
     })
     expect(response.status).toBe(502)
@@ -343,7 +349,7 @@ describe('FNOS-013-03 对话补全', () => {
     for (const model of ['codebuddy/glm', 'custom/my-model']) {
       const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
         body: JSON.stringify({ model, messages: [{ role: 'user', content: 'hi' }] }),
       })
       expect(response.status, model).toBe(200)
@@ -351,34 +357,25 @@ describe('FNOS-013-03 对话补全', () => {
     expect(calls.map(call => `${call.provider}/${call.model}`)).toEqual(['codebuddy/glm', 'custom/my-model'])
   })
 
-  it('裸模型名未配置默认提供方时返回 400 并给出指引', async () => {
+  it('既非固定模型名也非「提供方/模型」时返回 400 并给出两条正确写法', async () => {
     const { port } = await startBridge()
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({ model: 'glm', messages: [{ role: 'user', content: 'hi' }] }),
     })
     expect(response.status).toBe(400)
     const body = await response.json() as { error: { message: string } }
-    expect(body.error.message).toContain('defaultProvider')
-  })
-
-  it('配置默认提供方后裸名可用', async () => {
-    const { port, calls } = await startBridge({ defaultProvider: 'codebuddy' })
-    const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'glm-5.3-flash', messages: [{ role: 'user', content: 'hi' }] }),
-    })
-    expect(response.status).toBe(200)
-    expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'glm-5.3-flash' })
+    // 错误信息要同时给出两条出路：用固定名跟随 DSH，或从目录里挑一个。
+    expect(body.error.message).toContain('dsh-model')
+    expect(body.error.message).toContain('/v1/models')
   })
 
   it('空消息返回 400', async () => {
     const { port } = await startBridge()
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({ model: 'codebuddy/glm-5.3-flash', messages: [] }),
     })
     expect(response.status).toBe(400)
@@ -388,7 +385,7 @@ describe('FNOS-013-03 对话补全', () => {
     const { port } = await startBridge()
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: '{not json',
     })
     expect(response.status).toBe(400)
@@ -398,7 +395,7 @@ describe('FNOS-013-03 对话补全', () => {
     const { port, calls } = await startBridge()
     await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({
         model: 'codebuddy/glm-5.3-flash',
         messages: [{ role: 'user', content: 'hi' }],
@@ -413,12 +410,134 @@ describe('FNOS-013-03 对话补全', () => {
   })
 })
 
+describe('固定模型名 dsh-model（FNOS-013-05 零配置接入）', () => {
+  it('MODEL_NAME=dsh-model 时跟随 DSH 会话模型', async () => {
+    const { llm } = fakeLlm({
+      providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],
+      models: { codebuddy: [{ provider: 'codebuddy', id: 'glm-5.3-flash', name: 'GLM', inputModalities: ['text', 'image'] }] },
+    })
+    const { port, calls } = await startBridge({}, { llm, sessionModel: { current: () => 'codebuddy/glm-5.3-flash' } })
+    const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ model: 'dsh-model', messages: [{ role: 'user', content: 'hi' }] }),
+    })
+    expect(response.status).toBe(200)
+    expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'glm-5.3-flash' })
+  })
+
+  it('插件配置指定的模型优先于会话模型（可选项语义）', async () => {
+    const { llm } = fakeLlm({
+      providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],
+      models: {
+        codebuddy: [
+          { provider: 'codebuddy', id: 'glm-5.3-flash', name: 'GLM', inputModalities: ['text', 'image'] },
+          { provider: 'codebuddy', id: 'pinned-model', name: 'Pinned', inputModalities: ['text', 'image'] },
+        ],
+      },
+    })
+    const { port, calls } = await startBridge(
+      { models: ['codebuddy/pinned-model'] },
+      { llm, sessionModel: { current: () => 'codebuddy/glm-5.3-flash' } },
+    )
+    await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ model: 'dsh-model', messages: [{ role: 'user', content: 'hi' }] }),
+    })
+    expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'pinned-model' })
+  })
+
+  it('配置指定的模型不存在时跳过它并回落会话模型', async () => {
+    const { llm } = fakeLlm({
+      providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],
+      models: { codebuddy: [{ provider: 'codebuddy', id: 'real', name: 'Real', inputModalities: ['text', 'image'] }] },
+    })
+    const { port, calls } = await startBridge(
+      { models: ['codebuddy/gone', 'codebuddy/also-gone'] },
+      { llm, sessionModel: { current: () => 'codebuddy/real' } },
+    )
+    await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ model: 'dsh-model', messages: [{ role: 'user', content: 'hi' }] }),
+    })
+    // 跳过不存在的配置项，用会话模型；否则用户会看到「未注册路由」而看不到真因。
+    expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'real' })
+  })
+
+  it('会话模型也没有时兜底挑一个具备图片能力的模型', async () => {
+    const { llm } = fakeLlm({
+      providers: [{ id: 'p', name: 'P' }],
+      models: {
+        p: [
+          { provider: 'p', id: 'text-only', name: 'T' },
+          { provider: 'p', id: 'vision-one', name: 'V', inputModalities: ['text', 'image'] },
+        ],
+      },
+    })
+    const { port, calls } = await startBridge({}, { llm, sessionModel: { current: () => undefined } })
+    await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ model: 'dsh-model', messages: [{ role: 'user', content: 'hi' }] }),
+    })
+    expect(calls[0]).toMatchObject({ provider: 'p', model: 'vision-one' })
+  })
+
+  it('接入配置端返回固定四行，且模型名是常量占位', async () => {
+    const { port } = await startBridge({ apiKey: 'abc123', family: 'glm-v' })
+    const response = await fetch(`http://127.0.0.1:${port}/v1/midscene-env`, {
+      headers: { authorization: 'Bearer abc123' },
+    })
+    const body = await response.json() as { content: string, variables: Record<string, string>, resolvedFrom?: string }
+    expect(body.content).toContain('MIDSCENE_MODEL_NAME="dsh-model"')
+    expect(body.content).toContain('MIDSCENE_MODEL_FAMILY="glm-v"')
+    expect(body.content).toContain('MIDSCENE_MODEL_API_KEY="abc123"')
+    expect(body.variables.MIDSCENE_MODEL_NAME).toBe('dsh-model')
+    // 换模型不改 .env：模型名与家族都与当前模型无关。
+    expect(body.resolvedFrom).toBeDefined()
+  })
+})
+
+describe('接入密钥鉴权', () => {
+  it('不带密钥的请求被拒（401）', async () => {
+    const { port } = await startBridge()
+    const response = await fetch(`http://127.0.0.1:${port}/v1/models`)
+    expect(response.status).toBe(401)
+    const body = await response.json() as { error: { code: string } }
+    expect(body.error.code).toBe('invalid_api_key')
+  })
+
+  it('密钥错误时被拒', async () => {
+    const { port } = await startBridge()
+    const response = await fetch(`http://127.0.0.1:${port}/v1/models`, {
+      headers: { authorization: 'Bearer wrong-key' },
+    })
+    expect(response.status).toBe(401)
+  })
+
+  it('x-api-key 头同样有效', async () => {
+    const { port } = await startBridge()
+    const response = await fetch(`http://127.0.0.1:${port}/v1/models`, {
+      headers: { 'x-api-key': 'test-key' },
+    })
+    expect(response.status).toBe(200)
+  })
+
+  it('健康检查不需要密钥（诊断用，且不含敏感信息）', async () => {
+    const { port } = await startBridge()
+    const response = await fetch(`http://127.0.0.1:${port}/v1/health`)
+    expect(response.status).toBe(200)
+  })
+})
+
 describe('FNOS-013-04 凭据归宿主', () => {
   it('桥不接触凭据：宿主调用入参里没有任何凭据字段', async () => {
     const { port, calls } = await startBridge()
     await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({
         model: 'codebuddy/glm-5.3-flash',
         messages: [{ role: 'user', content: 'hi' }],
@@ -449,7 +568,7 @@ describe('FNOS-013-04 凭据归宿主', () => {
     const { port } = await startBridge({}, { llm })
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({ model: 'deepseek-official/deepseek-flash', messages: [{ role: 'user', content: 'hi' }] }),
     })
     expect(response.status).not.toBe(200)
@@ -472,7 +591,7 @@ describe('FNOS-013-04 凭据归宿主', () => {
     const { port } = await startBridge({}, { llm })
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({ model: 'codebuddy/glm', messages: [{ role: 'user', content: 'hi' }], stream: true }),
     })
     const text = await response.text()
@@ -487,7 +606,7 @@ describe('FNOS-013-04 凭据归宿主', () => {
     const { port } = await startBridge({}, { llm })
     const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
       body: JSON.stringify({ model: 'ghost/model', messages: [{ role: 'user', content: 'hi' }] }),
     })
     expect(response.status).toBe(400)
@@ -515,20 +634,21 @@ describe('目录缓存失效（AC-03）', () => {
     const server = new BridgeServer({
       llm,
       attachments: undefined,
-      config: { port, defaultProvider: '', requestTimeoutMs: 1000, logRequests: false },
+      config: { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false },
+      sessionModel: { current: () => undefined },
       log: () => {},
     })
     await server.start()
     servers.push(server)
 
-    const before = await (await fetch(`http://127.0.0.1:${port}/v1/models`)).json() as { data: { id: string }[] }
+    const before = await (await fetch(`http://127.0.0.1:${port}/v1/models`, { headers: { authorization: 'Bearer test-key' } })).json() as { data: { id: string }[] }
     expect(before.data.map(entry => entry.id)).toEqual(['codebuddy/m'])
 
     // 新装提供方插件 → 宿主发 llm/adapters-updated → 插件层调用 invalidate。
     providers = [...providers, { id: 'brandnew', name: 'Brand New' }]
     server.catalog.invalidate()
 
-    const after = await (await fetch(`http://127.0.0.1:${port}/v1/models`)).json() as { data: { id: string }[] }
+    const after = await (await fetch(`http://127.0.0.1:${port}/v1/models`, { headers: { authorization: 'Bearer test-key' } })).json() as { data: { id: string }[] }
     expect(after.data.map(entry => entry.id).sort()).toEqual(['brandnew/m', 'codebuddy/m'])
   })
 })

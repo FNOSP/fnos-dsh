@@ -12,7 +12,7 @@
 | 同步日期 | 2026-10-12 |
 | 许可 | MIT（Copyright (c) 2024-present Bytedance, Inc. and its affiliates.） |
 | 上游原文 sha256（前 16 位） | `9aa7c602a7004e53`——用于核对「同步到的原件是否正确」 |
-| 本地副本 sha256（前 16 位） | `079f64377697ad06`——含下述本地改动，**不等于**上游原文 |
+| 本地副本 sha256（前 16 位） | `7fa5617cf4531e9b`——含下述本地改动，**不等于**上游原文 |
 
 > 两个哈希都要记：上游原文哈希用于同步时确认拉到的原件版本，本地副本哈希用于确认本仓库这一份未被人手改动。只记一个会让人误以为「本地副本 = 上游原文」。
 
@@ -22,8 +22,9 @@
 
 | 位置 | 上游原文 | 本地改动 | 原因 |
 | --- | --- | --- | --- |
-| `## Prerequisites` 整节 | 给出四个 `MIDSCENE_MODEL_*` 变量模板，并列 Gemini / Qwen / 豆包三个第三方服务商的完整示例（含各自的 API key 占位符），末尾写「若模型未配置，请让用户去设置」 | 替换为三步走：① 探测本地桥健康检查 ② 用 `/v1/midscene-env` 直接生成 `.env` ③ 从 `/v1/models` 挑 `vision: true` 的模型；并明确「不要向用户索要模型 API key、不要配置第三方提供方」 | **本插件的存在意义就是让 Midscene 用 DSH 已有的模型**。原文会让 agent 去要 Gemini/豆包 key，与产品定位直接冲突；用户不需要、也不应该准备这些凭据 |
+| `## Prerequisites` 整节 | 给出四个 `MIDSCENE_MODEL_*` 变量模板，并列 Gemini / Qwen / 豆包三个第三方服务商的完整示例（含各自的 API key 占位符），末尾写「若模型未配置，请让用户去设置」 | 替换为：**固定四行 `.env`**（基址、桥的接入密钥、固定模型名 `dsh-model`、协议家族）+ 三步走（探测健康检查 → 一条命令生成 `.env` → 校验模型有视觉能力）；明确「不要向用户索要模型 API key、不要配置第三方提供方」，并说明 `dsh-model` 由桥决定实际模型（跟随 DSH 会话模型，或用户在插件设置里指定的模型），以及换家族时怎么改 | **本插件的存在意义就是让 Midscene 用 DSH 已有的模型**。原文会让 agent 去要 Gemini/豆包 key，与产品定位直接冲突；固定四行使用户的 `.env` 不随模型变化而失效 |
 | frontmatter `description` 末尾 | `Powered by Midscene.js (https://midscenejs.com)` | 追加一句：模型访问由 DSH Midscene Bridge 提供（本地、无需 API key），不要向用户索要 key 或配置第三方提供方 | description 是技能被发现时最先进入模型上下文的内容，改动指引必须在这里也可见，否则 agent 可能只读描述就去找 key |
+| 文件尾部孤立片段 | 上游文件末尾有一段无标题、无上下文的豆包配置片段（`MIDSCENE_MODEL_BASE_URL=https://ark.cn-beijing.volces.com/api/v3` 等四行） | 整段删除 | 该片段是第三方配置的残留，会被 agent 当作可用示例；既与桥接方案冲突，也是上游文件自身的瑕疵 |
 | `### API Key Errors` 小节 | 「检查 `.env` 里的 `MIDSCENE_MODEL_API_KEY=<your-key>`；确认 key 对所选服务商有效」 | 重写为桥接场景的排错表：占位 key 说明、桥未运行的判断、`MISSING_CREDENTIAL`/`QUOTA` 的处理、family 不匹配的定位症状、无图片能力模型 | 原文的排错方向（换 key、验 key）在桥接场景下全是错的方向，会把用户引向「配一个第三方模型」 |
 
 `MIDSCENE_MODEL_FAMILY` 的上游链接（`model-common-config`）保留在改动后的 Prerequisites 末尾，但降级为「背景参考」——家族取值本身仍需 Midscene 文档作为权威来源。

@@ -20,13 +20,27 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-skill'
-import { Config } from './contracts/config.ts'
+import { Config, generateApiKey } from './contracts/config.ts'
 import type { BridgeConfig } from './contracts/config.ts'
 import { BridgeServer } from './host/bridge-server.ts'
+import type { SessionModelReader } from './host/model-choice.ts'
 import { registerBundledSkills } from './host/skills.ts'
 
-export { Config, BRIDGE_HOST, DEFAULT_BRIDGE_PORT, OPENAI_API_PREFIX } from './contracts/config.ts'
-export type { BridgeConfig } from './contracts/config.ts'
+export {
+  Config,
+  BRIDGE_HOST,
+  DEFAULT_BRIDGE_PORT,
+  DEFAULT_FAMILY,
+  FIXED_MODEL_NAME,
+  MIDSCENE_FAMILIES,
+  OPENAI_API_PREFIX,
+  generateApiKey,
+  isKnownFamily,
+  renderEnvFile,
+} from './contracts/config.ts'
+export type { BridgeConfig, MidsceneFamily } from './contracts/config.ts'
+export { chooseModel } from './host/model-choice.ts'
+export type { ModelChoice, SessionModelReader } from './host/model-choice.ts'
 export { resolveModelName, formatModelName } from './contracts/model-name.ts'
 export type { ResolvedModel } from './contracts/model-name.ts'
 export { buildCatalog, modelSupportsImage, toOpenAiModel } from './host/catalog.ts'
@@ -54,18 +68,38 @@ export const inject = ['llm']
  * @param ctx - Cordis 上下文。
  * @param config - 插件配置（默认值来自 `Config`）。
  */
-export function apply(ctx: Context, config: BridgeConfig = Config({}) as BridgeConfig): void {
+export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unknown as BridgeConfig): void {
   const logger = ctx.logger
+  // 密钥为空（首次安装、旧配置升级）时补一个并在启动日志里说明——用户下一次
+  // 拉 /v1/midscene-env 会拿到它；不做静默补值，否则用户不知道 .env 该填什么。
+  const config: BridgeConfig = rawConfig.apiKey.length > 0
+    ? rawConfig
+    : { ...rawConfig, apiKey: generateApiKey() }
+  if (rawConfig.apiKey.length === 0) {
+    logger.info('[midscene] 已为非空接入密钥生成随机值（可在插件设置页查看或重新生成）')
+  }
   const log = (message: string): void => { logger.info(`[midscene] ${message}`) }
 
   // 附件服务：`profile` 未挂载时缺席（图片请求会得到明确错误而不是崩溃）。
   const attachments = (): AttachmentStore | undefined =>
     ctx.get('attachments') as AttachmentStore | undefined
 
+  // 「跟随 DSH 当前模型」的读取面：`agentDefaultModel` 是设置页模型选择器所写的
+  // 服务，缺席时（精简 profile）回落 undefined，此时桥走兜底逻辑。
+  const sessionModel: SessionModelReader = {
+    current: () => {
+      const service = ctx.get('agentDefaultModel') as { currentSelection?: () => { provider?: string, model?: string } } | undefined
+      const selection = service?.currentSelection?.()
+      if (selection?.provider === undefined || selection.model === undefined) return undefined
+      return `${selection.provider}/${selection.model}`
+    },
+  }
+
   const bridge = new BridgeServer({
     llm: ctx.llm,
     attachments: attachments(),
     config,
+    sessionModel,
     log,
   })
 

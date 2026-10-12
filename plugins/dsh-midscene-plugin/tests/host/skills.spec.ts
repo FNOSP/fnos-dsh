@@ -150,6 +150,9 @@ describe('包内技能资产（AC-02）', () => {
     // 插件存在的意义就是让 Midscene 用 DSH 的模型：技能不该再教 agent 去要 key。
     expect(content).toContain('do not ask the user for API keys')
     expect(content).toContain('http://127.0.0.1:8787/v1/midscene-env')
+    // 固定四行方案：模型名是常量占位，由桥决定实际模型。
+    expect(content).toContain('MIDSCENE_MODEL_NAME="dsh-model"')
+    expect(content).toContain('four constant lines')
     // 上游原文里的第三方服务商示例必须已清除，否则 agent 会照抄去配 Gemini/豆包。
     for (const leaked of [
       'your-google-api-key',

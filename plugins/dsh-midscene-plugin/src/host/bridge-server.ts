@@ -11,10 +11,10 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { GenerateOptions, LlmRuntime } from '@deepseek-ai/dsh-llm'
-import { BRIDGE_HOST, OPENAI_API_PREFIX, type BridgeConfig } from '../contracts/config.ts'
+import { BRIDGE_HOST, FIXED_MODEL_NAME, OPENAI_API_PREFIX, renderEnvFile, type BridgeConfig } from '../contracts/config.ts'
 import { resolveModelName } from '../contracts/model-name.ts'
 import { buildCatalog, type ModelCatalogSnapshot } from './catalog.ts'
-import { buildMidsceneEnv, pickDefaultModel } from './midscene-env.ts'
+import { chooseModel, type SessionModelReader } from './model-choice.ts'
 import { convertMessages, convertTools, RequestConversionError } from './convert.ts'
 import { aggregateStream, makeChunk, sseLine, toFinishReason, toOpenAiError } from './stream.ts'
 
@@ -24,6 +24,8 @@ export interface BridgeDeps {
   /** 附件服务；图片落盘用。profile 未提供时为 `undefined`（图片请求返回明确错误）。 */
   readonly attachments: AttachmentStore | undefined
   readonly config: BridgeConfig
+  /** DSH 当前模型选择的读取面（固定模型名 `dsh-model` 用它决定实际模型）。 */
+  readonly sessionModel: SessionModelReader
   /** 记录一行日志（不含消息内容与图片数据）。 */
   readonly log: (message: string) => void
 }
@@ -238,6 +240,29 @@ export class BridgeServer {
   }
 
   /**
+   * 校验请求携带的接入密钥。
+   *
+   * 接受 `Authorization: Bearer <key>` 与 `x-api-key: <key>` 两种标准写法；
+   * OpenAI 客户端用前者，Midscene 二者皆可。
+   * @param request - 入站请求。
+   * @returns 是否通过。
+   */
+  #authorized(request: IncomingMessage): boolean {
+    const expected = this.deps.config.apiKey
+    const header = request.headers.authorization
+    const bearer = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7) : undefined
+    const apiKey = request.headers['x-api-key']
+    const provided = bearer ?? (typeof apiKey === 'string' ? apiKey : undefined)
+    // 定长比较：避免按字符提前返回造成的时序差异。
+    if (provided === undefined || provided.length !== expected.length) return false
+    let diff = 0
+    for (let index = 0; index < expected.length; index += 1) {
+      diff |= expected.charCodeAt(index) ^ provided.charCodeAt(index)
+    }
+    return diff === 0
+  }
+
+  /**
    * 路由并处理一个请求。
    * @param request - 入站请求。
    * @param response - 出站响应。
@@ -246,6 +271,27 @@ export class BridgeServer {
     const url = new URL(request.url ?? '/', `http://${BRIDGE_HOST}:${this.deps.config.port}`)
     const path = url.pathname.replace(/\/+$/u, '') || '/'
     try {
+      // 接入密钥校验：桥只绑回环，但同一台机器上的其它进程也能访问回环端口；
+      // 密钥把「本机任意进程」与「持有配置的 Midscene」区分开。
+      //
+      // 两个端点刻意豁免（否则新用户无法完成接入——密钥正是从前者取得的，
+      // 这是自举问题；后者用于诊断，不该被密钥挡住）：
+      // - `/v1/midscene-env`：它返回的就是这份密钥，且只含本机模型名与家族，
+      //   没有凭据、没有页面数据；回环绑定已限制可达范围。
+      // - `/v1/health`：诊断用，不含敏感信息。
+      const isBootstrap = path === `${OPENAI_API_PREFIX}/midscene-env`
+      const isHealth = path === `${OPENAI_API_PREFIX}/health`
+      if (!isBootstrap && !isHealth && !this.#authorized(request)) {
+        sendJson(response, 401, {
+          error: {
+            message: 'invalid API key; use the value from DSH plugin settings (or GET '
+              + `${OPENAI_API_PREFIX}/midscene-env`,
+            type: 'invalid_request_error',
+            code: 'invalid_api_key',
+          },
+        })
+        return
+      }
       if (request.method === 'GET' && path === `${OPENAI_API_PREFIX}/models`) {
         const snapshot = await this.catalog.get()
         sendJson(response, 200, {
@@ -269,52 +315,39 @@ export class BridgeServer {
           status: 'ok',
           host: BRIDGE_HOST,
           port: this.deps.config.port,
-          defaultProvider: this.deps.config.defaultProvider,
+          // Midscene 侧固定使用的模型名；桥按它决定实际模型。
+          fixedModelName: FIXED_MODEL_NAME,
+          family: this.deps.config.family,
+          configuredModels: this.deps.config.models,
           providers: snapshot.providers,
           models: snapshot.entries.length,
           attachments: this.deps.attachments !== undefined,
         })
         return
       }
-      // 接入配置：Midscene 强制要求四个模型环境变量，而用户不该为此去查官方
-      // 文档、更不该准备任何第三方密钥。桥知道 DSH 里有哪些模型，因此直接把
-      // 可用配置算出来——`?model=` 指定模型，省略时自动挑一个具备图片能力的。
+      // 接入配置：四行全是固定值（基址、密钥、固定模型名、协议家族），因此用户
+      // 可以把 .env 写死——换模型只改插件设置，不动这个文件。
       if (request.method === 'GET' && path === `${OPENAI_API_PREFIX}/midscene-env`) {
         const snapshot = await this.catalog.get()
-        const requested = url.searchParams.get('model')
-        const chosen = requested === null
-          ? pickDefaultModel(snapshot.entries)
-          : snapshot.entries.find(entry => entry.id === requested)
-              ?? (() => {
-                // 允许用裸模型名（配合 defaultProvider 的语义）指定。
-                const resolved = resolveModelName(requested, snapshot.providers, this.deps.config.defaultProvider)
-                return resolved === undefined
-                  ? undefined
-                  : snapshot.entries.find(entry => entry.id === `${resolved.provider}/${resolved.model}`)
-              })()
-        if (chosen === undefined) {
-          throw new RequestConversionError(
-            requested === null
-              ? `no model available in the catalog; configure a provider in DSH first`
-              : `model "${requested}" is not in the catalog; list ${OPENAI_API_PREFIX}/models for valid ids`,
-            400,
-            'invalid_request_error',
-          )
-        }
-        const env = buildMidsceneEnv({
-          baseUrl: `http://${BRIDGE_HOST}:${this.deps.config.port}${OPENAI_API_PREFIX}`,
-          model: { id: chosen.id, name: chosen.name },
-        })
+        const choice = chooseModel(snapshot, this.deps.config.models, this.deps.sessionModel)
         sendJson(response, 200, {
-          model: chosen.id,
-          vision: chosen.vision === true,
-          variables: env.variables,
-          content: env.content,
-          ...env.familyWarning === undefined ? {} : { familyWarning: env.familyWarning },
-          // 备用模型：同系列里其它具备图片能力的选项，便于换一个再试。
-          alternatives: snapshot.entries
-            .filter(entry => entry.vision === true && entry.id !== chosen.id)
-            .slice(0, 10)
+          content: renderEnvFile(this.deps.config),
+          variables: {
+            MIDSCENE_MODEL_BASE_URL: `http://${BRIDGE_HOST}:${this.deps.config.port}${OPENAI_API_PREFIX}`,
+            MIDSCENE_MODEL_API_KEY: this.deps.config.apiKey,
+            MIDSCENE_MODEL_NAME: FIXED_MODEL_NAME,
+            MIDSCENE_MODEL_FAMILY: this.deps.config.family,
+          },
+          // 当前会实际使用的模型与它的来源，便于用户确认「跟随会话」是否生效。
+          ...choice === undefined ? {} : {
+            resolvedModel: choice.entry.id,
+            resolvedFrom: choice.source,
+          },
+          ...choice === undefined || choice.skippedConfigured.length === 0 ? {} : {
+            skippedConfigured: choice.skippedConfigured,
+          },
+          availableModels: snapshot.entries
+            .filter(entry => entry.vision === true)
             .map(entry => entry.id),
         })
         return
@@ -340,11 +373,28 @@ export class BridgeServer {
     const body = await readJsonBody(request) as Record<string, unknown>
     const rawModel = typeof body.model === 'string' ? body.model : ''
     const snapshot = await this.catalog.get()
-    const resolved = resolveModelName(rawModel, snapshot.providers, this.deps.config.defaultProvider)
+
+    // 固定模型名（Midscene 侧的默认写法）：由桥决定实际用哪个模型——配置指定的
+    // 优先，否则跟随 DSH 当前模型选择，最后兜底挑一个具备图片能力的。
+    if (rawModel === FIXED_MODEL_NAME) {
+      const choice = chooseModel(snapshot, this.deps.config.models, this.deps.sessionModel)
+      if (choice === undefined) {
+        throw new RequestConversionError(
+          'no model is available in DSH; configure a provider in DSH first',
+          400,
+          'invalid_request_error',
+        )
+      }
+      const attribution = choice.entry.id
+      await this.#runCompletion(body, attribution, choice.entry.vision === true, response)
+      return
+    }
+
+    const resolved = resolveModelName(rawModel, snapshot.providers, '')
     if (resolved === undefined) {
       throw new RequestConversionError(
-        `model "${rawModel}" is not a "provider/model" name and no defaultProvider is configured;`
-        + ` pick one from ${OPENAI_API_PREFIX}/models`,
+        `model "${rawModel}" is neither "${FIXED_MODEL_NAME}" nor a "provider/model" name;`
+        + ` use "${FIXED_MODEL_NAME}" to follow the DSH model, or pick one from ${OPENAI_API_PREFIX}/models`,
         400,
         'invalid_request_error',
       )
@@ -354,9 +404,27 @@ export class BridgeServer {
     // 图片能力按宿主元数据门控：查不到该模型时不阻断（新提供方目录可能刚变，
     // 让提供方自己做权威判定并给出自己的错误）。
     const known = snapshot.entries.find(entry => entry.id === attribution)
-    const supportsImage = known === undefined
-      ? true
-      : known.vision === true
+    await this.#runCompletion(body, attribution, known === undefined ? true : known.vision === true, response)
+  }
+
+  /**
+   * 用已解析好的模型执行一次补全（两条路由共用）。
+   *
+   * 与模型选择分离：`dsh-model` 与显式「提供方/模型」两条路径最终都落到这里，
+   * 消息转换、图片门控、流式/非流式与错误映射只有一份实现。
+   * @param body - 已解析的请求体。
+   * @param attribution - 「提供方/模型」标识（错误归因与响应 `model` 字段用）。
+   * @param supportsImage - 该模型是否接受图片输入。
+   * @param response - 出站响应。
+   */
+  async #runCompletion(
+    body: Record<string, unknown>,
+    attribution: string,
+    supportsImage: boolean,
+    response: ServerResponse,
+  ): Promise<void> {
+    const [provider, ...modelParts] = attribution.split('/')
+    const model = modelParts.join('/')
 
     let converted: { system: string | undefined, messages: import('@deepseek-ai/dsh-llm').RequestMessage[] }
     try {
@@ -374,8 +442,8 @@ export class BridgeServer {
     }
 
     const options: GenerateOptions = {
-      provider: resolved.provider,
-      model: resolved.model,
+      provider: provider!,
+      model,
       messages: converted.messages,
       ...converted.system === undefined ? {} : { system: converted.system },
       ...typeof body.temperature === 'number' ? { temperature: body.temperature } : {},
