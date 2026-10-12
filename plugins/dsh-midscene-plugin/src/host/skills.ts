@@ -51,23 +51,55 @@ interface SkillFrontmatter {
 /**
  * 解析 SKILL.md 的 YAML frontmatter。
  *
- * 只做行级 `key: value` 解析：技能 frontmatter 是上游维护的简单结构，引入
- * YAML 解析器只为读两个字段不划算；解析不出来的字段留空，由后续校验兜底。
+ * 只做行级解析：技能 frontmatter 是上游维护的简单结构，引入 YAML 解析器只为读两个
+ * 字段不划算；解析不出来的字段留空，由后续校验兜底。
+ *
+ * **必须支持块标量**（`description: |` 与 `description: >`）：上游技能的多行描述都用
+ * 这两种写法，而技能描述会在发现阶段进入模型上下文——只取行内值会把描述解析成字面量
+ * `"|"` / `">"`，等于技能没有描述，模型无从判断该不该调用它。
  * @param source - SKILL.md 全文。
  * @returns 解析出的字段。
  */
 export function parseFrontmatter(source: string): SkillFrontmatter {
   const match = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(source)
   if (match === null) return {}
+  const lines = match[1]!.split(/\r?\n/u)
   const result: SkillFrontmatter = {}
-  for (const line of match[1]!.split(/\r?\n/u)) {
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!
+    // 缩进行属于上一个字段的内容（块标量的正文）或嵌套映射，不作为顶层字段解析。
+    if (/^\s/u.test(line)) continue
     const field = /^(name|description):\s*(.*)$/u.exec(line.trim())
     if (field === null) continue
-    const value = field[2]!.trim().replace(/^["']|["']$/gu, '')
-    if (value.length === 0) continue
-    if (field[1] === 'name') result.name = value
-    else result.description = value
+    const key = field[1] as 'name' | 'description'
+    const inline = field[2]!.trim()
+
+    if (/^[|>][-+]?$/u.test(inline)) {
+      const folded = inline.startsWith('>')
+      const block: string[] = []
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        const next = lines[cursor]!
+        if (next.trim().length === 0) {
+          block.push('')
+          continue
+        }
+        if (!/^\s/u.test(next)) break
+        block.push(next.replace(/^\s+/u, ''))
+      }
+      index += block.length
+      // 折叠块（`>`）：单换行变空格、空行变段落分隔；字面量块（`|`）：保留换行。
+      const text = folded
+        ? block.join('\n').replace(/([^\n])\n(?!\n)/gu, '$1 ').trim()
+        : block.join('\n').trim()
+      if (text.length > 0) result[key] = text
+      continue
+    }
+
+    const value = inline.replace(/^["']|["']$/gu, '')
+    if (value.length > 0) result[key] = value
   }
+
   return result
 }
 

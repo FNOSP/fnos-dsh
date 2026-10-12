@@ -64,6 +64,42 @@ pnpm run check -- --packages --plugins
 
 插件的单元测试集中放在 workspace 同级 `tests/`，通过 `test` 调用该 workspace 的 `vitest.config.ts`。新增测试应放入对应 workspace 的 `tests/`，按被测模块组织文件；不要把跨 workspace 的测试复制到根目录，也不要把测试混入 `apps/` 下的 fnOS 应用目录。
 
+## 内置 Skill 的上游同步检查（强制）
+
+内置 skill 的插件（当前为 `@tnnevol/dsh-midscene`）在**每次开发前**必须检查内置 skill 是否有上游更新。理由：内置 skill 是 agent 理解该领域的**唯一权威入口**，上游修了错误或补了新 API 而插件还带旧版，agent 会照着过期资料干活，且这种偏差不会以任何形式报错。
+
+**检查对象与来源**
+
+| 插件内置 skill | 上游 | 检查方式 |
+| --- | --- | --- |
+| `browser-automation` | `web-infra-dev/midscene-skills` | `git -C <上游检出> log -1 --format=%H`，与 `skills/SOURCE.md` 登记的提交比对 |
+| `midscenejs` | `tnnevol/skills`（`skills/midscenejs`） | 同上 |
+
+**检查步骤**
+
+```bash
+# 1) 取上游当前版本（两处上游都要查）
+git clone --depth 1 https://github.com/web-infra-dev/midscene-skills.git /tmp/midscene-skills
+git -C /tmp/midscene-skills log -1 --format=%H
+git clone --depth 1 git@github.com:tnnevol/skills.git /tmp/skills
+git -C /tmp/skills log -1 --format=%H
+
+# 2) 与插件内登记的提交比对（skills/SOURCE.md 的「上游提交」一行）
+grep -n "上游提交" plugins/dsh-midscene-plugin/skills/SOURCE.md
+```
+
+**比对结果的处理**
+
+| 情况 | 处理 |
+| --- | --- |
+| 提交一致 | 无需动作，在本次开发的记录里说明「已核对，无更新」 |
+| 有更新 | 按 `skills/SOURCE.md` 的「同步方式」重新同步，**并重新施加桥接改动** |
+| 无法访问上游 | 如实记录「未能核对」及原因，不要假定无更新 |
+
+**同步后必须重新施加改动**：直接覆盖会把第三方模型配置带回来——那正是本插件要消除的东西（技能不得引导 agent 去索要模型 API key）。这一步漏做不会静默通过：`pnpm --filter @tnnevol/dsh-midscene test` 里有硬断言会指名缺什么。
+
+同步完成后同步更新 `skills/SOURCE.md` 的**上游提交、同步日期、本地副本 sha256**——哈希断言会挡住「改了 skill 但忘了登记」，但上游提交与日期需要人工维护。
+
 ## 插件截图
 
 插件功能截图服务于两处：DSH 文档站页面（`docs/plugins/`）与插件市场收录（awesome-dsh-plugin、dsh-market 读取仓库内 `screenshots.json`）。截图只维护**一份**，统一放 `docs/public/images/plugins/<插件名>/`。

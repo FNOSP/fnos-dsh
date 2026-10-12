@@ -217,6 +217,21 @@ pnpm --filter @tnnevol/dsh-midscene run test:bridge "http://127.0.0.1:8070/?toke
 桥接模式复用桌面浏览器配置，因此 `viewportWidth`、`userAgent`、`cookie`、`extraHTTPHeaders`、
 `chromeArgs` 等选项会被忽略。模型配置必须放在 **Node 侧**（终端环境变量）——本仓库的 `.env` 约定正合此要求。
 
+## 内置 Skill
+
+插件随包分发两个 skill，装完即可在会话里使用：
+
+| Skill | 上游 | 作用 |
+| --- | --- | --- |
+| `browser-automation` | [`web-infra-dev/midscene-skills`](https://github.com/web-infra-dev/midscene-skills) | **操作指令**：怎么用 CLI 跑浏览器自动化（三种连接模式、workflow） |
+| `midscenejs` | [`tnnevol/skills`](https://github.com/tnnevol/skills) | **知识与 API 参考**：Midscene 概念、模型与 FAMILY、五平台接入、Agent API、YAML 运行器、Midscene Test |
+
+两个 skill 都做了同一件事的补丁：**模型来源改为本插件托管的桥接服务**——固定四行、无需任何第三方 API key，实际使用哪个模型由桥按 `dsh-model` 决定。因此它们不会向你要 Gemini／豆包等服务的密钥。
+
+插件注册的 skill 在发现优先级里排在项目目录与用户目录之后，你自装的同名 skill 天然胜出（那将是上游原文，不含桥接改动）。
+
+内置 skill 的版本与上游提交登记在包内 `skills/SOURCE.md`；开发侧的同步检查要求见[插件开发](../development/plugin-development.md)的「内置 Skill 的上游同步检查」。
+
 ## 插件设置页
 
 在 DSH 的插件管理页点开本插件，组件列表**下方**有「Midscene 接入设置」区块：

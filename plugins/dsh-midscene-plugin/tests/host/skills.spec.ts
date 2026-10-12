@@ -133,7 +133,7 @@ describe('包内技能资产（AC-02）', () => {
   it('内置 browser-automation 技能保留官方操作指令', async () => {
     const root = bundledSkillsDir()
     const candidates = await listBundledSkills(root)
-    expect(candidates.map(candidate => candidate.name)).toEqual(['browser-automation'])
+    expect(candidates.map(candidate => candidate.name)).toEqual(['browser-automation', 'midscenejs'])
     const definition = await loadBundledSkill(root, candidates[0]!)
     // 抽查官方内容特征：技能靠 npx @midscene/web 驱动，且指令里要求同步执行。
     // 本地补丁只动「模型来源」，这些操作指令必须原样保留。
@@ -145,7 +145,7 @@ describe('包内技能资产（AC-02）', () => {
   it('模型来源已改为桥接服务，不再要求第三方 API key（FNOS-013-05 定位）', async () => {
     const root = bundledSkillsDir()
     const candidates = await listBundledSkills(root)
-    const definition = await loadBundledSkill(root, candidates[0]!)
+    const definition = await loadBundledSkill(root, candidates.find(c => c.name === 'browser-automation')!)
     const content = definition?.content ?? ''
     // 插件存在的意义就是让 Midscene 用 DSH 的模型：技能不该再教 agent 去要 key。
     expect(content).toContain('do not ask the user for API keys')
@@ -184,18 +184,84 @@ describe('包内技能资产（AC-02）', () => {
     expect(source).toContain(digest)
   })
 
+  it('midscenejs 技能随包分发，且每个文件的 sha256 都登记在 SOURCE.md', async () => {
+    // 该技能是一整个目录（SKILL.md + GENERATION.md + references/）。逐文件登记哈希，
+    // 使「改了参考文档但忘了更新登记」也会被发现——参考文档同样带桥接补丁。
+    const { createHash } = await import('node:crypto')
+    const { readFile, readdir } = await import('node:fs/promises')
+    const root = bundledSkillsDir()
+    const skillRoot = join(root, 'midscenejs')
+    const source = await readFile(join(root, 'SOURCE.md'), 'utf8')
+
+    const walk = async (dir: string): Promise<string[]> => {
+      const entries = await readdir(dir, { withFileTypes: true })
+      const files: string[] = []
+      for (const entry of entries) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) files.push(...await walk(full))
+        else files.push(full)
+      }
+      return files
+    }
+
+    const files = await walk(skillRoot)
+    expect(files.length).toBeGreaterThan(8)
+    for (const file of files) {
+      const digest = createHash('sha256').update(await readFile(file)).digest('hex').slice(0, 16)
+      expect(source, join('midscenejs', file.slice(skillRoot.length + 1))).toContain(digest)
+    }
+  })
+
+  it('midscenejs 的模型来源同样改成了桥接服务（参考文档是 agent 最容易照抄的地方）', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const root = bundledSkillsDir()
+    const skill = await readFile(join(root, 'midscenejs', 'SKILL.md'), 'utf8')
+    const modelConfig = await readFile(join(root, 'midscenejs', 'references', 'model-config.md'), 'utf8')
+
+    // 技能本体与最可能被照抄的参考文档都必须写明桥接方案。
+    expect(skill).toContain('DSH Midscene Bridge')
+    expect(skill).toContain('不要向用户索要模型 API key')
+    expect(modelConfig).toContain('/v1/midscene-env')
+    expect(modelConfig).toContain('dsh-model')
+
+    // 两个技能都不再把「生成 .env」写成需要用户自己填基址与 key。
+    for (const [label, content] of [['SKILL.md', skill], ['model-config.md', modelConfig]] as const) {
+      for (const leaked of ['替换为你的 API Key', '替换为你的模型服务地址']) {
+        expect(content, `${label}: ${leaked}`).not.toContain(leaked)
+      }
+    }
+  })
+
+  it('frontmatter 支持块标量：多行 description 不能被解析成 "|" 或 ">"', async () => {
+    // 技能描述会进入模型上下文用于判断该不该调用技能。上游两个技能都用块标量
+    // （`description: |` 与 `description: >`）写多行描述，只取行内值会得到字面量
+    // "|" / ">"，等于技能没有描述。
+    const candidates = await listBundledSkills(bundledSkillsDir())
+    for (const candidate of candidates) {
+      expect(candidate.description.length, candidate.name).toBeGreaterThan(80)
+      expect(candidate.description.trim(), candidate.name).not.toBe('|')
+      expect(candidate.description.trim(), candidate.name).not.toBe('>')
+    }
+  })
+
   it('来源标注文件存在且登记上游提交、许可与本地改动点', async () => {
     const source = await import('node:fs/promises').then(async fs => fs.readFile(join(bundledSkillsDir(), 'SOURCE.md'), 'utf8'))
     expect(source).toContain('web-infra-dev/midscene-skills')
     expect(source).toContain('dec1d1c55252ecb1a90c4ecbcfd0d2cb3ce0ac7b')
     expect(source).toContain('MIT')
+    // 第二个技能来自另一个上游，来源同样必须可追溯。
+    expect(source).toContain('tnnevol/skills')
+    expect(source).toContain('b2616bbe0d587d4a5847ef7143d2da447ce9df02')
     // 本地对官方原文做了「模型来源」补丁，必须如实登记改动点与重新施加步骤，
     // 否则上游同步时会把第三方 key 配置带回来。
     expect(source).toContain('本地改动')
     expect(source).toContain('重新施加')
   })
 
-  it('只内置 Web 场景技能，不含未承诺的平台技能', async () => {
+  it('只内置 Web 场景的操作技能，不含未承诺的平台技能', async () => {
+    // browser-automation 是操作技能：内置非 Web 平台的它，等于承诺了插件不承诺的能力。
+    // midscenejs 是**查阅性知识技能**，允许含五平台参考（用户问「Android 怎么接」时
+    // 给出准确答案，与「插件承诺支持 Android 自动化」是两件事），因此不在此列。
     const candidates = await listBundledSkills(bundledSkillsDir())
     const names = candidates.map(candidate => candidate.name)
     for (const unsupported of ['android-device-automation', 'ios-device-automation', 'harmonyos-device-automation', 'computer-automation']) {
