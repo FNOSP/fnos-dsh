@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { filterModelsByFamily } from '../../src/contracts/model-family.ts'
 import { normalizePatchForTest, statusSnapshotForTest } from './helpers/settings-routes-harness.ts'
 
 /**
@@ -49,11 +50,59 @@ describe('设置快照', () => {
   })
 })
 
+describe('快照里的家族信息（界面据此过滤，必须与过滤器一致）', () => {
+  it('每个模型带出的 family 与 filterModelsByFamily 的判定一致', async () => {
+    // 界面按 `model.family`（宿主算好的）过滤，而宿主另有 filterModelsByFamily 这个纯函数；
+    // 两者若漂移，会出现「界面列出的模型不属于当前家族」这种静默错配。这里锁住不变量。
+    const models = [
+      { id: 'codebuddy/glm-5.3', name: 'GLM-5.3', vision: true },
+      { id: 'codebuddy/deepseek-v4.1-flash', name: 'DeepSeek', vision: true },
+      { id: 'codebuddy/hy3', name: 'Hy3', vision: true },
+    ]
+    const snapshot = await statusSnapshotForTest({
+      readConfig: () => ({ ...config, family: 'glm-v', models: [] }),
+      listModels: () => Promise.resolve(models),
+    })
+    const annotated = snapshot.availableModels as readonly { id: string, family?: string }[]
+    // 带 family 的条目必须恰好是过滤器认可的那些。
+    const annotatedIds = annotated.filter(m => m.family !== undefined).map(m => m.id).sort()
+    const filteredIds = [...filterModelsByFamily(models, 'glm-v'), ...filterModelsByFamily(models, 'deepseek')]
+      .map(m => m.id).sort()
+    expect(annotatedIds).toEqual(filteredIds)
+    // 无法判断家族的模型（hy3）不带 family 字段——界面据此要求手选而不是猜。
+    expect(annotated.find(m => m.id === 'codebuddy/hy3')?.family).toBeUndefined()
+    expect(annotated.find(m => m.id === 'codebuddy/glm-5.3')?.family).toBe('glm-v')
+  })
+})
+
 describe('写入校验', () => {
   it('拒绝不在白名单内的家族（在配置面就拦住，不等运行时）', () => {
     expect(() => normalizePatchForTest({ family: 'dsh-model' }))
       .toThrow(/unknown family/u)
-    expect(normalizePatchForTest({ family: 'gpt-6' })).toEqual({ family: 'gpt-6' })
+    // 只给家族时会连带把模型清空：家族与模型是一致性约束的两端，留下「新家族 + 旧家族的
+    // 模型」是静默错位的组合（实测过这种配置）。带模型时按新家族过滤（见下一条）。
+    expect(normalizePatchForTest({ family: 'gpt-6' })).toEqual({ family: 'gpt-6', models: [] })
+    expect(normalizePatchForTest({ family: 'gpt-6', models: [] })).toEqual({ family: 'gpt-6', models: [] })
+  })
+
+  it('接受空家族（「未选择」是真实状态：界面据此隐藏模型字段）', () => {
+    expect(normalizePatchForTest({ family: '', models: [] })).toEqual({ family: '', models: [] })
+  })
+
+  it('换家族时剔除不属于新家族的模型，保留目录里查不到的（那可能只是暂时不可用）', () => {
+    expect(normalizePatchForTest({
+      family: 'deepseek',
+      models: ['codebuddy/glm-5.3', 'codebuddy/deepseek-v4.1-flash', 'uninstalled/provider-model'],
+    })).toEqual({
+      family: 'deepseek',
+      // glm-5.3 属于 glm-v，被剔除；无法判断家族的条目保留（交由界面提示为「已失效」）。
+      models: ['codebuddy/deepseek-v4.1-flash', 'uninstalled/provider-model'],
+    })
+  })
+
+  it('只给模型时不按家族过滤（调用方负责与当前家族一致）', () => {
+    expect(normalizePatchForTest({ models: ['codebuddy/glm-5.3'] }))
+      .toEqual({ models: ['codebuddy/glm-5.3'] })
   })
 
   it('模型列表去空白项并拒绝非字符串', () => {

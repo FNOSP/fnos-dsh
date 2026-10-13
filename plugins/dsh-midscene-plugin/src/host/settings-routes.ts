@@ -24,16 +24,17 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import {
   DEFAULT_FAMILY,
+  isSelectableFamily,
   FIXED_MODEL_NAME,
   MIDSCENE_FAMILIES,
   OPENAI_API_PREFIX,
   generateApiKey,
-  isKnownFamily,
   renderEnvFile,
   volatileValue,
   BRIDGE_HOST,
   type BridgeConfig,
 } from '../contracts/config.ts'
+import { guessFamily, retainCompatibleModels } from '../contracts/model-family.ts'
 import { MIDSCENE_SETTINGS_NAMESPACE, MIDSCENE_SETTINGS_STATUS_PATH, MIDSCENE_SETTINGS_UPDATE_PATH } from '../contracts/settings-rpc.ts'
 
 /** 设置界面可选的模型条目。 */
@@ -159,6 +160,11 @@ export async function statusSnapshotForTest(
       id: model.id,
       vision: model.vision,
       ...model.name === undefined ? {} : { name: model.name },
+      // 家族与依据由宿主算出：界面按同一份规则过滤，避免两处映射漂移。
+      ...(() => {
+        const guess = guessFamily(model.id)
+        return guess === undefined ? {} : { family: guess.family, familyReason: guess.reason }
+      })(),
     })),
     namespace: MIDSCENE_SETTINGS_NAMESPACE,
     apiKey,
@@ -172,16 +178,31 @@ export async function statusSnapshotForTest(
   }
 }
 
-/** 校验并归一化一次配置写入请求。 */
+/**
+ * 校验并归一化一次配置写入请求。
+ *
+ * **家族与模型是一致性约束的两端**：家族决定 Midscene 的坐标解析协议，而模型列表决定
+ * 实际用哪个模型；两者错配的表现是**静默错位**（点击偏几像素到几十像素），不会报错。
+ * 因此这里做两件事：
+ *
+ * 1. 家族必须在 Midscene 白名单内（传未知值要到运行时才报 `Invalid MIDSCENE_MODEL_FAMILY
+ *    value`，在配置面拒绝能给出可读原因）；
+ * 2. 写家族时**必须**同时给出模型列表，且列表里过时（不属于新家族）的模型会被剔除——
+ *    否则会留下「新家族 + 旧家族的模型」这种不匹配组合。
+ *
+ * 剔除而非报错：用户改家族是有意为之，跟着清掉不再适用的模型是符合预期的连带结果；
+ * 报错只会让人先去手动清空模型才能改家族。
+ * @param input - 写入请求体。
+ * @returns 归一化后的补丁（只含出现过的字段）。
+ */
 export function normalizePatchForTest(input: Record<string, unknown>): Record<string, unknown> {
   const patch: Record<string, unknown> = {}
-  if (typeof input.family === 'string') {
-    // 家族必须落在 Midscene 的白名单里：传未知值会在 Midscene 运行时才失败
-    // （`Invalid MIDSCENE_MODEL_FAMILY value`），在配置面就拒绝可给出可读原因。
-    if (!isKnownFamily(input.family)) {
-      throw new Error(`unknown family "${input.family}"; expected one of ${MIDSCENE_FAMILIES.join(', ')}`)
+  const family = typeof input.family === 'string' ? input.family : undefined
+  if (family !== undefined) {
+    if (!isSelectableFamily(family)) {
+      throw new Error(`unknown family "${family}"; expected one of ${MIDSCENE_FAMILIES.join(', ')} or empty (unset)`)
     }
-    patch.family = input.family
+    patch.family = family
   }
   if (Array.isArray(input.models)) {
     const models: string[] = []
@@ -191,7 +212,13 @@ export function normalizePatchForTest(input: Record<string, unknown>): Record<st
       if (trimmed === '') continue
       models.push(trimmed)
     }
-    patch.models = models
+    // 同时给了家族就按它过滤；只给模型时保持原样（调用方负责与当前家族一致）。
+    patch.models = family === undefined ? models : [...retainCompatibleModels(models, family)]
+  }
+  // 只改家族而不同时给模型：把「旧家族的模型」清掉，不留不匹配组合。
+  // 这与界面行为一致（界面改家族时会连同过滤后的模型一起提交）。
+  if (family !== undefined && patch.models === undefined) {
+    patch.models = []
   }
   return patch
 }

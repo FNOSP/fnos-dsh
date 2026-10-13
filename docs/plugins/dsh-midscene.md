@@ -217,6 +217,45 @@ pnpm --filter @tnnevol/dsh-midscene run test:bridge "http://127.0.0.1:8070/?toke
 桥接模式复用桌面浏览器配置，因此 `viewportWidth`、`userAgent`、`cookie`、`extraHTTPHeaders`、
 `chromeArgs` 等选项会被忽略。模型配置必须放在 **Node 侧**（终端环境变量）——本仓库的 `.env` 约定正合此要求。
 
+## 协议家族与测试模型
+
+Midscene 用 **`MIDSCENE_MODEL_FAMILY`（协议家族）** 决定两件事：发给模型的提示词模板，以及**怎么解析它返回的坐标**。它**不按模型名自动推断**——家族与模型是配置里必须彼此匹配的两端。
+
+各家族的坐标协议确实不同（读 Midscene 适配器实现）：
+
+| 家族 | 坐标协议 | 配错的风险 |
+| --- | --- | --- |
+| `glm-v`、`doubao-*`、`qwen3*`、`vlm-ui-tars*` | bbox / xy / 除以 1000 | 与同组家族互配影响小 |
+| `gemini` | bbox / **yx**（顺序相反）| ⚠️ 配错必然错位 |
+| `gpt-5`、`gpt-6` | bbox / xy / **不归一化** | ⚠️ 与归一化系互配会错位 |
+| `kimi`、`kimi3` | point / xy / **除以 1** | ⚠️ 同上 |
+| `deepseek` | point / xy / 除以 1000，**自带标记式协议** | ⚠️ 配成 bbox 系可能解析失败 |
+
+家族是**必选项**（没有默认值）：Midscene 在家族缺失时会直接报 `Default model family is required for locate`，取值不在名单内则报 `Invalid MIDSCENE_MODEL_FAMILY value`。
+
+### 插件如何帮你避免配错
+
+设置页按「先选家族、再选模型」组织：
+
+- **未选择家族时，不显示模型字段**——模型按家族过滤，没有家族就没有「可选模型」；
+- **选定家族后，模型下拉只列出属于该家族的模型**，并给出判断依据；Midscene 未适配的系列（如 `codebuddy/auto`、`hy3`、`minimax-m3`）**如实标注为未知且不可选**——猜错比不猜更危险；
+- **切换家族时，不再属于新家族的已选模型会被自动移除**并提示；目录里查不到的条目会保留（那通常意味着提供方暂时不可用，而不是家族不符）。
+
+它挡住的正是这种组合：**配置里指定 DeepSeek 模型，家族却留在 GLM** —— 表现为「点击偏几像素」，不报错，最难排查。
+
+**怎么看某个模型该配哪个家族**：设置页的选择依据会直接告诉你；完整对照表见内置技能 `midscenejs` 的参考文档（`references/model-config.md` 的「支持的模型与 FAMILY」）。常用对应：
+
+| 模型 | 家族 |
+| --- | --- |
+| `glm-*`（智谱） | `glm-v` |
+| `deepseek-*`（视觉系列） | `deepseek` |
+| `kimi-k3-*` / `kimi-k2.*` | `kimi3` / `kimi` |
+| `gpt-6-*` / `gpt-5.*` | `gpt-6` / `gpt-5` |
+| `gemini-*` | `gemini` |
+| `doubao-seed-*` | `doubao-seed` |
+
+> 注意 `deepseek-v4-pro` 一类**不支持图片输入**的模型不能用于 Midscene——插件会在模型选项上标注。
+
 ## 内置 Skill
 
 插件随包分发两个 skill，装完即可在会话里使用：

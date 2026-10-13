@@ -84,6 +84,8 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   const [models, setModels] = useState<string[]>([])
   // 只看支持图片的模型（默认开启）：Midscene 靠截图理解页面，文本模型选进来也跑不了。
   const [visionOnly, setVisionOnly] = useState(true)
+  // 换家族时清掉了不兼容的模型：给一次提示，让「我的选择怎么少了」有解释。
+  const [familyCleared, setFamilyCleared] = useState(false)
 
   /** 读一次状态（失败呈现为可重试的错误，不静默留空）。 */
   const reload = useCallback(async (): Promise<void> => {
@@ -133,13 +135,26 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
     )
   }
 
-  // 下拉可选项：默认只列支持图片的模型（Midscene 的硬要求）；已选中的项始终保留，
-  // 否则用户看不到自己选了什么、也无法取消。
-  const selectableModels = snapshot.availableModels.filter(model =>
-    !visionOnly || model.vision || models.includes(model.id))
+  // 家族未选择时**不展示模型字段**：模型按家族过滤，没有家族就没有「可选模型」这个概念，
+  // 显示一个空下拉只会让人以为功能坏了（需求：未选 family 则不显示模型字段）。
+  const familySelected = snapshot.family.trim() !== ''
+
+  // 按家族过滤后再按视觉能力过滤。家族信息由宿主算出（`model.family`），界面不重复实现映射。
+  // 已选中的项始终保留，否则用户看不到自己选了什么、也无法取消。
+  const selectableModels = snapshot.availableModels.filter((model) => {
+    if (familySelected && model.family !== snapshot.family) return false
+    return !visionOnly || model.vision || models.includes(model.id)
+  })
   // 已配置但当前目录里没有的模型：如实提示，不静默丢弃（可能是提供方被卸载或模型改名）。
   const availableIds = new Set(snapshot.availableModels.map(model => model.id))
   const staleModels = models.filter(id => !availableIds.has(id))
+  // 已选中但不属于当前家族的模型：切换家族时会自动移除，这里同步提示原因。
+  const offFamilyModels = familySelected
+    ? models.filter((id) => {
+      const model = snapshot.availableModels.find(candidate => candidate.id === id)
+      return model !== undefined && model.family !== snapshot.family
+    })
+    : []
 
   const copyEnv = async (): Promise<void> => {
     try {
@@ -152,6 +167,26 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   }
 
   /**
+   * 提交家族变更，并**一并**提交过滤后的模型。
+   *
+   * 家族与模型是一致性约束的两端：只改家族会留下「新家族 + 旧家族的模型」这种静默错位
+   * 组合（实测过这种配置）。因此这里算出仍属于新家族的模型一起提交——宿主也会做同样的
+   * 剔除，两边行为一致。
+   * @param family - 新家族。
+   */
+  const applyFamily = (family: string): void => {
+    const kept = models.filter((id) => {
+      const model = snapshot?.availableModels.find(candidate => candidate.id === id)
+      // 目录里查不到的（已卸载/改名）不因换家族而被清掉：那不是「家族不符」，
+      // 而是「暂不可用」，用户可能只是暂时卸载了提供方。
+      return model === undefined || model.family === family
+    })
+    setModels(kept)
+    if (kept.length < models.length) setFamilyCleared(true)
+    void submit({ action: 'update', family, models: kept })
+  }
+
+  /**
    * 提交模型选择。
    *
    * 下拉的多选值直接就是完整列表（含顺序），因此一次提交整组：不做增量增删，
@@ -161,6 +196,7 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   const applyModels = (next: readonly string[]): void => {
     const deduped = [...new Set(next)]
     setModels(deduped)
+    setFamilyCleared(false)
     void submit({ action: 'update', models: deduped })
   }
 
@@ -213,19 +249,21 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
           // 限宽走组件自身的 style（Semi 公开 API）：不限宽时下拉会撑满整行。
           // 不在插件内针对 `.semi-*` 写覆盖——主题类调整归共享包（插件 UI 规范）。
           style={{ width: 260 }}
-          value={snapshot.family}
-          onChange={(value: string) => { void submit({ action: 'update', family: value }) }}
+          value={familySelected ? snapshot.family : undefined}
+          placeholder={t('familyPlaceholder')}
+          onChange={(value: string) => { void applyFamily(value) }}
         >
           {snapshot.families.map(family => (
             <DshSelect.Option key={family} value={family}>{family}</DshSelect.Option>
           ))}
         </DshSelect>
-        {snapshot.families.includes(snapshot.family) ? null : (
-          <DshTag color="red" size="small">{t('familyInvalid')}</DshTag>
-        )}
+        {snapshot.families.includes(snapshot.family)
+          ? null
+          : <DshTag color="red" size="small">{snapshot.family === '' ? t('familyRequired') : t('familyInvalid')}</DshTag>}
       </Field>
 
-      <Field label={t('modelsLabel')} hint={t('modelsHint')}>
+      {familySelected ? (
+      <Field label={t('modelsLabel')} hint={t('modelsHintFiltered')}>
         <DshSelect
           multiple
           filter
@@ -255,7 +293,16 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
             {t('modelsStale')}: {staleModels.join(', ')}
           </DshTag>
         )}
+        {!familyCleared || offFamilyModels.length === 0 ? null : (
+          <DshTag color="orange" size="small">{t('modelsFamilyCleared')}</DshTag>
+        )}
       </Field>
+      ) : (
+        <Field label={t('modelsLabel')} hint={t('modelsNeedFamily')}>
+          {/* 未选家族时不渲染下拉：模型按家族过滤，无家族即无可选项。 */}
+          <span className={`${ROOT}__hint`}>{t('modelsNeedFamily')}</span>
+        </Field>
+      )}
 
       <Field label={t('envLabel')} hint={t('envHint')}>
         <DshButton size="small" icon={<DshIconCopy />} onClick={() => { void copyEnv() }}>

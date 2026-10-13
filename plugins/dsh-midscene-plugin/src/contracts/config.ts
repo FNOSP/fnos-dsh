@@ -99,6 +99,25 @@ export type MidsceneFamily = (typeof MIDSCENE_FAMILIES)[number]
 export const DEFAULT_FAMILY: MidsceneFamily = 'glm-v'
 
 /**
+ * 「未选择家族」的取值。
+ *
+ * 家族**刻意不给默认值**：它决定坐标解析协议，与所选模型强绑定；给一个默认值会让用户
+ * 在不知不觉中用错协议——本插件早期版本默认 `glm-v`，实测造成过「配置里是 DeepSeek 模型、
+ * 家族却是 GLM」的静默错位组合。改为必须显式选择后，界面才能按家族过滤模型
+ * （见 `filterModelsByFamily`），从源头消除错配。
+ */
+export const UNSET_FAMILY = ''
+
+/**
+ * 判断一个值是否可作为家族写入：已知家族或「未选择」。
+ * @param value - 待判定的值。
+ * @returns 是否可接受。
+ */
+export function isSelectableFamily(value: string): boolean {
+  return value === UNSET_FAMILY || isKnownFamily(value)
+}
+
+/**
  * 判断一个值是否为 Midscene 接受的家族。
  * @param value - 待判定的家族值。
  * @returns 是否在白名单内。
@@ -155,7 +174,11 @@ export function renderEnvFile(config: { readonly port: number, readonly apiKey: 
     `MIDSCENE_MODEL_BASE_URL="http://${BRIDGE_HOST}:${config.port}${OPENAI_API_PREFIX}"`,
     `MIDSCENE_MODEL_API_KEY="${config.apiKey}"`,
     `MIDSCENE_MODEL_NAME="${FIXED_MODEL_NAME}"`,
-    `MIDSCENE_MODEL_FAMILY="${config.family}"`,
+    // 未选择时写注释而非空值：Midscene 对空/缺失家族会报
+    // 「Default model family is required for locate」，在这里点明原因比让人对着空值猜有用。
+    config.family === UNSET_FAMILY
+      ? '# MIDSCENE_MODEL_FAMILY 未设置：请先在插件设置页选择协议家族（Midscene 必需）。'
+      : `MIDSCENE_MODEL_FAMILY="${config.family}"`,
     '',
   ].join('\n')
 }
@@ -181,8 +204,8 @@ export const Config: z<Schemastery.ObjectS<NoInfer<BridgeConfigShape>>, Schemast
     .description(`首选监听端口（默认 ${DEFAULT_BRIDGE_PORT}）。被占用时自动向上尝试最多 ${PORT_SCAN_LIMIT} 个端口，并把实际端口写回本字段；实际端口以插件设置页或 /v1/midscene-env 为准`),
   apiKey: z.string().default('').role('secret').volatile()
     .description('桥接接入密钥（安装时自动生成）。Midscene 的 .env 用它；可在设置页重新随机生成或自定义'),
-  family: z.string().default(DEFAULT_FAMILY).volatile()
-    .description(`Midscene 协议家族，取值必须来自 Midscene 的白名单（默认 ${DEFAULT_FAMILY}）。它决定 Midscene 的提示词模板与坐标解析协议，换模型时可能需要同步调整`),
+  family: z.string().default(UNSET_FAMILY).volatile()
+    .description(`Midscene 协议家族，必须显式选择（建议值 ${DEFAULT_FAMILY}）；取值来自 Midscene 白名单，留空表示未配置。它决定提示词模板与坐标解析协议，与所选模型强绑定`),
   models: z.array(z.string()).default([]).volatile()
     .description('指定用于 Midscene 测试的模型（「提供方/模型」形式，按顺序尝试第一个可用的）。留空则跟随 DSH 当前模型选择'),
   requestTimeoutMs: z.natural().default(300_000).volatile()

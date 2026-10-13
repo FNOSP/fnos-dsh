@@ -40,6 +40,8 @@ export {
   OPENAI_API_PREFIX,
   generateApiKey,
   isKnownFamily,
+  isSelectableFamily,
+  UNSET_FAMILY,
   renderEnvFile,
 } from './contracts/config.ts'
 export type { BridgeConfig, MidsceneFamily } from './contracts/config.ts'

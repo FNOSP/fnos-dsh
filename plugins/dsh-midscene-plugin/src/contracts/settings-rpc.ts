@@ -46,7 +46,19 @@ export interface MidsceneSettingsSnapshot {
    * 界面用下拉而非手填：手填要求用户记住「提供方/模型」全称，写错只会在真正
    * 跑 Midscene 时才暴露，且用户无从知道有哪些可用值。
    */
-  readonly availableModels: readonly { readonly id: string, readonly name?: string, readonly vision: boolean }[]
+  readonly availableModels: readonly {
+    readonly id: string
+    readonly name?: string
+    readonly vision: boolean
+    /**
+     * 该模型推断出的协议家族；`undefined` 表示无法可靠判断（Midscene 未适配的系列）。
+     *
+     * 由宿主按同一份映射规则算出：界面不该重复实现映射，否则两处规则会漂移。
+     */
+    readonly family?: string
+    /** 家族判断依据（展示给用户，让结论可核对）。 */
+    readonly familyReason?: string
+  }[]
   /** 固定模型名（`MIDSCENE_MODEL_NAME` 的值）。 */
   readonly fixedModelName: string
   /** 桥地址（`.env` 里 `MIDSCENE_MODEL_BASE_URL` 的值）。 */
@@ -59,4 +71,14 @@ export interface MidsceneSettingsSnapshot {
 export type MidsceneSettingsRequest =
   | { readonly action: 'regenerate' }
   | { readonly action: 'setKey', readonly apiKey: string }
-  | { readonly action: 'update', readonly family?: string, readonly models?: readonly string[] }
+  | {
+    readonly action: 'update'
+    readonly family?: string
+    /**
+     * 模型列表。
+     *
+     * 传 `family` 时**必须**一并传本字段（可为空数组）：家族与模型是一致性约束的两端，
+     * 只写家族会让配置留下「新家族 + 旧家族的模型」这种静默错位的组合。
+     */
+    readonly models?: readonly string[]
+  }
