@@ -244,3 +244,23 @@ describe('connectTarget 的 activate 选项（静默绑定，不抢前台）', (
     expect(top.some(c => c.includes('"activateTab":false'))).toBe(true)
   })
 })
+
+describe('defineBridgeSetup 默认静默（不抢用户前台）', () => {
+  // 这条盯住「默认值」这个易错点：`connectTarget` 自身的缺省是 true
+  // （保持其独立调用者既有行为），若 defineBridgeSetup 也把 undefined 透传下去，
+  // 就会静默变成「切前台」——注释写着默认静默、行为却在打断用户。实测踩过：
+  // 一次 e2e 运行把用户正在看的 NAS 页面抢到前台。
+  //
+  // defineBridgeSetup 内部 new AgentOverChromeBridge()，无法注入替身，因此这里用
+  // 源码契约断言：静默默认必须是显式的 `?? false`，而不是依赖上游缺省。
+  it('源码里静默默认是显式的 activate ?? false（不是靠不传）', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const src = await readFile(new URL('../src/project.ts', import.meta.url), 'utf8')
+    // 绑定复用页：必须显式传 activate，且默认落在 false。
+    expect(src).toMatch(/activate:\s*options\.activate\s*\?\?\s*false/)
+    // 僵尸页兜底新开页同样不能抢前台。
+    expect(src).toMatch(/activateTab:\s*options\.activate\s*\?\?\s*false/)
+    // 反向断言：不得出现「透传 undefined 靠上游缺省」的写法。
+    expect(src).not.toMatch(/options\.activate === undefined \? \{\} : \{ activate: options\.activate \}/)
+  })
+})

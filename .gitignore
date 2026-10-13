@@ -32,6 +32,9 @@ tmp/
 # Midscene 运行产物（报告、截图、测试结果；Bridge Mode 与 Midscene Test 都写这里）
 midscene_run/
 .midscene/
+# Midscene 节点说明书：由 `midscene-test nodes` 按当前配置生成，属产物而非事实源
+# （事实源是安装的 @midscene/* 版本），不随仓库分发。
+midscene-node-spec*.md
 .qwen
 .qoder
 

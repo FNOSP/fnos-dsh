@@ -1,5 +1,8 @@
 packages:
   - 'apps/*'
+  # 应用级交互验收（FPK 安装、NAS 应用验收）是独立包：它验证的是应用产物，
+  # 不属于 apps/fn-deepseek-harness 这个非包目录。
+  - 'apps/*/tests'
   - 'docs'
   - 'packages/*'
   - 'plugins/*'

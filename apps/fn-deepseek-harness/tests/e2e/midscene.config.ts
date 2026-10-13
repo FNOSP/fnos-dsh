@@ -1,0 +1,69 @@
+/**
+ * fn-deepseek-harness 应用级交互验收的 Midscene Test 项目配置（Bridge Mode）。
+ *
+ * 与插件内的 e2e 分工不同：
+ * - **插件**的 `tests/e2e/` 验证插件自身功能（如智能搜索药丸按钮的形态与状态）；
+ * - **本套**验证**应用产物**：FPK 在真实 NAS 上「从电脑上传」装到装完、装完后打开
+ *   应用核对内置插件与凭据状态——这类验收跨插件，不属于任何单个插件。
+ *
+ * 装配全部来自共享包 `@tnnevol/dsh-e2e-kit`：接入配置向插件要、标签页先查后复用、
+ * 交互独立核实、默认静默绑定（不抢用户前台）。
+ *
+ * ## 运行（在包根 `apps/fn-deepseek-harness/tests/` 下）
+ *
+ * ```bash
+ * pnpm --filter @tnnevol/fn-deepseek-harness-e2e run test:e2e
+ * # 或指定目标地址
+ * DSH_NAS_URL="http://192.168.0.110:5666/" pnpm run test:e2e
+ * ```
+ *
+ * 前置：
+ * 1. Chrome 已装 Midscene 扩展（`gbldofcpkknbggpkmbdaefngejllnief`）并已登录 NAS；
+ * 2. NAS 页面已打开（用例**复用已开页**，不新开——见测试规范的标签页纪律）；
+ * 3. 本机 DSH Web 在跑（提供 Midscene 桥；端口以 `/v1/health` 为准）。
+ *
+ * ## 两个实测约束（与插件 e2e 相同，务必遵守）
+ *
+ * 1. `files.include` **相对执行目录**（本包根）解析，不是相对本配置文件所在目录。
+ * 2. YAML 里 `${name}` 是**项目变量**（缺失即报错），`${{NAME}}` 才是环境变量；
+ *    `javascript` 步骤不要写模板字面量（会被扫描插值）。
+ */
+import { defineTestProject } from '@midscene/test/config'
+import { createMidsceneNodes } from '@midscene/test/midscene'
+import { AgentOverChromeBridge } from '@midscene/web/bridge-mode'
+import { defineBridgeSetup, type BridgeContext } from '@tnnevol/dsh-e2e-kit'
+
+/** 被测 NAS 的 fnOS Web 地址。默认值便于本地复跑，仍建议显式传入。 */
+const targetUrl = process.env.DSH_NAS_URL ?? 'http://192.168.0.110:5666/'
+
+/** FPK 上传目录：只授权这一个目录，最小权限（见测试规范的文件上传约定）。 */
+const allowedDir = process.env.DSH_FPK_DIR
+if (allowedDir === undefined || allowedDir === '') {
+  throw new Error('缺少 DSH_FPK_DIR：请指向存放待安装 FPK 的目录（仅授权该目录）')
+}
+
+export default defineTestProject<BridgeContext>({
+  projects: [
+    {
+      name: 'fnos-nas',
+      setup: defineBridgeSetup({ targetUrl }),
+      nodes: createMidsceneNodes<BridgeContext>({
+        agentClass: AgentOverChromeBridge,
+        getAgent: ({ context }) => context.agent,
+      }),
+      // 相对执行目录（本包根）解析。
+      files: { include: ['e2e/cases/**/*.yaml'] },
+      // 默认排除写操作用例：TC-104 会**覆盖安装** NAS 上的现有应用，不该在
+      // 只读验收里顺手跑掉。要跑它需显式选标签（见 README）。
+      tags: { exclude: ['destructive'] },
+      // YAML 用 `${fpkDir}` 引用（项目变量，非环境变量）。
+      variables: { fpkDir: allowedDir },
+    },
+  ],
+  test: {
+    // NAS 界面是同一个浏览器窗口，用例并行会互相干扰；安装类用例也更长更贵。
+    maxConcurrency: 1,
+    testTimeout: 300_000,
+  },
+  output: { reportDir: './midscene_run/report' },
+})

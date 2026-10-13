@@ -43,6 +43,32 @@ export interface BridgeSetupOptions {
   readonly settleMs?: number
   /** 日志函数，默认 `console.log`。 */
   readonly log?: (message: string) => void
+  /**
+   * 允许文件上传的目录，供**提示词驱动**的上传使用（可选）。
+   *
+   * 上传有两条独立路径，别混（读 `@midscene/core` 源码确认）：
+   *
+   * 1. **直接预设**：`aiAct(prompt, { fileChooserAccept: ['<绝对路径>'] })`，内部走
+   *    `register()`，**不需要**本目录，直接用绝对路径。日常上传用这条最简单。
+   * 2. **提示词驱动**：在提示词里让 AI 自行调用 `RegisterFileChooserAccept` 动作，
+   *    内部走 `registerFromAllowedDir()`，**必须**有本目录——它会把相对路径 resolve
+   *    到该目录下并校验不越界。
+   *
+   * 本字段只在路径 2 生效；且它属于 **`aiAct` 的选项**而非 Agent 构造参数（构造时传会被
+   * 静默忽略——实测踩过：以为构造参数生效，其实是走了路径 1 才成功）。
+   * 用例若用路径 2，请把该目录经项目变量传给 YAML 并在 `aiAct` 步骤上按需使用。
+   *
+   * 无论哪条路径都**只授权最小目录**（例如只放待上传产物的 `tmp/<某目录>/`），
+   * 不要授予仓库根或家目录。
+   */
+  readonly fileChooserAllowedDir?: string
+  /**
+   * 绑定目标页时是否切到前台，默认 `false`（**静默**，不打断用户）。
+   *
+   * 默认静默是有意的：有头浏览器是用户正在使用的窗口，测试把它抢到前台会打断用户。
+   * 只有需要人观察操作过程时才显式传 `true`。
+   */
+  readonly activate?: boolean
 }
 
 /** 等待指定毫秒。 */
@@ -106,6 +132,8 @@ export function defineBridgeSetup(options: BridgeSetupOptions) {
       log(`桥接配置已就绪（端口 ${env.port}，模型由桥按 dsh-model 决定）`)
 
       // Agent 可能因复用页失效而重建，因此用可变引用，teardown 时销毁当前那个。
+      // 注意：`fileChooserAllowedDir` **不能**在这里传——它是 `aiAct` 的选项，
+      // 构造参数里传会被静默忽略（详见 BridgeSetupOptions 里该字段的注释）。
       let agent = new AgentOverChromeBridge()
       onTeardown(async () => {
         // 始终保留目标页（`false` = 不关闭）。重复页由 Midscene 按新建记录自行清理，
@@ -116,7 +144,13 @@ export function defineBridgeSetup(options: BridgeSetupOptions) {
 
       // 「先查后绑定」：setActiveTabId 只能绑定一次，因此必须在绑定前选定目标页
       // （这层顺序约束封装在 connectTarget 里，与探测脚本共用同一份实现）。
-      const connected = await connectTarget(agent, options.targetUrl, { log })
+      // **显式默认 false**（静默）。不能靠「不传」来省事：`connectTarget` 自身的缺省是
+      // `true`（保持其独立调用者的既有行为），若这里也传 undefined，就会落到 true 而把
+      // 用户正在看的页面抢走——实测踩过：注释写着「缺省即 false」，代码却在切前台。
+      const connected = await connectTarget(agent, options.targetUrl, {
+        log,
+        activate: options.activate ?? false,
+      })
       let createdTab = !connected.reused
 
       // **先做健康检查，再动页面**：复用的页可能是浏览器冻结/丢弃的僵尸页（实测：
@@ -130,7 +164,10 @@ export function defineBridgeSetup(options: BridgeSetupOptions) {
         log('复用页无响应（可能已被浏览器丢弃），改为新开一个标签页')
         try { await agent.destroy(false) } catch { /* 旧连接已失效，忽略 */ }
         agent = new AgentOverChromeBridge()
-        await agent.connectNewTabWithUrl(options.targetUrl)
+        // 同样遵守静默约定：僵尸页兜底新开页时也不抢前台。
+        await agent.connectNewTabWithUrl(options.targetUrl, {
+          activateTab: options.activate ?? false,
+        })
         createdTab = true
         await sleep(settleMs)
       }

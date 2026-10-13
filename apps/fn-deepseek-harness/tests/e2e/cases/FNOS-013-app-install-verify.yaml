@@ -1,0 +1,179 @@
+# fnOS 应用安装后验收（FNOS-013 应用级）
+#
+# 用例编号与 docs/tests/FNOS-013-midscene-browser-automation-bridge.md 对齐：
+# 测试文档是**权威台账**（登记结果与结论），本文件是**执行载体**。
+#
+# ## 为什么这组用例在应用级而不是插件里
+#
+# 它验证的是**应用产物**（FPK 装完后的状态）：应用详情页的版本来源、desc 里的内置
+# 插件清单、应用能否启动、内置插件是否真的被装载。这些跨插件，不属于任何单个插件。
+#
+# ## 起始状态：桌面，且**可能有应用窗口盖着**
+#
+# setup 会把目标页导航回 `DSH_NAS_URL`（`http://<nas>:5666/`），那是 **fnOS 桌面**。
+# 但桌面上**常常正开着一个应用窗口**（实测：DSH 应用窗口 1854×918 铺满桌面）。
+# 此时「应用中心」图标被盖住，直接点它**不会生效**——必须先关掉那个窗口。
+#
+# 实测教训（两轮失败换来的）：
+# - 按「应用中心已打开、左侧有侧边栏」写 → 模型在桌面找不到元素，陷入误点循环；
+# - 按「点桌面图标」写但没先关窗口 → 点击落在被遮挡处，后续等待必然超时。
+# **导航必须以「回到桌面」开头**，且把条件分支交给 `aiAct` 自然语言处理。
+#
+# ## 为什么步数要压到最少（重要）
+#
+# **每一个 step 都是一次模型调用**（实测单个 `aiTap` 约 15 秒、`aiWaitFor` 超时可达 90 秒）。
+# 把导航拆成「点图标 → 等菜单 → 点已安装 → 等列表 → 点应用 → 等详情」六步，就是
+# 六次调用、一到两分钟，还容易在中间任何一步脱节。
+#
+# 因此：**导航合并成一次 `aiAct`**（自然语言天然能表达条件分支），只把**精确判定**
+# 留给 `javascript`。这既符合「操作交给视觉、判定交给代码」的分工，也是唯一跑得快的形态。
+#
+# ## 语法硬约束（实测踩过，解析器会直接报错）
+#
+# 1. **字符串简写不能带 options**：`aiAct: 某提示` 映射成 `{ prompt }`，再并列 `options:`
+#    就是两个键，报 `step N must contain exactly one node`。要带选项必须写对象形态。
+# 2. **每个 step 恰好一个动作**。
+# 3. **参数名以 `midscene-test nodes` 生成的说明书为准**：`aiWaitFor` 是
+#    `strictObject{prompt, options{timeoutMs}}`，超时键在 `options.timeoutMs`。
+#
+# 另：`${name}` 是**项目变量**（缺失即报错），`${{NAME}}` 才是环境变量；`javascript`
+# 步骤里不要写模板字面量（会被扫描插值）。
+
+cases:
+  # ── 应用详情页：版本与来源 ────────────────────────────────────────
+  - name: TC-100 应用详情页显示已安装版本与来源
+    tags: [FNOS-013, nas, install]
+    steps:
+      # 一次 aiAct 完成「回桌面 → 关掉挡路的应用窗口 → 进应用中心 → 打开详情页」。
+      # 自然语言能表达条件分支，比拆成六步快得多，也不会中途脱节。
+      - aiAct:
+          prompt: >-
+            先点 fnOS 桌面底部的任务栏或桌面空白处回到桌面；如果桌面上正开着 DeepSeek
+            Harness 的应用窗口，先关掉它（点窗口右上角的关闭按钮）。然后双击桌面上的
+            「应用中心」图标打开应用中心，在左侧菜单点「已安装」，再从列表里点开
+            DeepSeek Harness，进入它的应用详情页。
+          options:
+            deepThink: true
+      # 精确断言：详情页必须真的到位，且版本与来源可解析（不靠模型读数）。
+      - javascript: |
+          (() => {
+            const text = document.body.innerText || '';
+            if (!/DeepSeek Harness/.test(text)) throw new Error('未进入 DeepSeek Harness 详情页');
+            if (!/当前版本/.test(text)) throw new Error('详情页缺少「当前版本」字段');
+            if (!/手动安装/.test(text)) throw new Error('详情页「来源」不是手动安装');
+            const version = (text.match(/当前版本\s*\n?\s*([0-9][0-9A-Za-z.+-]*)/) || [])[1];
+            if (!version) throw new Error('未能从详情页解析出版本号');
+            return '版本=' + version;
+          })()
+      - aiAssert: 页面显示的是 DeepSeek Harness 的应用详情，可见应用图标、介绍文字与「打开」按钮
+
+  # ── 内置插件声明与发布清单一致 ────────────────────────────────────
+  - name: TC-101 应用介绍列出四个内置插件且不含 Midscene
+    tags: [FNOS-013, nas, install]
+    steps:
+      # 承接 TC-100 的详情页；不在则重新导航（用例要能独立执行）。
+      - aiAct:
+          prompt: >-
+            如果当前不在 DeepSeek Harness 的应用详情页，先回到 fnOS 桌面，打开「应用中心」，
+            点左侧「已安装」，再点开 DeepSeek Harness 进入详情页。然后点击应用介绍下方的
+            「展开全部」，让完整介绍显示出来。
+          options:
+            deepThink: true
+      # 精确断言：desc 是发布清单的镜像。
+      # 「不应声称内置 Midscene」是**否定式判断**——实测视觉模型断言「不存在 X」不可靠
+      # （曾把药丸按钮本身误判成开关控件），因此这类判定一律用 javascript。
+      - javascript: |
+          (() => {
+            const text = document.body.innerText || '';
+            const want = ['fnOS', 'Codex Auth', 'CodeBuddy', 'Failover Search'];
+            const missing = want.filter(n => !text.includes(n));
+            if (missing.length > 0) throw new Error('内置插件清单缺少：' + missing.join('、'));
+            if (/内置[^。]*Midscene/.test(text)) {
+              throw new Error('介绍仍声称内置 Midscene，与发布清单不符');
+            }
+            return '四个内置插件齐备，且未声称内置 Midscene';
+          })()
+
+  # ── 应用可启动 ────────────────────────────────────────────────────
+  - name: TC-102 打开应用后 DSH 界面正常渲染
+    tags: [FNOS-013, nas, runtime]
+    steps:
+      # 从桌面启动应用（若已开着，这一步是幂等的——aiAct 会判断）。
+      - aiAct:
+          prompt: >-
+            回到 fnOS 桌面，双击「DeepSeek Harness」应用图标启动它；如果它的窗口已经开着，
+            就直接用那个窗口，不要重复启动。等待窗口内显示出 DSH 的会话界面。
+          options:
+            deepThink: true
+      # 精确断言：应用以 iframe 挂载且同源可读（实测确认同源）。
+      - javascript: |
+          (() => {
+            const f = document.querySelector('iframe[src*="/app/fn-deepseek-harness"]');
+            if (!f) throw new Error('未找到 DSH 应用的 iframe（应用可能未打开）');
+            let doc = null;
+            try { doc = f.contentDocument } catch (e) { throw new Error('iframe 跨源，无法读取（与实测不符）'); }
+            if (!doc) throw new Error('iframe 已挂载但 contentDocument 不可读');
+            const t = doc.body ? (doc.body.innerText || '') : '';
+            if (t.length < 50) throw new Error('iframe 内文本过少，DSH 界面可能未渲染');
+            const missing = ['新会话', '插件'].filter(n => !t.includes(n));
+            if (missing.length > 0) throw new Error('DSH 界面缺少入口：' + missing.join('、'));
+            return 'DSH 界面已渲染，含新会话与插件入口';
+          })()
+      - aiAssert: 应用窗口里显示的是 DeepSeek Harness 的会话界面（左侧有「新会话」「插件」等菜单项）
+
+  # ── 内置插件真的被装载 ────────────────────────────────────────────
+  - name: TC-103 DSH 客户端模块图装载四个内置插件
+    tags: [FNOS-013, nas, runtime]
+    steps:
+      # 纯断言用例，不需要界面操作：外壳 HTML 是静态入口，直接取来解析。
+      # 比滚动界面截图核对更直接、也更快（零模型调用）。
+      - javascript: |
+          (async () => {
+            const res = await fetch('/app/fn-deepseek-harness');
+            if (!res.ok) throw new Error('获取应用外壳失败：HTTP ' + res.status);
+            const html = await res.text();
+            const m = html.match(/plugins\/\?\?((?:[^"'&]*@tnnevol[^"'&]*)+)/);
+            if (!m) throw new Error('外壳 HTML 未包含 @tnnevol 插件 bundle 引用');
+            const found = [...m[1].matchAll(/(@tnnevol\/[^,\/]+)\/client\.js/g)].map(x => x[1]);
+            const want = ['@tnnevol/dsh-fnos', '@tnnevol/dsh-codebuddy',
+                          '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-failover-search'];
+            const missing = want.filter(n => !found.includes(n));
+            if (missing.length > 0) {
+              throw new Error('模块图缺少内置插件：' + missing.join('、') + '；实际为：' + found.join('、'));
+            }
+            if (found.includes('@tnnevol/dsh-midscene')) {
+              throw new Error('模块图仍含 dsh-midscene，与「不随 FPK 内置」的决定不符');
+            }
+            return '四个内置插件均已在客户端模块图中装载';
+          })()
+
+  # ── 手动安装：从电脑上传 FPK 装到装完 ─────────────────────────────
+  #
+  # 本套唯一「有写操作」的用例：会**覆盖安装** NAS 上现有应用，因此默认不执行
+  # （配置里按标签排除）。单独跑：
+  #
+  #   pnpm exec midscene-test --config e2e/midscene.config.ts --tags destructive
+  #
+  # 前置：`DSH_FPK_DIR` 指向**只放待安装 FPK** 的最小目录（不要给仓库根）。
+  - name: TC-104 手动安装：从电脑上传 FPK 并完成覆盖安装
+    tags: [FNOS-013, nas, install, destructive]
+    steps:
+      # 一次 aiAct 完成「回桌面 → 关窗口 → 进应用中心 → 打开手动安装对话框」。
+      - aiAct:
+          prompt: >-
+            回到 fnOS 桌面；如果正开着 DeepSeek Harness 的应用窗口，先关掉它。然后双击
+            「应用中心」图标打开应用中心，在左下角点击「手动安装」按钮，打开手动安装对话框。
+          options:
+            deepThink: true
+      # 上传 FPK：**点击与文件预设必须在同一次 aiAct 内**——预设随 aiAct 结束即清除。
+      # 实测教训：先单独 click、再单独 aiAct 上传，会一直等不到文件选择器而卡住。
+      - aiAct:
+          prompt: >-
+            在「手动安装」对话框里确认存储空间选择的是「存储空间 1」，然后点击「上传 fpk
+            文件」区域中的「从电脑上传」，在弹出的文件选择器里选中并上传该文件；上传完成后
+            如果出现「未经验证应用的安全提示」，点「同意」；接着在服务配置向导里保持默认
+            配置点「下一步」，等待安装完成（进度对话框消失）。
+          options:
+            fileChooserAccept: ['${fpkDir}/fn-deepseek-harness.fpk']
+            deepThink: true
+      - aiAssert: 应用中心列表里 DeepSeek Harness 这一项显示为已安装且可打开

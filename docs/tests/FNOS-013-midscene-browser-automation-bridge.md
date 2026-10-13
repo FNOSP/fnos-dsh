@@ -235,6 +235,12 @@ verifiedAt: 2026-10-12
 | TC-054 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | DSH Web + 本地测试 | 通过 | 2026-10-12 | **实测**：占住 8787 后启动，桥自动改用 8788（`curl 8788/v1/health` → 200）；健康端点 `port: 8788`；`/v1/midscene-env` 的 `MIDSCENE_MODEL_BASE_URL` 与 `content` 均为 8788 且不含 8787；配置写回 `port: 8788`，重启后仍用 8788（不重复扫描）。单测覆盖：跳号后服务可用、端点报实际端口、连续 20 个端口被占抛 `BridgePortExhaustedError` |
 | TC-055 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | DSH Web（用户真实 Chrome） | 通过 | 2026-10-12 | **实测**（Bridge Mode，Midscene 官方《Chrome 桥接模式》流程）：脚本作 server（默认 `127.0.0.1:3766`），真实 Chrome 里的 Midscene 扩展（v1.105）作为 client 反向连接（日志 `one client connected`、`Bridge connected, cli-side v1.15.1, browser-side v1.15.0`）。用入仓脚本 `scripts/bridge-smoke.ts` 完成：首页 `aiAssert` 通过 → 点击「插件」→ 页面内独立核实 `hasAddPlugin: true` → 插件列表 `aiAssert` 通过。视口为真实窗口 1920×906（无侧边栏收缩），无 macOS 钥匙串弹窗，浏览器窗口用户可见 |
 
+| TC-100 | 应用级<br>安装后验收 | 真实 NAS（fnOS `192.168.0.110`） | 通过 | 2026-10-13 | **实测**（Midscene Test，一次连接跑完全部用例）：应用详情页读到「当前版本」与「来源 = 手动安装」，版本号由 `javascript` 从 `innerText` 正则解析（不靠模型读数）。执行载体 `apps/fn-deepseek-harness/tests/e2e/` |
+| TC-101 | 应用级<br>内置插件声明 | 真实 NAS | 通过 | 2026-10-13 | **实测**：`desc` 含 fnOS / Codex Auth / CodeBuddy / Failover Search 四项，且**不含**「内置 Midscene」的表述，与发布清单 `published-dsh-plugins.json`（5 项）一致。否定式判断用 `javascript` 表达（视觉模型断言「不存在 X」实测不可靠） |
+| TC-102 | 应用级<br>应用启动 | 真实 NAS | 通过 | 2026-10-13 | **实测**：点桌面图标启动应用，外壳以 `iframe[src*="/app/fn-deepseek-harness"]` 挂载且**同源可读**；iframe 内文本含「新会话」「插件」入口 |
+| TC-103 | 应用级<br>内置插件装载 | 真实 NAS | 通过 | 2026-10-13 | **实测**：解析应用外壳 HTML 的 `plugins/??…/client.js` 引用块，四个内置插件均在客户端模块图中；且**不含** `@tnnevol/dsh-midscene`（与「不随 FPK 内置」的决定一致）。纯断言用例，零模型调用 |
+| TC-104 | 应用级<br>手动安装 | 真实 NAS | 未执行 | 2026-10-13 | 写操作用例（**覆盖安装**），配置里按 `destructive` 标签默认排除，需显式指定标签单独执行。上传路径用 `aiAct` 的 `options.fileChooserAccept`（预设须与点击在**同一次** `aiAct` 内，否则等不到文件选择器） |
+
 ## Bug 记录
 
 | Bug ID | 关联用例 | 标题 | 严重级别 | 状态 | 修复说明 |

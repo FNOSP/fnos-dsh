@@ -269,6 +269,45 @@ pnpm --filter @tnnevol/dsh-midscene run test:bridge "<目标URL>"
 
 **僵尸页面的自动降级**：桥接复用到的页可能已被浏览器冻结/丢弃（实测实例重启后遗留的页上任何 `evaluateJavaScript` 都会挂到 Midscene 自身的 30s 超时，导致整轮用例 `not run`）。共享包在绑定后**先探活再动页面**，不可用则重建 Agent 换一个新页——因此切页只能靠重建 Agent（`setActiveTabId` 只能绑定一次）。
 
+#### 连续交互必须用 Midscene Test 用例，禁止一次性探测脚本
+
+**涉及两步以上、有前后依赖的交互验收（安装、上传、登录、多步走查等），必须写成
+Midscene Test 用例**（`plugins/<插件>/tests/e2e/` 下的 YAML + 配置），用
+`pnpm --filter <包> run test:e2e` 一条命令跑完。**不得拆成多个一次性脚本，一步一停。**
+
+拆成一次性脚本的代价是实测出来的：为「在真实 NAS 上装一次 FPK 并验收」这件事写过
+**66 个脚本**，每个都遵循同一个错误模板——
+
+```bash
+kill 3766 → nohup node xxx.mjs → sleep N → grep 日志 → 人工判断结果
+```
+
+它带来四个具体损害：
+
+| 损害 | 原因 |
+| --- | --- |
+| 每步都要重新连桥（约 5–10 秒空转） | Midscene 的 `setActiveTabId` **每个 Agent 只能调用一次**（`if (this.activeTabId) throw`），跨步骤只能新建 Agent，于是必须杀掉 3766 上的旧桥 |
+| 进度反复中断、无法无人值守 | 脚本以 `process.exit(0)` 收尾，结果只能由人读日志判断，下一步要重新起 |
+| 判定不可靠 | `sleep` + `grep` 是**猜测**而非**断言**；Midscene Test 的 `aiAssert` / `javascript` 步骤不成立即抛错 |
+| 不可复用、无法回归 | 一次性脚本用完即弃，下次回归还得重写第 N+1 个 |
+
+**正确形态**（各部分的职责见上一节「Midscene Test 项目」）：
+
+| 需求 | 载体 |
+| --- | --- |
+| 一次连接贯穿全部用例 | 项目 `setup`（每个执行项目**只运行一次**，其 `context` 由该项目所有 Node 共享）——这正是「连续不中断」的机制来源 |
+| 用例内连续多步 | YAML 的 `steps` 顺序执行，中间不停顿 |
+| 文件级准备与清理 | `beforeAll` / `afterAll`（每 YAML 文件一次）、`beforeEach` / `afterEach`（每用例一次） |
+| 判定 | `aiAssert`（视觉）/ `javascript`（精确 DOM），失败即报错 |
+| 证据 | 框架自动产出 HTML 报告与每步截图 |
+
+**允许写一次性脚本的唯一情形**：单步、无前后依赖的**只读探查**（例如确认某个端点的响应形态）。
+即便如此也必须走共享包的 `connectTarget()`（见下一节），并且用完即删——不得让它演变成
+事实上的测试载体。
+
+**这条规则同时约束 AI Agent**：不要为了「看着方便」而把一个流程拆成多个脚本分次执行。
+把流程写进用例、一次跑完，比事后拼凑日志更省时，也是唯一能沉淀成回归资产的形式。
+
 #### 连接目标页：一律用共享入口
 
 **任何**驱动有头浏览器的脚本（含 `tmp/` 下的一次性探测脚本）都必须用共享包提供的
@@ -573,3 +612,4 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-10-12 | Midscene 章节新增「有头浏览器的标签页纪律」 | 针对有头（Bridge Mode）测试新增四条纪律：先查后复用（同源同路径视为同一页，避免 DSH Web 的 `?token=` 变化导致复用失效）、复用后回到确定起点（复用页可能停在上次测试状态）、收尾至少保留一个目标页、只关闭本次新建的重复页。实测依据：`setActiveTabId` 只能绑定一次（因此必须「先查后绑定」）、`destroy(closeTab)` 仅关闭 `newlyCreatedTabIds`。验证：连续三轮测试后浏览器 8070 目标页恒为 1 张、总页数无堆积。 |
 | 2026-10-12 | Midscene 章节新增「Midscene Test 项目」小节 | 交互用例的正式载体落定为 Midscene Test：共享装配放 `packages/dsh-e2e-kit`，各插件在 `tests/e2e/` 放配置与用例、以 `test:e2e` 为入口。明确用例与测试文档的对应关系（文档是权威台账、YAML 的 `name` 以 `TC-0xx` 对齐）。登记四条实测约束：YAML 的 `${}` 插值是项目变量（javascript 步骤不能用模板字面量）、用例必须自建起始状态、归一状态必须用真实点击（程序化 click 不切换 React 受控状态）、断言分工（精确判定用 javascript、否定式判断不交给视觉模型）。状态依据从组件源码取。新增僵尸页自动降级说明。验证：FNOS-012 的 TC-028/029/030 经 `pnpm --filter @tnnevol/dsh-failover-search run test:e2e` 全部通过。 |
 | 2026-10-13 | Midscene 章节新增「连接目标页：一律用共享入口」 | 明确任何驱动有头浏览器的脚本（含 `tmp/` 下的一次性探测脚本）都必须用共享包的 `connectTarget()`，不得直接调 Midscene 的 `connectNewTabWithUrl()`（后者无条件新开页、不判断复用）。背景：复用逻辑一度只存在于 Midscene Test 的 setup 里，导致 29 个探测脚本各开一页又不关闭、浏览器堆积数十个重复标签页——规矩只写在文档而临时脚本用不上即治理漏洞，故把复用做成默认入口。 |
+| 2026-10-13 | 新增「连续交互必须用 Midscene Test 用例，禁止一次性探测脚本」 | 涉及两步以上、有前后依赖的交互验收必须写成 Midscene Test 用例并一条命令跑完；禁止拆成多个一次性脚本一步一停。依据：为「真实 NAS 装一次 FPK 并验收」写过 66 个一次性脚本，每个都 `kill 3766 → node xxx.mjs → sleep → grep`，导致每步重连桥（`setActiveTabId` 每个 Agent 只能调用一次）、进度反复中断、以 sleep+grep 猜测代替断言、用完即弃无法回归。同时明确 `setup` 每个执行项目只运行一次，是「连续不中断」的机制来源。 |
