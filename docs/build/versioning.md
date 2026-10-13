@@ -16,6 +16,23 @@
 - 仅文档、章程与测试用例文档的纯文档改动不需要触发版本更新。
 - 该要求与 [发布检查](#发布检查) 衔接：功能结束 → `version` 更新版本 → 发布时按 [发布流程](./release.md) 走 `publish` 与 dist-tag 维护。
 
+### tag 不推送与非交互参数
+
+`version` 命令支持以下参数（实现见 `tooling/fnos-dsh-cli/src/commands/version.ts`）：
+
+| 参数 | 作用 |
+| --- | --- |
+| `--yes` | 跳过版本确认提示，**非交互执行**；脚本、Agent 与 CI 场景必须携带 |
+| `--no-tag` | 不创建项目 Tag（`project` 命令） |
+| `--no-commit` | 只更新版本文件，不创建提交 |
+| `--no-push` | 兼容参数；命令内部本就硬编码 `push: false`，**任何情况下都不会推送 Tag** |
+
+规则：
+
+- **产生的 Tag 只留在本地，不推送**。Tag 的推送由发布者按 [发布流程](./release.md) 确认后手动执行（`git push origin <tag>`），版本命令不做这件事。
+- 非交互场景（脚本、Agent、CI）使用 `--yes`：`pnpm run version -- project patch --yes`。不带 `--yes` 时命令会在确认提示处等待输入。
+- 插件版本命令不创建 Tag，因此没有推送 Tag 的问题；它同样支持 `--yes` 跳过确认。
+
 ## 项目与 FPK 版本
 
 项目版本命令更新根 `package.json`、文档包 `docs/package.json`、`packages/*/package.json`、`tooling/fnos-dsh-cli/package.json`、应用 `manifest` 和 README 版本引用，并创建项目 Tag。CLI workspace 包与项目版本保持一致，避免版本命令升级项目后工具包仍停留在旧版本。文档站点的版本徽标从文档包自身的 `package.json` 读取：

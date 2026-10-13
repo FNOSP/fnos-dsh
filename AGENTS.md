@@ -73,6 +73,7 @@
 - 代码注释使用中文、保持简洁，删除功能时同步删除对应注释，见 [路径与编码](docs/development/conventions.md)。
 - 每次功能完成及时更新 `apps/fn-deepseek-harness/manifest` 的 `desc` 与 `changelog`；`desc` 支持富文本（HTML），见 [Manifest 清单配置](docs/development/manifest.md)。
 - 修改插件或项目的功能结束后，必须用 `pnpm run version` 更新插件或项目版本（两条独立提交：先功能改动，再版本提交），见 [版本管理](docs/build/versioning.md)。
+- `pnpm run version` 产生的 Tag 只留本地不推送（命令内硬编码不 push），推送由发布者手动执行；非交互执行带 `--yes`，见 [版本管理](docs/build/versioning.md#版本更新时机强制)。
 - 计划任务完成后在 `docs/tests/` 回填与需求同编号的测试用例文档（含结果、Bug、最终结论）；计划文档不再写测试用例表，见 [测试用例文档规范](docs/charter/tests-spec.md)。
 - 官方上游项目只作为契约和行为参考，不直接修改或提交上游代码。
 
