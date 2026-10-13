@@ -11,6 +11,24 @@ FNOS-013 在真实环境里踩出三件事，各测试项目都要用、也最�
 | `defineBridgeSetup()` | 用 Bridge Mode 接入**用户真实 Chrome**（窗口可见、复用登录态、无钥匙串弹窗、视口正确），并处理接入配置、标签页复用与收尾 |
 | `loadBridgeEnv()` | 接入配置向 `@tnnevol/dsh-midscene` 插件获取：零密钥、端口自动探测（桥被占用会跳号） |
 | `actUntil()` | 交互后**独立核实**、未生效重试——Midscene 单次点击可能不生效而 `ai()` 仍自述成功 |
+| `connectTarget()` | 连接目标页时**优先复用已打开的页**。Midscene 的 `connectNewTabWithUrl()` 无条件新开页、不判断复用，复用责任在调用方；漏做会堆积重复标签页 |
+
+## 一次性脚本也要用 `connectTarget()`
+
+连测试项目之外的小脚本（探测、临时验证）也走它，否则会重演「每个脚本各开一页又不关闭、
+浏览器堆几十个重复标签页」的问题：
+
+```ts
+import { AgentOverChromeBridge } from '@midscene/web/bridge-mode'
+import { connectTarget, loadBridgeEnv, applyBridgeEnv } from '@tnnevol/dsh-e2e-kit'
+
+applyBridgeEnv(await loadBridgeEnv())
+const agent = new AgentOverChromeBridge()
+await connectTarget(agent, targetUrl, { log: console.log })   // 已打开就复用
+// …用完收尾：destroy(false) 保留目标页，别让用户丢失查看入口
+await agent.destroy(false)
+```
+
 
 ## 用法
 

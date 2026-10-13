@@ -40,6 +40,12 @@ export {
   type BridgeEnv,
 } from './env.ts'
 export {
+  connectTarget,
+  listTabs,
+  type ConnectResult,
+  type ConnectTargetOptions,
+} from './connect.ts'
+export {
   samePage,
   selectTab,
   type BrowserTab,

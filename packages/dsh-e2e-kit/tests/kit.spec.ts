@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { samePage, selectTab, type BrowserTab } from '../src/tab-policy.ts'
 import { actUntil } from '../src/verify.ts'
+import { connectTarget } from '../src/connect.ts'
 import { DEFAULT_BRIDGE_PORT, PORT_PROBE_LIMIT, findBridgePort } from '../src/env.ts'
 
 /**
@@ -145,5 +146,50 @@ describe('僵尸页面的判定（复用页失效时的降级依据）', () => {
 
   it('samePage 在 token 变化后仍判定为同一页（避免重复开页）', () => {
     expect(samePage('http://127.0.0.1:8070/?token=old', 'http://127.0.0.1:8070/?token=new')).toBe(true)
+  })
+})
+
+describe('connectTarget：探测脚本也必须复用（治理漏洞的堵法）', () => {
+  /** 造一个假的 Agent，记录它被调用了哪些方法。 */
+  const fakeAgent = (tabs: readonly { id: string, url?: string, currentActiveTab?: boolean }[]) => {
+    const calls: string[] = []
+    return {
+      calls,
+      agent: {
+        getBrowserTabList: async () => tabs,
+        setActiveTabId: async (id: string) => { calls.push(`setActiveTabId:${id}`) },
+        connectCurrentTab: async () => { calls.push('connectCurrentTab') },
+        connectNewTabWithUrl: async (url: string) => { calls.push(`connectNewTabWithUrl:${url}`) },
+      } as never,
+    }
+  }
+
+  it('目标页已打开 → 绑它，绝不新开', async () => {
+    const { agent, calls } = fakeAgent([{ id: '9', url: 'http://127.0.0.1:8070/?token=old' }])
+    const result = await connectTarget(agent, 'http://127.0.0.1:8070/?token=new')
+    expect(result).toMatchObject({ reused: true, tabId: '9', reason: 'existing' })
+    expect(calls).toEqual(['setActiveTabId:9'])
+    // 关键：没有任何新开页的调用。
+    expect(calls.some(c => c.startsWith('connectNewTabWithUrl'))).toBe(false)
+  })
+
+  it('目标页没打开 → 才新开（并报告 reused=false）', async () => {
+    const { agent, calls } = fakeAgent([{ id: '1', url: 'https://example.com/' }])
+    const result = await connectTarget(agent, 'http://127.0.0.1:8070/')
+    expect(result.reused).toBe(false)
+    expect(calls.some(c => c.startsWith('connectNewTabWithUrl'))).toBe(true)
+  })
+
+  it('allowNewTab=false 时目标页不存在就报错（用于「只许复用」的场景）', async () => {
+    const { agent, calls } = fakeAgent([])
+    await expect(connectTarget(agent, 'http://127.0.0.1:8070/', { allowNewTab: false }))
+      .rejects.toThrow(/不允许新开/u)
+    expect(calls).toEqual([])
+  })
+
+  it('复用判定忽略查询串（DSH Web 的 token 会随重启变化）', async () => {
+    const { agent } = fakeAgent([{ id: '7', url: 'http://127.0.0.1:8070/' }])
+    const result = await connectTarget(agent, 'http://127.0.0.1:8070/?token=brand-new')
+    expect(result.reused).toBe(true)
   })
 })

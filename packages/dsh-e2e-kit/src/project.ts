@@ -16,8 +16,7 @@
 import { defineProjectSetup } from '@midscene/test/config'
 import { AgentOverChromeBridge } from '@midscene/web/bridge-mode'
 import { applyBridgeEnv, loadBridgeEnv } from './env.ts'
-import type { BrowserTab } from './tab-policy.ts'
-import { selectTab } from './tab-policy.ts'
+import { connectTarget } from './connect.ts'
 import { actUntil, type ActUntilOptions, type ActUntilResult } from './verify.ts'
 
 /** 项目 context：Node 通过它拿到 Agent。 */
@@ -51,31 +50,11 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-/** `getBrowserTabList` 的返回项（含等待封套）。 */
-interface TabListEnvelope {
-  readonly result?: { readonly value?: readonly BrowserTab[] }
-}
-
-/**
- * 读取标签页列表。
- *
- * Midscene 在 Bridge 模式下把返回值包在 `{ result: { value } }` 里；不同版本可能直接
- * 返回数组，因此两种形态都要兼容（否则复用判定会永远拿到空列表）。
- * @param agent - 桥接 Agent。
- * @returns 标签页列表（读取失败时为空数组）。
- */
-async function listTabs(agent: AgentOverChromeBridge): Promise<readonly BrowserTab[]> {
-  const raw = await agent.getBrowserTabList() as unknown
-  if (Array.isArray(raw)) return raw as readonly BrowserTab[]
-  const value = (raw as TabListEnvelope).result?.value
-  return Array.isArray(value) ? value : []
-}
-
 /**
  * 探测当前绑定的页面是否可响应。
  *
  * 有头浏览器里的页可能被冻结或丢弃（例如实例重启后遗留的页），此时任何
- * `evaluateJavaScript` 都会挂到超时。用短超时探一下，避免把整个用例拖垮。
+ * `evaluateJavaScript` 都会挂到超时，把整轮用例拖垮。用短超时先探一下，不可用就换页。
  * @param agent - 桥接 Agent。
  * @param timeoutMs - 探测超时，默认 8 秒（远小于 Midscene 自身的 30 秒）。
  * @returns 页面是否可响应。
@@ -135,19 +114,10 @@ export function defineBridgeSetup(options: BridgeSetupOptions) {
         log('已断开连接（目标页保留）')
       })
 
-      // 「先查后绑定」：setActiveTabId 只能绑定一次，因此必须在绑定前选定目标页。
-      const tabs = await listTabs(agent)
-      const selection = selectTab(tabs, options.targetUrl)
-      let createdTab = false
-      if (selection.reuseTabId !== undefined) {
-        await agent.setActiveTabId(selection.reuseTabId)
-        log(`复用已打开的标签页（id=${selection.reuseTabId}，依据=${selection.reason}）`)
-      } else {
-        await agent.connectNewTabWithUrl(options.targetUrl)
-        createdTab = true
-        log('目标页未打开，已新开一个')
-      }
-      await sleep(settleMs)
+      // 「先查后绑定」：setActiveTabId 只能绑定一次，因此必须在绑定前选定目标页
+      // （这层顺序约束封装在 connectTarget 里，与探测脚本共用同一份实现）。
+      const connected = await connectTarget(agent, options.targetUrl, { log })
+      let createdTab = !connected.reused
 
       // **先做健康检查，再动页面**：复用的页可能是浏览器冻结/丢弃的僵尸页（实测：
       // 残留页上 evaluateJavaScript 会挂到 Midscene 自身的 30s 超时，把整轮测试拖垮，

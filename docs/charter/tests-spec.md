@@ -269,6 +269,31 @@ pnpm --filter @tnnevol/dsh-midscene run test:bridge "<目标URL>"
 
 **僵尸页面的自动降级**：桥接复用到的页可能已被浏览器冻结/丢弃（实测实例重启后遗留的页上任何 `evaluateJavaScript` 都会挂到 Midscene 自身的 30s 超时，导致整轮用例 `not run`）。共享包在绑定后**先探活再动页面**，不可用则重建 Agent 换一个新页——因此切页只能靠重建 Agent（`setActiveTabId` 只能绑定一次）。
 
+#### 连接目标页：一律用共享入口
+
+**任何**驱动有头浏览器的脚本（含 `tmp/` 下的一次性探测脚本）都必须用共享包提供的
+`connectTarget()` 连接目标页，不要直接调 Midscene 的 `connectNewTabWithUrl()`：
+
+```ts
+import { AgentOverChromeBridge } from '@midscene/web/bridge-mode'
+import { connectTarget, loadBridgeEnv, applyBridgeEnv } from '@tnnevol/dsh-e2e-kit'
+
+applyBridgeEnv(await loadBridgeEnv())
+const agent = new AgentOverChromeBridge()
+const { reused, tabId } = await connectTarget(agent, targetUrl, { log: console.log })
+```
+
+它按「先查后绑定」的顺序处理三种情形（目标页已打开／当前活动页即目标页／都没有才新开），
+并把「新开页」变成需要显式发生的少数情况。
+
+**为什么写成硬要求**：Midscene 的 `connectNewTabWithUrl()` **无条件** `chrome.tabs.create()`，
+它不判断目标页是否已打开；而复用的责任在调用方。这里的实测教训是——复用逻辑一度只存在于
+Midscene Test 的项目 setup 里，于是 29 个「图省事直接连新页」的探测脚本各开一页又不关闭，
+浏览器里堆积了几十个重复标签页。**规矩只写在文档里、而临时脚本用不上，就是治理漏洞**；
+把复用做成默认入口才算堵住。
+
+`allowNewTab: false` 可用于「只允许复用」的场景（目标页不存在时直接报错，避免无意中堆积）。
+
 #### 有头浏览器（Bridge Mode）的标签页纪律
 
 用有头浏览器测试时，浏览器的标签页是**用户真实工作环境**的一部分，必须遵守四条纪律（脚本已实现）：
@@ -547,3 +572,4 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-10-12 | Midscene 章节新增 Bridge Mode 并升为首选接入方式 | 按 Midscene 官方《Chrome 桥接模式》验证：脚本作 server（默认 127.0.0.1:3766），用户真实 Chrome 里的 Midscene 扩展反向连接，因此浏览器用户可见、复用真实 cookies 与登录态、无 macOS 钥匙串弹窗、视口即真实窗口（实测 1920×906）。实测同一任务在 Bridge Mode 下完整通过（首页断言 → 点击「插件」→ 独立核实进入插件列表 → 列表断言），而 CDP 直连需应对 756×413 窄视口与钥匙串授权。据此把接入方式改为三级优先级（Bridge Mode > 默认 Puppeteer > CDP），CDP 章节标注为备选。验证脚本入仓：`plugins/dsh-midscene-plugin/scripts/bridge-smoke.ts`（`pnpm --filter @tnnevol/dsh-midscene run test:bridge`）。 |
 | 2026-10-12 | Midscene 章节新增「有头浏览器的标签页纪律」 | 针对有头（Bridge Mode）测试新增四条纪律：先查后复用（同源同路径视为同一页，避免 DSH Web 的 `?token=` 变化导致复用失效）、复用后回到确定起点（复用页可能停在上次测试状态）、收尾至少保留一个目标页、只关闭本次新建的重复页。实测依据：`setActiveTabId` 只能绑定一次（因此必须「先查后绑定」）、`destroy(closeTab)` 仅关闭 `newlyCreatedTabIds`。验证：连续三轮测试后浏览器 8070 目标页恒为 1 张、总页数无堆积。 |
 | 2026-10-12 | Midscene 章节新增「Midscene Test 项目」小节 | 交互用例的正式载体落定为 Midscene Test：共享装配放 `packages/dsh-e2e-kit`，各插件在 `tests/e2e/` 放配置与用例、以 `test:e2e` 为入口。明确用例与测试文档的对应关系（文档是权威台账、YAML 的 `name` 以 `TC-0xx` 对齐）。登记四条实测约束：YAML 的 `${}` 插值是项目变量（javascript 步骤不能用模板字面量）、用例必须自建起始状态、归一状态必须用真实点击（程序化 click 不切换 React 受控状态）、断言分工（精确判定用 javascript、否定式判断不交给视觉模型）。状态依据从组件源码取。新增僵尸页自动降级说明。验证：FNOS-012 的 TC-028/029/030 经 `pnpm --filter @tnnevol/dsh-failover-search run test:e2e` 全部通过。 |
+| 2026-10-13 | Midscene 章节新增「连接目标页：一律用共享入口」 | 明确任何驱动有头浏览器的脚本（含 `tmp/` 下的一次性探测脚本）都必须用共享包的 `connectTarget()`，不得直接调 Midscene 的 `connectNewTabWithUrl()`（后者无条件新开页、不判断复用）。背景：复用逻辑一度只存在于 Midscene Test 的 setup 里，导致 29 个探测脚本各开一页又不关闭、浏览器堆积数十个重复标签页——规矩只写在文档而临时脚本用不上即治理漏洞，故把复用做成默认入口。 |
