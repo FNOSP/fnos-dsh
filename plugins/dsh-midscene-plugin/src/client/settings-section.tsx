@@ -226,17 +226,6 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
                 </DshSelect.Option>
               ))}
             </DshSelect>
-            {/* 显式的清空按钮：Semi 的 showClear 只在**悬停或下拉展开时**出现
-                （其渲染条件是 `isHovering || isOpen`），用户找不到它。这里给一个常驻
-                按钮，把「清空 = 回到跟随会话模型」这件事变得可见。
-                没有选中值时禁用，避免给出无效操作。 */}
-            <DshButton
-              size="small"
-              disabled={model === '' || busy}
-              onClick={() => { applyModel('') }}
-            >
-              {t('modelsClear')}
-            </DshButton>
             {modelMissing ? (
               <DshTag color="orange" size="small">{t('modelsStale')}: {model}</DshTag>
             ) : null}

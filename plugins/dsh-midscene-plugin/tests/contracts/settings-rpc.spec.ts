@@ -42,9 +42,9 @@ describe('接入设置契约', () => {
 })
 
 describe('清空模型（单选的必备能力）', () => {
-  // 背景：多选时靠删除标签即可取消；改为单选后必须另有清空手段，否则用户选定后
-  // 无法回到「跟随 DSH 会话模型」。界面上是常驻的「清除选择」按钮 + Semi 的 showClear，
-  // 契约层对应「空串是合法值」。
+  // 背景：多选时靠删除标签即可取消；改为单选后靠 Semi Select 自带的清空图标（×）。
+  // 该图标要求组件收到 `showClear`（不是 Input 的 `allowClear`）才渲染，
+  // 契约层对应「空串是合法值」——清空即写入空串。
   it('空串是合法写入值，代表未指定', () => {
     const request: MidsceneSettingsRequest = { action: 'update', model: '' }
     expect(request.model).toBe('')
