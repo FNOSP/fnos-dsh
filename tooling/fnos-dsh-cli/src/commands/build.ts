@@ -30,17 +30,27 @@ const DSHMARKET_NAME = 'dshmarket'
  * the plugins moved to `0.1.7-rc.2.1` while a constant here still said
  * `0.1.7-rc.2`, so the build failed on a value that duplicated the real one.
  */
-// FPK 必须内置的自有插件（**必含集合**，不是「恰好这几个」）。
+// FPK 内置的自有插件白名单：**必含集合 + 允许的额外清单**。
 //
-// 早期这里同时用长度做「清单恰好这么长」的校验，随着 Failover Search、Midscene
-// 陆续加入内置清单，那个长度断言就成了过期常量：清单合法增长到 4、5 个时构建
-// 直接失败，而报错信息还写着「exactly the three」——指向的规则其实早已不成立。
-// 校验的真实意图是「上述插件必须都在清单里且版本与源码一致」，因此这里只保留
-// 必含集合，长度不再作为判据；清单里多出其它自有插件是允许的。
+// 早期这里只有一份三元素集合，同时用它的长度做「清单恰好这么长」的校验。随着
+// Failover Search、Midscene 陆续加入内置清单，那个长度断言就成了过期常量：清单
+// 合法增长到 4、5 个时构建直接失败，而报错信息还写着「exactly the three」——
+// 指向的规则早已不成立。
+//
+// 现在两侧都写明确：`FPK_REQUIRED_BUNDLED_PLUGIN_NAMES` 必须在清单里，其余内置
+// 插件必须落在 `FPK_OPTIONAL_BUNDLED_PLUGIN_NAMES` 内。**允许清单是显式的**——
+// 新增内置插件要在这里登记，而不是像「有源码就放行」那样自动通过；漏登记会在
+// 构建期报错并点名，避免清单被无意改动后无人发现。
 const FPK_REQUIRED_BUNDLED_PLUGIN_NAMES = [
   '@tnnevol/dsh-codebuddy',
   '@tnnevol/dsh-codex-auth',
   '@tnnevol/dsh-fnos',
+]
+
+// 可随 FPK 内置、但不强制在内的自有插件。新增内置插件时在此登记。
+const FPK_OPTIONAL_BUNDLED_PLUGIN_NAMES = [
+  '@tnnevol/dsh-failover-search',
+  '@tnnevol/dsh-midscene',
 ]
 
 type PublishedDshPluginManifest = {
@@ -132,12 +142,40 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
   // the value. A restated value silently rots the moment the plugin is released
   // on its own, which is exactly how the v5.5.0 build failed.
   for (const name of FPK_REQUIRED_BUNDLED_PLUGIN_NAMES) {
-    const plugin = bundledPlugins.find(candidate => candidate?.name === name)
-    if (plugin === undefined) {
+    if (!bundledPlugins.some(candidate => candidate?.name === name)) {
       throw new Error(`The published DSH plugin manifest must bundle ${name}: ${manifestPath}`)
     }
+  }
+  // 内置清单里除必含集合外的每一项，都必须落在允许清单内。三方插件已由
+  // source=thirdparty 排除在外，不参与本判定。
+  const allowedBundled = new Set([
+    ...FPK_REQUIRED_BUNDLED_PLUGIN_NAMES,
+    ...FPK_OPTIONAL_BUNDLED_PLUGIN_NAMES,
+  ])
+  const unlistedBundled = bundledPlugins.filter(plugin => !allowedBundled.has(String(plugin.name)))
+  if (unlistedBundled.length > 0) {
+    throw new Error(
+      `Published DSH plugin manifest bundles a plugin outside the FPK allowlist: `
+      + `${unlistedBundled.map(plugin => String(plugin.name)).join(', ')}; `
+      + `register it in FPK_OPTIONAL_BUNDLED_PLUGIN_NAMES (or FPK_REQUIRED_BUNDLED_PLUGIN_NAMES) to bundle it`,
+    )
+  }
+  // 走到这里，内置清单已全部通过允许清单，说明每一项都是「登记过该内置」的自有插件。
+  // 此时若仍找不到源码，就是登记了却没在 plugins/ 下建包（或目录名与包名不复用），
+  // 构建取不到归档，会以更晦涩的「Missing exact version」失败。
+  const sourcelessBundled = bundledPlugins.filter(plugin =>
+    findPluginTarget(String(plugin.name)) === undefined)
+  if (sourcelessBundled.length > 0) {
+    throw new Error(`Published DSH plugin manifest bundles a plugin without source under plugins/: ${sourcelessBundled.map(plugin => String(plugin.name)).join(', ')}`)
+  }
+
+  // 逐个核对**所有**内置插件（含允许清单内的）的版本与源码一致——不只必含的那几个。
+  // 打包阶段也会比对版本，但那里报的是「包元数据不匹配」，不指明清单还是源码该改。
+  for (const plugin of bundledPlugins) {
+    const name = String(plugin.name)
     const target = findPluginTarget(name)
     if (target === undefined) {
+      // 上面已按允许清单 + 源码存在性拦下，这里不可到达，只为类型收窄。
       throw new Error(`FPK-bundled DSH plugin ${name} has no source package under plugins/`)
     }
     const source = JSON.parse(await readFile(join(repositoryRoot, target.path), 'utf8')) as { version?: unknown }
@@ -147,15 +185,6 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
     if (plugin.version !== source.version) {
       throw new Error(`The published DSH plugin manifest must agree with ${target.path}: expected ${name}@${source.version}, declared ${String(plugin.version)}`)
     }
-  }
-  // 内置插件必须都能在 plugins/ 下找到源码（否则构建取不到归档，会以更晦涩的
-  // 「Missing exact version」失败）。此前这里用必含集合做白名单，等价于禁止清单
-  // 增长——Failover Search、Midscene 加入时即被它拦下。改为按「有无本地源码」
-  // 判定：三方插件已由 source=thirdparty 标记排除在外。
-  const sourcelessBundled = bundledPlugins.filter(plugin =>
-    findPluginTarget(String(plugin.name)) === undefined)
-  if (sourcelessBundled.length > 0) {
-    throw new Error(`Published DSH plugin manifest bundles a plugin without source under plugins/: ${sourcelessBundled.map(plugin => String(plugin.name)).join(', ')}`)
   }
   // Codex must stay bundled: the registry only carries builds whose DSH
   // baseline predates 0.1.7-rc.2, and installing one of those breaks Web
