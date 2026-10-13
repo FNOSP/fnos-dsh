@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { MidsceneSettingsRequest, MidsceneSettingsSnapshot } from '../../src/contracts/settings-rpc.ts'
 import {
   MIDSCENE_SETTINGS_NAMESPACE,
   MIDSCENE_SETTINGS_STATUS_PATH,
@@ -37,5 +38,22 @@ describe('接入设置契约', () => {
   it('状态端点是更新端点的前缀（避免路由前缀匹配错位）', () => {
     // 上游按精确路径注册（kind: 'exact'），但保持这个关系能让路径一眼可读。
     expect(MIDSCENE_SETTINGS_UPDATE_PATH.startsWith(MIDSCENE_SETTINGS_STATUS_PATH)).toBe(true)
+  })
+})
+
+describe('清空模型（单选的必备能力）', () => {
+  // 背景：多选时靠删除标签即可取消；改为单选后必须另有清空手段，否则用户选定后
+  // 无法回到「跟随 DSH 会话模型」。界面上是常驻的「清除选择」按钮 + Semi 的 showClear，
+  // 契约层对应「空串是合法值」。
+  it('空串是合法写入值，代表未指定', () => {
+    const request: MidsceneSettingsRequest = { action: 'update', model: '' }
+    expect(request.model).toBe('')
+  })
+
+  it('已选模型的快照通过 model 字段暴露，空串表示未指定', () => {
+    const selected: MidsceneSettingsSnapshot['model'] = 'codebuddy/glm-5.3-flash'
+    const cleared: MidsceneSettingsSnapshot['model'] = ''
+    expect(selected).not.toBe(cleared)
+    expect(cleared).toBe('')
   })
 })
