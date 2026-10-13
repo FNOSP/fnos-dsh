@@ -30,7 +30,14 @@ const DSHMARKET_NAME = 'dshmarket'
  * the plugins moved to `0.1.7-rc.2.1` while a constant here still said
  * `0.1.7-rc.2`, so the build failed on a value that duplicated the real one.
  */
-const FPK_BUNDLED_PLUGIN_NAMES = [
+// FPK 必须内置的自有插件（**必含集合**，不是「恰好这几个」）。
+//
+// 早期这里同时用长度做「清单恰好这么长」的校验，随着 Failover Search、Midscene
+// 陆续加入内置清单，那个长度断言就成了过期常量：清单合法增长到 4、5 个时构建
+// 直接失败，而报错信息还写着「exactly the three」——指向的规则其实早已不成立。
+// 校验的真实意图是「上述插件必须都在清单里且版本与源码一致」，因此这里只保留
+// 必含集合，长度不再作为判据；清单里多出其它自有插件是允许的。
+const FPK_REQUIRED_BUNDLED_PLUGIN_NAMES = [
   '@tnnevol/dsh-codebuddy',
   '@tnnevol/dsh-codex-auth',
   '@tnnevol/dsh-fnos',
@@ -113,8 +120,8 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
     }
   }
   const bundledPlugins = manifest.plugins.filter(plugin => plugin.source !== 'thirdparty')
-  if (bundledPlugins.length !== FPK_BUNDLED_PLUGIN_NAMES.length) {
-    throw new Error(`Published DSH plugin manifest must contain exactly the three FPK-bundled FNOS-007 runtime plugins: ${manifestPath}`)
+  if (bundledPlugins.length === 0) {
+    throw new Error(`Published DSH plugin manifest must bundle at least one runtime plugin: ${manifestPath}`)
   }
   if (Array.isArray(manifest.bundled) && manifest.bundled.length > 0) {
     throw new Error(`Published DSH plugin manifest must place third-party plugins in plugins with source=thirdparty: ${manifestPath}`)
@@ -124,7 +131,7 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
   // guard's job is to prove the copy still matches its source — not to restate
   // the value. A restated value silently rots the moment the plugin is released
   // on its own, which is exactly how the v5.5.0 build failed.
-  for (const name of FPK_BUNDLED_PLUGIN_NAMES) {
+  for (const name of FPK_REQUIRED_BUNDLED_PLUGIN_NAMES) {
     const plugin = bundledPlugins.find(candidate => candidate?.name === name)
     if (plugin === undefined) {
       throw new Error(`The published DSH plugin manifest must bundle ${name}: ${manifestPath}`)
@@ -141,9 +148,14 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
       throw new Error(`The published DSH plugin manifest must agree with ${target.path}: expected ${name}@${source.version}, declared ${String(plugin.version)}`)
     }
   }
-  const unknownBundled = bundledPlugins.filter(plugin => !FPK_BUNDLED_PLUGIN_NAMES.includes(plugin.name as string))
-  if (unknownBundled.length > 0) {
-    throw new Error(`Published DSH plugin manifest bundles an unlisted plugin: ${unknownBundled.map(plugin => String(plugin.name)).join(', ')}`)
+  // 内置插件必须都能在 plugins/ 下找到源码（否则构建取不到归档，会以更晦涩的
+  // 「Missing exact version」失败）。此前这里用必含集合做白名单，等价于禁止清单
+  // 增长——Failover Search、Midscene 加入时即被它拦下。改为按「有无本地源码」
+  // 判定：三方插件已由 source=thirdparty 标记排除在外。
+  const sourcelessBundled = bundledPlugins.filter(plugin =>
+    findPluginTarget(String(plugin.name)) === undefined)
+  if (sourcelessBundled.length > 0) {
+    throw new Error(`Published DSH plugin manifest bundles a plugin without source under plugins/: ${sourcelessBundled.map(plugin => String(plugin.name)).join(', ')}`)
   }
   // Codex must stay bundled: the registry only carries builds whose DSH
   // baseline predates 0.1.7-rc.2, and installing one of those breaks Web

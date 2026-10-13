@@ -28,6 +28,7 @@ const bundledPluginDirectories = {
   '@tnnevol/dsh-codex-auth': 'dsh-codex-auth-plugin',
   '@tnnevol/dsh-failover-search': 'dsh-failover-search-plugin',
   '@tnnevol/dsh-fnos': 'dsh-fnos-plugin',
+  '@tnnevol/dsh-midscene': 'dsh-midscene-plugin',
 } as const
 
 describe('FNOS-007 DSH baseline', () => {
@@ -112,13 +113,13 @@ describe('FNOS-007 DSH baseline', () => {
     // literal in the test rots exactly like one in the build guard: both said
     // 0.2.0-rc.2 after the plugins moved to 0.2.0-rc.2.0, so the test went red
     // while the release it was meant to protect still shipped a stale pin.
-    for (const name of ['@tnnevol/dsh-codebuddy', '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-fnos'] as const) {
+    for (const name of ['@tnnevol/dsh-codebuddy', '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-fnos', '@tnnevol/dsh-midscene'] as const) {
       const directory = bundledPluginDirectories[name]
       const source = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as { version: string }
       expect(published.plugins.find(plugin => plugin.name === name), name).toEqual({ name, version: source.version })
     }
-    // 三个自有插件 + Failover Search（均随 FPK 安装）+ 三方 dshmarket。
-    expect(published.plugins).toHaveLength(5)
+    // 四个自有插件 + Failover Search（均随 FPK 安装）+ 三方 dshmarket。
+    expect(published.plugins).toHaveLength(6)
     // Third-party dshmarket has no local source, so its exact pin stays a
     // literal: the registry version is the contract, not a copy. 每次更新 DSH
     // 基线都要同步升级它，否则其 peer 范围可能不覆盖新基线而被兼容门禁拒绝。
