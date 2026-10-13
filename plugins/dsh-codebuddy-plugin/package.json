@@ -84,7 +84,6 @@
   "dependencies": {
     "@nanostores/persistent": "catalog:",
     "@nanostores/react": "catalog:",
-    "@tnnevol/dsh-plugin-kit": "workspace:*",
     "dayjs": "catalog:",
     "echarts": "catalog:",
     "eventsource-parser": "catalog:",
@@ -103,6 +102,7 @@
     "@deepseek-ai/dsh-home-paths": "catalog:dsh",
     "@deepseek-ai/dsh-llm": "catalog:dsh",
     "@douyinfe/semi-foundation": "catalog:",
+    "@tnnevol/dsh-plugin-kit": "workspace:*",
     "@tnnevol/dsh-semi-ui": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

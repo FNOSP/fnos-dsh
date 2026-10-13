@@ -100,9 +100,7 @@
     "@earendil-works/pi-ai": "catalog:",
     "react": "catalog:codex-peer"
   },
-  "dependencies": {
-    "@tnnevol/dsh-plugin-kit": "workspace:*"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@deepseek-ai/dsh-agent-default-model": "catalog:dsh",
@@ -128,6 +126,7 @@
     "@deepseek-ai/dsh-llm-pi-ai": "catalog:dsh",
     "@deepseek-ai/dsh-settings": "catalog:dsh",
     "@earendil-works/pi-ai": "catalog:",
+    "@tnnevol/dsh-plugin-kit": "workspace:*",
     "@tnnevol/dsh-semi-ui": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:codex-dev",

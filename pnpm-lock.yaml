@@ -480,9 +480,6 @@ importers:
       '@nanostores/react':
         specifier: 'catalog:'
         version: 2.0.1(nanostores@1.5.3)(react@18.3.1)
-      '@tnnevol/dsh-plugin-kit':
-        specifier: workspace:*
-        version: link:../../packages/dsh-plugin-kit
       dayjs:
         specifier: 'catalog:'
         version: 1.11.23
@@ -532,6 +529,9 @@ importers:
       '@douyinfe/semi-foundation':
         specifier: 'catalog:'
         version: 2.90.2(supports-color@7.2.0)
+      '@tnnevol/dsh-plugin-kit':
+        specifier: workspace:*
+        version: link:../../packages/dsh-plugin-kit
       '@tnnevol/dsh-semi-ui':
         specifier: workspace:*
         version: link:../../packages/dsh-semi-ui
@@ -555,10 +555,6 @@ importers:
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.103.1)(tsx@4.23.13)(yaml@2.9.0))
 
   plugins/dsh-codex-auth-plugin:
-    dependencies:
-      '@tnnevol/dsh-plugin-kit':
-        specifier: workspace:*
-        version: link:../../packages/dsh-plugin-kit
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
@@ -632,6 +628,9 @@ importers:
       '@earendil-works/pi-ai':
         specifier: 'catalog:'
         version: 0.87.1(@modelcontextprotocol/sdk@1.30.0(supports-color@7.2.0)(zod@4.4.3))(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+      '@tnnevol/dsh-plugin-kit':
+        specifier: workspace:*
+        version: link:../../packages/dsh-plugin-kit
       '@tnnevol/dsh-semi-ui':
         specifier: workspace:*
         version: link:../../packages/dsh-semi-ui

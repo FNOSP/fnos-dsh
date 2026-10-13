@@ -58,6 +58,12 @@ export default [
       __DSH_CODEBUDDY_VERSION__: JSON.stringify(PACKAGE_VERSION),
     },
     deps: {
+      // @tnnevol/dsh-plugin-kit 是 workspace 内部共享包（凭据权限判定），必须**内联**
+      // 进产物：tsdown 默认把 dependencies 当外部依赖，产物会残留
+      // `import '@tnnevol/dsh-plugin-kit'`。而该包未发布到 npm，FPK 构建守卫会以
+      // 「unpackable runtime dependency: workspace:*」拒绝打包——即使强行打进 FPK，
+      // NAS 上安装时也无处解析。内联后插件自包含，不依赖用户环境能解析到它。
+      alwaysBundle: ['@tnnevol/dsh-plugin-kit'],
       neverBundle: [
         '@deepseek-ai/cordis',
         '@deepseek-ai/dsh-home-paths',
