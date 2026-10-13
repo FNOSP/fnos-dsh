@@ -72,6 +72,7 @@
 - Commit 描述和正文使用中文（type/scope 保持 Conventional Commits 规范），见 [贡献指南](docs/contributing.md)。
 - 代码注释使用中文、保持简洁，删除功能时同步删除对应注释，见 [路径与编码](docs/development/conventions.md)。
 - 每次功能完成及时更新 `apps/fn-deepseek-harness/manifest` 的 `desc` 与 `changelog`；`desc` 支持富文本（HTML），见 [Manifest 清单配置](docs/development/manifest.md)。
+- 修改插件或项目的功能结束后，必须用 `pnpm run version` 更新插件或项目版本（两条独立提交：先功能改动，再版本提交），见 [版本管理](docs/build/versioning.md)。
 - 计划任务完成后在 `docs/tests/` 回填与需求同编号的测试用例文档（含结果、Bug、最终结论）；计划文档不再写测试用例表，见 [测试用例文档规范](docs/charter/tests-spec.md)。
 - 官方上游项目只作为契约和行为参考，不直接修改或提交上游代码。
 

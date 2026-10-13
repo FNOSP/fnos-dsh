@@ -2,6 +2,20 @@
 
 版本命令由根目录 `fnos-dsh-cli` CLI 暴露，实现在 `tooling/fnos-dsh-cli` workspace。项目/FPK 版本通过 [`bumpp`](https://github.com/antfu-collective/bumpp) 管理；插件版本由 CLI 直接更新并提交。项目/FPK 版本与插件版本是相互独立的两套发布流程，插件不会被项目版本命令隐式修改。
 
+## 版本更新时机（强制）
+
+**修改插件或项目的功能结束后，必须用 `pnpm run version` 更新对应版本**，不允许改动落库后版本保持不动：
+
+| 改动对象 | 命令 | 说明 |
+| --- | --- | --- |
+| 插件（`plugins/*` 的代码、样式、配置、契约） | `pnpm run version -- plugin <别名> <patch\|minor\|major>` | 在改动提交之后执行；命令会同步发布清单、总览表格与全部安装命令 |
+| 项目（应用、FPK、网关、文档、CLI 等仓库级改动） | `pnpm run version -- project <patch\|minor\|major>` | bumpp 统一更新并打 Tag |
+
+- 版本档位按改动性质选择：修复与样式微调用 `patch`，新功能用 `minor`，破坏性变更用 `major`；拿不准时用 `patch`。
+- 版本提交与功能改动是**两条独立提交**：先提交功能改动，再执行 `pnpm run version` 生成版本提交，不把两者混在一条里。
+- 仅文档、章程与测试用例文档的纯文档改动不需要触发版本更新。
+- 该要求与 [发布检查](#发布检查) 衔接：功能结束 → `version` 更新版本 → 发布时按 [发布流程](./release.md) 走 `publish` 与 dist-tag 维护。
+
 ## 项目与 FPK 版本
 
 项目版本命令更新根 `package.json`、文档包 `docs/package.json`、`packages/*/package.json`、`tooling/fnos-dsh-cli/package.json`、应用 `manifest` 和 README 版本引用，并创建项目 Tag。CLI workspace 包与项目版本保持一致，避免版本命令升级项目后工具包仍停留在旧版本。文档站点的版本徽标从文档包自身的 `package.json` 读取：
@@ -47,10 +61,11 @@ pnpm run version -- plugin
 ## 发布检查
 
 1. 确认工作区没有需要保留的未提交改动。
-2. 根据发布目标选择 `version -- project` 或 `version -- plugin`（插件可复选）。
-3. 检查版本文件和提交。
-4. 推送提交，触发对应的 CI/发布流程。
-5. 插件发布前运行对应插件的 `check`，再使用 `pnpm run publish` 发布当前 `next` dist-tag。
+2. 确认功能改动已完成 `pnpm run version` 版本更新（见[版本更新时机](#版本更新时机强制)）。
+3. 根据发布目标选择 `version -- project` 或 `version -- plugin`（插件可复选）。
+4. 检查版本文件和提交。
+5. 推送提交，触发对应的 CI/发布流程。
+6. 插件发布前运行对应插件的 `check`，再使用 `pnpm run publish` 发布当前 `next` dist-tag。
 
 ### 插件版本只有一份事实来源
 

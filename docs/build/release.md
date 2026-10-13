@@ -14,6 +14,8 @@ pnpm run version -- project patch
 pnpm run version -- plugin fnos patch
 ```
 
+**版本更新是发布的前置步骤**：修改插件或项目的功能结束后必须先执行对应的 `pnpm run version` 更新版本（见[版本管理 → 版本更新时机](./versioning.md#版本更新时机强制)），再进入发布流程；不允许改动落库后带着旧版本发布。
+
 脚本会创建类似下面的提交和 Tag：
 
 ```text
