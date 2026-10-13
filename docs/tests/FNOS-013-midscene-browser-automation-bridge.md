@@ -245,6 +245,63 @@ verifiedAt: 2026-10-12
 | BUG-04 | [TC-034](/tests/FNOS-013-midscene-browser-automation-bridge) | 按文档逐步接入时 `/v1/models` 返回 401 | P2 | 已修复 | **由 TC-034/036 的干净环境复现抓出**：桥的接入密钥校验覆盖了 `/v1/models`，而插件说明页的快速接入第 3 步（确认 `vision: true` 模型）用的正是该端点且不带密钥，用户照文档执行会失败。修复：只读发现类端点（`/v1/health`、`/v1/models`、`/v1/midscene-env`）整体豁免，密钥只守住会消耗提供方额度的推理端点。修复后按文档三步走全部通过 |
 | BUG-05 | [TC-027](/tests/FNOS-013-midscene-browser-automation-bridge) | `act` 在窄视口下「假成功」（自述成功但页面未变化） | P2 | 已规避（上游侧） | **实测**：headless 默认视口 756×413 时 DSH 侧边栏收缩为纯图标态，文字菜单项（如「插件」）在 DOM 中不存在；此时 `act` 会点到图标位置并**自述成功**，页面并不跳转。只采信自述会得出「功能正常」的**错误结论**。规避：视口 ≥1440 宽，或改用 Bridge Mode（真实窗口），并对交互结果做页面内独立核实 |
 
+## 真实 NAS 回归（2026-10-13，应用 v5.7.1）
+
+在真实 fnOS NAS（`192.168.0.110:5666`）上以「手动安装 → 从电脑上传」升级安装
+`fn-deepseek-harness.fpk` 后，用 Midscene Bridge Mode 驱动真实 Chrome 做回归。完整证据见
+[FNOS-013 v5.7.1 真实 NAS 安装验收记录](/validation/FNOS-013-nas-v571-2026-10-13)。
+
+| 检查 | 结果 | 证据类型 |
+| --- | --- | --- |
+| 应用可安装并启动 | 通过 | `[采集]` 应用详情页版本 `5.7.1`、来源「手动安装」；`GET /app/fn-deepseek-harness` → `200`，52 978 字节 DSH 外壳 |
+| 升级保留既有数据 | 通过 | `[采集]` 打开应用后会话历史（「当前使用的 AI 模型」「你好」）仍在；模型路由显示 `codebuddy/balanced-model` |
+| 内置插件在真机生效 | 通过 | `[采集]` DSH 外壳模块图含 `@tnnevol/dsh-fnos`、`dsh-midscene`、`dsh-codebuddy`、`dsh-failover-search`、`dsh-codex-auth`、`dshmarket` 六项 |
+| 插件管理页可达 | 通过 | `[采集]` 经视觉定位点击进入「插件」页，见到「安装、启用和配置插件」与「官方 8」分组 |
+| 插件列表**滚动到「已安装」分组**逐个核对 | **未完成** | 失败原因见下 |
+
+**未完成项的原因（如实记录）**：应用以 iframe 形态嵌在 NAS 桌面里，其滚动容器在跨源
+iframe 内。三种滚动途径均不可用：
+
+1. `aiScroll`（视觉滚动）：`failed to locate element`——当前截图只显示到「官方」分组，
+   提示语本身也表明它需要先看到目标元素；
+2. `mouse.wheel`：桥调用 30 秒超时（`Bridge call timeout ... mouse.wheel`）；
+3. 浏览器侧 `scrollUntilBottom` / `scrollDown`：同样桥超时——它们在扩展侧内部循环等待
+   滚动到底的条件，而该条件在 iframe 内外层不匹配，永远不满足。
+
+**这不影响本轮的核心结论**：内置插件是否在真机生效，已由「DSH 外壳的插件模块图」这一
+更强的证据回答——模块图是 DSH 客户端**实际请求加载**的插件清单，比界面滚动截图更直接。
+「已安装」分组的逐项界面核对可在后续（例如把应用以独立标签页打开、或用 CDP 直连 iframe）
+补做。
+
+## DSH Desktop 回归（2026-10-13）
+
+按测试规范用 `fork-pj/deepseek-harness` 检出的**开发态 Desktop**（版本
+`0.2.0-rc.2-639ed01`，Electron/Chrome 152），`DSH_HOME` 指向项目根 `.dsh`，
+`DSH_DESKTOP_RENDERER_DEBUG_PORT=9333`，经 CDP 在渲染进程内取证。用户全局 profile
+（`~/.dsh/profiles/desktop`）未被改动。
+
+| 检查 | 结果 | 证据 |
+| --- | --- | --- |
+| 插件出现在「已安装」列表 | 通过 | `[采集]` 插件页「已安装 5」含 `@tnnevol/dsh-midscene`（其余为 codebuddy、codex-auth、Failover Search、semi-ui-showcase） |
+| 插件详情页可打开 | 通过 | `[采集]` 面板显示 `@tnnevol/dsh-midscene` `v0.2.0-rc.2.0`、「包含的组件 共 1 个」 |
+| **设置区块渲染** | 通过 | `[采集]` `.dsh-midscene-settings` 挂载，字段为「接入密钥」「指定测试模型」「Midscene .env」——与 Web 完全一致 |
+| 桥服务在 Desktop 内启动 | 通过 | `[采集]` `GET 127.0.0.1:8788/v1/health` → `{"status":"ok","port":8788,"family":"glm-v","models":24,"providers":["openai-codex","deepseek-official","deepseek-account","codebuddy"]}` |
+| **桥→模型层链路可用** | 通过 | `[采集]` 经 8788 发一次 `chat/completions`，模型回复「正常」 |
+| 与本地 Web 实例互不干扰 | 通过 | `[采集]` Desktop 用 8788、本地 Web 用 8787，两个桥各自 `status: ok` |
+
+### Desktop 与 Web 的差异点（本轮的实质发现）
+
+1. **插件默认处于「已关闭」，需在插件页手动启用。** Web profile 与 Desktop profile 的
+   `cordis.patch.yml` 条目结构**完全相同**（无 `enabled` 字段），但 Desktop 首次加载后
+   插件详情显示「包含的组件 共 1 个 · 1 已停用 / dsh-midscene 已关闭」，设置区块因而不
+   渲染。在插件页把开关打开后（`aria-checked` 由 `false` 变 `true`），设置区块立即挂载、
+   桥随之启动。**这是 Desktop 侧的新装插件行为，不是插件缺陷**，但会让「装完即用」的
+   预期落空——记此供后续判断是否需要插件侧处理。
+2. **profile 的 node_modules 可能与 `package.json` 脱节。** 给 Desktop profile 的
+   `package.json` 加上 `@tnnevol/dsh-midscene` 后 `pnpm install` 报「Already up to date」
+   却**不建立符号链接**；删除 `pnpm-lock.yaml` 后重装才生成。属 pnpm 的 lockfile
+   状态问题，测试侧需注意。
+
 ## 测试结论
 
 **整体结论：部分通过（桥接服务、设置界面、文档交付与 Midscene 端到端全部完成验证；YAML 运行器的交互步骤存在定位偏差，已定位并给出规避方式）。**
