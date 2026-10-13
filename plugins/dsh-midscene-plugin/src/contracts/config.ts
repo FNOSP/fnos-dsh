@@ -90,32 +90,25 @@ export const MIDSCENE_FAMILIES = [
 export type MidsceneFamily = (typeof MIDSCENE_FAMILIES)[number]
 
 /**
- * 默认协议家族。
+ * 「通用」家族：用于识别不出家族、但具备图片能力的模型。
  *
- * 选 `glm-v`：智谱视觉系列的协议，且本仓库 CodeBuddy 目录里 GLM 系列模型齐全
- * （实测 `glm-5.3` / `glm-5.3-flash` 都声明了图片能力）。用户换模型后若家族不再
- * 匹配，设置页会给出提示（见 `familyMismatchHint`）。
+ * 依据实测：Midscene 的 20 个家族里，`bbox/xy/1000` 这一坐标协议由 **10 个家族共用**
+ * （glm-v、doubao-*、qwen3*、vlm-ui-tars* 等），是分布最广的主导格式；而 `glm-v` 又是
+ * 其中限制最少的一个（只声明 `reasoningEffort`/`reasoningBudget` 不受支持，这两项在桥的
+ * 默认配置下本就不发送）。
+ *
+ * 实测：Midscene 未适配的识图模型（如 `codebuddy/hy3`）以 `glm-v` 定位 3/3 命中，
+ * 与 `qwen3` 表现一致——即「未适配」不等于「不可用」。
  */
-export const DEFAULT_FAMILY: MidsceneFamily = 'glm-v'
+export const GENERIC_FAMILY: MidsceneFamily = 'glm-v'
 
 /**
- * 「未选择家族」的取值。
+ * 默认协议家族（等同于 {@link GENERIC_FAMILY}）。
  *
- * 家族**刻意不给默认值**：它决定坐标解析协议，与所选模型强绑定；给一个默认值会让用户
- * 在不知不觉中用错协议——本插件早期版本默认 `glm-v`，实测造成过「配置里是 DeepSeek 模型、
- * 家族却是 GLM」的静默错位组合。改为必须显式选择后，界面才能按家族过滤模型
- * （见 `filterModelsByFamily`），从源头消除错配。
+ * 保留这个别名是因为桥在「模型已确定」之前需要一个初始值；实际的家族由
+ * `resolveFamily()` 按真实模型推导，用户不接触这个概念。
  */
-export const UNSET_FAMILY = ''
-
-/**
- * 判断一个值是否可作为家族写入：已知家族或「未选择」。
- * @param value - 待判定的值。
- * @returns 是否可接受。
- */
-export function isSelectableFamily(value: string): boolean {
-  return value === UNSET_FAMILY || isKnownFamily(value)
-}
+export const DEFAULT_FAMILY: MidsceneFamily = GENERIC_FAMILY
 
 /**
  * 判断一个值是否为 Midscene 接受的家族。
@@ -174,11 +167,7 @@ export function renderEnvFile(config: { readonly port: number, readonly apiKey: 
     `MIDSCENE_MODEL_BASE_URL="http://${BRIDGE_HOST}:${config.port}${OPENAI_API_PREFIX}"`,
     `MIDSCENE_MODEL_API_KEY="${config.apiKey}"`,
     `MIDSCENE_MODEL_NAME="${FIXED_MODEL_NAME}"`,
-    // 未选择时写注释而非空值：Midscene 对空/缺失家族会报
-    // 「Default model family is required for locate」，在这里点明原因比让人对着空值猜有用。
-    config.family === UNSET_FAMILY
-      ? '# MIDSCENE_MODEL_FAMILY 未设置：请先在插件设置页选择协议家族（Midscene 必需）。'
-      : `MIDSCENE_MODEL_FAMILY="${config.family}"`,
+    `MIDSCENE_MODEL_FAMILY="${config.family}"`,
     '',
   ].join('\n')
 }
@@ -204,8 +193,8 @@ export const Config: z<Schemastery.ObjectS<NoInfer<BridgeConfigShape>>, Schemast
     .description(`首选监听端口（默认 ${DEFAULT_BRIDGE_PORT}）。被占用时自动向上尝试最多 ${PORT_SCAN_LIMIT} 个端口，并把实际端口写回本字段；实际端口以插件设置页或 /v1/midscene-env 为准`),
   apiKey: z.string().default('').role('secret').volatile()
     .description('桥接接入密钥（安装时自动生成）。Midscene 的 .env 用它；可在设置页重新随机生成或自定义'),
-  family: z.string().default(UNSET_FAMILY).volatile()
-    .description(`Midscene 协议家族，必须显式选择（建议值 ${DEFAULT_FAMILY}）；取值来自 Midscene 白名单，留空表示未配置。它决定提示词模板与坐标解析协议，与所选模型强绑定`),
+  family: z.string().default(GENERIC_FAMILY).volatile()
+    .description('Midscene 协议家族（**自动维护**，无需手工设置）：桥按实际使用的模型推导。识别得出家族就用该家族，识别不出但能识图的模型用通用家族。它只影响 Midscene 的提示词模板与坐标解析协议'),
   models: z.array(z.string()).default([]).volatile()
     .description('指定用于 Midscene 测试的模型（「提供方/模型」形式，按顺序尝试第一个可用的）。留空则跟随 DSH 当前模型选择'),
   requestTimeoutMs: z.natural().default(300_000).volatile()

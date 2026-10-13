@@ -16,6 +16,8 @@
  * @module dsh-midscene/model-family
  */
 
+import { GENERIC_FAMILY } from './config.ts'
+
 /** 一条「模型名前缀 → 家族」规则。 */
 interface FamilyRule {
   /** 家族名（必须在 Midscene 白名单内）。 */
@@ -82,46 +84,25 @@ export function guessFamily(modelId: string): FamilyGuess | undefined {
 }
 
 /**
- * 按家族筛选可选模型。
+ * 解析实际使用的模型对应的家族。
  *
- * `family` 为空时返回空数组：界面据此**隐藏模型字段**——没选家族就没有「能选的模型」
- * 这个概念，显示一个空下拉只会让人以为功能坏了。
- * @param models - 全部可选模型。
- * @param family - 当前家族；空值表示未选择。
- * @returns 属于该家族的模型（无法判断家族的模型**不包含**在内）。
+ * 与 {@link guessFamily} 的差别：本函数**永不返回 undefined**——它用于「已经决定要用这个
+ * 模型，那该按哪套协议跟它对话」这个场景，必须给出答案。识别不出家族但模型能识图时回落到
+ * {@link GENERIC_FAMILY}（依据见该常量的注释：`bbox/xy/1000` 是 10 个家族共用的主导协议，
+ * 实测未适配的识图模型在其下可正常定位）。
+ *
+ * 这正是「用户选了 Midscene 名单外的识图模型也能正常使用」的实现点：Midscene 需要
+ * `MIDSCENE_MODEL_FAMILY` 才能解析坐标，而名单外的模型没有对应适配器——回落通用家族后
+ * 即可工作，无需用户理解家族概念。
+ * @param modelId - 实际要使用的模型标识。
+ * @returns 家族名（始终有效）。
  */
-export function filterModelsByFamily<T extends { readonly id: string }>(
-  models: readonly T[],
-  family: string,
-): readonly T[] {
-  if (family.trim() === '') return []
-  return models.filter(model => guessFamily(model.id)?.family === family)
-}
-
-/**
- * 切换家族后仍可保留的模型。
- *
- * 用途：用户从 `glm-v` 换到 `deepseek` 时，原先选中的 GLM 模型不再属于新家族，
- * 必须同时清掉——否则配置里会留下「家族是 deepseek、模型是 glm」的不匹配组合，
- * 而那种组合的表现是静默错位。
- *
- * 与 {@link filterModelsByFamily} 的差别：本函数**保留无法判断家族的条目**。过滤器用于
- * 「从目录里挑可选项」，未知条目本就无从展示；本函数用于「已有选择要不要清掉」，而对
- * 未知条目做保守处理更安全（见函数内注释）。
- * @param models - 原先选中的模型。
- * @param family - 新的家族。
- * @returns 仍属于新家族的模型（原顺序保留）。
- */
-export function retainCompatibleModels(
-  models: readonly string[],
-  family: string,
-): readonly string[] {
-  if (family.trim() === '') return []
-  // 无法判断家族的条目**保留**：那通常意味着它不在当前目录里（提供方被卸载或模型改名），
-  // 而非「家族不符」。把它当作不兼容而清掉，会让用户卸载再装回提供方后丢失原有选择；
-  // 是否真的不可用由界面按目录比对后提示（`modelsStale`）。
-  return models.filter((model) => {
-    const guess = guessFamily(model)
-    return guess === undefined || guess.family === family
-  })
+export function resolveFamily(modelId: string): { readonly family: string, readonly exact: boolean, readonly reason: string } {
+  const guess = guessFamily(modelId)
+  if (guess !== undefined) return { family: guess.family, exact: true, reason: guess.reason }
+  return {
+    family: GENERIC_FAMILY,
+    exact: false,
+    reason: '该模型不在 Midscene 的适配器名单内，使用通用协议（与其他识图模型一致）',
+  }
 }

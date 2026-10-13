@@ -32,12 +32,15 @@ export interface MidsceneSettingsSnapshot {
   readonly namespace: string
   /** 当前接入密钥（明文；桥的密钥，非模型凭据）。 */
   readonly apiKey: string
-  /** 当前协议家族。 */
+  /**
+   * 当前生效的协议家族。
+   *
+   * **不是用户配置项**：由桥按实际使用的模型推导（`resolveFamily`）。设置页不显示它，
+   * 只在需要说明「正在用什么协议」时引用——用户不需要理解这个内部细节。
+   */
   readonly family: string
-  /** Midscene 接受的全部家族（下拉可选值）。 */
-  readonly families: readonly string[]
-  /** 默认家族（用于「恢复默认」提示）。 */
-  readonly defaultFamily: string
+  /** 家族判定依据（供诊断说明，不要求用户理解）。 */
+  readonly familyReason: string
   /** 指定用于测试的模型列表；空表示跟随 DSH 会话模型。 */
   readonly models: readonly string[]
   /**
@@ -46,18 +49,15 @@ export interface MidsceneSettingsSnapshot {
    * 界面用下拉而非手填：手填要求用户记住「提供方/模型」全称，写错只会在真正
    * 跑 Midscene 时才暴露，且用户无从知道有哪些可用值。
    */
+  /**
+   * 可选模型：**只含具备识图能力的模型**（Midscene 靠截图理解页面）。
+   *
+   * 协议家族与模型的关系由桥在内部处理，因此这里不带家族信息——界面不呈现这个概念。
+   */
   readonly availableModels: readonly {
     readonly id: string
     readonly name?: string
     readonly vision: boolean
-    /**
-     * 该模型推断出的协议家族；`undefined` 表示无法可靠判断（Midscene 未适配的系列）。
-     *
-     * 由宿主按同一份映射规则算出：界面不该重复实现映射，否则两处规则会漂移。
-     */
-    readonly family?: string
-    /** 家族判断依据（展示给用户，让结论可核对）。 */
-    readonly familyReason?: string
   }[]
   /** 固定模型名（`MIDSCENE_MODEL_NAME` 的值）。 */
   readonly fixedModelName: string
@@ -73,12 +73,11 @@ export type MidsceneSettingsRequest =
   | { readonly action: 'setKey', readonly apiKey: string }
   | {
     readonly action: 'update'
-    readonly family?: string
     /**
      * 模型列表。
      *
-     * 传 `family` 时**必须**一并传本字段（可为空数组）：家族与模型是一致性约束的两端，
-     * 只写家族会让配置留下「新家族 + 旧家族的模型」这种静默错位的组合。
+     * 协议家族不在此列：它由桥按实际使用的模型推导，不是用户配置项。请求里若带了
+     * `family` 会被忽略（旧版界面或脚本可能仍会发送）。
      */
     readonly models?: readonly string[]
   }

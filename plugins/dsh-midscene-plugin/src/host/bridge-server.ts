@@ -15,6 +15,7 @@ import type { GenerateOptions, LlmRuntime } from '@deepseek-ai/dsh-llm'
 import { BRIDGE_HOST, FIXED_MODEL_NAME, OPENAI_API_PREFIX, PORT_SCAN_LIMIT, renderEnvFile, type BridgeConfig } from '../contracts/config.ts'
 import { resolveModelName } from '../contracts/model-name.ts'
 import { buildCatalog, type ModelCatalogSnapshot } from './catalog.ts'
+import { resolveFamily } from '../contracts/model-family.ts'
 import { chooseModel, type SessionModelReader } from './model-choice.ts'
 import { convertMessages, convertTools, RequestConversionError } from './convert.ts'
 import { aggregateStream, makeChunk, sseLine, toFinishReason, toOpenAiError } from './stream.ts'
@@ -217,6 +218,19 @@ export class BridgeServer {
   }
 
   /**
+   * 当前会**实际使用**的模型（`dsh-model` 这个固定名背后真正路由到的模型）。
+   *
+   * 供设置页推导协议家族与展示「正在用哪个模型」：与请求路径调用同一套决策
+   * （`chooseModel`），因此界面显示的与实际调用的必然一致——若各算一套，设置页会
+   * 显示一个理论上可能、实际却不会被用到的模型。
+   * @returns 模型标识；目录为空时 `undefined`。
+   */
+  async resolveModel(): Promise<string | undefined> {
+    const snapshot = await this.catalog.get()
+    return chooseModel(snapshot, this.deps.config.models, this.deps.sessionModel)?.entry.id
+  }
+
+  /**
    * 启动服务。
    *
    * 端口被占用时**自动向上尝试**下一个端口（最多 {@link PORT_SCAN_LIMIT} 个），
@@ -382,6 +396,7 @@ export class BridgeServer {
       }
       if (request.method === 'GET' && path === `${OPENAI_API_PREFIX}/health`) {
         const snapshot = await this.catalog.get()
+        const healthChoice = chooseModel(snapshot, this.deps.config.models, this.deps.sessionModel)
         sendJson(response, 200, {
           status: 'ok',
           host: BRIDGE_HOST,
@@ -389,7 +404,10 @@ export class BridgeServer {
           port: this.port,
           // Midscene 侧固定使用的模型名；桥按它决定实际模型。
           fixedModelName: FIXED_MODEL_NAME,
-          family: this.deps.config.family,
+          // 家族按**实际会使用的模型**推导（用户不配置它）。取不到模型时回落到
+          // 配置里的当前值，健康检查不应因目录为空而失败。
+          family: resolveFamily(healthChoice?.entry.id ?? this.deps.config.family).family,
+          resolvedModel: healthChoice?.entry.id,
           configuredModels: this.deps.config.models,
           providers: snapshot.providers,
           models: snapshot.entries.length,
@@ -402,13 +420,16 @@ export class BridgeServer {
       if (request.method === 'GET' && path === `${OPENAI_API_PREFIX}/midscene-env`) {
         const snapshot = await this.catalog.get()
         const choice = chooseModel(snapshot, this.deps.config.models, this.deps.sessionModel)
+        // 家族随实际模型推导：Midscene 按它解析坐标，写错会静默错位。用户在界面只选模型，
+        // 家族由这里保证一致。
+        const family = resolveFamily(choice?.entry.id ?? this.deps.config.family).family
         sendJson(response, 200, {
-          content: renderEnvFile({ ...this.deps.config, port: this.port }),
+          content: renderEnvFile({ ...this.deps.config, port: this.port, family }),
           variables: {
             MIDSCENE_MODEL_BASE_URL: `http://${BRIDGE_HOST}:${this.port}${OPENAI_API_PREFIX}`,
             MIDSCENE_MODEL_API_KEY: this.deps.config.apiKey,
             MIDSCENE_MODEL_NAME: FIXED_MODEL_NAME,
-            MIDSCENE_MODEL_FAMILY: this.deps.config.family,
+            MIDSCENE_MODEL_FAMILY: family,
           },
           // 当前会实际使用的模型与它的来源，便于用户确认「跟随会话」是否生效。
           ...choice === undefined ? {} : {

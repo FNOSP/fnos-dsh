@@ -40,8 +40,7 @@ export {
   OPENAI_API_PREFIX,
   generateApiKey,
   isKnownFamily,
-  isSelectableFamily,
-  UNSET_FAMILY,
+  GENERIC_FAMILY,
   renderEnvFile,
 } from './contracts/config.ts'
 export type { BridgeConfig, MidsceneFamily } from './contracts/config.ts'
@@ -176,9 +175,11 @@ export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unkn
     return ctx.on('llm/adapters-updated', refresh)
   }, 'dsh-midscene: catalog invalidation')
 
-  // 设置端点：把设置页的读写能力（密钥显示/重新生成/自定义、家族、指定模型）挂到
+  // 设置端点：把设置页的读写能力（密钥显示/重新生成/自定义、指定模型）挂到
   // DSH 的 Web 服务上。`webServer`/`settings` 缺席时跳过——精简 profile 里桥仍可用，
   // 只是没有设置界面（配置走 profile 文件）。
+  //
+  // 协议家族不在其中：它由桥按实际使用的模型推导（见 `resolveFamily`），用户不接触。
   ctx.inject(['webServer', 'settings'], (scoped) => {
     const settings = scoped.settings as unknown as {
       update: (ns: string, patch: object, expectedRevision?: number) => Promise<void>
@@ -203,6 +204,9 @@ export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unkn
           ...entry.name === undefined ? {} : { name: entry.name },
         }))
       },
+      // 「当前会实际使用的模型」：家族由它推导，设置页也用它说明「正在用哪个模型」。
+      // 复用桥的同一套决策（chooseModel），保证设置页显示与真实调用一致。
+      resolveModel: async () => await bridge.resolveModel(),
       update: async patch => { await settings.update(MIDSCENE_SETTINGS_NAMESPACE, patch) },
       log,
     })

@@ -487,6 +487,29 @@ describe('固定模型名 dsh-model（FNOS-013-05 零配置接入）', () => {
     expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'glm-5.3-flash' })
   })
 
+  it('会话模型没有识图能力时跳过它，改用识图模型（Midscene 靠截图工作）', async () => {
+    // 会话模型是用户为日常对话选的，不一定是给 Midscene 用的。选到纯文本模型时
+    // Midscene 无法工作，因此跳过并兜底到识图模型——比让用户对着「模型不支持图片」
+    // 的错误自己排查更省事（用户并没有为 Midscene 指定过模型）。
+    const { llm } = fakeLlm({
+      providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],
+      models: {
+        codebuddy: [
+          { provider: 'codebuddy', id: 'text-only', name: 'Text', inputModalities: ['text'] },
+          { provider: 'codebuddy', id: 'vision-model', name: 'Vision', inputModalities: ['text', 'image'] },
+        ],
+      },
+    })
+    const { port, calls } = await startBridge({}, { llm, sessionModel: { current: () => 'codebuddy/text-only' } })
+    const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ model: 'dsh-model', messages: [{ role: 'user', content: 'hi' }] }),
+    })
+    expect(response.status).toBe(200)
+    expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'vision-model' })
+  })
+
   it('插件配置指定的模型优先于会话模型（可选项语义）', async () => {
     const { llm } = fakeLlm({
       providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],

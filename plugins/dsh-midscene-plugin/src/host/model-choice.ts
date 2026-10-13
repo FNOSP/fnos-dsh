@@ -64,13 +64,20 @@ export function chooseModel(
     skippedConfigured.push(name)
   }
 
-  // 2) 跟随 DSH 当前模型选择。它可能是没有视觉能力的模型——那是用户的显式选择，
-  //    桥尊重它（能力门控会给出明确错误），不擅自替换。
+  // 2) 跟随 DSH 当前模型选择——但**只在它具备图片能力时**。
+  //
+  //    会话模型是用户为日常对话选的，不一定是给 Midscene 用的；选到纯文本模型时
+  //    Midscene 无法工作（它靠截图理解页面）。这种情况跳过并落到下面的兜底，比让用户
+  //    对着「模型不支持图片」的错误自己排查更省事——毕竟用户并没有为 Midscene 指定过模型。
   const current = session.current()
   const currentEntry = current === undefined ? undefined : byId.get(current)
-  if (currentEntry !== undefined) return { entry: currentEntry, source: 'session', skippedConfigured }
+  if (currentEntry !== undefined && currentEntry.vision === true) {
+    return { entry: currentEntry, source: 'session', skippedConfigured }
+  }
+  if (currentEntry !== undefined) skippedConfigured.push(currentEntry.id)
 
-  // 3) 兜底：目录里第一个具备图片能力的模型（Midscene 需要视觉能力）。
+  // 3) 兜底：目录里第一个具备图片能力的模型。会话模型不可用（无视觉能力或未选择）时
+  //    走这里——Midscene 必须有识图模型才能工作。
   const vision = snapshot.entries.find(entry => entry.vision === true)
   if (vision !== undefined) return { entry: vision, source: 'fallback', skippedConfigured }
 

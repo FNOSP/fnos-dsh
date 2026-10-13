@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MIDSCENE_FAMILIES } from '../../src/contracts/config.ts'
-import {
-  filterModelsByFamily,
-  guessFamily,
-  retainCompatibleModels,
-} from '../../src/contracts/model-family.ts'
+import { guessFamily, resolveFamily } from '../../src/contracts/model-family.ts'
 
 /**
  * 模型 → 协议家族映射的行为约束。
@@ -72,57 +68,28 @@ describe('guessFamily：已知模型的判定', () => {
   })
 })
 
-describe('filterModelsByFamily：按家族过滤', () => {
-  const models = [
-    { id: 'codebuddy/glm-5.3' },
-    { id: 'codebuddy/glm-5.3-flash' },
-    { id: 'codebuddy/deepseek-v4.1-flash' },
-    { id: 'codebuddy/kimi-k3-1' },
-    { id: 'codebuddy/hy3' },
-  ] as const
+describe('resolveFamily：家族推导（含名单外模型的回落）', () => {
+  it('能识别的模型用对应家族', () => {
+    expect(resolveFamily('codebuddy/glm-5.3')).toMatchObject({ family: 'glm-v', exact: true })
+    expect(resolveFamily('codebuddy/deepseek-v4.1-flash')).toMatchObject({ family: 'deepseek', exact: true })
+    expect(resolveFamily('codebuddy/kimi-k3-1')).toMatchObject({ family: 'kimi3', exact: true })
+  })
 
-  it('只返回该家族的模型，未识别的不含在内', () => {
-    const glm = filterModelsByFamily(models, 'glm-v').map(m => m.id)
-    expect(glm).toEqual(['codebuddy/glm-5.3', 'codebuddy/glm-5.3-flash'])
-    expect(filterModelsByFamily(models, 'deepseek').map(m => m.id))
-      .toEqual(['codebuddy/deepseek-v4.1-flash'])
-    // hy3 无法判断家族，任何家族下都不出现。
-    for (const family of ['glm-v', 'deepseek', 'kimi3']) {
-      expect(filterModelsByFamily(models, family).map(m => m.id), family).not.toContain('codebuddy/hy3')
+  it('名单外但识图的模型回落到通用家族（用户选它也能用）', () => {
+    // 需求要点：Midscene 未适配的识图模型同样必须可用。回落到 bbox/xy/1000
+    // （10 个家族共用的主导协议）后即可工作，实测 hy3 在其下定位 3/3 命中。
+    for (const id of ['codebuddy/hy3', 'codebuddy/minimax-m3', 'codebuddy/auto']) {
+      const resolved = resolveFamily(id)
+      expect(resolved.family, id).toBe('glm-v')
+      expect(resolved.exact, id).toBe(false)
+      // 结果必须落在 Midscene 白名单内，否则运行时必然报错。
+      expect(MIDSCENE_FAMILIES, id).toContain(resolved.family)
     }
   })
 
-  it('家族为空时返回空数组（界面据此隐藏模型字段）', () => {
-    expect(filterModelsByFamily(models, '')).toEqual([])
-    expect(filterModelsByFamily(models, '   ')).toEqual([])
-  })
-
-  it('没有匹配项时返回空数组（而不是全部）', () => {
-    expect(filterModelsByFamily(models, 'gemini')).toEqual([])
-  })
-})
-
-describe('retainCompatibleModels：换家族时剔除不兼容的模型', () => {
-  it('剔除不再属于新家族的模型，保留原顺序', () => {
-    const selected = ['codebuddy/glm-5.3', 'codebuddy/deepseek-v4.1-flash', 'codebuddy/glm-5.2']
-    expect(retainCompatibleModels(selected, 'deepseek')).toEqual(['codebuddy/deepseek-v4.1-flash'])
-    expect(retainCompatibleModels(selected, 'glm-v')).toEqual(['codebuddy/glm-5.3', 'codebuddy/glm-5.2'])
-  })
-
-  it('家族为空时全部清掉（未选家族就不该留着模型）', () => {
-    expect(retainCompatibleModels(['codebuddy/glm-5.3'], '')).toEqual([])
-  })
-
-  it('目录里查不到的条目保留（可能只是提供方暂时被卸载，不该丢用户的选择）', () => {
-    expect(retainCompatibleModels(['vendor/whatever-model'], 'deepseek'))
-      .toEqual(['vendor/whatever-model'])
-  })
-
-  it('这就是「配置里 family=glm-v 却用着 DeepSeek 模型」的防线', () => {
-    // 实测过的真实错配：models 首选 deepseek、family 是 glm-v。切换家族时若能剔除，
-    // 就不会留下这种静默错位的组合。
-    const mismatched = ['codebuddy/deepseek-v4.1-flash', 'codebuddy/glm-5.3-flash']
-    expect(retainCompatibleModels(mismatched, 'glm-v')).toEqual(['codebuddy/glm-5.3-flash'])
-    expect(retainCompatibleModels(mismatched, 'deepseek')).toEqual(['codebuddy/deepseek-v4.1-flash'])
+  it('永不返回 undefined（已决定用某个模型时，必须给出协议）', () => {
+    for (const id of ['', 'unknown/vendor-model', 'codebuddy/hy3']) {
+      expect(resolveFamily(id).family.length, id).toBeGreaterThan(0)
+    }
   })
 })

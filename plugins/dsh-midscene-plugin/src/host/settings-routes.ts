@@ -23,10 +23,7 @@ import type { Context } from '@deepseek-ai/cordis'
 // 里没有这些包，运行时引入会报模块缺失）。
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import {
-  DEFAULT_FAMILY,
-  isSelectableFamily,
   FIXED_MODEL_NAME,
-  MIDSCENE_FAMILIES,
   OPENAI_API_PREFIX,
   generateApiKey,
   renderEnvFile,
@@ -34,7 +31,7 @@ import {
   BRIDGE_HOST,
   type BridgeConfig,
 } from '../contracts/config.ts'
-import { guessFamily, retainCompatibleModels } from '../contracts/model-family.ts'
+import { resolveFamily } from '../contracts/model-family.ts'
 import { MIDSCENE_SETTINGS_NAMESPACE, MIDSCENE_SETTINGS_STATUS_PATH, MIDSCENE_SETTINGS_UPDATE_PATH } from '../contracts/settings-rpc.ts'
 
 /** 设置界面可选的模型条目。 */
@@ -60,6 +57,13 @@ export interface SettingsRouteDeps {
    * 与桥 /v1/models 同源。
    */
   readonly listModels: () => Promise<readonly SelectableModel[]>
+  /**
+   * 读「当前会实际使用的模型」标识。
+   *
+   * 用于**推导协议家族**：家族不是用户配置项，而是「按哪个模型对话就该用哪套坐标协议」
+   * 的推论。取不到时（目录为空或未配置模型）返回 `undefined`，设置页据此提示无可用模型。
+   */
+  readonly resolveModel?: () => Promise<string | undefined>
   /** 写配置字段。 */
   readonly update: (patch: Record<string, unknown>) => Promise<void>
   /** 记录一行日志。 */
@@ -148,62 +152,52 @@ function readJsonBody(request: IncomingMessage): Promise<unknown> {
  * @returns 状态快照。
  */
 export async function statusSnapshotForTest(
-  deps: Pick<SettingsRouteDeps, 'readConfig' | 'listModels'>,
+  deps: Pick<SettingsRouteDeps, 'readConfig' | 'listModels' | 'resolveModel'>,
 ): Promise<Record<string, unknown>> {
   const config = deps.readConfig()
   const apiKey = config.apiKey.length > 0 ? config.apiKey : generateApiKey()
-  // 目录读取失败不应让整个设置页打不开：退化为空列表，界面允许在无目录时
-  // 保持已配置的值可见（用户仍能改家族与密钥）。
+  // 目录读取失败不应让整个设置页打不开：退化为空列表，界面据此提示「无可用模型」。
   const available = await deps.listModels().catch(() => [] as readonly SelectableModel[])
+
+  // 家族由**实际会使用的模型**推导，不是用户配置项（见 `resolveFamily`）。因此设置页
+  // 只呈现「模型」这一件事，`.env` 里的家族随模型变化自动跟上。
+  const chosen = deps.resolveModel === undefined ? undefined : await deps.resolveModel()
+  const family = chosen === undefined
+    ? { family: config.family, exact: false, reason: '尚未选择测试模型' }
+    : resolveFamily(chosen)
+
   return {
-    availableModels: available.map(model => ({
-      id: model.id,
-      vision: model.vision,
-      ...model.name === undefined ? {} : { name: model.name },
-      // 家族与依据由宿主算出：界面按同一份规则过滤，避免两处映射漂移。
-      ...(() => {
-        const guess = guessFamily(model.id)
-        return guess === undefined ? {} : { family: guess.family, familyReason: guess.reason }
-      })(),
-    })),
+    // 界面只需要「能识图的模型」：Midscene 靠截图理解页面，文本模型选进来也跑不了。
+    availableModels: available
+      .filter(model => model.vision === true)
+      .map(model => ({
+        id: model.id,
+        vision: model.vision,
+        ...model.name === undefined ? {} : { name: model.name },
+      })),
     namespace: MIDSCENE_SETTINGS_NAMESPACE,
     apiKey,
-    family: config.family,
-    families: MIDSCENE_FAMILIES,
-    defaultFamily: DEFAULT_FAMILY,
+    family: family.family,
+    familyReason: family.reason,
     models: config.models,
     fixedModelName: FIXED_MODEL_NAME,
     baseUrl: `http://${BRIDGE_HOST}:${config.port}${OPENAI_API_PREFIX}`,
-    envFile: renderEnvFile({ port: config.port, apiKey, family: config.family }),
+    envFile: renderEnvFile({ port: config.port, apiKey, family: family.family }),
   }
 }
 
 /**
  * 校验并归一化一次配置写入请求。
  *
- * **家族与模型是一致性约束的两端**：家族决定 Midscene 的坐标解析协议，而模型列表决定
- * 实际用哪个模型；两者错配的表现是**静默错位**（点击偏几像素到几十像素），不会报错。
- * 因此这里做两件事：
- *
- * 1. 家族必须在 Midscene 白名单内（传未知值要到运行时才报 `Invalid MIDSCENE_MODEL_FAMILY
- *    value`，在配置面拒绝能给出可读原因）；
- * 2. 写家族时**必须**同时给出模型列表，且列表里过时（不属于新家族）的模型会被剔除——
- *    否则会留下「新家族 + 旧家族的模型」这种不匹配组合。
- *
- * 剔除而非报错：用户改家族是有意为之，跟着清掉不再适用的模型是符合预期的连带结果；
- * 报错只会让人先去手动清空模型才能改家族。
+ * 只接受**模型列表**：协议家族由桥按实际使用的模型自动推导（`resolveFamily`），不是用户
+ * 配置项——把它暴露给用户既要求他们理解 Midscene 的内部协议，又必然产生「家族与模型不
+ * 匹配」的静默错位。若请求里带了 `family`，这里直接忽略（老版本界面或脚本可能仍会发送），
+ * 由桥在生成接入配置时按真实模型覆盖。
  * @param input - 写入请求体。
  * @returns 归一化后的补丁（只含出现过的字段）。
  */
 export function normalizePatchForTest(input: Record<string, unknown>): Record<string, unknown> {
   const patch: Record<string, unknown> = {}
-  const family = typeof input.family === 'string' ? input.family : undefined
-  if (family !== undefined) {
-    if (!isSelectableFamily(family)) {
-      throw new Error(`unknown family "${family}"; expected one of ${MIDSCENE_FAMILIES.join(', ')} or empty (unset)`)
-    }
-    patch.family = family
-  }
   if (Array.isArray(input.models)) {
     const models: string[] = []
     for (const value of input.models) {
@@ -212,13 +206,7 @@ export function normalizePatchForTest(input: Record<string, unknown>): Record<st
       if (trimmed === '') continue
       models.push(trimmed)
     }
-    // 同时给了家族就按它过滤；只给模型时保持原样（调用方负责与当前家族一致）。
-    patch.models = family === undefined ? models : [...retainCompatibleModels(models, family)]
-  }
-  // 只改家族而不同时给模型：把「旧家族的模型」清掉，不留不匹配组合。
-  // 这与界面行为一致（界面改家族时会连同过滤后的模型一起提交）。
-  if (family !== undefined && patch.models === undefined) {
-    patch.models = []
+    patch.models = models
   }
   return patch
 }
