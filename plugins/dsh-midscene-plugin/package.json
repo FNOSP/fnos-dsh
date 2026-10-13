@@ -5,7 +5,7 @@
   "version": "0.2.0-rc.2.0",
   "description": "Hosts a loopback OpenAI-compatible bridge that exposes every model configured in DSH (official routes, plugin routes, and user-declared providers) so Midscene browser automation can drive pages with natural language without holding any credential itself.",
   "author": "tnnevol",
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0",
   "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-midscene.html",
   "repository": {
     "type": "git",

@@ -5,7 +5,7 @@
   "version": "5.7.1",
   "description": "Shared harness for Midscene Test projects in this repository: Bridge Mode project setup, tab discipline, and result verification.",
   "author": "tnnevol",
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0",
   "homepage": "https://fndsh-doc.tnnevol.cn/",
   "repository": {
     "type": "git",

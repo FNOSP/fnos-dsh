@@ -5,7 +5,7 @@
   "version": "5.7.1",
   "description": "Shared host-side helpers for DSH plugins in this repository, starting with credential-file permission assessment.",
   "author": "tnnevol",
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0",
   "homepage": "https://fndsh-doc.tnnevol.cn/plugins/",
   "repository": {
     "type": "git",

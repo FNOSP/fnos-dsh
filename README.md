@@ -110,4 +110,4 @@ pnpm run start -- --docs
 
 ## 开源协议
 
-[GNU Affero General Public License v3.0](LICENSE)
+[Apache License 2.0](LICENSE)

@@ -5,7 +5,7 @@
   "version": "0.2.0-rc.2.2",
   "description": "Tencent CodeBuddy provider plugin for DeepSeek Harness, with browser OAuth sign-in and quota display.",
   "author": "tnnevol",
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0",
   "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-codebuddy",
   "repository": {
     "type": "git",

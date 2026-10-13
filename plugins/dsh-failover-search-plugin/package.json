@@ -5,7 +5,7 @@
   "version": "0.2.0-rc.2.1",
   "description": "Composite DSH web-search provider that fails over TinyFish → Tavily → official DeepSeek, spreads requests across multiple accounts per platform, and shows platform usage on the plugin page.",
   "author": "tnnevol",
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0",
   "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-failover-search.html",
   "repository": {
     "type": "git",
