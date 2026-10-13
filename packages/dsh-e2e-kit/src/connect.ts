@@ -59,6 +59,20 @@ export interface ConnectTargetOptions {
    * 置 `false` 时目标页不存在则抛出——用于「只允许复用」的场景，避免无意中堆积标签页。
    */
   readonly allowNewTab?: boolean
+  /**
+   * 绑定目标页时是否把它切到前台（默认 `true`）。
+   *
+   * 置 `false` 则**静默操作**：不调用 `chrome.tabs.update(active:true)`，用户当前正在看的
+   * 页面不会被抢走。需要有头浏览器跑自动化又不想打断用户时用它——测试期间页面会自己
+   * 跳到目标页，等于把用户的浏览器当成了测试的画布。
+   *
+   * 实现说明：底层 `ChromeExtensionProxyPage.setActiveTabId(tabId, { activate })` 支持该
+   * 开关，但 CLI 侧的包装 `setActiveTabId(tabId)` **只传第一个参数**，所以必须经
+   * `agent.page` 代理调用才能把选项带到底层；且 tabId 必须传**数字**——代理绕过了 CLI 侧
+   * 的 `Number.parseInt`，传字符串会让浏览器侧存下字符串 id，后续调用全部报
+   * `expected integer, found string`。
+   */
+  readonly activate?: boolean
 }
 
 /**
@@ -87,9 +101,15 @@ export async function connectTarget(
   const selection = selectTab(tabs, targetUrl)
 
   if (selection.reuseTabId !== undefined) {
-    await agent.setActiveTabId(selection.reuseTabId)
+    const activate = options.activate ?? true
+    if (activate) {
+      await agent.setActiveTabId(selection.reuseTabId)
+    } else {
+      // 静默绑定：走 page 代理把 { activate:false } 带到底层（见选项注释）。
+      await agent.page.setActiveTabId(Number.parseInt(String(selection.reuseTabId), 10), { activate: false })
+    }
     const which = selection.reason === 'active' ? '当前活动页' : '已打开的页'
-    log(`复用${which}（id=${selection.reuseTabId}）`)
+    log(`复用${which}（id=${selection.reuseTabId}${activate ? '' : '，静默'}）`)
     return { reused: true, tabId: selection.reuseTabId, reason: selection.reason }
   }
 
@@ -98,8 +118,9 @@ export async function connectTarget(
       `目标页未打开，且本次不允许新开标签页：${targetUrl}`,
     )
   }
-  await agent.connectNewTabWithUrl(targetUrl)
-  log('目标页未打开，已新开一页')
+  // 新开页的选项由 CLI 侧透传（connectNewTabWithUrl 会把 options 交给底层）。
+  await agent.connectNewTabWithUrl(targetUrl, { activateTab: options.activate ?? true })
+  log(`目标页未打开，已新开一页${options.activate === false ? '（静默）' : ''}`)
   // 新开时 Midscene 内部绑定的是新建页；其 id 需再查一次列表才能取得。
   const after = await listTabs(agent)
   const created = after.find(tab => tab.currentActiveTab === true)

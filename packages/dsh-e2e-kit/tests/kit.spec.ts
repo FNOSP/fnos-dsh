@@ -193,3 +193,54 @@ describe('connectTarget：探测脚本也必须复用（治理漏洞的堵法）
     expect(result.reused).toBe(true)
   })
 })
+
+describe('connectTarget 的 activate 选项（静默绑定，不抢前台）', () => {
+  /** 假 Agent：page 代理与顶层方法分别记录，用来区分两条调用路径。 */
+  const fakeAgent = (tabs: readonly { id: string, url?: string, currentActiveTab?: boolean }[]) => {
+    const top: string[] = []
+    const viaPage: string[] = []
+    return {
+      top,
+      viaPage,
+      agent: {
+        getBrowserTabList: async () => tabs,
+        setActiveTabId: async (id: string) => { top.push(`top:setActiveTabId:${id}`) },
+        connectCurrentTab: async () => { top.push('top:connectCurrentTab') },
+        connectNewTabWithUrl: async (url: string, o?: unknown) => {
+          top.push(`top:connectNewTabWithUrl:${url}:${JSON.stringify(o ?? null)}`)
+        },
+        page: {
+          setActiveTabId: async (id: unknown, o?: unknown) => {
+            viaPage.push(`page:setActiveTabId:${String(id)}:${JSON.stringify(o ?? null)}`)
+          },
+        },
+      } as never,
+    }
+  }
+
+  it('默认（activate 省略）走顶层包装，保持既有行为', async () => {
+    const { agent, top, viaPage } = fakeAgent([{ id: '9', url: 'http://127.0.0.1:8070/' }])
+    const r = await connectTarget(agent, 'http://127.0.0.1:8070/')
+    expect(r.reused).toBe(true)
+    expect(top).toEqual(['top:setActiveTabId:9'])
+    // 未走 page 代理，说明没改变默认路径。
+    expect(viaPage).toEqual([])
+  })
+
+  it('activate:false 走 page 代理并带 {activate:false}，且 tabId 必须是数字', async () => {
+    const { agent, top, viaPage } = fakeAgent([{ id: '9', url: 'http://127.0.0.1:8070/' }])
+    const r = await connectTarget(agent, 'http://127.0.0.1:8070/', { activate: false })
+    expect(r.reused).toBe(true)
+    // 关键：不经顶层包装（那会丢掉第二个参数），而是经 page 代理。
+    expect(top).toEqual([])
+    // 关键：id 传数字。传字符串会让浏览器侧存下字符串 tabId，
+    // 后续所有调用报 `expected integer, found string`。
+    expect(viaPage).toEqual(['page:setActiveTabId:9:{"activate":false}'])
+  })
+
+  it('新开页时把 activateTab 透传给底层', async () => {
+    const { agent, top } = fakeAgent([])
+    await connectTarget(agent, 'http://127.0.0.1:8070/', { activate: false })
+    expect(top.some(c => c.includes('"activateTab":false'))).toBe(true)
+  })
+})

@@ -41,6 +41,21 @@ export const BRIDGE_PRELUDE = `> **本环境说明（由 DSH Midscene 插件注�
 >   模型与 key 示例仅作背景知识；实际使用哪个模型由桥决定。
 > - 需要浏览器桥接模式时同样走桥：Midscene 侧的模型配置始终是上面这四行。
 >
+> **静默操作（不打断用户）**：用 Bridge 模式驱动用户浏览器时，连接标签页应传
+> \`activate: false\`，否则会把用户正在看的页面切走、让浏览器变成测试画布。JS SDK 路径：
+>
+> \`\`\`js
+> const agent = new AgentOverChromeBridge()
+> const tabs = await agent.getBrowserTabList()
+> const target = tabs.find(t => t.url?.includes('<目标地址>'))
+> // 经 page 代理调用才能把选项带到底层（顶层的 setActiveTabId 只收 tabId），
+> // 且 id 必须传数字：传字符串会让后续调用报 expected integer, found string。
+> await agent.page.setActiveTabId(Number.parseInt(String(target.id), 10), { activate: false })
+> \`\`\`
+>
+> 注意 CLI 路径（\`npx @midscene/web ... --bridge\`）**没有**对应开关，连接时必然激活标签页；
+> 需要静默时走上面的 SDK 路径。仅当用户明确想看着操作过程时才改用激活方式。
+>
 > 以下为上游原文。`
 
 
