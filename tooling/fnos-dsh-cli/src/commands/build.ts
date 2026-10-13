@@ -48,9 +48,11 @@ const FPK_REQUIRED_BUNDLED_PLUGIN_NAMES = [
 ]
 
 // 可随 FPK 内置、但不强制在内的自有插件。新增内置插件时在此登记。
+//
+// `@tnnevol/dsh-midscene` **刻意不在此列**：它面向浏览器自动化场景、用完即走的
+// 插件，不随 FPK 分发，由需要的人自行安装。
 const FPK_OPTIONAL_BUNDLED_PLUGIN_NAMES = [
   '@tnnevol/dsh-failover-search',
-  '@tnnevol/dsh-midscene',
 ]
 
 type PublishedDshPluginManifest = {

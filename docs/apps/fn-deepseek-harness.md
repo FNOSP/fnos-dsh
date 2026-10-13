@@ -66,12 +66,18 @@ appcenter-cli install-local
 
 FPK 安装和升级时会按发布清单以精确版本准备插件：
 
-| 插件 | 版本 | 提供能力 |
-| --- | --- | --- |
-| [`@tnnevol/dsh-fnos`](/plugins/dsh-fnos) | `0.2.0-rc.2` | fnOS 主题、授权目录、NAS 文件访问、会话日志导出 |
-| [`@tnnevol/dsh-codex-auth`](/plugins/dsh-codex-auth) | `0.2.0-rc.2` | ChatGPT 账号登录 Codex、模型目录、用量与图片输入 |
-| [`@tnnevol/dsh-codebuddy`](/plugins/dsh-codebuddy) | `0.2.0-rc.2` | CodeBuddy 账号、用量面板与成长任务 |
-| `dshmarket` | `1.66.3` | 三方插件市场；不进入 FPK，安装阶段由 DSH CLI 单独安装，已安装时不会覆盖用户版本 |
+| 插件 | 提供能力 |
+| --- | --- |
+| [`@tnnevol/dsh-fnos`](/plugins/dsh-fnos) | fnOS 主题、授权目录、NAS 文件访问、会话日志导出 |
+| [`@tnnevol/dsh-codex-auth`](/plugins/dsh-codex-auth) | ChatGPT 账号登录 Codex、模型目录、用量与图片输入 |
+| [`@tnnevol/dsh-codebuddy`](/plugins/dsh-codebuddy) | CodeBuddy 账号、用量面板与成长任务 |
+| [`@tnnevol/dsh-failover-search`](/plugins/dsh-failover-search) | 三方网页搜索与网页抓取兜底、平台用量展示 |
+
+精确版本由发布清单 `apps/fn-deepseek-harness/app/published-dsh-plugins.json` 持有，本页不重复登记（避免两处版本号漂移）。
+
+[`@tnnevol/dsh-midscene`](/plugins/dsh-midscene) **不随本应用内置**：浏览器自动化是用完即走的场景，需要时自行执行 `dsh plugin --profile web add @tnnevol/dsh-midscene`。
+
+`dshmarket`（三方插件市场）不进入 FPK，安装阶段由 DSH CLI 单独安装，已安装时不会覆盖用户版本。
 
 Codex 插件必须随 FPK 内置：registry 上可用版本在 DSH `0.2.0-rc.2` 上会因 `@deepseek-ai/dsh-settings` 不再导出 `settingsNamespace` 而导致 DSH Web 启动失败。升级老用户时不会卸载或覆盖已有的凭据、模型配置和 profile bundle。
 

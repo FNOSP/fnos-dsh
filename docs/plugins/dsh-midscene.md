@@ -6,13 +6,15 @@
 
 ## 安装
 
-在 fnOS 上使用 DSH 时，插件随应用安装或升级自动安装。其他 DSH 环境可执行：
+**本插件不随 fnOS 应用（FPK）内置分发**——浏览器自动化是用完即走的场景，需要时自行安装。任何 DSH 环境（含 fnOS 上的 DSH）都执行：
 
 ```sh
 dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.0-rc.2.0
 ```
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。
+
+> 同一 DSH 里已安装的应用内置插件（fnOS、Codex Auth、CodeBuddy、Failover Search）随应用升级自动更新，与本插件互不影响。
 
 ## 桥接服务
 
