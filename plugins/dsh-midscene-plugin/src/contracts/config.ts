@@ -4,7 +4,7 @@
  * 配置面围绕一个目标收敛：**让 Midscene 的接入配置变成固定四行，且用户零密钥**。
  * - `apiKey`：桥的接入密钥（安装即生成，可在设置页重新随机或自定义）。
  * - `family`：Midscene 的协议家族（决定它的提示词模板与坐标解析协议）。
- * - `models`：可选的测试模型白名单；空表示跟随 DSH 当前模型选择。
+ * - `model`：指定的测试模型；空表示跟随 DSH 当前模型选择。
  *
  * 类型标注沿用仓库既有写法（见 `dsh-failover-search-plugin` 的说明）：只写
  * `z.object(...)` 时推导类型会引用 schemastery 内部的 cosmokit 类型，声明文件
@@ -177,7 +177,7 @@ interface BridgeConfigShape {
   port: z<NoInfer<number>, NoInfer<number>, 'volatile-defined'>
   apiKey: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
   family: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
-  models: z<NoInfer<string[]>, NoInfer<string[]>, 'volatile-defined'>
+  model: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
   requestTimeoutMs: z<NoInfer<number>, NoInfer<number>, 'volatile-defined'>
   logRequests: z<NoInfer<boolean>, NoInfer<boolean>, 'volatile-defined'>
 }
@@ -185,8 +185,11 @@ interface BridgeConfigShape {
 /**
  * 桥接服务配置。
  *
- * `models` 为空（默认）时桥跟随 DSH 当前模型选择；非空时按列表顺序取第一个能在
- * 目录中找到的模型——这实现「指定用于 Midscene 测试的模型」。
+ * `model` 为空（默认）时桥跟随 DSH 当前模型选择（需具备识图能力）；指定时用它。
+ *
+ * **为什么是单个而不是列表**：Midscene 的协议家族在启动期从 `.env` 读取，而家族只
+ * 有一个——多选里若混入不同系列的模型，回退到备用模型时家族仍是最初那个，反而制造
+ * 静默错位。既然任何时刻只可能有一个模型生效，界面就如实只让选一个。
  */
 export const Config: z<Schemastery.ObjectS<NoInfer<BridgeConfigShape>>, Schemastery.ObjectT<NoInfer<BridgeConfigShape>>, 'plain'> = z.object({
   port: z.natural().default(DEFAULT_BRIDGE_PORT).volatile()
@@ -195,8 +198,8 @@ export const Config: z<Schemastery.ObjectS<NoInfer<BridgeConfigShape>>, Schemast
     .description('桥接接入密钥（安装时自动生成）。Midscene 的 .env 用它；可在设置页重新随机生成或自定义'),
   family: z.string().default(GENERIC_FAMILY).volatile()
     .description('Midscene 协议家族（**自动维护**，无需手工设置）：桥按实际使用的模型推导。识别得出家族就用该家族，识别不出但能识图的模型用通用家族。它只影响 Midscene 的提示词模板与坐标解析协议'),
-  models: z.array(z.string()).default([]).volatile()
-    .description('指定用于 Midscene 测试的模型（「提供方/模型」形式，按顺序尝试第一个可用的）。留空则跟随 DSH 当前模型选择'),
+  model: z.string().default('').volatile()
+    .description('指定用于 Midscene 测试的模型（「提供方/模型」形式）。留空则跟随 DSH 当前模型选择（需具备识图能力）'),
   requestTimeoutMs: z.natural().default(300_000).volatile()
     .description('单次模型请求的超时毫秒数；0 表示不超时'),
   logRequests: z.boolean().default(true).volatile()
@@ -220,7 +223,7 @@ export function liveConfig(raw: BridgeConfig): BridgeConfig {
     get port() { return read('port') },
     get apiKey() { return read('apiKey') },
     get family() { return read('family') },
-    get models() { return read('models') ?? [] },
+    get model() { return read('model') ?? '' },
     get requestTimeoutMs() { return read('requestTimeoutMs') },
     get logRequests() { return read('logRequests') },
   }
@@ -240,8 +243,8 @@ export interface BridgeConfig {
   readonly apiKey: string
   /** Midscene 协议家族。 */
   readonly family: string
-  /** 指定模型列表；空表示跟随 DSH 当前模型选择。 */
-  readonly models: readonly string[]
+  /** 指定的测试模型；空表示跟随 DSH 当前模型选择。 */
+  readonly model: string
   /** 单次模型请求超时（毫秒）；0 表示不超时。 */
   readonly requestTimeoutMs: number
   /** 是否记录请求摘要日志。 */

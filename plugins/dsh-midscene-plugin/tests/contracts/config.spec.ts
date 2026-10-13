@@ -88,12 +88,12 @@ describe('volatileValue', () => {
 describe('liveConfig', () => {
   it('每次读取都取当前值（设置页改动立即作用于运行中的桥）', () => {
     // 若只读一次快照，用户改完家族或密钥必须重启 DSH 才生效——与「设置页能改」不符。
-    const state = { apiKey: 'first', family: 'glm-v', models: [] as string[] }
+    const state = { apiKey: 'first', family: 'glm-v', model: '' }
     const config = liveConfig({
       get port() { return 8787 },
       get apiKey() { return state.apiKey },
       get family() { return state.family },
-      get models() { return state.models },
+      get model() { return state.model },
       get requestTimeoutMs() { return 1000 },
       get logRequests() { return false },
     })
@@ -101,10 +101,10 @@ describe('liveConfig', () => {
     expect(config.family).toBe('glm-v')
     state.apiKey = 'second'
     state.family = 'gpt-6'
-    state.models = ['codebuddy/glm-5.3-flash']
+    state.model = 'codebuddy/glm-5.3-flash'
     expect(config.apiKey).toBe('second')
     expect(config.family).toBe('gpt-6')
-    expect(config.models).toEqual(['codebuddy/glm-5.3-flash'])
+    expect(config.model).toBe('codebuddy/glm-5.3-flash')
   })
 
   it('解包 volatile 引用的字段', () => {
@@ -113,7 +113,7 @@ describe('liveConfig', () => {
       get port() { return 8787 },
       get apiKey() { return 'k' },
       get family() { return { get: () => family } as unknown as string },
-      get models() { return [] },
+      get model() { return '' },
       get requestTimeoutMs() { return 1000 },
       get logRequests() { return true },
     })
@@ -122,15 +122,15 @@ describe('liveConfig', () => {
     expect(config.family).toBe('deepseek')
   })
 
-  it('models 缺失时回落空数组（老配置升级不炸）', () => {
+  it('model 缺失时回落空串（老配置升级不炸）', () => {
     const config = liveConfig({
       get port() { return 8787 },
       get apiKey() { return 'k' },
       get family() { return 'glm-v' },
-      get models() { return undefined as unknown as string[] },
+      get model() { return undefined as unknown as string },
       get requestTimeoutMs() { return 1000 },
       get logRequests() { return true },
     })
-    expect(config.models).toEqual([])
+    expect(config.model).toBe('')
   })
 })

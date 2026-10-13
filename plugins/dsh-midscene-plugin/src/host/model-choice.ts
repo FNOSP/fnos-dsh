@@ -22,12 +22,12 @@ export interface ModelChoice {
   readonly entry: OpenAiModelEntry
   /**
    * 选择来源：
-   * - `configured`：来自插件配置的 `models`；
+   * - `configured`：来自插件配置的 `model`；
    * - `session`：跟随 DSH 当前模型选择；
    * - `fallback`：兜底挑的具备图片能力的模型。
    */
   readonly source: 'configured' | 'session' | 'fallback'
-  /** 配置里指定了但目录中不存在的模型（供设置页提示）。 */
+  /** 配置里指定了但目录中不存在的模型（供设置页提示）；未指定或存在时为空。 */
   readonly skippedConfigured: readonly string[]
 }
 
@@ -43,25 +43,29 @@ export interface SessionModelReader {
 /**
  * 按优先级决定实际使用的模型。
  *
+ * 优先级：**用户指定的那个** → DSH 当前会话模型（需具备识图能力）→ 目录里第一个具备
+ * 识图能力的模型。任何时刻只有一个模型生效——这也是配置里只让选一个的原因。
  * @param snapshot - 目录快照。
- * @param configured - 插件配置里指定的模型列表（可空）。
+ * @param configured - 插件配置里指定的模型（空串表示未指定）。
  * @param session - DSH 当前模型选择的读取面。
  * @returns 决策结果；目录为空时为 `undefined`。
  */
 export function chooseModel(
   snapshot: ModelCatalogSnapshot,
-  configured: readonly string[],
+  configured: string,
   session: SessionModelReader,
 ): ModelChoice | undefined {
   if (snapshot.entries.length === 0) return undefined
   const byId = new Map(snapshot.entries.map(entry => [entry.id, entry]))
   const skippedConfigured: string[] = []
 
-  // 1) 用户显式指定：按顺序取第一个存在的。
-  for (const name of configured) {
-    const entry = byId.get(name)
+  // 1) 用户显式指定：存在着就用它。
+  if (configured.trim() !== '') {
+    const entry = byId.get(configured)
     if (entry !== undefined) return { entry, source: 'configured', skippedConfigured }
-    skippedConfigured.push(name)
+    // 配了但目录里没有（提供方被卸载或模型改名）：如实登记，让设置页能提示，
+    // 而不是静默改用别的模型。
+    skippedConfigured.push(configured)
   }
 
   // 2) 跟随 DSH 当前模型选择——但**只在它具备图片能力时**。

@@ -179,7 +179,7 @@ export async function statusSnapshotForTest(
     apiKey,
     family: family.family,
     familyReason: family.reason,
-    models: config.models,
+    model: config.model,
     fixedModelName: FIXED_MODEL_NAME,
     baseUrl: `http://${BRIDGE_HOST}:${config.port}${OPENAI_API_PREFIX}`,
     envFile: renderEnvFile({ port: config.port, apiKey, family: family.family }),
@@ -189,24 +189,20 @@ export async function statusSnapshotForTest(
 /**
  * 校验并归一化一次配置写入请求。
  *
- * 只接受**模型列表**：协议家族由桥按实际使用的模型自动推导（`resolveFamily`），不是用户
+ * 只接受**单个模型**：协议家族由桥按实际使用的模型自动推导（`resolveFamily`），不是用户
  * 配置项——把它暴露给用户既要求他们理解 Midscene 的内部协议，又必然产生「家族与模型不
  * 匹配」的静默错位。若请求里带了 `family`，这里直接忽略（老版本界面或脚本可能仍会发送），
  * 由桥在生成接入配置时按真实模型覆盖。
+ *
+ * 空串是合法值，表示「未指定，跟随 DSH 当前会话模型」。
  * @param input - 写入请求体。
  * @returns 归一化后的补丁（只含出现过的字段）。
  */
 export function normalizePatchForTest(input: Record<string, unknown>): Record<string, unknown> {
   const patch: Record<string, unknown> = {}
-  if (Array.isArray(input.models)) {
-    const models: string[] = []
-    for (const value of input.models) {
-      if (typeof value !== 'string') throw new Error('models must be an array of "provider/model" strings')
-      const trimmed = value.trim()
-      if (trimmed === '') continue
-      models.push(trimmed)
-    }
-    patch.models = models
+  if (typeof input.model === 'string') {
+    // 空串是合法值：表示「未指定，跟随 DSH 当前会话模型」。
+    patch.model = input.model.trim()
   }
   return patch
 }

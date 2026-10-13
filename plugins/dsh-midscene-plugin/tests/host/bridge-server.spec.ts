@@ -100,7 +100,7 @@ async function startBridge(overrides: Partial<BridgeConfig> = {}, deps: {
       port,
       apiKey: 'test-key',
       family: 'glm-v',
-      models: [],
+      model: '',
       requestTimeoutMs: 10_000,
       logRequests: false,
       ...overrides,
@@ -142,7 +142,7 @@ describe('FNOS-013-01 服务与健康检查', () => {
     const server = new BridgeServer({
       llm,
       attachments: undefined,
-      config: { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false },
+      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', requestTimeoutMs: 1000, logRequests: false },
       sessionModel: { current: () => undefined },
       log: message => { logs.push(message) },
     })
@@ -168,7 +168,7 @@ describe('FNOS-013-01 服务与健康检查', () => {
     const server = new BridgeServer({
       llm,
       attachments: undefined,
-      config: { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false },
+      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', requestTimeoutMs: 1000, logRequests: false },
       sessionModel: { current: () => undefined },
       log: () => {},
     })
@@ -200,7 +200,7 @@ describe('FNOS-013-01 服务与健康检查', () => {
     const server = new BridgeServer({
       llm,
       attachments: undefined,
-      config: { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false },
+      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', requestTimeoutMs: 1000, logRequests: false },
       sessionModel: { current: () => undefined },
       log: () => {},
     })
@@ -211,7 +211,7 @@ describe('FNOS-013-01 服务与健康检查', () => {
 
   it('stop 后端口真正释放，可被新实例立即复用（AC-02）', async () => {
     const port = await freePort()
-    const config: BridgeConfig = { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false }
+    const config: BridgeConfig = { port, apiKey: 'test-key', family: 'glm-v', model: '', requestTimeoutMs: 1000, logRequests: false }
     const first = new BridgeServer({ llm: fakeLlm().llm, attachments: undefined, config, sessionModel: { current: () => undefined }, log: () => {} })
     await first.start()
     await first.stop()
@@ -521,7 +521,7 @@ describe('固定模型名 dsh-model（FNOS-013-05 零配置接入）', () => {
       },
     })
     const { port, calls } = await startBridge(
-      { models: ['codebuddy/pinned-model'] },
+      { model: 'codebuddy/pinned-model' },
       { llm, sessionModel: { current: () => 'codebuddy/glm-5.3-flash' } },
     )
     await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
@@ -532,13 +532,13 @@ describe('固定模型名 dsh-model（FNOS-013-05 零配置接入）', () => {
     expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'pinned-model' })
   })
 
-  it('配置指定的模型不存在时跳过它并回落会话模型', async () => {
+  it('配置指定的模型不存在时回落会话模型（并如实在 /v1/midscene-env 登记被跳过的）', async () => {
     const { llm } = fakeLlm({
       providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],
       models: { codebuddy: [{ provider: 'codebuddy', id: 'real', name: 'Real', inputModalities: ['text', 'image'] }] },
     })
     const { port, calls } = await startBridge(
-      { models: ['codebuddy/gone', 'codebuddy/also-gone'] },
+      { model: 'codebuddy/gone' },
       { llm, sessionModel: { current: () => 'codebuddy/real' } },
     )
     await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
@@ -770,7 +770,7 @@ describe('目录缓存失效（AC-03）', () => {
     const server = new BridgeServer({
       llm,
       attachments: undefined,
-      config: { port, apiKey: 'test-key', family: 'glm-v', models: [], requestTimeoutMs: 1000, logRequests: false },
+      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', requestTimeoutMs: 1000, logRequests: false },
       sessionModel: { current: () => undefined },
       log: () => {},
     })

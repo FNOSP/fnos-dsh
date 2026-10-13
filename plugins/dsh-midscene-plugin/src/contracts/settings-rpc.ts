@@ -41,8 +41,8 @@ export interface MidsceneSettingsSnapshot {
   readonly family: string
   /** 家族判定依据（供诊断说明，不要求用户理解）。 */
   readonly familyReason: string
-  /** 指定用于测试的模型列表；空表示跟随 DSH 会话模型。 */
-  readonly models: readonly string[]
+  /** 指定的测试模型；空表示跟随 DSH 当前会话模型。 */
+  readonly model: string
   /**
    * 可供选择的模型目录（设置界面下拉选项）。
    *
@@ -74,10 +74,10 @@ export type MidsceneSettingsRequest =
   | {
     readonly action: 'update'
     /**
-     * 模型列表。
+     * 测试模型（「提供方/模型」形式）；空串表示跟随 DSH 当前会话模型。
      *
      * 协议家族不在此列：它由桥按实际使用的模型推导，不是用户配置项。请求里若带了
      * `family` 会被忽略（旧版界面或脚本可能仍会发送）。
      */
-    readonly models?: readonly string[]
+    readonly model?: string
   }

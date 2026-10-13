@@ -13,7 +13,7 @@ const config = {
   port: 8787,
   apiKey: 'k'.repeat(32),
   family: 'glm-v',
-  models: [] as readonly string[],
+  model: '',
   requestTimeoutMs: 1000,
   logRequests: false,
 }
@@ -61,7 +61,7 @@ describe('协议家族由实际使用的模型推导（不是用户配置项）'
     ]
     const forModel = async (id: string): Promise<string> => {
       const snapshot = await statusSnapshotForTest({
-        readConfig: () => ({ ...config, models: [id] }),
+        readConfig: () => ({ ...config, model: 'id' }),
         listModels: () => Promise.resolve(models),
         resolveModel: () => Promise.resolve(id),
       }) as { family: string, envFile: string }
@@ -78,7 +78,7 @@ describe('协议家族由实际使用的模型推导（不是用户配置项）'
     // 做法是回落通用家族（bbox/xy/1000，10 个家族共用的主导协议；实测 hy3 在其下
     // 定位 3/3 命中）。
     const snapshot = await statusSnapshotForTest({
-      readConfig: () => ({ ...config, models: ['codebuddy/hy3'] }),
+      readConfig: () => ({ ...config, model: 'codebuddy/hy3' }),
       listModels: () => Promise.resolve([{ id: 'codebuddy/hy3', name: 'Hy3', vision: true }]),
       resolveModel: () => Promise.resolve('codebuddy/hy3'),
     }) as { family: string, familyReason: string }
@@ -88,7 +88,7 @@ describe('协议家族由实际使用的模型推导（不是用户配置项）'
 
   it('快照只列出具备识图能力的模型（界面不呈现无视觉模型）', async () => {
     const snapshot = await statusSnapshotForTest({
-      readConfig: () => ({ ...config, models: [] }),
+      readConfig: () => ({ ...config, model: '' }),
       listModels: () => Promise.resolve([
         { id: 'codebuddy/glm-5.3', name: 'GLM-5.3', vision: true },
         { id: 'deepseek-official/deepseek-v4-pro', name: 'V4 Pro', vision: false },
@@ -102,12 +102,19 @@ describe('写入校验', () => {
   it('忽略请求里的 family（家族自动推导，不是用户字段）', () => {
     // 旧版界面或脚本可能仍会发送 family；桥按真实模型推导，因此这里静默忽略而不是报错。
     expect(normalizePatchForTest({ family: 'gpt-6' })).toEqual({})
-    expect(normalizePatchForTest({ family: 'dsh-model', models: ['a/b'] })).toEqual({ models: ['a/b'] })
+    expect(normalizePatchForTest({ family: 'dsh-model', model: 'a/b' })).toEqual({ model: 'a/b' })
   })
 
-  it('模型列表去空白项并拒绝非字符串', () => {
-    expect(normalizePatchForTest({ models: ['a/b', '  ', ' c/d '] })).toEqual({ models: ['a/b', 'c/d'] })
-    expect(() => normalizePatchForTest({ models: [1] })).toThrow(/provider\/model/u)
+  it('接受单个模型，空串表示跟随 DSH 会话模型', () => {
+    expect(normalizePatchForTest({ model: 'codebuddy/glm-5.3' })).toEqual({ model: 'codebuddy/glm-5.3' })
+    // 首尾空白去掉（手填或脚本可能带空格）。
+    expect(normalizePatchForTest({ model: '  codebuddy/glm-5.3  ' })).toEqual({ model: 'codebuddy/glm-5.3' })
+    // 空串是合法值：清空选择 = 跟随会话模型。
+    expect(normalizePatchForTest({ model: '' })).toEqual({ model: '' })
+    // 非字符串被忽略（调用方据此回 400）。
+    expect(normalizePatchForTest({ model: 1 })).toEqual({})
+    // 数组形态（旧版界面的多选）不再是受支持字段：忽略而不是报错，避免用户被卡住。
+    expect(normalizePatchForTest({ model: ['a/b'] })).toEqual({})
   })
 
   it('无受支持字段时返回空补丁（调用方据此回 400）', () => {

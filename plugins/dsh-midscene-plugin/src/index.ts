@@ -110,7 +110,7 @@ export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unkn
     get port() { return live.port },
     get apiKey() { return apiKey() },
     get family() { return live.family },
-    get models() { return live.models },
+    get model() { return live.model },
     get requestTimeoutMs() { return live.requestTimeoutMs },
     get logRequests() { return live.logRequests },
   }

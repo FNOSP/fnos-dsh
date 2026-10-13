@@ -227,7 +227,7 @@ export class BridgeServer {
    */
   async resolveModel(): Promise<string | undefined> {
     const snapshot = await this.catalog.get()
-    return chooseModel(snapshot, this.deps.config.models, this.deps.sessionModel)?.entry.id
+    return chooseModel(snapshot, this.deps.config.model, this.deps.sessionModel)?.entry.id
   }
 
   /**
@@ -396,7 +396,7 @@ export class BridgeServer {
       }
       if (request.method === 'GET' && path === `${OPENAI_API_PREFIX}/health`) {
         const snapshot = await this.catalog.get()
-        const healthChoice = chooseModel(snapshot, this.deps.config.models, this.deps.sessionModel)
+        const healthChoice = chooseModel(snapshot, this.deps.config.model, this.deps.sessionModel)
         sendJson(response, 200, {
           status: 'ok',
           host: BRIDGE_HOST,
@@ -408,7 +408,7 @@ export class BridgeServer {
           // 配置里的当前值，健康检查不应因目录为空而失败。
           family: resolveFamily(healthChoice?.entry.id ?? this.deps.config.family).family,
           resolvedModel: healthChoice?.entry.id,
-          configuredModels: this.deps.config.models,
+          configuredModel: this.deps.config.model,
           providers: snapshot.providers,
           models: snapshot.entries.length,
           attachments: this.deps.attachments !== undefined,
@@ -419,7 +419,7 @@ export class BridgeServer {
       // 可以把 .env 写死——换模型只改插件设置，不动这个文件。
       if (request.method === 'GET' && path === `${OPENAI_API_PREFIX}/midscene-env`) {
         const snapshot = await this.catalog.get()
-        const choice = chooseModel(snapshot, this.deps.config.models, this.deps.sessionModel)
+        const choice = chooseModel(snapshot, this.deps.config.model, this.deps.sessionModel)
         // 家族随实际模型推导：Midscene 按它解析坐标，写错会静默错位。用户在界面只选模型，
         // 家族由这里保证一致。
         const family = resolveFamily(choice?.entry.id ?? this.deps.config.family).family
@@ -470,7 +470,7 @@ export class BridgeServer {
     // 固定模型名（Midscene 侧的默认写法）：由桥决定实际用哪个模型——配置指定的
     // 优先，否则跟随 DSH 当前模型选择，最后兜底挑一个具备图片能力的。
     if (rawModel === FIXED_MODEL_NAME) {
-      const choice = chooseModel(snapshot, this.deps.config.models, this.deps.sessionModel)
+      const choice = chooseModel(snapshot, this.deps.config.model, this.deps.sessionModel)
       if (choice === undefined) {
         throw new RequestConversionError(
           'no model is available in DSH; configure a provider in DSH first',

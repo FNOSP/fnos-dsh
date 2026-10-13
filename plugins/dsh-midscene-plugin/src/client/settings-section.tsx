@@ -80,7 +80,7 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   const [copied, setCopied] = useState(false)
   const [customKey, setCustomKey] = useState('')
   const [editingKey, setEditingKey] = useState(false)
-  const [models, setModels] = useState<string[]>([])
+  const [model, setModel] = useState('')
   // 只看支持图片的模型（默认开启）：Midscene 靠截图理解页面，文本模型选进来也跑不了。
 
   /** 读一次状态（失败呈现为可重试的错误，不静默留空）。 */
@@ -88,7 +88,7 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
     try {
       const next = await load()
       setSnapshot(next)
-      setModels([...next.models])
+      setModel(next.model)
       setError(undefined)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -103,7 +103,7 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
     try {
       const next = await update(request)
       setSnapshot(next)
-      setModels([...next.models])
+      setModel(next.model)
       setError(undefined)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -132,13 +132,10 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   }
 
   // 可选模型 = 宿主给出的**可识图模型**清单（宿主已过滤掉无图片能力的模型：Midscene 靠
-  // 截图理解页面，文本模型选进来也跑不了）。已选中的项始终保留，否则用户看不到自己选了
-  // 什么、也无法取消。
-  const selectableModels = snapshot.availableModels.filter(model =>
-    model.vision || models.includes(model.id))
-  // 已配置但当前目录里没有的模型：如实提示，不静默丢弃（可能是提供方被卸载或模型改名）。
-  const availableIds = new Set(snapshot.availableModels.map(model => model.id))
-  const staleModels = models.filter(id => !availableIds.has(id))
+  // 截图理解页面，文本模型选进来也跑不了）。
+  const selectableModels = snapshot.availableModels
+  // 已指定但当前目录里没有的模型：如实提示，不静默改选别的（可能是提供方被卸载或改名）。
+  const modelMissing = model !== '' && !selectableModels.some(entry => entry.id === model)
   // 一个可识图模型都没有：不渲染空下拉（那看起来像坏了），改为给出可操作的提示。
   const noModels = snapshot.availableModels.length === 0
 
@@ -155,14 +152,14 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   /**
    * 提交模型选择。
    *
-   * 下拉的多选值直接就是完整列表（含顺序），因此一次提交整组：不做增量增删，
-   * 避免「先删后加」两次写入之间出现短暂的空列表。去重由 `DshSelect` 保证，
-   * 这里再兜一次以防目录里出现重复 id。
+   * 只选一个：Midscene 的协议家族在启动期从 `.env` 读取且只有一个，多选若混入不同
+   * 系列的模型，回退到备用时家族仍是旧的，反而制造静默错位。既然任何时刻只可能有一个
+   * 模型生效，界面就如实只让选一个。
+   * @param next - 新选择的模型 id；空串表示跟随 DSH 当前会话模型。
    */
-  const applyModels = (next: readonly string[]): void => {
-    const deduped = [...new Set(next)]
-    setModels(deduped)
-    void submit({ action: 'update', models: deduped })
+  const applyModel = (next: string): void => {
+    setModel(next)
+    void submit({ action: 'update', model: next })
   }
 
   return (
@@ -215,25 +212,23 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
         ) : (
           <>
             <DshSelect
-              multiple
               filter
+              allowClear
               size="small"
               style={{ width: 420 }}
-              value={models}
-              placeholder={models.length === 0 ? t('modelsNoneSelected') : t('modelsPlaceholder')}
-              onChange={(value: string[]) => { applyModels(value) }}
+              value={model === '' ? undefined : model}
+              placeholder={t('modelsNoneSelected')}
+              onChange={(value?: string) => { applyModel(value ?? '') }}
             >
-              {selectableModels.map(model => (
-                <DshSelect.Option key={model.id} value={model.id}>
-                  {model.name === undefined ? model.id : `${model.name} · ${model.id}`}
+              {selectableModels.map(entry => (
+                <DshSelect.Option key={entry.id} value={entry.id}>
+                  {entry.name === undefined ? entry.id : `${entry.name} · ${entry.id}`}
                 </DshSelect.Option>
               ))}
             </DshSelect>
-            {staleModels.length === 0 ? null : (
-              <DshTag color="orange" size="small">
-                {t('modelsStale')}: {staleModels.join(', ')}
-              </DshTag>
-            )}
+            {modelMissing ? (
+              <DshTag color="orange" size="small">{t('modelsStale')}: {model}</DshTag>
+            ) : null}
           </>
         )}
       </Field>
