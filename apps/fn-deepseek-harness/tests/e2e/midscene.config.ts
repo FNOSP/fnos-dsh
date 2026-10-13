@@ -31,7 +31,7 @@
 import { defineTestProject } from '@midscene/test/config'
 import { createMidsceneNodes } from '@midscene/test/midscene'
 import { AgentOverChromeBridge } from '@midscene/web/bridge-mode'
-import { defineBridgeSetup, type BridgeContext } from '@tnnevol/dsh-e2e-kit'
+import { assertInPage, defineBridgeSetup, type BridgeContext } from '@tnnevol/dsh-e2e-kit'
 
 /** 被测 NAS 的 fnOS Web 地址。默认值便于本地复跑，仍建议显式传入。 */
 const targetUrl = process.env.DSH_NAS_URL ?? 'http://192.168.0.110:5666/'
@@ -47,10 +47,14 @@ export default defineTestProject<BridgeContext>({
     {
       name: 'fnos-nas',
       setup: defineBridgeSetup({ targetUrl }),
-      nodes: createMidsceneNodes<BridgeContext>({
-        agentClass: AgentOverChromeBridge,
-        getAgent: ({ context }) => context.agent,
-      }),
+      nodes: [
+        ...createMidsceneNodes<BridgeContext>({
+          agentClass: AgentOverChromeBridge,
+          getAgent: ({ context }) => context.agent,
+        }),
+        // 精确断言：`javascript` 步骤的 throw 会被 CDP 吞掉（假阳性），这个 Node 不会。
+        assertInPage,
+      ],
       // 相对执行目录（本包根）解析。
       files: { include: ['e2e/cases/**/*.yaml'] },
       // 默认排除写操作用例：TC-104 会**覆盖安装** NAS 上的现有应用，不该在

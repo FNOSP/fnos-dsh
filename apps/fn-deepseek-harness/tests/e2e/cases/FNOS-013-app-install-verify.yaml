@@ -55,16 +55,19 @@ cases:
           options:
             deepThink: true
       # 精确断言：详情页必须真的到位，且版本与来源可解析（不靠模型读数）。
-      - javascript: |
-          (() => {
-            const text = document.body.innerText || '';
-            if (!/DeepSeek Harness/.test(text)) throw new Error('未进入 DeepSeek Harness 详情页');
-            if (!/当前版本/.test(text)) throw new Error('详情页缺少「当前版本」字段');
-            if (!/手动安装/.test(text)) throw new Error('详情页「来源」不是手动安装');
-            const version = (text.match(/当前版本\s*\n?\s*([0-9][0-9A-Za-z.+-]*)/) || [])[1];
-            if (!version) throw new Error('未能从详情页解析出版本号');
-            return '版本=' + version;
-          })()
+      # 用 `dsh.assertInPage` 而不是 `javascript` —— 后者的 throw 会被 CDP 吞掉（假阳性）。
+      - dsh.assertInPage:
+          label: 详情页显示版本号与「手动安装」来源
+          script: |
+            (() => {
+              const text = document.body.innerText || '';
+              if (!/DeepSeek Harness/.test(text)) return { pass: false, detail: '未进入详情页' };
+              if (!/当前版本/.test(text)) return { pass: false, detail: '缺少「当前版本」字段' };
+              if (!/手动安装/.test(text)) return { pass: false, detail: '来源不是「手动安装」' };
+              const version = (text.match(/当前版本\s*\n?\s*([0-9][0-9A-Za-z.+-]*)/) || [])[1];
+              if (!version) return { pass: false, detail: '未能解析出版本号' };
+              return { pass: true, detail: '版本 ' + version };
+            })()
       - aiAssert: 页面显示的是 DeepSeek Harness 的应用详情，可见应用图标、介绍文字与「打开」按钮
 
   # ── 内置插件声明与发布清单一致 ────────────────────────────────────
@@ -81,18 +84,21 @@ cases:
             deepThink: true
       # 精确断言：desc 是发布清单的镜像。
       # 「不应声称内置 Midscene」是**否定式判断**——实测视觉模型断言「不存在 X」不可靠
-      # （曾把药丸按钮本身误判成开关控件），因此这类判定一律用 javascript。
-      - javascript: |
-          (() => {
-            const text = document.body.innerText || '';
-            const want = ['fnOS', 'Codex Auth', 'CodeBuddy', 'Failover Search'];
-            const missing = want.filter(n => !text.includes(n));
-            if (missing.length > 0) throw new Error('内置插件清单缺少：' + missing.join('、'));
-            if (/内置[^。]*Midscene/.test(text)) {
-              throw new Error('介绍仍声称内置 Midscene，与发布清单不符');
-            }
-            return '四个内置插件齐备，且未声称内置 Midscene';
-          })()
+      # （曾把药丸按钮本身误判成开关控件），因此这类判定必须用代码，且要用
+      # `dsh.assertInPage` 才能真的失败（`javascript` 的 throw 被吞）。
+      - dsh.assertInPage:
+          label: 介绍列出四个内置插件且未声称内置 Midscene
+          script: |
+            (() => {
+              const text = document.body.innerText || '';
+              const want = ['fnOS', 'Codex Auth', 'CodeBuddy', 'Failover Search'];
+              const missing = want.filter(n => !text.includes(n));
+              if (missing.length > 0) return { pass: false, detail: '缺少 ' + missing.join('、') };
+              if (/内置[^。]*Midscene/.test(text)) {
+                return { pass: false, detail: '仍声称内置 Midscene，与发布清单不符' };
+              }
+              return { pass: true, detail: '四项齐备，且未声称内置 Midscene' };
+            })()
 
   # ── 应用可启动 ────────────────────────────────────────────────────
   - name: TC-102 打开应用后 DSH 界面正常渲染
@@ -106,19 +112,21 @@ cases:
           options:
             deepThink: true
       # 精确断言：应用以 iframe 挂载且同源可读（实测确认同源）。
-      - javascript: |
-          (() => {
-            const f = document.querySelector('iframe[src*="/app/fn-deepseek-harness"]');
-            if (!f) throw new Error('未找到 DSH 应用的 iframe（应用可能未打开）');
-            let doc = null;
-            try { doc = f.contentDocument } catch (e) { throw new Error('iframe 跨源，无法读取（与实测不符）'); }
-            if (!doc) throw new Error('iframe 已挂载但 contentDocument 不可读');
-            const t = doc.body ? (doc.body.innerText || '') : '';
-            if (t.length < 50) throw new Error('iframe 内文本过少，DSH 界面可能未渲染');
-            const missing = ['新会话', '插件'].filter(n => !t.includes(n));
-            if (missing.length > 0) throw new Error('DSH 界面缺少入口：' + missing.join('、'));
-            return 'DSH 界面已渲染，含新会话与插件入口';
-          })()
+      - dsh.assertInPage:
+          label: DSH 应用以同源 iframe 挂载且界面已渲染
+          script: |
+            (() => {
+              const f = document.querySelector('iframe[src*="/app/fn-deepseek-harness"]');
+              if (!f) return { pass: false, detail: '未找到 DSH 应用 iframe' };
+              let doc = null;
+              try { doc = f.contentDocument } catch (e) { return { pass: false, detail: 'iframe 跨源' }; }
+              if (!doc) return { pass: false, detail: 'contentDocument 不可读' };
+              const t = doc.body ? (doc.body.innerText || '') : '';
+              if (t.length < 50) return { pass: false, detail: 'iframe 内文本过少' };
+              const missing = ['新会话', '插件'].filter(n => !t.includes(n));
+              if (missing.length > 0) return { pass: false, detail: '缺少入口 ' + missing.join('、') };
+              return { pass: true, detail: '含新会话与插件入口' };
+            })()
       - aiAssert: 应用窗口里显示的是 DeepSeek Harness 的会话界面（左侧有「新会话」「插件」等菜单项）
 
   # ── 内置插件真的被装载 ────────────────────────────────────────────
@@ -126,26 +134,41 @@ cases:
     tags: [FNOS-013, nas, runtime]
     steps:
       # 纯断言用例，不需要界面操作：外壳 HTML 是静态入口，直接取来解析。
-      # 比滚动界面截图核对更直接、也更快（零模型调用）。
-      - javascript: |
-          (async () => {
-            const res = await fetch('/app/fn-deepseek-harness');
-            if (!res.ok) throw new Error('获取应用外壳失败：HTTP ' + res.status);
-            const html = await res.text();
-            const m = html.match(/plugins\/\?\?((?:[^"'&]*@tnnevol[^"'&]*)+)/);
-            if (!m) throw new Error('外壳 HTML 未包含 @tnnevol 插件 bundle 引用');
-            const found = [...m[1].matchAll(/(@tnnevol\/[^,\/]+)\/client\.js/g)].map(x => x[1]);
-            const want = ['@tnnevol/dsh-fnos', '@tnnevol/dsh-codebuddy',
-                          '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-failover-search'];
-            const missing = want.filter(n => !found.includes(n));
-            if (missing.length > 0) {
-              throw new Error('模块图缺少内置插件：' + missing.join('、') + '；实际为：' + found.join('、'));
-            }
-            if (found.includes('@tnnevol/dsh-midscene')) {
-              throw new Error('模块图仍含 dsh-midscene，与「不随 FPK 内置」的决定不符');
-            }
-            return '四个内置插件均已在客户端模块图中装载';
-          })()
+      # 比滚动界面截图核对更直接，且零模型调用。
+      #
+      # **本用例的形态来自一次假阳性教训**：最初用 `javascript` 步骤写同样的判定，
+      # 断言「不含 dsh-midscene」在目标**确实含**该插件时仍然通过——因为 `javascript`
+      # 的 throw 被 CDP 吞掉（详见 `@tnnevol/dsh-e2e-kit` 的 assert-node 模块注释）。
+      # 改用 `dsh.assertInPage` 后，同一判定会真实失败。
+      #
+      # 同时断言 `dsh-midscene` **不在**模块图中：它已移出 FPK 内置清单。若被测应用仍是
+      # 移出前的构建（NAS 实测如此），本用例会失败——这是**正确行为**，它准确指出
+      # 「这台机器上的构建与当前发布清单不符，需装新 FPK 复验」。
+      - dsh.assertInPage:
+          label: 客户端模块图装载四个内置插件
+          script: |
+            (async () => {
+              const res = await fetch('/app/fn-deepseek-harness');
+              if (!res.ok) return { pass: false, detail: '获取外壳失败：HTTP ' + res.status };
+              const html = await res.text();
+              const m = html.match(/plugins\/\?\?((?:[^"'&]*@tnnevol[^"'&]*)+)/);
+              if (!m) return { pass: false, detail: '外壳未包含 @tnnevol bundle 引用' };
+              const found = [...m[1].matchAll(/(@tnnevol\/[^,\/]+)\/client\.js/g)].map(x => x[1]);
+              const want = ['@tnnevol/dsh-fnos', '@tnnevol/dsh-codebuddy',
+                            '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-failover-search'];
+              const missing = want.filter(n => !found.includes(n));
+              if (missing.length > 0) {
+                return { pass: false, detail: '缺少 ' + missing.join('、') + '；实际 ' + found.join('、') };
+              }
+              if (found.includes('@tnnevol/dsh-midscene')) {
+                return {
+                  pass: false,
+                  detail: '该构建仍内置 @tnnevol/dsh-midscene，属移出 Midscene 之前的构建，'
+                    + '与当前发布清单不符；请安装新 FPK 后复验',
+                };
+              }
+              return { pass: true, detail: '四项齐备，且不含 dsh-midscene' };
+            })()
 
   # ── 手动安装：从电脑上传 FPK 装到装完 ─────────────────────────────
   #

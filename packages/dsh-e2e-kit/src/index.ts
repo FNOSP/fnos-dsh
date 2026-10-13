@@ -5,7 +5,8 @@
  * - {@link defineBridgeSetup}：用 Bridge Mode 接入**用户真实 Chrome**，并处理接入配置、
  *   标签页复用与收尾；
  * - {@link loadBridgeEnv}：接入配置向 DSH Midscene 插件获取（零密钥、端口自动探测）；
- * - {@link actUntil}：交互后独立核实、未生效重试（不采信 `ai()` 自述）。
+ * - {@link actUntil}：交互后独立核实、未生效重试（不采信 `ai()` 自述）；
+ * - {@link assertInPage}：页面内精确断言（`javascript` 步骤无法让用例失败，见其模块注释）。
  *
  * 典型用法（`midscene.config.ts`）：
  *
@@ -63,3 +64,4 @@ export {
   type BridgeContext,
   type BridgeSetupOptions,
 } from './project.ts'
+export { assertInPage } from './assert-node.ts'

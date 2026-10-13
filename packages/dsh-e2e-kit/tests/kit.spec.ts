@@ -264,3 +264,61 @@ describe('defineBridgeSetup 默认静默（不抢用户前台）', () => {
     expect(src).not.toMatch(/options\.activate === undefined \? \{\} : \{ activate: options\.activate \}/)
   })
 })
+
+describe('assertInPage：让页面内精确判定真正能失败', () => {
+  // 这组测试盯住一个会造成**假阳性**的事实：Midscene 的 `javascript` 步骤无法让用例
+  // 失败——它底层是 CDP `Runtime.evaluate`，页面异常被放在 `exceptionDetails` 里返回，
+  // 而 Midscene 不检查该字段（实测：throw / Promise.reject / 语法错误三种都被吞）。
+  // 所以把 `javascript` 当断言用会得到「全绿但什么都没校验」。
+  const makeContext = (raw: unknown) => ({ agent: { evaluateJavaScript: async () => raw } }) as never
+
+  it('判定成立时通过，并把 detail 记进摘要', async () => {
+    const { assertInPage } = await import('../src/assert-node.ts')
+    const result = await assertInPage.execute({
+      input: { label: '探针', script: 'ignored' },
+      context: makeContext({ result: { value: JSON.stringify({ ok: true, verdict: { pass: true, detail: '四项齐备' } }) } }),
+    } as never)
+    // execute 的返回类型是 `void | NodeResult`，这里断言的是实际实现必返回结果。
+    expect((result as { data: unknown }).data).toEqual({ passed: true, detail: '四项齐备' })
+  })
+
+  it('判定不成立时抛错（这是 javascript 步骤做不到的）', async () => {
+    const { assertInPage } = await import('../src/assert-node.ts')
+    await expect(assertInPage.execute({
+      input: { label: '模块图', script: 'ignored' },
+      context: makeContext({ result: { value: JSON.stringify({ ok: true, verdict: { pass: false, detail: '仍含 dsh-midscene' } }) } }),
+    } as never)).rejects.toThrow(/模块图.*仍含 dsh-midscene/)
+  })
+
+  it('页面内异常会被识别为失败，而不是当成通过', async () => {
+    const { assertInPage } = await import('../src/assert-node.ts')
+    await expect(assertInPage.execute({
+      input: { label: '脚本异常', script: 'ignored' },
+      context: makeContext({ result: { value: JSON.stringify({ ok: false, message: 'boom' }) } }),
+    } as never)).rejects.toThrow(/脚本异常.*boom/)
+  })
+
+  it('CDP 抛出的页面异常（包装层之外的语法错误）也会失败', async () => {
+    const { assertInPage } = await import('../src/assert-node.ts')
+    await expect(assertInPage.execute({
+      input: { label: '语法错误', script: 'ignored' },
+      context: makeContext({ exceptionDetails: { exception: { description: 'SyntaxError: bad' } } }),
+    } as never)).rejects.toThrow(/语法错误.*SyntaxError/)
+  })
+
+  it('脚本返回非约定形态时报错，不静默放过', async () => {
+    const { assertInPage } = await import('../src/assert-node.ts')
+    await expect(assertInPage.execute({
+      input: { label: '形态错误', script: 'ignored' },
+      context: makeContext({ result: { value: JSON.stringify({ ok: true, verdict: '随便一个字符串' }) } }),
+    } as never)).rejects.toThrow(/必须返回/)
+  })
+
+  it('回传非 JSON 时报错（说明页面侧没按约定包装）', async () => {
+    const { assertInPage } = await import('../src/assert-node.ts')
+    await expect(assertInPage.execute({
+      input: { label: '非 JSON', script: 'ignored' },
+      context: makeContext({ result: { value: 'not-json' } }),
+    } as never)).rejects.toThrow(/不是合法 JSON/)
+  })
+})

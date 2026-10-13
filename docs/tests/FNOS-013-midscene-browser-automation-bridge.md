@@ -235,11 +235,11 @@ verifiedAt: 2026-10-12
 | TC-054 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | DSH Web + 本地测试 | 通过 | 2026-10-12 | **实测**：占住 8787 后启动，桥自动改用 8788（`curl 8788/v1/health` → 200）；健康端点 `port: 8788`；`/v1/midscene-env` 的 `MIDSCENE_MODEL_BASE_URL` 与 `content` 均为 8788 且不含 8787；配置写回 `port: 8788`，重启后仍用 8788（不重复扫描）。单测覆盖：跳号后服务可用、端点报实际端口、连续 20 个端口被占抛 `BridgePortExhaustedError` |
 | TC-055 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | DSH Web（用户真实 Chrome） | 通过 | 2026-10-12 | **实测**（Bridge Mode，Midscene 官方《Chrome 桥接模式》流程）：脚本作 server（默认 `127.0.0.1:3766`），真实 Chrome 里的 Midscene 扩展（v1.105）作为 client 反向连接（日志 `one client connected`、`Bridge connected, cli-side v1.15.1, browser-side v1.15.0`）。用入仓脚本 `scripts/bridge-smoke.ts` 完成：首页 `aiAssert` 通过 → 点击「插件」→ 页面内独立核实 `hasAddPlugin: true` → 插件列表 `aiAssert` 通过。视口为真实窗口 1920×906（无侧边栏收缩），无 macOS 钥匙串弹窗，浏览器窗口用户可见 |
 
-| TC-100 | 应用级<br>安装后验收 | 真实 NAS（fnOS `192.168.0.110`） | 通过 | 2026-10-13 | **实测**（Midscene Test，一次连接跑完全部用例）：应用详情页读到「当前版本」与「来源 = 手动安装」，版本号由 `javascript` 从 `innerText` 正则解析（不靠模型读数）。执行载体 `apps/fn-deepseek-harness/tests/e2e/` |
-| TC-101 | 应用级<br>内置插件声明 | 真实 NAS | 通过 | 2026-10-13 | **实测**：`desc` 含 fnOS / Codex Auth / CodeBuddy / Failover Search 四项，且**不含**「内置 Midscene」的表述，与发布清单 `published-dsh-plugins.json`（5 项）一致。否定式判断用 `javascript` 表达（视觉模型断言「不存在 X」实测不可靠） |
+| TC-100 | 应用级<br>安装后验收 | 真实 NAS（fnOS `192.168.0.110`） | 通过<br>（含一次超时） | 2026-10-13 | **实测**（Midscene Test，一次连接跑完全部用例）：应用详情页读到「当前版本 `5.7.1`」与「来源 = 手动安装」。判定由 `dsh.assertInPage` 做（早期版本用 `javascript` 步骤，其 `throw` 被 CDP 吞掉，见同表 TC-103 备注）。执行载体 `apps/fn-deepseek-harness/tests/e2e/`。**另一次运行中导航步骤 `aiAct` 超时 300 s**——断言本身已两次证明有效，超时出在「回桌面 → 关窗口 → 进应用中心」这一步的自然语言导航，属**待改进的稳定性问题**（见下方遗留风险）|
+| TC-101 | 应用级<br>内置插件声明 | 真实 NAS | **失败**（预期）<br>（另一次超时） | 2026-10-13 | **实测失败，且失败是正确的**：NAS 上装的 `5.7.1` 是**移出 Midscene 之前**的构建，其 `desc` 仍声称内置 Midscene，与当前发布清单不符。该断言由 `dsh.assertInPage` 执行——同一判定在早期用 `javascript` 步骤写时**显示通过**（假阳性）。修好断言语义后它立刻抓出了这一不一致。**待装新 FPK 后复验** |
 | TC-102 | 应用级<br>应用启动 | 真实 NAS | 通过 | 2026-10-13 | **实测**：点桌面图标启动应用，外壳以 `iframe[src*="/app/fn-deepseek-harness"]` 挂载且**同源可读**；iframe 内文本含「新会话」「插件」入口 |
-| TC-103 | 应用级<br>内置插件装载 | 真实 NAS | 通过 | 2026-10-13 | **实测**：解析应用外壳 HTML 的 `plugins/??…/client.js` 引用块，四个内置插件均在客户端模块图中；且**不含** `@tnnevol/dsh-midscene`（与「不随 FPK 内置」的决定一致）。纯断言用例，零模型调用 |
-| TC-104 | 应用级<br>手动安装 | 真实 NAS | 未执行 | 2026-10-13 | 写操作用例（**覆盖安装**），配置里按 `destructive` 标签默认排除，需显式指定标签单独执行。上传路径用 `aiAct` 的 `options.fileChooserAccept`（预设须与点击在**同一次** `aiAct` 内，否则等不到文件选择器） |
+| TC-103 | 应用级<br>内置插件装载 | 真实 NAS | **失败**（预期） | 2026-10-13 | **本条是假阳性缺陷的现场**：最初用 `javascript` 步骤断言「模块图不含 `dsh-midscene`」，在目标**确实含**该插件时仍显示通过，并被登记为「通过」。查明根因是 `javascript` 步骤的 `throw` 被 CDP 静默吞掉（`Runtime.evaluate` 把异常放在 `exceptionDetails` 而不报错）。改用 `dsh.assertInPage` 后同一判定**正确失败**：NAS 的 `5.7.1` 构建仍内置 Midscene。**待装新 FPK 后复验** |
+| TC-104 | 应用级<br>手动安装 | 真实 NAS | 未执行 | 2026-10-13 | 写操作用例（**覆盖安装**），配置里按 `destructive` 标签默认排除，需显式指定标签单独执行。上传路径用 `aiAct` 的 `options.fileChooserAccept`（预设须与点击在**同一次** `aiAct` 内，否则等不到文件选择器）。**执行它即可获得移出 Midscene 后的新构建，从而是 TC-101/TC-103 复验的前置** |
 
 ## Bug 记录
 
@@ -326,6 +326,7 @@ iframe 内。三种滚动途径均不可用：
 | --- | --- | --- |
 | TC-042、TC-043（YAML 运行器交互步骤） | 失败 | 视觉定位落点偏差（BUG-03）。运行器本身可用（断言通过），失败仅在「点击小控件」；用宽视口 + CDP 独立核实可规避 |
 | DSH Desktop 侧 | 未执行 | 01～04、13、14 的 Desktop 结论缺失；按兼容基线要求，只记录单一客户端不构成完成结论 |
+| 应用级用例的导航稳定性 | 待改进 | 三条交互用例都要「回到 fnOS 桌面 → 关掉挡路的应用窗口 → 进入目标界面」，这一步由一个 `aiAct` 承担。实测**同一提示词有时 30 s 完成、有时超过 300 s 超时**（本次运行 TC-100/TC-101 因超时失败，上一次运行 TC-100 用 226 s 通过）。断言部分是可靠的（`dsh.assertInPage`，毫秒级），问题只在自然语言导航的耗时波动。改进方向：拆出更确定的入口（如先关窗口再导航）、或对导航单独设更长超时 |
 | BUG-03 / BUG-05 根治 | 未做 | 属上游（Midscene）交互可靠性与窄视口行为，本仓库不改上游代码；已在测试规范登记规避方式（Bridge Mode 优先、视口 ≥1440、页面内独立核实、必要时重试一次） |
 
 ### 本轮测试环境（版本三元组）

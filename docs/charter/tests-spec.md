@@ -258,6 +258,49 @@ pnpm --filter @tnnevol/dsh-midscene run test:bridge "<目标URL>"
 - YAML 是**执行载体**：`name` 字段以 `TC-0xx` 开头与文档编号对齐（如 `TC-029 开启时激活态、关闭时普通态`），`tags` 标注需求编号与类型（`ui`/`interactive`/`theme`），便于分级执行；
 - 两侧都要能独立读懂，不互相复制长段落。
 
+**断言必须用 `dsh.assertInPage`，不能用 `javascript` 步骤**（会造成假阳性，务必遵守）
+
+Midscene 的 `javascript` 步骤**无法让用例失败**。它底层是 CDP `Runtime.evaluate`
+（`@midscene/web` 的 `chrome-extension/page.mjs`），该调用把页面异常放在
+`result.exceptionDetails` 里返回，而 Midscene 不检查这个字段——异常被静默吞掉，步骤照样
+显示 `✓`。实测三种机制**全部无效**：
+
+| 脚本形态 | 结果 |
+| --- | --- |
+| `throw new Error(...)` | 未抛错，异常进了 `exceptionDetails` |
+| `Promise.reject(...)`（`awaitPromise: true`） | 同上 |
+| 语法错误 | 同上 |
+
+因此把 `javascript` 当断言写（`if (!ok) throw`）会得到**全绿但什么都没校验**的结果。
+这不是理论风险：本仓库实测踩到——一条断言「模块图不含 `dsh-midscene`」的用例，在目标
+**确实含**该插件时依然通过，并在台账里被登记为「通过」。
+
+**正确形态**：用共享包的 `dsh.assertInPage`（`@tnnevol/dsh-e2e-kit`）。它在页面内求值、
+把结果带回 Node 进程侧判定——Node 里抛错会正常传播。兼具两者的长处：**精确判定**
+（版本号、包名清单、否定式判断，这些是视觉模型不擅长的）+ **可靠的失败语义**，且
+**零模型调用**（毫秒级，比 `aiAssert` 快约三个数量级）。
+
+```yaml
+- dsh.assertInPage:
+    label: 客户端模块图装载四个内置插件
+    script: |
+      (async () => {
+        const html = await (await fetch('/app/fn-deepseek-harness')).text()
+        // …精确解析…
+        return missing.length === 0
+          ? { pass: true, detail: '四项齐备' }
+          : { pass: false, detail: '缺少 ' + missing.join('、') }
+      })()
+```
+
+脚本须返回 `{ pass: boolean, detail?: string }`（或布尔值）；返回其他形态会**报错**而不是
+静默放过。另：CDP 默认不序列化返回值，因此该 Node 会把脚本包一层 `JSON.stringify`——
+写脚本时直接 `return` 对象即可，无需自己序列化。
+
+**那 `javascript` 步骤还能用吗？能，但只用于「取值后交给别的机制判定」**，不要在里面
+`throw`。需要断言就用 `dsh.assertInPage`；需要视觉判定（界面长什么样）就用 `aiAssert`
+——`aiAssert` 是有牙齿的（实测不成立确实抛错），只是不适合精确字符串与否定式判断。
+
 **写用例的四条实测约束**（都踩过，务必遵守）
 
 1. **YAML 会插值**：`${name}` 是**项目变量**（缺失即解析报错），`${{NAME}}` 才是环境变量。因此 `javascript` 步骤里不要写模板字面量（用字符串拼接），跨步骤状态也不要挂 `window.__x`（同样会被扫描）。
@@ -613,3 +656,4 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-10-12 | Midscene 章节新增「Midscene Test 项目」小节 | 交互用例的正式载体落定为 Midscene Test：共享装配放 `packages/dsh-e2e-kit`，各插件在 `tests/e2e/` 放配置与用例、以 `test:e2e` 为入口。明确用例与测试文档的对应关系（文档是权威台账、YAML 的 `name` 以 `TC-0xx` 对齐）。登记四条实测约束：YAML 的 `${}` 插值是项目变量（javascript 步骤不能用模板字面量）、用例必须自建起始状态、归一状态必须用真实点击（程序化 click 不切换 React 受控状态）、断言分工（精确判定用 javascript、否定式判断不交给视觉模型）。状态依据从组件源码取。新增僵尸页自动降级说明。验证：FNOS-012 的 TC-028/029/030 经 `pnpm --filter @tnnevol/dsh-failover-search run test:e2e` 全部通过。 |
 | 2026-10-13 | Midscene 章节新增「连接目标页：一律用共享入口」 | 明确任何驱动有头浏览器的脚本（含 `tmp/` 下的一次性探测脚本）都必须用共享包的 `connectTarget()`，不得直接调 Midscene 的 `connectNewTabWithUrl()`（后者无条件新开页、不判断复用）。背景：复用逻辑一度只存在于 Midscene Test 的 setup 里，导致 29 个探测脚本各开一页又不关闭、浏览器堆积数十个重复标签页——规矩只写在文档而临时脚本用不上即治理漏洞，故把复用做成默认入口。 |
 | 2026-10-13 | 新增「连续交互必须用 Midscene Test 用例，禁止一次性探测脚本」 | 涉及两步以上、有前后依赖的交互验收必须写成 Midscene Test 用例并一条命令跑完；禁止拆成多个一次性脚本一步一停。依据：为「真实 NAS 装一次 FPK 并验收」写过 66 个一次性脚本，每个都 `kill 3766 → node xxx.mjs → sleep → grep`，导致每步重连桥（`setActiveTabId` 每个 Agent 只能调用一次）、进度反复中断、以 sleep+grep 猜测代替断言、用完即弃无法回归。同时明确 `setup` 每个执行项目只运行一次，是「连续不中断」的机制来源。 |
+| 2026-10-13 | 新增「断言必须用 `dsh.assertInPage`，不能用 `javascript` 步骤」 | Midscene 的 `javascript` 步骤底层是 CDP `Runtime.evaluate`，页面异常被放在 `exceptionDetails` 里返回而 Midscene 不检查，导致 `throw`/`Promise.reject`/语法错误三种形态全被静默吞掉——把 `javascript` 当断言用会得到假阳性（实测：一条断言「模块图不含某插件」的用例在目标确实含该插件时仍然通过）。要求改用共享包 `@tnnevol/dsh-e2e-kit` 的 `dsh.assertInPage`：页面内精确判定 + Node 侧抛错传播，零模型调用。 |
