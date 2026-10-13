@@ -15,16 +15,12 @@ npm i @midscene/cli --save-dev  # 项目内安装
 
 在运行 `midscene` 命令时所在的目录创建 `.env`，`@midscene/cli` 自动读取，**每行不需要 `export`**：
 
-**DSH 环境**下一条命令生成（四行固定值，不需要第三方 API key）：
-
 ```bash
-# <端口> 以 `GET /v1/health` 的 port 字段为准（桥被占用时会自动跳号）
-curl -s "http://127.0.0.1:<端口>/v1/midscene-env" \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" > .env
+MIDSCENE_MODEL_BASE_URL="https://替换为你的模型服务地址/v1"
+MIDSCENE_MODEL_API_KEY="替换为你的 API Key"
+MIDSCENE_MODEL_NAME="替换为你的模型名称"
+MIDSCENE_MODEL_FAMILY="替换为你的模型对应的 family"
 ```
-
-生成内容为：基址（桥）、接入密钥（桥）、`MIDSCENE_MODEL_NAME="dsh-model"`、
-`MIDSCENE_MODEL_FAMILY`（协议家族，默认 `glm-v`）。**不要向用户索要模型 API key。**
 
 > Shell 中已有的同名变量**默认优先**于 `.env`；需要覆盖用 `--dotenv-override`。（`model verify` 是反向例外。）
 

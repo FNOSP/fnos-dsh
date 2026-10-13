@@ -185,7 +185,7 @@ npm install @midscene/web --save-dev
 
 **第一步：更新 `playwright.config.ts`**，加上 Midscene reporter：
 
-```text
+```typescript
 reporter: [["list"], ["@midscene/web/playwright-reporter", { type: "merged" }]],
 ```
 

@@ -20,6 +20,31 @@ import type { SkillCandidate, SkillDefinition, SkillLookupOptions, SkillProvider
 export const SKILL_PROVIDER_NAME = 'dsh-midscene'
 
 /**
+ * 插件注入的环境说明（**不改上游技能文件**）。
+ *
+ * 内置的官方 Midscene 技能原样保留——它们的「模型配置」节教 agent 去申请 Gemini／豆包等
+ * 第三方 API key，那是 Midscene 的通用用法。但在本插件提供的环境里，模型来自 DSH：桥托管
+ * 一个本地 OpenAI 兼容端点，用 DSH 已配置的模型，**不需要任何第三方密钥**。
+ *
+ * 因此分发时在正文前注入这段说明，让 agent 先看到「本环境用桥」再读官方原文。这样两边都
+ * 成立：磁盘上的技能文件与上游**逐字节一致**（可核对、升级时直接覆盖），而 agent 收到的
+ * 内容带上了环境约束。若把说明写进文件，就又是一份需要重新施加的补丁。
+ */
+export const BRIDGE_PRELUDE = `> **本环境说明（由 DSH Midscene 插件注入，非上游内容）**
+>
+> 本技能运行在 DeepSeek Harness 中，**模型由 DSH Midscene Bridge 提供**：
+>
+> - 配置是**固定四行**，基址指向本地桥、模型名固定 \`dsh-model\`、密钥是**桥的接入密钥**
+>   （不是任何模型服务商的 key）。一条命令即可生成：
+>   \`curl -s "http://127.0.0.1:<端口>/v1/midscene-env"\`（端口以 \`GET /v1/health\` 的 \`port\` 字段为准）。
+> - **不要向用户索要模型 API key，也不要引导用户去申请第三方模型。** 本文档中出现的服务商、
+>   模型与 key 示例仅作背景知识；实际使用哪个模型由桥决定。
+> - 需要浏览器桥接模式时同样走桥：Midscene 侧的模型配置始终是上面这四行。
+>
+> 以下为上游原文。`
+
+
+/**
  * 包内技能目录。
  *
  * 目录位置相对**包根**固定为 `skills/`，但本文件在两处位置运行：
@@ -162,7 +187,7 @@ export async function loadBundledSkill(root: string, candidate: SkillCandidate):
     : basename(candidate.resourceBase?.kind === 'directory' ? candidate.resourceBase.path : candidate.name)
   const file = join(root, slug, 'SKILL.md')
   try {
-    const content = await readFile(file, 'utf8')
+    const upstream = await readFile(file, 'utf8')
     return {
       name: candidate.name,
       description: candidate.description,
@@ -171,7 +196,8 @@ export async function loadBundledSkill(root: string, candidate: SkillCandidate):
       source: candidate.source,
       invocation: candidate.invocation,
       ...candidate.resourceBase === undefined ? {} : { resourceBase: candidate.resourceBase },
-      content,
+      // 注入环境说明：磁盘文件保持与上游逐字节一致，说明只在分发时附加（见 BRIDGE_PRELUDE）。
+      content: `${BRIDGE_PRELUDE}\n\n${upstream}`,
     }
   } catch {
     return undefined

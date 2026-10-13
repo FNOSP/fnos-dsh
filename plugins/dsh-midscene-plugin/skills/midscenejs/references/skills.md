@@ -77,17 +77,12 @@ npx skills add web-infra-dev/midscene-skills -a openclaw       # OpenClaw
 
 Skills 需要具备强 UI 定位能力的多模态模型。以下环境变量可放系统环境变量，或放在**当前工作目录的 `.env`**（Midscene 自动加载）：
 
-**DSH 环境**下这四行由桥接服务给出，不需要第三方 API key：
-
 ```bash
-# <端口> 以 `GET /v1/health` 的 port 字段为准
-curl -s "http://127.0.0.1:<端口>/v1/midscene-env" \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" > .env
+MIDSCENE_MODEL_API_KEY="your-api-key"
+MIDSCENE_MODEL_NAME="model-name"
+MIDSCENE_MODEL_BASE_URL="https://..."
+MIDSCENE_MODEL_FAMILY="family-identifier"
 ```
-
-生成 `MIDSCENE_MODEL_BASE_URL`（桥地址）、`MIDSCENE_MODEL_API_KEY`（桥的接入密钥）、
-`MIDSCENE_MODEL_NAME="dsh-model"`、`MIDSCENE_MODEL_FAMILY`（协议家族，默认 `glm-v`）。
-**不要向用户索要模型 API key，也不要配置第三方提供方。**
 
 详见 [model-config.md](model-config.md)。
 

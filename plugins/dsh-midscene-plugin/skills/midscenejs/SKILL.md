@@ -4,7 +4,7 @@ displayName: midscenejs
 slug: midscenejs
 iconUrl: "https://skillhub-1388575217.cos.accelerate.myqcloud.com/skill-comments/uploads/612977/ddeb01cb30f64ec09f5520512cb37fa1.webp"
 description: >
-  Midscene.js 开源 GUI Agent 与 AI 驱动 E2E 测试套件的完整中文指南：它是什么、能做什么（视觉定位、断言、数据提取、可观测性报告、Skills、Testing Kit）、以及怎么配置使用（模型环境变量、Playwright/Puppeteer/SDK 集成、Web/Android/iOS/HarmonyOS/桌面五平台接入、Agent API 编排、YAML 运行器、Midscene Test 测试框架）。只要用户提到 Midscene、Midscene.js、@midscene/web、@midscene/android、@midscene/ios、@midscene/harmony、@midscene/computer、@midscene/test、midscene.config.ts、aiAct/aiTap/aiAssert/aiQuery、MIDSCENE_MODEL_*、GUI Agent、视觉驱动 UI 自动化，就要使用此 skill；即使用户没有明确说"skill"或"文档"，也要优先查阅这里的中文参考资料，避免凭记忆编造 API 或环境变量。官方 Midscene Skills 只覆盖各平台 CLI 自动化，不覆盖本技能的整体介绍与配置。**在 DSH 环境中，模型访问由 DSH Midscene Bridge 提供（本地、无需 API key）：不要向用户索要模型 API key，也不要引导用户配置第三方模型提供方**——技能里列出的第三方服务商与模型仅作背景知识，实际配置以桥接服务给出的固定四行为准。
+  Midscene.js 开源 GUI Agent 与 AI 驱动 E2E 测试套件的完整中文指南：它是什么、能做什么（视觉定位、断言、数据提取、可观测性报告、Skills、Testing Kit）、以及怎么配置使用（模型环境变量、Playwright/Puppeteer/SDK 集成、Web/Android/iOS/HarmonyOS/桌面五平台接入、Agent API 编排、YAML 运行器、Midscene Test 测试框架）。只要用户提到 Midscene、Midscene.js、@midscene/web、@midscene/android、@midscene/ios、@midscene/harmony、@midscene/computer、@midscene/test、midscene.config.ts、aiAct/aiTap/aiAssert/aiQuery、MIDSCENE_MODEL_*、GUI Agent、视觉驱动 UI 自动化，就要使用此 skill；即使用户没有明确说"skill"或"文档"，也要优先查阅这里的中文参考资料，避免凭记忆编造 API 或环境变量。官方 Midscene Skills 只覆盖各平台 CLI 自动化，不覆盖本技能的整体介绍与配置。
 compatibility: Node.js ^20.19.0 || ^22.12.0 || >=24.0.0；Playwright / Puppeteer；Android adb / iOS WebDriverAgent / HarmonyOS HDC
 metadata:
   author: Tnnevol
@@ -64,13 +64,6 @@ Midscene 迭代很快。若用户项目安装的版本高于快照，明确标�
 - **定位增强**：`deepThink`（加强任务拆解，调用次数和延迟增加）、`deepLocate`（多一次调用，小元素/易混淆时提升定位准确度）。
 
 ### 模型配置
-
-> **DSH 环境（本插件的使用场景）**：模型访问由 **DSH Midscene Bridge** 提供，配置是**固定四行**——
-> `MIDSCENE_MODEL_BASE_URL`（桥的地址，端口以 `/v1/health` 的 `port` 字段为准）、
-> `MIDSCENE_MODEL_API_KEY`（桥的接入密钥，从插件设置页取）、`MIDSCENE_MODEL_NAME="dsh-model"`、
-> `MIDSCENE_MODEL_FAMILY`（协议家族，默认 `glm-v`）。
-> **不要向用户索要模型 API key，也不要配置第三方提供方**；实际使用哪个模型由桥决定（跟随 DSH 会话模型，
-> 或用户在插件设置里指定的模型）。下面列出的第三方服务商与模型仅作背景知识。
 
 - 必选四件套：`MIDSCENE_MODEL_BASE_URL`（通常以 `/v1` 结尾，**不要**自己拼 `/chat/completions` 或 `/responses`）、`MIDSCENE_MODEL_API_KEY`、`MIDSCENE_MODEL_NAME`、`MIDSCENE_MODEL_FAMILY`。
 - **`MIDSCENE_MODEL_FAMILY` 决定坐标处理方式**，填错会导致点击偏移。常见值：`doubao-seed`、`qwen3`、`qwen3-vl`、`qwen2.5-vl`、`deepseek`、`gemini`、`gpt-6`、`gpt-5`、`kimi3`、`kimi`、`xiaomi-mimo`、`glm-v`、`vlm-ui-tars-doubao-1.5`、`auto-glm`。

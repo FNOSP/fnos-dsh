@@ -2,23 +2,6 @@
 
 本页汇总 Midscene 的模型选择、环境变量全集、多模型组合与验证方式。
 
-> **在 DSH 环境（本插件的使用场景）中，模型配置是固定四行，不需要任何第三方 API key。**
->
-> DSH Midscene Bridge 在本地托管一个 OpenAI 兼容端点，Midscene 通过它使用 DSH 已有的模型：
->
-> | 变量 | 取值 |
-> | --- | --- |
-> | `MIDSCENE_MODEL_BASE_URL` | `http://127.0.0.1:<端口>/v1`；端口以 `GET /v1/health` 的 `port` 字段为准（桥被占用会自动跳号） |
-> | `MIDSCENE_MODEL_API_KEY` | 桥的接入密钥，从插件设置页复制；它**不是**任何模型服务商的 key |
-> | `MIDSCENE_MODEL_NAME` | 固定 `dsh-model` |
-> | `MIDSCENE_MODEL_FAMILY` | 协议家族（决定坐标解析方式），插件默认 `glm-v` |
->
-> 一条命令即可生成这四行：`curl -s http://127.0.0.1:<端口>/v1/midscene-env`（响应里的 `content` 字段）。
->
-> **不要向用户索要模型 API key，也不要引导用户去申请第三方模型**。用哪个模型由桥决定——跟随 DSH 会话模型，
-> 或用户在插件设置页指定的模型。本页其余内容（服务商列表、模型清单、协议与高级参数）仅作背景知识，
-> **不要**据此让用户去配置火山引擎／DashScope／Gemini 等服务商。
-
 ## 模型策略：三种角色
 
 | 模型 | 作用 |
@@ -55,10 +38,7 @@
 | 小米 MiMo | `mimo-v2.6-pro`、`mimo-v2.6-flash` 等 | `xiaomi-mimo` | 2.6 全系列支持多模态；2.5 仅 Omni 系列支持 |
 | 智谱 GLM-V | `glm-5v-turbo`、`glm-4.6v` | `glm-v` | `glm-4.6v` 是开源模型 |
 
-### 常见服务商 Base URL（背景知识）
-
-> **DSH 环境下不要使用本表**：基址应指向本地桥（`http://127.0.0.1:<端口>/v1`）。本表仅用于理解
-> 「Base URL 指什么」，以及在 DSH 之外使用 Midscene 时的参考。
+### 常见服务商 Base URL
 
 | 服务商 | Base URL |
 | --- | --- |
@@ -73,21 +53,13 @@
 
 ### 配置示例
 
-**DSH 环境（推荐）**：一条命令生成 `.env`，无需任何模型 API key。
-
 ```bash
-# <端口> 以 `GET /v1/health` 的 port 字段为准（桥被占用时会自动跳号）
-curl -s "http://127.0.0.1:<端口>/v1/midscene-env" \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" > .env
+# 豆包 Seed 2.1 Turbo
+export MIDSCENE_MODEL_BASE_URL="https://ark.cn-beijing.volces.com/api/v3"
+export MIDSCENE_MODEL_API_KEY="your-api-key"
+export MIDSCENE_MODEL_NAME="doubao-seed-2-1-turbo-260628"
+export MIDSCENE_MODEL_FAMILY="doubao-seed"
 ```
-
-生成的四行固定为：基址（桥）、接入密钥（桥）、`MIDSCENE_MODEL_NAME="dsh-model"`、
-`MIDSCENE_MODEL_FAMILY`（协议家族，默认 `glm-v`）。**实际使用哪个模型由桥决定。**
-
-> 在 DSH 之外使用 Midscene 时才需要自备第三方模型：那时的做法是设 `MIDSCENE_MODEL_BASE_URL`
-> 等服务商地址、`MIDSCENE_MODEL_API_KEY` 为你的 key、`MIDSCENE_MODEL_NAME` 为模型名、
-> `MIDSCENE_MODEL_FAMILY` 为该模型的协议家族（取值见上表）。**在 DSH 环境中不要这样做，
-> 也不要向用户索要这些凭据。**
 
 **Fast Tier**：豆包开通低延迟模式后可提速约 30%~50%：
 
@@ -215,17 +187,13 @@ UI-TARS 迁移：旧 `MIDSCENE_USE_VLM_UI_TARS` 已废弃 →
 
 ## 设置环境变量（三选一）
 
-> **DSH 环境下用桥接四行**（见本页开头）：基址指向本地桥、密钥是桥的接入密钥、模型名固定
-> `dsh-model`。下面示例已按此写法给出；**不要**替换成第三方服务商的地址与 key。
-
 ### 1. 当前 Shell
 
 ```bash
-# <端口> 以 `GET /v1/health` 的 port 字段为准（桥被占用时会自动跳号）
-export MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:<端口>/v1"
-export MIDSCENE_MODEL_API_KEY="<桥的接入密钥，从插件设置页复制>"
-export MIDSCENE_MODEL_NAME="dsh-model"
-export MIDSCENE_MODEL_FAMILY="glm-v"
+export MIDSCENE_MODEL_BASE_URL="https://替换为你的模型服务地址/v1"
+export MIDSCENE_MODEL_API_KEY="替换为你的 API Key"
+export MIDSCENE_MODEL_NAME="替换为你的模型名称"
+export MIDSCENE_MODEL_FAMILY="替换为你的模型对应的 family"
 ```
 
 仅在当前 Shell 及其子进程有效。
@@ -235,17 +203,10 @@ export MIDSCENE_MODEL_FAMILY="glm-v"
 在**运行 `midscene` 命令时所在的目录**创建 `.env`，`@midscene/cli` 自动读取，**每行不需要 `export`**：
 
 ```bash
-MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:<端口>/v1"
-MIDSCENE_MODEL_API_KEY="<桥的接入密钥，从插件设置页复制>"
-MIDSCENE_MODEL_NAME="dsh-model"
-MIDSCENE_MODEL_FAMILY="glm-v"
-```
-
-一步生成（推荐）：
-
-```bash
-curl -s "http://127.0.0.1:<端口>/v1/midscene-env" \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" > .env
+MIDSCENE_MODEL_BASE_URL="https://替换为你的模型服务地址/v1"
+MIDSCENE_MODEL_API_KEY="替换为你的 API Key"
+MIDSCENE_MODEL_NAME="替换为你的模型名称"
+MIDSCENE_MODEL_FAMILY="替换为你的模型对应的 family"
 ```
 
 ⚠️ 运行 YAML 任务时，**Shell 中已有的同名变量默认优先于 `.env`**；需覆盖用 `--dotenv-override`。

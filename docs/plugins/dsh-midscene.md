@@ -121,14 +121,35 @@ npx -y @midscene/web@1 assert --prompt "页面显示登录表单"
 npx -y @midscene/web@1 close
 ```
 
-## 内置浏览器自动化技能
+## 内置技能
 
-安装插件后，Midscene 的浏览器自动化技能（`browser-automation`）会直接出现在会话的技能目录里，**无需再执行 `npx skills add`**。技能内容是 Midscene 官方技能仓库的原文，来源与版本见包内 `skills/SOURCE.md`。
+安装插件后，**7 个 Midscene 技能**会直接出现在会话的技能目录里，**无需再执行 `npx skills add`**：
 
-- 技能只做分发不做改写：它教 agent「怎么用 Midscene 命令」，模型从哪来由本插件负责。
-- 只内置 Web 场景技能；Android/iOS/HarmonyOS/桌面自动化的技能未内置（本插件不承诺这些平台），需要时按[官方技能仓库](https://github.com/web-infra-dev/midscene-skills)自装。
-- 你自行安装的同名技能优先，插件不覆盖、不重复提示。
-- 卸载插件后内置技能同步消失。
+| 技能 | 平台 / 定位 |
+| --- | --- |
+| `browser-automation` | 浏览器（Puppeteer / CDP / Bridge 三种模式） |
+| `computer-automation` | 桌面（macOS / Windows / Linux） |
+| `android-device-automation` | Android（ADB） |
+| `ios-device-automation` | iOS（WebDriverAgent） |
+| `harmonyos-device-automation` | HarmonyOS（HDC） |
+| `vitest-midscene-e2e` | 用 Vitest + Midscene 写跨平台 E2E |
+| `midscenejs` | 知识与 API 参考（概念、模型与 FAMILY、Agent API、YAML 运行器、Midscene Test） |
+
+前 6 个来自官方 [midscene-skills](https://github.com/web-infra-dev/midscene-skills)（与 Midscene 官方文档「支持的平台」一一对应），`midscenejs` 来自 [tnnevol/skills](https://github.com/tnnevol/skills)。来源与版本见包内 `skills/SOURCE.md`。
+
+**技能内容与官方逐字节一致**：插件不改上游文件，升级时整目录覆盖即可，不存在需要重新施加的补丁。
+
+### 模型来源：由插件注入的环境说明
+
+官方技能面向 Midscene 通用用户，其「模型配置」节会教 agent 申请 Gemini／豆包等第三方 API key；而本插件的意义是让 Midscene 用 **DSH 已有模型**（桥托管本地端点、零第三方密钥）。两者直接冲突。
+
+做法是**分发时注入一段环境说明**，而不是改文件——agent 读到的技能内容 = 环境说明 + 官方原文。说明里告知：本环境用桥、配置是固定四行、**不要向用户索要模型 API key**；官方原文中的服务商与 key 示例仅作背景知识。
+
+这样技能文件与官方保持一致且可核对，同时 agent 不会照抄官方示例去要密钥。
+
+> 移动端/桌面的 CLI 包（`@midscene/android` 等）不由插件提供；技能执行时用 `npx -y @midscene/<平台>@1` 按需拉取，插件不必为未使用的平台背负依赖。桌面自动化在本地模式会接管真实鼠标键盘，使用时留意。
+>
+> 你自行安装的同名技能优先（插件注册的技能在发现优先级里排在项目与用户目录之后），插件不覆盖、不重复提示。卸载插件后内置技能同步消失。
 
 ## 其他运行方式
 
@@ -240,23 +261,6 @@ Midscene 需要一个 `MIDSCENE_MODEL_FAMILY`（协议家族）才能解析模�
 **跟随会话模型时**同样安全：若会话当前用的是纯文本模型，桥会跳过它、改用目录里其他识图模型（而不是让 Midscene 因为无法识图而失败）。
 
 > 换模型后需要重新拉取一次 `.env`（家族写在里面）。设置页的「复制 .env 内容」或 `GET /v1/midscene-env` 都能拿到最新值。
-
-## 内置 Skill
-
-## 内置 Skill
-
-插件随包分发两个 skill，装完即可在会话里使用：
-
-| Skill | 上游 | 作用 |
-| --- | --- | --- |
-| `browser-automation` | [`web-infra-dev/midscene-skills`](https://github.com/web-infra-dev/midscene-skills) | **操作指令**：怎么用 CLI 跑浏览器自动化（三种连接模式、workflow） |
-| `midscenejs` | [`tnnevol/skills`](https://github.com/tnnevol/skills) | **知识与 API 参考**：Midscene 概念、模型与 FAMILY、五平台接入、Agent API、YAML 运行器、Midscene Test |
-
-两个 skill 都做了同一件事的补丁：**模型来源改为本插件托管的桥接服务**——固定四行、无需任何第三方 API key，实际使用哪个模型由桥按 `dsh-model` 决定。因此它们不会向你要 Gemini／豆包等服务的密钥。
-
-插件注册的 skill 在发现优先级里排在项目目录与用户目录之后，你自装的同名 skill 天然胜出（那将是上游原文，不含桥接改动）。
-
-内置 skill 的版本与上游提交登记在包内 `skills/SOURCE.md`；开发侧的同步检查要求见[插件开发](../development/plugin-development.md)的「内置 Skill 的上游同步检查」。
 
 ## 插件设置页
 

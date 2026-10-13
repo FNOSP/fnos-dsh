@@ -66,13 +66,13 @@ pnpm run check -- --packages --plugins
 
 ## 内置 Skill 的上游同步检查（强制）
 
-内置 skill 的插件（当前为 `@tnnevol/dsh-midscene`）在**每次开发前**必须检查内置 skill 是否有上游更新。理由：内置 skill 是 agent 理解该领域的**唯一权威入口**，上游修了错误或补了新 API 而插件还带旧版，agent 会照着过期资料干活，且这种偏差不会以任何形式报错。
+内置 skill 的插件（当前为 `@tnnevol/dsh-midscene`）在**每次开发前**必须检查内置 skill 是否有上游更新。理由：内置 skill 是 agent 理解该领域的**唯一权威入口**，上游修了错误或补了新 API 而插件还带旧版，agent 会照着过期资料干活，且这种偏差不会以任何方式报错。
 
 **检查对象与来源**
 
 | 插件内置 skill | 上游 | 检查方式 |
 | --- | --- | --- |
-| `browser-automation` | `web-infra-dev/midscene-skills` | `git -C <上游检出> log -1 --format=%H`，与 `skills/SOURCE.md` 登记的提交比对 |
+| 6 个平台技能（browser / computer / android / ios / harmony / vitest-midscene-e2e） | `web-infra-dev/midscene-skills` | `git -C <上游检出> log -1 --format=%H`，与 `skills/SOURCE.md` 登记的提交比对 |
 | `midscenejs` | `tnnevol/skills`（`skills/midscenejs`） | 同上 |
 
 **检查步骤**
@@ -93,14 +93,16 @@ grep -n "上游提交" plugins/dsh-midscene-plugin/skills/SOURCE.md
 | 情况 | 处理 |
 | --- | --- |
 | 提交一致 | 无需动作，在本次开发的记录里说明「已核对，无更新」 |
-| 有更新 | 按 `skills/SOURCE.md` 的「同步方式」重新同步，**并重新施加桥接改动** |
+| 有更新 | 按 `skills/SOURCE.md` 的「同步方式」整目录覆盖（**不需要重新施加补丁**） |
 | 无法访问上游 | 如实记录「未能核对」及原因，不要假定无更新 |
 
-**同步后必须重新施加改动**：直接覆盖会把第三方模型配置带回来——那正是本插件要消除的东西（技能不得引导 agent 去索要模型 API key）。这一步漏做不会静默通过：`pnpm --filter @tnnevol/dsh-midscene test` 里有硬断言会指名缺什么。
+**内置技能不得修改**：技能文件必须与上游**逐字节一致**，这样升级时整目录覆盖即可、且可用哈希核对。**本环境的模型约束不写在技能文件里**，而是由 `src/host/skills.ts` 的 `BRIDGE_PRELUDE` 在分发时注入（官方技能教 agent 去申请第三方 API key，与「本插件用 DSH 已有模型」冲突，故在分发内容前加一段环境说明）。把约束写进文件就又是一份需要每次同步时重新施加的补丁。
 
-同步完成后同步更新 `skills/SOURCE.md` 的**上游提交、同步日期、本地副本 sha256**——哈希断言会挡住「改了 skill 但忘了登记」，但上游提交与日期需要人工维护。
+因此 `plugins/*/skills/**` 已从仓库 lint 中排除——它们是第三方原文，改格式即等于改动上游。
 
-## 插件截图
+同步完成后更新 `skills/SOURCE.md` 的**上游提交、同步日期、各文件 sha256**：哈希由守卫测试核对，漏登记会报红。
+
+## 插件截图## 插件截图
 
 插件功能截图服务于两处：DSH 文档站页面（`docs/plugins/`）与插件市场收录（awesome-dsh-plugin、dsh-market 读取仓库内 `screenshots.json`）。截图只维护**一份**，统一放 `docs/public/images/plugins/<插件名>/`。
 
@@ -119,3 +121,9 @@ grep -n "上游提交" plugins/dsh-midscene-plugin/skills/SOURCE.md
 - [Turbo 任务](./turbo-tasks)
 - [路径与编码](./conventions)
 - [Harness 插件总览](/plugins/)
+
+---
+
+| 日期 | 变更 |
+| --- | --- |
+| 2026-10-13 | 「内置 Skill 的上游同步检查」按新约定修订：内置全部 6 个官方平台技能 + `midscenejs`，且技能文件与上游**逐字节一致、不再打补丁**；模型约束改由 `BRIDGE_PRELUDE` 在分发时注入。 |

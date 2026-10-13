@@ -21,6 +21,10 @@ export default antfu(
       'apps/fn-deepseek-harness/app/gateway-proxy.mjs',
       'apps/fn-deepseek-harness/app/rolldown-runtime-*.mjs',
       'apps/fn-deepseek-harness/app/scripts/install-callback-helper.mjs',
+      // 插件内置的官方 Midscene 技能：**与上游逐字节一致**（可核对、升级时整目录覆盖），
+      // 因此不参与本仓库的格式检查——改格式就等于改动上游原文，会破坏「不做补丁」的约定。
+      // 环境约束由 src/host/skills.ts 的 BRIDGE_PRELUDE 在分发时注入，不写在文件里。
+      'plugins/*/skills/**',
     ],
   },
   {

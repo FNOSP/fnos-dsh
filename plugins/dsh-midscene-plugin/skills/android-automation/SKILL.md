@@ -1,0 +1,307 @@
+---
+name: android-device-automation
+description: >
+  Vision-driven Android device automation using Midscene.
+  Operates entirely from screenshots — no DOM or accessibility labels required. Can interact with all visible elements on screen regardless of technology stack.
+  Control Android devices with natural language commands via ADB.
+  Perform taps, swipes, text input, app launches, screenshots, and more.
+  
+  Trigger keywords: android, phone, mobile app, tap, swipe, install app, open app on phone, android device, mobile automation, adb, launch app, mobile screen,
+  test android app, verify mobile app, QA on phone, check the app on android, test on device,
+  see if the app works on phone, end-to-end test on android, visual verification on mobile
+
+  Powered by Midscene.js (https://midscenejs.com)
+allowed-tools:
+  - Bash
+---
+
+# Android Device Automation
+
+> **CRITICAL RULES — VIOLATIONS WILL BREAK THE WORKFLOW:**
+>
+> 1. **Never run midscene commands in the background.** Each command must run synchronously so you can read its output (especially screenshots) before deciding the next action. Background execution breaks the screenshot-analyze-act loop.
+> 2. **Run only one midscene command at a time.** Wait for the previous command to finish, read the screenshot, then decide the next action. Never chain multiple commands together.
+> 3. **Allow enough time for each command to complete.** Midscene commands involve AI inference and screen interaction, which can take longer than typical shell commands. A typical command needs about 1 minute; complex `act` commands may need even longer.
+> 4. **Always report task results before finishing.** After completing the automation task, you MUST proactively summarize the results to the user — including key data found, actions completed, screenshots taken, and any relevant findings. Never silently end after the last automation step; the user expects a complete response in a single interaction.
+
+Automate Android devices using `npx -y @midscene/android@1`. Each CLI command maps directly to an MCP tool — you (the AI agent) act as the brain, deciding which actions to take based on screenshots.
+
+## What `act` Can Do
+
+Inside a single `act` call on Android, Midscene can tap, double-tap, long-press, type, clear text, scroll or swipe in any direction, pull to refresh, drag items, zoom with two fingers, press keys, and use system navigation such as Back, Home, or recent apps while working from the current visible screen.
+
+## Prerequisites
+
+Midscene requires models with strong visual grounding capabilities. The following environment variables must be configured — either as system environment variables or in a `.env` file in the current working directory (Midscene loads `.env` automatically):
+
+```bash
+MIDSCENE_MODEL_API_KEY="your-api-key"
+MIDSCENE_MODEL_NAME="model-name"
+MIDSCENE_MODEL_BASE_URL="https://..."
+MIDSCENE_MODEL_FAMILY="family-identifier"
+```
+
+Example: Gemini (Gemini-3-Flash)
+
+```bash
+MIDSCENE_MODEL_API_KEY="your-google-api-key"
+MIDSCENE_MODEL_NAME="gemini-3-flash"
+MIDSCENE_MODEL_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai/"
+MIDSCENE_MODEL_FAMILY="gemini"
+```
+
+Example: Qwen 3.5
+
+```bash
+MIDSCENE_MODEL_API_KEY="your-aliyun-api-key"
+MIDSCENE_MODEL_NAME="qwen3.5-plus"
+MIDSCENE_MODEL_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
+MIDSCENE_MODEL_FAMILY="qwen3.5"
+MIDSCENE_MODEL_REASONING_ENABLED="false"
+# If using OpenRouter, set:
+# MIDSCENE_MODEL_API_KEY="your-openrouter-api-key"
+# MIDSCENE_MODEL_NAME="qwen/qwen3.5-plus"
+# MIDSCENE_MODEL_BASE_URL="https://openrouter.ai/api/v1"
+```
+
+Example: Doubao Seed 2.0 Lite
+
+```bash
+MIDSCENE_MODEL_API_KEY="your-doubao-api-key"
+MIDSCENE_MODEL_NAME="doubao-seed-2-0-lite"
+MIDSCENE_MODEL_BASE_URL="https://ark.cn-beijing.volces.com/api/v3"
+MIDSCENE_MODEL_FAMILY="doubao-seed"
+```
+
+Commonly used models: Doubao Seed 2.0 Lite, Qwen 3.5, Zhipu GLM-4.6V, Gemini-3-Pro, Gemini-3-Flash.
+
+If the model is not configured, ask the user to set it up. See [Model Configuration](https://midscenejs.com/model-common-config) for supported providers.
+
+## Commands
+
+### Common Android CLI Flags
+
+Use these flags on commands that create or use the Android agent, such as `connect`, `take_screenshot`, `act`, `assert`, and `tap`:
+
+- `--device-id <id>`: Target a specific Android device from `adb devices`.
+- `--use-scrcpy`: Enable scrcpy accelerated screenshots. Use this when normal screenshot capture is slow or unstable. Because CLI invocations are stateless, pass this flag on each Android Midscene command where you want scrcpy-based screenshots.
+
+### Connect to Device
+
+```bash
+npx -y @midscene/android@1 connect
+npx -y @midscene/android@1 connect --device-id emulator-5554
+npx -y @midscene/android@1 connect --device-id emulator-5554 --use-scrcpy
+```
+
+### Launch an App or URL
+
+Use the dedicated launch step when you want a deterministic starting point before the rest of the task:
+
+```bash
+npx -y @midscene/android@1 launch --uri https://www.ebay.com
+npx -y @midscene/android@1 launch --uri com.android.settings
+npx -y @midscene/android@1 launch --uri com.android.settings/.Settings
+```
+
+### Run a Raw Android Shell Command
+
+Use this when the task needs lower-level device control that is not best expressed as a visible UI interaction:
+
+```bash
+npx -y @midscene/android@1 runadbshell --command "dumpsys battery"
+```
+
+This is forwarded to `adb shell` on the connected device. In practice, the underlying command is `adb -s <deviceId> shell dumpsys battery` and some environments may also include the default ADB server port, such as `adb -P 5037 -s <deviceId> shell dumpsys battery`.
+
+### Take Screenshot
+
+```bash
+npx -y @midscene/android@1 take_screenshot
+npx -y @midscene/android@1 take_screenshot --device-id emulator-5554 --use-scrcpy
+```
+
+After taking a screenshot, read the saved image file to understand the current screen state before deciding the next action.
+
+### Perform Action
+
+Use `act` to interact with the device and get the result. It autonomously handles all UI interactions internally — tapping, typing, scrolling, swiping, waiting, and navigating — so you should give it complex, high-level tasks as a whole rather than breaking them into small steps. Describe **what you want to do and the desired effect** in natural language:
+
+```bash
+# specific instructions
+npx -y @midscene/android@1 act --prompt "type hello world in the search field and press Enter"
+npx -y @midscene/android@1 act --prompt "long press the message bubble and tap Delete in the popup menu"
+npx -y @midscene/android@1 act --device-id emulator-5554 --use-scrcpy --prompt "type hello world in the search field and press Enter"
+
+# or target-driven instructions
+npx -y @midscene/android@1 act --prompt "open Settings and navigate to Wi-Fi settings, tell me the connected network name"
+```
+
+### Assert Current Screen State
+
+Use `assert` to verify that the current screen satisfies a natural language condition. It does not perform UI actions; it checks the visible screen state and passes only when the assertion is true. Use this for validation, QA checks, and final state verification after `act`.
+
+```bash
+npx -y @midscene/android@1 assert --prompt "there is a login button visible"
+npx -y @midscene/android@1 assert --prompt "the settings screen shows Wi-Fi and Bluetooth options"
+npx -y @midscene/android@1 assert --device-id emulator-5554 --prompt "the app shows a successful login message"
+npx -y @midscene/android@1 assert --device-id emulator-5554 --use-scrcpy --prompt "the app shows a successful login message"
+```
+
+By default a failed assertion throws an AI-generated reason. Pass `--message` to throw a custom error message instead, which is useful for surfacing the intended outcome in QA and CI logs.
+
+```bash
+npx -y @midscene/android@1 assert \
+  --prompt "the order confirmation screen is visible" \
+  --message "the order should be confirmed after tapping Pay"
+```
+
+When the assertion needs to compare against a reference image (icon, logo, screenshot), pass `--image` for the URL/path and `--image-name` for its display name. Each `--image` may be an http(s) link, a `data:` URI, or a local file path. Repeat both flags in matching order when you need to attach more than one image. Add `--convertHttpImage2Base64 true` when the model cannot reach the URL directly. Requires `@midscene/android@1.9.0+`.
+
+```bash
+npx -y @midscene/android@1 assert \
+  --prompt "the visible app icon matches the supplied reference image" \
+  --image "https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png" \
+  --image-name "icon" \
+  --convertHttpImage2Base64 true
+
+# or with a local file
+npx -y @midscene/android@1 assert \
+  --prompt "the header on screen matches the local screenshot" \
+  --image "./fixtures/header.png" \
+  --image-name "header"
+
+# multiple reference images — pair --image and --image-name by order
+npx -y @midscene/android@1 assert \
+  --prompt "the screen shows both the app icon and the header" \
+  --image "./fixtures/icon.png"   --image-name "icon" \
+  --image "./fixtures/header.png" --image-name "header"
+```
+
+### Record and Assert Transient UI
+
+Use a recording when the state to verify may disappear before a current-screen assertion runs, such as a toast, loading banner, animation, or transition:
+
+```bash
+# Terminal 1: keep this foreground command running
+npx -y @midscene/android@1 record start \
+  --device-id emulator-5554 --use-scrcpy \
+  --output ./submission-observation.json
+
+# Terminal 2, while Terminal 1 records
+npx -y @midscene/android@1 act --device-id emulator-5554 \
+  --prompt "tap the Submit button"
+
+# Send Ctrl+C to Terminal 1 and wait for the saved-path message, then assert
+npx -y @midscene/android@1 assert --device-id emulator-5554 \
+  --record ./submission-observation.json \
+  --prompt "a success toast appeared during submission"
+```
+
+Pass target flags, capture flags, and `--output` to `record start`, then wait for `Recording. Press Ctrl+C to stop and save.` Keep the recorder as a foreground process in its dedicated terminal; never add shell `&`. Perform the interaction manually or from a second terminal, send Ctrl+C to the recorder, and wait until it prints the saved path before asserting. `--use-scrcpy` provides the faster continuous frame source; without it, recording falls back to periodic screenshots. Optional capture flags are `--interval-ms`, `--max-frames`, and `--watchdog-ms`; `--max-frames` caps sampled frames, and the manifest may contain one additional final representative frame. The default watchdog finalizes and saves the recording after five minutes, while `--watchdog-ms 0` disables that safety limit. The output is a JSON manifest plus an adjacent `<name>.frames` image directory, not an encoded video or archive. The manifest contains relative JPEG/PNG paths and no base64 image bodies. Keep or move the JSON file and image directory together, and pass the JSON path to `assert --record`. Use ordinary `assert` without `--record` when only the current screen matters.
+
+### Use a Reference Image for Precise Targeting
+
+When the user provides a screenshot, icon, logo, or reference image and wants an exact visual match, prefer `tap --locate` instead of a generic `act --prompt`. Pass `--locate` as JSON. The `prompt` describes the target, `images` supplies named reference images, and `convertHttpImage2Base64: true` is useful when the image URL may not be directly accessible to the model.
+
+```bash
+npx -y @midscene/android@1 tap --locate '{
+  "prompt": "tap the area contains the image",
+  "images": [
+    {
+      "name": "target image",
+      "url": "https://github.githubassets.com/assets/GitHub-Mark-ea2971cee799.png"
+    }
+  ],
+  "convertHttpImage2Base64": true
+}'
+```
+
+The same `locate` JSON shape also works for other commands that accept a `locate` parameter.
+
+### Disconnect
+
+```bash
+npx -y @midscene/android@1 disconnect
+```
+
+### Consume Report Files
+
+The generated HTML report is recommended for human reading first. It includes step-by-step execution details and replay videos for each operation, which makes it much easier to understand what happened and troubleshoot problems.
+
+If another skill or tool needs to consume the report, first convert it with `report-tool` from the same platform CLI package. Prefer Markdown for LLM-based workflows. Use JSON when the report needs to be processed programmatically.
+
+```bash
+npx -y @midscene/android@1 report-tool --action to-markdown --htmlPath ./midscene_run/report/.../index.html --outputDir ./output-markdown
+npx -y @midscene/android@1 report-tool --action split --htmlPath ./midscene_run/report/.../index.html --outputDir ./output-data
+```
+
+## Workflow Pattern
+
+Since CLI commands are stateless between invocations, follow this pattern:
+
+1. **Connect** to establish a session
+2. **Launch the target app and take screenshot** to see the current state, make sure the app is launched and visible on the screen.
+3. **Execute action** using `act` to perform the desired action or target-driven instructions. Use `assert` for the resulting screen state, or keep `record start --output ...` running in a dedicated terminal during transient-state workflows, stop it with Ctrl+C, and then use `assert --record`.
+4. **Disconnect** when done
+5. **Report results** — summarize what was accomplished, present key findings and data extracted during the task, and list any generated files (screenshots, logs, etc.) with their paths
+
+## Best Practices
+
+1. **Bring the target app to the foreground before using this skill**: For best efficiency, launch the app using ADB (e.g., `adb shell am start -n <package/activity>`) **before** invoking any midscene commands. Then take a screenshot to confirm the app is actually in the foreground. Only after visual confirmation should you proceed with UI automation using this skill. ADB commands are significantly faster than using midscene to navigate to and open apps.
+2. **Be specific about UI elements**: Instead of vague descriptions, provide clear, specific details. Say `"the Wi-Fi toggle switch on the right side"` instead of `"the toggle"`.
+3. **Describe locations when possible**: Help target elements by describing their position (e.g., `"the search icon at the top right"`, `"the third item in the list"`).
+4. **Never run in background**: Every midscene command must run synchronously — background execution breaks the screenshot-analyze-act loop.
+5. **Batch related operations into a single `act` command**: When performing consecutive operations within the same app, combine them into one `act` prompt instead of splitting them into separate commands. For example, "open Settings, tap Wi-Fi, and toggle it on" should be a single `act` call, not three. This reduces round-trips, avoids unnecessary screenshot-analyze cycles, and is significantly faster.
+6. **Use scrcpy when screenshot capture needs acceleration**: Add `--use-scrcpy` to each relevant command when normal Android screenshots are slow, flaky, or blocked by the environment.
+7. **Choose the right verification window**: Use `assert --prompt "..."` for the current screen. For a toast, banner, animation, or transition, run `record start --output ...` in a dedicated terminal, perform the interaction, stop recording with Ctrl+C, wait for the saved-path message, then pass the artifact to `assert --record`.
+8. **Always report results after completion**: After finishing the automation task, you MUST proactively present the results to the user without waiting for them to ask. This includes: (1) the answer to the user's original question or the outcome of the requested task, (2) key data extracted or observed during execution, (3) screenshots and other generated files with their paths, (4) a brief summary of steps taken. Do NOT silently finish after the last automation command — the user expects complete results in a single interaction.
+9. **Prefer `tap --locate` when a reference image is provided**: If the user shares a screenshot, icon, or logo and wants that exact visual target, use `tap --locate` with a multimodal `locate` JSON object such as `{ "prompt": "...", "images": [...] }` instead of relying only on `act --prompt`.
+
+**Example — Popup menu interaction:**
+
+```bash
+npx -y @midscene/android@1 act --prompt "long press the message bubble and tap Delete in the popup menu"
+npx -y @midscene/android@1 take_screenshot
+```
+
+**Example — Form interaction:**
+
+```bash
+npx -y @midscene/android@1 act --prompt "fill in the username field with 'testuser' and the password field with 'pass123', then tap the Login button"
+npx -y @midscene/android@1 take_screenshot
+```
+
+## Improve Precision (Deep Locate / Deep Think)
+
+Two optional global flags help when Midscene struggles with a task. Put them anywhere in the command (before or after the sub-command); once set, the relevant operations use them by default, so you don't pass a per-call parameter.
+
+- `--deep-locate` — spends an extra round of visual reasoning to pinpoint the target element. Use it when an action interacts with the wrong spot (location drift / offset). It applies to every operation that locates an element, including `tap --locate` and the locating that happens inside `act`.
+- `--deep-think` — plans `act` with deeper reasoning (richer context and sub-goal decomposition). Use it for complex, multi-step `act` instructions; it only affects planning.
+
+Both trade a little speed for better results, and you can combine them.
+
+```bash
+# more accurate element location (helps act's internal locating too)
+npx -y @midscene/android@1 act --deep-locate --prompt "tap the small overflow (⋮) icon in the top-right corner"
+
+# deeper planning for a complex, multi-step act
+npx -y @midscene/android@1 act --deep-think --prompt "open Settings, go to Wi-Fi, and connect to the network named Office"
+
+# combine both
+npx -y @midscene/android@1 act --deep-locate --deep-think --prompt "fill in the signup form and tap Submit"
+```
+
+## Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| **ADB not found** | Install Android SDK Platform Tools: `brew install android-platform-tools` (macOS) or download from [developer.android.com](https://developer.android.com/tools/releases/platform-tools). |
+| **Device not listed** | Check USB connection, ensure USB debugging is enabled in Developer Options, and run `adb devices`. |
+| **Device shows "unauthorized"** | Unlock the device and accept the USB debugging authorization prompt. Then run `adb devices` again. |
+| **Device shows "offline"** | Disconnect and reconnect the USB cable. Run `adb kill-server && adb start-server`. |
+| **Command timeout** | The device screen may be off or locked. Wake the device with `adb shell input keyevent KEYCODE_WAKEUP` and unlock it. |
+| **API key error** | Check `.env` file contains `MIDSCENE_MODEL_API_KEY=<your-key>`. See [Model Configuration](https://midscenejs.com/zh/model-common-config.html). |
+| **`@midscene/*` dependency version is outdated** | Check local versions with `npm ls @midscene/android @midscene/core @midscene/shared` (or `pnpm why @midscene/android`). Compare with latest versions using `npm view @midscene/android version`, `npm view @midscene/core version`, and `npm view @midscene/shared version`. Upgrade as needed (`npm i @midscene/android@latest @midscene/core@latest @midscene/shared@latest`). |
+| **Wrong device targeted** | If multiple devices are connected, use the `--device-id <id>` flag. |
+| **Screenshots are slow or flaky** | Add `--use-scrcpy` to the Android Midscene command to enable scrcpy accelerated screenshots. |
