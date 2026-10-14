@@ -528,3 +528,58 @@ describe('禁止清除被测站点的会话数据（用户真实环境）', () =
     expect(offenders, `发现清除站点会话数据的调用（会登出用户）：\n${offenders.join('\n')}`).toEqual([])
   })
 })
+
+describe('用例不得破坏用户的工作状态（会话与站点数据）', () => {
+  // 会话列表与「当前选中会话」是用户的工作状态。用例若必须切换会话（例如验证会话级
+  // 语义），必须记下原会话并在收尾切回；发消息会写进用户的会话历史，且界面行为无需
+  // 真实对话即可验证，因此一律禁止。
+  const sessionFile = new URL(
+    '../../../plugins/dsh-failover-search-plugin/tests/e2e/cases/FNOS-012-smart-search-pill.yaml',
+    import.meta.url,
+  )
+
+  it('切换会话的用例同时具备「记住原会话」与「收尾切回」', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const text = await readFile(sessionFile, 'utf8')
+    const switchesSession = /sessionRow|「新会话」/.test(text)
+    if (!switchesSession) return // 没有会话操作时这条守卫不适用。
+    expect(text, '缺少「记录原会话」的探针步骤').toMatch(/data-probe-sid-original/)
+    expect(text, '缺少「收尾切回原会话」的断言').toMatch(/收尾切回原会话/)
+  })
+
+  it('用例不发送消息（会写进用户的会话历史）', async () => {
+    const { readdir, readFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const roots = [
+      new URL('../../../apps/fn-deepseek-harness/tests', import.meta.url),
+      new URL('../../../plugins/dsh-codebuddy-plugin/tests', import.meta.url),
+      new URL('../../../plugins/dsh-midscene-plugin/tests', import.meta.url),
+      new URL('../../../plugins/dsh-failover-search-plugin/tests', import.meta.url),
+    ]
+    // 只匹配「把文本送进输入框并提交」这类动作；键盘可达性测试里的按空格/回车不算。
+    const forbidden = [
+      { pattern: /- aiInput:/, why: 'aiInput（向输入框写入文本）' },
+      { pattern: /发送消息|提交消息/, why: '发送消息' },
+    ]
+    const offenders: string[] = []
+    const walk = async (dir: string): Promise<void> => {
+      let entries: Array<{ name: string, isDirectory: () => boolean }>
+      try { entries = await readdir(dir, { withFileTypes: true }) as never } catch { return }
+      for (const entry of entries) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          if (['node_modules', 'midscene_run', '.midscene'].includes(entry.name)) continue
+          await walk(full)
+          continue
+        }
+        if (!/\.ya?ml$/.test(entry.name)) continue
+        const text = await readFile(full, 'utf8')
+        for (const { pattern, why } of forbidden) {
+          if (pattern.test(text)) offenders.push(`${entry.name} → ${why}`)
+        }
+      }
+    }
+    for (const root of roots) await walk(root.pathname)
+    expect(offenders, `用例中出现了会写进用户会话历史的操作：\n${offenders.join('\n')}`).toEqual([])
+  })
+})

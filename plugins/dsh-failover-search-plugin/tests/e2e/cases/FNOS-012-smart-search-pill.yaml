@@ -245,6 +245,25 @@ cases:
   - name: TC-032 会话级语义与默认开启不变
     tags: [FNOS-012, ui, session]
     steps:
+      # ⓪ 记住测试前用户所在的会话，收尾时切回（不留痕：用例不该把用户的侧边栏
+      # 停在自己选中的会话上）。
+      #    先切到任意历史会话，使随后「第一个历史会话」的定位不再受草稿态影响。
+      - dsh.assertInPage:
+          label: 记录测试前的当前会话
+          script: |
+            (() => {
+              const active = [...document.querySelectorAll('[class*="sessionRow"]')]
+                .find(e => e.getAttribute('aria-selected') === 'true');
+              if (!active) return { pass: false, detail: '无法识别当前活动会话' };
+              const sid = active.getAttribute('data-row-key') || '';
+              if (sid === '') return { pass: false, detail: '活动会话缺少 data-row-key' };
+              // 用 textContent 判定草稿态：草稿没有持久会话，但它同样是用户可见状态，
+              // 收尾要能回到「草稿被选中」这个状态。
+              const text = (active.textContent || '').trim();
+              document.body.setAttribute('data-probe-sid-original', sid);
+              document.body.setAttribute('data-probe-was-draft', text.startsWith('新会话') ? '1' : '0');
+              return { pass: true, detail: '原会话 ' + sid + (text.startsWith('新会话') ? '（草稿态）' : '') };
+            })()
       # ① 选第一个历史会话作为「甲」，并归一为开启态。
       - aiAct: >-
           在左侧会话列表里点击第一个带有消息摘要的历史会话（不是名为「新会话」的草稿行），
@@ -361,4 +380,68 @@ cases:
                 return { pass: false, detail: '收尾失败：未恢复开启态' };
               }
               return { pass: true, detail: '已恢复开启态' };
+            })()
+      # ⓪ 收尾：切回测试前用户所在的会话，避免把侧边栏停在本用例选中的会话上。
+      #
+      # **提示词里不能写 `${...}`**：YAML 会把 `${name}` 当**项目变量**解析，缺失即报错
+      # （本文件头注释已记录这条约束）。因此这里用「把高亮标记出来 + 按可见特征描述」的
+      # 方式，让视觉模型能找到目标行；具体是哪一个由页面侧先标记。
+      - dsh.assertInPage:
+          label: 把原会话行标记为可见锚点
+          script: |
+            (() => {
+              const original = document.body.getAttribute('data-probe-sid-original') || '';
+              if (original === '') return { pass: false, detail: '未记录原会话 ID' };
+              const row = [...document.querySelectorAll('[class*="sessionRow"]')]
+                .find(e => (e.getAttribute('data-row-key') || '') === original);
+              if (!row) return { pass: false, detail: '列表里已找不到原会话行：' + original };
+              // 用高对比描边把它标出来，供下一步的视觉定位命中（收尾后移除）。
+              row.style.outline = '3px solid #ff00ff';
+              row.setAttribute('data-probe-target', '1');
+              return { pass: true, detail: '已标记原会话行 ' + original };
+            })()
+      # 带 options 必须写对象形态（字符串简写只映射 {prompt}，再并列 options 就是两个键，
+      # 解析器报 "step N must contain exactly one node"——本文件头注释已记录，这次又踩了一次）。
+      - aiAct:
+          prompt: >-
+            在左侧会话列表里，点击那个带有**紫红色高亮描边**的会话条目
+          options:
+            deepThink: true
+      - dsh.assertInPage:
+          label: 收尾切回原会话（不留痕）
+          script: |
+            (() => {
+              const original = document.body.getAttribute('data-probe-sid-original') || '';
+              const wasDraft = document.body.getAttribute('data-probe-was-draft') === '1';
+              const active = [...document.querySelectorAll('[class*="sessionRow"]')]
+                .find(e => e.getAttribute('aria-selected') === 'true');
+              const sid = active ? (active.getAttribute('data-row-key') || '') : '';
+              const text = active ? (active.textContent || '').trim() : '';
+              if (wasDraft) {
+                // 原本停在草稿：草稿是单例，点侧边栏「新会话」即可回到该状态。
+                return text.startsWith('新会话')
+                  ? { pass: true, detail: '已回到草稿态（测试前状态）' }
+                  : { pass: false, detail: '收尾未回到草稿态，当前为 ' + sid };
+              }
+              return sid === original
+                ? { pass: true, detail: '已切回原会话 ' + original }
+                : { pass: false, detail: '收尾未切回原会话：期望 ' + original + '，实际 ' + sid };
+            })()
+      # 清掉探针标记与探针属性（只删本用例自己建的东西，不碰站点数据）。
+      - dsh.assertInPage:
+          label: 清除本用例留下的探针标记
+          script: |
+            (() => {
+              const row = document.querySelector('[data-probe-target="1"]');
+              if (row) {
+                row.style.outline = '';
+                row.removeAttribute('data-probe-target');
+              }
+              for (const key of ['data-probe-sid-original', 'data-probe-was-draft',
+                                 'data-probe-sid-jia', 'data-probe-sid-yi',
+                                 'data-probe-sid-start', 'data-probe-sid-a',
+                                 'data-probe-sid-history']) {
+                document.body.removeAttribute(key);
+              }
+              return { pass: true, detail: '已清除探针标记与属性' };
             })()
