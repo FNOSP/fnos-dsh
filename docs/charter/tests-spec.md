@@ -410,6 +410,35 @@ Midscene Test 的项目 setup 里，于是 29 个「图省事直接连新页」�
 
 `allowNewTab: false` 可用于「只允许复用」的场景（目标页不存在时直接报错，避免无意中堆积）。
 
+#### 禁止清除被测站点的 Cookie 与本地存储
+
+测试**只能读取**被测站点的会话数据，**不得清除或改写** Cookie、`localStorage`、
+`sessionStorage`、IndexedDB 等任何持久化状态。被测页面是**用户正在使用的真实环境**，
+不是一次性沙箱。
+
+**这会直接伤害用户**：清掉登录 Cookie 会把用户从 NAS 上登出（实测发生过一次——测试
+运行后浏览器停在 fnOS 登录页，后续用例全部报「当前显示的是登录页面」而无法继续），
+而重新登录需要用户手动介入。
+
+**允许**：为验证行为而**临时**改变页面状态（如切主题、点开关），前提是用例结束时复原；
+读取存储用于断言。
+
+**禁止**：
+
+- `document.cookie = …`（含设为空串以「清空」的写法）；
+- `localStorage.clear()` / `sessionStorage.clear()` / 按 key `removeItem` 删除站点数据；
+- CDP 的 `Network.clearBrowserCookies`、`Storage.clearDataForOrigin`、
+  `Browser.clearBrowsingData`；
+- 以「干净会话」为名新建 incognito 上下文或独立 `--user-data-dir`（Bridge Mode 用用户
+  真实窗口，本就不该、也不会这样做）。
+
+**唯一例外**：用例**自己创建**的测试数据（例如它写进 `localStorage` 的探针键），
+应由该用例在收尾时删除，且只能删自己建的。
+
+**当前状态（已核对）**：`apps/*/tests`、`plugins/*/tests` 与 `packages/dsh-e2e-kit/src`
+中**没有**任何清除站点数据的调用；实测 NAS 站点在整轮测试后 localStorage 键、sessionStorage
+与 Cookie 均完好且保持登录。
+
 #### 有头浏览器（Bridge Mode）的标签页纪律
 
 用有头浏览器测试时，浏览器的标签页是**用户真实工作环境**的一部分，必须遵守四条纪律（脚本已实现）：
@@ -692,3 +721,4 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-10-13 | 新增「连续交互必须用 Midscene Test 用例，禁止一次性探测脚本」 | 涉及两步以上、有前后依赖的交互验收必须写成 Midscene Test 用例并一条命令跑完；禁止拆成多个一次性脚本一步一停。依据：为「真实 NAS 装一次 FPK 并验收」写过 66 个一次性脚本，每个都 `kill 3766 → node xxx.mjs → sleep → grep`，导致每步重连桥（`setActiveTabId` 每个 Agent 只能调用一次）、进度反复中断、以 sleep+grep 猜测代替断言、用完即弃无法回归。同时明确 `setup` 每个执行项目只运行一次，是「连续不中断」的机制来源。 |
 | 2026-10-13 | 新增「断言必须用 `dsh.assertInPage`，不能用 `javascript` 步骤」 | Midscene 的 `javascript` 步骤底层是 CDP `Runtime.evaluate`，页面异常被放在 `exceptionDetails` 里返回而 Midscene 不检查，导致 `throw`/`Promise.reject`/语法错误三种形态全被静默吞掉——把 `javascript` 当断言用会得到假阳性（实测：一条断言「模块图不含某插件」的用例在目标确实含该插件时仍然通过）。要求改用共享包 `@tnnevol/dsh-e2e-kit` 的 `dsh.assertInPage`：页面内精确判定 + Node 侧抛错传播，零模型调用。 |
 | 2026-10-14 | 新增「小控件用 `dsh.clickInPage`」与「交互未生效用 `dsh.actUntil`」 | 实测药丸按钮真实位置 `(648,893)`／`86×28`，而视觉定位的 `Tap` 落点是一次 `(2774,1817)`（完全在视口外，DPR=2 下的坐标放大），且 `aiAct` 仍自述成功；另有模型为滚动给出越界 bbox（`[300,0,2000,1002]`）被上游拒绝。要求：可被选择器唯一定位的小控件改用 `dsh.clickInPage`（页面内 `element.click()`，零坐标偏差，实测能切换 React 状态，耗时 196 s → 28 s）；导航拆成小步、滚动用 `scrollIntoView`；交互后核实用 `dsh.actUntil`（未生效自动重试，失败时报「点击可靠性问题」而非含糊断言失败）。 |
+| 2026-10-14 | 新增「禁止清除被测站点的 Cookie 与本地存储」 | 测试只能读取、不得清除或改写被测站点的 Cookie / localStorage / sessionStorage / IndexedDB。被测页面是用户真实环境，清掉登录 Cookie 会把用户从 NAS 登出（实测发生过：测试后浏览器停在 fnOS 登录页，后续用例全部无法继续）。列出禁止的 API 清单（含 CDP 的 `Network.clearBrowserCookies` 等）与唯一例外（只能删用例自己建的探针数据），并记录当前代码审计与实测结果（站点数据完好、保持登录）。 |

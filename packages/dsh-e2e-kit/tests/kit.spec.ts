@@ -471,3 +471,60 @@ describe('selectTab 在重复标签页中选页', () => {
     expect(result.reuseTabId).toBe('9')
   })
 })
+
+describe('禁止清除被测站点的会话数据（用户真实环境）', () => {
+  // 被测页面是**用户正在使用的真实环境**，不是一次性沙箱。清掉登录 Cookie 会把用户
+  // 从 NAS 上登出——实测发生过一次：测试运行后浏览器停在 fnOS 登录页，后续用例全部报
+  // 「当前显示的是登录页面」，需要用户手动重新登录才能继续。
+  //
+  // 这条守卫扫描仓库内的测试代码与共享装配层，防止后来者顺手加一句
+  // `localStorage.clear()` 之类的清理。
+  const FORBIDDEN: Array<{ pattern: RegExp, why: string }> = [
+    { pattern: /localStorage\.clear\s*\(/, why: 'localStorage.clear()' },
+    { pattern: /sessionStorage\.clear\s*\(/, why: 'sessionStorage.clear()' },
+    { pattern: /localStorage\.removeItem\s*\(/, why: 'localStorage.removeItem()' },
+    { pattern: /sessionStorage\.removeItem\s*\(/, why: 'sessionStorage.removeItem()' },
+    { pattern: /document\.cookie\s*=/, why: '改写 document.cookie' },
+    { pattern: /clearBrowserCookies|clearDataForOrigin|clearBrowsingData/, why: 'CDP 清除浏览数据' },
+  ]
+
+  it('共享装配层与各测试用例中不含清除站点数据的调用', async () => {
+    const { readdir, readFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+
+    const roots = [
+      new URL('../src', import.meta.url),
+      new URL('../../../apps/fn-deepseek-harness/tests', import.meta.url),
+      new URL('../../../plugins/dsh-codebuddy-plugin/tests', import.meta.url),
+      new URL('../../../plugins/dsh-midscene-plugin/tests', import.meta.url),
+      new URL('../../../plugins/dsh-failover-search-plugin/tests', import.meta.url),
+    ]
+
+    const offenders: string[] = []
+    const walk = async (dir: string): Promise<void> => {
+      let entries: Array<{ name: string, isDirectory: () => boolean }>
+      try {
+        entries = await readdir(dir, { withFileTypes: true }) as never
+      } catch {
+        return // 目录不存在（例如某插件尚未加 e2e）不是失败。
+      }
+      for (const entry of entries) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          // 生成物与依赖不扫：它们不是我们编写的代码。
+          if (['node_modules', 'midscene_run', '.midscene', 'lib', 'dist'].includes(entry.name)) continue
+          await walk(full)
+          continue
+        }
+        if (!/\.(?:ts|tsx|mts|yaml|yml|mjs)$/.test(entry.name)) continue
+        const text = await readFile(full, 'utf8')
+        for (const { pattern, why } of FORBIDDEN) {
+          if (pattern.test(text)) offenders.push(`${full.replace(process.cwd(), '.')} → ${why}`)
+        }
+      }
+    }
+    for (const root of roots) await walk(root.pathname)
+
+    expect(offenders, `发现清除站点会话数据的调用（会登出用户）：\n${offenders.join('\n')}`).toEqual([])
+  })
+})
