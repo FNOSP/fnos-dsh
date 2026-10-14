@@ -52,6 +52,7 @@
     "prepublishOnly": "pnpm run check",
     "publish:next": "pnpm publish --tag next --access public",
     "test": "vitest run --config vitest.config.ts",
+    "test:e2e": "midscene-test --config tests/e2e/midscene.config.ts",
     "test:bridge": "node --experimental-strip-types scripts/bridge-smoke.ts"
   },
   "dsh": {
@@ -97,7 +98,9 @@
     "@deepseek-ai/dsh-settings": "catalog:dsh",
     "@deepseek-ai/dsh-skill": "catalog:dsh",
     "@deepseek-ai/schemastery": "catalog:",
+    "@midscene/test": "catalog:",
     "@midscene/web": "catalog:",
+    "@tnnevol/dsh-e2e-kit": "workspace:*",
     "@tnnevol/dsh-semi-ui": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

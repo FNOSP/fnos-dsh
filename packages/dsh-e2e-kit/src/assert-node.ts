@@ -53,55 +53,7 @@
 import process from 'node:process'
 import { defineNode, z } from '@midscene/test'
 import type { BridgeContext } from './project.ts'
-
-/** 脚本返回值：判定结果。 */
-interface PageVerdict {
-  readonly pass: boolean
-  readonly detail?: string
-}
-
-/**
- * 从 Bridge 求值结果里取出页面字符串。
- *
- * 会同时检查 CDP 的 `exceptionDetails`：虽然外层包装已捕获用户脚本的异常，但包装本身
- * 仍可能因（例如）脚本语法错误而在页面上抛错——那种情况必须在这里报出来。
- */
-function unwrapEnvelope(raw: unknown, label: string): unknown {
-  const envelope = raw as { result?: { value?: unknown }, exceptionDetails?: unknown } | undefined
-  if (envelope?.exceptionDetails !== undefined) {
-    const description = (envelope.exceptionDetails as { exception?: { description?: string } })
-      .exception?.description
-    throw new Error(`[${label}] 页面脚本抛出异常：${description ?? '未知异常'}`)
-  }
-  return envelope?.result?.value ?? raw
-}
-
-/** 解析包装层回传的 JSON，形态不符即抛错（不静默放过）。 */
-function readVerdict(raw: unknown, label: string): PageVerdict {
-  if (typeof raw !== 'string') {
-    throw new TypeError(
-      `[${label}] 页面未回传字符串结果，实际收到：${JSON.stringify(raw)?.slice(0, 200)}`,
-    )
-  }
-  let parsed: { ok?: unknown, verdict?: unknown, message?: unknown }
-  try {
-    parsed = JSON.parse(raw) as typeof parsed
-  } catch {
-    throw new Error(`[${label}] 页面回传的不是合法 JSON：${raw.slice(0, 200)}`)
-  }
-  if (parsed.ok !== true) {
-    throw new Error(`[${label}] 页面脚本抛出异常：${String(parsed.message ?? '未知异常')}`)
-  }
-  const value = parsed.verdict
-  if (value === true || value === false) return { pass: value }
-  if (typeof value === 'object' && value !== null && typeof (value as PageVerdict).pass === 'boolean') {
-    return value as PageVerdict
-  }
-  throw new Error(
-    `[${label}] 页面脚本必须返回 { pass: boolean, detail?: string }（或布尔值），`
-    + `实际收到：${JSON.stringify(value)?.slice(0, 200)}`,
-  )
-}
+import { readPageVerdict, wrapPageScript } from './page-script.ts'
 
 /** 输入：要执行的脚本与用于报错的标签。 */
 const assertInPageInput = z.strictObject({
@@ -126,16 +78,8 @@ export const assertInPage = defineNode<
     // **必须自己 JSON.stringify**：CDP `Runtime.evaluate` 默认不传 `returnByValue`，
     // 对象只会回一个 `objectId` 句柄（实测收到 `{className:'Object',objectId:'…'}`），
     // 取不到值。因此把用户脚本包一层，强制序列化成字符串再解析。
-    const wrapped = `(async () => {
-      try {
-        const verdict = await (${input.script});
-        return JSON.stringify({ ok: true, verdict });
-      } catch (error) {
-        return JSON.stringify({ ok: false, message: String(error && error.message || error) });
-      }
-    })()`
-    const raw = await context.agent.evaluateJavaScript(wrapped)
-    const verdict = readVerdict(unwrapEnvelope(raw, input.label), input.label)
+    const raw = await context.agent.evaluateJavaScript(wrapPageScript(input.script))
+    const verdict = readPageVerdict(raw, input.label)
     const detail = verdict.detail ?? ''
     if (!verdict.pass) {
       throw new Error(`[${input.label}] 断言不成立${detail === '' ? '' : `：${detail}`}`)

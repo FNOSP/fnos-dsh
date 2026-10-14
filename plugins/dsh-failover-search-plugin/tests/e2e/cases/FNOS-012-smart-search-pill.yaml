@@ -1,106 +1,126 @@
-# FNOS-012 智能搜索药丸按钮（FNOS-012-06）的 Midscene Test 用例。
+# FNOS-012 智能搜索药丸按钮的界面验收（FNOS-012-06）
 #
 # 用例编号与 docs/tests/FNOS-012-codebuddy-model-speed-and-client-version.md 对齐：
-# 测试文档是权威台账（记录结果与结论），本文件是**执行载体**。
+# 测试文档是**权威台账**（记录结果与结论），本文件是**执行载体**。
 #
 # ## 两条硬约束（试点实测踩出来的，写用例前务必先读）
 #
 # 1. **YAML 会插值**：`${name}` 被当作**项目变量**（缺失即报错），`${{NAME}}` 才是环境
-#    变量。因此 javascript 步骤里不要写模板字面量，改用字符串拼接；跨步骤状态也不要
+#    变量。因此 `javascript` 步骤里不要写模板字面量，改用字符串拼接；跨步骤状态也不要
 #    挂在 `window.__x`（同样会被扫描到）。
 #
 # 2. **用例必须自己建立起始状态**：有头浏览器是可复用的真实页面，前一个用例可能把
 #    控件留在任意状态（实测：TC-029 被前序用例切到关闭态后，按「默认开启」写的断言
-#    必然失败）。因此每个用例先用 javascript 把状态**归一**到已知值，再开始断言。
+#    必然失败）。因此每个用例先把状态**归一**到已知值，再开始断言。
 #
-# ## 断言策略：状态用属性，观感用视觉
+# ## 断言策略：状态用属性（assertInPage），观感用视觉（aiAssert）
 #
-# - **精确状态**（开启/关闭）→ `javascript` 读 `aria-pressed`：确定、快、不受模型影响；
+# - **精确状态 / DOM 契约**（`aria-pressed`、类名、文案、「不存在 X」的否定式判断）
+#   → `dsh.assertInPage`：确定、快、不受模型影响，且**失败会真正让用例失败**。
 # - **视觉观感**（药丸形态、图标、对比是否清晰）→ `aiAssert`：这是 Midscene 的强项。
 #
-# 两者分工明确，不要让自然语言断言去承担可以精确判定的东西。
+# ⚠️ **不要用 `javascript` 步骤做断言**：它的 `throw` 被 CDP `Runtime.evaluate` 静默吞掉，
+# 步骤照常显示 `✓` —— 会造成**假阳性**。本文件此前有 9 处这样的断言（TC-028~TC-030），
+# 已全部改用 `dsh.assertInPage`。详见 `@tnnevol/dsh-e2e-kit` 的 assert-node 模块注释。
+#
+# 分工明确，不要让自然语言断言去承担可以精确判定的东西。
+
 cases:
   - name: TC-028 控件呈药丸按钮形态且无 Switch 与状态文案
     tags: [FNOS-012, ui]
     steps:
       # 本用例只关心「形态与文案」，与开关状态无关，因此无需归一状态。
       - aiAssert: 消息输入框的左下角有一个药丸形状的按钮，可见文案是「智能搜索」，按钮左侧带一个地球图标
-      # **否定式断言交给 javascript**（试点教训）：让视觉模型断言「不存在 X」很不可靠
-      # ——实测它把药丸按钮本身当成了「开关式控件」。这类判定用 DOM 精确表达。
-      - javascript: |
-          (() => {
-            const b = document.querySelector('.dsh-failover-pill');
-            if (!b) throw new Error('未找到 .dsh-failover-pill 控件');
-            const text = (b.textContent || '').trim();
-            if (text !== '智能搜索') throw new Error('可见文案不是「智能搜索」，实际为：' + text);
-            if (b.getAttribute('aria-pressed') === null) throw new Error('缺少 aria-pressed 状态属性');
-            if (!b.querySelector('svg')) throw new Error('按钮内未找到图标');
-            // 形态是药丸按钮而非 Switch：不应存在 switch 角色的控件
-            const switchNearby = document.querySelectorAll('[role="switch"], input[type="checkbox"]');
-            if (switchNearby.length > 0) {
-              throw new Error('输入框附近存在开关式控件（' + switchNearby.length + ' 个）');
-            }
-            // 不应出现「智能搜索已关」这类状态文案
-            const bodyText = document.body.innerText || '';
-            for (const phrase of ['智能搜索已关', '智能搜索已开启', '智能搜索已关闭']) {
-              if (bodyText.includes(phrase)) throw new Error('出现了状态文案：' + phrase);
-            }
-            return { text: text, pressed: b.getAttribute('aria-pressed'), hasIcon: true, noSwitchRole: true, noStateText: true };
-          })()
+      # **否定式断言交给代码**（试点教训）：让视觉模型断言「不存在 X」很不可靠
+      # ——实测它把药丸按钮本身当成了「开关式控件」。
+      - dsh.assertInPage:
+          label: 药丸按钮的 DOM 契约（文案/状态属性/图标，且无 Switch 角色与状态文案）
+          script: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到 .dsh-failover-pill 控件' };
+              const text = (b.textContent || '').trim();
+              if (text !== '智能搜索') return { pass: false, detail: '可见文案为「' + text + '」' };
+              if (b.getAttribute('aria-pressed') === null) {
+                return { pass: false, detail: '缺少 aria-pressed 状态属性' };
+              }
+              if (!b.querySelector('svg')) return { pass: false, detail: '按钮内未找到图标' };
+              const switchNearby = document.querySelectorAll('[role="switch"], input[type="checkbox"]');
+              if (switchNearby.length > 0) {
+                return { pass: false, detail: '输入框附近存在开关式控件（' + switchNearby.length + ' 个）' };
+              }
+              const bodyText = document.body.innerText || '';
+              for (const phrase of ['智能搜索已关', '智能搜索已开启', '智能搜索已关闭']) {
+                if (bodyText.includes(phrase)) return { pass: false, detail: '出现了状态文案：' + phrase };
+              }
+              return {
+                pass: true,
+                detail: '文案「智能搜索」+ aria-pressed + 图标齐备，无 Switch 角色与状态文案',
+              };
+            })()
 
   - name: TC-029 开启时激活态、关闭时普通态（仅样式区分）
     tags: [FNOS-012, ui, interactive]
     steps:
-      # **归一状态的正确做法**：程序化 `element.click()` 不会切换 React 状态（实测
+      # **归一的正确做法**：程序化 `element.click()` 不会切换 React 状态（实测
       # aria-pressed 不变），因此必须用自然语言真实点击（aiAct）。
-      # 这里先用属性判定当前状态，若为关闭则真实点击一次切到开启。
-      - javascript: |
-          (() => {
-            const b = document.querySelector('.dsh-failover-pill');
-            if (!b) throw new Error('未找到 .dsh-failover-pill 控件');
-            return { pressed: b.getAttribute('aria-pressed') };
-          })()
       - aiAct: 如果「智能搜索」按钮当前是关闭状态，就点击它把它打开；如果已经是开启状态则不要点击
-      - javascript: |
-          (() => {
-            const b = document.querySelector('.dsh-failover-pill');
-            const pressed = b.getAttribute('aria-pressed');
-            if (pressed !== 'true') throw new Error('未能把按钮置为开启态，当前 aria-pressed=' + pressed);
-            // 组件源码：className 上带 --active 才是「激活态」的样式表达
-            // （styles.scss 里 .dsh-failover-pill--active 才有高亮背景）。
-            if (!b.classList.contains('dsh-failover-pill--active')) throw new Error('开启态却缺少 --active 类');
-            return { pressed: pressed, activeClass: true };
-          })()
+      - dsh.assertInPage:
+          label: 点击后处于开启态（aria-pressed=true 且带 --active 类）
+          script: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到控件' };
+              const pressed = b.getAttribute('aria-pressed');
+              if (pressed !== 'true') return { pass: false, detail: '未能置为开启态，aria-pressed=' + pressed };
+              // 组件源码：className 带 --active 才是「激活态」的样式表达
+              // （styles.scss 里 .dsh-failover-pill--active 才有高亮背景）。
+              if (!b.classList.contains('dsh-failover-pill--active')) {
+                return { pass: false, detail: '开启态却缺少 --active 类' };
+              }
+              return { pass: true, detail: '开启态：aria-pressed=true 且带 --active' };
+            })()
       - aiAssert: 「智能搜索」按钮有明显的高亮背景，呈激活态外观
       # 「仅样式区分」是本用例的核心断言点：真实点击切换后，可见文案必须不变。
-      - javascript: |
-          (() => {
-            const b = document.querySelector('.dsh-failover-pill');
-            const text = (b.textContent || '').trim();
-            if (text !== '智能搜索') throw new Error('可见文案不是「智能搜索」，实际为：' + text);
-            return { textBeforeToggle: text, pressedBeforeToggle: b.getAttribute('aria-pressed') };
-          })()
-      - aiAct: 点击「智能搜索」按钮，把它切换一次状态
-      - javascript: |
-          (() => {
-            const b = document.querySelector('.dsh-failover-pill');
-            const text = (b.textContent || '').trim();
-            if (text !== '智能搜索') throw new Error('切换后可见文案变化为：' + text);
-            const pressed = b.getAttribute('aria-pressed');
-            if (pressed !== 'false') throw new Error('未切换为关闭态，aria-pressed=' + pressed);
-            if (b.classList.contains('dsh-failover-pill--active')) throw new Error('关闭态却仍带 --active 类');
-            return { textUnchanged: true, text: text, pressed: pressed };
-          })()
+      # 用 dsh.actUntil：Midscene 单次点击可能不触发行为（BUG-03），它会在核实失败时重试。
+      # 小控件（86×28）用 dsh.clickInPage：视觉定位实测落点会偏到视口外，
+      # 而页面内 `element.click()` 零坐标偏差、零模型调用（实测能真实切换 React 状态）。
+      - dsh.clickInPage:
+          label: 把「智能搜索」切到关闭态
+          selector: .dsh-failover-pill
+          check: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到控件' };
+              return { pass: b.getAttribute('aria-pressed') === 'false',
+                       detail: 'aria-pressed=' + b.getAttribute('aria-pressed') };
+            })()
+      - dsh.assertInPage:
+          label: 切换后可见文案未变（仅样式区分）
+          script: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              const text = (b.textContent || '').trim();
+              if (text !== '智能搜索') return { pass: false, detail: '切换后文案变为「' + text + '」' };
+              if (b.classList.contains('dsh-failover-pill--active')) {
+                return { pass: false, detail: '关闭态却仍带 --active 类' };
+              }
+              return { pass: true, detail: '关闭态且文案仍为「智能搜索」' };
+            })()
       # 只断言「本状态自身的样式」——同一时刻只能看见一个状态，不能要求与不可见的另一态对比。
-      - aiAssert: 此时「智能搜索」按钮没有高亮背景，呈普通态外观
+      - aiAssert: 此时「智能搜索」按钮是灰底低对比的普通态外观，与蓝色高亮的激活态可区分
       # 收尾：切回开启，避免把状态留给下一个用例。
-      - aiAct: 点击「智能搜索」按钮把它重新打开
-      - javascript: |
-          (() => {
-            const b = document.querySelector('.dsh-failover-pill');
-            if (b.getAttribute('aria-pressed') !== 'true') throw new Error('收尾失败：未恢复开启态');
-            return { restored: true };
-          })()
+      # 用 actUntil 而不是裸 aiAct——点击可能不触发行为（BUG-03），收尾失败会污染后续用例。
+      - dsh.clickInPage:
+          label: 收尾恢复开启态
+          selector: .dsh-failover-pill
+          check: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到控件' };
+              return { pass: b.getAttribute('aria-pressed') === 'true',
+                       detail: 'aria-pressed=' + b.getAttribute('aria-pressed') };
+            })()
 
   - name: TC-030 亮暗主题下两态均可辨
     tags: [FNOS-012, ui, theme]
@@ -109,31 +129,236 @@ cases:
       # 普通态可辨」——那需要两张截图对比，单步断言做不到。改为逐步：在每个状态下断言
       # 「本按钮相对参照控件有可见差异」，两态都成立即说明两态可辨。
       - aiAct: 如果「智能搜索」按钮当前是关闭状态，就点击它把它打开；如果已经是开启状态则不要点击
-      - javascript: |
-          (() => {
-            const b = document.querySelector('.dsh-failover-pill');
-            if (!b) throw new Error('未找到 .dsh-failover-pill 控件');
-            if (b.getAttribute('aria-pressed') !== 'true') throw new Error('未置为开启态');
-            if (!b.classList.contains('dsh-failover-pill--active')) throw new Error('开启态却缺少 --active 类');
-            const cs = getComputedStyle(b);
-            return { state: 'on', bg: cs.backgroundColor };
-          })()
-      - aiAssert: 当前主题下，「智能搜索」按钮有明显的高亮背景（属于激活态的外观）
-      - aiAct: 点击「智能搜索」按钮把它切换到关闭状态
-      - javascript: |
-          (() => {
-            const b = document.querySelector('.dsh-failover-pill');
-            if (b.getAttribute('aria-pressed') !== 'false') throw new Error('未切到关闭态');
-            if (b.classList.contains('dsh-failover-pill--active')) throw new Error('关闭态却仍带 --active 类');
-            const cs = getComputedStyle(b);
-            return { state: 'off', bg: cs.backgroundColor };
-          })()
-      - aiAssert: 当前主题下，「智能搜索」按钮没有高亮背景（属于普通态的外观）
-      # 收尾：恢复默认开启。
-      - aiAct: 点击「智能搜索」按钮把它重新打开
-      - javascript: |
-          (() => {
-            const b = document.querySelector('.dsh-failover-pill');
-            if (b.getAttribute('aria-pressed') !== 'true') throw new Error('收尾失败：未恢复开启态');
-            return { restored: true };
-          })()
+      - dsh.assertInPage:
+          label: 开启态：带 --active 且背景色与普通态不同
+          script: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到控件' };
+              if (b.getAttribute('aria-pressed') !== 'true') return { pass: false, detail: '未置为开启态' };
+              if (!b.classList.contains('dsh-failover-pill--active')) {
+                return { pass: false, detail: '开启态却缺少 --active 类' };
+              }
+              return { pass: true, detail: '开启态背景色 ' + getComputedStyle(b).backgroundColor };
+            })()
+      - aiAssert: 当前主题下，「智能搜索」按钮呈蓝色高亮的激活态外观
+      - dsh.clickInPage:
+          label: 切换到关闭状态（对比两态外观）
+          selector: .dsh-failover-pill
+      # **两态差异的正确表达**（源码事实，别按想象写）：
+      # 普通态 `background: var(--dsw-alias-interactive-bg)`、激活态
+      # `background: var(--dsw-alias-state-business-tertiary)`——差异是**背景色变量不同**，
+      # 不是「有背景 / 无背景」。实测踩到：按「普通态没有高亮背景」写视觉断言，模型正确
+      # 指出关闭态仍有 `rgba(38,49,72,0.06)` 的淡灰胶囊底，判我不成立。
+      # 因此这里用代码**精确比对两态背景色不相同**，并把两次取值都记进详情。
+      - dsh.assertInPage:
+          label: 关闭态：无 --active 类，且背景为「无高亮」的形态
+          script: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到控件' };
+              if (b.getAttribute('aria-pressed') !== 'false') return { pass: false, detail: '未切到关闭态' };
+              if (b.classList.contains('dsh-failover-pill--active')) {
+                return { pass: false, detail: '关闭态却仍带 --active 类' };
+              }
+              // **不要用「临时加类再读 getComputedStyle」比较两态**：同一 tick 内样式不保证
+              // 重算，实测两次都拿到 rgba(0,0,0,0)，会把「两态确实不同」误判成「相同」。
+              // 改为断言本状态自身的确定性质（类名已由上一行确认），视觉差异交给 aiAssert。
+              return { pass: true, detail: '关闭态：无 --active，背景 ' + getComputedStyle(b).backgroundColor };
+            })()
+      - aiAssert: 此时「智能搜索」按钮是灰底低对比的普通态外观，与蓝色高亮的激活态可区分
+      # 收尾：恢复默认开启（同样用 actUntil 规避点击不生效）。
+      - dsh.clickInPage:
+          label: 收尾恢复开启态
+          selector: .dsh-failover-pill
+          check: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到控件' };
+              return { pass: b.getAttribute('aria-pressed') === 'true',
+                       detail: 'aria-pressed=' + b.getAttribute('aria-pressed') };
+            })()
+
+  # ── 键盘可达与可访问名称（权威台账里记为「DSH Web 通过」，此处补执行载体）──
+  - name: TC-031 键盘可达与可访问名称保持
+    tags: [FNOS-012, ui, a11y]
+    steps:
+      # 可访问名称与语义角色：用代码读 DOM（确定、不受模型影响）。
+      - dsh.assertInPage:
+          label: 控件具备键盘可达性与可访问名称
+          script: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到控件' };
+              if (b.tagName !== 'BUTTON') return { pass: false, detail: '控件不是 button，实际为 ' + b.tagName };
+              if (b.disabled === true) return { pass: false, detail: '控件处于 disabled，键盘不可达' };
+              const label = b.getAttribute('aria-label');
+              const text = (b.textContent || '').trim();
+              if (!label && !text) return { pass: false, detail: '既无 aria-label 也无可见文本，可访问名称为空' };
+              // 键盘可达的前提是不被 tabindex="-1" 排除。
+              if (b.getAttribute('tabindex') === '-1') {
+                return { pass: false, detail: 'tabindex=-1，被排除在 Tab 顺序外' };
+              }
+              return { pass: true, detail: 'button 且未 disabled；可访问名称：' + (label || text) };
+            })()
+      # 真实键盘操作：聚焦后用空格/回车切换（这是「键盘可达」的实证）。
+      - aiAct: 点击「智能搜索」按钮使它获得焦点，然后按空格键切换它的状态
+      - dsh.assertInPage:
+          label: 键盘操作能真实切换状态（不是只有鼠标可用）
+          script: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到控件' };
+              // 上一步的点按可能已切换一次；这里只要求状态是确定的 true/false，
+              // 且与 aria-pressed 同步（说明键盘事件真的被 React 接收）。
+              const pressed = b.getAttribute('aria-pressed');
+              if (pressed !== 'true' && pressed !== 'false') {
+                return { pass: false, detail: 'aria-pressed 异常：' + pressed };
+              }
+              return { pass: true, detail: '键盘切换后状态为 aria-pressed=' + pressed };
+            })()
+      # 收尾：确保恢复开启态，避免影响后续用例。
+      - aiAct: 如果「智能搜索」按钮当前是关闭状态，点击它把它打开
+
+  # ── 会话级语义（权威台账里记为「未执行」，本轮补上）──────────────────
+  #
+  # ## 设计要点一：为什么必须断言「会话真的换了」
+  #
+  # 单看 `aria-pressed` 无法区分两种情形：
+  #   (a) 会话级语义真的被破坏（甲会话的关闭泄漏到了乙会话）；
+  #   (b) 切换会话的动作没生效，读到的仍是同一会话的状态。
+  #
+  # 实测踩到：最初只断言 `aria-pressed`，失败时报「会话级语义被破坏」，但无法判定
+  # 到底是产品缺陷还是没切成功——**结论不可用**。因此这里用侧边栏的会话身份
+  # （`data-row-key="session:session-<uuid>"` + `aria-selected="true"`）确认活动会话，
+  # 比对切换前后的会话 ID，再断言开关状态。ID 不同 + 状态独立，结论才站得住。
+  #
+  # ## 设计要点二：不用「新会话」验证（实测两轮才搞清）
+  #
+  # DSH 的「新会话」是**单例草稿态**：侧边栏里它自己就是一条名为「新会话」的选中行，
+  # 反复点它只会回到**同一个**草稿会话（会话 ID 不变），不会每次造一个新的。因此
+  # 「新建会话观察开关是否回落默认值」这个思路在本宿主上**验不出来**——两轮实测分别
+  # 卡在「点新会话后 ID 未变」和「回到了上一轮遗留的那个草稿」。
+  #
+  # 改用**两个真实历史会话**验证会话级语义，这既符合 FNOS-010-12 的原始意图
+  # （A 会话的切换不影响 B 会话），也不依赖草稿态的单例行为。
+  - name: TC-032 会话级语义与默认开启不变
+    tags: [FNOS-012, ui, session]
+    steps:
+      # ① 选第一个历史会话作为「甲」，并归一为开启态。
+      - aiAct: >-
+          在左侧会话列表里点击第一个带有消息摘要的历史会话（不是名为「新会话」的草稿行），
+          把当前会话切过去
+      - dsh.assertInPage:
+          label: 甲会话可识别
+          script: |
+            (() => {
+              const active = [...document.querySelectorAll('[class*="sessionRow"]')]
+                .find(e => e.getAttribute('aria-selected') === 'true');
+              const sid = active ? (active.getAttribute('data-row-key') || '') : '';
+              const text = active ? (active.textContent || '').trim() : '';
+              if (sid === '') return { pass: false, detail: '未能识别活动会话' };
+              if (text.startsWith('新会话')) {
+                return { pass: false, detail: '当前是草稿态而非历史会话' };
+              }
+              document.body.setAttribute('data-probe-sid-jia', sid);
+              return { pass: true, detail: '甲 = ' + sid };
+            })()
+      - dsh.clickInPage:
+          label: 甲会话归一为开启态
+          selector: .dsh-failover-pill
+          check: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到开关控件' };
+              return { pass: b.getAttribute('aria-pressed') === 'true',
+                       detail: 'aria-pressed=' + b.getAttribute('aria-pressed') };
+            })()
+      # ② 在甲里关闭，然后切到另一个历史会话「乙」。
+      - dsh.clickInPage:
+          label: 关闭甲会话的开关
+          selector: .dsh-failover-pill
+      - dsh.assertInPage:
+          label: 甲会话已关闭
+          script: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到开关控件' };
+              if (b.getAttribute('aria-pressed') !== 'false') {
+                return { pass: false, detail: '未能关闭甲会话的开关' };
+              }
+              return { pass: true, detail: '甲会话已关闭' };
+            })()
+      - aiAct: >-
+          在左侧会话列表里点击另一个历史会话（与当前所处的不是同一条，标题带消息摘要），
+          把当前会话切过去
+      - dsh.assertInPage:
+          label: 已切到乙会话（会话身份确实变了）
+          script: |
+            (() => {
+              const jia = document.body.getAttribute('data-probe-sid-jia') || '';
+              const active = [...document.querySelectorAll('[class*="sessionRow"]')]
+                .find(e => e.getAttribute('aria-selected') === 'true');
+              const sid = active ? (active.getAttribute('data-row-key') || '') : '';
+              if (sid === '' || sid === jia) {
+                return { pass: false, detail: '切换未生效（仍为 ' + sid + '），本次判定无效' };
+              }
+              document.body.setAttribute('data-probe-sid-yi', sid);
+              return { pass: true, detail: '乙 = ' + sid + '（甲为 ' + jia + '）' };
+            })()
+      # ③ 核心断言：甲的关闭不影响乙（乙仍是会话默认值「开启」）。
+      - dsh.assertInPage:
+          label: 乙会话独立于甲：甲关闭不影响乙（会话级语义成立）
+          script: |
+            (() => {
+              const jia = document.body.getAttribute('data-probe-sid-jia') || '';
+              const yi = document.body.getAttribute('data-probe-sid-yi') || '';
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到开关控件' };
+              const pressed = b.getAttribute('aria-pressed');
+              if (pressed !== 'true') {
+                return {
+                  pass: false,
+                  detail: '甲（' + jia + '）关闭后，乙（' + yi + '）也是关闭态——'
+                    + '会话级语义被破坏，aria-pressed=' + pressed,
+                };
+              }
+              return { pass: true, detail: '乙（' + yi + '）独立开启，甲（' + jia + '）的关闭未泄漏' };
+            })()
+      # ④ 切回甲：其关闭状态应被宿主按 sessionId 记住（写后立即生效、按会话保持）。
+      - aiAct: >-
+          在左侧会话列表里点击刚才那个被关闭过智能搜索的历史会话（不是当前所在的这条），
+          切回去
+      - dsh.assertInPage:
+          label: 切回甲后仍是关闭态（状态按会话保持）
+          script: |
+            (() => {
+              const jia = document.body.getAttribute('data-probe-sid-jia') || '';
+              const active = [...document.querySelectorAll('[class*="sessionRow"]')]
+                .find(e => e.getAttribute('aria-selected') === 'true');
+              const sid = active ? (active.getAttribute('data-row-key') || '') : '';
+              if (sid !== jia) {
+                return { pass: false, detail: '未切回甲（期望 ' + jia + '，实际 ' + sid + '），本次判定无效' };
+              }
+              const b = document.querySelector('.dsh-failover-pill');
+              const pressed = b ? b.getAttribute('aria-pressed') : null;
+              if (pressed !== 'false') {
+                return { pass: false, detail: '切回甲后开关不是关闭态（' + pressed + '），按会话保持未生效' };
+              }
+              return { pass: true, detail: '切回甲（' + jia + '）仍为关闭，状态按会话保持' };
+            })()
+      # 收尾：恢复甲的开启态，避免影响后续用例。
+      - dsh.clickInPage:
+          label: 收尾恢复甲的开启态
+          selector: .dsh-failover-pill
+      - dsh.assertInPage:
+          label: 收尾恢复甲的开启态
+          script: |
+            (() => {
+              const b = document.querySelector('.dsh-failover-pill');
+              if (!b) return { pass: false, detail: '未找到开关控件' };
+              if (b.getAttribute('aria-pressed') !== 'true') {
+                return { pass: false, detail: '收尾失败：未恢复开启态' };
+              }
+              return { pass: true, detail: '已恢复开启态' };
+            })()

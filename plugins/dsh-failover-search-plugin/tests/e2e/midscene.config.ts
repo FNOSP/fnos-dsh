@@ -7,7 +7,7 @@
 import { defineTestProject } from '@midscene/test/config'
 import { createMidsceneNodes } from '@midscene/test/midscene'
 import { AgentOverChromeBridge } from '@midscene/web/bridge-mode'
-import { defineBridgeSetup, type BridgeContext } from '@tnnevol/dsh-e2e-kit'
+import { actUntilNode, assertInPage, clickInPage, defineBridgeSetup, type BridgeContext } from '@tnnevol/dsh-e2e-kit'
 
 const targetUrl = process.env.DSH_WEB_URL
 if (targetUrl === undefined || targetUrl === '') {
@@ -19,10 +19,18 @@ export default defineTestProject<BridgeContext>({
     {
       name: 'dsh-web',
       setup: defineBridgeSetup({ targetUrl }),
-      nodes: createMidsceneNodes<BridgeContext>({
-        agentClass: AgentOverChromeBridge,
-        getAgent: ({ context }) => context.agent,
-      }),
+      nodes: [
+        ...createMidsceneNodes<BridgeContext>({
+          agentClass: AgentOverChromeBridge,
+          getAgent: ({ context }) => context.agent,
+        }),
+        // 精确断言：`javascript` 步骤的 throw 被 CDP 吞掉（假阳性），用这两个替代。
+        assertInPage,
+        // 点击可能不触发行为（BUG-03），用它做「交互 + 核实 + 未生效重试」。
+        actUntilNode,
+        // 小控件优先用它：视觉定位对 <40px 的控件落点余量小（实测可偏到视口外）。
+        clickInPage,
+      ],
       // 注意：include 相对**执行目录**（插件根）解析，不是相对本配置文件。
       files: { include: ['tests/e2e/cases/**/*.yaml'] },
     },

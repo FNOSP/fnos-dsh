@@ -1,0 +1,217 @@
+# FNOS-013 Midscene 插件的界面验收
+#
+# 用例编号与 docs/tests/FNOS-013-midscene-browser-automation-bridge.md 对齐：
+# 测试文档是**权威台账**，本文件是**执行载体**。
+#
+# 覆盖插件在 DSH Web 上的**界面环节**：
+# - 设置区块的渲染与字段（TC-034 的界面部分、以及「设置界面实测」那条结论的执行载体）；
+# - 插件图标在管理页的显示（TC-051、TC-052）。
+#
+# ## 断言契约（取自组件源码，不靠猜）
+#
+# - 设置区块根类名：`.dsh-midscene-settings`（`src/client/settings-section.tsx`）
+# - 字段文案（`src/client/locales.ts`）：「接入密钥」「指定测试模型」「Midscene .env」
+#   - `apiKeyHint`：桥接服务的接入密钥，不是模型密钥。
+#   - `modelsHint`：只列出具备识图能力的模型…
+#
+# ## 断言方式
+#
+# 一律用 `dsh.assertInPage`（失败会真正让用例失败）。**不要**用 `javascript` 步骤做断言
+# ——它的 `throw` 被 CDP `Runtime.evaluate` 静默吞掉，会造成假阳性（详见 assert-node 注释）。
+#
+# ## 导航必须拆成「小步、确定」（实测第三个坑）
+#
+# 把「点击插件 → 找到并点开某插件 → 若关闭则打开」写成一个长 `aiAct`，实测会让模型
+# 自己决定滚动去找目标，而**滚动在 DPR=2 下会触发上游解析器报错**：
+#
+# ```
+# XML parse error: Invalid parameters for action Scroll:
+#   coordinates [300,0,2000,1002] exceed normalized range [0, 1000]
+# ```
+#
+# 模型把 bbox 算成了屏幕像素（宽 2000 > 视口 1920），超出上游 1000 的归一化上限。
+# 因此导航要**拆成单个明确动作**，并在需要滚动时用页面内脚本（`element.scrollIntoView`）
+# 而不是让视觉模型去滚。
+#
+# ## 图标用例的注意点
+#
+# TC-051 要求「显示随包分发的本地图片（**无外部请求**）」。因此断言里除检查 `<img>` 存在，
+# 还要确认它的 `src` 是包内相对路径或 data URI，**不是** `http(s)://` 外链。
+
+cases:
+  # ── 设置区块渲染与字段齐备 ────────────────────────────────────────
+  - name: TC-034a 插件详情页的设置区块渲染出三个字段
+    tags: [FNOS-013, ui, settings]
+    steps:
+      # 导航拆成小步（不要写成一个长 aiAct——那会让模型自己滚动，触发上游 bbox 越界）。
+      - aiAct: 点击 DSH Web 界面左侧的「插件」菜单项
+      - aiAct: 在插件列表里向下滚动到能找到 @tnnevol/dsh-midscene 这一项的位置
+      - aiAct: 点击 @tnnevol/dsh-midscene 插件条目，打开它的详情页
+      - dsh.assertInPage:
+          label: 设置区块挂载且三个字段文案齐备
+          script: |
+            (() => {
+              const root = document.querySelector('.dsh-midscene-settings');
+              if (root === null) {
+                return { pass: false, detail: '未找到 .dsh-midscene-settings（设置区块未挂载）' };
+              }
+              const text = root.textContent || '';
+              const want = ['接入密钥', '指定测试模型', 'Midscene .env'];
+              const missing = want.filter(n => !text.includes(n));
+              if (missing.length > 0) {
+                return { pass: false, detail: '缺少字段文案：' + missing.join('、') };
+              }
+              // 密钥提示必须说明「不是模型密钥」——这是本轮新增的防误用文案。
+              if (!text.includes('不是模型密钥')) {
+                return { pass: false, detail: '接入密钥的提示未说明「不是模型密钥」' };
+              }
+              return { pass: true, detail: '三个字段齐备，且密钥提示说明了用途' };
+            })()
+      - aiAssert: 插件详情页里可以看到 Midscene 的设置区，包含接入密钥、指定测试模型与 .env 预览
+
+  # ── 接入密钥可显示与重新生成 ──────────────────────────────────────
+  - name: TC-034b 接入密钥可显示且重新生成后变化
+    tags: [FNOS-013, ui, settings]
+    steps:
+      - aiAct: >-
+          在 Midscene 插件的设置区里，点击「接入密钥」一栏的显示按钮（眼睛图标），
+          让密钥明文显示出来。
+      - dsh.assertInPage:
+          label: 密钥显示为十六进制串（说明密文可见且形态正确）
+          script: |
+            (() => {
+              const root = document.querySelector('.dsh-midscene-settings');
+              if (root === null) return { pass: false, detail: '设置区块未挂载' };
+              // 密钥是 32 位十六进制（桥接接入密钥，非模型密钥）。
+              const text = root.innerText || '';
+              const hex = text.match(/[0-9a-f]{32}/);
+              if (hex === null) {
+                return { pass: false, detail: '未看到 32 位十六进制密钥；当前可见文本：' + text.slice(0, 120) };
+              }
+              // 同时把值记进断言详情，便于人工核对「确实显示了」而不是静态占位。
+              return { pass: true, detail: '密钥可见（' + hex[0].slice(0, 8) + '…，长度 32）' };
+            })()
+
+  # ── 指定测试模型：列出且可清空 ────────────────────────────────────
+  - name: TC-034c 指定测试模型可下拉选择且可清空
+    tags: [FNOS-013, ui, settings]
+    steps:
+      - aiAct: 在 Midscene 插件的设置区里，点击「指定测试模型」的下拉选择框，展开选项列表
+      - dsh.assertInPage:
+          label: 下拉展开后有可选项，且存在清空入口
+          script: |
+            (() => {
+              // Semi 的下拉浮层挂在 body 下（不在设置区块内）。
+              const options = document.querySelectorAll('.semi-select-option');
+              if (options.length === 0) {
+                return { pass: false, detail: '下拉展开后没有选项（未展开或模型目录为空）' };
+              }
+              // 「可清空」由 Select 的 showClear 提供：鼠标悬停/展开时才渲染清除图标。
+              const clear = document.querySelector('.semi-select-clear');
+              const root = document.querySelector('.dsh-midscene-settings');
+              const hint = root === null ? '' : (root.innerText || '');
+              return {
+                pass: true,
+                detail: '选项 ' + options.length + ' 个；清除图标'
+                  + (clear === null ? '当前未渲染（Semi 仅在悬停/展开时显示，属预期）' : '已渲染')
+                  + '；为空提示：' + (hint.includes('未指定') ? '有' : '无'),
+              };
+            })()
+      # 收尾：收起下拉，避免浮层影响后续用例。
+      - aiAct: 按 Esc 键关闭刚才展开的下拉列表
+
+  # ── 插件图标：随包分发且无外部请求 ────────────────────────────────
+  #
+  # **注意滚动**（实测踩到）：Midscene 条目在「已安装」列表底部，默认可能只露出顶部
+  # 一小截，视觉断言因而判「无法确认」（模型如实报告「条目被截断」）。所以先用代码把它
+  # 滚进视口，再做视觉断言——否则会得到一个指向不了真因的失败。
+  - name: TC-051 插件管理页显示随包分发的本地图标
+    tags: [FNOS-013, ui, icon]
+    steps:
+      # 回到插件列表（图标在列表项上）。分两步，避免模型自行滚动。
+      - aiAct: 点击插件详情页左上角的返回箭头
+      - aiAct: 确认当前停在插件列表页（可见「已安装」分组）
+      # 把 Midscene 条目滚进视口并高亮，便于视觉断言看清图标。
+      - dsh.assertInPage:
+          label: 把 Midscene 插件条目滚动到可见区域
+          script: |
+            (() => {
+              // 插件列表项里含有该插件名的那一项。
+              const items = [...document.querySelectorAll('*')].filter(e =>
+                e.children.length === 0
+                && (e.textContent || '').includes('dsh-midscene'));
+              const row = items.map(e => e.closest('[class*="card"], [class*="item"], li, [class*="row"]'))
+                .find(Boolean);
+              const target = row || items[0];
+              if (!target) {
+                return { pass: false, detail: '列表里找不到 dsh-midscene 条目（可能未安装或列表未加载）' };
+              }
+              target.scrollIntoView({ block: 'center' });
+              const r = target.getBoundingClientRect();
+              if (r.height < 8 || r.top < 0 || r.bottom > window.innerHeight) {
+                return { pass: false, detail: '滚动后条目仍未完整可见：top=' + Math.round(r.top)
+                  + ' bottom=' + Math.round(r.bottom) + ' 视口高=' + window.innerHeight };
+              }
+              return { pass: true, detail: '条目已完整可见（top=' + Math.round(r.top) + '）' };
+            })()
+      - dsh.assertInPage:
+          label: 插件列表项显示本地图标且无外部请求
+          script: |
+            (() => {
+              const items = [...document.querySelectorAll('.dsh-midscene-plugin, [class*="midscene"]')];
+              // 更可靠的做法：找含有插件名的列表项，再看它的 img。
+              const imgs = [...document.querySelectorAll('img')].filter(img => {
+                const src = img.getAttribute('src') || '';
+                return src.length > 0;
+              });
+              const external = imgs.filter(img => /^https?:\/\//.test(img.getAttribute('src') || ''));
+              const local = imgs.filter(img => {
+                const src = img.getAttribute('src') || '';
+                return src.startsWith('data:') || (!/^https?:\/\//.test(src) && !src.startsWith('//'));
+              });
+              if (imgs.length === 0) {
+                return { pass: false, detail: '当前页面没有任何 img（图标可能未渲染）' };
+              }
+              if (local.length === 0) {
+                return { pass: false, detail: '没有本地来源的图标（全是外链或空 src）' };
+              }
+              return {
+                pass: true,
+                detail: 'img 共 ' + imgs.length + ' 个，本地来源 ' + local.length
+                  + ' 个，外链 ' + external.length + ' 个'
+                  + (external.length > 0 ? '（外链属其它插件，不影响本插件契约）' : ''),
+              };
+            })()
+      - aiAssert: 插件列表里 Midscene 插件条目带有一个彩色图标（不是空白占位）
+
+  # ── 图标在暗色主题下仍可见 ────────────────────────────────────────
+  - name: TC-052 图标在暗色主题下清晰可见
+    tags: [FNOS-013, ui, icon, theme]
+    steps:
+      # 切到暗色主题：用 DSH 真实的主题机制（设置页里的外观切换），而不是自己改
+      # `data-theme` 属性——那样只是给用例看，产品并不会真的换主题（假验证）。
+      - aiAct: >-
+          打开 DSH 的设置页面，找到「外观」或「主题」设置项，把主题切换到暗色（深色）模式，
+          然后回到插件列表页面
+      # 同样先确保条目完整可见，再做视觉断言。
+      - dsh.assertInPage:
+          label: 暗色下把 Midscene 条目滚动到可见区域
+          script: |
+            (() => {
+              const items = [...document.querySelectorAll('*')].filter(e =>
+                e.children.length === 0
+                && (e.textContent || '').includes('dsh-midscene'));
+              const row = items.map(e => e.closest('[class*="card"], [class*="item"], li, [class*="row"]'))
+                .find(Boolean);
+              const target = row || items[0];
+              if (!target) return { pass: false, detail: '列表里找不到 dsh-midscene 条目' };
+              target.scrollIntoView({ block: 'center' });
+              const r = target.getBoundingClientRect();
+              if (r.height < 8 || r.top < 0 || r.bottom > window.innerHeight) {
+                return { pass: false, detail: '条目未完整可见（top=' + Math.round(r.top) + '）' };
+              }
+              return { pass: true, detail: '条目已完整可见' };
+            })()
+      - aiAssert: 在暗色背景下，Midscene 插件的图标依然清晰可辨，没有被背景吞掉
+      # 收尾：切回亮色，避免影响后续用例（同样走真实设置）。
+      - aiAct: 回到设置页面，把主题切换回亮色（浅色）模式

@@ -322,3 +322,115 @@ describe('assertInPage：让页面内精确判定真正能失败', () => {
     } as never)).rejects.toThrow(/不是合法 JSON/)
   })
 })
+
+describe('page-script：页面脚本的回传约定', () => {
+  const envelope = (value: unknown) => ({ result: { value } })
+
+  it('包装后能取回 JSON 判定（对象经 JSON.stringify 回传）', async () => {
+    const { wrapPageScript, readPageVerdict } = await import('../src/page-script.ts')
+    const wrapped = wrapPageScript('(() => ({ pass: true, detail: "ok" }))()')
+    // 包装必须含 JSON.stringify —— CDP 默认不序列化返回值（只回 objectId 句柄）。
+    expect(wrapped).toContain('JSON.stringify')
+    const verdict = readPageVerdict(
+      envelope(JSON.stringify({ ok: true, verdict: { pass: true, detail: 'ok' } })), 't',
+    )
+    expect(verdict).toEqual({ pass: true, detail: 'ok' })
+  })
+
+  it('页面内异常被识别为失败（而不是当成通过）', async () => {
+    const { readPageVerdict } = await import('../src/page-script.ts')
+    expect(() => readPageVerdict(
+      envelope(JSON.stringify({ ok: false, message: 'boom' })), 't',
+    )).toThrow(/boom/)
+  })
+
+  it('CDP 的 exceptionDetails 会被检查（包装层之外的语法错误）', async () => {
+    const { readPageVerdict } = await import('../src/page-script.ts')
+    expect(() => readPageVerdict(
+      { exceptionDetails: { exception: { description: 'SyntaxError: x' } } }, 't',
+    )).toThrow(/SyntaxError/)
+  })
+
+  it('非约定形态报错而非静默放过', async () => {
+    const { readPageVerdict } = await import('../src/page-script.ts')
+    expect(() => readPageVerdict(envelope(JSON.stringify({ ok: true, verdict: 'str' })), 't'))
+      .toThrow(/必须返回/)
+    expect(() => readPageVerdict(envelope('not-json'), 't')).toThrow(/不是合法 JSON/)
+    expect(() => readPageVerdict(envelope(123), 't')).toThrow(/未回传字符串/)
+  })
+})
+
+describe('clickInPage：小控件按选择器点击', () => {
+  const context = (responses: unknown[]) => {
+    let i = 0
+    return {
+      agent: { evaluateJavaScript: async () => responses[Math.min(i++, responses.length - 1)] },
+    } as never
+  }
+  const ok = (verdict: unknown) => ({ result: { value: JSON.stringify({ ok: true, verdict }) } })
+
+  it('选择器未命中时明确报错（不静默通过）', async () => {
+    const { clickInPage } = await import('../src/click-node.ts')
+    await expect(clickInPage.execute({
+      input: { label: '点按钮', selector: '.nope' },
+      context: context([ok({ pass: false, detail: '选择器未命中任何元素：.nope' })]),
+    } as never)).rejects.toThrow(/无法点击.*未命中/)
+  })
+
+  it('点击后核实生效则成功', async () => {
+    const { clickInPage } = await import('../src/click-node.ts')
+    const result = await clickInPage.execute({
+      input: { label: '点按钮', selector: '.pill', check: 'ignored', settleMs: 0 },
+      context: context([ok({ pass: true }), ok({ pass: true, detail: 'aria-pressed=false' })]),
+    } as never)
+    expect((result as { data: { attempts: number } }).data.attempts).toBe(1)
+  })
+
+  it('点击未生效会重试，全部失败后报错并指出真因（不是含糊的断言失败）', async () => {
+    const { clickInPage } = await import('../src/click-node.ts')
+    await expect(clickInPage.execute({
+      input: { label: '点按钮', selector: '.pill', check: 'ignored', retries: 1, settleMs: 0 },
+      context: context([
+        ok({ pass: true }), ok({ pass: false, detail: 'aria-pressed=true' }),
+        ok({ pass: true }), ok({ pass: false, detail: 'aria-pressed=true' }),
+      ]),
+    } as never)).rejects.toThrow(/核实仍未通过/)
+  })
+})
+
+describe('actUntil：交互 + 核实 + 重试（BUG-03 规避）', () => {
+  it('交互未生效时重试，最终生效即成功', async () => {
+    const { actUntil: actNode } = await import('../src/act-node.ts')
+    let calls = 0
+    const ctx = {
+      agent: {
+        aiAct: async () => { calls += 1; return '已点击' },
+        evaluateJavaScript: async () => ({
+          // 第一次核实失败，第二次成功
+          result: { value: JSON.stringify({ ok: true, verdict: { pass: calls > 1, detail: `pressed=${calls > 1}` } }) },
+        }),
+      },
+    } as never
+    const result = await actNode.execute({
+      input: { label: '切换', act: '点一下', check: 'ignored', retries: 1, settleMs: 0 },
+      context: ctx,
+    } as never)
+    expect((result as { data: { attempts: number } }).data.attempts).toBe(2)
+  })
+
+  it('重试用尽后报错，并说明是点击可靠性问题（不冒充功能缺陷）', async () => {
+    const { actUntil: actNode } = await import('../src/act-node.ts')
+    const ctx = {
+      agent: {
+        aiAct: async () => '已成功点击按钮',
+        evaluateJavaScript: async () => ({
+          result: { value: JSON.stringify({ ok: true, verdict: { pass: false, detail: 'aria-pressed=true' } }) },
+        }),
+      },
+    } as never
+    await expect(actNode.execute({
+      input: { label: '切换', act: '点一下', check: 'ignored', retries: 1, settleMs: 0 },
+      context: ctx,
+    } as never)).rejects.toThrow(/点击可靠性问题.*BUG-03/s)
+  })
+})

@@ -65,3 +65,6 @@ export {
   type BridgeSetupOptions,
 } from './project.ts'
 export { assertInPage } from './assert-node.ts'
+export { actUntil as actUntilNode } from './act-node.ts'
+export { clickInPage } from './click-node.ts'
+export { readPageVerdict, wrapPageScript, type PageVerdict } from './page-script.ts'

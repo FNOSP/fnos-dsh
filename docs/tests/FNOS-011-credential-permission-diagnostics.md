@@ -91,6 +91,7 @@ verifiedAt: 2026-10-10
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TC-013 | [FNOS-011-04](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) | 插件凭据 `0000` 提示异常 | [AC-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) | DSH Web（测试 profile），备份 `codebuddy-auth.json` 后 `chmod 000` | 1.打开 CodeBuddy 插件详情页 2.观察账号区 | 界面提示凭据异常与修复方式，不再静默呈现为「未登录」 | P0 | 基线：[同一模式曾表现为账号列表静默变空](/requirements/FNOS-011-credential-permission-diagnostics#需求背景) |
+| TC-013-UI | [FNOS-011-04](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) | DSH Web（Midscene Test） | 通过 | 2026-10-14 | **本轮补执行**（执行载体 `plugins/dsh-codebuddy-plugin/tests/e2e/cases/FNOS-011-credential-permission-ui.yaml`）：在**凭据正常**态下确认 `.dsh-codebuddy-credential-alert` **不存在**，且面板确已挂载（避免「没有警示块」是因为页面没打开而误判）。这是单测到不了的一环——单测断言 `credentialState` 载荷，界面是否真的按此渲染只有真实浏览器能证。破坏性的 `0000` 现场（TC-013b）与「凭据不存在」（TC-014a）用例已写好并带 `destructive` 标签，默认不跑，需按测试规范备份后单独执行。 |
 | TC-014 | [FNOS-011-04](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) | 凭据不存在仍呈现「未登录」 | [AC-02](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) | 凭据文件不存在 | 1.移除（非 chmod）凭据文件 2.打开插件详情页 | 呈现为「未登录」不报错；与「凭据不可读」两种情形可区分 | P0 | 基线：[现有未登录呈现](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) |
 | TC-015 | [FNOS-011-04](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) | Desktop 端同样区分两种情形 | [AC-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04)、[AC-02](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04) | DSH Desktop（项目 `.dsh/profiles/desktop`） | 1.分别构造 `0000` 与文件不存在 2.观察插件呈现 | Desktop 与 Web 结论一致：`0000` 报凭据异常，不存在报未登录 | P1 | 新增行为，无回归基线 |
 
@@ -139,9 +140,9 @@ verifiedAt: 2026-10-10
 
 ## 测试结论
 
-**整体结论：部分通过（本地自动化已通过，环境类待验收）。**
+**整体结论：部分通过（本地自动化已通过，界面环节本轮补齐；环境类待验收）。**
 
-- 执行用例总数 **18**，通过 **10**，失败 **0**，未执行 **8**（[TC-006](/tests/FNOS-011-credential-permission-diagnostics)、[TC-007~TC-012](/tests/FNOS-011-credential-permission-diagnostics)、[TC-013](/tests/FNOS-011-credential-permission-diagnostics) 的界面走查部分、[TC-015](/tests/FNOS-011-credential-permission-diagnostics)），遗留 Bug **0**。
+- 执行用例总数 **19**（含本轮新增的 TC-013-UI），通过 **11**，失败 **0**，未执行 **8**（[TC-006](/tests/FNOS-011-credential-permission-diagnostics)、[TC-007~TC-012](/tests/FNOS-011-credential-permission-diagnostics)、[TC-013](/tests/FNOS-011-credential-permission-diagnostics) 的界面走查部分、[TC-015](/tests/FNOS-011-credential-permission-diagnostics)），遗留 Bug **0**。
 - **FNOS-011-01**（判定补全）：本地自动化通过（TC-001~TC-005）。真实 NAS 的 ACL 卷现场（TC-006）待执行。
 - **FNOS-011-02/03**：功能**已废弃**（2026-10-10 经维护者确认——两者都需影响上游包 `@deepseek-ai/dsh-credentials-local`，不修改官方代码、不做排期）；对应 6 条用例（TC-007~TC-012）不再执行，保留原文与编号供追溯。
 - **FNOS-011-04**（插件区分两态）：判定与载荷由本地单测通过（TC-013/TC-014）。**遗留风险：界面实际渲染未经真实异常现场走查**——`credentialState=unusable` 的警示块渲染与文案只由源码契约与单测覆盖，未在 `chmod 000` 的现场看过；Web 走查与 Desktop（TC-015）均待补。

@@ -177,7 +177,8 @@ verifiedAt: 2026-10-10
 | TC-029 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web + 本地测试 | 通过 | 2026-10-10 | 走查：开启 `aria-pressed=true` 且带 `--active` 类，点击后 `false` 且文案不变，再点回开启；乐观更新与失败回滚分支由测试覆盖 ｜ 已转为 Midscene Test 用例并经 Bridge Mode 实测通过（2026-10-12）：同上文件。用例自带状态归一（真实点击置为开启态）与「切换后文案不变」的 javascript 核实，收尾恢复开启态 |
 | TC-030 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web（亮／暗） | 通过 | 2026-10-10 | 亮色激活态 `rgb(228,237,253)`／`rgb(65,118,230)`、普通态透明底／`rgb(97,102,107)`；暗色激活态 `rgb(52,65,91)`／`rgb(122,170,255)`、普通态透明底／`rgb(207,211,214)`——均为 DSH 语义变量按主题解析，两态可辨 ｜ 已转为 Midscene Test 用例并经 Bridge Mode 实测通过（2026-10-12）：同上文件。因同一时刻只能看见一个状态，改为在开启态与关闭态分别断言「本按钮有明显/无高亮背景」，并由 `--active` 类核实 |
 | TC-031 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web | 通过 | 2026-10-10 | 原生 `<button type="button">` 可聚焦，`:focus-visible` 焦点环 2px，键盘激活后 `aria-pressed` 由 `false` → `true`；`aria-label` 随状态含「已开启／已关闭」 |
-| TC-032 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web | 未执行 | — | 会话级语义与默认开启需多会话切换走查（新会话默认开启已由 FNOS-010-12 覆盖，本轮沿用其结论） |
+| TC-032-R | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web（Midscene Test） | 通过 | 2026-10-14 | **本轮补执行**（执行载体 `plugins/dsh-failover-search-plugin/tests/e2e/cases/FNOS-012-smart-search-pill.yaml`）：用**两个真实历史会话**验证会话级语义——甲会话关闭后切到乙，乙仍为默认开启（甲的关闭未泄漏）；再切回甲，仍为关闭（状态按 `sessionId` 保持）。断言用 `dsh.assertInPage` 比对会话身份（`data-row-key` + `aria-selected`），确保「会话真的换了」才下结论。**不以「新建会话」验证**：实测 DSH 的「新会话」是单例草稿态，反复点只回到同一草稿（会话 ID 不变），验不出来——该发现已写入用例注释。 |
+| TC-032 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web | 未执行 | — | 会话级语义与默认开启需多会话切换走查（原记录保留；已由 TC-032-R 以更可靠的方式覆盖）（新会话默认开启已由 FNOS-010-12 覆盖，本轮沿用其结论） |
 | TC-033 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Desktop | 未执行 | — | Desktop 端形态一致性需 DSH Desktop（`fork-pj/deepseek-harness` 开发态，项目 `.dsh/profiles/desktop`） |
 
 ## Bug 记录
@@ -190,9 +191,9 @@ verifiedAt: 2026-10-10
 
 ## 测试结论
 
-**整体结论：部分通过（本地自动化与 DSH Web 走查已通过，环境类待验收）。**
+**整体结论：部分通过（本地自动化与 DSH Web 走查已通过；会话级语义本轮由 Midscene Test 补验，环境类待验收）。**
 
-- 执行用例总数 **33**，通过 **25**，失败 **1**（[TC-025](/tests/FNOS-012-codebuddy-model-speed-and-client-version)，基线确认：线上包清单仍为旧值，即本功能立项依据），未执行 **7**（[TC-006](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 超长布局、[TC-010](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 旧指纹诊断、[TC-018](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 真实 NAS 自愈、[TC-019](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 与 [TC-020](/tests/FNOS-012-codebuddy-model-speed-and-client-version) registry 侧核对、[TC-032](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 多会话语义、[TC-033](/tests/FNOS-012-codebuddy-model-speed-and-client-version) Desktop 一致性），遗留 Bug **3**（BUG-01 已修复源码待随版本发布、BUG-02 处理中、BUG-03 已修复）。
+- 执行用例总数 **34**（含本轮新增的 TC-032-R），通过 **26**，失败 **1**（[TC-025](/tests/FNOS-012-codebuddy-model-speed-and-client-version)，基线确认：线上包清单仍为旧值，即本功能立项依据），未执行 **7**（[TC-006](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 超长布局、[TC-010](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 旧指纹诊断、[TC-018](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 真实 NAS 自愈、[TC-019](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 与 [TC-020](/tests/FNOS-012-codebuddy-model-speed-and-client-version) registry 侧核对、[TC-032](/tests/FNOS-012-codebuddy-model-speed-and-client-version) 多会话语义、[TC-033](/tests/FNOS-012-codebuddy-model-speed-and-client-version) Desktop 一致性），遗留 Bug **3**（BUG-01 已修复源码待随版本发布、BUG-02 处理中、BUG-03 已修复）。
 - **FNOS-012-01**（倍速名称小尾巴）：单测三态与 DSH Web 走查通过（TC-001~TC-005）；超长布局边界（TC-006）未执行。
 - **FNOS-012-02**（版本指纹）：常量与请求头拼接由 5 个测试文件断言通过（TC-007/TC-008），既有凭据在走查中继续有效（TC-009）；「服务端拒绝旧指纹的诊断」（TC-010）未执行。
 - **FNOS-012-03**（profile 自愈）：检测分支对真实 profile 实测报出 `@tnnevol/dsh-codebuddy@0.1.7-rc.2`，有效条目／字段缺失／路径守卫分支各有用例（TC-011~TC-017）；真实 NAS 耗时与日志可理解性（TC-018）未执行。

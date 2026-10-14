@@ -31,7 +31,7 @@
 import { defineTestProject } from '@midscene/test/config'
 import { createMidsceneNodes } from '@midscene/test/midscene'
 import { AgentOverChromeBridge } from '@midscene/web/bridge-mode'
-import { assertInPage, defineBridgeSetup, type BridgeContext } from '@tnnevol/dsh-e2e-kit'
+import { actUntilNode, assertInPage, clickInPage, defineBridgeSetup, type BridgeContext } from '@tnnevol/dsh-e2e-kit'
 
 /** 被测 NAS 的 fnOS Web 地址。默认值便于本地复跑，仍建议显式传入。 */
 const targetUrl = process.env.DSH_NAS_URL ?? 'http://192.168.0.110:5666/'
@@ -54,6 +54,10 @@ export default defineTestProject<BridgeContext>({
         }),
         // 精确断言：`javascript` 步骤的 throw 会被 CDP 吞掉（假阳性），这个 Node 不会。
         assertInPage,
+        // 点击可能不触发行为（BUG-03），用它做「交互 + 核实 + 未生效重试」。
+        actUntilNode,
+        // 小控件优先用它：视觉定位对 <40px 的控件落点余量小（实测可偏到视口外）。
+        clickInPage,
       ],
       // 相对执行目录（本包根）解析。
       files: { include: ['e2e/cases/**/*.yaml'] },
