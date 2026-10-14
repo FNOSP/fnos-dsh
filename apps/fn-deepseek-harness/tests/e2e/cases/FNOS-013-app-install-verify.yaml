@@ -175,7 +175,7 @@ cases:
   # 本套唯一「有写操作」的用例：会**覆盖安装** NAS 上现有应用，因此默认不执行
   # （配置里按标签排除）。单独跑：
   #
-  #   pnpm exec midscene-test --config e2e/midscene.config.ts --tags destructive
+  #   # 临时注释掉配置里的 tags.exclude 后：pnpm exec midscene-test --config e2e/midscene.config.ts
   #
   # 前置：`DSH_FPK_DIR` 指向**只放待安装 FPK** 的最小目录（不要给仓库根）。
   - name: TC-104 手动安装：从电脑上传 FPK 并完成覆盖安装
@@ -199,4 +199,31 @@ cases:
           options:
             fileChooserAccept: ['${fpkDir}/fn-deepseek-harness.fpk']
             deepThink: true
+      # **可靠断言**：装完不能只靠界面观感——必须核实「装上去的是新构建」。
+      # 判据是客户端模块图不再含 `dsh-midscene`（该插件已移出 FPK 内置清单）。
+      # 用 `dsh.assertInPage` 而不是 `javascript`（后者的 throw 被 CDP 吞掉，会造成假阳性）。
+      - dsh.assertInPage:
+          label: 覆盖安装后模块图不再含 dsh-midscene（确认装上的是新构建）
+          script: |
+            (async () => {
+              const res = await fetch('/app/fn-deepseek-harness');
+              if (!res.ok) return { pass: false, detail: '获取应用外壳失败：HTTP ' + res.status };
+              const html = await res.text();
+              const m = html.match(/plugins\/\?\?((?:[^"'&]*@tnnevol[^"'&]*)+)/);
+              if (!m) return { pass: false, detail: '外壳未包含 @tnnevol bundle 引用（安装可能未生效）' };
+              const found = [...m[1].matchAll(/(@tnnevol\/[^,\/]+)\/client\.js/g)].map(x => x[1]);
+              if (found.includes('@tnnevol/dsh-midscene')) {
+                return {
+                  pass: false,
+                  detail: '安装后仍内置 dsh-midscene——装上的还是旧构建，或安装未真正替换',
+                };
+              }
+              const want = ['@tnnevol/dsh-fnos', '@tnnevol/dsh-codebuddy',
+                            '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-failover-search'];
+              const missing = want.filter(n => !found.includes(n));
+              if (missing.length > 0) {
+                return { pass: false, detail: '新构建缺少内置插件：' + missing.join('、') };
+              }
+              return { pass: true, detail: '新构建已生效：四个内置插件齐备且不含 dsh-midscene' };
+            })()
       - aiAssert: 应用中心列表里 DeepSeek Harness 这一项显示为已安装且可打开
