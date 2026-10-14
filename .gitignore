@@ -75,3 +75,6 @@ data/
 
 # 插件截图工作底稿（成图已归档至插件 assets/ 与 docs/public/）
 .screenshots-tmp/
+
+# Midscene Test 生成的节点说明书（由 `midscene-test nodes` 产出，随配置变化）
+midscene-node-spec.*.md

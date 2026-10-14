@@ -68,3 +68,15 @@ export { assertInPage } from './assert-node.ts'
 export { actUntil as actUntilNode } from './act-node.ts'
 export { clickInPage } from './click-node.ts'
 export { readPageVerdict, wrapPageScript, type PageVerdict } from './page-script.ts'
+export {
+  connectDesktopCdp,
+  probeDesktopCdp,
+  type DesktopCdpSession,
+  type DesktopVerdict,
+} from './desktop-cdp.ts'
+export {
+  defineDesktopCdpSetup,
+  type DesktopCdpContext,
+  type DesktopCdpSetupOptions,
+} from './desktop-context.ts'
+export { desktopAssert, desktopClick, desktopClickText } from './desktop-nodes.ts'

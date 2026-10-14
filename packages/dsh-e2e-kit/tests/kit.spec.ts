@@ -583,3 +583,98 @@ describe('用例不得破坏用户的工作状态（会话与站点数据）', (
     expect(offenders, `用例中出现了会写进用户会话历史的操作：\n${offenders.join('\n')}`).toEqual([])
   })
 })
+
+describe('Desktop CDP：静默通道的守卫', () => {
+  // Desktop 是用户**正在使用**的窗口。视觉通道（Computer Mode）在 macOS 上只能操作硬件级
+  // 指针，必然抢前台；实测一次视觉用例就把用户的办公界面切走、鼠标被接管。
+  // 因此 Desktop 用例走渲染进程 CDP：不移动鼠标、不切前台。
+  const desktopRoots = [
+    // 末尾斜杠不能省：新 URL(相对路径, base) 要求 base 以 `/` 结尾，否则会把最后一段当文件名。
+    new URL('../../../packages/dsh-e2e-desktop/', import.meta.url),
+  ]
+
+  it('Desktop 用例不经视觉通道（不依赖 @midscene/computer 的键鼠）', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const config = new URL('e2e/midscene.config.ts', desktopRoots[0])
+    const text = await readFile(config, 'utf8')
+    // 只看**代码行**：配置头部有一段注释说明「为什么不用 computer」，那是必要的取舍记录，
+    // 不能因为提到了包名就把守卫判失败——否则以后连解释原因都不敢写了。
+    const code = text.split('\n').filter(line => !line.trimStart().startsWith('*')).join('\n')
+    expect(code, 'Desktop 配置不得 import 驱动真实键鼠的 computer 通道')
+      .not.toMatch(/^\s*import .*@midscene\/computer/mu)
+    expect(code, 'Desktop 配置不得注册需要真实 agent 的通用视觉 Node')
+      .not.toMatch(/createMidsceneNodes/)
+  })
+
+  it('Desktop 用例不调用通用视觉 Node（aiAct / aiAssert / aiTap 等）', async () => {
+    const { readdir, readFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const forbidden = /-\s+(?:aiAct|aiAssert|aiTap|aiInput|aiScroll|aiHover|aiQuery)\s*:/
+    const offenders: string[] = []
+    const walk = async (dir: string): Promise<void> => {
+      let entries: Array<{ name: string, isDirectory: () => boolean }>
+      try { entries = await readdir(dir, { withFileTypes: true }) as never } catch { return }
+      for (const entry of entries) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          if (['node_modules', 'midscene_run', '.midscene'].includes(entry.name)) continue
+          await walk(full)
+          continue
+        }
+        if (!/\.ya?ml$/.test(entry.name)) continue
+        if (forbidden.test(await readFile(full, 'utf8'))) offenders.push(entry.name)
+      }
+    }
+    for (const root of desktopRoots) await walk(root.pathname)
+    expect(offenders, `Desktop 用例用了会动真实键鼠的视觉 Node：\n${offenders.join('\n')}`).toEqual([])
+  })
+
+  it('Desktop 用例同样禁止清除站点数据与发送消息', async () => {
+    // 与 Web/NAS 侧同一条纪律：被测窗口是用户真实环境。
+    const { readdir, readFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const forbidden = [
+      { pattern: /localStorage\.clear\s*\(/, why: 'localStorage.clear()' },
+      { pattern: /document\.cookie\s*=/, why: '改写 document.cookie' },
+      { pattern: /-\s+aiInput\s*:/, why: 'aiInput（向输入框写入文本）' },
+      { pattern: /发送消息|提交消息/, why: '发送消息' },
+    ]
+    const offenders: string[] = []
+    const walk = async (dir: string): Promise<void> => {
+      let entries: Array<{ name: string, isDirectory: () => boolean }>
+      try { entries = await readdir(dir, { withFileTypes: true }) as never } catch { return }
+      for (const entry of entries) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          if (['node_modules', 'midscene_run', '.midscene'].includes(entry.name)) continue
+          await walk(full)
+          continue
+        }
+        if (!/\.ya?ml$/.test(entry.name)) continue
+        const text = await readFile(full, 'utf8')
+        for (const { pattern, why } of forbidden) {
+          if (pattern.test(text)) offenders.push(`${entry.name} → ${why}`)
+        }
+      }
+    }
+    for (const root of desktopRoots) await walk(root.pathname)
+    expect(offenders, `Desktop 用例破坏了用户的工作状态：\n${offenders.join('\n')}`).toEqual([])
+  })
+
+  it('Desktop 用例有归一与收尾（单窗口，改一处全局可见）', async () => {
+    const { readdir, readFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const casesRoot = new URL('e2e/cases/', desktopRoots[0])
+    let entries: string[] = []
+    try { entries = await readdir(casesRoot.pathname) } catch { return }
+    for (const name of entries) {
+      if (!name.endsWith('.yaml')) continue
+      const text = await readFile(join(casesRoot.pathname, name), 'utf8')
+      // 会话列表页与插件详情页共用一个窗口，切换会话会改变用户当前所在会话。
+      if (/data-row-key/.test(text)) {
+        expect(text, `${name} 切换了会话但未记录原会话`).toMatch(/__dshOriginalSession/)
+        expect(text, `${name} 切换了会话但未在收尾切回`).toMatch(/切回原会话/)
+      }
+    }
+  })
+})

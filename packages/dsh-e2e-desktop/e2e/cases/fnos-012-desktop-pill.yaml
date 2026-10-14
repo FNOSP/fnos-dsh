@@ -1,0 +1,248 @@
+# FNOS-012 Desktop 端药丸按钮一致性（DSH Desktop）
+#
+# 用例编号与 docs/tests/FNOS-012-codebuddy-model-speed-and-client-version.md 对齐：
+# 测试文档是**权威台账**，本文件是**执行载体**。
+#
+# ## 覆盖什么
+#
+# 测试规范要求「非 fnOS 插件的功能至少同时覆盖 DSH Web 与 DSH Desktop」。Web 侧的
+# TC-028~TC-032 已由 `plugins/dsh-failover-search-plugin/tests/e2e/` 覆盖；本文件补
+# **TC-033**：同一个控件在 Desktop 里的 DOM 契约是否与 Web 一致。
+#
+# Desktop 渲染的是 `dsh-app://` 自定义协议，是**与 Web 不同的宿主**。同一份插件
+# client 代码在两边可能因主题变量解析或样式注入差异而表现不同，这正是规范里
+# 「Desktop 与 Web 的宿主差异点优先覆盖」要防的情况。
+#
+# ## 断言契约（取自组件源码，不靠猜）
+#
+# `plugins/dsh-failover-search-plugin/src/client/smart-search-toggle.tsx`：
+#
+# ```
+# className={enabled ? 'dsh-failover-pill dsh-failover-pill--active' : 'dsh-failover-pill'}
+# aria-pressed={enabled}
+# ```
+#
+# 样式里两态是**背景色变量不同**（激活态用 state-business-tertiary，普通态用
+# interactive-bg），**不是**「有／无背景」——普通态在暗色主题下同样是淡灰底
+# （实测 rgba(38, 49, 72, 0.06)）。曾按「只有激活态有底色」写断言，被视觉模型正确反驳，
+# 因此这里断言的是**两态背景色不同**。
+#
+# ## 每条用例先归一状态（上一轮的失败教训）
+#
+# 上一轮本文件假设「起始状态是会话页」，结果界面实际停在插件详情页，药丸按钮根本没挂载，
+# 用例判失败——**失败原因被误读成产品缺陷**。
+#
+# 归一方式：点侧边栏里**任意一个历史会话**（稳定锚点 `data-row-key="session:…"`，
+# 侧边栏类名带构建哈希实测为 `_58WOtG_*`，不能作选择器）。这会把界面切回会话页，
+# 药丸按钮随之挂载。
+#
+# 副作用与收尾：点历史会话会改变用户「当前所在会话」，因此本文件记录原会话并在收尾切回
+# （沿用 Web 侧 TC-032 的不留痕纪律）。**不创建新会话**，也不发消息。
+#
+# ## 读样式必须等过渡结束（实测踩到）
+#
+# `styles.scss` 有 `transition: background-color 100ms ease`。点击后立刻读
+# `getComputedStyle` 会读到**过渡中间值**——实测两态都被读成 `rgb(228, 237, 253)`，
+# 于是「两态背景色不同」被误判为「背景没变」，用例失败但原因是**读得太快**，不是产品缺陷。
+# 因此点击后的 `verify` 一律先 `await` 300ms 再读样式。
+#
+# ## 两态的真实差异（取自 styles.scss，不是猜的）
+#
+# | | 普通态 | 激活态（`--active`） |
+# | --- | --- | --- |
+# | 背景 | `interactive-bg`，实测解析为 `rgba(0,0,0,0)`（**透明**） | `state-business-tertiary` = `#e4edfd` |
+# | 文字 | `label-secondary` = `rgb(97,102,107)` | `state-business-primary` |
+#
+# 所以「普通态也带淡灰底」是**某些主题下的表现**，不是契约；契约是**两个变量不同**。
+#
+# ## 视觉观感不在本文件覆盖范围
+#
+# CDP 通道没有视觉判定（「两态肉眼是否可辨」）。该结论按人工走查登记在测试台账，
+# 本文件只断言 DOM 级事实。
+
+cases:
+  # ── 公共归一步骤 ─────────────────────────────────────────────────
+  - name: TC-033 前置 归一到会话页
+    tags: [FNOS-012, desktop, readonly, setup]
+    steps:
+      # 记录用户原本所在的会话，供收尾切回。
+      - dsh.desktopAssert:
+          label: 记录原会话（收尾切回用）
+          script: |
+            (() => {
+              const rows = [...document.querySelectorAll('[data-row-key^="session:"]')];
+              if (rows.length === 0) {
+                return { pass: false, detail: '侧边栏没有会话行，无法记录原会话' };
+              }
+              const current = rows.find(r => r.getAttribute('aria-selected') === 'true');
+              globalThis.__dshOriginalSession = current === undefined
+                ? null
+                : current.getAttribute('data-row-key');
+              return {
+                pass: true,
+                detail: current === undefined
+                  ? '当前不在任何历史上（原会话记为无，收尾不切回）'
+                  : '原会话 ' + globalThis.__dshOriginalSession,
+              };
+            })()
+
+      # 归一：点第一个历史会话，把界面切回会话页。
+      - dsh.desktopClick:
+          selector: '[data-row-key^="session:"]'
+          retries: 2
+          verify: |
+            (() => {
+              const composer = document.querySelector('textarea')
+                ?? document.querySelector('[contenteditable="true"]');
+              if (composer === null) {
+                const head = (document.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 80);
+                return { pass: false, detail: '点击后仍无消息输入框，当前：' + head };
+              }
+              return { pass: true, detail: '已回到会话页，输入框已挂载' };
+            })()
+
+  # ── TC-033-a：形态与文案一致 ────────────────────────────────────
+  - name: TC-033a Desktop 端药丸按钮的 DOM 契约与 Web 一致
+    tags: [FNOS-012, desktop, readonly]
+    steps:
+      - dsh.desktopAssert:
+          label: 药丸按钮形态与文案符合契约（无 Switch、无状态文案）
+          script: |
+            (() => {
+              const pill = document.querySelector('.dsh-failover-pill');
+              if (pill === null) return { pass: false, detail: '未找到 .dsh-failover-pill' };
+
+              // 可见文案固定为「智能搜索」，状态不进文案（FNOS-012-06）。
+              const text = (pill.textContent || '').trim();
+              if (text !== '智能搜索') {
+                return { pass: false, detail: '可见文案应为「智能搜索」，实际：' + text.slice(0, 40) };
+              }
+
+              // 状态不进文案：不得出现「已关」「已开」这类状态后缀。
+              if (/已开|已关|开启中|关闭中/.test(text)) {
+                return { pass: false, detail: '文案含状态描述，两态应仅靠样式区分：' + text };
+              }
+
+              // 可访问状态必须可读（沿用 FNOS-010-12 的键盘可达约束）。
+              if (!pill.hasAttribute('aria-pressed')) {
+                return { pass: false, detail: '缺少 aria-pressed，键盘与读屏无法获知状态' };
+              }
+
+              // 「药丸」是设计语言，不是「圆角 = 高度一半」的胶囊：源码用的是
+              // --dsw-radius-sm（实测 8px）配 28px 高 + 8px 内边距的紧凑 chip 形态。
+              // 因此这里断言的是**圆角明显大于 0 且与内边距同量级**，而不是胶囊数学。
+              const style = getComputedStyle(pill);
+              const radius = Number.parseFloat(style.borderTopLeftRadius || '0');
+              const padding = Number.parseFloat(style.paddingLeft || '0');
+              const height = pill.getBoundingClientRect().height;
+              if (!(radius > 0)) {
+                return { pass: false, detail: '圆角为 0，不成药丸/芯片形态' };
+              }
+              if (!(radius >= padding)) {
+                return {
+                  pass: false,
+                  detail: '圆角 ' + radius + 'px 小于左右内边距 ' + padding + 'px，端部不成圆头',
+                };
+              }
+
+              return {
+                pass: true,
+                detail: '文案「' + text + '」，圆角 ' + radius + 'px／内边距 ' + padding
+                  + 'px／高 ' + height + 'px，aria-pressed=' + pill.getAttribute('aria-pressed'),
+              };
+            })()
+
+  # ── TC-033-b：两态由 aria-pressed 与类名区分，且背景色确实不同 ──────
+  - name: TC-033b Desktop 端药丸按钮两态由样式区分且可切换
+    tags: [FNOS-012, desktop, readonly]
+    steps:
+      # 记录起始态与背景色，供点击后比对。
+      - dsh.desktopAssert:
+          label: 读取药丸按钮的起始态与背景色
+          script: |
+            (() => {
+              const pill = document.querySelector('.dsh-failover-pill');
+              if (pill === null) return { pass: false, detail: '未找到药丸按钮' };
+              const bg = getComputedStyle(pill).backgroundColor;
+              globalThis.__pillState = {
+                pressed: pill.getAttribute('aria-pressed'),
+                active: pill.classList.contains('dsh-failover-pill--active'),
+                bg,
+                color: getComputedStyle(pill).color,
+              };
+              return { pass: true, detail: '起始态 ' + globalThis.__pillState.pressed + '，背景 ' + bg };
+            })()
+
+      # 点一次，应切到相反态：aria-pressed 翻转、--active 类名跟随、背景色改变。
+      - dsh.desktopClick:
+          selector: .dsh-failover-pill
+          retries: 2
+          verify: |
+            (async () => {
+              const pill = document.querySelector('.dsh-failover-pill');
+              const before = globalThis.__pillState;
+              if (pill === null || before === undefined) return { pass: false, detail: '缺少比对基准' };
+              // 源码有 transition: background-color 100ms；不等就会读到**过渡中间值**
+              // （实测两态都被读成 rgb(228,237,253)，误判成「背景没变」）。
+              await new Promise(r => setTimeout(r, 300));
+              const style = getComputedStyle(pill);
+              const after = {
+                pressed: pill.getAttribute('aria-pressed'),
+                active: pill.classList.contains('dsh-failover-pill--active'),
+                bg: style.backgroundColor,
+                color: style.color,
+              };
+              return {
+                pass: after.pressed !== before.pressed && after.active !== before.active && after.bg !== before.bg,
+                detail: 'aria-pressed ' + before.pressed + '->' + after.pressed
+                  + '，--active ' + before.active + '->' + after.active
+                  + '，背景 ' + before.bg + '->' + after.bg
+                  + '，文字 ' + before.color + '->' + after.color,
+              };
+            })()
+
+      # 复原：点回原状态并清掉比对基准，不给用户留改动。
+      - dsh.desktopClick:
+          selector: .dsh-failover-pill
+          retries: 2
+          verify: |
+            (() => {
+              const pill = document.querySelector('.dsh-failover-pill');
+              const before = globalThis.__pillState;
+              if (pill === null || before === undefined) return { pass: false, detail: '缺少比对基准' };
+              const restored = pill.getAttribute('aria-pressed') === before.pressed
+                && pill.classList.contains('dsh-failover-pill--active') === before.active;
+              delete globalThis.__pillState;
+              return {
+                pass: restored,
+                detail: restored ? '已复原为起始态并清除基准' : '复原未生效',
+              };
+            })()
+
+  # ── 收尾：切回原会话，清除探针 ──────────────────────────────────
+  - name: TC-033 收尾 切回原会话
+    tags: [FNOS-012, desktop, readonly, teardown]
+    steps:
+      - dsh.desktopAssert:
+          label: 切回原会话并清除探针（不留痕）
+          script: |
+            (async () => {
+              const original = globalThis.__dshOriginalSession;
+              delete globalThis.__dshOriginalSession;
+              if (original === null || original === undefined) {
+                return { pass: true, detail: '测试前本不在历史上，无需切回；探针已清除' };
+              }
+              const row = document.querySelector('[data-row-key="' + original + '"]');
+              if (row === null) {
+                return { pass: true, detail: '原会话行已不存在（可能被删）；探针已清除' };
+              }
+              row.click();
+              await new Promise(r => setTimeout(r, 200));
+              const current = [...document.querySelectorAll('[data-row-key^="session:"]')]
+                .find(r => r.getAttribute('aria-selected') === 'true');
+              const back = current?.getAttribute('data-row-key') === original;
+              return {
+                pass: back,
+                detail: back ? '已切回原会话 ' + original : '切回未生效，当前 ' + (current?.getAttribute('data-row-key') ?? '未知'),
+              };
+            })()
