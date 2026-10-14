@@ -347,6 +347,51 @@ export async function publishedPlugins(path: string): Promise<void> {
   }
 }
 
+/**
+ * 打印「已不在发布清单里、但 profile 仍依赖」的自有插件名（每行一个）。
+ *
+ * ## 为什么需要它（实测的升级失败）
+ *
+ * 插件从 FPK 内置清单移出后（例如 `@tnnevol/dsh-midscene` 改为由用户自行安装），
+ * 安装流程只做「增加/更新清单里的插件」，**从不移除已不在清单中的插件**。于是：
+ *
+ * 1. Web profile 的 `package.json` 仍依赖该插件；
+ * 2. 新 FPK 不再提供它的 `.tgz`（清单里没有它，就不会被打包）；
+ * 3. 安装回调重建依赖时 pnpm 找不到文件，升级以 `ENOENT` 失败：
+ *
+ * ```
+ * ENOENT: no such file or directory,
+ *   open '…/bundled-dsh-plugins/@tnnevol/dsh-midscene.tgz'
+ * ```
+ *
+ * 实测证据：`5.7.1 → 5.7.2` 的升级在 `Reinstalling the Web profile dependencies from the
+ * current manifest...` 之后立刻以该错误中止，用户侧看到「无法更新 fn-deepseek-harness」。
+ *
+ * ## 只报「自有插件」，不动第三方
+ *
+ * 判定范围限定为 `@tnnevol/` 前缀：第三方插件（如 `dshmarket`）的安装/升级由 DSH CLI
+ * 与市场负责，且清单里的第三方项语义是「确保存在」而非「只能是这些」——把用户的第三方
+ * 插件当孤儿移除会破坏用户环境。
+ * @param profilePackageJsonPath - Web profile 的 `package.json` 路径。
+ * @param manifestPath - 发布清单（`published-dsh-plugins.json`）路径。
+ */
+export async function orphanOwnPlugins(profilePackageJsonPath: string, manifestPath: string): Promise<void> {
+  const profile = await readJsonStrict(profilePackageJsonPath)
+  const manifest = await readJsonStrict(manifestPath)
+  const dependencies = asJsonObject(profile.dependencies) ?? {}
+  const published = new Set(
+    (Array.isArray(manifest.plugins) ? manifest.plugins as PluginManifestEntry[] : [])
+      .map(plugin => plugin.name)
+      .filter((name): name is string => typeof name === 'string'),
+  )
+  for (const name of Object.keys(dependencies)) {
+    // 只处理本仓库自有插件；第三方由 DSH CLI 与市场管理（见函数注释）。
+    if (!name.startsWith('@tnnevol/')) continue
+    if (published.has(name)) continue
+    process.stdout.write(`${name}\n`)
+  }
+}
+
 export async function bundledPluginVersion(path: string, packageName: string): Promise<void> {
   const manifest = await readJsonStrict(path)
   const bundled = Array.isArray(manifest.bundled) ? manifest.bundled as PluginManifestEntry[] : []

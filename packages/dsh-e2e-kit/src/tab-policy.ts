@@ -21,6 +21,29 @@ export interface BrowserTab {
 }
 
 /**
+ * 同一目标地址可能开着**多个**标签页（历史遗留、上次测试残留等）。
+ *
+ * 此时 `find()` 取第一个是不可靠的：实测踩到——三个 `192.168.0.110:5666` 标签里有一个
+ * 停在 fnOS 登录页，而第一个恰好是它，于是「已登录」的测试被绑到登录页上，
+ * 用例报「当前显示的是登录页面」（诊断正确，但指向不了真因：选页选错了）。
+ *
+ * 选择规则（确定性优先）：
+ * 1. 当前活动页——用户正在看的那一个，最可能是可用状态；
+ * 2. 其余按**列表顺序**取第一个（保持既有行为，便于复现历史运行）。
+ *
+ * 为什么不去逐个探活再选：探活需要绑定（`setActiveTabId` 每个 Agent 只能调一次），
+ * 而选页必须发生在绑定之前——这是一个结构性约束，不能靠多探几次绕开。
+ * @param tabs - 候选标签页。
+ * @param wanted - 目标 URL。
+ * @returns 选中的标签页（无匹配时为 `undefined`）。
+ */
+function pickAmongDuplicates(tabs: readonly BrowserTab[], wanted: string): BrowserTab | undefined {
+  const matches = tabs.filter(tab => tab.url !== undefined && samePage(tab.url, wanted))
+  if (matches.length === 0) return undefined
+  return matches.find(tab => tab.currentActiveTab === true) ?? matches[0]
+}
+
+/**
  * 判断两个 URL 是否指向同一个页面。
  *
  * **忽略查询串**：DSH Web 的地址带 `?token=…`，而 token 会随实例重启变化。若按完整
@@ -65,7 +88,7 @@ export interface TabSelection {
  * @returns 选择结果。
  */
 export function selectTab(tabs: readonly BrowserTab[], wanted: string): TabSelection {
-  const existing = tabs.find(tab => tab.url !== undefined && samePage(tab.url, wanted))
+  const existing = pickAmongDuplicates(tabs, wanted)
   if (existing === undefined) return { reuseTabId: undefined, reason: 'new' }
   // 区分「目标页恰是当前活动页」与「目标是别的已开页」：前者无需切换（`setActiveTabId`
   // 在已绑定后会抛错，因此这个区分对调用方的日志与诊断有意义）。

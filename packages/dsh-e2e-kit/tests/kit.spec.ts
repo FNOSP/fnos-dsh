@@ -434,3 +434,40 @@ describe('actUntil：交互 + 核实 + 重试（BUG-03 规避）', () => {
     } as never)).rejects.toThrow(/点击可靠性问题.*BUG-03/s)
   })
 })
+
+describe('selectTab 在重复标签页中选页', () => {
+  // 实测踩到：三个同 URL 标签里有一个停在登录页，而 `find()` 恰好取到它，于是
+  // 「已登录」的测试被绑到登录页，用例报「当前显示的是登录页面」——诊断对但指向不了
+  // 真因（选页选错了）。规则改为「优先当前活动页」。
+  const TAB = (id: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    url: 'http://192.168.0.110:5666/',
+    ...extra,
+  })
+
+  it('有多个同 URL 标签时，优先选当前活动的那一个', async () => {
+    const { selectTab } = await import('../src/tab-policy.ts')
+    const result = selectTab([
+      TAB('1'),
+      TAB('2'),
+      TAB('3', { currentActiveTab: true }),
+    ], 'http://192.168.0.110:5666/')
+    expect(result.reuseTabId).toBe('3')
+    expect(result.reason).toBe('active')
+  })
+
+  it('没有活动页时退回列表顺序第一个（保持既有行为）', async () => {
+    const { selectTab } = await import('../src/tab-policy.ts')
+    const result = selectTab([TAB('1'), TAB('2')], 'http://192.168.0.110:5666/')
+    expect(result.reuseTabId).toBe('1')
+    expect(result.reason).toBe('existing')
+  })
+
+  it('无视查询串差异（token 会随实例重启变化）', async () => {
+    const { selectTab } = await import('../src/tab-policy.ts')
+    const result = selectTab([
+      { id: '9', url: 'http://127.0.0.1:8070/?token=old', currentActiveTab: true },
+    ], 'http://127.0.0.1:8070/?token=new')
+    expect(result.reuseTabId).toBe('9')
+  })
+})

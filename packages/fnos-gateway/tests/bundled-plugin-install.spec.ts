@@ -215,3 +215,90 @@ describe('bundled plugin install', () => {
     expect(source).toContain('--config.minimum-release-age=0')
   })
 })
+
+/**
+ * Orphan own-plugin removal in `cmd/install_callback`.
+ *
+ * Dropping a plugin from the FPK bundle leaves the Web profile's dependency on
+ * it in place while the new archive no longer ships its `.tgz`, so the
+ * dependency rebuild dies with ENOENT and the upgrade fails with
+ * "Unable to update fn-deepseek-harness". Measured on 5.7.1 → 5.7.2 with the
+ * removed `@tnnevol/dsh-midscene`.
+ *
+ * These tests run the real shell function and record the CLI calls it makes.
+ */
+async function runOrphanRemoval(
+  root: string,
+  profileDependencies: Record<string, string>,
+  publishedNames: string[],
+): Promise<string> {
+  await mkdir(join(root, 'profile'), { recursive: true })
+  await writeFile(join(root, 'profile', 'package.json'), JSON.stringify({
+    name: 'web-profile',
+    dependencies: profileDependencies,
+  }))
+  const manifest = join(root, 'published-dsh-plugins.json')
+  await writeFile(manifest, JSON.stringify({
+    version: 1,
+    plugins: publishedNames.map(name => ({ name, version: '0.0.1' })),
+    bundled: [],
+  }))
+  const harness = join(root, 'orphan-harness.sh')
+  const prelude = [
+    '#!/bin/bash',
+    `DSH_PROFILE_DIRECTORY=${JSON.stringify(join(root, 'profile'))}`,
+    `DSH_PUBLISHED_PLUGIN_MANIFEST=${JSON.stringify(manifest)}`,
+    'fail_install() { printf "FAIL:%s\\n" "$1"; exit 99; }',
+    'log_info() { :; }',
+    'validate_plugin_spec() { :; }',
+    'run_dsh_plugin_with_release_age() { printf "%s:%s\\n" "$1" "$2"; }',
+    // Forward to the real helper CLI (built into the app dir) so the orphan
+    // computation is exercised too, not just the shell plumbing.
+    `run_install_callback_helper() { node ${JSON.stringify(new URL('../../../apps/fn-deepseek-harness/app/scripts/install-callback-helper.mjs', import.meta.url).pathname)} "$@"; }`,
+    await functionSource('remove_orphan_own_plugins'),
+    'remove_orphan_own_plugins',
+  ].join('\n')
+  await writeFile(harness, prelude)
+  return execFileSync('/bin/bash', [harness], { encoding: 'utf8' })
+}
+
+describe('remove_orphan_own_plugins', () => {
+  it('removes an own plugin the release no longer publishes', async () => {
+    const root = await makeProfile()
+    const output = await runOrphanRemoval(
+      root,
+      {
+        '@tnnevol/dsh-fnos': 'file:/app/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz',
+        '@tnnevol/dsh-midscene': 'file:/app/bundled-dsh-plugins/@tnnevol/dsh-midscene.tgz',
+      },
+      ['@tnnevol/dsh-fnos'],
+    )
+    expect(output).toContain('remove:@tnnevol/dsh-midscene')
+    expect(output).not.toContain('remove:@tnnevol/dsh-fnos')
+  })
+
+  it('does nothing when every own plugin is still published', async () => {
+    const root = await makeProfile()
+    const output = await runOrphanRemoval(
+      root,
+      { '@tnnevol/dsh-fnos': 'file:/app/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz' },
+      ['@tnnevol/dsh-fnos'],
+    )
+    expect(output.trim()).toBe('')
+  })
+
+  it('never removes third-party plugins (their manifest entry means "ensure present")', async () => {
+    const root = await makeProfile()
+    const output = await runOrphanRemoval(
+      root,
+      {
+        '@tnnevol/dsh-fnos': 'file:/app/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz',
+        dshmarket: 'file:/app/bundled-dsh-plugins/dshmarket-1.66.3.tgz',
+        'some-user-plugin': '^1.0.0',
+      },
+      ['@tnnevol/dsh-fnos', 'dshmarket'],
+    )
+    expect(output).not.toContain('some-user-plugin')
+    expect(output).not.toContain('remove:dshmarket')
+  })
+})

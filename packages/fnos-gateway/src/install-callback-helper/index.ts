@@ -10,6 +10,7 @@ import {
   profileDependencyVersion,
   profileStoreDir,
   publishedPluginVersions,
+  orphanOwnPlugins,
   publishedPlugins,
   removeLegacyPnpmStoreConfig,
   removeProfileBuildArtifacts,
@@ -107,6 +108,13 @@ export function createProgram(): Command {
     .description('Print published plugins as tab-separated name and version rows')
     .argument('<manifest-path>')
     .action(publishedPlugins)
+
+  program
+    .command('orphan-own-plugins')
+    .description('Print own plugins (@tnnevol/*) that the profile still depends on but the manifest no longer publishes')
+    .argument('<profile-package-json-path>')
+    .argument('<manifest-path>')
+    .action(orphanOwnPlugins)
 
   program
     .command('bundled-plugin-version')
