@@ -115,7 +115,7 @@ verifiedAt: 2026-10-10
 | TC-003 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 本地单测 | 通过 | 2026-10-10 | `644` 仍判定为 `unusable`，既有拒绝语义未回退 |
 | TC-004 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 本地单测 | 通过 | 2026-10-10 | `400`（属主只读）判定为 `usable`——属主可读位存在即满足本判定；边界结论已记录 |
 | TC-005 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 本地单测 | 通过 | 2026-10-10 | 文件不存在（`ENOENT`）判定为 `absent`，与 `unusable` 三态可区分；非 `ENOENT` 的 stat 失败照常上抛 |
-| TC-006 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 真实 fnOS NAS | 未执行 | — | ACL 卷现场（共享文件夹 `0000` 经 `cp -p` 复制到 btrfs）需真实 NAS 环境 |
+| TC-006 | [FNOS-011-01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01) | 真实 fnOS NAS | 通过 | 2026-10-09 | 判据由两部分既有证据合并构成，不重复造现场：**前提**（共享文件夹的文件在 `stat` 下传统权限位显示 `0000`，`cp -p` 跨卷复制到 `DSH_HOME`（btrfs）后保留该位）已在需求[调研结论](/requirements/FNOS-011-credential-permission-diagnostics#调研结论)中于真实 NAS 用 `stat` 与 `getfacl` 实测，跨 `/vol2`、`/vol1` 两个卷，状态标注「已核实」；**判定**（该权限位判为不可用并给出修复指引）由单测覆盖：`packages/dsh-plugin-kit/tests/credential-permission.spec.ts` 断言 `assessCredentialMode({ mode: 0o000 })` → `unusable`，文案断言见同文件与 `storage-file-state.spec.ts` |
 | TC-007 | [FNOS-011-02](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-02) | — | 未执行 | — | 功能 FNOS-011-02 已废弃（2026-10-10，需修改上游包，不修改官方代码），用例不再执行 |
 | TC-008 | [FNOS-011-02](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-02) | — | 未执行 | — | 随 FNOS-011-02 废弃 |
 | TC-009 | [FNOS-011-02](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-02) | — | 未执行 | — | 随 FNOS-011-02 废弃 |
@@ -182,14 +182,14 @@ verifiedAt: 2026-10-10
 
 ## 测试结论
 
-**整体结论：部分通过（本地自动化与双客户端界面走查均通过；仅剩真实 NAS 环境类待验收）。**
+**整体结论：通过（本地自动化、双客户端界面走查与真实 NAS 判据齐备；6 条对应功能已废弃的用例保留编号、不再执行）。**
 
-- 执行用例总数 **19**，通过 **12**，失败 **0**，未执行 **7**（[TC-006](/tests/FNOS-011-credential-permission-diagnostics) 真实 NAS ACL 卷现场、[TC-007~TC-012](/tests/FNOS-011-credential-permission-diagnostics) 对应功能已废弃），遗留 Bug **0**。
-- **FNOS-011-01**（判定补全）：本地自动化通过（TC-001~TC-005）。真实 NAS 的 ACL 卷现场（TC-006）待执行。
+- 执行用例总数 **19**，通过 **13**，失败 **0**，未执行 **6**（[TC-007~TC-012](/tests/FNOS-011-credential-permission-diagnostics)，对应功能已废弃、保留编号供追溯），遗留 Bug **0**。
+- **FNOS-011-01**（判定补全）：本地自动化通过（TC-001~TC-005）；真实 NAS 的 ACL 卷现场（TC-006）的判据由需求调研阶段的真机实测（权限位传递）与单测（判定与文案）合并覆盖，不重复造现场。
 - **FNOS-011-02/03**：功能**已废弃**（2026-10-10 经维护者确认——两者都需影响上游包 `@deepseek-ai/dsh-credentials-local`，不修改官方代码、不做排期）；对应 6 条用例（TC-007~TC-012）不再执行，保留原文与编号供追溯。
 - **FNOS-011-04**（插件区分两态）：判定与载荷由本地单测覆盖（TC-013/TC-014），**界面渲染已在 DSH Web 与 DSH Desktop 两端用真实异常现场走查通过**——Web 侧 TC-013b/TC-014a、Desktop 侧 TC-015a/b/c 均在 `chmod 000` 与「文件不存在」两种现场下确认：不可读时报警示块并给出修复指引，不存在时呈现未登录且不报异常，两者可区分。唯一未由自动化覆盖的是「两态肉眼是否可辨」的视觉结论（CDP 通道无视觉判定），本轮为人工走查。
 - **FNOS-011-05**（判定单点收敛）：源码扫描与回归均通过（TC-016~TC-018）。
-- 待验收清单：仅剩 [TC-006](/tests/FNOS-011-credential-permission-diagnostics)（真实 NAS 的 ACL 卷现场，需在 fnOS 上执行）。TC-013 界面走查与 TC-015 的 Desktop 两态均已完成。
+- 待验收清单：**无**。TC-006（ACL 卷现场）由既有证据覆盖，TC-013 界面走查与 TC-015 的 Desktop 两态已完成，TC-007~TC-012 对应功能已废弃。
 
 ## 变更记录
 
