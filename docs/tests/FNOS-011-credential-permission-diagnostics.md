@@ -162,6 +162,15 @@ verifiedAt: 2026-10-10
   而 CLI 无 `--case` 参数只能按文件选择，故两者分属不同文件，各自单独运行。
 - **不覆盖的部分**：CDP 通道没有视觉判定，「两态肉眼是否可辨」按人工走查登记，不写成自动断言。
 
+- **测试数据清理与 Desktop profile（本次执行的实际状态）**：凭据现场用工作区内的
+  `.dsh/codebuddy-auth.json` 构造，跑完已复原为 `600`、内容字节数与账号数均未变
+  （备份只在工作区 `tmp/auth-back/`，不留用户目录）；用例不发送消息、不新建持久会话，
+  切换过会话的两条用例均在收尾切回原会话，共享包守卫测试强制这一点。
+  测试用的 Desktop 为 `fork-pj/deepseek-harness` 开发态实例，`DSH_HOME` 指向项目根 `.dsh`、
+  profile 为 `.dsh/profiles/desktop`（**未使用** `~/.dsh/profiles/desktop`）——按测试规范，
+  它属于测试环境，**不是**使用者的日常环境，测试结束后该实例应交还全局 profile（见下方说明）。
+
+
 
 ## Bug 记录
 

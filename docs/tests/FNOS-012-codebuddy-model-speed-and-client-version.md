@@ -139,6 +139,7 @@ verifiedAt: 2026-10-10
 | `pnpm run check -- --all` | 全仓（含 SDD 文档检查与文档构建） | exit 0 |
 
 其中 `dsh-e2e-desktop` 走**渲染进程 CDP** 通道：不移动鼠标、不切前台，零模型调用（单条 1ms~0.5s）。运行前置与 Desktop 用例的两处实测约束见 [FNOS-011 的自动化用例小节](/tests/FNOS-011-credential-permission-diagnostics#自动化用例可重复执行)（同一套通道与纪律）。CDP 通道无视觉判定，「两态肉眼是否可辨」按人工走查登记，不写成自动断言。
+**测试数据清理与 Desktop profile** 与 FNOS-011 同批执行，实际状态见 [FNOS-011 的自动化用例小节](/tests/FNOS-011-credential-permission-diagnostics#自动化用例可重复执行)（用例不发送消息、收尾切回原会话；开发态 Desktop 的 `DSH_HOME` 指向项目 `.dsh`，测试结束后该实例应交还全局 profile）。
 实际执行结果（2026-10-10）：`@tnnevol/dsh-plugin-kit` 12 条、`@tnnevol/dsh-codebuddy` 909 条、`@tnnevol/dsh-codex-auth` 137 条、`@tnnevol/dsh-failover-search` 225 条、`fnos-gateway` 116 条、`@tnnevol/fnos-dsh-cli` 46 条，全部通过；`pnpm run check -- --all` 20/20 任务成功。
 
 ### 用例执行记录
