@@ -133,9 +133,12 @@ verifiedAt: 2026-10-10
 | --- | --- | --- |
 | `pnpm --filter @tnnevol/dsh-codebuddy test` | FNOS-012-01 倍速映射、FNOS-012-02 版本常量与指纹 | 全绿 |
 | `pnpm --filter @tnnevol/dsh-failover-search test` | FNOS-012-05 清单一致性（间接） | 全绿 |
+| `pnpm --filter @tnnevol/dsh-failover-search run test:e2e` | FNOS-012-06 药丸按钮的 DSH Web 侧形态与两态（TC-028~TC-032） | 全绿 |
+| `pnpm --filter @tnnevol/dsh-e2e-desktop run test:e2e` | FNOS-012-06 药丸按钮的 DSH Desktop 侧一致性（TC-033a/b） | 全绿 |
 | `pnpm --filter fnos-dsh-cli test` | FNOS-012-04/05 仓库级一致性守门（清单、安装命令、latest 代际判定） | 全绿 |
 | `pnpm run check -- --all` | 全仓（含 SDD 文档检查与文档构建） | exit 0 |
 
+其中 `dsh-e2e-desktop` 走**渲染进程 CDP** 通道：不移动鼠标、不切前台，零模型调用（单条 1ms~0.5s）。运行前置与 Desktop 用例的两处实测约束见 [FNOS-011 的自动化用例小节](/tests/FNOS-011-credential-permission-diagnostics#自动化用例可重复执行)（同一套通道与纪律）。CDP 通道无视觉判定，「两态肉眼是否可辨」按人工走查登记，不写成自动断言。
 实际执行结果（2026-10-10）：`@tnnevol/dsh-plugin-kit` 12 条、`@tnnevol/dsh-codebuddy` 909 条、`@tnnevol/dsh-codex-auth` 137 条、`@tnnevol/dsh-failover-search` 225 条、`fnos-gateway` 116 条、`@tnnevol/fnos-dsh-cli` 46 条，全部通过；`pnpm run check -- --all` 20/20 任务成功。
 
 ### 用例执行记录
@@ -179,7 +182,7 @@ verifiedAt: 2026-10-10
 | TC-031 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web | 通过 | 2026-10-10 | 原生 `<button type="button">` 可聚焦，`:focus-visible` 焦点环 2px，键盘激活后 `aria-pressed` 由 `false` → `true`；`aria-label` 随状态含「已开启／已关闭」 |
 | TC-032-R | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web（Midscene Test） | 通过 | 2026-10-14 | **本轮补执行**（执行载体 `plugins/dsh-failover-search-plugin/tests/e2e/cases/FNOS-012-smart-search-pill.yaml`）：用**两个真实历史会话**验证会话级语义——甲会话关闭后切到乙，乙仍为默认开启（甲的关闭未泄漏）；再切回甲，仍为关闭（状态按 `sessionId` 保持）。断言用 `dsh.assertInPage` 比对会话身份（`data-row-key` + `aria-selected`），确保「会话真的换了」才下结论。**不以「新建会话」验证**：实测 DSH 的「新会话」是单例草稿态，反复点只回到同一草稿（会话 ID 不变），验不出来——该发现已写入用例注释。 |
 | TC-032 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Web | 未执行 | — | 会话级语义与默认开启需多会话切换走查（原记录保留；已由 TC-032-R 以更可靠的方式覆盖）（新会话默认开启已由 FNOS-010-12 覆盖，本轮沿用其结论） |
-| TC-033 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Desktop | 通过 | 2026-10-14 | `dsh-desktop` 套件 TC-033a/b 通过（2ms / 3s）：药丸形态（圆角与内边距同量级）、文案固定「智能搜索」、`aria-pressed` 可读；点击后 `aria-pressed` 与 `--active` 翻转且背景色改变，收尾复原并切回原会话。「两态肉眼是否可辨」为视觉结论，本轮为人工走查（CDP 通道无视觉判定）。Desktop 为 `fork-pj/deepseek-harness` 开发态、项目 `.dsh/profiles/desktop` |
+| TC-033 | [FNOS-012-06](/requirements/FNOS-012-codebuddy-model-speed-and-client-version#fnos-012-06) | DSH Desktop | 通过 | 2026-10-15 | `packages/dsh-e2e-desktop/` 的 TC-033a/b 通过（1ms / 0.5s）：药丸形态（圆角 ≥ 左右内边距，实测 8px/8px，28px 高）、可见文案固定「智能搜索」、`aria-pressed` 可读；点击后 `aria-pressed` 与 `--active` 翻转且背景色改变，收尾复原并切回原会话。断言口径按 `styles.scss` 实际契约：两态差异是**背景色变量不同**（激活态 `state-business-tertiary` = `#e4edfd`，普通态 `interactive-bg` 实测解析为透明），而非「有／无背景」——Web 侧曾因此写错过一次断言。「两态肉眼是否可辨」为视觉结论，CDP 通道无视觉判定，本轮为人工走查。Desktop 为 `fork-pj/deepseek-harness` 开发态、项目 `.dsh/profiles/desktop` |
 
 ## Bug 记录
 
@@ -211,4 +214,5 @@ verifiedAt: 2026-10-10
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-10 | 新增 FNOS-012-06 用例 | 智能搜索控件改为药丸按钮：TC-028~TC-033 覆盖形态、激活/普通两态、亮暗主题可辨、键盘可达与会话级语义回归（沿用 FNOS-012-06 行为约束——仅改视觉，不改 FNOS-010-12 行为）；测试范围与环境同步到 06。 |
+| 2026-10-15 | Desktop 侧一致性补齐并登记 | TC-033 由「未执行」转为「通过」：`packages/dsh-e2e-desktop/` 经渲染进程 CDP 验证药丸形态、文案固定「智能搜索」、`aria-pressed` 可读，两态点击后 `aria-pressed` 与 `--active` 翻转且背景色改变，收尾复原并切回原会话（1ms~0.5s，全程不动鼠标、不切前台）。断言口径按 `styles.scss` 实际契约校正为「两态背景色变量不同」（普通态实测解析为透明），与 Web 侧 TC-030 的修正一致。据实说明 CDP 通道无视觉判定，「两态肉眼是否可辨」仍为人工走查 |
 | 2026-10-10 | 执行结果按规范逐条回填 | 原表以区间行合并登记、使用规范未定义的取值（如「阻塞→已提前修复」「待验收」），且表头为 4 列；改为逐条 6 列、结果取值收敛为「通过／失败／阻塞／未执行」，补环境版本三元组、结论的用例计数，并把 TC-024 守门用例对本插件恒真的发现登记为 BUG-01。 |
