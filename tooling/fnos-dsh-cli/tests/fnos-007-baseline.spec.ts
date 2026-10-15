@@ -84,6 +84,11 @@ describe('FNOS-007 DSH baseline', () => {
       ['docs/plugins/dsh-fnos.md', '@tnnevol/dsh-fnos'],
       ['docs/plugins/index.md', '@tnnevol/dsh-fnos'],
       ['docs/plugins/index.md', '@tnnevol/dsh-failover-search'],
+      // midscene 不随 FPK 内置，但它同样发布到 npm、同样有可粘贴的安装命令。
+      // 漏掉它曾让该页的安装版本停在旧值而无人报错（实测：文档 0.2.0-rc.2.0、
+      // 实际已 0.2.0-rc.2.3，全靠人工核对才发现）。
+      ['docs/plugins/dsh-midscene.md', '@tnnevol/dsh-midscene'],
+      ['plugins/dsh-midscene-plugin/README.md', '@tnnevol/dsh-midscene'],
     ]
     const showcaseDirectory = 'dsh-semi-ui-showcase-plugin'
     const sourceVersions = new Map<string, string>()
