@@ -201,21 +201,44 @@ cases:
               };
             })()
 
-      # 复原：点回原状态并清掉比对基准，不给用户留改动。
-      - dsh.desktopClick:
-          selector: .dsh-failover-pill
-          retries: 2
-          verify: |
-            (() => {
-              const pill = document.querySelector('.dsh-failover-pill');
+      # 复原：把药丸按钮恢复到起始状态，不给用户留改动。
+      #
+      # **为什么不用「点一次 + 断言」**：这个按钮偶发「点了不生效」（BUG-03，已定性为上游
+      # 交互可靠性），而重试点会让状态在 true/false 之间翻转——**最终落点取决于点击次数
+      # 的奇偶**，实测因此出现随机失败（同一用例有时 5/5、有时 4/5，报「复原未生效：
+      # 当前 false，期望 true」）。反复点并不收敛。
+      #
+      # 改为**自校正**：读当前状态，只有「不在起始态」时才点，点完再读，有界循环。
+      # 这样点不生效只会多循环一次，不会把状态翻过头。
+      - dsh.desktopAssert:
+          label: 复原药丸按钮到起始态（自校正，不依赖点击次数奇偶）
+          script: |
+            (async () => {
               const before = globalThis.__pillState;
-              if (pill === null || before === undefined) return { pass: false, detail: '缺少比对基准' };
-              const restored = pill.getAttribute('aria-pressed') === before.pressed
-                && pill.classList.contains('dsh-failover-pill--active') === before.active;
-              delete globalThis.__pillState;
+              if (before === undefined) return { pass: false, detail: '缺少比对基准' };
+
+              for (let i = 1; i <= 5; i += 1) {
+                const pill = document.querySelector('.dsh-failover-pill');
+                if (pill === null) return { pass: false, detail: '药丸按钮消失' };
+
+                const pressed = pill.getAttribute('aria-pressed');
+                if (pressed === before.pressed) {
+                  return {
+                    pass: true,
+                    detail: '已复原为起始态 ' + pressed + '（第 ' + i + ' 次判定）',
+                  };
+                }
+                // 不在起始态才点：点不生效也只是多循环一次，不会翻过头。
+                pill.click();
+                // 等 React 提交（实测后台窗口的页面定时器会被节流，故给足时间）。
+                await new Promise(r => setTimeout(r, 400));
+              }
+
+              const pill = document.querySelector('.dsh-failover-pill');
               return {
-                pass: restored,
-                detail: restored ? '已复原为起始态并清除基准' : '复原未生效',
+                pass: false,
+                detail: '5 次自校正后仍未回到起始态 ' + before.pressed
+                  + '，当前 ' + (pill?.getAttribute('aria-pressed') ?? '未知'),
               };
             })()
 
@@ -229,6 +252,8 @@ cases:
             (async () => {
               const original = globalThis.__dshOriginalSession;
               delete globalThis.__dshOriginalSession;
+              // 药丸用例留下的是否复原由它自己断言；这里只负责清掉探针。
+              delete globalThis.__pillState;
               if (original === null || original === undefined) {
                 return { pass: true, detail: '测试前本不在历史上，无需切回；探针已清除' };
               }
