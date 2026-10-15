@@ -203,12 +203,30 @@ async function syncPublishedPluginVersion(pluginName: string, version: string): 
   return changed
 }
 
-/** 文档目录名 → 插件目录名，用于定位插件对应的文档站页面。 */
+/**
+ * 插件包名 → 文档站页面名（不含 `.md`）。
+ *
+ * 这里是**显式覆盖表**，只在页面名与包名末段不一致时才需要登记。约定是
+ * 「页面名 == 包名末段」（`@tnnevol/dsh-midscene` → `dsh-midscene`），
+ * 未登记时按该约定推导，因此**新增插件不需要记得回来补这张表**。
+ *
+ * 之所以要兜底：`dsh-failover-search` 与 `dsh-midscene` 曾漏登记于此，
+ * 后果是发版时 `docs/plugins/<页面>.md` 的安装命令**不被重写**、停在旧版本，
+ * 用户照抄就装到旧包（守卫能报出来，但根本不该漏）。
+ */
 const pluginDocPages: Record<string, string> = {
   '@tnnevol/dsh-codebuddy': 'dsh-codebuddy',
   '@tnnevol/dsh-codex-auth': 'dsh-codex-auth',
   '@tnnevol/dsh-fnos': 'dsh-fnos',
   '@tnnevol/dsh-semi-ui-showcase': 'dsh-semi-ui-showcase',
+}
+
+/** 解析插件对应的文档站页面名：显式覆盖优先，否则按包名末段推导。 */
+export function pluginDocPageOf(pluginName: string): string | undefined {
+  const explicit = pluginDocPages[pluginName]
+  if (explicit !== undefined) return explicit
+  const slug = pluginName.split('/').pop()
+  return slug === undefined || slug === '' ? undefined : slug
 }
 
 /** 把某个插件安装命令里的版本号替换为目标版本。 */
@@ -229,7 +247,7 @@ function replacePluginInstallVersion(content: string, pluginName: string, versio
  * 描述，也不触碰依赖该插件的其它包名。
  */
 async function syncPluginInstallVersions(pluginName: string, pluginDirectory: string, version: string): Promise<string[]> {
-  const page = pluginDocPages[pluginName]
+  const page = pluginDocPageOf(pluginName)
   const candidates = [
     join('plugins', pluginDirectory, 'README.md'),
     ...(page === undefined ? [] : [join('docs', 'plugins', `${page}.md`)]),

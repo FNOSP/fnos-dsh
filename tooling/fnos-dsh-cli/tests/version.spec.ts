@@ -209,3 +209,26 @@ describe('plugin version command', () => {
     }))
   })
 })
+
+describe('pluginDocPageOf：文档站页面名解析', () => {
+  // 约定：页面名 == 包名末段，未显式登记时按此推导。这是一处**根因修复**：
+  // `dsh-failover-search` 与 `dsh-midscene` 曾漏登记在显式表里，导致发版时
+  // `docs/plugins/<页面>.md` 的安装命令不被重写、停在旧版本，用户照抄装到旧包。
+  it('按包名末段推导未登记的插件', async () => {
+    const { pluginDocPageOf } = await import('../src/commands/version.js')
+    expect(pluginDocPageOf('@tnnevol/dsh-midscene')).toBe('dsh-midscene')
+    expect(pluginDocPageOf('@tnnevol/dsh-failover-search')).toBe('dsh-failover-search')
+  })
+
+  it('已登记的插件仍按显式表解析', async () => {
+    const { pluginDocPageOf } = await import('../src/commands/version.js')
+    expect(pluginDocPageOf('@tnnevol/dsh-codebuddy')).toBe('dsh-codebuddy')
+    expect(pluginDocPageOf('@tnnevol/dsh-fnos')).toBe('dsh-fnos')
+  })
+
+  it('包名为空段时返回 undefined（不生成可疑路径）', async () => {
+    const { pluginDocPageOf } = await import('../src/commands/version.js')
+    expect(pluginDocPageOf('@tnnevol/')).toBeUndefined()
+    expect(pluginDocPageOf('')).toBeUndefined()
+  })
+})
