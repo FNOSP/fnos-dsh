@@ -82,7 +82,6 @@
     "@deepseek-ai/dsh-settings": "0.2.0-rc.2",
     "@deepseek-ai/dsh-skill": "0.2.0-rc.2",
     "@deepseek-ai/schemastery": "catalog:",
-    "@tnnevol/dsh-semi-ui": "workspace:*",
     "react": "catalog:"
   },
   "devDependencies": {

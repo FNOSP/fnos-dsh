@@ -242,6 +242,24 @@ describe('FNOS-007 DSH baseline', () => {
     }
   })
 
+  it('never declares the inlined UI kit as a peer dependency', async () => {
+    // `@tnnevol/dsh-semi-ui` 由 `packages/dsh-semi-ui/tsdown-client-deps.ts` 的
+    // `alwaysBundle` **内联进客户端产物**，运行时不需要它；而它本身没有发布到 npm。
+    // 一旦出现在 `peerDependencies` 里，`pnpm publish` 会把 `workspace:*` 解析成具体
+    // 版本（实测 `5.7.3`），用户 `npm i` 时 npm 会去自动安装该 peer 并报
+    // `E404 @tnnevol/dsh-semi-ui` —— **整包安装失败**。这台机器上完全静默（本仓
+    // workspace 里它总是可解析），只在用户侧暴露，因此必须由静态守卫挡住。
+    for (const directory of pluginDirectories) {
+      const manifest = JSON.parse(
+        await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8'),
+      ) as { peerDependencies?: Record<string, string> }
+      expect(
+        manifest.peerDependencies?.['@tnnevol/dsh-semi-ui'],
+        `${directory} 不得把内联的 UI kit 声明为 peer（会导致用户安装 E404）`,
+      ).toBeUndefined()
+    }
+  })
+
   it('declares every catalog-managed workspace dependency through a catalog protocol', async () => {
     const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
     const catalogPackages = new Set<string>()
