@@ -1,0 +1,156 @@
+# FNOS-011 Desktop 端凭据不存在时的呈现（DSH Desktop）
+#
+# 用例编号与 docs/tests/FNOS-011-credential-permission-diagnostics.md 对齐：
+# 测试文档是**权威台账**，本文件是**执行载体**。
+#
+# ## 为什么单独一个文件
+#
+# 同一需求的 TC-015b（凭据 `chmod 000`）与本条（文件不存在）需要**互斥的现场**，
+# 同一轮里不可能同时成立；Midscene Test 只能按文件选择用例，因此分文件。
+#
+# ## 造现场（宿主机执行，用例本身不改文件系统）
+#
+# ```bash
+# mkdir -p tmp/auth-back
+# cp -p .dsh/codebuddy-auth.json tmp/auth-back/
+# mv .dsh/codebuddy-auth.json tmp/auth-back/moved.json
+# ```
+#
+# 恢复：移回原位并**显式** `chmod 600`——`cp -p` 会带上源文件的异常权限位，
+# 只依赖它不可靠（这正是 TC-015b 要验的失败模式）。
+#
+# **不需要重启 Desktop**：宿主每次请求都重读凭据文件（`panelStatus` → `loadStorage`
+# 与 `storageFileState` 均无缓存），但要**完全离开插件面板**（回会话页）再进入，
+# 宿主才会重新取数——实测只切插件列表页仍复用缓存。
+
+cases:
+  - name: TC-015c Desktop 端凭据不存在时呈现未登录且不报异常
+    tags: [FNOS-011, desktop, destructive]
+    steps:
+
+      # 记录用户原本所在的会话，收尾切回（本用例会点会话行离开插件面板，
+      # 这会改变用户「当前所在会话」，按规范必须复原）。
+      - dsh.desktopAssert:
+          label: 记录原会话（收尾切回用）
+          script: |
+            (() => {
+              const rows = [...document.querySelectorAll('[data-row-key^="session:"]')];
+              if (rows.length === 0) return { pass: false, detail: '侧边栏没有会话行' };
+              const current = rows.find(r => r.getAttribute('aria-selected') === 'true');
+              globalThis.__dshOriginalSession = current === undefined
+                ? null
+                : current.getAttribute('data-row-key');
+              return {
+                pass: true,
+                detail: globalThis.__dshOriginalSession === null ? '原会话：无' : '原会话已记录',
+              };
+            })()
+
+      # **必须完全离开插件面板**（回会话页）：只切到插件列表页时宿主仍复用缓存。
+      # 实测文件确已不存在时，切列表页再回来仍显示旧的「权限异常」；切回会话页再进来才正确。
+      - dsh.desktopAssert:
+          label: 离开插件面板以强制宿主重新读盘
+          script: |
+            (() => {
+              // 注意：这里**不能**「本就不在详情页就直接成功」——那样会跳过离开动作，
+              // 宿主不会被要求重新读盘，断言就落在旧状态上（实测由此失败过一次）。
+              // 不在详情页时也要点一次会话行：它同样会让插件面板卸载。
+              const row = document.querySelector('[data-row-key^="session:"]');
+              if (row === null) return { pass: false, detail: '侧边栏没有会话行，无法离开面板' };
+              const wasOnDetail = document.querySelector('.dsh-codebuddy-panel-page') !== null;
+              row.click();
+              return {
+                pass: true,
+                detail: wasOnDetail ? '已从详情页切回会话页' : '已点会话行以确保插件面板卸载',
+              };
+            })()
+
+      - dsh.sleep:
+          milliseconds: 800
+
+      - dsh.desktopAssert:
+          label: 回到插件列表页
+          script: |
+            (() => {
+              if ((document.body?.innerText || '').includes('添加插件')) {
+                return { pass: true, detail: '已在插件列表页' };
+              }
+              const nav = document.querySelector('nav');
+              const entry = nav
+                && [...nav.querySelectorAll('*')]
+                  .find(n => n.children.length === 0 && (n.textContent || '').trim() === '插件');
+              if (entry === undefined) return { pass: false, detail: '侧边栏无「插件」入口' };
+              entry.click();
+              return { pass: true, detail: '已点击「插件」' };
+            })()
+
+      - dsh.sleep:
+          milliseconds: 800
+
+      - dsh.desktopAssert:
+          label: 重新打开 CodeBuddy 详情页
+          script: |
+            (() => {
+              // 可点的是卡片**内部**的 <button>（实测类名 W9KtXa_cardTitle）；
+              // li/div 上没有 React 事件处理器，点它们不生效。理由见 credential.yaml 头注释。
+              const btn = [...document.querySelectorAll('button')]
+                .find(b => (b.textContent || '').trim().startsWith('@tnnevol/dsh-codebuddy'));
+              if (btn === undefined) {
+                return {
+                  pass: false,
+                  detail: '插件列表里没有该条目按钮；当前界面：'
+                    + (document.body?.innerText || '').replace(/\s+/g, ' ').slice(0, 80),
+                };
+              }
+              btn.click();
+              return { pass: true, detail: '已重新打开详情页' };
+            })()
+
+      # 面板是异步渲染的：点开后先等它挂载完再断言，否则抢跑
+      # （实测详情页约 1-2 秒后才有内容）。
+      - dsh.sleep:
+          milliseconds: 1500
+
+      - dsh.desktopAssert:
+          label: 凭据不存在时呈现未登录空状态且无权限异常警示
+          script: |
+            (() => {
+              const panel = document.querySelector('.dsh-codebuddy-panel-page');
+              if (panel === null) return { pass: false, detail: 'CodeBuddy 面板未挂载' };
+              const alert = document.querySelector('.dsh-codebuddy-credential-alert');
+              if (alert !== null) {
+                return {
+                  pass: false,
+                  detail: '凭据仅是「不存在」却报了权限异常，两态未区分：'
+                    + (alert.textContent || '').trim().slice(0, 80),
+                };
+              }
+              const text = panel.textContent || '';
+              if (!text.includes('暂无已登录账号')) {
+                return { pass: false, detail: '未呈现「未登录」空状态，实际：' + text.trim().slice(0, 90) };
+              }
+              return { pass: true, detail: '呈现未登录空状态且无异常警示' };
+            })()
+
+      - dsh.desktopAssert:
+          label: 收尾切回原会话并清除探针（不留痕）
+          script: |
+            (async () => {
+              const original = globalThis.__dshOriginalSession;
+              delete globalThis.__dshOriginalSession;
+              if (original === null || original === undefined) {
+                return { pass: true, detail: '测试前本不在历史上，无需切回；探针已清除' };
+              }
+              const row = document.querySelector('[data-row-key="' + original + '"]');
+              if (row === null) {
+                return { pass: true, detail: '原会话行已不存在；探针已清除' };
+              }
+              row.click();
+              await new Promise(r => setTimeout(r, 300));
+              const current = [...document.querySelectorAll('[data-row-key^="session:"]')]
+                .find(r => r.getAttribute('aria-selected') === 'true');
+              return { pass: current?.getAttribute('data-row-key') === original,
+                detail: current?.getAttribute('data-row-key') === original
+                  ? '已切回原会话'
+                  : '切回未生效，当前 ' + (current?.getAttribute('data-row-key') ?? '未知') };
+            })()

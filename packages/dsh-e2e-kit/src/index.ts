@@ -79,4 +79,4 @@ export {
   type DesktopCdpContext,
   type DesktopCdpSetupOptions,
 } from './desktop-context.ts'
-export { desktopAssert, desktopClick, desktopClickText } from './desktop-nodes.ts'
+export { desktopAssert, desktopClick, desktopClickText, sleep } from './desktop-nodes.ts'

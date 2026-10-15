@@ -17,6 +17,7 @@
 
 import process from 'node:process'
 import { defineNode, z } from '@midscene/test'
+import { setTimeout as delay } from 'node:timers/promises'
 import { readPageVerdict, wrapPageScript } from './page-script.ts'
 import type { DesktopCdpContext } from './desktop-context.ts'
 
@@ -193,5 +194,32 @@ export const desktopClickText = defineNode<
       return { summary: input.text, data: { clicked: true, detail: lastDetail } }
     }
     throw new Error(`[点击「${input.text}」] 未生效：${lastDetail}`)
+  },
+})
+
+/** `dsh.sleep` 的输入。 */
+const sleepInput = z.strictObject({
+  milliseconds: z.number().int().min(0).max(60_000).describe('等待毫秒数。'),
+})
+
+/**
+ * Node 侧等待。
+ *
+ * **为什么不能用页面内的 `setTimeout`**：Desktop 窗口在后台时，页面内定时器被系统节流——
+ * 实测 3 次 `setTimeout(100)` 实际耗时约 **2.5 秒**（放大约 8 倍）。因此等待异步挂载的
+ * 元素时，在页面脚本里轮询会成倍超时（30 轮足以超过 CDP 求值的 30 秒上限，实测报
+ * `CDP 求值超时`）。等待放在 Node 侧不受影响。
+ */
+export const sleep = defineNode<
+  typeof sleepInput,
+  { waited: number },
+  DesktopCdpContext
+>({
+  name: 'dsh.sleep',
+  description: '在 Node 侧等待若干毫秒；用于等界面异步挂载（页面内定时器会被后台窗口节流）。',
+  inputSchema: sleepInput,
+  async execute({ input }) {
+    await delay(input.milliseconds)
+    return { summary: `等待 ${input.milliseconds}ms`, data: { waited: input.milliseconds } }
   },
 })

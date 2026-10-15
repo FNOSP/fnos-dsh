@@ -49,7 +49,7 @@
  * 那是 Computer Mode 的键鼠依赖，**本配置用不到**，可以删。保留说明见 `git log`。
  */
 import { defineTestProject } from '@midscene/test/config'
-import { defineDesktopCdpSetup, desktopAssert, desktopClick, desktopClickText, type DesktopCdpContext } from '@tnnevol/dsh-e2e-kit'
+import { defineDesktopCdpSetup, desktopAssert, desktopClick, desktopClickText, sleep, type DesktopCdpContext } from '@tnnevol/dsh-e2e-kit'
 
 /** 渲染进程调试端口，与启动 Desktop 时的 DSH_DESKTOP_RENDERER_DEBUG_PORT 一致。 */
 const debugPort = Number.parseInt(process.env.DSH_DESKTOP_DEBUG_PORT ?? '9333', 10)
@@ -69,6 +69,8 @@ export default defineTestProject<DesktopCdpContext>({
         desktopClick,
         // 类名带构建哈希时按可见文本点击（见该 Node 的注释）。
         desktopClickText,
+        // 等待放在 Node 侧：页面内定时器会被后台窗口节流（实测放大约 8 倍）。
+        sleep,
       ],
       // 相对执行目录（本包根）解析。glob 的两个星号与斜杠必须拆开拼，
       // 否则连续斜杠会在注释块里提前闭合。
