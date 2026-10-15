@@ -167,8 +167,10 @@ verifiedAt: 2026-10-10
   （备份只在工作区 `tmp/auth-back/`，不留用户目录）；用例不发送消息、不新建持久会话，
   切换过会话的两条用例均在收尾切回原会话，共享包守卫测试强制这一点。
   测试用的 Desktop 为 `fork-pj/deepseek-harness` 开发态实例，`DSH_HOME` 指向项目根 `.dsh`、
-  profile 为 `.dsh/profiles/desktop`（**未使用** `~/.dsh/profiles/desktop`）——按测试规范，
-  它属于测试环境，**不是**使用者的日常环境，测试结束后该实例应交还全局 profile（见下方说明）。
+  profile 为 `.dsh/profiles/desktop`（**未使用** `~/.dsh/profiles/desktop`）。
+  按测试规范，测试结束后该实例应「交还全局 profile」；本次经使用者确认**暂不交还**
+  （2026-10-15：使用者仍在使用该窗口，交还需重启实例，故保留现状并在此登记，
+  以免读成收尾遗漏）。后续需要时按规范退出该实例并以缺省 `DSH_HOME` 重启即可。
 
 
 
