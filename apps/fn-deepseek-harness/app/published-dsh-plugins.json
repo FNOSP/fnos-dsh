@@ -3,7 +3,7 @@
   "plugins": [
     {
       "name": "@tnnevol/dsh-codebuddy",
-      "version": "0.2.0-rc.2.3"
+      "version": "0.2.0-rc.2.4"
     },
     {
       "name": "@tnnevol/dsh-codex-auth",
