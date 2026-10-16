@@ -4,18 +4,32 @@ import { runCommand } from '../core/process.js'
  * npm `latest` dist-tag 维护（FNOS-012-04）。
  *
  * 发布链路只发 `next`（`publish:next` 固定 `--tag next`），npm 的 `latest` 只在
- * 无 tag 发布时才移动——因此四个自有插件的 `latest` 长期停在历史早期版本，
- * `npm i <pkg>` 默认装到旧版。本模块在每次 `publish:next` 成功后按**代际规则**
- * 自动校正 `latest`，让「上一代最新稳定版」始终是默认安装目标：
+ * 无 tag 发布时才移动——因此自有插件的 `latest` 长期停在历史早期版本，
+ * `npm i <pkg>` 默认装到旧版。本模块在每次发布成功后自动校正 `latest`：
  *
- * - 版本形态固定为 `<上游版本>.<修订>`（如 `0.2.0-rc.2.0`）；
- * - **代际** = 去掉最后一个点分段的前缀（`0.2.0-rc.2.0` 与 `0.2.0-rc.2.1` 同代）；
- * - **新代际首版**发布时：`latest` 指向上一代最新稳定版（从 npm 已知版本中解析）；
- * - **同代际迭代版**：不动 `latest`，只更新 `next`。
+ * - **默认目标 = 发布前的 `next`**（即本次发布顶替掉的那个版本），`rc` 作为次选；
+ *   两者都取不到时才回落到「上一代最新稳定版」的代际规则。
+ * - **必须在发布前捕获**：`npm publish --tag next` 一旦成功，`next` 就已经指向新版本，
+ *   事后读到的不是「发布前的 next」。
  *
- * rc 阶段刻意 pin 版本（rc 策略），预发布版进 `latest` 会让普通用户装到
- * rc——这正是规则只把 `latest` 指向**上一代**的原因。
+ * 为什么以 `next` 为准：本仓库的 `next` 就是**当前推荐安装版本**，`latest` 跟着它走，
+ * `npm i <pkg>` 才会装到我们真正想让用户用的那版。历史早期稳定版（如 `0.1.7-rc.2.2`）
+ * 与新代际差异过大，把它留在 `latest` 会把用户带到旧世界上。
  */
+
+/** 读取一个包的某个 dist-tag 指向的版本；不存在或读取失败时返回 undefined。 */
+export async function npmDistTag(packageName: string, tag: string): Promise<string | undefined> {
+  try {
+    // `runCommand` 继承 stdio（不回传输出），这里要读值，因此直接用 execFile。
+    const { execFile } = await import('node:child_process')
+    const { promisify } = await import('node:util')
+    const { stdout } = await promisify(execFile)('npm', ['view', packageName, `dist-tags.${tag}`, '--json'])
+    const value: unknown = JSON.parse(stdout.trim() === '' ? 'null' : stdout)
+    return typeof value === 'string' && value !== '' ? value : undefined
+  } catch {
+    return undefined
+  }
+}
 
 /** 读取一个包的全部已知版本（npm view，失败即空——离线/权限缺失时跳过维护）。 */
 export async function npmVersions(packageName: string): Promise<string[]> {
@@ -108,7 +122,21 @@ export function previousGenerationStable(versions: readonly string[], currentGen
  * @param packageName - 已发布的 npm 包名。
  * @param publishedVersion - 刚发布的版本号。
  */
-export async function maintainLatestTag(packageName: string, publishedVersion: string): Promise<void> {
+export async function maintainLatestTag(
+  packageName: string,
+  publishedVersion: string,
+  previous?: { readonly next?: string | undefined, readonly rc?: string | undefined },
+): Promise<void> {
+  // 首选：发布前的 `next`（本次发布顶替掉的那版）——`next` 是本仓库的推荐安装版本。
+  const target = previous?.next ?? previous?.rc
+  if (target !== undefined) {
+    const source = previous?.next === undefined ? 'rc' : 'next'
+    await runCommand('npm', ['dist-tag', 'add', `${packageName}@${target}`, 'latest'], process.cwd())
+    console.log(`  latest: ${target} (发布前的 ${source})`)
+    return
+  }
+
+  // 兜底：拿不到发布前的 next/rc 时，仍按代际规则指向上一代最新稳定版。
   const generation = generationOf(publishedVersion)
   if (generation === undefined) {
     console.log(`  latest: skip — ${publishedVersion} does not carry a revision segment`)
@@ -119,11 +147,11 @@ export async function maintainLatestTag(packageName: string, publishedVersion: s
     console.log('  latest: skip — npm view unavailable (offline or unauthorized); run `npm dist-tag add` manually if needed')
     return
   }
-  const previous = previousGenerationStable(versions, generation)
-  if (previous === undefined) {
+  const fallback = previousGenerationStable(versions, generation)
+  if (fallback === undefined) {
     console.log(`  latest: skip — no previous generation of ${packageName} exists yet`)
     return
   }
-  await runCommand('npm', ['dist-tag', 'add', `${packageName}@${previous}`, 'latest'], process.cwd())
-  console.log(`  latest: ${previous} (previous-generation stable, generation rule)`)
+  await runCommand('npm', ['dist-tag', 'add', `${packageName}@${fallback}`, 'latest'], process.cwd())
+  console.log(`  latest: ${fallback} (previous-generation stable, generation rule)`)
 }

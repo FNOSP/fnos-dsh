@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { generationOf, previousGenerationStable, revisionOf } from '../src/commands/publish-latest.js'
+import { describe, expect, it, vi } from 'vitest'
+import { generationOf, maintainLatestTag, previousGenerationStable, revisionOf } from '../src/commands/publish-latest.js'
 
 /**
  * `latest` 代际维护规则（FNOS-012-04）。
@@ -77,5 +77,56 @@ describe('previousGenerationStable（上一代最新稳定版）', () => {
     expect(previousGenerationStable(versions, '0.2.0-rc.2')).toBe('0.1.7-rc.2.2')
     // 发布 0.2.0-rc.2.1（同代际）→ 上一代依然是 0.1.7-rc.2.2（不动 latest 的依据）。
     expect(previousGenerationStable(versions, '0.2.0-rc.2')).toBe('0.1.7-rc.2.2')
+  })
+})
+
+/** 记录 `npm dist-tag add` 的调用参数，用于断言 latest 的落点。 */
+const distTagCalls: string[][] = []
+
+vi.mock('../src/core/process.js', () => ({
+  runCommand: async (_command: string, args: string[]): Promise<void> => {
+    distTagCalls.push(args)
+  },
+}))
+
+/**
+ * `latest` 的落点策略（用户明确要求）。
+ *
+ * 发布链路固定发 `--tag next`，而 `npm publish --tag next` **一旦成功就把 next 移到新版本**
+ * ——所以「发布前的 next」只能在发布前捕获，事后读到的不是它。捕获值决定 `latest`：
+ *
+ * 1. 发布前的 `next`（本仓库的推荐安装版本）——**首选**；
+ * 2. 没有 `next` 时用 `rc`；
+ * 3. 两者都没有才回落到代际规则（上一代最新稳定版）。
+ *
+ * 旧策略只走第 3 条，结果把 `latest` 留在历史早期稳定版（实测 `0.1.7-rc.2.2`），
+ * `npm i <pkg>` 会把用户带到旧世界。
+ */
+describe('maintainLatestTag（latest 跟随发布前的 next/rc）', () => {
+  it('发布前有 next 时指向它，而不是旧世代稳定版', async () => {
+    distTagCalls.length = 0
+    await maintainLatestTag('@tnnevol/dsh-x', '0.2.0-rc.2.6', { next: '0.2.0-rc.2.5' })
+    expect(distTagCalls).toEqual([
+      ['dist-tag', 'add', '@tnnevol/dsh-x@0.2.0-rc.2.5', 'latest'],
+    ])
+  })
+
+  it('没有 next 时回落到 rc', async () => {
+    distTagCalls.length = 0
+    await maintainLatestTag('@tnnevol/dsh-x', '0.2.0-rc.2.6', { rc: '0.2.0-rc.2.4' })
+    expect(distTagCalls).toEqual([
+      ['dist-tag', 'add', '@tnnevol/dsh-x@0.2.0-rc.2.4', 'latest'],
+    ])
+  })
+
+  it('next 优先于 rc', async () => {
+    distTagCalls.length = 0
+    await maintainLatestTag('@tnnevol/dsh-x', '0.2.0-rc.2.6', {
+      next: '0.2.0-rc.2.5',
+      rc: '0.2.0-rc.2.4',
+    })
+    expect(distTagCalls).toEqual([
+      ['dist-tag', 'add', '@tnnevol/dsh-x@0.2.0-rc.2.5', 'latest'],
+    ])
   })
 })

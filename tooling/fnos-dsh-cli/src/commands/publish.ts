@@ -7,7 +7,7 @@ import { findPluginTarget, type PluginTarget } from '../config/targets.js'
 import { optionValue } from '../core/args.js'
 import { runCommand } from '../core/process.js'
 import { addOptionalValueArg } from '../core/command-args.js'
-import { maintainLatestTag } from './publish-latest.js'
+import { maintainLatestTag, npmDistTag } from './publish-latest.js'
 import { askPublishPlugins } from '../ui/prompts.js'
 
 function selectPublishTargets(plugin?: string): PluginTarget[] | Promise<PluginTarget[] | undefined> {
@@ -112,6 +112,12 @@ export async function runPublish(args: string[]): Promise<void> {
     console.log(`\nPublishing npm package: ${target.label}`)
     // 先 pack（解析 catalog: 并校验），再交给 npm 发布——`npm publish <tgz>` 用的是 npm
     // 自己的凭据，因此不受 pnpm 侧凭据问题影响（实测 `pnpm whoami` 401 而 `npm whoami` 正常）。
+    // **发布前**捕获 next/rc：`npm publish --tag next` 一旦成功，next 就指向新版本，
+    // 事后读到的不是「发布前的 next」。这两个值决定 latest 的落点。
+    const before = {
+      next: await npmDistTag(target.name, 'next'),
+      rc: await npmDistTag(target.name, 'rc'),
+    }
     const tarball = await packForPublish(packageDirectory)
     await runCommand('npm', ['publish', tarball, '--tag', 'next', '--access', 'public'], packageDirectory)
     // 发布后按代际规则维护 `latest`——新代际首版指向上一代最新稳定版，同代际迭代不动（FNOS-012-04）。
@@ -123,7 +129,7 @@ export async function runPublish(args: string[]): Promise<void> {
     const version = await publishedVersion(packageDirectory)
     if (version === undefined) continue
     try {
-      await maintainLatestTag(target.name, version)
+      await maintainLatestTag(target.name, version, before)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.warn(`  latest: 维护失败（不影响本次发布）：${message.split('\n')[0]}`)
