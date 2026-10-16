@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   runCommand: vi.fn(),
   execFile: vi.fn(),
   maintainLatestTag: vi.fn(),
+  npmDistTag: vi.fn(async () => undefined),
   askPublishPlugins: vi.fn(),
   readFile: vi.fn(),
 }))
@@ -36,7 +37,12 @@ const targets = [
 
 vi.mock('../src/config/targets.js', () => ({ pluginTargets: targets, findPluginTarget: vi.fn() }))
 vi.mock('../src/core/process.js', () => ({ runCommand: mocks.runCommand }))
-vi.mock('../src/commands/publish-latest.js', () => ({ maintainLatestTag: mocks.maintainLatestTag }))
+vi.mock('../src/commands/publish-latest.js', () => ({
+  maintainLatestTag: mocks.maintainLatestTag,
+  // 发布流程在**发布前**读一次 next/rc（`npm publish --tag next` 会立刻移走 next，
+  // 事后读到的不是「发布前的 next」）。用例里默认取不到即可，走代际兜底。
+  npmDistTag: mocks.npmDistTag,
+}))
 vi.mock('../src/ui/prompts.js', () => ({ askPublishPlugins: mocks.askPublishPlugins }))
 // 发布流程先用 `pnpm pack` 出产物再校验（只有 pnpm 会解析 catalog:），用例里用假产物替代。
 vi.mock('node:child_process', async importOriginal => ({
