@@ -684,9 +684,34 @@ describe('FNOS-013-04 凭据归宿主', () => {
     })
     const serialized = JSON.stringify(calls[0])
     expect(serialized).not.toContain('should-not-be-forwarded')
+    // 白名单是精确匹配：桥只允许出现这几个键。
+    // `sessionId` 是**桥自己生成**的路由/缓存提示（不是凭据、也不是客户端传入），
+    // 提供方据此生成按会话路由的头（如 opencode 的 x-opencode-session）。
     expect(Object.keys(calls[0]!).sort()).toEqual(
-      ['messages', 'model', 'provider', 'signal'].sort(),
+      ['messages', 'model', 'provider', 'sessionId', 'signal'].sort(),
     )
+  })
+
+  it('桥下发稳定的 sessionId：按会话路由的提供方不再缺头', async () => {
+    // 回归防护：桥原先不传 sessionId，于是**只要会话模型属于「要求按会话路由」的
+    // 提供方**（如 opencode 的 x-opencode-session），桥就整体不可用（502
+    // MissingSessionID）——与「DSH 会话能用的模型，桥也能用」直接冲突。
+    const { port, calls } = await startBridge()
+    for (const prompt of ['hi', 'again']) {
+      await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+        body: JSON.stringify({
+          model: 'codebuddy/glm-5.3-flash',
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      })
+    }
+    const first = (calls[0] as Record<string, unknown> | undefined)?.sessionId
+    expect(typeof first).toBe('string')
+    expect(first).not.toBe('')
+    // 必须**稳定**：同一桥实例的多次请求共用同一个 id，提供方的路由与提示缓存才有意义。
+    expect((calls[1] as Record<string, unknown> | undefined)?.sessionId).toBe(first)
   })
 
   it('提供方在流内失败时返回错误而不是空回答（AC-04）', async () => {

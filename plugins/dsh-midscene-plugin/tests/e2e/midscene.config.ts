@@ -40,6 +40,22 @@ if (targetUrl === undefined || targetUrl === '') {
   throw new Error('缺少 DSH_WEB_URL：请传入带 token 的完整地址，例如 http://127.0.0.1:8070/?token=…')
 }
 
+/**
+ * 第三方站点能力演示的参数（可选）。
+ *
+ * 本套的常规用例验的是插件**自己的界面**；`TC-060` 验的是插件的核心承诺——**按自然语言
+ * 意图驱动任意第三方站点**。它必然依赖外部环境（站点地址、目录名、文件名），因此默认按
+ * 标签排除，只在显式提供这三个值时运行：
+ *
+ * ```bash
+ * DSH_BRIDGE_SITE="http://<host>:<port>/" \
+ * DSH_BRIDGE_PATH="a/b/c" DSH_BRIDGE_FILE="某文件.jpg" pnpm run test:e2e
+ * ```
+ */
+const demoSite = process.env.DSH_BRIDGE_SITE ?? ''
+const demoPath = process.env.DSH_BRIDGE_PATH ?? ''
+const demoFile = process.env.DSH_BRIDGE_FILE ?? ''
+
 export default defineTestProject<BridgeContext>({
   projects: [
     {
@@ -57,14 +73,18 @@ export default defineTestProject<BridgeContext>({
         clickInPage,
       ],
       files: { include: ['tests/e2e/cases/**/*.yaml'] },
-      // 图标/设置类用例都是只读的；保留标签机制以便将来加写操作用例。
-      tags: { exclude: ['destructive'] },
+      // 设置/图标类用例都是只读的；`destructive` 是写操作，`capability` 需要外部站点参数
+      // （见上方 DSH_BRIDGE_* 说明），两者都默认不跑。
+      tags: { exclude: ['destructive', 'capability'] },
+      variables: { demoSite, demoPath, demoFile },
     },
   ],
   test: {
     // 同一浏览器窗口里并行操作会互相干扰；破坏性用例还要串行改文件状态。
     maxConcurrency: 1,
-    testTimeout: 180_000,
+    // 设置/图标类用例都在 200s 内完成；TC-060 要在一个陌生站点里逐级导航并自我纠正，
+    // 实测 180s 会在它已经诊断出「点到了相邻行」时被掐断，因此按最慢的那条留余量。
+    testTimeout: 600_000,
   },
   output: { reportDir: './midscene_run/report' },
 })

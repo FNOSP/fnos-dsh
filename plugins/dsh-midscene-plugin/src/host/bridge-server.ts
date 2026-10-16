@@ -9,9 +9,11 @@
  * 通过 {@link BridgeServer.port} 暴露，由调用方写回配置并呈现给用户——这正是
  * 原设计（D4 fail-fast）要防的「静默失配」：不静默，而是写回 + 如实呈现。
  */
+import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { GenerateOptions, LlmRuntime } from '@deepseek-ai/dsh-llm'
+import { SessionId } from '@deepseek-ai/dsh-session'
 import { BRIDGE_HOST, FIXED_MODEL_NAME, OPENAI_API_PREFIX, PORT_SCAN_LIMIT, renderEnvFile, type BridgeConfig } from '../contracts/config.ts'
 import { resolveModelName } from '../contracts/model-name.ts'
 import { buildCatalog, type ModelCatalogSnapshot } from './catalog.ts'
@@ -188,6 +190,18 @@ export class BridgeServer {
   #server: Server | undefined
   /** 实际监听端口；启动成功前为 undefined。 */
   #port: number | undefined
+  /**
+   * 桥自身的会话标识，随每次请求下发给模型层。
+   *
+   * 部分提供方要求「按会话路由」的请求头（如 opencode 的 `x-opencode-session`），
+   * 而 DSH 正是从 `GenerateOptions.sessionId` 生成该头。桥原先不传这个字段，
+   * 于是**只要会话模型属于这类提供方，桥就整体不可用**（502 `MissingSessionID`）——
+   * 与「DSH 会话能正常请求的模型，桥也应该能正常发送」直接冲突。
+   *
+   * 取值稳定（每个桥实例一个）：既满足按会话路由的要求，也让支持提示缓存的
+   * 提供方拿到稳定的缓存键；不支持的提供方会忽略它，因此对所有提供方都安全。
+   */
+  readonly #sessionId = SessionId(randomUUID())
   readonly catalog: CatalogCache
 
   /**
@@ -562,7 +576,13 @@ export class BridgeServer {
     response.on('close', () => { controller.abort() })
     const timeoutMs = this.deps.config.requestTimeoutMs
     const timer = timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : undefined
-    const stream = this.deps.llm.stream({ ...options, signal: controller.signal })
+    // 提供方按会话路由/缓存时依赖 sessionId（如 opencode 的 x-opencode-session 头）；
+    // 不支持的提供方会忽略它，因此对所有提供方都安全。
+    const stream = this.deps.llm.stream({
+      ...options,
+      sessionId: this.#sessionId,
+      signal: controller.signal,
+    })
 
     try {
       if (!wantsStream) {

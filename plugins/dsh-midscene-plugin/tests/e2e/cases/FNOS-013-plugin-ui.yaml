@@ -230,3 +230,56 @@ cases:
       - aiAssert: 在暗色背景下，Midscene 插件的图标依然清晰可辨，没有被背景吞掉
       # 收尾：切回亮色，避免影响后续用例（同样走真实设置）。
       - aiAct: 回到设置页面，把主题切换回亮色（浅色）模式
+
+  # ── 桥接模式的核心承诺：按自然语言意图驱动第三方站点 ──────────────────
+  #
+  # 前面几条验的是插件**自己的界面**；这条验的是插件的**存在意义**——用户不必写选择器，
+  # 用一句话表达意图就能在一个陌生站点里走完多级目录并打开目标文件。
+  #
+  # 它必然依赖外部环境（站点、目录名、文件名），因此默认按 `capability` 标签排除，
+  # 只在显式提供 `DSH_BRIDGE_SITE` / `DSH_BRIDGE_PATH` / `DSH_BRIDGE_FILE` 时运行。
+  - name: TC-060 桥接模式按自然语言意图驱动第三方站点
+    tags: [FNOS-013, ui, bridge, capability]
+    steps:
+      # 一次 aiAct 表达完整意图：多级目录由模型自己逐级点开。拆成每级一步会慢得多
+      # （每步一次模型调用），而自然语言本来就擅长表达「依次进入」这类过程。
+      - aiAct:
+          prompt: >-
+            打开 ${demoSite}。这是一个文件列表站点，列表行很密集、相邻行容易点错。
+            请按顺序逐级进入下面这些目录，直到进入最后一级：
+            ${demoPath}（用「/」分隔层级）。
+            要求：每一级都点该文件夹的**名称文字**（不要点行尾或相邻行），
+            并在每次点击后**核对页面顶部的面包屑**是否已进入该目录；
+            如果面包屑没变或进错了目录，先回到上一级再重点。
+          options:
+            deepThink: true
+      # 在目标目录里按文件名打开图片。文件列表可能很长，模型需要滚动查找。
+      - aiAct:
+          prompt: >-
+            在当前文件列表里找到并打开这个文件：${demoFile}。
+            如果列表里看不到它，先向下滚动再找。
+          options:
+            deepThink: true
+      # 断言「图片真的显示出来了」：用图片自身的 naturalWidth/Height 判定，而不是靠观感。
+      # 这条断言同时说明它看到了哪张图（src），便于核对打开的是否为目标文件。
+      - dsh.assertInPage:
+          label: 目标图片已打开并可见
+          script: |
+            (() => {
+              const imgs = [...document.querySelectorAll('img')].filter(
+                el => el.naturalWidth >= 200 && el.naturalHeight >= 200,
+              );
+              if (imgs.length === 0) {
+                return { pass: false, detail: '页面上没有可见的大图，图片可能没有打开' };
+              }
+              const decoded = el => decodeURIComponent(el.currentSrc || el.src || '');
+              // **必须核对到具体文件**：只断言「有大图」会把「打开了别的图片」也算通过。
+              // 预览 URL 是路径式的（`/p/<完整路径>`），因此文件名会出现在 src 里。
+              const target = '${demoFile}';
+              const hit = imgs.find(el => decoded(el).includes(target));
+              if (!hit) {
+                const shown = imgs.map(decoded).join(' | ').slice(0, 200);
+                return { pass: false, detail: '已显示的图片里没有目标文件「' + target + '」；实际：' + shown };
+              }
+              return { pass: true, detail: '目标图片已打开：' + decoded(hit).slice(-140) };
+            })()
