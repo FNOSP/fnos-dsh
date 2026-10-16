@@ -1,7 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const temporaryDirectories: string[] = []
+
+afterEach(async () => {
+  const { rm } = await import('node:fs/promises')
+  await Promise.all(temporaryDirectories.splice(0).map(dir => rm(dir, { recursive: true, force: true })))
+})
 
 const mocks = vi.hoisted(() => ({
   runCommand: vi.fn(),
+  execFile: vi.fn(),
   maintainLatestTag: vi.fn(),
   askPublishPlugins: vi.fn(),
   readFile: vi.fn(),
@@ -30,6 +38,11 @@ vi.mock('../src/config/targets.js', () => ({ pluginTargets: targets, findPluginT
 vi.mock('../src/core/process.js', () => ({ runCommand: mocks.runCommand }))
 vi.mock('../src/commands/publish-latest.js', () => ({ maintainLatestTag: mocks.maintainLatestTag }))
 vi.mock('../src/ui/prompts.js', () => ({ askPublishPlugins: mocks.askPublishPlugins }))
+// 发布流程先用 `pnpm pack` 出产物再校验（只有 pnpm 会解析 catalog:），用例里用假产物替代。
+vi.mock('node:child_process', async importOriginal => ({
+  ...(await importOriginal<typeof import('node:child_process')>()),
+  execFile: mocks.execFile,
+}))
 vi.mock('node:fs/promises', async importOriginal => ({
   ...(await importOriginal<typeof import('node:fs/promises')>()),
   readFile: mocks.readFile,
@@ -46,6 +59,26 @@ describe('publish：latest 维护失败不中断整批发布', () => {
     mocks.askPublishPlugins.mockResolvedValue(targets)
     mocks.runCommand.mockResolvedValue(undefined)
     mocks.readFile.mockResolvedValue(JSON.stringify({ name: 'x', version: '1.2.3' }))
+    // `pnpm pack` 输出产物路径；`tar -xzOf` 输出已解析 catalog: 的清单。
+    //
+    // 必须一并提供 `util.promisify.custom`：真实 `execFile` 自带该符号（解析为
+    // `{stdout, stderr}`），只替换 `execFile` 会丢掉它，promisify 退化为「等回调」——
+    // 而这里的桩返回 Promise、从不调回调，于是整个用例挂到超时（实测踩到）。
+    const impl = (command: string): Promise<{ stdout: string, stderr: string }> => {
+      if (command === 'pnpm') return Promise.resolve({ stdout: '/tmp/fake-package.tgz\n', stderr: '' })
+      if (command === 'tar') {
+        return Promise.resolve({
+          stdout: JSON.stringify({ name: '@tnnevol/dsh-x', version: '1.2.3', dependencies: { dayjs: '^1.11.13' } }),
+          stderr: '',
+        })
+      }
+      return Promise.reject(new Error(`unexpected command ${command}`))
+    }
+    mocks.execFile.mockImplementation(impl)
+    Object.defineProperty(mocks.execFile, Symbol.for('nodejs.util.promisify.custom'), {
+      value: impl,
+      configurable: true,
+    })
   })
 
   it('某个插件的 latest 维护抛错时，仍发布其余插件且不抛出', async () => {
@@ -71,8 +104,8 @@ describe('publish：latest 维护失败不中断整批发布', () => {
   })
 
   it('发布本身失败时仍然抛出（不吞掉真正的失败）', async () => {
-    mocks.runCommand.mockRejectedValueOnce(new Error('pnpm publish 失败'))
+    mocks.runCommand.mockRejectedValueOnce(new Error('npm publish 失败'))
 
-    await expect(runPublish([])).rejects.toThrow('pnpm publish 失败')
+    await expect(runPublish([])).rejects.toThrow('npm publish 失败')
   })
 })

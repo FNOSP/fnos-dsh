@@ -29,22 +29,94 @@ async function publishedVersion(packageDirectory: string): Promise<string | unde
   }
 }
 
+/**
+ * 用 `pnpm pack` 打出待发布产物，并**拒绝**仍含 `catalog:` 的产物。
+ *
+ * 为什么要自己 pack 而不是让发布工具打包：`catalog:` 是 pnpm 工作区协议，**只有 pnpm
+ * 会在打包时把它换成真实版本号**，npm 的打包器不认识它。实测事故——`pnpm publish` 因
+ * 凭据问题报 E404 后改用 `npm publish`，于是六个插件全部带着未解析的 `catalog:` 发了出去：
+ *
+ * ```
+ * [ERR_PNPM_SPEC_NOT_SUPPORTED_BY_ANY_RESOLVER] "dayjs@catalog:" isn't supported by any available resolver.
+ * This error happened while installing the dependencies of @tnnevol/dsh-codebuddy@0.2.0-rc.2.4
+ * ```
+ *
+ * 本机工作区里一切正常（`catalog:` 能解析），**只有外部消费者会炸** —— 最糟的暴露位置。
+ * 因此这里先 pack 再校验，最后才交给 `npm publish`：pack 保证协议被解析，校验保证
+ * 将来换任何打包方式都不会再把这类产物发出去。
+ * @param packageDirectory 插件包目录。
+ * @returns 产物 `.tgz` 的绝对路径。
+ */
+async function packForPublish(packageDirectory: string): Promise<string> {
+  const { mkdtemp } = await import('node:fs/promises')
+  const { tmpdir } = await import('node:os')
+  const destination = await mkdtemp(join(tmpdir(), 'fnos-publish-'))
+  const { stdout } = await runCommandCaptured('pnpm', ['pack', '--pack-destination', destination], packageDirectory)
+  const tarball = stdout.trim().split('\n').filter(Boolean).pop()
+  if (tarball === undefined) throw new Error(`pnpm pack 未输出产物路径：${directoryLabel(packageDirectory)}`)
+  await assertCatalogResolved(tarball)
+  return tarball
+}
+
+/** 报错里用目录名指代包，比绝对路径可读。 */
+function directoryLabel(packageDirectory: string): string {
+  return packageDirectory.split('/').pop() ?? packageDirectory
+}
+
+/**
+ * 校验产物清单里没有残留的 `catalog:` 协议。
+ *
+ * 导出是为了让用例能直接构造产物来验证守卫有效——这道守卫的价值全在于它**会拦**。
+ */
+export async function assertCatalogResolved(tarball: string): Promise<void> {
+  const { stdout } = await runCommandCaptured('tar', ['-xzOf', tarball, 'package/package.json'], undefined)
+  const manifest = JSON.parse(stdout) as Record<string, unknown>
+  const leaked: string[] = []
+  for (const field of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
+    const entries = manifest[field]
+    if (typeof entries !== 'object' || entries === null) continue
+    for (const [name, spec] of Object.entries(entries)) {
+      if (typeof spec === 'string' && spec.includes('catalog:')) leaked.push(`${field}.${name}=${spec}`)
+    }
+  }
+  if (leaked.length > 0) {
+    throw new Error(
+      `发布产物里仍有未解析的 catalog: 协议（外部消费者会装不上）：\n  ${leaked.join('\n  ')}\n`
+      + '请用 `pnpm pack` 打包——只有 pnpm 会在打包时把 catalog: 换成真实版本号。',
+    )
+  }
+}
+
+/** 运行命令并捕获输出（`runCommand` 是继承 stdio 的，拿不到输出）。 */
+async function runCommandCaptured(
+  command: string,
+  args: string[],
+  cwd: string | undefined,
+): Promise<{ stdout: string, stderr: string }> {
+  const { execFile } = await import('node:child_process')
+  const { promisify } = await import('node:util')
+  return await promisify(execFile)(command, args, {
+    ...(cwd === undefined ? {} : { cwd }),
+    maxBuffer: 32 * 1024 * 1024,
+  })
+}
+
 export async function runPublish(args: string[]): Promise<void> {
   const targets = await selectPublishTargets(optionValue(args, '--plugin'))
   if (targets === undefined) return
 
-  // Publish in one npm-authenticated process at a time. Starting all
-  // `pnpm publish` commands together makes npm launch one Web login flow per
-  // package before the first credential has been persisted, which produces
-  // several authorization prompts for the same registry account.
+  // 逐个发布，不并发：同时启动会让 npm 在每个包上各弹一次 Web 授权，而第一个凭据
+  // 还没落盘，于是同一个 registry 账号被反复要求授权。
   for (const target of targets) {
     const packageDirectory = join(repositoryRoot, dirname(target.path))
     console.log(`\nPublishing npm package: ${target.label}`)
-    await runCommand('pnpm', ['run', 'publish:next'], packageDirectory)
-    // `pnpm publish` 发布的就是这份 package.json 的版本；发布后按代际规则维护
-    // `latest`——新代际首版指向上一代最新稳定版，同代际迭代不动（FNOS-012-04）。
+    // 先 pack（解析 catalog: 并校验），再交给 npm 发布——`npm publish <tgz>` 用的是 npm
+    // 自己的凭据，因此不受 pnpm 侧凭据问题影响（实测 `pnpm whoami` 401 而 `npm whoami` 正常）。
+    const tarball = await packForPublish(packageDirectory)
+    await runCommand('npm', ['publish', tarball, '--tag', 'next', '--access', 'public'], packageDirectory)
+    // 发布后按代际规则维护 `latest`——新代际首版指向上一代最新稳定版，同代际迭代不动（FNOS-012-04）。
     //
-    // 维护**失败不得中断整批发布**：`dist-tag` 需要写权限，而 `pnpm publish` 有浏览器
+    // 维护**失败不得中断整批发布**：`dist-tag` 需要写权限，而 `npm publish` 有浏览器
     // 授权兜底、`npm dist-tag` 没有，凭据过期时只有后者会 401。实测该失败曾中断循环，
     // 导致本批其余插件根本没被发布——而它们本可以成功。包已经发出去了，dist-tag 是
     // 事后可补的动作，因此这里降级为警告并给出可直接执行的补救命令。
