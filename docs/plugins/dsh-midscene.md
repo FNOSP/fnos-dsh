@@ -60,7 +60,12 @@ Midscene 强制要求四个模型环境变量（其中 `MIDSCENE_MODEL_FAMILY` �
 
 ### 一条命令生成接入配置
 
-在**运行 Midscene 命令的工作目录**执行（Midscene 只加载当前目录的 `.env`）：
+这份配置有**两个去处**，内容完全相同：
+
+| 去处 | 怎么用 |
+| --- | --- |
+| 命令行 | 在**运行 Midscene 命令的工作目录**保存为 `.env`（Midscene 只加载当前目录的 `.env`） |
+| **Midscene 浏览器扩展** | 打开扩展的**侧边栏设置**，把这四行粘进去（扩展侧边栏的 Playground 就是靠它接上 DSH 的模型） |
 
 ```sh
 curl -s http://127.0.0.1:8787/v1/midscene-env |
@@ -216,8 +221,13 @@ Midscene 官方支持 **Chrome 桥接模式**：本插件的验证脚本作为�
 
 前提条件（一次性）：Chrome 安装 [Midscene 扩展](https://midscenejs.com/zh/bridge-mode.html)，首次连接时在扩展弹窗点 **Allow**（或 **Always Allow** 后续免确认）。
 
+**扩展自身的模型也要指向本插件**：扩展侧边栏的 Playground 自带模型配置项，把下面第 1 步拿到的
+四行粘进**扩展的侧边栏设置**即可 —— 那里的模型就是 DSH 当前会话模型，**不需要申请任何第三方密钥**。
+漏掉这一步时，扩展用不上 DSH 的模型，会把你引向申请外部 key，而那正是本插件要消除的成本。
+
 ```sh
 # 1) 取接入配置（四行固定值；端口以 /v1/health 的 port 字段为准）
+#    同一份配置用于两处：命令行（存为工作目录的 .env）与 Midscene 浏览器扩展（粘进侧边栏设置）
 curl -s "http://127.0.0.1:8787/v1/midscene-env" |
     python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" >.env
 # 2) 运行（目标 URL 用带 token 的完整地址）
