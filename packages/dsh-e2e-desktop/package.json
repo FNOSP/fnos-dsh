@@ -1,7 +1,7 @@
 {
   "name": "@tnnevol/dsh-e2e-desktop",
   "type": "module",
-  "version": "5.7.5",
+  "version": "5.7.6",
   "private": true,
   "description": "DSH Desktop 的 Midscene Test 交互验收（跨插件的 Desktop 一致性用例）",
   "scripts": {
