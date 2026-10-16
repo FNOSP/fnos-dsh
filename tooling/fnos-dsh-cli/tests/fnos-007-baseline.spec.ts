@@ -129,7 +129,7 @@ describe('FNOS-007 DSH baseline', () => {
     // Third-party dshmarket has no local source, so its exact pin stays a
     // literal: the registry version is the contract, not a copy. 每次更新 DSH
     // 基线都要同步升级它，否则其 peer 范围可能不覆盖新基线而被兼容门禁拒绝。
-    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.66.11', source: 'thirdparty' })
+    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.66.27', source: 'thirdparty' })
     expect(published.registry).toBeUndefined()
     expect(published.bundled ?? []).toEqual([])
 
