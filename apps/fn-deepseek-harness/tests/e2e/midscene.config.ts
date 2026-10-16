@@ -72,7 +72,10 @@ export default defineTestProject<BridgeContext>({
   test: {
     // NAS 界面是同一个浏览器窗口，用例并行会互相干扰；安装类用例也更长更贵。
     maxConcurrency: 1,
-    testTimeout: 300_000,
+    // 单条用例上限。上传 + 安装要「选空间 → 上传 → 同意 → 向导 → 等安装完成」，而安装
+    // 回调本身可能还要从 registry 补齐多个插件；实测同一用例在一台 NAS 上 163s，在另一台
+    // （还缺 3 个插件要补装）超过 300s —— 上限按最慢的那条留足余量。
+    testTimeout: 600_000,
   },
   output: { reportDir: './midscene_run/report' },
 })
