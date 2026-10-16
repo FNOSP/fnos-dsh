@@ -43,8 +43,20 @@ export async function runPublish(args: string[]): Promise<void> {
     await runCommand('pnpm', ['run', 'publish:next'], packageDirectory)
     // `pnpm publish` 发布的就是这份 package.json 的版本；发布后按代际规则维护
     // `latest`——新代际首版指向上一代最新稳定版，同代际迭代不动（FNOS-012-04）。
+    //
+    // 维护**失败不得中断整批发布**：`dist-tag` 需要写权限，而 `pnpm publish` 有浏览器
+    // 授权兜底、`npm dist-tag` 没有，凭据过期时只有后者会 401。实测该失败曾中断循环，
+    // 导致本批其余插件根本没被发布——而它们本可以成功。包已经发出去了，dist-tag 是
+    // 事后可补的动作，因此这里降级为警告并给出可直接执行的补救命令。
     const version = await publishedVersion(packageDirectory)
-    if (version !== undefined) await maintainLatestTag(target.name, version)
+    if (version === undefined) continue
+    try {
+      await maintainLatestTag(target.name, version)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.warn(`  latest: 维护失败（不影响本次发布）：${message.split('\n')[0]}`)
+      console.warn(`  可稍后手动校正：npm dist-tag add ${target.name}@${version} latest`)
+    }
   }
 }
 
