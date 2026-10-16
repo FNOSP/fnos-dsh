@@ -144,6 +144,12 @@ cases:
       # 同时断言 `dsh-midscene` **不在**模块图中：它已移出 FPK 内置清单。若被测应用仍是
       # 移出前的构建（NAS 实测如此），本用例会失败——这是**正确行为**，它准确指出
       # 「这台机器上的构建与当前发布清单不符，需装新 FPK 复验」。
+      #
+      # **必须扫描全部 combo，不能只取第一个**：宿主把资源按 combo 路由键分组
+      # （`/plugins/??…&rev=…`），外壳里会同时存在 bootstrap combo 与各 application 的
+      # combo（见 `@deepseek-ai/dsh-client-modules` 的说明）。只读第一段时，第二台 NAS
+      # （多装了 dsh-opencode-go / dsh-pet / dsh-taskboard）恰好只命中 `dsh-fnos`，
+      # 于是断言假失败——而它的 profile 与 node_modules 里四个插件都在 `0.2.0-rc.2.5`。
       - dsh.assertInPage:
           label: 客户端模块图装载四个内置插件
           script: |
@@ -151,23 +157,35 @@ cases:
               const res = await fetch('/app/fn-deepseek-harness');
               if (!res.ok) return { pass: false, detail: '获取外壳失败：HTTP ' + res.status };
               const html = await res.text();
-              const m = html.match(/plugins\/\?\?((?:[^"'&]*@tnnevol[^"'&]*)+)/);
-              if (!m) return { pass: false, detail: '外壳未包含 @tnnevol bundle 引用' };
-              const found = [...m[1].matchAll(/(@tnnevol\/[^,\/]+)\/client\.js/g)].map(x => x[1]);
+              const found = new Set();
+              let combos = 0;
+              for (const combo of html.matchAll(/plugins\/\?\?([^"']+)/g)) {
+                combos += 1;
+                for (const entry of combo[1].split(',')) {
+                  const hit = entry.match(/(@tnnevol\/[^,\/]+)\/client\.js/);
+                  if (hit) found.add(hit[1]);
+                }
+              }
+              if (combos === 0) return { pass: false, detail: '外壳未包含 plugins/?? combo 引用' };
+              const names = [...found];
               const want = ['@tnnevol/dsh-fnos', '@tnnevol/dsh-codebuddy',
                             '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-failover-search'];
-              const missing = want.filter(n => !found.includes(n));
+              const missing = want.filter(n => !names.includes(n));
               if (missing.length > 0) {
-                return { pass: false, detail: '缺少 ' + missing.join('、') + '；实际 ' + found.join('、') };
+                return {
+                  pass: false,
+                  detail: '缺少 ' + missing.join('、') + '；实际 ' + names.join('、')
+                          + '（扫描了 ' + combos + ' 个 combo）',
+                };
               }
-              if (found.includes('@tnnevol/dsh-midscene')) {
+              if (found.has('@tnnevol/dsh-midscene')) {
                 return {
                   pass: false,
                   detail: '该构建仍内置 @tnnevol/dsh-midscene，属移出 Midscene 之前的构建，'
                     + '与当前发布清单不符；请安装新 FPK 后复验',
                 };
               }
-              return { pass: true, detail: '四项齐备，且不含 dsh-midscene' };
+              return { pass: true, detail: '四项齐备，且不含 dsh-midscene（扫描了 ' + combos + ' 个 combo）' };
             })()
 
   # ── 手动安装：从电脑上传 FPK 装到装完 ─────────────────────────────
