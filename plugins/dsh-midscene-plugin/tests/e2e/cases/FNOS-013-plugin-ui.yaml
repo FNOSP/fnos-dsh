@@ -56,18 +56,33 @@ cases:
                 return { pass: false, detail: '未找到 .dsh-midscene-settings（设置区块未挂载）' };
               }
               const text = root.textContent || '';
-              const want = ['接入密钥', '指定测试模型', 'Midscene .env'];
+              const want = ['接入密钥', '指定测试模型', '接入配置'];
               const missing = want.filter(n => !text.includes(n));
               if (missing.length > 0) {
                 return { pass: false, detail: '缺少字段文案：' + missing.join('、') };
               }
-              // 密钥提示必须说明「不是模型密钥」——这是本轮新增的防误用文案。
+              // 密钥提示必须说明「不是模型密钥」——这是防误用文案。
               if (!text.includes('不是模型密钥')) {
                 return { pass: false, detail: '接入密钥的提示未说明「不是模型密钥」' };
               }
-              return { pass: true, detail: '三个字段齐备，且密钥提示说明了用途' };
+              // 接入配置必须同时讲清**两个去处**：命令行 .env 与 Midscene 浏览器扩展。
+              // 只写 .env 时扩展侧边栏用不上 DSH 的模型，用户会被引向申请第三方 key——
+              // 那正是本插件要消除的成本。
+              if (!text.includes('浏览器扩展')) {
+                return { pass: false, detail: '接入配置的说明未提到 Midscene 浏览器扩展' };
+              }
+              if (!text.includes('.env')) {
+                return { pass: false, detail: '接入配置的说明未提到命令行 .env' };
+              }
+              if (!text.includes('不需要任何第三方模型密钥')) {
+                return { pass: false, detail: '未说明不需要第三方模型密钥（会被误读成要先配模型）' };
+              }
+              return {
+                pass: true,
+                detail: '三个字段齐备；接入配置同时覆盖 .env 与浏览器扩展，并声明不需要第三方密钥',
+              };
             })()
-      - aiAssert: 插件详情页里可以看到 Midscene 的设置区，包含接入密钥、指定测试模型与 .env 预览
+      - aiAssert: 插件详情页里可以看到 Midscene 的设置区，包含接入密钥、指定测试模型与接入配置预览
 
   # ── 接入密钥可显示与重新生成 ──────────────────────────────────────
   - name: TC-034b 接入密钥可显示且重新生成后变化
