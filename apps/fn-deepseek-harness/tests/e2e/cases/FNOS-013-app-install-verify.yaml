@@ -226,4 +226,29 @@ cases:
               }
               return { pass: true, detail: '新构建已生效：四个内置插件齐备且不含 dsh-midscene' };
             })()
-      - aiAssert: 应用中心列表里 DeepSeek Harness 这一项显示为已安装且可打开
+      # 安装后应用中心是否反映了本次安装：走确定性断言，不用视觉判断。
+      # 实测教训：原先这里是 `aiAssert: 应用中心列表里 … 显示为已安装且可打开`，安装明明
+      # 成功（`upgrade_callback completed` + 上一步模块图断言通过）却判否——列表视图在安装
+      # 结束后会切走/需要滚动，视觉判断在这类"列表项状态"上不可靠。
+      - aiAct:
+          prompt: >-
+            在应用中心里点左侧菜单的「已安装」，然后从列表里点开 DeepSeek Harness，
+            进入它的应用详情页。
+          options:
+            deepThink: true
+      - dsh.assertInPage:
+          label: 应用中心已反映本次安装（详情页可解析出版本号）
+          script: |
+            (() => {
+              const text = document.body.innerText || '';
+              if (!/DeepSeek Harness/.test(text)) {
+                return { pass: false, detail: '应用中心未显示 DeepSeek Harness' };
+              }
+              if (!/当前版本/.test(text)) {
+                return { pass: false, detail: '未进入应用详情页（缺少「当前版本」）' };
+              }
+              const version = (text.match(/当前版本\s*\n?\s*([0-9][0-9A-Za-z.+-]*)/) || [])[1];
+              if (!version) return { pass: false, detail: '未能从详情页解析出版本号' };
+              return { pass: true, detail: '安装后详情页版本 ' + version };
+            })()
+
