@@ -217,102 +217,19 @@ describe('bundled plugin install', () => {
 })
 
 /**
- * Orphan own-plugin removal in `cmd/install_callback`.
+ * Unsatisfiable own-plugin pins: the plugin left the manifest, or it is still in
+ * the manifest but this release ships no bundled archive.
  *
- * Dropping a plugin from the FPK bundle leaves the Web profile's dependency on
- * it in place while the new archive no longer ships its `.tgz`, so the
- * dependency rebuild dies with ENOENT and the upgrade fails with
- * "Unable to update fn-deepseek-harness". Measured on 5.7.1 → 5.7.2 with the
- * removed `@tnnevol/dsh-midscene`.
- *
- * These tests run the real shell function and record the CLI calls it makes.
- */
-async function runOrphanRemoval(
-  root: string,
-  profileDependencies: Record<string, string>,
-  publishedNames: string[],
-): Promise<string> {
-  await mkdir(join(root, 'profile'), { recursive: true })
-  await writeFile(join(root, 'profile', 'package.json'), JSON.stringify({
-    name: 'web-profile',
-    dependencies: profileDependencies,
-  }))
-  const manifest = join(root, 'published-dsh-plugins.json')
-  await writeFile(manifest, JSON.stringify({
-    version: 1,
-    plugins: publishedNames.map(name => ({ name, version: '0.0.1' })),
-    bundled: [],
-  }))
-  const harness = join(root, 'orphan-harness.sh')
-  const prelude = [
-    '#!/bin/bash',
-    `DSH_PROFILE_DIRECTORY=${JSON.stringify(join(root, 'profile'))}`,
-    `DSH_PUBLISHED_PLUGIN_MANIFEST=${JSON.stringify(manifest)}`,
-    'fail_install() { printf "FAIL:%s\\n" "$1"; exit 99; }',
-    'log_info() { :; }',
-    'validate_plugin_spec() { :; }',
-    'run_dsh_plugin_with_release_age() { printf "%s:%s\\n" "$1" "$2"; }',
-    // Forward to the real helper CLI (built into the app dir) so the orphan
-    // computation is exercised too, not just the shell plumbing.
-    `run_install_callback_helper() { node ${JSON.stringify(new URL('../../../apps/fn-deepseek-harness/app/scripts/install-callback-helper.mjs', import.meta.url).pathname)} "$@"; }`,
-    await functionSource('remove_orphan_own_plugins'),
-    'remove_orphan_own_plugins',
-  ].join('\n')
-  await writeFile(harness, prelude)
-  return execFileSync('/bin/bash', [harness], { encoding: 'utf8' })
-}
-
-describe('remove_orphan_own_plugins', () => {
-  it('removes an own plugin the release no longer publishes', async () => {
-    const root = await makeProfile()
-    const output = await runOrphanRemoval(
-      root,
-      {
-        '@tnnevol/dsh-fnos': 'file:/app/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz',
-        '@tnnevol/dsh-midscene': 'file:/app/bundled-dsh-plugins/@tnnevol/dsh-midscene.tgz',
-      },
-      ['@tnnevol/dsh-fnos'],
-    )
-    expect(output).toContain('remove:@tnnevol/dsh-midscene')
-    expect(output).not.toContain('remove:@tnnevol/dsh-fnos')
-  })
-
-  it('does nothing when every own plugin is still published', async () => {
-    const root = await makeProfile()
-    const output = await runOrphanRemoval(
-      root,
-      { '@tnnevol/dsh-fnos': 'file:/app/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz' },
-      ['@tnnevol/dsh-fnos'],
-    )
-    expect(output.trim()).toBe('')
-  })
-
-  it('never removes third-party plugins (their manifest entry means "ensure present")', async () => {
-    const root = await makeProfile()
-    const output = await runOrphanRemoval(
-      root,
-      {
-        '@tnnevol/dsh-fnos': 'file:/app/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz',
-        dshmarket: 'file:/app/bundled-dsh-plugins/dshmarket-1.66.3.tgz',
-        'some-user-plugin': '^1.0.0',
-      },
-      ['@tnnevol/dsh-fnos', 'dshmarket'],
-    )
-    expect(output).not.toContain('some-user-plugin')
-    expect(output).not.toContain('remove:dshmarket')
-  })
-})
-
-/**
- * The sibling of `remove_orphan_own_plugins`: the plugin is **still in the
- * manifest**, but the profile pins it to a bundled archive this release does
- * not ship (measured: a locally built 5.7.3 — which bundles by default —
- * upgraded by the CI-built 5.7.4, which passes `--skip-bundle-dsh-plugins`).
+ * Both leave the profile holding a `file:…/bundled-dsh-plugins/<plugin>.tgz`
+ * spec that cannot resolve, and both make the dependency rebuild die with the
+ * same ENOENT. Measured on a NAS: 5.7.1 → 5.7.2 died on a removed dsh-midscene;
+ * 5.7.3 → 5.7.4 (local build → CI build, which never bundles) died on four
+ * dangling archives at once.
  *
  * These tests run the real shell function and forward to the real helper CLI,
  * so both the detection and the removal are exercised.
  */
-async function runDanglingRemoval(
+async function runUnsatisfiableRemoval(
   root: string,
   dependencies: Record<string, string>,
   publishedNames: string[],
@@ -331,7 +248,7 @@ async function runDanglingRemoval(
     plugins: publishedNames.map(name => ({ name, version: '0.0.1' })),
     bundled: [],
   }))
-  const harness = join(root, 'dangling-harness.sh')
+  const harness = join(root, 'unsatisfiable-harness.sh')
   const prelude = [
     '#!/bin/bash',
     `DSH_PROFILE_DIRECTORY=${JSON.stringify(join(root, 'profile'))}`,
@@ -339,20 +256,36 @@ async function runDanglingRemoval(
     'fail_install() { printf "FAIL:%s\\n" "$1"; exit 99; }',
     'log_info() { :; }',
     'validate_plugin_spec() { :; }',
-    'run_dsh_plugin_with_release_age() { printf "%s:%s\\n" "$1" "$2"; }',
+    // 记录调用次数，用来断言「一次调用移除全部」——这正是本轮修复的核心。
+    'run_dsh_plugin_with_release_age() { printf "CALL:%s:%s\\n" "$1" "$*"; }',
     // Forward to the real helper CLI so the detection is exercised too.
     `run_install_callback_helper() { node ${JSON.stringify(new URL('../../../apps/fn-deepseek-harness/app/scripts/install-callback-helper.mjs', import.meta.url).pathname)} "$@"; }`,
-    await functionSource('remove_dangling_bundled_own_plugins'),
-    'remove_dangling_bundled_own_plugins',
+    await functionSource('remove_unsatisfiable_own_plugins'),
+    'remove_unsatisfiable_own_plugins',
   ].join('\n')
   await writeFile(harness, prelude)
   return execFileSync('/bin/bash', [harness], { encoding: 'utf8' })
 }
 
-describe('remove_dangling_bundled_own_plugins', () => {
+describe('remove_unsatisfiable_own_plugins', () => {
+  it('removes an own plugin the release no longer publishes', async () => {
+    const root = await makeProfile()
+    const output = await runUnsatisfiableRemoval(
+      root,
+      {
+        '@tnnevol/dsh-fnos': `file:${join(root, 'bundled/@tnnevol/dsh-fnos.tgz')}`,
+        '@tnnevol/dsh-midscene': `file:${join(root, 'bundled/@tnnevol/dsh-midscene.tgz')}`,
+      },
+      ['@tnnevol/dsh-fnos'],
+    )
+    const calls = output.split('\n').filter(line => line.startsWith('CALL:'))
+    expect(calls).toHaveLength(1)
+    expect(calls[0]).toContain('@tnnevol/dsh-midscene')
+  })
+
   it('removes own plugins pinned to a bundled archive the release does not ship', async () => {
     const root = await makeProfile()
-    const output = await runDanglingRemoval(
+    const output = await runUnsatisfiableRemoval(
       root,
       {
         '@tnnevol/dsh-codebuddy': `file:${join(root, 'bundled/@tnnevol/dsh-codebuddy.tgz')}`,
@@ -360,14 +293,35 @@ describe('remove_dangling_bundled_own_plugins', () => {
       },
       ['@tnnevol/dsh-codebuddy', '@tnnevol/dsh-codex-auth'],
     )
-    expect(output).toContain('remove:@tnnevol/dsh-codebuddy')
-    expect(output).toContain('remove:@tnnevol/dsh-codex-auth')
+    expect(output).toContain('@tnnevol/dsh-codebuddy')
+    expect(output).toContain('@tnnevol/dsh-codex-auth')
+  })
+
+  it('removes every unsatisfiable pin in ONE call so the graph resolves once', async () => {
+    // 逐个移除会让每次调用都解析整图，而其余悬空引用仍在 —— 实测第一次就 ENOENT。
+    const root = await makeProfile()
+    const output = await runUnsatisfiableRemoval(
+      root,
+      {
+        '@tnnevol/dsh-codebuddy': `file:${join(root, 'bundled/@tnnevol/dsh-codebuddy.tgz')}`,
+        '@tnnevol/dsh-codex-auth': `file:${join(root, 'bundled/@tnnevol/dsh-codex-auth.tgz')}`,
+        '@tnnevol/dsh-fnos': `file:${join(root, 'bundled/@tnnevol/dsh-fnos.tgz')}`,
+        '@tnnevol/dsh-failover-search': `file:${join(root, 'bundled/@tnnevol/dsh-failover-search.tgz')}`,
+        '@tnnevol/dsh-midscene': `file:${join(root, 'bundled/@tnnevol/dsh-midscene.tgz')}`,
+      },
+      ['@tnnevol/dsh-codebuddy', '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-fnos', '@tnnevol/dsh-failover-search'],
+    )
+    const calls = output.split('\n').filter(line => line.startsWith('CALL:'))
+    expect(calls).toHaveLength(1)
+    for (const name of ['dsh-codebuddy', 'dsh-codex-auth', 'dsh-fnos', 'dsh-failover-search', 'dsh-midscene']) {
+      expect(calls[0]).toContain(`@tnnevol/${name}`)
+    }
   })
 
   it('keeps own plugins whose bundled archive is actually present', async () => {
     const root = await makeProfile()
     const archive = 'bundled/@tnnevol/dsh-fnos.tgz'
-    const output = await runDanglingRemoval(
+    const output = await runUnsatisfiableRemoval(
       root,
       { '@tnnevol/dsh-fnos': `file:${join(root, archive)}` },
       ['@tnnevol/dsh-fnos'],
@@ -378,7 +332,7 @@ describe('remove_dangling_bundled_own_plugins', () => {
 
   it('keeps registry-pinned dependencies (nothing to dangle)', async () => {
     const root = await makeProfile()
-    const output = await runDanglingRemoval(
+    const output = await runUnsatisfiableRemoval(
       root,
       { '@tnnevol/dsh-codebuddy': '0.2.0-rc.2.4' },
       ['@tnnevol/dsh-codebuddy'],
@@ -386,23 +340,28 @@ describe('remove_dangling_bundled_own_plugins', () => {
     expect(output.trim()).toBe('')
   })
 
-  it('leaves plugins already dropped from the manifest to the orphan step', async () => {
+  it('never removes third-party plugins', async () => {
+    // 第三方清单项语义是「确保存在」而非「只能是这些」，动它会破坏用户环境。
     const root = await makeProfile()
-    const output = await runDanglingRemoval(
+    const output = await runUnsatisfiableRemoval(
       root,
-      { '@tnnevol/dsh-midscene': `file:${join(root, 'bundled/@tnnevol/dsh-midscene.tgz')}` },
-      ['@tnnevol/dsh-fnos'],
+      {
+        dshmarket: `file:${join(root, 'bundled/dshmarket-1.66.27.tgz')}`,
+        'some-user-plugin': '^1.0.0',
+      },
+      ['dshmarket'],
     )
-    // 该插件已不在清单里：由 remove_orphan_own_plugins 负责，这里不报，避免重复移除。
     expect(output.trim()).toBe('')
   })
 
-  it('never touches third-party plugins', async () => {
+  it('does nothing when every own plugin is satisfiable', async () => {
     const root = await makeProfile()
-    const output = await runDanglingRemoval(
+    const archive = 'bundled/@tnnevol/dsh-fnos.tgz'
+    const output = await runUnsatisfiableRemoval(
       root,
-      { dshmarket: `file:${join(root, 'bundled/dshmarket-1.66.27.tgz')}` },
-      ['dshmarket'],
+      { '@tnnevol/dsh-fnos': `file:${join(root, archive)}` },
+      ['@tnnevol/dsh-fnos'],
+      [archive],
     )
     expect(output.trim()).toBe('')
   })
