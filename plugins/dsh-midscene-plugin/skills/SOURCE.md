@@ -1,9 +1,11 @@
 # 内置技能来源
 
-本目录内置 **7 个技能**，来自两个上游。**所有技能文件都与上游逐字节一致，不含任何本地补丁。**
+本目录内置 **8 个技能**：**7 个来自上游**（与上游逐字节一致，不含任何本地补丁），
+外加 **1 个插件自有技能** `dsh-midscene`（**不是**上游内容，不参与上游同步）。
 
 | 技能 | 上游 | 定位 |
 | --- | --- | --- |
+| **`dsh-midscene`** | **插件自有** | **本环境入口**：模型由插件的桥提供、不索要密钥、优先用用户自己的 Chrome |
 | `browser-automation` | [`web-infra-dev/midscene-skills`](https://github.com/web-infra-dev/midscene-skills) | 浏览器自动化（Puppeteer / CDP / Bridge 三种模式） |
 | `computer-automation` | 同上 | 桌面控制（macOS / Windows / Linux，本地模式会接管真实鼠标键盘） |
 | `android-automation` | 同上 | Android 设备控制（ADB） |

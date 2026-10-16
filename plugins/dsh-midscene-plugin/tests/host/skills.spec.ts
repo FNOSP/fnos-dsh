@@ -131,19 +131,43 @@ describe('createBundledSkillProvider', () => {
 })
 
 describe('包内技能资产（AC-02）', () => {
-  it('内置官方 6 个技能 + 知识技能，共 7 个', async () => {
+  it('内置官方 6 个技能 + 知识技能 + 插件自有入口，共 8 个', async () => {
     const root = bundledSkillsDir()
     const candidates = await listBundledSkills(root)
-    // 与上游仓库一致：browser / computer / android / ios / harmony / vitest + 知识参考
+    // 前 6 个与上游仓库一致：browser / computer / android / ios / harmony / vitest，
+    // 第 7 个是知识参考，第 8 个 `dsh-midscene` 是**插件自有**的入口技能（非上游）。
     expect(candidates.map(candidate => candidate.name)).toEqual([
       'android-device-automation',
       'browser-automation',
       'computer-automation',
+      'dsh-midscene',
       'harmonyos-device-automation',
       'ios-device-automation',
       'midscenejs',
       'vitest-midscene-e2e',
     ])
+  })
+
+  it('入口技能不参与上游同步：用独占名字，且写明「不要索要模型密钥」', async () => {
+    // 这条守的是本次事故的根因：agent 不知道插件的作用，于是向用户索要 MIDSCENE_MODEL_*。
+    // 入口技能必须①用独占名字（不参与同名冲突、不会被遮蔽），②明确禁止索要密钥。
+    const root = bundledSkillsDir()
+    const candidates = await listBundledSkills(root)
+    const entry = candidates.find(candidate => candidate.name === 'dsh-midscene')
+    expect(entry, '缺少入口技能 dsh-midscene').toBeDefined()
+
+    const definition = await loadBundledSkill(root, entry!)
+    const content = definition?.content ?? ''
+    // 必须给出取配置的权威路径（桥的环境端点），而不是让用户自己找配置。
+    expect(content).toContain('/v1/midscene-env')
+    // 必须显式禁止索要第三方密钥。
+    expect(content).toContain('不要向用户索要任何模型密钥')
+    // 必须说明优先用用户自己的 Chrome（Bridge 模式）。
+    expect(content).toContain('--bridge connect')
+    // 必须点破「上游文档说插件不提供 env」这个具体弯路。
+    expect(content).toContain('上游文档不知道本插件的桥存在')
+    // 描述要能被浏览器/自动化类任务触发。
+    expect(entry!.description).toContain('Midscene')
   })
 
   it('分发内容 = 环境说明 + 上游原文，且上游部分未被改动', async () => {
@@ -185,19 +209,25 @@ describe('包内技能资产（AC-02）', () => {
     const root = bundledSkillsDir()
     const source = await readFile(join(root, 'SOURCE.md'), 'utf8')
 
+    // 插件自有的入口技能不来自上游，**不参与**这项逐字节比对（它的内容由本仓库维护）。
+    const ownSkillDir = join(root, 'dsh-midscene')
+
     const walk = async (dir: string): Promise<string[]> => {
       const entries = await readdir(dir, { withFileTypes: true })
       const files: string[] = []
       for (const entry of entries) {
         const full = join(dir, entry.name)
-        if (entry.isDirectory()) files.push(...await walk(full))
-        else if (!full.endsWith('SOURCE.md')) files.push(full)
+        if (entry.isDirectory()) {
+          if (full === ownSkillDir) continue
+          files.push(...await walk(full))
+        } else if (!full.endsWith('SOURCE.md')) files.push(full)
       }
       return files
     }
 
     const files = await walk(root)
-    // 21 个文件：6 个官方技能（含 vitest 的 references/scripts）+ midscenejs 的 13 个
+    // 21 个上游文件：6 个官方技能（含 vitest 的 references/scripts）+ midscenejs 的 13 个。
+    // 插件自有的 dsh-midscene 已排除（见上），若把它的文件算进来，说明排除逻辑失效。
     expect(files.length).toBe(21)
     for (const file of files) {
       const digest = createHash('sha256').update(await readFile(file)).digest('hex').slice(0, 16)

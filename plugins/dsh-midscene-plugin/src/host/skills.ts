@@ -6,9 +6,20 @@
  * Midscene 技能，无需另行执行技能安装命令。注册随 Cordis 效果注销：插件卸载
  * 或 HMR 时技能同步消失（AC-03）。
  *
- * **不写入用户技能目录**（需求行为约束）：技能只在注册表里存在，宿主自己的
- * 发现优先级负责共存——项目目录 > 用户目录 > 插件注册，因此用户自行安装的
- * 同名技能天然胜出（AC-04），插件不覆盖也不重复提示。
+ * **不写入用户技能目录**（需求行为约束）：技能只在注册表里存在，由宿主自己的
+ * 发现优先级负责共存，插件不往用户目录里写文件、也不重复提示。
+ *
+ * **同名冲突时插件保持最高优先级**（AC-04）：插件分发的是**本环境的权威版本**
+ * ——包内技能带环境说明（模型由桥提供、不索要密钥），而用户目录里的同名副本
+ * 通常是没有这段说明的上游原文。一旦被后者遮蔽，agent 就会不知道插件的作用，
+ * 转而向用户索要模型密钥（实测事故：会话里 agent 翻了 9 步环境、最后仍让用户
+ * 提供 `MIDSCENE_MODEL_API_KEY`）。因此候选统一用 `rank: 0`（数值最小者胜）。
+ *
+ * ⚠️ **层序优先于 rank**：宿主按 `[global, ...作用域链]` 逐层合并同名技能，
+ * **后面的层直接覆盖前面的层**，rank 只在同一层内决定胜负。插件在 profile 启动时
+ * 注册（global 层），而 `~/.agents/skills` 落在作用域链里（更靠后）——**这种情况
+ * 下 rank 再小也赢不了**。所以另有一条兜底：插件自有的入口技能 `dsh-midscene`
+ * 用**独占名字**，不参与任何同名冲突。
  */
 import { existsSync } from 'node:fs'
 import { readFile, readdir, stat } from 'node:fs/promises'
@@ -183,6 +194,8 @@ export async function listBundledSkills(root: string): Promise<SkillCandidate[]>
       description: frontmatter.description ?? '',
       // 指令文件路径：宿主用它做展示与项目根判定。
       path: skillFile,
+      // 数值最小者胜：同名冲突时插件这份（带环境说明的权威版本）保持最高优先级。
+      // 注意层序优先于 rank —— 跨层时由宿主按层覆盖，rank 只在同层内生效（见文件头注释）。
       rank: 0,
       locator: slug,
       provider: SKILL_PROVIDER_NAME,
