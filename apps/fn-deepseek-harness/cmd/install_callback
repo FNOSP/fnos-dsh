@@ -265,6 +265,40 @@ remove_orphan_own_plugins() {
     done
 }
 
+# Remove own plugins the profile pins to a bundled archive this release does not ship.
+#
+# The sibling of `remove_orphan_own_plugins`: that one covers a plugin **dropped
+# from the manifest**, this one covers a plugin **still in the manifest** whose
+# `.tgz` the release simply does not carry. Both leave the profile holding a
+# `file:…/bundled-dsh-plugins/<plugin>.tgz` spec that cannot resolve, and both
+# make the dependency rebuild die with the same ENOENT.
+#
+# Measured: 5.7.3 → 5.7.4 aborted here on a NAS. The installed 5.7.x came from a
+# **local** build, where the interactive prompt bundles plugins by default
+# (`askBundleDshPlugins`, initialValue true), so the profile recorded `file:`
+# specs. The 5.7.4 release is a **CI** build, which always passes
+# `--skip-bundle-dsh-plugins` and therefore ships no archives. Dropping the
+# unsatisfiable pins here lets `install_published_dsh_plugins` re-add them from
+# the registry, where those versions are published.
+#
+# Must run **before** `heal_profile_release_age_exclusions`: that step rebuilds
+# from the live profile manifest, and would otherwise resolve these same refs.
+remove_dangling_bundled_own_plugins() {
+    local dangling
+    dangling="$(run_install_callback_helper dangling-bundled-own-plugins \
+        "${DSH_PROFILE_DIRECTORY}/package.json" \
+        "${DSH_PUBLISHED_PLUGIN_MANIFEST}" 2>/dev/null || true)"
+    [ -n "${dangling}" ] || return 0
+    log_info "Removing own plugins this release no longer ships as bundled archives:"
+    printf '%s\n' "${dangling}" | while IFS= read -r plugin_name; do
+        [ -n "${plugin_name}" ] || continue
+        validate_plugin_spec "${plugin_name}"
+        log_info "  removing stale bundled ref ${plugin_name}"
+        run_dsh_plugin_with_release_age remove "${plugin_name}" ||
+            fail_install "Unable to remove the stale bundled reference to ${plugin_name}"
+    done
+}
+
 install_published_dsh_plugins() {
     # The helper prints `name<TAB>version[<TAB>thirdparty]`. The third column is
     # still read even though the install path no longer branches on it: leaving
@@ -472,13 +506,18 @@ main() {
         fail_install "dsh --version reported ${DSH_REPORTED_VERSION:-unknown}; expected ${DSH_VERSION}"
 
     log_info "dsh ${DSH_PACKAGE}@${DSH_VERSION} installation verified at ${DSH_BIN}."
-    # Order matters: orphans must go **before** `heal_profile_release_age_exclusions`.
-    # That step rebuilds the profile's dependencies from the live manifest, and a
-    # dependency whose archive this release no longer ships makes it fail with
-    # ENOENT (measured: 5.7.1 → 5.7.2 died here on the removed dsh-midscene).
-    # Removing the orphan first means the rebuild only ever resolves archives
-    # that are actually present.
+    # Order matters: every unsatisfiable own-plugin pin must go **before**
+    # `heal_profile_release_age_exclusions`. That step rebuilds the profile's
+    # dependencies from the live profile manifest, so any dependency whose
+    # archive this release does not ship makes it fail with ENOENT. Two shapes
+    # of that are known and both are handled first:
+    #   - the plugin left the manifest (measured: 5.7.1 → 5.7.2, removed dsh-midscene);
+    #   - the plugin is still in the manifest but this build does not bundle
+    #     archives (measured: 5.7.3 → 5.7.4, local build → CI build).
+    # The later `install_published_dsh_plugins` re-adds whatever the manifest
+    # lists, from the registry when no archive is bundled.
     remove_orphan_own_plugins
+    remove_dangling_bundled_own_plugins
     heal_profile_release_age_exclusions
     install_trim_cli
     install_published_dsh_plugins

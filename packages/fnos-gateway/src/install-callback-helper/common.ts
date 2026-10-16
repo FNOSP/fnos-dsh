@@ -392,6 +392,61 @@ export async function orphanOwnPlugins(profilePackageJsonPath: string, manifestP
   }
 }
 
+/**
+ * 打印「profile 仍以 `file:` 引用、但本次发布不再附带该归档」的自有插件，每行一个。
+ *
+ * ## 与 {@link orphanOwnPlugins} 的分工：同一个 ENOENT 的另一半
+ *
+ * `orphanOwnPlugins` 处理「插件已从清单移出」；本函数处理**插件仍在清单里，
+ * 但 profile 的 `file:` 指向的 `.tgz` 已不存在**。两者都会让依赖重建以同一个
+ * `ENOENT … bundled-dsh-plugins/<plugin>.tgz` 失败，但触发条件不同：
+ *
+ * - 插件移出清单：新包按清单打包，自然不再提供它的归档；
+ * - 插件仍在清单：**归档是否打进 FPK 由另一个开关决定**。本仓库的 CI 构建固定带
+ *   `--skip-bundle-dsh-plugins`（瘦包，插件在安装时从 registry 拉取），而本地交互
+ *   构建默认「内置插件」（`askBundleDshPlugins` 的 `initialValue` 为 true）。
+ *   于是「本地构建装的版本 → CI 构建的新版本」这条升级路径必然踩到：profile 还
+ *   指着旧包里的那份 `file:` 归档，新包已不再提供。
+ *
+ * 实测：`5.7.3 → 5.7.4` 的升级在 `Reinstalling the Web profile dependencies from the
+ * current manifest...` 之后以该错误中止（NAS 上 profile 的 4 条自有插件依赖全为
+ * `file:` 引用，而 5.7.4 的包内没有 `bundled-dsh-plugins`）。
+ *
+ * 只报**仍在清单里**的项，避免与孤儿清理重叠重复移除；同样只处理 `@tnnevol/*`，
+ * 第三方插件的 `file:` 引用不归本函数管（见 {@link orphanOwnPlugins} 的说明）。
+ * @param profilePackageJsonPath - Web profile 的 `package.json` 路径。
+ * @param manifestPath - 发布清单（`published-dsh-plugins.json`）路径。
+ */
+export async function danglingBundledOwnPlugins(profilePackageJsonPath: string, manifestPath: string): Promise<void> {
+  const profile = await readJsonStrict(profilePackageJsonPath)
+  const manifest = await readJsonStrict(manifestPath)
+  const dependencies = asJsonObject(profile.dependencies) ?? {}
+  const published = new Set(
+    (Array.isArray(manifest.plugins) ? manifest.plugins as PluginManifestEntry[] : [])
+      .map(plugin => plugin.name)
+      .filter((name): name is string => typeof name === 'string'),
+  )
+  for (const [name, spec] of Object.entries(dependencies)) {
+    if (!name.startsWith('@tnnevol/')) continue
+    // 已移出清单的交给 orphanOwnPlugins，避免两处都报同一个名字。
+    if (!published.has(name)) continue
+    if (typeof spec !== 'string' || !spec.startsWith('file:')) continue
+    const archive = spec.slice('file:'.length)
+    if (await pathExists(archive)) continue
+    process.stdout.write(`${name}\n`)
+  }
+}
+
+/** 路径是否存在（读不到即视为不存在，不区分具体 errno）。 */
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function bundledPluginVersion(path: string, packageName: string): Promise<void> {
   const manifest = await readJsonStrict(path)
   const bundled = Array.isArray(manifest.bundled) ? manifest.bundled as PluginManifestEntry[] : []

@@ -4,6 +4,7 @@ import { Command, CommanderError } from 'commander'
 import {
   bundledPluginVersion,
   copyTrimCliSkill,
+  danglingBundledOwnPlugins,
   findPackageDirectory,
   packageField,
   persistPnpmStoreDir,
@@ -115,6 +116,13 @@ export function createProgram(): Command {
     .argument('<profile-package-json-path>')
     .argument('<manifest-path>')
     .action(orphanOwnPlugins)
+
+  program
+    .command('dangling-bundled-own-plugins')
+    .description('Print own plugins (@tnnevol/*) the profile pins to a bundled archive this release does not ship')
+    .argument('<profile-package-json-path>')
+    .argument('<manifest-path>')
+    .action(danglingBundledOwnPlugins)
 
   program
     .command('bundled-plugin-version')

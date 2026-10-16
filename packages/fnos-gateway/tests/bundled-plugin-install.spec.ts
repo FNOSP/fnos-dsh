@@ -302,3 +302,108 @@ describe('remove_orphan_own_plugins', () => {
     expect(output).not.toContain('remove:dshmarket')
   })
 })
+
+/**
+ * The sibling of `remove_orphan_own_plugins`: the plugin is **still in the
+ * manifest**, but the profile pins it to a bundled archive this release does
+ * not ship (measured: a locally built 5.7.3 — which bundles by default —
+ * upgraded by the CI-built 5.7.4, which passes `--skip-bundle-dsh-plugins`).
+ *
+ * These tests run the real shell function and forward to the real helper CLI,
+ * so both the detection and the removal are exercised.
+ */
+async function runDanglingRemoval(
+  root: string,
+  dependencies: Record<string, string>,
+  publishedNames: string[],
+  archives: string[] = [],
+): Promise<string> {
+  await mkdir(join(root, 'profile'), { recursive: true })
+  await mkdir(join(root, 'bundled', '@tnnevol'), { recursive: true })
+  await writeFile(join(root, 'profile', 'package.json'), JSON.stringify({
+    name: 'web-profile',
+    dependencies,
+  }))
+  for (const archive of archives) await writeFile(join(root, archive), 'tgz')
+  const manifest = join(root, 'published-dsh-plugins.json')
+  await writeFile(manifest, JSON.stringify({
+    version: 1,
+    plugins: publishedNames.map(name => ({ name, version: '0.0.1' })),
+    bundled: [],
+  }))
+  const harness = join(root, 'dangling-harness.sh')
+  const prelude = [
+    '#!/bin/bash',
+    `DSH_PROFILE_DIRECTORY=${JSON.stringify(join(root, 'profile'))}`,
+    `DSH_PUBLISHED_PLUGIN_MANIFEST=${JSON.stringify(manifest)}`,
+    'fail_install() { printf "FAIL:%s\\n" "$1"; exit 99; }',
+    'log_info() { :; }',
+    'validate_plugin_spec() { :; }',
+    'run_dsh_plugin_with_release_age() { printf "%s:%s\\n" "$1" "$2"; }',
+    // Forward to the real helper CLI so the detection is exercised too.
+    `run_install_callback_helper() { node ${JSON.stringify(new URL('../../../apps/fn-deepseek-harness/app/scripts/install-callback-helper.mjs', import.meta.url).pathname)} "$@"; }`,
+    await functionSource('remove_dangling_bundled_own_plugins'),
+    'remove_dangling_bundled_own_plugins',
+  ].join('\n')
+  await writeFile(harness, prelude)
+  return execFileSync('/bin/bash', [harness], { encoding: 'utf8' })
+}
+
+describe('remove_dangling_bundled_own_plugins', () => {
+  it('removes own plugins pinned to a bundled archive the release does not ship', async () => {
+    const root = await makeProfile()
+    const output = await runDanglingRemoval(
+      root,
+      {
+        '@tnnevol/dsh-codebuddy': `file:${join(root, 'bundled/@tnnevol/dsh-codebuddy.tgz')}`,
+        '@tnnevol/dsh-codex-auth': `file:${join(root, 'bundled/@tnnevol/dsh-codex-auth.tgz')}`,
+      },
+      ['@tnnevol/dsh-codebuddy', '@tnnevol/dsh-codex-auth'],
+    )
+    expect(output).toContain('remove:@tnnevol/dsh-codebuddy')
+    expect(output).toContain('remove:@tnnevol/dsh-codex-auth')
+  })
+
+  it('keeps own plugins whose bundled archive is actually present', async () => {
+    const root = await makeProfile()
+    const archive = 'bundled/@tnnevol/dsh-fnos.tgz'
+    const output = await runDanglingRemoval(
+      root,
+      { '@tnnevol/dsh-fnos': `file:${join(root, archive)}` },
+      ['@tnnevol/dsh-fnos'],
+      [archive],
+    )
+    expect(output.trim()).toBe('')
+  })
+
+  it('keeps registry-pinned dependencies (nothing to dangle)', async () => {
+    const root = await makeProfile()
+    const output = await runDanglingRemoval(
+      root,
+      { '@tnnevol/dsh-codebuddy': '0.2.0-rc.2.4' },
+      ['@tnnevol/dsh-codebuddy'],
+    )
+    expect(output.trim()).toBe('')
+  })
+
+  it('leaves plugins already dropped from the manifest to the orphan step', async () => {
+    const root = await makeProfile()
+    const output = await runDanglingRemoval(
+      root,
+      { '@tnnevol/dsh-midscene': `file:${join(root, 'bundled/@tnnevol/dsh-midscene.tgz')}` },
+      ['@tnnevol/dsh-fnos'],
+    )
+    // 该插件已不在清单里：由 remove_orphan_own_plugins 负责，这里不报，避免重复移除。
+    expect(output.trim()).toBe('')
+  })
+
+  it('never touches third-party plugins', async () => {
+    const root = await makeProfile()
+    const output = await runDanglingRemoval(
+      root,
+      { dshmarket: `file:${join(root, 'bundled/dshmarket-1.66.27.tgz')}` },
+      ['dshmarket'],
+    )
+    expect(output.trim()).toBe('')
+  })
+})
