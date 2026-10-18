@@ -286,6 +286,14 @@ const requirementsSidebar = [
         text: 'FNOS-013 Midscene 浏览器自动化桥接插件',
         link: '/requirements/FNOS-013-midscene-browser-automation-bridge'
       },
+      {
+        text: 'FNOS-014 DSH 0.2.1-rc.2 插件适配与新能力支持',
+        link: '/requirements/FNOS-014-dsh-021-rc2-adaptation'
+      },
+      {
+        text: 'FNOS-015 主题缓存写入死循环修复',
+        link: '/requirements/FNOS-015-theme-cache-write-loop'
+      },
       ]
   }
 ]
@@ -347,6 +355,14 @@ const plansSidebar = [
         text: 'PLAN-FNOS-013 Midscene 浏览器自动化桥接插件',
         link: '/plans/PLAN-FNOS-013-midscene-browser-automation-bridge'
       },
+      {
+        text: 'PLAN-FNOS-014 DSH 0.2.1-rc.2 插件适配与新能力支持',
+        link: '/plans/PLAN-FNOS-014-dsh-021-rc2-adaptation'
+      },
+      {
+        text: 'PLAN-FNOS-015 主题缓存写入死循环修复',
+        link: '/plans/PLAN-FNOS-015-theme-cache-write-loop'
+      },
     ]
   }
 ]
@@ -376,6 +392,10 @@ const testsSidebar = [
       {
         text: 'FNOS-013 Midscene 浏览器自动化桥接插件',
         link: '/tests/FNOS-013-midscene-browser-automation-bridge'
+      },
+      {
+        text: 'FNOS-014 DSH 0.2.1-rc.2 插件适配与新能力支持',
+        link: '/tests/FNOS-014-dsh-021-rc2-adaptation'
       },
     ]
   }

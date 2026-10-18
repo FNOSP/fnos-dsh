@@ -52,5 +52,7 @@ flowchart TD
 | PLAN-FNOS-011 | [凭据文件权限异常的可诊断性](/plans/PLAN-FNOS-011-credential-permission-diagnostics) | 已完成（随 0.2.0-rc.2.6 发布） |
 | PLAN-FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version) | 已完成（随 0.2.0-rc.2.6 发布） |
 | PLAN-FNOS-013 | [Midscene 浏览器自动化桥接插件](/plans/PLAN-FNOS-013-midscene-browser-automation-bridge) | 已完成（随 0.2.0-rc.2.6 发布） |
+| PLAN-FNOS-014 | [DSH 0.2.1-rc.2 插件适配与新能力支持](/plans/PLAN-FNOS-014-dsh-021-rc2-adaptation) | 规划中（七阶段 19 个任务） |
+| PLAN-FNOS-015 | [主题缓存写入死循环修复](/plans/PLAN-FNOS-015-theme-cache-write-loop) | 规划中（三阶段 6 个任务；实施前置 PLAN-FNOS-014） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。
