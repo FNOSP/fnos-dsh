@@ -2,7 +2,7 @@
 id: PLAN-FNOS-015
 title: PLAN-FNOS-015 主题缓存写入死循环修复
 description: 实施 FNOS-015，修复 fnOS 插件主题缓存写入的自持循环（issue #13）：按宿主 revision 收敛写入抑制、对 unset 不生效做一次性降级，并保证主题缓存与首屏防闪在新旧运行时上都可用。
-status: planned
+status: in_progress
 owner: tnnevol
 planDate: 2026-10-18
 targetVersion: 5.8.0
@@ -18,7 +18,7 @@ lastVerified: 2026-10-18
 | 对应需求 | [FNOS-015 主题缓存写入死循环修复](/requirements/FNOS-015-theme-cache-write-loop) |
 | 本轮功能 | FNOS-015-01 至 FNOS-015-05 |
 | 实施前置 | [PLAN-FNOS-014](/plans/PLAN-FNOS-014-dsh-021-rc2-adaptation)（含 FNOS-014-15 的 `ConfigFormSnapshot.mode` 适配） |
-| 计划状态 | <Badge type="info" text="规划中" /> |
+| 计划状态 | <Badge type="warning" text="阶段一完成；阶段二/三目标环境验收待执行" /> |
 
 ## 计划目标
 
@@ -118,7 +118,7 @@ lastVerified: 2026-10-18
 
 | 阶段 | 状态 |
 | --- | --- |
-| 阶段一：修复与本地验证 | <Badge type="info" text="规划中" /> |
+| 阶段一：修复与本地验证 | <Badge type="tip" text="已完成" /> |
 | 阶段二：与 FNOS-014 的协同 | <Badge type="info" text="规划中" /> |
 | 阶段三：目标环境验收 | <Badge type="info" text="规划中" /> |
 
@@ -127,3 +127,4 @@ lastVerified: 2026-10-18
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-18 | 初始计划 | 建立 PLAN-FNOS-015，三阶段五个任务；按用户指定排在 PLAN-FNOS-014 之后实施，并写明两者交付耦合（FNOS-014-15 恢复写入门槛时必须携带最小守卫）。根因链、0.2.1-rc.2 差异与量化验收口径已在需求调研结论核实。 |
+| 2026-10-18 | 阶段一完成 | T01-01 复现脚本落地（`tmp/issue13/repro-reject.ts`），并核实历史 `loop-sim.mjs` 三场景基线（reject 才放大、成功但值不变已被抑制）；T01-02 抑制改为 revision 收敛 + 在途抑制 + 最小间隔；T01-03 reject / false / 同步抛错统一降级为「本次会话不可写」并输出调试日志；T01-04 单测覆盖主题变化必写、显式偏好必清、同值不重写。fnos 插件 230 条用例全绿。阶段二衔接 FNOS-014-15 的门槛已确立（该门槛已恢复写入，本修复即其配套守卫）。FPK 已本地编译（5.9.0，插件内置形态）供手动验证。 |
