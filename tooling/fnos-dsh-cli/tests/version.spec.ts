@@ -59,31 +59,9 @@ vi.mock('../src/config/targets.js', () => ({
     },
   ],
 }))
-vi.mock('../src/ui/prompts.js', async importOriginal => ({
-  ...(await importOriginal<typeof import('../src/ui/prompts.js')>()),
-  askPlugin: mocks.askPlugin,
-}))
 
 const { runVersion } = await import('../src/commands/version.js')
 
-const targets = [
-  {
-    value: 'codex',
-    label: 'Codex Auth',
-    name: '@tnnevol/dsh-codex-auth',
-    filter: '@tnnevol/dsh-codex-auth...',
-    path: 'plugins/dsh-codex-auth-plugin/package.json',
-    slug: 'dsh-codex-auth',
-  },
-  {
-    value: 'fnos',
-    label: 'fnOS',
-    name: '@tnnevol/dsh-fnos',
-    filter: '@tnnevol/dsh-fnos...',
-    path: 'plugins/dsh-fnos-plugin/package.json',
-    slug: 'dsh-fnos',
-  },
-]
 
 describe('统一版本命令（项目 + 全部插件一次发布）', () => {
   /**
@@ -144,7 +122,7 @@ describe('统一版本命令（项目 + 全部插件一次发布）', () => {
       tag: false,
     }))
 
-    const written = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
+    const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
     // 两个插件各自递增：0.2.1-rc.2.2 → .3，0.2.1-rc.2.5 → .6
     const codebuddy = written.find(([path]) => path.includes('dsh-codebuddy') && path.endsWith('package.json'))
     const fnos = written.find(([path]) => path.includes('dsh-fnos') && path.endsWith('package.json'))
@@ -156,7 +134,7 @@ describe('统一版本命令（项目 + 全部插件一次发布）', () => {
     // 若强行对齐，从未改动的插件会凭空跳号，已发布版本的历史也会被改写。
     await expect(runVersion(['--yes'])).resolves.toBeUndefined()
 
-    const written = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
+    const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
     expect(written.find(([p2]) => p2.includes('dsh-fnos') && p2.endsWith('package.json'))?.[1])
       .toContain('"version": "0.2.1-rc.2.6"')
     expect(written.find(([p2]) => p2.includes('dsh-codebuddy') && p2.endsWith('package.json'))?.[1])
@@ -168,7 +146,7 @@ describe('统一版本命令（项目 + 全部插件一次发布）', () => {
     // 命令内部把默认档位换成 prerelease，这里锁住该行为。
     await runVersion(['patch', '--no-commit', '--yes'])
 
-    const written = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
+    const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
     const fnos = written.find(([path]) => path.includes('dsh-fnos') && path.endsWith('package.json'))
     expect(fnos?.[1]).toContain('"version": "0.2.1-rc.2.6"')
     expect(fnos?.[1]).not.toContain('"version": "0.2.1"')

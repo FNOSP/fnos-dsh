@@ -43,7 +43,7 @@ CI 全程自动，**不需要手工创建或发布 Release**；需要人工介�
 ### 执行发布
 
 ```bash
-pnpm run version -- project minor
+pnpm run version -- minor
 git push origin main
 git push origin v<版本号>
 ```

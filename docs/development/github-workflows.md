@@ -198,7 +198,7 @@ flowchart LR
 版本命令由根 CLI 执行，项目/FPK 使用 `v<版本号>` Tag：
 
 ```bash
-pnpm run version -- project patch
+pnpm run version -- patch
 git push origin main
 git push origin v<版本号>
 ```

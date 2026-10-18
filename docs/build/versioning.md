@@ -1,17 +1,27 @@
 # 版本管理
 
-版本命令由根目录 `fnos-dsh-cli` CLI 暴露，实现在 `tooling/fnos-dsh-cli` workspace。项目/FPK 版本通过 [`bumpp`](https://github.com/antfu-collective/bumpp) 管理；插件版本由 CLI 直接更新并提交。项目/FPK 版本与插件版本是相互独立的两套发布流程，插件不会被项目版本命令隐式修改。
+版本命令由根目录 `fnos-dsh-cli` CLI 暴露，实现在 `tooling/fnos-dsh-cli` workspace。**一条命令同时推进两套版本**：项目/FPK 版本的迭代号 +1，并让每个插件在自身版本上递增；结果落在**同一条提交**里。项目版本的文件替换仍由 [`bumpp`](https://github.com/antfu-collective/bumpp) 完成，插件版本由 CLI 直接写入。
+
+不再有「先选区域」这一步：`project` / `plugin` 两个历史子命令**已被合并**，仍作为参数被接受但语义相同，写成 `pnpm run version -- patch` 即可。
 
 ## 版本更新时机（强制）
 
 **修改插件或项目的功能结束后，必须用 `pnpm run version` 更新对应版本**，不允许改动落库后版本保持不动：
 
-| 改动对象 | 命令 | 说明 |
-| --- | --- | --- |
-| 插件（`plugins/*` 的代码、样式、配置、契约） | `pnpm run version -- plugin <别名> <patch\|minor\|major>` | 在改动提交之后执行；命令会同步发布清单、总览表格与全部安装命令 |
-| 项目（应用、FPK、网关、文档、CLI 等仓库级改动） | `pnpm run version -- project <patch\|minor\|major>` | bumpp 统一更新并打 Tag |
+```bash
+pnpm run version -- patch    # 项目迭代号 +1，且全部插件各自 +1
+```
 
-- 版本档位按改动性质选择：修复与样式微调用 `patch`，新功能用 `minor`，破坏性变更用 `major`；拿不准时用 `patch`。
+一次执行会同时更新：
+
+| 对象 | 更新内容 |
+| --- | --- |
+| 项目/FPK | 迭代号 +1（基础段与 DSH 基线不动）；同步 `manifest`、各 `package.json` 与版本文档；打本地 Tag |
+| 全部插件 | 每个插件**在自身当前版本上**递增；同步发布清单、插件总览表格与全部安装命令 |
+
+- 档位按改动性质选择：修复与样式微调用 `patch`，新功能用 `minor`，破坏性变更用 `major`；拿不准时用 `patch`（也是缺省值）。
+- **插件不会因为「一起发版」而被对齐到同一版本**：各插件独立演进，强行对齐会让从未改动的插件凭空跳号，也会破坏已发布版本的历史。
+- 对带预发布段的插件版本（如 `0.2.1-rc.2.5`），`patch` 会**丢掉**预发布段得到 `0.2.1`，等于降级；因此命令内部在插件侧把默认档位换成 `prerelease`，结果是 `0.2.1-rc.2.6`。
 - 版本提交与功能改动是**两条独立提交**：先提交功能改动，再执行 `pnpm run version` 生成版本提交，不把两者混在一条里。
 - 仅文档、章程与测试用例文档的纯文档改动不需要触发版本更新。
 - 该要求与 [发布检查](#发布检查) 衔接：功能结束 → `version` 更新版本 → 发布时按 [发布流程](./release.md) 走 `publish` 与 dist-tag 维护。
@@ -30,7 +40,7 @@
 规则：
 
 - **产生的 Tag 只留在本地，不推送**。Tag 的推送由发布者按 [发布流程](./release.md) 确认后手动执行（`git push origin <tag>`），版本命令不做这件事。
-- 非交互场景（脚本、Agent、CI）使用 `--yes`：`pnpm run version -- project patch --yes`。不带 `--yes` 时命令会在确认提示处等待输入。
+- 非交互场景（脚本、Agent、CI）使用 `--yes`：`pnpm run version -- patch --yes`。不带 `--yes` 时命令会在确认提示处等待输入。
 - 插件版本命令不创建 Tag，因此没有推送 Tag 的问题；它同样支持 `--yes` 跳过确认。
 
 ## 项目与 FPK 版本
@@ -54,8 +64,8 @@
 项目版本命令更新根 `package.json`、文档包 `docs/package.json`、`packages/*/package.json`、`tooling/fnos-dsh-cli/package.json`、应用 `manifest` 和 README 版本引用，并创建项目 Tag。CLI workspace 包与项目版本保持一致，避免版本命令升级项目后工具包仍停留在旧版本。文档站点的版本徽标从文档包自身的 `package.json` 读取：
 
 ```bash
-pnpm run version -- project patch                  # 迭代号 +1
-pnpm run version -- project 5.9.0-0.2.2-rc.1.0     # 显式指定（如 DSH 基线升级时的首版）
+pnpm run version -- patch                          # 迭代号 +1，插件各自 +1
+pnpm run version -- 5.9.0-0.2.2-rc.1.0             # 显式指定（如 DSH 基线升级时的首版）
 ```
 
 默认生成 `chore: release v<版本号>` 提交和 `v<版本号>` Tag。Harness Manifest、文档 Manifest 示例和文档包版本会先与根项目对齐，再由版本流程统一更新。
@@ -75,38 +85,34 @@ pnpm run version -- project 5.9.0-0.2.2-rc.1.0     # 显式指定（如 DSH 基�
 仅修改文件时使用：
 
 ```bash
-pnpm run version -- project patch --no-commit --no-tag
+pnpm run version -- patch --no-commit --no-tag
 ```
 
 ## 插件版本
 
-插件版本可选择单个插件，或在交互提示中复选多个插件；选择版本时支持 `patch`、`minor`、`major`、`prerelease` 以及 bumpp 风格的 `custom ...` 自定义版本输入。脚本把所选插件的 `package.json` 更新到同一目标版本，并同步以下三处**副本**，让用户看到和照抄的都是实际发版版本：
+插件版本**随同一条统一命令一起递增**，不再有「单独升某个插件」的入口。每个插件在**自身当前版本**上递增，随后同步以下三处**副本**，让用户看到和照抄的都是实际发版版本：
 
 1. `apps/fn-deepseek-harness/app/published-dsh-plugins.json` 中同名插件的 `version`；
 2. `docs/plugins/index.md` 总览表格的版本列；
 3. 各处安装命令 `dsh plugin --profile web add <包名>@<版本>` —— 插件自己的 `README.md`、对应的 `docs/plugins/<插件>.md`，以及总览页里的命令。
 
-第 3 项是可执行的指令而不是描述文字：它若停在旧版本，用户照抄安装会拿到旧包。只改总览表格不足以避免这个问题，因此发布时一并改写，并由 `tooling/fnos-dsh-cli` 的用例断言「每个文档页的安装命令等于该插件当前版本」。上述文件都在**同一条提交**里：`version -- plugin` 把插件 `package.json`、发布清单、总览表格与所有安装命令一次 `git add` 后提交，不留下需要手工补交的文档改动。插件版本更新不调用 `bumpp`，多选时直接创建一条合并提交，不创建插件 Git Tag：
+第 3 项是可执行的指令而不是描述文字：它若停在旧版本，用户照抄安装会拿到旧包。只改总览表格不足以避免这个问题，因此发布时一并改写，并由 `tooling/fnos-dsh-cli` 的用例断言「每个文档页的安装命令等于该插件当前版本」。
 
-```bash
-# 直接指定单个插件
-pnpm run version -- plugin codex patch
-pnpm run version -- plugin fnos patch
-pnpm run version -- plugin showcase patch
+上述文件与项目版本改动落在**同一条提交**里，不留下需要手工补交的文档改动。
 
-# 交互选择（插件列表为复选框，可多选，再选择版本类型）
-pnpm run version -- plugin
-```
+插件列表由 CLI 动态扫描 `plugins/` 目录发现，新增插件无需改动 CLI，会自动纳入每次发布。
 
-插件列表由 CLI 动态扫描 `plugins/` 目录发现，新增插件无需改动 CLI。每个插件的别名为包名去掉 `dsh-` 前缀后的部分（如 `@tnnevol/dsh-fnos` → `fnos`、`@tnnevol/dsh-codebuddy` → `codebuddy`），也可直接使用完整包名。历史简称 `codex`、`showcase` 仍保留兼容。
+### 两个容易踩的点
 
-插件版本命令不会修改根项目、共享包、FPK Manifest 或未选中的插件；默认只创建版本提交，不创建 Git Tag。使用 `--no-commit` 可只执行文件更新；`--no-tag` 对插件版本命令保持兼容但无额外作用。脚本默认不会自动 push，推送由发布者确认后执行。
+**插件不对齐到同一版本**。各插件独立演进，当前就可能并存 `0.2.1-rc.2.2`、`0.2.1-rc.2.3`、`0.2.1-rc.2.5`。强行对齐会让从未改动的插件凭空跳号，也会破坏已发布版本的历史，因此每个插件只在自己的值上加一。
+
+**`patch` 对预发布版本会降级**。`0.2.1-rc.2.5` 用字面 `patch` 得到的是 `0.2.1` —— 预发布段被丢弃，版本号反而变小，设备会判为降级而拒装。命令在插件侧把默认档位换成 `prerelease`，得到 `0.2.1-rc.2.6`；显式给 `minor`/`major` 时按调用者意图执行。
 
 ## 发布检查
 
 1. 确认工作区没有需要保留的未提交改动。
 2. 确认功能改动已完成 `pnpm run version` 版本更新（见[版本更新时机](#版本更新时机强制)）。
-3. 根据发布目标选择 `version -- project` 或 `version -- plugin`（插件可复选）。
+3. 执行 `pnpm run version -- <档位>`：项目迭代号与全部插件版本一次更新。
 4. 检查版本文件和提交。
 5. 推送提交，触发对应的 CI/发布流程。
 6. 插件发布前运行对应插件的 `check`，再使用 `pnpm run publish` 发布当前 `next` dist-tag。
@@ -114,7 +120,7 @@ pnpm run version -- plugin
 
 ### 插件版本只有一份事实来源
 
-每个插件的版本只写在 `plugins/<插件目录>/package.json` 的 `version` 字段。`apps/fn-deepseek-harness/app/published-dsh-plugins.json` 是**副本**，由 `version -- plugin` 同步；`tooling/fnos-dsh-cli` 的构建校验只读取源码里的版本，用来证明这份副本没有和它的来源漂移，不在校验代码里重复书写版本号。
+每个插件的版本只写在 `plugins/<插件目录>/package.json` 的 `version` 字段。`apps/fn-deepseek-harness/app/published-dsh-plugins.json` 是**副本**，由统一版本命令同步；`tooling/fnos-dsh-cli` 的构建校验只读取源码里的版本，用来证明这份副本没有和它的来源漂移，不在校验代码里重复书写版本号。
 
 插件版本与 DSH 基线是两套独立的值：`0.1.7-rc.2` 是 DSH 运行时基线（同时锁定在 `.github/config/dsh-native-0.1.7-rc.2.env` 与 `cmd/install_callback`），插件可以在该基线上独立发布为 `0.1.7-rc.2.1` 这样的版本。因此**不要**把插件版本绑定到 `DSH_VERSION`，也不要为插件版本在校验代码里新增常量：一旦插件单独发版，被重复写下的那份值就会过期，构建会在一个本可以自动推导的字段上失败（v5.5.0 发布即为此类事故——插件已到 `0.1.7-rc.2.1`，脚本里仍写着 `0.1.7-rc.2`）。
 
@@ -123,22 +129,22 @@ pnpm run version -- plugin
 ### 装机验证时临时提升 FPK 版本
 
 在真实 fnOS 设备上验证安装或升级时，先把 `apps/fn-deepseek-harness/manifest` 的 `version` 临时
-改成下一个补丁号（`5.5.x` → `5.5.x+1`），验证完成后再决定是否保留：
+把**迭代号**加一（`…rc.2.1` → `…rc.2.2`），验证完成后再决定是否保留：
 
 - **为什么需要**：fnOS 应用中心按版本号判断是否需要安装。版本与已装应用相同时，手动安装会被
   当作同版本处理，无法走完整的安装/升级链路；只有版本更高才会真正执行安装回调。
 - **怎么改**：只改 `manifest` 的 `version` 一行。应用版本只从 `manifest` 读取
   （`tooling/fnos-dsh-cli/src/config/workspace.ts`），不需要同步其他地方。
 - **为什么写在规范里**：这是**临时**手段，不是发布流程的一部分。正式发版仍通过
-  `pnpm run version -- project <patch|minor|major>` 由 `bumpp` 统一更新根 `package.json`、
-  文档包、`packages/*`、`tooling/fnos-dsh-cli`、`manifest` 与 README 版本引用并打 Tag。
-- **收尾**：验证结束后，如果该版本要进入正式流程，用 `version -- project patch` 让各处版本
+  `pnpm run version -- <档位>` 由 `bumpp` 统一更新根 `package.json`、文档包、`packages/*`、
+  `tooling/fnos-dsh-cli`、`manifest` 与 README 版本引用，并同时推进全部插件版本、打本地 Tag。
+- **收尾**：验证结束后，如果该版本要进入正式流程，用 `pnpm run version -- patch` 让各处版本
   重新对齐；如果只是本地验证，把 `manifest` 改回原版本，不要留下与 `package.json` 不一致的
   应用版本进入发布。
 
-> 注意：插件版本（`plugins/*/package.json`）在验证时**不需要**跟着改。插件版本由
-> `version -- plugin` 独立管理，且构建会校验 `app/published-dsh-plugins.json` 与插件源码一致；
-> 手工改插件版本会让构建失败。
+> 注意：插件版本（`plugins/*/package.json`）在验证时**不需要**跟着改。插件版本由统一版本
+> 命令管理，且构建会校验 `app/published-dsh-plugins.json` 与插件源码一致；手工改插件版本
+> 会让构建失败。
 
 ### 更新 DSH 基线时必须同步三方插件版本
 
