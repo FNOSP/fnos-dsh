@@ -4,12 +4,18 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { versionBump } from 'bumpp'
+import { versionBump, type VersionBumpRelease } from 'bumpp'
 import { program } from '../program.js'
 import { addBooleanArgs, addNegatedArgs } from '../core/command-args.js'
 import { projectVersionFiles, repositoryRoot } from '../config/paths.js'
 import { findPluginTarget } from '../config/targets.js'
 import { parseVersionOptions } from '../core/args.js'
+import {
+  assertProjectBaseVersion,
+  nextProjectVersion,
+  parseProjectVersion,
+  readDshBaselineFromCatalog,
+} from '../core/project-version.js'
 import { readPackageInfo } from '../core/package.js'
 import { askPlugin, askReleaseArea, type ReleaseArea } from '../ui/prompts.js'
 
@@ -426,6 +432,24 @@ async function versionProject(
   const commitPrefix = 'chore: release v'
   const tagPrefix = 'v'
 
+  // 项目/FPK 版本方案（FNOS-019）：`<固定基础>-<DSH 基线>.<应用迭代号>`。
+  // 前三段固定，每次发布只递增末尾迭代号，因此**不用** bumpp 的 patch/minor/major
+  // 档位（那些会移动前三段）：这里自行算出目标版本，再以显式版本号交给 bumpp，
+  // 提交与 tag 行为保持不变。基线从 catalog 取，与插件 `catalog:dsh` 同源。
+  const workspaceYaml = await readFile(join(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8')
+  const baseline = readDshBaselineFromCatalog(workspaceYaml)
+  if (baseline === undefined) {
+    throw new Error("pnpm-workspace.yaml 的 catalog 未声明 '@deepseek-ai/dsh'，无法确定项目版本的 DSH 基线")
+  }
+  // 只为校验：基础段不是 5.9.0 或形态不符时抛出，返回值不参与后续计算。
+  assertProjectBaseVersion(current.version, baseline)
+  const requested = String(options.release).trim()
+  // 显式版本串（如手工指定跨基线版本）按其字面值；档位关键字一律收敛为「迭代号 +1」。
+  const explicit = parseProjectVersion(requested, baseline)
+  const targetVersion = explicit === undefined
+    ? nextProjectVersion(current.version, baseline)
+    : requested.replace(/^v/u, '')
+
   // bumpp intentionally skips text files whose version differs from the root
   // version. Keep the Harness Manifest, the documentation example and the app
   // doc version row in the same version set so project/FPK releases update
@@ -438,7 +462,10 @@ async function versionProject(
     cwd: repositoryRoot,
     files: projectVersionFiles,
     currentVersion: current.version,
-    release: options.release,
+    // bumpp 的 `release` 接受具体版本串（类型是模板字面量 `\`${number}${string}\``）。
+    // 档位关键字会移动前三段，而本方案要求前三段固定，因此始终交付算好的版本串；
+    // 断言只因模板字面量类型无法从普通 `string` 推导，取值本身已由解析函数校验过。
+    release: targetVersion as VersionBumpRelease,
     commit: options.noCommit ? false : `${commitPrefix}%s`,
     tag: options.noTag ? false : `${tagPrefix}%s`,
     push: false,

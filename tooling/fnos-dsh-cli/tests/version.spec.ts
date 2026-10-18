@@ -184,13 +184,18 @@ describe('plugin version command', () => {
   })
 
   it('aligns the docs and CLI packages, Harness manifest, and docs example for project releases', async () => {
-    mocks.readPackageInfo.mockResolvedValue({ name: 'fn-os-apps', version: '1.2.3' })
+    // 项目版本按 FNOS-019 是 `<固定基础>-<DSH 基线>.<迭代号>`：基础段必须是 5.9.0，
+    // 基线取自 catalog。这里让当前版本是该形态的 .4，断言发布后落在 .5。
+    mocks.readPackageInfo.mockResolvedValue({ name: 'fn-os-apps', version: '5.9.0-0.2.1-rc.2.4' })
     mocks.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('docs/package.json')) return JSON.stringify({ name: '@tnnevol/fn-os-apps-docs', version: '1.2.2' })
+      if (path.endsWith('pnpm-workspace.yaml')) return "catalog:\n  '@deepseek-ai/dsh': 0.2.1-rc.2\n"
+      // 这两个包故意给旧版本：align 只在「与根版本不同」时才写盘，若给同版本就测不到
+      // 对齐行为本身了（原测试也是这么构造的）。
+      if (path.endsWith('docs/package.json')) return JSON.stringify({ name: '@tnnevol/fn-os-apps-docs', version: '5.9.0-0.2.1-rc.2.3' })
       if (path.endsWith('tooling/fnos-dsh-cli/package.json')) return JSON.stringify({ name: '@tnnevol/fnos-dsh-cli', version: '0.0.0' })
-      if (path.endsWith('apps/fn-deepseek-harness/manifest')) return 'version               = 1.2.2\n'
-      if (path.endsWith('docs/development/manifest.md')) return 'version               = 1.2.1\n'
-      return JSON.stringify({ name: 'package', version: '1.2.3' })
+      if (path.endsWith('apps/fn-deepseek-harness/manifest')) return 'version               = 5.9.0-0.2.1-rc.2.3\n'
+      if (path.endsWith('docs/development/manifest.md')) return 'version               = 5.9.0-0.2.1-rc.2.3\n'
+      return JSON.stringify({ name: 'package', version: '5.9.0-0.2.1-rc.2.4' })
     })
 
     await runVersion(['project', 'patch', '--no-commit', '--no-tag', '--yes'])
@@ -206,7 +211,36 @@ describe('plugin version command', () => {
         'tooling/fnos-dsh-cli/package.json',
         'docs/development/manifest.md',
       ]),
+      // 关键：交付给 bumpp 的是算好的具体版本串，不是 `patch` 之类的档位关键字
+      // ——档位会移动前三段，与本方案「前三段固定」冲突。
+      release: '5.9.0-0.2.1-rc.2.5',
     }))
+  })
+
+  it('rejects a project release whose base segment drifted from 5.9.0', async () => {
+    // 「5.9.0 静态不动」是硬约束：基础段被改过时必须失败，而不是顺着漂移的版本号继续发。
+    mocks.readPackageInfo.mockResolvedValue({ name: 'fn-os-apps', version: '5.9.1-0.2.1-rc.2.4' })
+    mocks.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('pnpm-workspace.yaml')) return "catalog:\n  '@deepseek-ai/dsh': 0.2.1-rc.2\n"
+      return JSON.stringify({ name: 'package', version: '5.9.1-0.2.1-rc.2.4' })
+    })
+
+    await expect(runVersion(['project', 'patch', '--no-commit', '--no-tag', '--yes']))
+      .rejects.toThrow(/5\.9\.0/u)
+    expect(mocks.versionBump).not.toHaveBeenCalled()
+  })
+
+  it('rejects a project release when the catalog does not declare the DSH baseline', async () => {
+    // 基线不可猜测：缺声明时直接失败，避免产出一个来路不明的基线段。
+    mocks.readPackageInfo.mockResolvedValue({ name: 'fn-os-apps', version: '5.9.0-0.2.1-rc.2.4' })
+    mocks.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('pnpm-workspace.yaml')) return 'catalog:\n  foo: 1.0.0\n'
+      return JSON.stringify({ name: 'package', version: '5.9.0-0.2.1-rc.2.4' })
+    })
+
+    await expect(runVersion(['project', 'patch', '--no-commit', '--no-tag', '--yes']))
+      .rejects.toThrow(/deepseek-ai\/dsh/u)
+    expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 })
 

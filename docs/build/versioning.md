@@ -35,15 +35,37 @@
 
 ## 项目与 FPK 版本
 
+项目/FPK 版本采用**固定前缀 + 迭代号**方案（[FNOS-019](/requirements/FNOS-019-fpk-version-scheme)）：
+
+```text
+5.9.0-0.2.1-rc.2.5
+└─┬─┘ └───┬───┘ └┬┘
+  │       │      └─ 应用迭代号：每次发布 +1，其余两段不动
+  │       └──────── DSH 运行时基线：取自 pnpm-workspace.yaml 的 catalog
+  └──────────────── 固定基础版本：永不移动
+```
+
+| 段 | 含义 | 由谁维护 |
+| --- | --- | --- |
+| `5.9.0` | 应用基础版本 | **固定不变**；被改动时版本命令直接报错 |
+| `0.2.1-rc.2` | DSH 运行时基线 | 自动跟随 `pnpm-workspace.yaml` 中 `'@deepseek-ai/dsh'` 的版本 |
+| 末尾整数 | 应用迭代号 | 每次发布 +1 |
+
 项目版本命令更新根 `package.json`、文档包 `docs/package.json`、`packages/*/package.json`、`tooling/fnos-dsh-cli/package.json`、应用 `manifest` 和 README 版本引用，并创建项目 Tag。CLI workspace 包与项目版本保持一致，避免版本命令升级项目后工具包仍停留在旧版本。文档站点的版本徽标从文档包自身的 `package.json` 读取：
 
 ```bash
-pnpm run version -- project patch
-pnpm run version -- project minor
-pnpm run version -- project 5.3.0
+pnpm run version -- project patch                  # 迭代号 +1
+pnpm run version -- project 5.9.0-0.2.2-rc.1.0     # 显式指定（如 DSH 基线升级时的首版）
 ```
 
 默认生成 `chore: release v<版本号>` 提交和 `v<版本号>` Tag。Harness Manifest、文档 Manifest 示例和文档包版本会先与根项目对齐，再由版本流程统一更新。
+
+两条与直觉不同的规则：
+
+- **档位关键字只影响迭代号**。`patch`、`minor`、`major` 在此方案下语义相同，都是「迭代号 +1」——因为前三段必须固定，档位无法再作用于它们。
+- **基线变化时迭代号不重置**。DSH 基线升级后，新版本号的迭代号在上一次的值上继续递增，不回到 0。版本号只需单调递增；重置会让新号在排序上退回旧位置，设备判为降级而拒绝安装。
+
+整串在 semver 中是**预发布版本**（`-` 之后为 prerelease），按语义化版本排序时小于同号正式版 `5.9.0`。本方案不发布 `5.9.0` 正式版，比较只发生在两个预发布版本之间，此时末尾迭代号能正确分出先后。
 
 仅修改文件时使用：
 
