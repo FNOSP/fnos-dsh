@@ -11,7 +11,7 @@ import { projectVersionFiles, repositoryRoot } from '../config/paths.js'
 import { findPluginTarget } from '../config/targets.js'
 import { parseVersionOptions } from '../core/args.js'
 import {
-  assertProjectBaseVersion,
+  assertProjectVersionShape,
   nextProjectVersion,
   parseProjectVersion,
   readDshBaselineFromCatalog,
@@ -432,17 +432,18 @@ async function versionProject(
   const commitPrefix = 'chore: release v'
   const tagPrefix = 'v'
 
-  // 项目/FPK 版本方案（FNOS-019）：`<固定基础>-<DSH 基线>.<应用迭代号>`。
-  // 前三段固定，每次发布只递增末尾迭代号，因此**不用** bumpp 的 patch/minor/major
-  // 档位（那些会移动前三段）：这里自行算出目标版本，再以显式版本号交给 bumpp，
-  // 提交与 tag 行为保持不变。基线从 catalog 取，与插件 `catalog:dsh` 同源。
+  // 项目/FPK 版本方案（FNOS-019）：`<基础段>-<DSH 基线>.<应用迭代号>`。
+  // 基础段由版本号自身承载、发布时原样继承；每次发布只递增末尾迭代号，因此**不用**
+  // bumpp 的 patch/minor/major 档位（那些会移动前三段）：这里自行算出目标版本，再以
+  // 显式版本号交给 bumpp，提交与 tag 行为保持不变。基线从 catalog 取，与插件
+  // `catalog:dsh` 同源。
   const workspaceYaml = await readFile(join(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8')
   const baseline = readDshBaselineFromCatalog(workspaceYaml)
   if (baseline === undefined) {
     throw new Error("pnpm-workspace.yaml 的 catalog 未声明 '@deepseek-ai/dsh'，无法确定项目版本的 DSH 基线")
   }
-  // 只为校验：基础段不是 5.9.0 或形态不符时抛出，返回值不参与后续计算。
-  assertProjectBaseVersion(current.version, baseline)
+  // 只校验形态（不认具体字面量）：不符合本方案时报错，避免把裸版本或坏串继续发下去。
+  assertProjectVersionShape(current.version, baseline)
   const requested = String(options.release).trim()
   // 显式版本串（如手工指定跨基线版本）按其字面值；档位关键字一律收敛为「迭代号 +1」。
   const explicit = parseProjectVersion(requested, baseline)

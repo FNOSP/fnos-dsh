@@ -184,8 +184,8 @@ describe('plugin version command', () => {
   })
 
   it('aligns the docs and CLI packages, Harness manifest, and docs example for project releases', async () => {
-    // 项目版本按 FNOS-019 是 `<固定基础>-<DSH 基线>.<迭代号>`：基础段必须是 5.9.0，
-    // 基线取自 catalog。这里让当前版本是该形态的 .4，断言发布后落在 .5。
+    // 项目版本按 FNOS-019 是 `<基础段>-<DSH 基线>.<迭代号>`：基础段原样继承当前版本，
+    // 基线取自 catalog，只递增迭代号。这里让当前版本是该形态的 .4，断言发布后落在 .5。
     mocks.readPackageInfo.mockResolvedValue({ name: 'fn-os-apps', version: '5.9.0-0.2.1-rc.2.4' })
     mocks.readFile.mockImplementation(async (path: string) => {
       if (path.endsWith('pnpm-workspace.yaml')) return "catalog:\n  '@deepseek-ai/dsh': 0.2.1-rc.2\n"
@@ -217,16 +217,17 @@ describe('plugin version command', () => {
     }))
   })
 
-  it('rejects a project release whose base segment drifted from 5.9.0', async () => {
-    // 「5.9.0 静态不动」是硬约束：基础段被改过时必须失败，而不是顺着漂移的版本号继续发。
-    mocks.readPackageInfo.mockResolvedValue({ name: 'fn-os-apps', version: '5.9.1-0.2.1-rc.2.4' })
+  it('rejects a project release when the version is still a bare MAJOR.MINOR.PATCH', async () => {
+    // 裸版本缺基线与迭代号两段，不符合本方案形态；此时必须失败而不是照着发。
+    // 注意校验的是**形态**，不认基础段的具体值——换个基础段照样合法。
+    mocks.readPackageInfo.mockResolvedValue({ name: 'fn-os-apps', version: '5.9.0' })
     mocks.readFile.mockImplementation(async (path: string) => {
       if (path.endsWith('pnpm-workspace.yaml')) return "catalog:\n  '@deepseek-ai/dsh': 0.2.1-rc.2\n"
-      return JSON.stringify({ name: 'package', version: '5.9.1-0.2.1-rc.2.4' })
+      return JSON.stringify({ name: 'package', version: '5.9.0' })
     })
 
     await expect(runVersion(['project', 'patch', '--no-commit', '--no-tag', '--yes']))
-      .rejects.toThrow(/5\.9\.0/u)
+      .rejects.toThrow(/FNOS-019/u)
     expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 

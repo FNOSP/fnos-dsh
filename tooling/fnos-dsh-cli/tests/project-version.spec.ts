@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
-  PROJECT_BASE_VERSION,
-  assertProjectBaseVersion,
+  assertProjectVersionShape,
   formatProjectVersion,
   nextProjectVersion,
   parseProjectVersion,
@@ -67,8 +66,11 @@ describe('nextProjectVersion：下次版本计算（FNOS-019-02）', () => {
     expect(nextProjectVersion('5.9.0-0.2.1-rc.2.5', BASELINE)).toBe('5.9.0-0.2.1-rc.2.6')
   })
 
-  it('TC-010 无当前版本时从第 0 次迭代起算', () => {
-    expect(nextProjectVersion(undefined, BASELINE)).toBe('5.9.0-0.2.1-rc.2.0')
+  it('TC-010 无当前版本时从第 0 次迭代起算（基础段取外部给定值）', () => {
+    // 基础段不由代码常量决定：解析不出当前版本时必须由调用方显式给出，否则无法组出
+    // 完整版本号。这里断言两条：给了就用它，没给就报错而不是猜一个。
+    expect(nextProjectVersion(undefined, BASELINE, '5.9.0')).toBe('5.9.0-0.2.1-rc.2.0')
+    expect(() => nextProjectVersion(undefined, BASELINE)).toThrow(/基础段/u)
   })
 
   it('TC-011 基线变化时迭代号继续递增而不是归零', () => {
@@ -80,9 +82,10 @@ describe('nextProjectVersion：下次版本计算（FNOS-019-02）', () => {
     expect(nextProjectVersion('5.9.0-0.2.1-rc.2', BASELINE)).toBe('5.9.0-0.2.1-rc.2.1')
   })
 
-  it('基础版本段恒为固定值', () => {
-    const next = nextProjectVersion('1.2.3-0.2.1-rc.2.5', BASELINE)
-    expect(next.startsWith(`${PROJECT_BASE_VERSION}-`)).toBe(true)
+  it('基础段原样继承当前版本，不由代码改写', () => {
+    // 代码不认识 5.9.0 这个字面量：当前版本写的是 1.2.3，发布后就还是 1.2.3。
+    // 这样调整基础段只需改版本文件，不必改代码，也不会与代码里的常量悄悄不一致。
+    expect(nextProjectVersion('1.2.3-0.2.1-rc.2.5', BASELINE)).toBe('1.2.3-0.2.1-rc.2.6')
   })
 
   it('非法基线直接报错，不产出可疑版本号', () => {
@@ -111,16 +114,29 @@ describe('readDshBaselineFromCatalog：基线唯一来源（FNOS-019-04）', () 
   })
 })
 
-describe('assertProjectBaseVersion：基础段静态不动（AC-01）', () => {
-  it('TC-015 基础段不是固定值时明确报错而不是静默改写', () => {
-    expect(() => assertProjectBaseVersion('5.9.1-0.2.1-rc.2.5', BASELINE)).toThrow(/5\.9\.0/u)
+describe('assertProjectVersionShape：校验形态而非字面量（AC-01）', () => {
+  it('TC-015 裸版本号（未带基线与迭代号）被拒绝', () => {
+    // 校验的是形态：`5.9.0` 缺了基线与迭代号两段，无论基础段值是什么都不合规。
+    expect(() => assertProjectVersionShape('5.9.0', BASELINE)).toThrow(/FNOS-019/u)
   })
 
-  it('基础段正确时返回拆解结果', () => {
-    expect(assertProjectBaseVersion('5.9.0-0.2.1-rc.2.5', BASELINE).iteration).toBe(5)
+  it('形态合法时返回拆解结果，且不限定基础段的具体值', () => {
+    expect(assertProjectVersionShape('5.9.0-0.2.1-rc.2.5', BASELINE).iteration).toBe(5)
+    // 换个基础段同样合法：代码不认 5.9.0 这个字面量。
+    expect(assertProjectVersionShape('7.1.2-0.2.1-rc.2.5', BASELINE).base).toBe('7.1.2')
   })
 
-  it('不符合三段形态时给出可操作的错误', () => {
-    expect(() => assertProjectBaseVersion('5.9.0', BASELINE)).toThrow(/FNOS-019/u)
+  it('串内基线是旧基线时仍合法（基线升级中的过渡态）', () => {
+    // DSH 刚升到新基线、版本文件还停在旧基线时，这不是错误：按旧基线解析出迭代号，
+    // 发布时再换成新基线并继续递增。若这里判非法，基线升级那次发布就会解析失败、
+    // 迭代号被迫归零——正是本方案要避免的。
+    const parsed = assertProjectVersionShape('5.9.0-9.9.9.5', BASELINE)
+    expect(parsed.baseline).toBe('9.9.9')
+    expect(parsed.iteration).toBe(5)
+  })
+
+  it('尾部完全不合形态时被拒绝', () => {
+    expect(() => assertProjectVersionShape('5.9.0-not-a-version', BASELINE)).toThrow(/FNOS-019/u)
+    expect(() => assertProjectVersionShape('5.9.0-0.2.1-rc.2.x', BASELINE)).toThrow(/FNOS-019/u)
   })
 })
