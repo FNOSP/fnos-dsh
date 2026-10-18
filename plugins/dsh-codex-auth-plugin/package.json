@@ -2,17 +2,8 @@
   "name": "@tnnevol/dsh-codex-auth",
   "displayName": "Codex Auth",
   "type": "module",
-  "version": "0.2.1-rc.2.0",
+  "version": "0.2.1-rc.2.1",
   "description": "Standalone ChatGPT OAuth account management for DeepSeek Harness.",
-  "keywords": [
-    "codex",
-    "chatgpt",
-    "openai",
-    "provider",
-    "oauth",
-    "account",
-    "usage"
-  ],
   "author": "tnnevol",
   "license": "Apache-2.0",
   "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-codex-auth",
@@ -25,6 +16,15 @@
   "bugs": {
     "url": "https://github.com/FNOSP/fnos-dsh/issues"
   },
+  "keywords": [
+    "codex",
+    "chatgpt",
+    "openai",
+    "provider",
+    "oauth",
+    "account",
+    "usage"
+  ],
   "publishConfig": {
     "access": "public"
   },
