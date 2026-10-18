@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Midscene 桥接",
+    "description": "托管本地 OpenAI 兼容桥接服务，把 Midscene 浏览器自动化接到 DSH 全部已配置模型。"
+  }
+}

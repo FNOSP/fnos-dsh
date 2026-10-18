@@ -16,7 +16,7 @@ lastVerified: 2026-10-18
 | 计划编号 | PLAN-FNOS-016 |
 | 计划日期 | 2026-10-18 |
 | 对应需求 | [FNOS-016 插件市场索引与插件元数据](/requirements/FNOS-016-plugin-market-index) |
-| 本轮功能 | FNOS-016-01 至 FNOS-016-06 全部进入本轮实施 |
+| 本轮功能 | FNOS-016-01 至 FNOS-016-07 全部进入本轮实施 |
 | 上游依据 | 上游 checkout `fork-pj/deepseek-harness`（`dsh-v0.2.1-rc.2`）：`packages/util/plugin-market-index`（格式与校验）、`apps/plugin-market-generator`（官方生成器）、`packages/boot/plugin-market`（索引读取）、`.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.zh.md` |
 | 计划状态 | <Badge type="info" text="规划中" /> |
 
@@ -120,6 +120,7 @@ flowchart LR
 | PLAN-FNOS-016-T01-01 | FNOS-016-03 / AC-01、AC-02 | 六个插件 `package.json` 增加 `keywords`，按各插件实际能力填写 | — | 各插件 `check` 通过；关键词与实际能力逐项核对 |
 | PLAN-FNOS-016-T01-02 | FNOS-016-02 / AC-01～AC-03 | fnOS 与 CodeBuddy 补 `icon` 与 `files` 白名单；其余三个保持省略并在计划中留痕 | — | 图标格式/体积校验；`pnpm pack` 产物内含图标 |
 | PLAN-FNOS-016-T01-03 | FNOS-016-02 / AC-02 | 确认省略图标的三个插件包内无来源不明图片 | T01-02 | 包内文件清单核对 |
+| PLAN-FNOS-016-T01-04 | FNOS-016-07 / AC-01、AC-02 | 五个缺 locale 的插件补 `locale/en.json` 与 `locale/zh.json` 的 `meta.title`/`meta.description`；`files` 加入 `locale`，`exports` 增加 `./locale/*.json` | T01-01 | 生成器读到可读标题；包内 `pnpm pack` 含 locale |
 
 ### 阶段二：发布补丁版本
 
@@ -220,7 +221,7 @@ flowchart LR
 
 | 阶段 | 任务 | 状态 |
 | --- | --- | --- |
-| 一：插件元数据 | T01-01～T01-03 | <Badge type="info" text="规划中" /> |
+| 一：插件元数据 | T01-01～T01-04 | <Badge type="info" text="规划中" /> |
 | 二：发布补丁版本 | T02-01～T02-03 | <Badge type="info" text="规划中" /> |
 | 三：生成与托管索引 | T03-01～T03-04 | <Badge type="info" text="规划中" /> |
 | 四：一致性校验与验收 | T04-01～T04-04 | <Badge type="info" text="规划中" /> |
@@ -229,4 +230,5 @@ flowchart LR
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
-| 2026-10-18 | 初始登记 | 建立 PLAN-FNOS-016，按「元数据 → 发版 → 生成索引 → 校验验收」四阶段拆分 14 个任务。已写明「必须先进 npm 才能被生成器看到」这一关键约束、图标素材逐个处置结论、五项已决定事项与回退方案。 |
+| 2026-10-18 | 初始登记 | 建立 PLAN-FNOS-016，按「元数据 → 发版 → 生成索引 → 校验验收」四阶段拆分任务。已写明「必须先进 npm 才能被生成器看到」这一关键约束、图标素材逐个处置结论、五项已决定事项与回退方案。 |
+| 2026-10-18 | 新增 T01-04 | 覆盖 FNOS-016-07：五个插件缺 `locale/` 使索引标题回退为包名，补中英 locale 并在 `files`/`exports` 中放行。 |

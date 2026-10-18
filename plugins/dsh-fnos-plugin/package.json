@@ -36,7 +36,8 @@
     "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./compatibility.json": "./compatibility.json",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -46,7 +47,8 @@
     "compatibility.json",
     "cordis.patch.yml",
     "icon.png",
-    "lib"
+    "lib",
+    "locale"
   ],
   "engines": {
     "node": "^22.19.0 || >=24.0.0"

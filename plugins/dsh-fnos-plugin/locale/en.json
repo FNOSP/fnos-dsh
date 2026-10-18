@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "fnOS",
+    "description": "fnOS-specific integrations for DeepSeek Harness: theme following, authorized directories, NAS file access, and session log export."
+  }
+}

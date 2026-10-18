@@ -1,0 +1,1056 @@
+{
+  "format": 1,
+  "title": "飞牛 fnOS DSH 插件",
+  "description": "为飞牛 fnOS 维护的 DSH 插件：模型提供方、搜索故障转移、浏览器自动化与系统集成。",
+  "plugins": [
+    {
+      "name": "@tnnevol/dsh-fnos",
+      "title": "@tnnevol/dsh-fnos",
+      "description": "fnOS-specific integrations for DeepSeek Harness.",
+      "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJAAAACQCAYAAADnRuK4AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAkKADAAQAAAABAAAAkAAAAAA/PwqIAAAIkklEQVR4Ae2dT2wVRRzHFxRLY2ugicWWxIMm9QC3cvRPL3pCvYH2gif0auydcvJCw1U5eYLgTdqTXmo4CifhQIkmauhTNEVpSSVU8X0XN+xbdt/O7G9/M7s730mavrdv5rcz39/nzf/Zt2t24ebDiIEKVFRgd8V0TEYFYgUIEEEQKUCARPIxMQEiAyIFCJBIPiYmQGRApAABEsnHxASIDIgUIEAi+ZiYAJEBkQIESCQfExMgMiBSgACJ5GNiAkQGRAoQIJF8TEyAyIBIAQIkko+JCRAZEClAgETyMTEBIgMiBQiQSD4mJkBkQKQAARLJx8QEiAyIFCBAIvmYmACRAZECBEgkHxMTIDIgUoAAieRjYgJEBkQKECCRfExMgMiASAECJJLPb+LxUf/u85qDmYMj0cz0iF8vtPjuc4fGoqmJp72WwBtAgGfx2GS0tn7fqwBtvvnq9a3o848OeoXIC0BHj4zHBT9/+c82+8973je3/416GzteIXIOEOBZPH4gGt+7O7r6w7Z3J7Q9A+e+2Yim9+/xBpFTgNBsffLu87HPAE/vzk7b/ec9/9ARNZEviJwBND2xJ1o6MRXXPFB9+cpd7+J3JQPfXr8XFwUQLR474LRYzgA6+eZENLX/8YiBzVd9fk5rOfvyaAStXQUnAL195LkIfZ8krG88YPOViFHD/zRAMHfyrf6X1dHw3glAKFA6sO+TVkP+ev3Og7gflLbkqilTBwi1T7rpQiE595N2dT2ve32I0gFN2exLo+lLKq/VAcrWPigFRg0M9SqwnjOinTv8bL03ybGmChC+BdnaB3lAlcugr8DRfu2vvV6mCtDcofxvAIabDPUqgInZbAA82s3Yk3fN5kLwHjVQXsirlfLi8Zq5AphnywtFPsiLW+WaGkCgv2ilfe7wWJW8Mk2BAoCn6Ev5RkErUGDK+rIaQEXwIIcuqlZrJVqcYNjEYVHNVFdx1QAq6+ecem9SvYNXl0hNtgNA0pO0eXktqp3y4tpeUwOoLNO+Fv9sBWpyfMCD/UBlYXzvU2VRKn+uBpBJjtDMQYCi0ZqJjVDjoBtw5sQLhX2ftC6IqxUer25q3aHELmqiMx9MxXuDsEKPlWVONA4XDSMr7Kkqq+WHW6nnUzWAbNe7IEoy5MTiIP6w5AGY1nqP/tdT5HZaSUa16DAnOpmWRPMLqQbQDcFe5zRMKPz82Z+tayXYQNOIKYOxfhWeN9Fm6oA2x0u+gFplUAMoqT2k7e/Spd+ttn5g8TbezpDae6QlXhvsai9c6/Wu+uquCHcdovArVzaN/BR3Kvt9qVPHJxvRNzDKtINI2js/VQG6cPkvkURLX/1hlB7D2fMfv8jRXEYtbNwz/QJmkhq/VQUIq+4XKh7dWbt1P7r6o9mpjfhsFJusJ5yOExvaQRUgZB6FqNIOLxs2Xezv5CNy7usN9doHd1YHCKOAhS9+jQ/A5Rc1/2p2n29eLDRdw9aB8tKEcA3NlovaB1qqA4SboCn78LNbxjWR6dCT8EDdwYAuw+LF3wYvKr5TG8Zn8wyI5s/+Er3/2r5o/tV9Q08N9PqdP5OgvVXBJA9NiYMaG82Wab+xrnw7AyjJML4hK9/djSf4sIqM9bDsXNHm3+V7pjFRmE2X3COU/5jtX/1+K1rtL/+4BifR2DlAuDEAwfxEMkeBWWLMFtuEYfuNsnYAbdce5GC7VJTVpK73XgDKZh5AmdQ66XSmSxOr1+5FS5fM5pPS9vnaTAG7r72ZTSexMAIzCVWmEEzsMs4jBVoLEB3YDAUIUDP80NpcEKDWuq4ZGSdAzfBDa3NBgFrrumZkvBHD+GZIUV8utPcqN2UOCIoRoJq4wfZZLNPY7le2vT32+Lzz6U+2ydTiE6AapMUJibLDfTXcJgI8WJRuUmAfSOgN7EdyAQ92KACeJjVfkI4ACQBytR8pqXmaBg+kYxMmAMjFdpImw0OABPAg6SvKPxSDXQTY42O70CwsllVy1kBWcrmJjFrn9MXb3vb42JSSANmopRwXHeW41nFwmqKuohCgupSsaCfe/90/QOljO2rFLA8kI0ADcui/wUjqRv/MG/Z9Yysq9is1uY9TpggBKlOohs9Ru7g6ZlNDdq1McB7ISq7ByLb7uAdTd+Mda6AcP+K0x1jOc5fTUTGJqD2MT9+vqa8JUMozWAit8gCnlIngXhKg/12ONS2edLXnn32gvmaExx6cJEXwAKEvg6eaMVRTIHiAZqafUX+iGSYLuxoI0NSIum+7fLgxeIC06cHCqK8HH2iXDfYJkLLKXZ2BTmQjQIkSCv/xkFDth1wqZNvKJOeBrOQqj4wO8+q1rRicLjddiRIEKFGi5P9y/6FYp7+8XRIrvI8734SF/hQzbaQ7D1DZk8y0DwJqO9C3/c43YQAEP3+Ap+Zvbv8zoPf86/onSQdu2ME3nQcIPsNSBZcrdOhtbROGCToG/wq0FqAmntL07073OWgtQCY/heBezvDu2FqA8OR7lxBtGTz8PDx8Wr4W5nKdSfITnl0Gq7U1EJwS/z6Eg1OcWJ5wWdu1CbhWAwShXZy5wnFjdtrzsW49QAlEeBhBb2Mnv5SCqy4AFWTPe9LOTCTih1vQzGDmuehXgEzVTpos1DwhrKib6pIXb9fsws2HeR/wGhUwUaATTZhJQRlHRwECpKNrMFYJUDCu1ikoAdLRNRirBCgYV+sUlADp6BqMVQIUjKt1CkqAdHQNxioBCsbVOgUlQDq6BmOVAAXjap2CEiAdXYOxSoCCcbVOQQmQjq7BWCVAwbhap6AESEfXYKwSoGBcrVNQAqSjazBWCVAwrtYpKAHS0TUYqwQoGFfrFJQA6egajFUCFIyrdQpKgHR0DcYqAQrG1ToFJUA6ugZjlQAF42qdghIgHV2DsUqAgnG1TkEJkI6uwVglQMG4WqegBEhH12Cs/gcrACfEXzluUwAAAABJRU5ErkJggg==",
+      "author": "tnnevol",
+      "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-fnos",
+      "repository": {
+        "url": "https://github.com/FNOSP/fnos-dsh",
+        "directory": "plugins/dsh-fnos-plugin"
+      },
+      "metadata": {
+        "keywords": [
+          "fnos",
+          "feiniu",
+          "飞牛",
+          "nas",
+          "theme",
+          "file-access",
+          "session-log"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.2.1-rc.2.1",
+          "publishTimestamp": 1792296244,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.1-rc.2.0",
+          "publishTimestamp": 1792293937,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.6",
+          "publishTimestamp": 1792140330,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.5",
+          "publishTimestamp": 1792123202,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.3",
+          "publishTimestamp": 1792060860,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.0",
+          "publishTimestamp": 1791455463,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2.2",
+          "publishTimestamp": 1790747134,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2.1",
+          "publishTimestamp": 1790737210,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.5-rc.2",
+          "publishTimestamp": 1789372313,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.5-rc.2"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.4",
+          "publishTimestamp": 1789215036,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.3",
+          "publishTimestamp": 1788689491,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.2",
+          "publishTimestamp": 1788686351,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.1",
+          "publishTimestamp": 1788503136,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1",
+          "publishTimestamp": 1788498131,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.1-rc.3.1",
+          "publishTimestamp": 1788255305,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.1-rc.2"
+          }
+        },
+        {
+          "version": "0.1.1-rc.3",
+          "publishTimestamp": 1788240254,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.1-rc.2"
+          }
+        },
+        {
+          "version": "0.1.1-rc.2.2",
+          "publishTimestamp": 1787551034,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.1-rc.2"
+          }
+        },
+        {
+          "version": "0.1.1-rc.2.1",
+          "publishTimestamp": 1787496676,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.1-rc.2"
+          }
+        },
+        {
+          "version": "0.1.1-rc.2.0",
+          "publishTimestamp": 1787495711,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.1-rc.2"
+          }
+        }
+      ]
+    },
+    {
+      "name": "@tnnevol/dsh-codebuddy",
+      "title": "@tnnevol/dsh-codebuddy",
+      "description": "Tencent CodeBuddy provider plugin for DeepSeek Harness, with browser OAuth sign-in and quota display.",
+      "icon": "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjNkM0REZGIiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+Q29kZUJ1ZGR5PC90aXRsZT48cGF0aCBkPSJNMTguNjM2LjI4OWExIDEgMCAwIDAtLjExIDBjLS4xOC4wMS0uMTk1LjAyLS40NDIuMjQtLjcxNi42MzYtMS43MjIgMi41NDYtMi43MDMgNS4xMzdsLS4yNzQuNzItLjQ5OS4xNmMtMS41NTQuNDk4LTIuOTM0IDEuMTI4LTQuMTU3IDEuODkzLTEuMTc0LjczLTEuODEgMS4yMDctMi43NjggMi4wNTZsLS41NzguNTEtLjI2Mi0uMDQ1Yy0yLjUyOC0uNDQ3LTQuOC0uNjEyLTUuODQzLS40My0uNDE0LjA3Ny0uNzU3LjIxNi0uODYyLjM1LS4wOTIuMTItLjEzOC4yNjMtLjEzOC40NzQgMCAuMTgyLjAzNC40MTQuMDk4LjcyNy4yNjUgMS4yMzYuOTUyIDIuODU0IDIuMDM1IDQuNzhsLjcgMS4yMzYtLjAyMy40NjZjLS4wMjcuNDk5IDAgMS4yNy4wNiAxLjc5My4wMzYuMzE5LjAzMS4zMjctLjEzNS41MTYtLjU2NS42NDctLjcwOCAxLjY3Ni0uNDA4IDIuODRoNS4zNjRsLS4zMy0uNTdjLS42NC0xLjEwOC0uOTYtMS42NjMtMS4xMzQtMi4xNzdhNS40NiA1LjQ2IDAgMCAxIDEuNTY0LTUuODRjLjQwOC0uMzU4Ljk2Mi0uNjc4IDIuMDcyLTEuMzJsNi4zOC0zLjY4M2MxLjExLS42NCAxLjY2NS0uOTYgMi4xOC0xLjEzNEE1LjQ2IDUuNDYgMCAwIDEgMjQgMTAuMjc1VjYuNDYybC0uMTE3LS4wNi0uNTA0LS4yNS0uMzU3LS42NjJjLS45MjQtMS43MDItMi40MS0zLjY5Ni0zLjQ3Ny00LjY2Ni0uNC0uMzY0LS42NTUtLjUxNy0uOTEtLjUzNU0xMS41NyAxNy42MzRhMS4yNiAxLjI2IDAgMCAxIDEuNzIyLjQ2MmwxLjM1OCAyLjM1Yy44NDIgMS40NTUtMS4zNDEgMi43MTctMi4xODMgMS4yNjJsLTEuMzU4LTIuMzUyYTEuMjYgMS4yNiAwIDAgMSAuNDYxLTEuNzIybTYuODAyLTMuOTI2YTEuMjYgMS4yNiAwIDAgMSAxLjcyMS40NmwxLjM1OCAyLjM1MmMuODQgMS40NTUtMS4zNDMgMi43MTUtMi4xODMgMS4yNmwtMS4zNTgtMi4zNWExLjI2IDEuMjYgMCAwIDEgLjQ2Mi0xLjcyMiIvPjwvc3ZnPg==",
+      "author": "tnnevol",
+      "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-codebuddy",
+      "repository": {
+        "url": "https://github.com/FNOSP/fnos-dsh",
+        "directory": "plugins/dsh-codebuddy-plugin"
+      },
+      "metadata": {
+        "keywords": [
+          "codebuddy",
+          "tencent",
+          "provider",
+          "oauth",
+          "quota",
+          "token-usage",
+          "multi-account"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.2.1-rc.2.1",
+          "publishTimestamp": 1792296272,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.1-rc.2.0",
+          "publishTimestamp": 1792293946,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.6",
+          "publishTimestamp": 1792140399,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.5",
+          "publishTimestamp": 1792122991,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.4",
+          "publishTimestamp": 1792120810,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.3",
+          "publishTimestamp": 1792060290,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.0",
+          "publishTimestamp": 1791455194,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2.2",
+          "publishTimestamp": 1790747139,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2.1",
+          "publishTimestamp": 1790737319,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2",
+          "publishTimestamp": 1790582180,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.5-rc.2.3",
+          "publishTimestamp": 1789629472,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.5-rc.2"
+          }
+        },
+        {
+          "version": "0.1.5-rc.2.2",
+          "publishTimestamp": 1789555757,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.5-rc.2"
+          }
+        },
+        {
+          "version": "0.1.5-rc.2.1",
+          "publishTimestamp": 1789468048,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.5-rc.2"
+          }
+        },
+        {
+          "version": "0.1.5-rc.2",
+          "publishTimestamp": 1789372487,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.5-rc.2"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.4",
+          "publishTimestamp": 1789215165,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.3",
+          "publishTimestamp": 1788689476,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.2",
+          "publishTimestamp": 1788686341,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "@tnnevol/dsh-codex-auth",
+      "title": "@tnnevol/dsh-codex-auth",
+      "description": "Standalone ChatGPT OAuth account management for DeepSeek Harness.",
+      "author": "tnnevol",
+      "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-codex-auth",
+      "repository": {
+        "url": "https://github.com/FNOSP/fnos-dsh",
+        "directory": "plugins/dsh-codex-auth-plugin"
+      },
+      "versions": [
+        {
+          "version": "0.2.1-rc.2.0",
+          "publishTimestamp": 1792293957,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.6",
+          "publishTimestamp": 1792140211,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.5",
+          "publishTimestamp": 1792122967,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.4",
+          "publishTimestamp": 1792120841,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.3",
+          "publishTimestamp": 1792060424,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.0",
+          "publishTimestamp": 1791455455,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2.2",
+          "publishTimestamp": 1790747145,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2.1",
+          "publishTimestamp": 1790737174,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2",
+          "publishTimestamp": 1790581983,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.5-rc.2",
+          "publishTimestamp": 1789372306,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.5-rc.2"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.4",
+          "publishTimestamp": 1789215030,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.3",
+          "publishTimestamp": 1788689483,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.2",
+          "publishTimestamp": 1788686322,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1",
+          "publishTimestamp": 1788498101,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-alpha.4",
+          "publishTimestamp": 1788414810,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-alpha.4"
+          }
+        },
+        {
+          "version": "0.1.1-rc.3.1",
+          "publishTimestamp": 1788253269,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.1-rc.2"
+          }
+        },
+        {
+          "version": "0.1.1-rc.3",
+          "publishTimestamp": 1788240234,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.1-rc.2"
+          }
+        },
+        {
+          "version": "0.1.1-rc.2.2",
+          "publishTimestamp": 1787551013,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.1-rc.2"
+          }
+        },
+        {
+          "version": "0.1.1-rc.2.1",
+          "publishTimestamp": 1787496956,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.1-rc.2"
+          }
+        },
+        {
+          "version": "0.1.1-rc.2.0",
+          "publishTimestamp": 1787405135,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.1-rc.2"
+          }
+        },
+        {
+          "version": "0.1.0-rc.8.2",
+          "publishTimestamp": 1787308130,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.0-rc.8"
+          }
+        },
+        {
+          "version": "0.1.0-rc.8.1",
+          "publishTimestamp": 1787291496,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.0-rc.8"
+          }
+        },
+        {
+          "version": "0.1.0-rc.8",
+          "publishTimestamp": 1787202007,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.0-rc.8"
+          }
+        },
+        {
+          "version": "0.1.0-rc.7.2",
+          "publishTimestamp": 1787103795,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.0-rc.7"
+          }
+        },
+        {
+          "version": "0.1.0-rc.7.1",
+          "publishTimestamp": 1787103613,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.0-rc.7"
+          }
+        },
+        {
+          "version": "0.1.0-rc.7",
+          "publishTimestamp": 1787052783,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.0-rc.7"
+          }
+        }
+      ]
+    },
+    {
+      "name": "@tnnevol/dsh-failover-search",
+      "title": {
+        "en": "Failover Search",
+        "zh": "Failover Search"
+      },
+      "description": {
+        "en": "Composite web-search provider that fails over TinyFish → Tavily → official DeepSeek, spreads requests across multiple accounts per platform, and shows platform usage on the plugin page.",
+        "zh": "复合网页搜索提供方：按 TinyFish → Tavily → 官方 DeepSeek 的顺序转移，同一平台的多个账号之间轮转分摊请求，并在插件详情页展示各平台用量。"
+      },
+      "author": "tnnevol",
+      "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-failover-search.html",
+      "repository": {
+        "url": "https://github.com/FNOSP/fnos-dsh",
+        "directory": "plugins/dsh-failover-search-plugin"
+      },
+      "metadata": {
+        "keywords": [
+          "web-search",
+          "search",
+          "failover",
+          "tinyfish",
+          "tavily",
+          "fetch",
+          "fallback"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.2.1-rc.2.1",
+          "publishTimestamp": 1792296267,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.1-rc.2.0",
+          "publishTimestamp": 1792293968,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.6",
+          "publishTimestamp": 1792140260,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.5",
+          "publishTimestamp": 1792122976,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.4",
+          "publishTimestamp": 1792120831,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.3",
+          "publishTimestamp": 1792060831,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.1",
+          "publishTimestamp": 1791611138,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.0",
+          "publishTimestamp": 1791539930,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        }
+      ]
+    },
+    {
+      "name": "@tnnevol/dsh-midscene",
+      "title": "@tnnevol/dsh-midscene",
+      "description": "Hosts a loopback OpenAI-compatible bridge that exposes every model configured in DSH (official routes, plugin routes, and user-declared providers) so Midscene browser automation can drive pages with natural language without holding any credential itself.",
+      "icon": "icons/78cd10d75a210800.png",
+      "author": "tnnevol",
+      "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-midscene.html",
+      "repository": {
+        "url": "https://github.com/FNOSP/fnos-dsh",
+        "directory": "plugins/dsh-midscene-plugin"
+      },
+      "metadata": {
+        "keywords": [
+          "midscene",
+          "browser-automation",
+          "e2e",
+          "ui-testing",
+          "bridge",
+          "openai-compatible"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.2.1-rc.2.1",
+          "publishTimestamp": 1792296258,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.1-rc.2.0",
+          "publishTimestamp": 1792294080,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.6",
+          "publishTimestamp": 1792140267,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.5",
+          "publishTimestamp": 1792122923,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.4",
+          "publishTimestamp": 1792118822,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.3",
+          "publishTimestamp": 1792061050,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        }
+      ]
+    },
+    {
+      "name": "@tnnevol/dsh-semi-ui-showcase",
+      "title": "@tnnevol/dsh-semi-ui-showcase",
+      "description": "Component showcase for the shared DSH-themed Semi Design package.",
+      "author": "tnnevol",
+      "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase",
+      "repository": {
+        "url": "https://github.com/FNOSP/fnos-dsh",
+        "directory": "plugins/dsh-semi-ui-showcase-plugin"
+      },
+      "metadata": {
+        "keywords": [
+          "semi-ui",
+          "showcase",
+          "components",
+          "theme",
+          "design-system"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.2.1-rc.2.1",
+          "publishTimestamp": 1792296286,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.1-rc.2.0",
+          "publishTimestamp": 1792294093,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.6",
+          "publishTimestamp": 1792140235,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.5",
+          "publishTimestamp": 1792122895,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.4",
+          "publishTimestamp": 1792120880,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.3",
+          "publishTimestamp": 1792060944,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.2.0-rc.2.0",
+          "publishTimestamp": 1791455478,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.0-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2.2",
+          "publishTimestamp": 1790747242,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2.1",
+          "publishTimestamp": 1790737127,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.7-rc.2",
+          "publishTimestamp": 1790582056,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.7-rc.2"
+          }
+        },
+        {
+          "version": "0.1.5-rc.2",
+          "publishTimestamp": 1789372417,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.5-rc.2"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.4",
+          "publishTimestamp": 1789215201,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.3",
+          "publishTimestamp": 1788689499,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1.2",
+          "publishTimestamp": 1788686360,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        },
+        {
+          "version": "0.1.2-rc.1",
+          "publishTimestamp": 1788498157,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.1.2-rc.1"
+          }
+        }
+      ]
+    }
+  ]
+}

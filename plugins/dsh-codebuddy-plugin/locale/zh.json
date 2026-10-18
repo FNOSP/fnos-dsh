@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "CodeBuddy",
+    "description": "腾讯 CodeBuddy 模型提供方，支持浏览器授权登录、多账号轮转、额度显示与 Token 统计。"
+  }
+}

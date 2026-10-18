@@ -1,0 +1,23 @@
+# 插件市场索引的源列表（供官方生成器读取）。
+#
+# 每行一个来源：npm 包名，或 https 的 Git 仓库 URL；空行与 # 开头的行为注释。
+# 生成器只收录「已发布版本的 package.json 声明了 dsh.bundle」的包，因此本文件
+# 里只列本仓库已发布到 npm 的六个运行时插件。
+#
+# 重新生成（在仓库根执行）：
+#   pnpm --dir "$DSH_DESKTOP_APP_DIR" --filter @deepseek-ai/dsh-plugin-market-generator start \
+#     --input docs/public/plugins/market/plugins.txt \
+#     --output docs/public/plugins/market/index.json \
+#     --cache tmp/plugin-market-cache \
+#     --title "飞牛 fnOS DSH 插件" \
+#     --description "为飞牛 fnOS 维护的 DSH 插件：模型提供方、搜索故障转移、浏览器自动化与系统集成。"
+#
+# 生成器读取的是 **npm 上已发布版本** 的 tarball，不是本地源码：改完元数据必须先发版，
+# 否则索引里不会有 keywords 和 icon。
+
+@tnnevol/dsh-fnos
+@tnnevol/dsh-codebuddy
+@tnnevol/dsh-codex-auth
+@tnnevol/dsh-failover-search
+@tnnevol/dsh-midscene
+@tnnevol/dsh-semi-ui-showcase

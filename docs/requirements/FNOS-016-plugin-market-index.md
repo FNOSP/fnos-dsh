@@ -40,6 +40,7 @@ DSH `0.2.1` 线引入了第三方插件市场：用户可以在「发现」页�
 | `engines.dsh` 不接受 `workspace:` 前缀，必须是 SemVer 范围 | 实测 `workspace:*` → `must not be a workspace: range` | FNOS-016-01 | 已核实 |
 | 上游官方生成器 `apps/plugin-market-generator` 可从 npm 包名列表生成合法索引，并在本地可运行 | 本地执行 `pnpm --filter @deepseek-ai/dsh-plugin-market-generator start --help` 成功输出用法 | FNOS-016-01 | 已核实 |
 | **生成器从 npm 已发布版本的 tarball 读取展示元数据**（标题、描述、图标、关键词、作者、仓库），而不是从本地源码读取 | `apps/plugin-market-generator/src/metadata.ts` 的 `readDisplayMetadata`；README 说明「只下载最高列出版本的 tarball」 | FNOS-016-02、FNOS-016-03 | 已核实 |
+| 索引的标题与描述优先取自包内 `locale/<lang>.json` 的 `meta.title` 与 `meta.description`，缺失时回退到 manifest 的 `name` 与 `description`；因此没有 locale 文件的插件在发现页只显示包名 | 上游 `apps/plugin-market-generator/src/metadata.ts` 的 `dictionaries` 与 `localized` | FNOS-016-07 | 已核实 |
 | 生成器的收录前提是版本的 `package.json` 声明 `dsh.bundle`，且其 `patch` 是文件路径或路径列表；本仓库六个插件均满足 | 逐包检查 `dsh.bundle.patch`，六项全部为 `./cordis.patch.yml` | FNOS-016-01 | 已核实 |
 | 图标来源须是包内相对路径文件（SVG/PNG/JPEG/WebP，≤256 KiB），manifest 的 `icon` 优先于 `./icon` 导出 | `src/metadata.ts` 的 `readIcon` | FNOS-016-02 | 已核实 |
 | 文档站 `docs/public/` 下的文件会原样发布到站点根，站点域名为 `fndsh-doc.tnnevol.cn` | `docs/public/CNAME`；`.github/workflows/deploy-docs.yml` 发布的产物目录 | FNOS-016-04 | 已核实 |
@@ -62,6 +63,7 @@ DSH `0.2.1` 线引入了第三方插件市场：用户可以在「发现」页�
 | FNOS-016-04 | P1 | 索引与发布同步 | 索引中的最高版本等于 npm 上该插件 `next` 标签指向的版本；发布新版本后索引不落后 | <Badge type="info" text="规划中" /> |
 | FNOS-016-05 | P1 | 索引格式与托管合规 | 索引通过格式校验；图标与索引同源或为 https；文件托管在文档站可公开访问的地址 | <Badge type="info" text="规划中" /> |
 | FNOS-016-06 | P2 | 索引生成可复现 | 任何人按文档步骤可从源列表重新生成同一份索引，输出确定、可直接对比差异 | <Badge type="info" text="规划中" /> |
+| FNOS-016-07 | P1 | 发现页可读标题 | 发现页条目标题显示插件名称（如「Codex 身份验证」）而不是 npm 包名，描述为面向用途的说明 | <Badge type="info" text="规划中" /> |
 
 ### 验收环境范围
 
@@ -134,6 +136,11 @@ stateDiagram-v2
 - `FNOS-016-05-AC-01`：索引通过上游格式校验器，无未定义字段依赖。
 - `FNOS-016-05-AC-02`：索引与其引用的图标可通过公开 https 地址访问，无凭据、查询串或片段。
 
+### FNOS-016-07
+
+- `FNOS-016-07-AC-01`：发现页每个条目的标题是插件名称，而不是 `@tnnevol/...` 形式的包名。
+- `FNOS-016-07-AC-02`：描述说明插件用途，中文环境下显示中文文案。
+
 ### FNOS-016-06
 
 - `FNOS-016-06-AC-01`：文档记录了从源列表生成索引的命令与前置条件。
@@ -144,3 +151,4 @@ stateDiagram-v2
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-18 | 初始登记 | 建立 FNOS-016，范围覆盖六个插件的关键词与图标元数据补全、市场索引生成与托管、索引与发布同步。图标策略按用户要求确定：只用官方品牌素材，取不到就省略。上游格式、生成器行为与各供应商素材可获取性均已实测核实，登记为 11 条调研结论。关联 PLAN-FNOS-016。 |
+| 2026-10-18 | 新增 FNOS-016-07 | 实施中发现五个插件没有 `locale/` 文件，索引标题因此回退为 npm 包名（只有 Failover Search 显示了可读标题）。补充中英 locale 的 `meta.title`/`meta.description`，并把 `locale` 加入 `files` 白名单与 `./locale/*.json` 导出。 |

@@ -36,7 +36,8 @@
     "./compatibility.json": "./compatibility.json",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json",
-    "./skills/*": "./skills/*"
+    "./skills/*": "./skills/*",
+    "./locale/*.json": "./locale/*.json"
   },
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -47,7 +48,8 @@
     "cordis.patch.yml",
     "icon.png",
     "lib",
-    "skills"
+    "skills",
+    "locale"
   ],
   "engines": {
     "node": "^22.19.0 || >=24.0.0"

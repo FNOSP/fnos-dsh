@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "fnOS 集成",
+    "description": "在飞牛 fnOS 中提供主题跟随、授权目录管理、NAS 文件访问与会话日志导出。"
+  }
+}

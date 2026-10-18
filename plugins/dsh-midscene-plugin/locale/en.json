@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Midscene Bridge",
+    "description": "Loopback OpenAI-compatible bridge that lets Midscene browser automation use every model already configured in DeepSeek Harness."
+  }
+}

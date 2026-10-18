@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Codex 身份验证",
+    "description": "使用 ChatGPT 账户登录 Codex，并把模型、用量和图片输入能力接入 DeepSeek Harness。"
+  }
+}
