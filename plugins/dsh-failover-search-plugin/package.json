@@ -2,17 +2,8 @@
   "name": "@tnnevol/dsh-failover-search",
   "displayName": "Failover Search",
   "type": "module",
-  "version": "0.2.1-rc.2.0",
+  "version": "0.2.1-rc.2.1",
   "description": "Composite DSH web-search provider that fails over TinyFish → Tavily → official DeepSeek, spreads requests across multiple accounts per platform, and shows platform usage on the plugin page.",
-  "keywords": [
-    "web-search",
-    "search",
-    "failover",
-    "tinyfish",
-    "tavily",
-    "fetch",
-    "fallback"
-  ],
   "author": "tnnevol",
   "license": "Apache-2.0",
   "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-failover-search.html",
@@ -25,6 +16,15 @@
   "bugs": {
     "url": "https://github.com/FNOSP/fnos-dsh/issues"
   },
+  "keywords": [
+    "web-search",
+    "search",
+    "failover",
+    "tinyfish",
+    "tavily",
+    "fetch",
+    "fallback"
+  ],
   "publishConfig": {
     "access": "public"
   },
