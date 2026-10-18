@@ -2,7 +2,7 @@
 id: PLAN-FNOS-011
 title: PLAN-FNOS-011 凭据文件权限异常的可诊断性
 description: 实施 FNOS-011：让 DSH 凭据与插件凭据在权限位异常（尤其属主不可读的 0000）时给出可诊断错误，凭据失败不再导致 DSH Web 整体退出，并收敛仓库内各插件的权限判定实现。
-status: planned
+status: completed
 owner: tnnevol
 planDate: 2026-10-09
 targetVersion: 5.7.0
@@ -18,7 +18,7 @@ lastVerified: 2026-10-09
 | 对应需求 | [FNOS-011 凭据文件权限异常的可诊断性](/requirements/FNOS-011-credential-permission-diagnostics) |
 | 本轮功能 | FNOS-011-01 至 FNOS-011-05 全部进入本轮实施 |
 | 上游依据 | DSH `0.2.0-rc.2` 发行包中 `@deepseek-ai/dsh-credentials-local` 的 `assertOwnerOnly` 与 `loadInitial`；本仓库 `plugins/dsh-codebuddy-plugin/src/host/storage.ts` |
-| 计划状态 | <Badge type="info" text="规划中" /> |
+| 计划状态 | <Badge type="tip" text="已完成（随 0.2.0-rc.2.6 发布）" /> |
 
 ## 计划目标
 

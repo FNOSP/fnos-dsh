@@ -63,8 +63,8 @@ flowchart TD
 | FNOS-008 | [插件配置统一迁入插件管理页](/requirements/FNOS-008-plugin-config-in-plugin-manager) | 已完成 |
 | FNOS-009 | [DSH 0.2.0-rc.2 插件适配](/requirements/FNOS-009-dsh-020-rc2-adaptation) | 规划中（含授权目录持久化 FNOS-009-09/10） |
 | FNOS-010 | [三方搜索接入与官方兜底](/requirements/FNOS-010-thirdparty-web-search-failover) | 已完成（随插件 v0.2.0-rc.2.1 发布；DSH Web 与 DSH Desktop 验收通过） |
-| FNOS-011 | [凭据文件权限异常的可诊断性](/requirements/FNOS-011-credential-permission-diagnostics) | 实现中（02/03 废弃） |
-| FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/requirements/FNOS-012-codebuddy-model-speed-and-client-version) | 实现中 |
-| FNOS-013 | [Midscene 浏览器自动化桥接插件](/requirements/FNOS-013-midscene-browser-automation-bridge) | 实现中（桥接本体 01～04、技能内置 13、图标 14 已实现并本地验证；05/08/09/11/12 待端到端验收） |
+| FNOS-011 | [凭据文件权限异常的可诊断性](/requirements/FNOS-011-credential-permission-diagnostics) | 已完成（随 0.2.0-rc.2.6 发布） |
+| FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/requirements/FNOS-012-codebuddy-model-speed-and-client-version) | 已完成（随 0.2.0-rc.2.6 发布） |
+| FNOS-013 | [Midscene 浏览器自动化桥接插件](/requirements/FNOS-013-midscene-browser-automation-bridge) | 已完成（随 0.2.0-rc.2.6 发布） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

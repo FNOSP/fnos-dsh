@@ -2,7 +2,7 @@
 id: FNOS-013
 title: FNOS-013 Midscene 浏览器自动化桥接插件
 description: 新增 dsh-midscene 插件，托管本地 OpenAI 兼容桥接服务并接入 DSH 宿主模型层，让 Midscene 浏览器自动化直接使用 DSH 已配置的全部模型（DeepSeek、CodeBuddy、Codex 及用户自定义提供方），使会话中的 agent 能用自然语言完成 E2E 测试；并把该能力登记进项目测试体系，作为 UI 走查与 E2E 用例的标准执行方式之一。
-status: planned
+status: completed
 owner: tnnevol
 targetVersion: 5.7.0
 lastVerified: 2026-10-10
@@ -14,7 +14,7 @@ lastVerified: 2026-10-10
 | --- | --- |
 | 需求编号 | FNOS-013 |
 | 提出日期 | 2026-10-10 |
-| 需求状态 | <Badge type="info" text="规划中" /> |
+| 需求状态 | <Badge type="tip" text="已完成（随 0.2.0-rc.2.6 发布）" /> |
 | 关联计划 | [PLAN-FNOS-013 Midscene 浏览器自动化桥接插件](/plans/PLAN-FNOS-013-midscene-browser-automation-bridge) |
 | 适用范围 | 新增 `@tnnevol/dsh-midscene` 插件（本地桥接服务）、会话内浏览器自动化接入配置 |
 

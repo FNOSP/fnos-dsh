@@ -2,7 +2,7 @@
 id: PLAN-FNOS-012
 title: PLAN-FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新
 description: 实施 FNOS-012，为 /model 模型列表窗口补充倍速展示，并将 CLI/WorkBuddy 客户端版本指纹更新到官方当前版本。
-status: planned
+status: completed
 owner: tnnevol
 planDate: 2026-10-09
 targetVersion: 5.7.0
@@ -15,7 +15,7 @@ lastVerified: 2026-10-09
 | 计划日期 | 2026-10-09 |
 | 对应需求 | [FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新](/requirements/FNOS-012-codebuddy-model-speed-and-client-version) |
 | 本轮功能 | FNOS-012-01（模型列表展示倍速）、FNOS-012-02（CLI `2.163.0` / WorkBuddy `5.77`）、FNOS-012-03（profile 依赖重建自愈：失效豁免触发 lockfile/node_modules 清理与重装）、FNOS-012-04（npm `latest` 标签校正） |
-| 计划状态 | <Badge type="info" text="规划中" /> |
+| 计划状态 | <Badge type="tip" text="已完成（随 0.2.0-rc.2.6 发布）" /> |
 ## 计划目标
 实现 FNOS-012-01/02/03/04：`/model` 模型列表窗口中可见模型倍速；插件客户端版本指纹与官方当前版本一致；DSH web profile 在豁免条目与实际安装版本不一致时自动清理 lockfile/node_modules 并重建依赖；npm `latest` 标签校正到 `0.1.7-rc.2.2`。
 ## 当前实现与目标设计

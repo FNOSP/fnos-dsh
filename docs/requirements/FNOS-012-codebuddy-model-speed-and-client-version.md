@@ -2,7 +2,7 @@
 id: FNOS-012
 title: FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新
 description: CodeBuddy 插件把模型倍速以名称小尾巴的形式送进模型选择器（上游 0.2.0-rc.2 有意移除了目录 description 的渲染，名称是唯一仍被渲染的展示字段），并将 CLI 客户端版本更新为 2.163.0、WorkBuddy 客户端版本更新为 5.77；同时覆盖 web profile 失效豁免自愈、npm latest 标签校正与发布产物完整性。
-status: planned
+status: completed
 owner: tnnevol
 targetVersion: 5.7.0
 lastVerified: 2026-10-10
@@ -14,7 +14,7 @@ lastVerified: 2026-10-10
 | --- | --- |
 | 需求编号 | FNOS-012 |
 | 提出日期 | 2026-10-09 |
-| 需求状态 | <Badge type="info" text="规划中" /> |
+| 需求状态 | <Badge type="tip" text="已完成（随 0.2.0-rc.2.6 发布）" /> |
 | 关联计划 | [PLAN-FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新](/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version) |
 | 适用范围 | `dsh-codebuddy` 插件、CodeBuddy 模型选择与请求头指纹 |
 

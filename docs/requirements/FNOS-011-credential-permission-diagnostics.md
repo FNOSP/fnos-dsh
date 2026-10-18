@@ -2,7 +2,7 @@
 id: FNOS-011
 title: FNOS-011 凭据文件权限异常的可诊断性
 description: 修复凭据类文件在权限位异常（尤其是属主不可读的 0000）时的静默失败：插件凭据区分「文件不存在」与「存在但读不了」，各插件统一按属主可读位判定并单点收敛到共享包。DSH 自身凭据的可诊断错误与降级启动（01-02/03）经确认不做排期，登记为废弃。
-status: planned
+status: completed
 owner: tnnevol
 targetVersion: 5.7.0
 lastVerified: 2026-10-09
@@ -14,7 +14,7 @@ lastVerified: 2026-10-09
 | --- | --- |
 | 需求编号 | FNOS-011 |
 | 提出日期 | 2026-10-09 |
-| 需求状态 | <Badge type="info" text="规划中" /> |
+| 需求状态 | <Badge type="tip" text="已完成（随 0.2.0-rc.2.6 发布）" /> |
 | 关联计划 | [PLAN-FNOS-011 凭据文件权限异常的可诊断性](/plans/PLAN-FNOS-011-credential-permission-diagnostics) |
 | 适用范围 | 仓库内消费凭据的插件（`dsh-codebuddy`、`dsh-codex-auth`）；共享判定落点 `packages/dsh-plugin-kit` |
 

@@ -49,8 +49,8 @@ flowchart TD
 | PLAN-FNOS-008 | [插件配置统一迁入插件管理页](/plans/PLAN-FNOS-008-plugin-config-in-plugin-manager) | 已完成 |
 | PLAN-FNOS-009 | [DSH 0.2.0-rc.2 插件适配](/plans/PLAN-FNOS-009-dsh-020-rc2-adaptation) | 规划中（含授权目录持久化阶段五） |
 | PLAN-FNOS-010 | [三方搜索接入与官方兜底](/plans/PLAN-FNOS-010-thirdparty-web-search-failover) | 已完成（T01–T16 全部完成：三方搜索与故障转移、官方兜底、配置管理、用量展示与探测、抓取兜底、会话级开关；端到端验收通过） |
-| PLAN-FNOS-011 | [凭据文件权限异常的可诊断性](/plans/PLAN-FNOS-011-credential-permission-diagnostics) | 实现中（阶段三废弃） |
-| PLAN-FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version) | 实现中 |
-| PLAN-FNOS-013 | [Midscene 浏览器自动化桥接插件](/plans/PLAN-FNOS-013-midscene-browser-automation-bridge) | 实现中（阶段一完成；阶段二/三部分完成，Midscene 端到端待执行） |
+| PLAN-FNOS-011 | [凭据文件权限异常的可诊断性](/plans/PLAN-FNOS-011-credential-permission-diagnostics) | 已完成（随 0.2.0-rc.2.6 发布） |
+| PLAN-FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version) | 已完成（随 0.2.0-rc.2.6 发布） |
+| PLAN-FNOS-013 | [Midscene 浏览器自动化桥接插件](/plans/PLAN-FNOS-013-midscene-browser-automation-bridge) | 已完成（随 0.2.0-rc.2.6 发布） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。
