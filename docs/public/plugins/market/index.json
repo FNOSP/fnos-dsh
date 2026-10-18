@@ -5,8 +5,14 @@
   "plugins": [
     {
       "name": "@tnnevol/dsh-fnos",
-      "title": "@tnnevol/dsh-fnos",
-      "description": "fnOS-specific integrations for DeepSeek Harness.",
+      "title": {
+        "en": "fnOS",
+        "zh": "fnOS 集成"
+      },
+      "description": {
+        "en": "fnOS-specific integrations for DeepSeek Harness: theme following, authorized directories, NAS file access, and session log export.",
+        "zh": "在飞牛 fnOS 中提供主题跟随、授权目录管理、NAS 文件访问与会话日志导出。"
+      },
       "icon": "data:image/png;base64,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",
       "author": "tnnevol",
       "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-fnos",
@@ -26,6 +32,16 @@
         ]
       },
       "versions": [
+        {
+          "version": "0.2.1-rc.2.2",
+          "publishTimestamp": 1792296709,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
         {
           "version": "0.2.1-rc.2.1",
           "publishTimestamp": 1792296244,
@@ -220,8 +236,14 @@
     },
     {
       "name": "@tnnevol/dsh-codebuddy",
-      "title": "@tnnevol/dsh-codebuddy",
-      "description": "Tencent CodeBuddy provider plugin for DeepSeek Harness, with browser OAuth sign-in and quota display.",
+      "title": {
+        "en": "CodeBuddy",
+        "zh": "CodeBuddy"
+      },
+      "description": {
+        "en": "Tencent CodeBuddy model provider with browser OAuth sign-in, multi-account rotation, quota display, and token statistics.",
+        "zh": "腾讯 CodeBuddy 模型提供方，支持浏览器授权登录、多账号轮转、额度显示与 Token 统计。"
+      },
       "icon": "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjNkM0REZGIiByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+Q29kZUJ1ZGR5PC90aXRsZT48cGF0aCBkPSJNMTguNjM2LjI4OWExIDEgMCAwIDAtLjExIDBjLS4xOC4wMS0uMTk1LjAyLS40NDIuMjQtLjcxNi42MzYtMS43MjIgMi41NDYtMi43MDMgNS4xMzdsLS4yNzQuNzItLjQ5OS4xNmMtMS41NTQuNDk4LTIuOTM0IDEuMTI4LTQuMTU3IDEuODkzLTEuMTc0LjczLTEuODEgMS4yMDctMi43NjggMi4wNTZsLS41NzguNTEtLjI2Mi0uMDQ1Yy0yLjUyOC0uNDQ3LTQuOC0uNjEyLTUuODQzLS40My0uNDE0LjA3Ny0uNzU3LjIxNi0uODYyLjM1LS4wOTIuMTItLjEzOC4yNjMtLjEzOC40NzQgMCAuMTgyLjAzNC40MTQuMDk4LjcyNy4yNjUgMS4yMzYuOTUyIDIuODU0IDIuMDM1IDQuNzhsLjcgMS4yMzYtLjAyMy40NjZjLS4wMjcuNDk5IDAgMS4yNy4wNiAxLjc5My4wMzYuMzE5LjAzMS4zMjctLjEzNS41MTYtLjU2NS42NDctLjcwOCAxLjY3Ni0uNDA4IDIuODRoNS4zNjRsLS4zMy0uNTdjLS42NC0xLjEwOC0uOTYtMS42NjMtMS4xMzQtMi4xNzdhNS40NiA1LjQ2IDAgMCAxIDEuNTY0LTUuODRjLjQwOC0uMzU4Ljk2Mi0uNjc4IDIuMDcyLTEuMzJsNi4zOC0zLjY4M2MxLjExLS42NCAxLjY2NS0uOTYgMi4xOC0xLjEzNEE1LjQ2IDUuNDYgMCAwIDEgMjQgMTAuMjc1VjYuNDYybC0uMTE3LS4wNi0uNTA0LS4yNS0uMzU3LS42NjJjLS45MjQtMS43MDItMi40MS0zLjY5Ni0zLjQ3Ny00LjY2Ni0uNC0uMzY0LS42NTUtLjUxNy0uOTEtLjUzNU0xMS41NyAxNy42MzRhMS4yNiAxLjI2IDAgMCAxIDEuNzIyLjQ2MmwxLjM1OCAyLjM1Yy44NDIgMS40NTUtMS4zNDEgMi43MTctMi4xODMgMS4yNjJsLTEuMzU4LTIuMzUyYTEuMjYgMS4yNiAwIDAgMSAuNDYxLTEuNzIybTYuODAyLTMuOTI2YTEuMjYgMS4yNiAwIDAgMSAxLjcyMS40NmwxLjM1OCAyLjM1MmMuODQgMS40NTUtMS4zNDMgMi43MTUtMi4xODMgMS4yNmwtMS4zNTgtMi4zNWExLjI2IDEuMjYgMCAwIDEgLjQ2Mi0xLjcyMiIvPjwvc3ZnPg==",
       "author": "tnnevol",
       "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-codebuddy",
@@ -241,6 +263,16 @@
         ]
       },
       "versions": [
+        {
+          "version": "0.2.1-rc.2.2",
+          "publishTimestamp": 1792296717,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
         {
           "version": "0.2.1-rc.2.1",
           "publishTimestamp": 1792296272,
@@ -415,15 +447,52 @@
     },
     {
       "name": "@tnnevol/dsh-codex-auth",
-      "title": "@tnnevol/dsh-codex-auth",
-      "description": "Standalone ChatGPT OAuth account management for DeepSeek Harness.",
+      "title": {
+        "en": "Codex Auth",
+        "zh": "Codex 身份验证"
+      },
+      "description": {
+        "en": "ChatGPT OAuth account management that brings Codex models, usage, and image input into DeepSeek Harness.",
+        "zh": "使用 ChatGPT 账户登录 Codex，并把模型、用量和图片输入能力接入 DeepSeek Harness。"
+      },
       "author": "tnnevol",
       "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-codex-auth",
       "repository": {
         "url": "https://github.com/FNOSP/fnos-dsh",
         "directory": "plugins/dsh-codex-auth-plugin"
       },
+      "metadata": {
+        "keywords": [
+          "codex",
+          "chatgpt",
+          "openai",
+          "provider",
+          "oauth",
+          "account",
+          "usage"
+        ]
+      },
       "versions": [
+        {
+          "version": "0.2.1-rc.2.2",
+          "publishTimestamp": 1792296797,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
+          "version": "0.2.1-rc.2.1",
+          "publishTimestamp": 1792296454,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
         {
           "version": "0.2.1-rc.2.0",
           "publishTimestamp": 1792293957,
@@ -715,6 +784,16 @@
       },
       "versions": [
         {
+          "version": "0.2.1-rc.2.2",
+          "publishTimestamp": 1792296733,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
+        {
           "version": "0.2.1-rc.2.1",
           "publishTimestamp": 1792296267,
           "source": {
@@ -798,8 +877,14 @@
     },
     {
       "name": "@tnnevol/dsh-midscene",
-      "title": "@tnnevol/dsh-midscene",
-      "description": "Hosts a loopback OpenAI-compatible bridge that exposes every model configured in DSH (official routes, plugin routes, and user-declared providers) so Midscene browser automation can drive pages with natural language without holding any credential itself.",
+      "title": {
+        "en": "Midscene Bridge",
+        "zh": "Midscene 桥接"
+      },
+      "description": {
+        "en": "Loopback OpenAI-compatible bridge that lets Midscene browser automation use every model already configured in DeepSeek Harness.",
+        "zh": "托管本地 OpenAI 兼容桥接服务，把 Midscene 浏览器自动化接到 DSH 全部已配置模型。"
+      },
       "icon": "icons/78cd10d75a210800.png",
       "author": "tnnevol",
       "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-midscene.html",
@@ -818,6 +903,16 @@
         ]
       },
       "versions": [
+        {
+          "version": "0.2.1-rc.2.2",
+          "publishTimestamp": 1792296761,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
         {
           "version": "0.2.1-rc.2.1",
           "publishTimestamp": 1792296258,
@@ -882,8 +977,14 @@
     },
     {
       "name": "@tnnevol/dsh-semi-ui-showcase",
-      "title": "@tnnevol/dsh-semi-ui-showcase",
-      "description": "Component showcase for the shared DSH-themed Semi Design package.",
+      "title": {
+        "en": "Semi UI Showcase",
+        "zh": "Semi UI 组件展示"
+      },
+      "description": {
+        "en": "Runtime showcase for the shared DSH-themed Semi Design components, themes, and interaction states.",
+        "zh": "在 DSH 中检查共享 Semi Design 组件的真实交互与主题状态。"
+      },
       "author": "tnnevol",
       "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase",
       "repository": {
@@ -900,6 +1001,16 @@
         ]
       },
       "versions": [
+        {
+          "version": "0.2.1-rc.2.2",
+          "publishTimestamp": 1792296768,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        },
         {
           "version": "0.2.1-rc.2.1",
           "publishTimestamp": 1792296286,
