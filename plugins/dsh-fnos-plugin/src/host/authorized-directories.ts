@@ -134,15 +134,27 @@ export function gatewayUserId(req: IncomingMessage | undefined): number | undefi
   return Number.isSafeInteger(uid) && uid >= 0 ? uid : undefined
 }
 
-function firstForwarded(value: string | undefined): string | undefined {
-  return value?.split(',')[0]?.trim() || undefined
-}
-
+/**
+ * The authority this request was actually delivered to, as the fnOS gateway
+ * rewrote it.
+ *
+ * `x-forwarded-*` is deliberately ignored here. The gateway never sets those
+ * headers—it rewrites `host` and `origin` to the loopback authority instead
+ * (`packages/fnos-gateway/src/middleware/request-headers.ts`), precisely so
+ * strict same-origin plugin routes stay valid. Trusting a forwarded host would
+ * compare two values of different provenance: the Origin arrives rewritten to
+ * loopback while `x-forwarded-host` (injected by the platform proxy, or by any
+ * intermediary that can add a header) still names the public domain. They can
+ * never be equal, so every remote request failed with 403.
+ *
+ * Reading only `host` makes both sides of the comparison come from the same
+ * rewrite, and keeps the decision out of reach of request-supplied headers.
+ */
 function requestOrigin(req: IncomingMessage): string | undefined {
-  const host = firstForwarded(header(req, 'x-forwarded-host')) ?? header(req, 'host')
+  const host = header(req, 'host')
   if (host === undefined) return undefined
-  const proto = firstForwarded(header(req, 'x-forwarded-proto'))
-    ?? ((req.socket as IncomingMessage['socket'] & { encrypted?: boolean }).encrypted === true ? 'https' : 'http')
+  // The gateway hop is plain loopback, so scheme comes from the socket itself.
+  const proto = (req.socket as IncomingMessage['socket'] & { encrypted?: boolean }).encrypted === true ? 'https' : 'http'
   try {
     return new URL(`${proto}://${host}`).origin
   } catch {
@@ -163,7 +175,20 @@ function localPeer(req: IncomingMessage): boolean {
   return remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1'
 }
 
-/** Accept the NAS gateway's same-origin requests, but reject cross-site calls. */
+/**
+ * Accept the NAS gateway's same-origin requests, but reject cross-site calls.
+ *
+ * Three independent rejections, strongest signal first:
+ * 1. `sec-fetch-site: cross-site` — set by the browser, not forgeable by page
+ *    scripts; rejected before anything else is considered.
+ * 2. An `Origin` that disagrees with the delivered authority — catches a page
+ *    on another site issuing a credentialed request.
+ * 3. No `Origin` at all from a non-loopback peer — a same-origin browser request
+ *    always carries one, so its absence means a non-browser client.
+ *
+ * The comparison is only meaningful because both sides read the same rewritten
+ * `host`; see {@link requestOrigin}.
+ */
 export function isTrustedFnosRequest(req: IncomingMessage): boolean {
   const fetchSite = header(req, 'sec-fetch-site')?.trim().toLowerCase()
   if (fetchSite === 'cross-site') return false

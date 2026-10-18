@@ -300,6 +300,10 @@ const requirementsSidebar = [
         text: 'FNOS-016 插件市场索引与插件元数据',
         link: '/requirements/FNOS-016-plugin-market-index'
       },
+      {
+        text: 'FNOS-017 fnOS 插件路由 403 误拒修复',
+        link: '/requirements/FNOS-017-fnos-route-403'
+      },
       ]
   }
 ]
@@ -373,6 +377,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-016 插件市场索引与插件元数据',
         link: '/plans/PLAN-FNOS-016-plugin-market-index'
       },
+      {
+        text: 'PLAN-FNOS-017 fnOS 插件路由 403 误拒修复',
+        link: '/plans/PLAN-FNOS-017-fnos-route-403'
+      },
     ]
   }
 ]
@@ -414,6 +422,10 @@ const testsSidebar = [
       {
         text: 'FNOS-016 插件市场索引与插件元数据',
         link: '/tests/FNOS-016-plugin-market-index'
+      },
+      {
+        text: 'FNOS-017 fnOS 插件路由 403 误拒修复',
+        link: '/tests/FNOS-017-fnos-route-403'
       },
     ]
   }
