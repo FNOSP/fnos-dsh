@@ -397,6 +397,10 @@ const testsSidebar = [
         text: 'FNOS-014 DSH 0.2.1-rc.2 插件适配与新能力支持',
         link: '/tests/FNOS-014-dsh-021-rc2-adaptation'
       },
+      {
+        text: 'FNOS-015 主题缓存写入死循环修复',
+        link: '/tests/FNOS-015-theme-cache-write-loop'
+      },
     ]
   }
 ]
