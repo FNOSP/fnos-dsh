@@ -120,7 +120,8 @@ const pluginItems = [
   { text: 'dsh-codex-auth', link: '/plugins/dsh-codex-auth' },
   { text: 'dsh-codebuddy', link: '/plugins/dsh-codebuddy' },
   { text: 'dsh-failover-search', link: '/plugins/dsh-failover-search' },
-  { text: 'dsh-midscene', link: '/plugins/dsh-midscene' }
+  { text: 'dsh-midscene', link: '/plugins/dsh-midscene' },
+  { text: 'DSH 0.2.1 新增能力支持结论', link: '/plugins/dsh-021-capabilities' }
 ]
 
 const sharedUiItems = [

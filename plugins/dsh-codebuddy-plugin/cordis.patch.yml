@@ -5,12 +5,15 @@
 # no change to the `llm` row — this plugin injects the `llm` service and calls
 # `ctx.llm.registerAdapter()` when it activates.
 #
-# dsh 0.1.7-rc.2's connection RPC registrar resolves the route owner from the
-# Connection service context. Give that service the Web server dependency so
-# its public `connection.rpc.handle()` API can mount plugin-owned channels.
+# `connection.rpc.handle()` resolves the route owner from the Context it is read
+# through, so that service must already carry the Web-server dependency. dsh
+# 0.2.1-rc.2 renamed the browser-trust provider: the `web-runtime` row no longer
+# provides `webRuntime`, and a row still injecting it waits forever on a service
+# that never mounts (the plugin row shows as loading instead of reporting an
+# error). Inject the current provider instead.
 - id: connection
   inject:
-    - webRuntime
+    - webStartup
     - webServer
 
 # Config is omitted deliberately — every field of the plugin's Config is

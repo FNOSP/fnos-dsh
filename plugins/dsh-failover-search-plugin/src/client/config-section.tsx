@@ -22,6 +22,7 @@ import type { ReactNode } from 'react'
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { DshButton, DshInput, DshSwitch, DshTag, DshTypography } from '@tnnevol/dsh-semi-ui'
 import { SettingsForm, SettingsValueField } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { SettingsFormModel } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { OFFICIAL_SOURCE_ID, TAVILY_PLATFORM_ID, TINYFISH_PLATFORM_ID } from '../contracts/constants.ts'
@@ -130,7 +131,11 @@ export function FailoverConfigSection({ t, form, model, loadSummaries, copyKey }
   }, [loadSummaries, hostRevision])
 
   // 订阅式读取：草稿变化（用户输入）与宿主快照变化（保存回读）都要重渲染。
-  const [store] = useState(() => model.bind<ConfigRenderState>(() => ({
+  // `bind()` 的返回类型是 `SnapshotStore<S>`，该类型住在 `@deepseek-ai/dsh-client-store`。
+  // 上游 0.2.1 的 `ui-primitives` 只在 devDependencies 里引用它（发行包里没有对应声明），
+  // 消费方不自己声明就解析不到这个类型，推断结果退化成 `unknown`，读 `shell`/`values`
+  // 直接报 TS2339。显式标注既补上依赖，也让这层契约在类型上被钉住。
+  const [store] = useState<SnapshotStore<ConfigRenderState>>(() => model.bind<ConfigRenderState>(() => ({
     shell: model.shell(),
     values: form.getSnapshot().value ?? DEFAULTS,
     fields: {

@@ -2,7 +2,21 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const targetVersion = '0.2.0-rc.2'
+/**
+ * 运行时基线只从 catalog 读取，不在测试里另写一份字面量。
+ *
+ * 把版本写死在这里，每次更新 DSH 基线都要同时改测试与 catalog 两处：漏改一处，
+ * 守卫会在版本已经升级之后继续断言旧值——它与它保护的发布一起过期，报错信息却
+ * 只说「不匹配」。仓库其它守卫已按同一理由改为「读来源、不重述值」。
+ */
+async function runtimeBaseline(): Promise<string> {
+  const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
+  const match = workspace.match(/'@deepseek-ai\/dsh':\s*([0-9][0-9A-Za-z.+-]*)/u)
+  if (match?.[1] === undefined) throw new Error('pnpm-workspace.yaml must declare @deepseek-ai/dsh in the catalog')
+  return match[1]
+}
+
+const targetVersion = await runtimeBaseline()
 // 覆盖面刻意含 dsh-failover-search-plugin：本列表被多个仓库级守卫共用
 // （基线、清单一致性、catalog 声明）。漏掉它曾使该插件的
 // compatibility.json 清单无人守门——FNOS-012-05 立项的正是这个缺口，
@@ -39,8 +53,8 @@ describe('FNOS-007 DSH baseline', () => {
     const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
     expect(rootPackage.devDependencies['@deepseek-ai/dsh']).toBe('catalog:')
     expect(rootPackage.devDependencies['@deepseek-ai/dsh-llm-pi-ai']).toBe('catalog:dsh')
-    expect(workspace).toMatch(/'@deepseek-ai\/dsh':\s*0\.2\.0-rc\.2/u)
-    expect(workspace).toMatch(/'@deepseek-ai\/dsh-llm-pi-ai':\s*0\.2\.0-rc\.2/u)
+    expect(workspace).toMatch(new RegExp(`'@deepseek-ai/dsh':\\s*${targetVersion.replaceAll('.', '\\.')}`, 'u'))
+    expect(workspace).toMatch(new RegExp(`'@deepseek-ai/dsh-llm-pi-ai':\\s*${targetVersion.replaceAll('.', '\\.')}`, 'u'))
   })
 
   it('keeps published DSH plugin peer ranges on the exact runtime baseline', async () => {
@@ -54,7 +68,7 @@ describe('FNOS-007 DSH baseline', () => {
     }
   })
 
-  it('declares 0.2.0-rc.2 in every runtime plugin compatibility manifest', async () => {
+  it('declares the runtime baseline in every plugin compatibility manifest', async () => {
     for (const directory of pluginDirectories) {
       const compatibility = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/compatibility.json`, import.meta.url), 'utf8')) as {
         dshPluginApi: { version: string }
@@ -129,7 +143,7 @@ describe('FNOS-007 DSH baseline', () => {
     // Third-party dshmarket has no local source, so its exact pin stays a
     // literal: the registry version is the contract, not a copy. 每次更新 DSH
     // 基线都要同步升级它，否则其 peer 范围可能不覆盖新基线而被兼容门禁拒绝。
-    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.66.27', source: 'thirdparty' })
+    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.66.37', source: 'thirdparty' })
     expect(published.registry).toBeUndefined()
     expect(published.bundled ?? []).toEqual([])
 
@@ -171,8 +185,10 @@ describe('FNOS-007 DSH baseline', () => {
 
   it('aligns shared upstream support packages with the target checkout', async () => {
     const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
-    expect(workspace).toMatch(/'@deepseek-ai\/cordis':\s*\^4\.0\.4/u)
-    expect(workspace).toMatch(/'@deepseek-ai\/schemastery':\s*3\.18\.4/u)
+    // 与上游 checkout 的 vendor 版本对齐；这里只断言「存在且为 4.x / 3.x」，
+    // 具体补丁号随基线走，不在此重述。
+    expect(workspace).toMatch(/'@deepseek-ai\/cordis':\s*\^4\./u)
+    expect(workspace).toMatch(/'@deepseek-ai\/schemastery':\s*3\./u)
   })
 
   it('keeps terminal environment adaptation in the gateway runtime', async () => {

@@ -22,7 +22,7 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-011 | [凭据文件权限异常的可诊断性](/tests/FNOS-011-credential-permission-diagnostics) | [PLAN-FNOS-011](/plans/PLAN-FNOS-011-credential-permission-diagnostics) | 通过 | 验收通过（2026-10-16）：有效用例 12/12；6 条未执行全部因功能废弃。插件已发布 `0.2.0-rc.2.6` |
 | FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/tests/FNOS-012-codebuddy-model-speed-and-client-version) | [PLAN-FNOS-012](/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version) | 通过 | 验收通过（2026-10-16）：26 条通过；6 条未执行为环境类限制；TC-025 已随 `0.2.0-rc.2.6` 发布修复 |
 | FNOS-013 | [Midscene 浏览器自动化桥接插件](/tests/FNOS-013-midscene-browser-automation-bridge) | [PLAN-FNOS-013](/plans/PLAN-FNOS-013-midscene-browser-automation-bridge) | 通过 | 验收通过（2026-10-16）：57 条通过；2 条失败经复核为本机沙箱与落点精度、非产品缺陷；端到端意图导航与插件界面已实测 |
-| FNOS-014 | [DSH 0.2.1-rc.2 插件适配与新能力支持](/tests/FNOS-014-dsh-021-rc2-adaptation) | [PLAN-FNOS-014](/plans/PLAN-FNOS-014-dsh-021-rc2-adaptation) | 规划中 | 尚未执行（用例已登记 52 条） |
+| FNOS-014 | [DSH 0.2.1-rc.2 插件适配与新能力支持](/tests/FNOS-014-dsh-021-rc2-adaptation) | [PLAN-FNOS-014](/plans/PLAN-FNOS-014-dsh-021-rc2-adaptation) | 部分通过 | 52 条中 38 通过、0 失败、5 阻塞（需真实 fnOS NAS）、9 未执行；DSH Web 与 DSH Desktop 双客户端通过 |
 | FNOS-015 | [主题缓存写入死循环修复](/tests/FNOS-015-theme-cache-write-loop) | [PLAN-FNOS-015](/plans/PLAN-FNOS-015-theme-cache-write-loop) | 规划中 | 尚未执行（用例已登记 15 条） |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

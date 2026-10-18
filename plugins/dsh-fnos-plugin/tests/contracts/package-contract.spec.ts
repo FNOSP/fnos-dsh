@@ -1,6 +1,19 @@
 import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
+/**
+ * 仓库的 DSH 运行时基线，从 pnpm catalog 读取。
+ *
+ * 不在测试里重述版本号：catalog 是唯一版本源，测试只需证明兼容声明与它一致。
+ * 写死字面量会让基线更新时多一处必须同步修改的地方，而漏改只报「版本不匹配」。
+ */
+async function workspaceRuntimeBaseline(): Promise<string> {
+  const workspace = await readFile(new URL('../../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
+  const match = workspace.match(/'@deepseek-ai\/dsh':\s*([0-9][0-9A-Za-z.+-]*)/u)
+  if (match?.[1] === undefined) throw new Error('pnpm-workspace.yaml must declare @deepseek-ai/dsh in the catalog')
+  return match[1]
+}
+
 describe('dsh-fnos package contract', () => {
   it('declares the remote session namespace before using it', async () => {
     const source = await readFile(new URL('../../src/client/index.ts', import.meta.url), 'utf8')
@@ -496,7 +509,9 @@ describe('dsh-fnos package contract', () => {
     const compatibility = JSON.parse(await readFile(new URL('../../compatibility.json', import.meta.url), 'utf8')) as {
       dshPluginApi: { version: string, packages: string[] }
     }
-    expect(compatibility.dshPluginApi.version).toBe('0.2.0-rc.2')
+    // 基线版本从仓库 catalog 读取：在测试里写死就等于多一处要跟着基线改的地方，
+    // 而漏改只会表现为「版本不匹配」，看不出该改哪一边。
+    expect(compatibility.dshPluginApi.version).toBe(await workspaceRuntimeBaseline())
     expect(compatibility.dshPluginApi.packages).toEqual([
       '@deepseek-ai/dsh-api-remotes',
       '@deepseek-ai/dsh-client-locale',

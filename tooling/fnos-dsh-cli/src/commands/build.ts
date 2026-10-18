@@ -15,7 +15,7 @@ import { askBuildSelection, askBundleDshPlugins, askFpkApps, askPlugins } from '
 
 const DSH_PUBLISHED_PLUGIN_MANIFEST = 'app/published-dsh-plugins.json'
 const DSH_BUNDLED_PLUGIN_DIRECTORY = 'app/bundled-dsh-plugins'
-const DSH_VERSION = '0.2.0-rc.2'
+const DSH_VERSION = '0.2.1-rc.2'
 const PNPM_VERSION = '11.7.0'
 /** 三方插件在清单里的固定标识；版本本身由清单持有，不在校验代码里重复书写。 */
 const DSHMARKET_NAME = 'dshmarket'

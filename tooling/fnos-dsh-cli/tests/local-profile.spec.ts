@@ -46,7 +46,7 @@ vi.mock('node:fs/promises', async importOriginal => ({
   writeFile: mocks.writeFile,
 }))
 
-const { ensureLocalProfilePlugins, localProfilePlugins } = await import('../src/core/local-profile.js')
+const { ensureLocalProfilePlugins, localProfilePlugins, LOCAL_DSH_VERSION } = await import('../src/core/local-profile.js')
 
 /** The profile records absolute `link:` specs, so the fixture must match the resolved directory. */
 const codexDirectory = dirname(join(repositoryRoot, 'plugins/dsh-codex-auth-plugin/package.json'))
@@ -131,7 +131,8 @@ describe('local profile plugins', () => {
 
     expect(mocks.writeFile).toHaveBeenCalledWith(
       linkedPackagePath,
-      expect.stringContaining('"@deepseek-ai/dsh-llm": "0.2.0-rc.2"'),
+      // 归一化目标就是运行时基线本身，从源码常量读取而不是在此重述版本。
+      expect.stringContaining(`"@deepseek-ai/dsh-llm": "${LOCAL_DSH_VERSION}"`),
       'utf8',
     )
     expect(mocks.runRepoDsh).not.toHaveBeenCalled()

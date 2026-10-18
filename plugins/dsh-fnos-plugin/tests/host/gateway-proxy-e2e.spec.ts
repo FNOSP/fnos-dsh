@@ -86,7 +86,8 @@ interface HttpResult { status: number, body: string, contentType: string | undef
 
 function send(options: {
   socketPath?: string
-  port?: number
+  /** `undefined` 允许直接传入 `webserver.port`（`listen` 之前为 `undefined`）。 */
+  port?: number | undefined
   method: string
   path: string
   body?: string

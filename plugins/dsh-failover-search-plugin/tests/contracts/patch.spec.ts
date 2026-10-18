@@ -6,6 +6,19 @@ async function read(relative: string): Promise<string> {
   return await readFile(new URL(`../../${relative}`, import.meta.url), 'utf8')
 }
 
+/**
+ * 仓库的 DSH 运行时基线，从 pnpm catalog 读取。
+ *
+ * 不在测试里重述版本号：catalog 是唯一版本源，测试只需证明兼容声明与它一致。
+ * 写死字面量会让基线更新时多一处必须同步修改的地方，而漏改只报「版本不匹配」。
+ */
+async function workspaceRuntimeBaseline(): Promise<string> {
+  const workspace = await readFile(new URL('../../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
+  const match = workspace.match(/'@deepseek-ai\/dsh':\s*([0-9][0-9A-Za-z.+-]*)/u)
+  if (match?.[1] === undefined) throw new Error('pnpm-workspace.yaml must declare @deepseek-ai/dsh in the catalog')
+  return match[1]
+}
+
 describe('FNOS-010-01/06/10 组合包 patch 契约', () => {
   it('web 行整行替换时完整重述两个 provider 键（patch 不做深度合并）', async () => {
     const patch = await read('cordis.patch.yml')
@@ -57,12 +70,13 @@ describe('FNOS-010-01/06/10 组合包 patch 契约', () => {
     expect(pkg.exports['./cordis.patch.yml']).toBe('./cordis.patch.yml')
   })
 
-  it('compatibility.json 的 DSH 基线是仓库当前基线 0.2.0-rc.2', async () => {
+  it('compatibility.json 的 DSH 基线是仓库当前基线', async () => {
     const compatibility = JSON.parse(await read('compatibility.json')) as {
       dshPluginApi: { version: string, packages: string[] }
     }
 
-    expect(compatibility.dshPluginApi.version).toBe('0.2.0-rc.2')
+    // 与仓库 catalog 同源，不在此重述版本号（重述会随基线更新而过期）。
+    expect(compatibility.dshPluginApi.version).toBe(await workspaceRuntimeBaseline())
     expect(compatibility.dshPluginApi.packages).toContain('@deepseek-ai/dsh-web')
     expect(compatibility.dshPluginApi.packages).toContain('@deepseek-ai/dsh-web-search-deepseek')
   })

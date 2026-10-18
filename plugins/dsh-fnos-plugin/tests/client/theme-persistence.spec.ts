@@ -11,7 +11,6 @@ function makeScope(initial: Partial<ConfigFormSnapshot<FnosSettings>> = {}) {
     user: undefined,
     revision: 0,
     writable: true,
-    mode: 'host',
     ...initial,
   }
   const set = vi.fn(() => Promise.resolve(true))
@@ -39,15 +38,16 @@ describe('fnOS theme persistence', () => {
     expect(host.unset).not.toHaveBeenCalled()
   })
 
-  it('does not write an unchanged cache or write from a memory scope', () => {
+  it('does not write an unchanged cache or write from a read-only scope', () => {
     const cached = makeScope({ value: { systemTheme: 'light' } })
     createThemePersistence(cached.scope).sync('system', 'light')
     expect(cached.set).not.toHaveBeenCalled()
     expect(cached.unset).not.toHaveBeenCalled()
 
-    const memory = makeScope({ mode: 'memory', writable: false })
-    createThemePersistence(memory.scope).sync('system', 'dark')
-    expect(memory.set).not.toHaveBeenCalled()
+    // 上游 0.2.1 移除了 memory 模式：只读场景由 `writable: false` 表达。
+    const readOnly = makeScope({ writable: false })
+    createThemePersistence(readOnly.scope).sync('system', 'dark')
+    expect(readOnly.set).not.toHaveBeenCalled()
   })
 
   it('clears the cached theme when DSH chooses an explicit theme', () => {

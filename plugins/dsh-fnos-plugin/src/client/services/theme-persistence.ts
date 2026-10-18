@@ -15,7 +15,9 @@ export function createThemePersistence(scope: ConfigForm<FnosSettings>) {
 
   const sync = (preference: DshThemePreference, theme: FnosTheme | null): void => {
     const snapshot = scope.getSnapshot()
-    if (snapshot.mode !== 'host' || !snapshot.writable) return
+    // 上游 0.2.1 移除了 `mode: 'host' | 'memory'`：设置一律走 Host 文档，能否写入
+    // 只由 `writable`（以及不可用时的 `status`）表达，不再存在「进程内记忆模式」。
+    if (snapshot.status !== 'ready' || !snapshot.writable) return
 
     const target = preference === 'system' && theme !== null ? theme : undefined
     const current = snapshot.value?.[FNOS_SYSTEM_THEME_FIELD]

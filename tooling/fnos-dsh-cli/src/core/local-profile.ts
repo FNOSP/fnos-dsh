@@ -6,7 +6,7 @@ import { runRepoDsh, runTurbo } from './turbo.js'
 
 /** Profile the local development instance boots; matches `dsh web`. */
 const DEV_PROFILE = 'web'
-const LOCAL_DSH_VERSION = '0.2.0-rc.2'
+export const LOCAL_DSH_VERSION = '0.2.1-rc.2'
 
 /**
  * Plugins that live in this repository but are not linked into the local
