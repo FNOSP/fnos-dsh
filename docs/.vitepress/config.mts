@@ -304,6 +304,10 @@ const requirementsSidebar = [
         text: 'FNOS-017 fnOS 插件路由 403 误拒修复',
         link: '/requirements/FNOS-017-fnos-route-403'
       },
+      {
+        text: 'FNOS-018 Midscene 桥接使用说明准确性修正',
+        link: '/requirements/FNOS-018-midscene-skill-accuracy'
+      },
       ]
   }
 ]
@@ -381,6 +385,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-017 fnOS 插件路由 403 误拒修复',
         link: '/plans/PLAN-FNOS-017-fnos-route-403'
       },
+      {
+        text: 'PLAN-FNOS-018 Midscene 桥接使用说明准确性修正',
+        link: '/plans/PLAN-FNOS-018-midscene-skill-accuracy'
+      },
     ]
   }
 ]
@@ -426,6 +434,10 @@ const testsSidebar = [
       {
         text: 'FNOS-017 fnOS 插件路由 403 误拒修复',
         link: '/tests/FNOS-017-fnos-route-403'
+      },
+      {
+        text: 'FNOS-018 Midscene 桥接使用说明准确性修正',
+        link: '/tests/FNOS-018-midscene-skill-accuracy'
       },
     ]
   }

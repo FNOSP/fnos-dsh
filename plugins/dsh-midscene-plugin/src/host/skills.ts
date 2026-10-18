@@ -57,20 +57,39 @@ export const BRIDGE_PRELUDE = `> **本环境说明（由 DSH Midscene 插件注�
 >   **要主动把这一步讲给用户** —— 少了它扩展用不上 DSH 的模型，用户就会被引向申请第三方
 >   key，而那正是本插件要消除的成本。不要反过来让用户「先配好模型再来」。
 >
-> **静默操作（不打断用户）**：用 Bridge 模式驱动用户浏览器时，连接标签页应传
-> \`activate: false\`，否则会把用户正在看的页面切走、让浏览器变成测试画布。JS SDK 路径：
+> **静默操作（不打断用户）**：用 Bridge 模式驱动用户浏览器时，不要切走用户正在看的页面。
+> 静默是**一步**——由 \`connectCurrentTab\` 的 \`activateTab: false\` 完成，它会直接连上浏览器的
+> 当前标签页：
 >
 > \`\`\`js
 > const agent = new AgentOverChromeBridge()
-> const tabs = await agent.getBrowserTabList()
-> const target = tabs.find(t => t.url?.includes('<目标地址>'))
-> // 经 page 代理调用才能把选项带到底层（顶层的 setActiveTabId 只收 tabId），
-> // 且 id 必须传数字：传字符串会让后续调用报 expected integer, found string。
-> await agent.page.setActiveTabId(Number.parseInt(String(target.id), 10), { activate: false })
+> // 字段名是 activateTab（不是 activate），默认 true；这一步同时完成连接。
+> await agent.connectCurrentTab({ activateTab: false })
 > \`\`\`
 >
-> 注意 CLI 路径（\`npx @midscene/web ... --bridge\`）**没有**对应开关，连接时必然激活标签页；
+> 自证静默是否生效：\`getBrowserTabList()\` 的每一项都带 \`currentActiveTab\`，连接前后各读一次，
+> 前台标签页应保持不变。
+>
+> 想连到**指定**标签页（不是当前前台那个）时，用 \`connectNewTabWithUrl(目标地址)\` 另开一个；
+> 若确需 \`setActiveTabId\`（只接受一个参数）：id 必须转成数字，传字符串会触发 Chrome
+> \`tabs.update\` 的签名错。
+> 不要先 \`setActiveTabId\` 再 \`connectCurrentTab\`——已连接状态下 \`setActiveTabId\` 会报
+> \`Active tab id is already set\`，两步式写法跑不通。
+>
+> CLI 路径（\`npx @midscene/web ... --bridge\`）**没有**对应开关，连接时必然激活标签页；
 > 需要静默时走上面的 SDK 路径。仅当用户明确想看着操作过程时才改用激活方式。
+>
+> **Bridge 模式不支持 \`evaluate\`**：类型声明里没有该方法，调用返回 \`undefined\` **且不抛错**，
+> 因此用它读 DOM 或断言 HTTP 状态会静默失败。取证改用这三条之一：视觉 Agent
+> （\`aiQuery\` / \`aiAssert\`，靠截图理解页面）、截图存档、或从目标环境日志核对（例如应用日志里的
+> 请求状态）。需要 DOM 级精确断言时改走 Puppeteer/CDP 路径，而不是 Bridge。
+>
+> **\`.env\` 的加载差异**：CLI 路径会自动加载**当前工作目录**的 \`.env\`；SDK 路径**不会**，
+> 必须把四行注入进程环境再启动脚本，否则报 \`MIDSCENE_MODEL_NAME is required\`：
+>
+> \`\`\`sh
+> set -a && . ./.env && set +a && node your-script.mjs
+> \`\`\`
 >
 > 以下为上游原文。`
 

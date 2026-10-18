@@ -56,5 +56,6 @@ flowchart TD
 | PLAN-FNOS-015 | [主题缓存写入死循环修复](/plans/PLAN-FNOS-015-theme-cache-write-loop) | 阶段一完成；目标环境验收待执行 |
 | PLAN-FNOS-016 | [插件市场索引与插件元数据](/plans/PLAN-FNOS-016-plugin-market-index) | 待完成（四阶段完成；干净 profile 安装链路待复验） |
 | PLAN-FNOS-017 | [fnOS 插件路由 403 误拒修复](/plans/PLAN-FNOS-017-fnos-route-403) | 阶段一完成；真机验收待执行 |
+| PLAN-FNOS-018 | [Midscene 桥接使用说明准确性修正](/plans/PLAN-FNOS-018-midscene-skill-accuracy) | 已完成（单阶段 4 个任务） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

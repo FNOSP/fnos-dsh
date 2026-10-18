@@ -8,7 +8,26 @@ import type { FnosSettings } from '../contracts/theme-contract.ts'
 
 function send(res: ServerResponse, status: number, value: unknown): void { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(value)) }
 async function body(req: IncomingMessage): Promise<unknown> { const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk)); try { return JSON.parse(Buffer.concat(chunks).toString('utf8')) } catch { return undefined } }
-function trusted(req: IncomingMessage): boolean { const origin = req.headers.origin; if (origin === undefined) return true; const host = req.headers['x-forwarded-host'] ?? req.headers.host; try { return new URL(origin).host === host } catch { return false } }
+/**
+ * Reject cross-site writes to the gateway allowlist.
+ *
+ * Compares against `host` only. The fnOS gateway rewrites `host` and `origin`
+ * together to the loopback authority, so the two agree on the second hop;
+ * `x-forwarded-host` belongs to the platform proxy and never matches the
+ * rewritten Origin. Reading it here made every remote write 403, and trusting
+ * it would let an intermediary authorize itself.
+ *
+ * A request without `Origin` keeps its previous meaning (admitted): this route's
+ * callers include non-browser paths, and the same-origin check only arbitrates
+ * requests that actually declare an origin.
+ */
+function trusted(req: IncomingMessage): boolean {
+  const origin = req.headers.origin
+  if (origin === undefined) return true
+  const host = req.headers.host
+  if (host === undefined) return false
+  try { return new URL(origin).host === host } catch { return false }
+}
 
 export function gatewayProxyPathsFile(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const root = env.TRIM_PKGVAR?.trim()

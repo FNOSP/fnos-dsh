@@ -26,5 +26,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-015 | [主题缓存写入死循环修复](/tests/FNOS-015-theme-cache-write-loop) | [PLAN-FNOS-015](/plans/PLAN-FNOS-015-theme-cache-write-loop) | 规划中 | 尚未执行（用例已登记 15 条） |
 | FNOS-016 | [插件市场索引与插件元数据](/tests/FNOS-016-plugin-market-index) | [PLAN-FNOS-016](/plans/PLAN-FNOS-016-plugin-market-index) | 通过（双客户端） | 19 条全部通过；DSH Web 与 DSH Desktop 的发现页、详情页与兼容性判定均实测正常 |
 | FNOS-017 | [fnOS 插件路由 403 误拒修复](/tests/FNOS-017-fnos-route-403) | [PLAN-FNOS-017](/plans/PLAN-FNOS-017-fnos-route-403) | 部分通过 | 10 条中 7 通过、3 待真机 |
+| FNOS-018 | [Midscene 桥接使用说明准确性修正](/tests/FNOS-018-midscene-skill-accuracy) | [PLAN-FNOS-018](/plans/PLAN-FNOS-018-midscene-skill-accuracy) | 通过 | 9 条全部通过；发现并修正 4 处与 SDK 实际不符的表述 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

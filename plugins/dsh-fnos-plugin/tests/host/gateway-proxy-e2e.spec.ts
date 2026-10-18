@@ -91,6 +91,8 @@ function send(options: {
   method: string
   path: string
   body?: string
+  /** 额外请求头，用于构造同源/跨站场景（FNOS-017）。 */
+  headers?: Record<string, string>
 }): Promise<HttpResult> {
   return new Promise((resolve, reject) => {
     const req = httpRequest({
@@ -101,6 +103,7 @@ function send(options: {
       headers: {
         host: 'nas.local:5666',
         ...(options.body === undefined ? {} : { 'content-type': 'application/json' }),
+        ...options.headers,
       },
     }, res => {
       const chunks: Buffer[] = []
@@ -194,6 +197,49 @@ describe('gateway proxy-path route over the real DSH webserver', () => {
         body: JSON.stringify({ version: 1, paths: ['/store/api'] }),
       })
       await expect(readFile(join(home, 'gateway', 'path-allowlist.json'), 'utf8')).resolves.toContain('"/store/api"')
+    } finally {
+      await close()
+    }
+  })
+
+  /**
+   * FNOS-017：`x-forwarded-host` 不得参与同源比较。
+   *
+   * 平台反代注入了它（公网域名），而网关已把 `origin` 与 `host` 一起改写成
+   * loopback 权威。旧实现优先读它，导致两侧永远不等，远程访问下每次写入都 403。
+   */
+  it('accepts a same-origin write that carries forwarded headers', async () => {
+    const { webserver, close } = await boot()
+    try {
+      const response = await send({
+        port: webserver.port,
+        method: 'PUT',
+        path: FNOS_GATEWAY_PROXY_PATHS_ROUTE,
+        body: JSON.stringify({ version: 1, paths: ['/store/api'] }),
+        headers: {
+          origin: 'http://nas.local:5666',
+          'x-forwarded-host': 'xiaomi-cn.fnos.net',
+          'x-forwarded-proto': 'https',
+        },
+      })
+      expect(response.status).toBe(200)
+    } finally {
+      await close()
+    }
+  })
+
+  it('rejects a cross-site write that claims a foreign origin', async () => {
+    const { webserver, close } = await boot()
+    try {
+      const response = await send({
+        port: webserver.port,
+        method: 'PUT',
+        path: FNOS_GATEWAY_PROXY_PATHS_ROUTE,
+        body: JSON.stringify({ version: 1, paths: ['/evil'] }),
+        headers: { origin: 'https://evil.example' },
+      })
+      expect(response.status).toBe(403)
+      expect(JSON.parse(response.body)).toEqual({ error: 'remote-web-origin-not-trusted' })
     } finally {
       await close()
     }

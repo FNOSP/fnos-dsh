@@ -54,13 +54,56 @@ npx -y @midscene/web@1 --bridge connect --url "<目标地址>"
 ```
 
 - 需要用户已安装 **Midscene 浏览器扩展**；首次连接时在扩展弹窗点 **Allow**
-- **静默操作**：连接标签页传 `activate: false`，否则会把用户正在看的页面切走
 - 只有用户明确要「无头跑」「隔离环境」时才用 CDP / Puppeteer 路径
+
+### 静默连接（SDK 路径）
+
+CLI 路径没有静默开关，连接时必然激活标签页。要不打断用户，用 SDK 路径——静默是**一步**，
+`connectCurrentTab` 直接连上浏览器的当前标签页：
+
+```js
+const agent = new AgentOverChromeBridge()
+// 字段名是 activateTab（不是 activate），默认 true；这一步同时完成连接。
+await agent.connectCurrentTab({ activateTab: false })
+```
+
+自证静默是否生效：`getBrowserTabList()` 的每一项都带 `currentActiveTab`，连接前后各读一次，
+前台标签页应保持不变。
+
+想连到**指定**标签页（不是当前前台那个）时，用 `connectNewTabWithUrl(目标地址)` 另开一个。
+若确需 `setActiveTabId`（只接受一个参数）：**id 必须转成数字**，传字符串会触发 Chrome
+`tabs.update` 的签名错。
+不要写成「先 `setActiveTabId` 再 `connectCurrentTab`」——已连接状态下 `setActiveTabId` 会报
+`Active tab id is already set`，这个两步式写法跑不通。
+
+### Bridge 模式的能力边界
+
+**Bridge 模式不支持 `evaluate`**。类型声明里没有该方法，调用返回 `undefined` **且不抛错**，
+用它读 DOM 或断言 HTTP 状态会静默失败。取证改用下面三条之一：
+
+- 视觉 Agent：`aiQuery` / `aiAssert`，靠截图理解页面；
+- 截图存档：留作证据；
+- 目标环境日志：例如应用日志里的请求状态，比截图更可靠。
+
+需要 DOM 级精确断言时，改走 Puppeteer / CDP 路径，而不是 Bridge。
 
 ## 第三步：按需操作并给出证据
 
-需要「看」→ `take_screenshot`；需要「动手」→ `act` / `assert`（或测试框架里的 `aiAct` / `aiAssert`）。
-报告结果时**附证据**（截图路径、断言输出、接口返回），不要只说「已完成」。
+需要「看」→ `aiQuery` / 截图；需要「动手」→ `aiAct` / `aiAssert`。
+报告结果时**附证据**（截图路径、断言输出、日志片段），不要只说「已完成」。
+
+### `.env` 的加载差异
+
+| 路径 | `.env` |
+| --- | --- |
+| CLI | 自动加载**当前工作目录**的 `.env` |
+| SDK | **不会**加载，必须注入进程环境 |
+
+SDK 路径下少了注入会报 `MIDSCENE_MODEL_NAME is required`。注入方式：
+
+```sh
+set -a && . ./.env && set +a && node your-script.mjs
+```
 
 ## 常见弯路（都不要走）
 

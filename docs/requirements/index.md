@@ -70,5 +70,6 @@ flowchart TD
 | FNOS-015 | [主题缓存写入死循环修复](/requirements/FNOS-015-theme-cache-write-loop) | 实现完成（本地验证通过）；目标环境验收待执行 |
 | FNOS-016 | [插件市场索引与插件元数据](/requirements/FNOS-016-plugin-market-index) | 待完成（双客户端已验；干净 profile 安装链路待复验） |
 | FNOS-017 | [fnOS 插件路由 403 误拒修复](/requirements/FNOS-017-fnos-route-403) | 修复完成；真机验收待执行 |
+| FNOS-018 | [Midscene 桥接使用说明准确性修正](/requirements/FNOS-018-midscene-skill-accuracy) | 已完成（说明已修正并实测通过） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

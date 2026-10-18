@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -257,6 +257,42 @@ describe('包内技能资产（AC-02）', () => {
       expect(candidate.description.length, candidate.name).toBeGreaterThan(80)
       expect(candidate.description.trim(), candidate.name).not.toBe('|')
       expect(candidate.description.trim(), candidate.name).not.toBe('>')
+    }
+  })
+
+  /**
+   * FNOS-018：Bridge 模式的说明必须与 `@midscene/web` 的真实 API 一致。
+   *
+   * 这里守的是「说法与调用方式」两件事，而不是措辞：
+   * - 静默开关在 `connectCurrentTab({ activateTab: false })`，`setActiveTabId` 只收一个参数，
+   *   写上第二参数会被静默忽略（不报错、也不生效）；
+   * - Bridge 没有 `evaluate`，调用返回 undefined 且不抛错，用它取证会静默失败。
+   *
+   * PRELUDE 会注入到全部 8 个技能，SKILL.md 是自有技能正文；两处必须同时更新，
+   * 否则 agent 从不同技能进来会看到互相矛盾的说法。
+   */
+  it('documents the real bridge API in both the prelude and the owned skill', async () => {
+    const owned = await readFile(join(bundledSkillsDir(), 'dsh-midscene', 'SKILL.md'), 'utf8')
+    for (const [label, text] of [['BRIDGE_PRELUDE', BRIDGE_PRELUDE], ['dsh-midscene/SKILL.md', owned]] as const) {
+      // 静默开关的正确字段名与调用位置
+      expect(text, label).toContain('activateTab')
+      expect(text, label).toContain('connectCurrentTab')
+      // 旧的错误写法必须彻底消失，否则会被照抄
+      expect(text, label).not.toContain('activate: false')
+      // 两步式写法实测跑不通（Active tab id is already set），说明里必须劝阻
+      expect(text, label).toContain('Active tab id is already set')
+      // 能力边界
+      expect(text, label).toContain('evaluate')
+      // 已证实的结论要保留
+      expect(text, label).toContain('数字')
+    }
+  })
+
+  it('keeps the prelude injected ahead of every bundled skill', async () => {
+    const candidates = await listBundledSkills(bundledSkillsDir())
+    for (const candidate of candidates) {
+      const loaded = await loadBundledSkill(bundledSkillsDir(), candidate)
+      expect(loaded?.content.startsWith(BRIDGE_PRELUDE), candidate.name).toBe(true)
     }
   })
 
