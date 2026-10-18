@@ -15,7 +15,7 @@
 | 包名 | 版本 | 适用场景 | 文档 | 源码 |
 | --- | --- | --- | --- | --- |
 | `@tnnevol/dsh-codex-auth` | `0.2.0-rc.2.6` | 使用 ChatGPT 账号登录 Codex，并把模型、用量和图片输入能力接入 DSH | [Codex 身份验证](/plugins/dsh-codex-auth) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-codex-auth-plugin) |
-| `@tnnevol/dsh-codebuddy` | `0.2.0-rc.2.6` | 使用腾讯 CodeBuddy 多账号登录，接入模型目录、额度和 Token 统计 | [CodeBuddy](/plugins/dsh-codebuddy) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-codebuddy-plugin) |
+| `@tnnevol/dsh-codebuddy` | `0.2.1-rc.2.0` | 使用腾讯 CodeBuddy 多账号登录，接入模型目录、额度和 Token 统计 | [CodeBuddy](/plugins/dsh-codebuddy) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-codebuddy-plugin) |
 | `@tnnevol/dsh-fnos` | `0.2.0-rc.2.6` | 在 fnOS 中补充主题、授权目录、NAS 文件访问和会话日志导出 | [fnOS](/plugins/dsh-fnos) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-fnos-plugin) |
 | `@tnnevol/dsh-semi-ui-showcase` | `0.2.0-rc.2.6` | 展示 Semi UI 共享组件、主题和交互状态 | [Semi UI 总览](/plugins/dsh-semi-ui-showcase) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-semi-ui-showcase-plugin) |
 | `@tnnevol/dsh-failover-search` | `0.2.0-rc.2.6` | 接入 TinyFish 与 Tavily 搜索并按 TinyFish → Tavily → 官方顺序转移，支持同平台多账号分摊与用量展示 | [Failover Search](/plugins/dsh-failover-search) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-failover-search-plugin) |
