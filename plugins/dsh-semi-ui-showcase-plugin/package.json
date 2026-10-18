@@ -2,15 +2,8 @@
   "name": "@tnnevol/dsh-semi-ui-showcase",
   "displayName": "DSH Semi UI Showcase",
   "type": "module",
-  "version": "0.2.1-rc.2.0",
+  "version": "0.2.1-rc.2.1",
   "description": "Component showcase for the shared DSH-themed Semi Design package.",
-  "keywords": [
-    "semi-ui",
-    "showcase",
-    "components",
-    "theme",
-    "design-system"
-  ],
   "author": "tnnevol",
   "documentation": "https://fndsh-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase",
   "publishConfig": {
@@ -23,6 +16,13 @@
     "url": "git+https://github.com/FNOSP/fnos-dsh.git",
     "directory": "plugins/dsh-semi-ui-showcase-plugin"
   },
+  "keywords": [
+    "semi-ui",
+    "showcase",
+    "components",
+    "theme",
+    "design-system"
+  ],
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
