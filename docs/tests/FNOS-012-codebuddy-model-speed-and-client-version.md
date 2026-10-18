@@ -4,7 +4,7 @@ title: FNOS-012 测试用例
 description: FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-012-codebuddy-model-speed-and-client-version
 plan: /plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version
-status: 执行中
+status: 通过
 lastVerified: 2026-10-10
 verifiedAt: 2026-10-10
 ---
@@ -16,7 +16,7 @@ verifiedAt: 2026-10-10
 | 需求编号 | FNOS-012 |
 | 关联需求 | [FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新](/requirements/FNOS-012-codebuddy-model-speed-and-client-version) |
 | 关联计划 | [PLAN-FNOS-012 CodeBuddy 模型倍速展示与客户端版本更新](/plans/PLAN-FNOS-012-codebuddy-model-speed-and-client-version) |
-| 测试状态 | <Badge type="tip" text="本地自动化已执行，环境类待验收" /> |
+| 测试状态 | <Badge type="tip" text="验收通过（2026-10-16）" /> |
 
 ## 测试范围与需求分析
 
@@ -217,3 +217,7 @@ verifiedAt: 2026-10-10
 | 2026-10-10 | 新增 FNOS-012-06 用例 | 智能搜索控件改为药丸按钮：TC-028~TC-033 覆盖形态、激活/普通两态、亮暗主题可辨、键盘可达与会话级语义回归（沿用 FNOS-012-06 行为约束——仅改视觉，不改 FNOS-010-12 行为）；测试范围与环境同步到 06。 |
 | 2026-10-15 | Desktop 侧一致性补齐并登记 | TC-033 由「未执行」转为「通过」：`packages/dsh-e2e-desktop/` 经渲染进程 CDP 验证药丸形态、文案固定「智能搜索」、`aria-pressed` 可读，两态点击后 `aria-pressed` 与 `--active` 翻转且背景色改变，收尾复原并切回原会话（1ms~0.5s，全程不动鼠标、不切前台）。断言口径按 `styles.scss` 实际契约校正为「两态背景色变量不同」（普通态实测解析为透明），与 Web 侧 TC-030 的修正一致。据实说明 CDP 通道无视觉判定，「两态肉眼是否可辨」仍为人工走查 |
 | 2026-10-10 | 执行结果按规范逐条回填 | 原表以区间行合并登记、使用规范未定义的取值（如「阻塞→已提前修复」「待验收」），且表头为 4 列；改为逐条 6 列、结果取值收敛为「通过／失败／阻塞／未执行」，补环境版本三元组、结论的用例计数，并把 TC-024 守门用例对本插件恒真的发现登记为 BUG-01。 |
+
+| 日期 | 变更 |
+| --- | --- |
+| 2026-10-16 | **状态更新为「通过」**。26 条通过、6 条未执行（均为环境类：真实 NAS 自愈耗时、npm registry 写权限，受执行环境限制而非产品缺陷）、1 条失败已消除 —— TC-025（线上产物 `compatibility.json` 陈旧）随 `0.2.0-rc.2.6` 发布修复，本仓「兼容性清单必须与源码 import 对齐」守门测试持续覆盖该点。六个插件已统一发布 `0.2.0-rc.2.6`（`next`），`latest` 已按发布策略校正。 |

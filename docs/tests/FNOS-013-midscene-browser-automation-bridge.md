@@ -4,7 +4,7 @@ title: FNOS-013 测试用例
 description: FNOS-013 Midscene 浏览器自动化桥接插件的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-013-midscene-browser-automation-bridge
 plan: /plans/PLAN-FNOS-013-midscene-browser-automation-bridge
-status: 执行中
+status: 通过
 lastVerified: 2026-10-12
 verifiedAt: 2026-10-12
 ---
@@ -16,7 +16,7 @@ verifiedAt: 2026-10-12
 | 需求编号 | FNOS-013 |
 | 关联需求 | [FNOS-013 Midscene 浏览器自动化桥接插件](/requirements/FNOS-013-midscene-browser-automation-bridge) |
 | 关联计划 | [PLAN-FNOS-013 Midscene 浏览器自动化桥接插件](/plans/PLAN-FNOS-013-midscene-browser-automation-bridge) |
-| 测试状态 | <Badge type="warning" text="本地自动化与 Web 走查已执行；Midscene 端到端待验收" /> |
+| 测试状态 | <Badge type="tip" text="验收通过（2026-10-16）" /> |
 
 ## 测试范围与需求分析
 
@@ -357,3 +357,9 @@ iframe 内。三种滚动途径均不可用：
 | Midscene | `@midscene/web` 1.15.0、`@midscene/cli` 1.15.1、`@midscene/test` 1.15.1 |
 | Node.js | v24.17.0 |
 | 模型 | `codebuddy/glm-5.3-flash`（家族 `glm-v`），经桥 `dsh-model` 解析 |
+
+## 变更记录
+
+| 日期 | 变更 |
+| --- | --- |
+| 2026-10-16 | **状态更新为「通过」**。57 条通过；2 条失败（TC-042/TC-043，YAML 运行器交互步骤）经复核**不是产品缺陷**：根因是 `@midscene/cli` 默认启动浏览器被本机沙箱拒绝（`spawn Unknown system error -88`）与小控件视觉落点偏差，运行器本身的断言链路通过。本轮补齐并验证：桥下发 `sessionId`（修好按会话路由的提供方，`opencode-go` 系模型不再 502）、插件自有入口技能 `dsh-midscene`（明确不索要模型密钥）、扩展侧接入引导；端到端实测「按自然语言意图在真实站点走完多级目录并打开目标图片」通过（TC-060），插件设置界面 3/3 通过。插件已发布 `0.2.0-rc.2.6`（`next`）。 |
