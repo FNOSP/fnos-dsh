@@ -1,4 +1,4 @@
-import { confirm, intro, isCancel, outro, select, text } from '@clack/prompts'
+import { confirm, intro, isCancel, outro } from '@clack/prompts'
 import { type OptionValues } from 'commander'
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -8,16 +8,14 @@ import { versionBump, type VersionBumpRelease } from 'bumpp'
 import { program } from '../program.js'
 import { addBooleanArgs, addNegatedArgs } from '../core/command-args.js'
 import { projectVersionFiles, repositoryRoot } from '../config/paths.js'
-import { findPluginTarget } from '../config/targets.js'
+import { pluginTargets } from '../config/targets.js'
 import { parseVersionOptions } from '../core/args.js'
 import {
   assertProjectVersionShape,
   nextProjectVersion,
-  parseProjectVersion,
   readDshBaselineFromCatalog,
 } from '../core/project-version.js'
 import { readPackageInfo } from '../core/package.js'
-import { askPlugin, askReleaseArea, type ReleaseArea } from '../ui/prompts.js'
 
 const publishedDshPluginsPath = 'apps/fn-deepseek-harness/app/published-dsh-plugins.json'
 const pluginIndexDocPath = 'docs/plugins/index.md'
@@ -108,36 +106,6 @@ function bumpPluginVersion(currentVersion: string, release: string): string {
     default:
       throw new Error(`Unsupported plugin release: ${release}`)
   }
-}
-
-async function choosePluginRelease(currentVersion: string, pluginNames: string[]): Promise<string | undefined> {
-  const result = await select({
-    message: `选择 ${pluginNames.join('、')} 的发布版本（当前 ${currentVersion}）`,
-    options: [
-      { value: 'patch', label: 'patch', hint: '修复版本' },
-      { value: 'minor', label: 'minor', hint: '功能版本' },
-      { value: 'major', label: 'major', hint: '破坏性版本' },
-      { value: 'prerelease', label: 'prerelease', hint: '下一个预发布版本' },
-      { value: 'custom', label: 'custom ...', hint: '输入指定版本号' },
-    ],
-  })
-  if (isCancel(result)) return undefined
-  if (result !== 'custom') return result
-
-  const customVersion = await text({
-    message: '输入新的版本号',
-    initialValue: currentVersion,
-    validate: value => {
-      if (value === undefined || value.trim() === '') return '请输入版本号'
-      try {
-        parsePluginVersion(value.trim())
-        return undefined
-      } catch {
-        return '无效的插件版本号'
-      }
-    },
-  })
-  return isCancel(customVersion) ? undefined : customVersion
 }
 
 async function readJson(relativePath: string): Promise<JsonObject> {
@@ -299,182 +267,145 @@ function runGit(args: string[]): void {
   }
 }
 
-async function confirmPluginRelease(pluginNames: string[], currentVersion: string, newVersion: string): Promise<boolean> {
+/**
+ * 统一发布确认：一张提示里列出项目版本与每个插件的目标版本。
+ *
+ * 两套版本会落在同一条提交里，所以必须在执行前让调用者一次看清全部变更——
+ * 分成两次确认会出现「项目已改、插件未改」的中间态。
+ *
+ * @param projectFrom 项目当前版本。
+ * @param projectTo 项目目标版本。
+ * @param plan 每个插件的目标版本。
+ * @returns 是否继续；取消返回 `false`。
+ */
+async function confirmUnifiedRelease(
+  projectFrom: string,
+  projectTo: string,
+  plan: readonly { name: string, from: string, to: string }[],
+): Promise<boolean> {
+  const detail = plan.map(item => `  ${item.name}: ${item.from} -> ${item.to}`).join('\n')
   const result = await confirm({
-    message: `将 ${pluginNames.join('、')} 从 ${currentVersion} 更新到 ${newVersion}，继续吗？`,
+    message: `项目 ${projectFrom} -> ${projectTo}\n插件（${plan.length} 个）：\n${detail}\n\n继续吗？`,
     initialValue: true,
   })
   return isCancel(result) ? false : result
 }
 
-async function writePluginRelease(
-  targets: NonNullable<ReturnType<typeof findPluginTarget>>[],
-  packages: Awaited<ReturnType<typeof readPackageInfo>>[],
-  newVersion: string,
-  noCommit: boolean,
-): Promise<number> {
-  const changedPaths = new Set(targets.map(target => target.path))
-  let syncedCount = 0
-  let docSynced = false
-  const installDocPaths = new Set<string>()
-  for (const [index, target] of targets.entries()) {
-    await updatePackageVersion(target.path, newVersion)
-    const pkg = packages[index]
-    if (pkg !== undefined && await syncPublishedPluginVersion(pkg.name, newVersion)) syncedCount += 1
-    if (pkg !== undefined && await syncPluginIndexDocVersion(pkg.name, newVersion)) docSynced = true
-    if (pkg !== undefined) {
-      // `target.path` is `plugins/<pluginDirectory>/package.json`.
-      const pluginDirectory = target.path.split('/')[1] ?? ''
-      for (const path of await syncPluginInstallVersions(pkg.name, pluginDirectory, newVersion)) installDocPaths.add(path)
-    }
-  }
-
-  if (syncedCount > 0) changedPaths.add(publishedDshPluginsPath)
-  if (docSynced) changedPaths.add(pluginIndexDocPath)
-  // A Set keeps `docs/plugins/index.md` from being staged twice: it carries both
-  // the version table and an install command, so two sync steps touch it.
-  for (const path of installDocPaths) changedPaths.add(path)
-  if (!noCommit) {
-    runGit(['add', '--', ...changedPaths])
-    const subject = targets.length === 1
-      ? `chore(plugin): release ${packages[0]?.name ?? 'plugin'} v${newVersion}`
-      : `chore(plugin): release selected plugins v${newVersion}`
-    runGit(['commit', '-m', subject])
-  }
-  return syncedCount
+/** 项目版本的 tag 名。 */
+function formatTag(version: string): string {
+  return `v${version}`
 }
 
+/**
+ * 版本维护的唯一入口。
+ *
+ * **不再区分「项目」与「插件」两个区域**：一次执行同时推进两套版本——
+ * 项目版本的迭代号 +1，并让**每个插件**在自身版本上递增，结果落在同一条提交里。
+ * 原先的「选择要维护版本的区域」菜单已移除，避免同一件事有两种入口。
+ *
+ * 两套版本的递增规则不同，故不能合并成一个数字：
+ * - 项目版本是 `<基础段>-<DSH 基线>.<迭代号>`，只动末尾迭代号；
+ * - 插件版本是 `<DSH 基线>.<修订号>`，各插件当前值并不相同（各自独立发布过），
+ *   因此**逐个在自己的值上递增**，不强行对齐——对齐会让从未改动的插件凭空跳号，
+ *   也会破坏已发布版本的历史。
+ *
+ * `project` / `plugin` 作为历史参数仍被接受，但语义已合并为同一条流程。
+ */
 export async function runVersion(args: string[]): Promise<void> {
   intro('fn-os-apps 版本维护')
-  const explicitArea = args[0] === 'project' || args[0] === 'plugin' ? args[0] as ReleaseArea : undefined
-  const area = explicitArea ?? await askReleaseArea()
-  if (area === undefined) return
+  // 历史参数 `project` / `plugin` 仍被接受，但不再分叉成两套流程。
+  const filtered = args.filter((arg, index) => {
+    if (arg.startsWith('-')) return true
+    const positionalIndex = args.slice(0, index).filter(a => !a.startsWith('-')).length
+    // 只丢弃作为「区域」出现在首位的 project/plugin，保留其后可能的版本串。
+    return !(positionalIndex === 0 && (arg === 'project' || arg === 'plugin'))
+  })
+  const options = parseVersionOptions(filtered)
 
-  const areaArgs = explicitArea === undefined ? args : args.slice(1)
-  // Commander options are appended to args by the command adapter. Ignore
-  // those flags while locating a plugin, otherwise an interactive multi-
-  // select with --yes/--no-* is mistaken for an unknown plugin.
-  const pluginArgIndex = area === 'plugin' ? areaArgs.findIndex(arg => !arg.startsWith('-')) : -1
-  const explicitPlugin = pluginArgIndex < 0 ? undefined : areaArgs[pluginArgIndex]
-  const explicitTarget = explicitPlugin === undefined ? undefined : findPluginTarget(explicitPlugin)
-  const targets = area === 'plugin'
-    ? explicitPlugin === undefined ? await askPlugin() : explicitTarget === undefined ? undefined : [explicitTarget]
-    : undefined
-  if (area === 'plugin') {
-    if (targets === undefined) {
-      throw new Error(`Unknown plugin: ${explicitPlugin ?? '(none)'}`)
-    }
-    if (targets.length === 0) return
-  }
-
-  const versionArgs = area === 'plugin'
-    ? pluginArgIndex < 0 ? areaArgs : areaArgs.slice(pluginArgIndex + 1)
-    : areaArgs
-  const options = parseVersionOptions(versionArgs)
-
-  if (targets !== undefined) {
-    if (targets.length === 1) await versionPlugin(targets[0]!, versionArgs, options)
-    else await versionPlugins(targets, options)
-  } else {
-    await versionProject(versionArgs, options)
-  }
-}
-
-async function versionPlugin(
-  target: NonNullable<ReturnType<typeof findPluginTarget>>,
-  _versionArgs: string[],
-  options: ReturnType<typeof parseVersionOptions>,
-): Promise<void> {
-  const current = await readPackageInfo(target.path)
-  const release = options.release === 'prompt'
-    ? await choosePluginRelease(current.version, [current.name])
-    : String(options.release)
-  if (release === undefined) return
-  const newVersion = bumpPluginVersion(current.version, release)
-  if (options.confirm && !await confirmPluginRelease([current.name], current.version, newVersion)) return
-
-  const syncedCount = await writePluginRelease([target], [current], newVersion, options.noCommit)
-  const syncMessage = syncedCount > 0 ? '，已同步 published-dsh-plugins.json' : ''
-  outro(`${current.name}: ${current.version} -> ${newVersion}${syncMessage}`)
-}
-
-async function versionPlugins(
-  targets: NonNullable<ReturnType<typeof findPluginTarget>>[],
-  options: ReturnType<typeof parseVersionOptions>,
-): Promise<void> {
-  const packages = await Promise.all(targets.map(target => readPackageInfo(target.path)))
-  const first = packages[0]
-  if (first === undefined) throw new Error('No plugins selected')
-
-  const mismatched = packages.filter(pkg => pkg.version !== first.version)
-  if (mismatched.length > 0) {
-    const versions = [...new Set(packages.map(pkg => `${pkg.name}@${pkg.version}`))].join(', ')
-    throw new Error(`Selected plugins must use the same current version for a combined release: ${versions}`)
-  }
-
-  const release = options.release === 'prompt'
-    ? await choosePluginRelease(first.version, packages.map(pkg => pkg.name))
-    : String(options.release)
-  if (release === undefined) return
-  const newVersion = bumpPluginVersion(first.version, release)
-  if (options.confirm && !await confirmPluginRelease(packages.map(pkg => pkg.name), first.version, newVersion)) return
-
-  const syncedCount = await writePluginRelease(targets, packages, newVersion, options.noCommit)
-  const syncMessage = syncedCount > 0 ? '，已同步 published-dsh-plugins.json' : ''
-  outro(`${packages.map(pkg => pkg.name).join(', ')}: ${first.version} -> ${newVersion}${syncMessage}`)
-}
-
-async function versionProject(
-  _versionArgs: string[],
-  options: ReturnType<typeof parseVersionOptions>,
-): Promise<void> {
-  const current = await readPackageInfo('package.json')
-  const commitPrefix = 'chore: release v'
-  const tagPrefix = 'v'
-
-  // 项目/FPK 版本方案（FNOS-019）：`<基础段>-<DSH 基线>.<应用迭代号>`。
-  // 基础段由版本号自身承载、发布时原样继承；每次发布只递增末尾迭代号，因此**不用**
-  // bumpp 的 patch/minor/major 档位（那些会移动前三段）：这里自行算出目标版本，再以
-  // 显式版本号交给 bumpp，提交与 tag 行为保持不变。基线从 catalog 取，与插件
-  // `catalog:dsh` 同源。
   const workspaceYaml = await readFile(join(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8')
   const baseline = readDshBaselineFromCatalog(workspaceYaml)
   if (baseline === undefined) {
-    throw new Error("pnpm-workspace.yaml 的 catalog 未声明 '@deepseek-ai/dsh'，无法确定项目版本的 DSH 基线")
+    throw new Error("pnpm-workspace.yaml 的 catalog 未声明 '@deepseek-ai/dsh'，无法确定 DSH 基线")
   }
-  // 只校验形态（不认具体字面量）：不符合本方案时报错，避免把裸版本或坏串继续发下去。
-  assertProjectVersionShape(current.version, baseline)
-  const requested = String(options.release).trim()
-  // 显式版本串（如手工指定跨基线版本）按其字面值；档位关键字一律收敛为「迭代号 +1」。
-  const explicit = parseProjectVersion(requested, baseline)
-  const targetVersion = explicit === undefined
-    ? nextProjectVersion(current.version, baseline)
-    : requested.replace(/^v/u, '')
+  await releaseAll(options, baseline)
+}
 
-  // bumpp intentionally skips text files whose version differs from the root
-  // version. Keep the Harness Manifest, the documentation example and the app
-  // doc version row in the same version set so project/FPK releases update
-  // them as well.
-  await alignProjectVersionPackageFiles(current.version)
-  await alignProjectVersionTextFiles(current.version)
-  await syncAppDocVersion(current.version)
+/**
+ * 同时推进项目版本与全部插件版本。
+ *
+ * @param options 解析后的版本选项（含 release 与提交/tag 开关）。
+ * @param baseline 当前 DSH 运行时基线。
+ */
+async function releaseAll(
+  options: ReturnType<typeof parseVersionOptions>,
+  baseline: string,
+): Promise<void> {
+  const project = await readPackageInfo('package.json')
+  // 校验项目版本形态（不认字面量）：裸 MAJOR.MINOR.PATCH 会被拒绝。
+  assertProjectVersionShape(project.version, baseline)
 
+  // 插件各自递增：先算出每个插件的目标版本，再一次性写盘并提交。
+  //
+  // 插件当前版本都带预发布段（`0.2.1-rc.2.x`）。对这种版本用 `patch` 会**丢掉预发布段**
+  // ——`0.2.1-rc.2.5` 会变成 `0.2.1`，等于把版本号降级，设备会拒装。因此默认档位在这里
+  // 换成 `prerelease`（递增末尾那段数字）；调用者显式给其它档位时保持原样。
+  const requestedRelease = String(options.release)
+  const pluginRelease = requestedRelease === 'patch' ? 'prerelease' : requestedRelease
+  const targets = pluginTargets
+  const packages = await Promise.all(targets.map(target => readPackageInfo(target.path)))
+  const plan = targets.map((target, index) => {
+    const pkg = packages[index]!
+    return { target, name: pkg.name, from: pkg.version, to: bumpPluginVersion(pkg.version, pluginRelease) }
+  })
+
+  const nextProject = nextProjectVersion(project.version, baseline)
+  if (options.confirm && !await confirmUnifiedRelease(project.version, nextProject, plan)) return
+
+  // 项目侧：先对齐历史遗留的版本文件，再交给 bumpp 完成替换。
+  // 提交与 tag 都由本函数统一处理（两套版本必须落在同一条提交里）。
+  await alignProjectVersionPackageFiles(project.version)
+  await alignProjectVersionTextFiles(project.version)
+  await syncAppDocVersion(project.version)
   const result = await versionBump({
     cwd: repositoryRoot,
     files: projectVersionFiles,
-    currentVersion: current.version,
-    // bumpp 的 `release` 接受具体版本串（类型是模板字面量 `\`${number}${string}\``）。
-    // 档位关键字会移动前三段，而本方案要求前三段固定，因此始终交付算好的版本串；
-    // 断言只因模板字面量类型无法从普通 `string` 推导，取值本身已由解析函数校验过。
-    release: targetVersion as VersionBumpRelease,
-    commit: options.noCommit ? false : `${commitPrefix}%s`,
-    tag: options.noTag ? false : `${tagPrefix}%s`,
+    currentVersion: project.version,
+    release: nextProject as VersionBumpRelease,
+    commit: false,
+    tag: false,
     push: false,
     ignoreScripts: true,
-    confirm: options.confirm,
+    confirm: false,
   })
-  outro(`${current.name}: ${result.currentVersion} -> ${result.newVersion}`)
+
+  // 插件侧：逐个写入，并收集被改动的文档路径。
+  const changedPaths = new Set<string>(projectVersionFiles)
+  for (const item of plan) {
+    await updatePackageVersion(item.target.path, item.to)
+    changedPaths.add(item.target.path)
+    if (await syncPublishedPluginVersion(item.name, item.to)) changedPaths.add(publishedDshPluginsPath)
+    if (await syncPluginIndexDocVersion(item.name, item.to)) changedPaths.add(pluginIndexDocPath)
+    const pluginDirectory = item.target.path.split('/')[1] ?? ''
+    for (const path of await syncPluginInstallVersions(item.name, pluginDirectory, item.to)) {
+      changedPaths.add(path)
+    }
+  }
+
+  if (!options.noCommit) {
+    // 只暂存本命令写过的路径（`projectVersionFiles` 里的 glob 由 git 自己展开）。
+    // 不用 `git add -A`——那会把调用者工作区里的无关改动一并卷进 release 提交，
+    // 属于最难排查的一类事故。
+    runGit(['add', '--', ...changedPaths])
+    runGit(['commit', '-m', `chore: release v${nextProject}`])
+    if (!options.noTag) runGit(['tag', formatTag(nextProject)])
+  }
+
+  outro(`项目 ${result.currentVersion} -> ${nextProject}`)
+  for (const item of plan) outro(`${item.name}: ${item.from} -> ${item.to}`)
 }
+
+
+
 
 program
   .command('version [args...]')

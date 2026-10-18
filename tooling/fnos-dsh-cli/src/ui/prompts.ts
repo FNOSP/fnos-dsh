@@ -1,26 +1,10 @@
-import { cancel, confirm, isCancel, multiselect, select } from '@clack/prompts'
+import { cancel, confirm, isCancel, multiselect } from '@clack/prompts'
 import { pluginTargets, type PluginTarget } from '../config/targets.js'
 import type { FpkApp } from '../config/workspace.js'
 
-export type ReleaseArea = 'project' | 'plugin'
 export type BuildSelection = 'plugins' | 'fpk' | 'docs'
 export type StartSelection = 'docs' | 'plugins' | 'web'
 export type CheckSelection = 'sdd' | 'docs' | 'packages' | 'plugins' | 'tooling'
-
-export async function askReleaseArea(): Promise<ReleaseArea | undefined> {
-  const result = await select({
-    message: '选择要维护版本的区域',
-    options: [
-      { value: 'project', label: '项目 / FPK', hint: '根项目、共享包、应用 Manifest 与版本文档' },
-      { value: 'plugin', label: 'Harness 插件', hint: '可多选维护插件版本' },
-    ],
-  })
-  if (isCancel(result)) {
-    cancel('已取消版本维护')
-    return undefined
-  }
-  return result as ReleaseArea
-}
 
 export async function askPlugin(): Promise<PluginTarget[] | undefined> {
   const result = await multiselect({
