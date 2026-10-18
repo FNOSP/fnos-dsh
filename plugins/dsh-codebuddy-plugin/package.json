@@ -4,6 +4,15 @@
   "type": "module",
   "version": "0.2.1-rc.2.0",
   "description": "Tencent CodeBuddy provider plugin for DeepSeek Harness, with browser OAuth sign-in and quota display.",
+  "keywords": [
+    "codebuddy",
+    "tencent",
+    "provider",
+    "oauth",
+    "quota",
+    "token-usage",
+    "multi-account"
+  ],
   "author": "tnnevol",
   "license": "Apache-2.0",
   "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-codebuddy",
@@ -31,8 +40,10 @@
   },
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "icon": "icon.svg",
   "files": [
     "README.md",
+    "icon.svg",
     "compatibility.json",
     "cordis.patch.yml",
     "lib",

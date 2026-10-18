@@ -295,6 +295,10 @@ const requirementsSidebar = [
         text: 'FNOS-015 主题缓存写入死循环修复',
         link: '/requirements/FNOS-015-theme-cache-write-loop'
       },
+      {
+        text: 'FNOS-016 插件市场索引与插件元数据',
+        link: '/requirements/FNOS-016-plugin-market-index'
+      },
       ]
   }
 ]
@@ -364,6 +368,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-015 主题缓存写入死循环修复',
         link: '/plans/PLAN-FNOS-015-theme-cache-write-loop'
       },
+      {
+        text: 'PLAN-FNOS-016 插件市场索引与插件元数据',
+        link: '/plans/PLAN-FNOS-016-plugin-market-index'
+      },
     ]
   }
 ]
@@ -401,6 +409,10 @@ const testsSidebar = [
       {
         text: 'FNOS-015 主题缓存写入死循环修复',
         link: '/tests/FNOS-015-theme-cache-write-loop'
+      },
+      {
+        text: 'FNOS-016 插件市场索引与插件元数据',
+        link: '/tests/FNOS-016-plugin-market-index'
       },
     ]
   }

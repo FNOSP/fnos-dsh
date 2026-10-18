@@ -4,6 +4,13 @@
   "type": "module",
   "version": "0.2.1-rc.2.0",
   "description": "Component showcase for the shared DSH-themed Semi Design package.",
+  "keywords": [
+    "semi-ui",
+    "showcase",
+    "components",
+    "theme",
+    "design-system"
+  ],
   "author": "tnnevol",
   "documentation": "https://fndsh-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase",
   "publishConfig": {
