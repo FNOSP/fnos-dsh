@@ -91,7 +91,7 @@ verifiedAt: 2026-10-18
 
 | 用例 | 结果 | 证据 |
 | --- | --- | --- |
-| TC-001 | 通过 | `POST /app/fn-deepseek-harness/plugins/dsh-fnos/authorized-directories/entries` 返回 **200**，响应体含 5 条授权目录（`/vol2/1000/fnos-fpk`、`/vol1/@appshare|@apphome|@appdata|@appconf/fn-deepseek-harness`）。请求头为 `origin: https://xiaomi-cn.fnos.net`、`sec-fetch-site: same-origin` —— 正是修复前被判 403 的形态 |
+| TC-001 | 通过 | `POST /app/fn-deepseek-harness/plugins/dsh-fnos/authorized-directories/entries` 返回 **200**，响应体含 5 条授权目录（`/vol2/1000/fnos-fpk`、`/vol1/@appshare`、`/vol1/@apphome`、`/vol1/@appdata`、`/vol1/@appconf` 下的 `fn-deepseek-harness`）。请求头为 `origin: https://xiaomi-cn.fnos.net`、`sec-fetch-site: same-origin` —— 正是修复前被判 403 的形态 |
 | TC-002 | 通过 | 会话输入区输入 `/fn` 后弹出「指令 fn — 选择已授权的 NAS 文件或目录」，列出全部 5 个目录及语义名 |
 | TC-003 | 通过 | 插件详情页「fnOS 集成」渲染出授权目录区块，5 个目录齐全，含「添加授权目录」「刷新」「取消授权」按钮；同页 `gateway/proxy-paths` 与 `authorized-directories` 两个 GET 均 200 |
 | TC-004～TC-006 | 通过（本地） | 跨站拒绝无法从页面内伪造——浏览器控制 `Origin` 头，页面脚本改不了。三类拒绝由本地请求桩用例覆盖 |

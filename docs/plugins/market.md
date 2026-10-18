@@ -65,13 +65,15 @@ https://fndsh-doc.tnnevol.cn/plugins/market/index.json
 在仓库根执行：
 
 ```sh
+# 以本仓库根目录为准
+REPO=$(git rev-parse --show-toplevel)
 cd "$DSH_DESKTOP_APP_DIR/apps/plugin-market-generator"
 npx tsx src/bin.ts \
-  --input <本仓库>/docs/public/plugins/market/plugins.txt \
-  --output <本仓库>/docs/public/plugins/market/index.json \
-  --cache <本仓库>/tmp/plugin-market-cache \
-  --title "飞牛 fnOS DSH 插件" \
-  --description "为飞牛 fnOS 维护的 DSH 插件：模型提供方、搜索故障转移、浏览器自动化与系统集成。"
+    --input "$REPO/docs/public/plugins/market/plugins.txt" \
+    --output "$REPO/docs/public/plugins/market/index.json" \
+    --cache "$REPO/tmp/plugin-market-cache" \
+    --title "飞牛 fnOS DSH 插件" \
+    --description "为飞牛 fnOS 维护的 DSH 插件：模型提供方、搜索故障转移、浏览器自动化与系统集成。"
 ```
 
 源列表 `plugins.txt` 与本文件同目录，每行一个 npm 包名，`#` 开头为注释。

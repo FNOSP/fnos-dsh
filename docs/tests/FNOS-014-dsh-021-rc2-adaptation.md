@@ -233,7 +233,7 @@ DSH Web 用 `pnpm run start -- --web` 启动，`DSH_HOME` 指向项目 `.dsh`，
 | TC-037 | 通过 | 文档、总览表格与安装命令经 `version -- plugin` 统一到新版本 |
 | TC-038 | 通过 | `pnpm run build -- --docs` 与 `pnpm run check -- --sdd` 均通过 |
 | TC-039 | 未执行 | 「干净 profile 按文档命令安装」未单独执行（本轮走 `link:` 源码形态） |
-| TC-040 | 通过 | `dshmarket@1.66.37` 的 peer 范围为 `… || ^0.2.1-rc.1`，覆盖新基线 |
+| TC-040 | 通过 | `dshmarket@1.66.37` 的 peer 范围为 `…` 或 `^0.2.1-rc.1`，覆盖新基线 |
 | TC-041 | 阻塞 | 需真实 fnOS NAS 安装 FPK |
 | TC-042 | 通过 | catalog、构建校验常量、本地 profile 常量与安装回调四处一致；23 个测试任务全绿 |
 | TC-043 | 通过 | `pnpm exec dsh --version` 输出 `0.2.1-rc.2`，与插件声明一致 |
