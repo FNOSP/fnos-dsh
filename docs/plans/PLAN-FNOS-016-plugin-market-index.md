@@ -18,7 +18,7 @@ lastVerified: 2026-10-18
 | 对应需求 | [FNOS-016 插件市场索引与插件元数据](/requirements/FNOS-016-plugin-market-index) |
 | 本轮功能 | FNOS-016-01 至 FNOS-016-07 全部进入本轮实施 |
 | 上游依据 | 上游 checkout `fork-pj/deepseek-harness`（`dsh-v0.2.1-rc.2`）：`packages/util/plugin-market-index`（格式与校验）、`apps/plugin-market-generator`（官方生成器）、`packages/boot/plugin-market`（索引读取）、`.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.zh.md` |
-| 计划状态 | <Badge type="warning" text="待完成（本地与 DSH Web 已验；Desktop 与线上 URL 待复核）" /> |
+| 计划状态 | <Badge type="warning" text="待完成（双客户端已验；干净 profile 的安装链路待复验）" /> |
 
 ## 计划目标
 
@@ -224,7 +224,7 @@ flowchart LR
 | 一：插件元数据 | T01-01～T01-04 | <Badge type="tip" text="已完成" /> |
 | 二：发布补丁版本 | T02-01～T02-03 | <Badge type="tip" text="已完成（两轮：rc.2.1 元数据、rc.2.2 locale）" /> |
 | 三：生成与托管索引 | T03-01～T03-04 | <Badge type="tip" text="已完成" /> |
-| 四：一致性校验与验收 | T04-01～T04-04 | <Badge type="warning" text="T04-01/03/04 完成；T04-02 仅 Web，Desktop 待补" /> |
+| 四：一致性校验与验收 | T04-01～T04-04 | <Badge type="tip" text="已完成（T04-02 含双客户端）" /> |
 
 ## 变更记录
 

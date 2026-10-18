@@ -4,7 +4,7 @@ title: FNOS-016 测试用例
 description: FNOS-016 插件市场索引与插件元数据的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-016-plugin-market-index
 plan: /plans/PLAN-FNOS-016-plugin-market-index
-status: 通过（DSH Web；Desktop 待补）
+status: 通过（DSH Web 与 DSH Desktop）
 lastVerified: 2026-10-18
 verifiedAt: 2026-10-18
 ---
@@ -16,7 +16,7 @@ verifiedAt: 2026-10-18
 | 需求编号 | FNOS-016 |
 | 关联需求 | [FNOS-016 插件市场索引与插件元数据](/requirements/FNOS-016-plugin-market-index) |
 | 关联计划 | [PLAN-FNOS-016 插件市场索引与插件元数据](/plans/PLAN-FNOS-016-plugin-market-index) |
-| 测试状态 | <Badge type="tip" text="通过（DSH Web；Desktop 待补）" /> |
+| 测试状态 | <Badge type="tip" text="通过（DSH Web 与 DSH Desktop）" /> |
 
 ## 测试范围与需求分析
 
@@ -34,7 +34,7 @@ verifiedAt: 2026-10-18
 
 | 功能 | 目标环境 |
 | --- | --- |
-| [FNOS-016-01](/requirements/FNOS-016-plugin-market-index#fnos-016-01) | DSH Web 与 DSH Desktop（发现页） |
+| [FNOS-016-01](/requirements/FNOS-016-plugin-market-index#fnos-016-01) | DSH Web 与 DSH Desktop（发现页；Desktop 侧为 `fork-pj/deepseek-harness` 开发态，构建串 `0.2.1-rc.2-687f282`） |
 | [FNOS-016-02](/requirements/FNOS-016-plugin-market-index#fnos-016-02)、[FNOS-016-03](/requirements/FNOS-016-plugin-market-index#fnos-016-03) | DSH Web 与 DSH Desktop（发现页展示与搜索） |
 | [FNOS-016-04](/requirements/FNOS-016-plugin-market-index#fnos-016-04) | 本地构建环境（一致性校验）+ DSH Web（真实安装） |
 | [FNOS-016-05](/requirements/FNOS-016-plugin-market-index#fnos-016-05)、[FNOS-016-06](/requirements/FNOS-016-plugin-market-index#fnos-016-06) | 文档站构建环境与本地命令行 |
@@ -105,14 +105,14 @@ verifiedAt: 2026-10-18
 
 | 用例范围 | 总数 | 通过 | 失败 | 阻塞 | 未执行 |
 | --- | --- | --- | --- | --- | --- |
-| TC-001～TC-004（FNOS-016-01） | 4 | 3 | 0 | 0 | 1 |
+| TC-001～TC-004（FNOS-016-01） | 4 | 4 | 0 | 0 | 0 |
 | TC-005～TC-007（FNOS-016-02） | 3 | 3 | 0 | 0 | 0 |
 | TC-008～TC-010（FNOS-016-03） | 3 | 3 | 0 | 0 | 0 |
 | TC-011～TC-013（FNOS-016-04） | 3 | 3 | 0 | 0 | 0 |
 | TC-014～TC-015（FNOS-016-05） | 2 | 2 | 0 | 0 | 0 |
 | TC-016～TC-017（FNOS-016-06） | 2 | 2 | 0 | 0 | 0 |
 | TC-018～TC-019（FNOS-016-07） | 2 | 2 | 0 | 0 | 0 |
-| **合计** | **19** | **18** | **0** | **0** | **1** |
+| **合计** | **19** | **19** | **0** | **0** | **0** |
 
 ### 逐条结果
 
@@ -121,7 +121,7 @@ verifiedAt: 2026-10-18
 | TC-001 | 通过 | 上游校验器解析成功，6 个插件，最高版本均为 `0.2.1-rc.2.2` |
 | TC-002 | 通过 | DSH Web「发现」页添加索引源后列出六条，标题为中文插件名、描述为用途说明 |
 | TC-003 | 部分通过 | 条目显示「已安装」状态，安装链路未重走（本机已装同版本）；安装参数由 `marketInstallTarget` 校验正确 |
-| TC-004 | 未执行 | Desktop 本轮未启用市场组合包走查 |
+| TC-004 | 通过 | DSH Desktop（`fork-pj/deepseek-harness` 开发态，构建串 `0.2.1-rc.2-687f282`）启用市场组合包后添加线上索引源：六条目全部加载，标题、描述、版本、作者、日期与已安装状态与 Web 一致；详情页显示来源、软件包、发布时间与插件市场归属；版本列表按兼容门禁逐个标注，仅 `0.2.1-rc.2.x` 可装，其余 78 个历史版本显示「不兼容」并给出要求版本 |
 | TC-005 | 通过 | 截图确认 fnOS 显示蓝色品牌标识、CodeBuddy 显示紫色官方标识 |
 | TC-006 | 通过 | 其余三个显示占位图；三个包内无新增图片文件 |
 | TC-007 | 通过 | fnOS `icon.png` 2.3 KiB、CodeBuddy `icon.svg` 1.1 KiB，均在格式与体积限制内；`pnpm pack` 产物含图标 |
@@ -147,10 +147,14 @@ verifiedAt: 2026-10-18
 
 ## 测试结论
 
-DSH Web 侧通过：19 条用例中 18 条通过、0 条失败、1 条未执行（Desktop 发现页）。
+DSH Web 与 DSH Desktop 双客户端通过：19 条用例全部通过、0 条失败、0 条未执行。
 
 FNOS-016-01、02、03、04、05、06、07 的核心验收点均成立：索引通过上游格式校验、发现页正确渲染六个插件（中文标题、用途描述、版本、作者、日期、已安装状态）、两个官方图标正常显示而其余三个如实留空、关键词已进入线上产物、索引与 npm `next` 有守用例锁定、重复生成确定。
 
 过程中发现并修复了一个实际问题（BUG-01：缺 locale 导致标题显示包名），它不是格式错误，而是「能装但不认得出」，正是本需求要解决的问题，因此补了 FNOS-016-07 一并交付。
 
-后续动作：文档站部署后复核线上 URL 可访问（TC-015 的线上部分）；在启用了市场组合包的环境补做 Desktop 走查（TC-004）；安装链路（TC-003）在未安装该版本的干净 profile 上复验。
+Desktop 侧的关键结论：索引读取、条目渲染、详情页与兼容性判定在 Electron 渲染进程内与 Web 一致；桌面端未出现独有偏差。
+
+后续动作：安装链路（TC-003）在未安装该版本的干净 profile 上复验——本轮两侧均为「已安装」状态，未走真实安装流程。
+
+测试收尾登记：DSH Desktop 使用项目 `DSH_HOME=<repo>/.dsh` 启动，收尾时已停止实例、关闭探测端口（渲染进程 9333、主进程 9229），未触碰用户主目录 profile。测试期间为验证用例临时启用的「自定义插件市场」组合包已关闭、添加的线上索引源已移除，`.dsh/profiles/desktop` 的 `bundles` 与索引源均回到测试前状态。
