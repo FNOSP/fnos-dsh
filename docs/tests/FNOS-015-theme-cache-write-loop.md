@@ -4,7 +4,7 @@ title: FNOS-015 测试用例
 description: FNOS-015 主题缓存写入死循环修复的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-015-theme-cache-write-loop
 plan: /plans/PLAN-FNOS-015-theme-cache-write-loop
-status: 规划中
+status: 部分通过（真机 DSH Web）
 lastVerified: 2026-10-18
 verifiedAt: 2026-10-18
 ---
@@ -108,9 +108,40 @@ verifiedAt: 2026-10-18
 
 > 执行后回填；不修改上方用例定义。FNOS-015-01、02、04、05 需在 **DSH Web 与 DSH Desktop 各执行一次**，仅单一客户端的结果不构成完成结论；FNOS-015-03 的注入部分需真实 fnOS NAS。
 
+### 真实 fnOS NAS（2026-10-18）
+
+环境：设备 `fnos-mi`，经 `https://xiaomi-cn.fnos.net` 远程访问；`@tnnevol/dsh-fnos` `0.2.1-rc.2.4`（内置形态，`file:/vol1/@appcenter/fn-deepseek-harness/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz`）；DSH `0.2.1-rc.2`。
+
+**主题测试路径（供下次复测直接照用）**：
+
+```text
+fnOS 桌面 → 左下角「个人设置」→「我的账号」弹框 → 左侧「主题壁纸」页签
+→「主题」区选「跟随系统 / 亮模式 / 暗模式」→ 切到「暗模式」即时生效，无需重启
+```
+
 | 用例ID | 功能点 | 执行环境 | 结果 | 执行日期 | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| — | — | — | — | — | 尚未执行 |
+| TC-001 | FNOS-015-01 | 真实 fnOS NAS | 通过 | 2026-10-18 | 全生命周期 125 个 XHR/fetch 中 `settings/mutate` 仅 **1 次**；主题切换（亮→暗）期间**未产生第二次写入**。对照 issue #13 的「20 秒 30+ 次」已收敛 |
+| TC-002 | FNOS-015-01 | 单测环境 | 通过 | 2026-10-18 | 20 次通知只写 1 次；revision 前进后放行（见 `theme-persistence.spec.ts`） |
+| TC-003 | FNOS-015-01 | 单测环境 | 通过 | 2026-10-18 | 主题 light→dark 立即写入，抑制不吞真实变化 |
+| TC-004 | FNOS-015-01 | 单测环境 | 通过 | 2026-10-18 | 写入 reject 后降级、不重试；复现脚本 20 次通知 → 1 次写（修复前 21 次） |
+| TC-005 | FNOS-015-02 | 单测环境 | 通过 | 2026-10-18 | 首次失败后该字段标记不可写，后续不再写 |
+| TC-006 | FNOS-015-02 | 真实 fnOS NAS | 通过 | 2026-10-18 | `unset` 后主题跟随仍生效：iframe 内 `theme-mode=dark`、`data-ds-dark-theme` 存在、`color-scheme: dark` |
+| TC-007 | FNOS-015-03 | 真实 fnOS NAS | **未通过（条件未成立）** | 2026-10-18 | 本次 `settings/mutate` 为 `unset systemTheme`，说明插件侧 `bridge.getTheme()` 返回 `null`——该会话未取得 fnOS 主题值（`window` 上无 fnOS SDK 载体）。因此缓存未被写入 `dark`，无法验证「主题变化后缓存更新」 |
+| TC-008 | FNOS-015-03 | 真实 fnOS NAS | 未执行 | — | 依赖 TC-007 的缓存存在前提 |
+| TC-009 | FNOS-015-03 | 真实 fnOS NAS | 未执行 | — | 同上 |
+| TC-010 | FNOS-015-04 | 真实 fnOS NAS | 通过 | 2026-10-18 | 加载完成后静置 20 秒：`settings/mutate` 0 次、`describe` 0 次、`credentials/describe` 0 次、`modelCatalog` 0 次 |
+| TC-011 | FNOS-015-04 | 真实 fnOS NAS | 通过 | 2026-10-18 | 模型选择器正常显示 `Space-Bunny · x0.08 · Max`，无「正在刷新模型列表」 |
+| TC-012 | FNOS-015-04 | 真实 fnOS NAS | 通过 | 2026-10-18 | 静置期间无 300ms 级组件反复挂载 |
+| TC-013 | FNOS-015-05 | 真实 fnOS NAS | 部分通过 | 2026-10-18 | 写入门槛已恢复（能发出 `settings/mutate`），但因 `getTheme()` 为 `null` 而走 `unset` 分支 |
+| TC-014 | FNOS-015-05 | 真实 fnOS NAS | 通过 | 2026-10-18 | 未复发循环：无重复 unset，写入次数为 1 |
+| TC-015 | FNOS-015-05 | 发布批次 | 通过 | 2026-10-18 | 设备实装 `0.2.1-rc.2.4`，其源码同时含 FNOS-014-15 门槛适配与本次守卫，无「先恢复后修」中间态 |
+
+### 测量方法的一处更正
+
+初次用「在 iframe 内包装 `window.fetch` 计数」的方式测得 20 秒窗口全为 0，随后发现该 hook 已被框架替换（`fetch.toString()` 不再含探针标记），属**假阴性**。已改用浏览器网络面板作为权威数据源重新统计——面板记录全部 125 个请求，结论与前述一致且不受页面内 hook 影响。
+
+判断「计数器是否有效」必须做对照实验：主动触发一次已知请求，确认计数增长后才能相信 0 值。
 
 ## Bug 记录
 
