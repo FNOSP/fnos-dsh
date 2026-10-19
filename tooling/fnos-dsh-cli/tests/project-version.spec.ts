@@ -73,9 +73,20 @@ describe('nextProjectVersion：下次版本计算（FNOS-019-02）', () => {
     expect(() => nextProjectVersion(undefined, BASELINE)).toThrow(/基础段/u)
   })
 
-  it('TC-011 基线变化时迭代号继续递增而不是归零', () => {
-    // 归零会让新号的排序退回旧位置，设备会判为降级而拒绝安装。
-    expect(nextProjectVersion('5.9.0-0.2.1-rc.2.5', '0.2.2-rc.1')).toBe('5.9.0-0.2.2-rc.1.6')
+  it('TC-011 基线变化时迭代号重置为 0', () => {
+    // 迭代号只在同一基线内才有比较意义。基线变了，排序由基线本身决定：
+    // `…-0.2.2-rc.1.0` 必然大于 `…-0.2.1-rc.2.5`，所以从 0 重新开始不会倒退。
+    expect(nextProjectVersion('5.9.0-0.2.1-rc.2.5', '0.2.2-rc.1')).toBe('5.9.0-0.2.2-rc.1.0')
+  })
+
+  it('TC-011b 同一基线的次要版本变化也重置（0.2.1-rc.2 → 0.2.1-rc.5）', () => {
+    // DSH 在同一个 minor 内发新的 rc 也算基线变化。
+    expect(nextProjectVersion('5.9.0-0.2.1-rc.2.5', '0.2.1-rc.5')).toBe('5.9.0-0.2.1-rc.5.0')
+  })
+
+  it('TC-011c 同基线内修 bug 继续 +1', () => {
+    expect(nextProjectVersion('5.9.0-0.2.1-rc.5.0', '0.2.1-rc.5')).toBe('5.9.0-0.2.1-rc.5.1')
+    expect(nextProjectVersion('5.9.0-0.2.1-rc.5.1', '0.2.1-rc.5')).toBe('5.9.0-0.2.1-rc.5.2')
   })
 
   it('TC-012 缺迭代号的当前版本不被误读成迭代号 2', () => {

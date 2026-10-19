@@ -111,11 +111,22 @@ export function pluginVersionOf(parts: ProjectVersionParts): string {
 /**
  * 计算下一次发布的项目版本。
  *
- * 规则：**基础段原样继承当前版本**（不推进、也不写死）；基线取当前 DSH 运行时基线；
- * 迭代号在当前值上 +1。
+ * 规则：
+ * 1. **基础段原样继承当前版本**（不推进、也不写死）；
+ * 2. **基线跟随 DSH 运行时基线**；基线一旦变化，迭代号**重置为 0**；
+ * 3. 基线未变时，迭代号在当前值上 +1。
  *
- * **基线变化时迭代号不重置**：版本号只需单调递增，而重置会让新号在排序上退回旧位置，
- * 于是设备会把它当降级而拒绝安装。基线本身已能表达 DSH 版本的变化。
+ * 举例：
+ * ```text
+ * 5.9.0-0.2.1-rc.2.5 → 5.9.0-0.2.1-rc.5.0   DSH 基线 0.2.1-rc.2 → 0.2.1-rc.5，重置
+ * 5.9.0-0.2.1-rc.5.0 → 5.9.0-0.2.1-rc.5.1   同基线内修 bug，+1
+ * 5.9.0-0.2.1-rc.5.1 → 5.9.0-0.2.2-rc.1.0   DSH 基线 → 0.2.2-rc.1，重置
+ * ```
+ *
+ * 为什么重置是安全的：迭代号只在**同一基线内**才有比较意义。基线变了，版本号的
+ * 排序由基线本身决定——`…-0.2.1-rc.5.0` 必然大于 `…-0.2.1-rc.2.5`、`…-0.2.2-rc.1.0`
+ * 必然大于 `…-0.2.1-rc.x.y`，所以从 0 重新开始不会造成排序倒退。
+ * 反过来说，**同一基线内**若把迭代号改小才会被判降级，因此那种情况必须继续 +1。
  *
  * @param current 当前版本串。
  * @param baseline 当前 DSH 运行时基线。
@@ -140,7 +151,8 @@ export function nextProjectVersion(
       `无法确定项目版本的基础段：当前版本 "${current ?? '(空)'}" 不符合 <基础>-<DSH 基线>.<迭代号> 形态，且未提供可用的基础段`,
     )
   }
-  const iteration = parsed === undefined ? 0 : parsed.iteration + 1
+  // 基线未变才 +1；基线变化（或无法解析当前版本）时从 0 起算。
+  const iteration = parsed === undefined || parsed.baseline !== baseline ? 0 : parsed.iteration + 1
   return formatProjectVersion({ base, baseline, iteration })
 }
 
