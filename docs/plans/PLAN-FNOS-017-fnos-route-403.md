@@ -2,7 +2,7 @@
 id: PLAN-FNOS-017
 title: PLAN-FNOS-017 fnOS 插件路由 403 误拒修复
 description: 实施 FNOS-017：把 fnOS 插件的同源判定收敛到网关实际转发的权威（host），不再让外部可注入的 x-forwarded-host 参与比较；补齐三类场景的回归用例，并在真实 fnOS NAS 远程访问下验收。
-status: planned
+status: completed
 owner: tnnevol
 planDate: 2026-10-18
 targetVersion: 5.9.0

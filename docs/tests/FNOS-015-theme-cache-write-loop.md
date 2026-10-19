@@ -4,7 +4,7 @@ title: FNOS-015 测试用例
 description: FNOS-015 主题缓存写入死循环修复的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-015-theme-cache-write-loop
 plan: /plans/PLAN-FNOS-015-theme-cache-write-loop
-status: 部分通过（真机 DSH Web）
+status: 部分通过（真机 DSH Web，2026-10-19 复验）
 lastVerified: 2026-10-18
 verifiedAt: 2026-10-18
 ---
@@ -179,6 +179,23 @@ fnOS 桌面 → 左下角「个人设置」→「我的账号」弹框 → 左�
 - 主题缓存写入（TC-007）未发生：本次会话 `bridge.getTheme()` 返回 `null`，插件取不到 fnOS 主题值，走的是 `unset` 分支。TC-008/009 因前提不成立未执行。
 
 **下一轮需要构造的条件**：让 `systemTheme` 位于 composition 层（`base`）而使 unset 被宿主转成 `set: inherited`，用来验证 #13；或在 DSH 偏好为「跟随系统」且 `getTheme()` 可读时验证主题缓存。
+
+### 2026-10-19 复验（版本 `5.9.0-0.2.1-rc.2.6`，环境 `http://192.168.0.17:5666`）
+
+在真机环境重新量化一轮，**写入收敛得到确认，主题缓存写入仍未验成**。
+
+**已确认（FNOS-015-01 / -04）**：
+
+- 静置 20 秒窗口：`settings/mutate` **0** 次、`settings/describe` **0** 次、全部 `fetch` **0** 次。
+- 做了对照实验，排除「测量失效」：同一 hook 先主动发一个已知请求能捕获到（`controlCaptured: 1`），随后静置 8 秒仍为 0。因此这个 0 是真实的 0，不是 hook 没装上。
+- 未出现每 300–400ms 一次的重复 unset，与 issue #13 的病态形态相反。
+
+**仍未验成（FNOS-015-03，TC-007/008/009）**：
+
+- 缓存未被写入。原因不是缺陷，而是**前提不满足**：`systemTheme` 是 `volatile()` 字段，其值只能由 fnOS SDK 经 `sdk.$on('os/theme')` 推送。本环境下插件与宿主的 SDK 握手未建立（`postmateReady: false`、宿主未回应 `trim-app` 握手、iframe `window` 上无 SDK 载体），`bridge.getTheme()` 恒为 `null`，因此走 `unset` 分支而非写入缓存。
+- 这与此前记录一致，属于环境条件而非实现缺陷；要闭合 TC-007，需要在 SDK 握手可用的 fnOS 会话里验证。
+
+**测试方法限制（本次新发现）**：页面内 `fetch` 无法伪造 `Origin` / `Sec-Fetch-Site`（被浏览器静默丢弃），因此任何「跨站拒绝」类验证都不能靠页面内 fetch 做，只能由单测覆盖。
 
 ## 变更记录
 

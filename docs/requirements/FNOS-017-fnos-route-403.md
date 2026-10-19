@@ -2,10 +2,10 @@
 id: FNOS-017
 title: FNOS-017 fnOS 插件路由 403 误拒修复
 description: 修复经 fnOS 远程域名访问时 fnOS 插件路由（如 /plugins/dsh-fnos/authorized-directories/entries）返回 403 remote-web-origin-not-trusted 的问题：信任判定把外部可注入的 x-forwarded-* 头当作权威来源，与网关改写后的 origin 必然比对失败；改动后两者按同一来源判定，并且不放松跨站拒绝。
-status: planned
+status: completed
 owner: tnnevol
 targetVersion: 5.9.0
-lastVerified: 2026-10-18
+lastVerified: 2026-10-19
 ---
 
 # FNOS-017 fnOS 插件路由 403 误拒修复
@@ -14,7 +14,7 @@ lastVerified: 2026-10-18
 | --- | --- |
 | 需求编号 | FNOS-017 |
 | 提出日期 | 2026-10-18 |
-| 需求状态 | <Badge type="warning" text="修复完成（本地验证通过）；真机验收待执行" /> |
+| 需求状态 | <Badge type="tip" text="已通过真机验收" /> |
 | 关联计划 | [PLAN-FNOS-017 fnOS 插件路由 403 误拒修复](/plans/PLAN-FNOS-017-fnos-route-403) |
 | 影响插件 | `@tnnevol/dsh-fnos` |
 | 关联需求 | [FNOS-014](/requirements/FNOS-014-dsh-021-rc2-adaptation)（当前运行时基线） |

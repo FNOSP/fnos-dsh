@@ -5,7 +5,7 @@ description: 修复 fnOS 插件客户端把主题缓存写进 DSH 设置时的�
 status: in_progress
 owner: tnnevol
 targetVersion: 5.8.0
-lastVerified: 2026-10-18
+lastVerified: 2026-10-19
 ---
 
 # FNOS-015 主题缓存写入死循环修复
@@ -14,7 +14,7 @@ lastVerified: 2026-10-18
 | --- | --- |
 | 需求编号 | FNOS-015 |
 | 提出日期 | 2026-10-18 |
-| 需求状态 | <Badge type="warning" text="实现完成（本地验证通过）；目标环境验收待执行" /> |
+| 需求状态 | <Badge type="warning" text="部分通过：写入收敛已在真机确认；主题缓存写入受 fnOS SDK 前提限制未验成" /> |
 | 关联计划 | [PLAN-FNOS-015 主题缓存写入死循环修复](/plans/PLAN-FNOS-015-theme-cache-write-loop) |
 | 来源 | [issue #13](https://github.com/FNOSP/fnos-dsh/issues/13)（wk1972，DSH 0.2.0-rc.2 + `@tnnevol/dsh-fnos` 0.2.0-rc.2.5/.6） |
 | 前置需求 | [FNOS-014 DSH 0.2.1-rc.2 插件适配](/requirements/FNOS-014-dsh-021-rc2-adaptation)（含 FNOS-014-15：`ConfigFormSnapshot.mode` 移除导致的写入门槛失效） |
