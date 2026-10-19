@@ -66,7 +66,7 @@ flowchart TD
 | FNOS-011 | [凭据文件权限异常的可诊断性](/requirements/FNOS-011-credential-permission-diagnostics) | 已完成（随 0.2.0-rc.2.6 发布） |
 | FNOS-012 | [CodeBuddy 模型倍速展示与客户端版本更新](/requirements/FNOS-012-codebuddy-model-speed-and-client-version) | 已完成（随 0.2.0-rc.2.6 发布） |
 | FNOS-013 | [Midscene 浏览器自动化桥接插件](/requirements/FNOS-013-midscene-browser-automation-bridge) | 已完成（随 0.2.0-rc.2.6 发布） |
-| FNOS-014 | [DSH 0.2.1-rc.2 插件适配与新能力支持](/requirements/FNOS-014-dsh-021-rc2-adaptation) | 待完成（本地双客户端已验；真机安装与 fnOS 插件功能待补；含 FNOS-014-15 主题缓存门槛适配） |
+| FNOS-014 | [DSH 0.2.1-rc.2 插件适配与新能力支持](/requirements/FNOS-014-dsh-021-rc2-adaptation) | 已完成（52 条用例全部通过，含真机验收） |
 | FNOS-015 | [主题缓存写入死循环修复](/requirements/FNOS-015-theme-cache-write-loop) | 实现完成（本地验证通过）；目标环境验收待执行 |
 | FNOS-016 | [插件市场索引与插件元数据](/requirements/FNOS-016-plugin-market-index) | 待完成（双客户端已验；干净 profile 安装链路待复验） |
 | FNOS-017 | [fnOS 插件路由 403 误拒修复](/requirements/FNOS-017-fnos-route-403) | 修复完成；真机验收待执行 |

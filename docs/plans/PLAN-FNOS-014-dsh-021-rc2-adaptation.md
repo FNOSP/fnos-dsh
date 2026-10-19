@@ -2,7 +2,7 @@
 id: PLAN-FNOS-014
 title: PLAN-FNOS-014 DSH 0.2.1-rc.2 插件适配与新能力支持
 description: 实施 FNOS-014，将六个插件的依赖锚定与兼容声明迁移到 DSH 0.2.1-rc.2，适配宿主服务改名与模型底座跨大版本升级，同步仓库运行与构建基线，并逐项评测上游新增能力的支持结论。
-status: planned
+status: completed
 owner: tnnevol
 planDate: 2026-10-18
 targetVersion: 5.8.0
@@ -18,7 +18,7 @@ lastVerified: 2026-10-18
 | 对应需求 | [FNOS-014 DSH 0.2.1-rc.2 插件适配与新能力支持](/requirements/FNOS-014-dsh-021-rc2-adaptation) |
 | 本轮功能 | FNOS-014-01 至 FNOS-014-14 全部进入本轮实施 |
 | 上游依据 | 本地 Harness checkout `fork-pj/deepseek-harness`（`dsh-v0.2.1-rc.2`，HEAD `687f282e86`）；与 `dsh-v0.2.0-rc.2` 的全量源码对比（1482 条非合并提交）；上游 `docs/upgrade-guide/` 的 36 篇迁移指南；`@earendil-works/pi-ai@1.1.0` 发布产物与本仓库已安装 `0.87.1` 的逐文件比对 |
-| 计划状态 | <Badge type="warning" text="待完成（本地双客户端已验，真机项待补）" /> |
+| 计划状态 | <Badge type="tip" text="已完成（七阶段全部交付，双客户端与真机验收通过）" /> |
 
 ## 计划目标
 
@@ -266,11 +266,11 @@ flowchart LR
 | --- | --- | --- |
 | 一：基线与声明迁移 | T01-01～T01-03 | <Badge type="tip" text="已完成" /> |
 | 二：宿主服务改名适配 | T02-01～T02-02 | <Badge type="tip" text="已完成" /> |
-| 三：模型底座跨大版本适配 | T03-01～T03-03 | <Badge type="warning" text="代码已落地；交互实测待补" /> |
-| 四：客户端契约复核 | T04-01～T04-03 | <Badge type="tip" text="已完成（T04-03 真机防闪待验）" /> |
-| 五：仓库基线同步 | T05-01～T05-03 | <Badge type="warning" text="本地已完成；T05-02 真机安装待补" /> |
+| 三：模型底座跨大版本适配 | T03-01～T03-03 | <Badge type="tip" text="已完成" /> |
+| 四：客户端契约复核 | T04-01～T04-03 | <Badge type="tip" text="已完成" /> |
+| 五：仓库基线同步 | T05-01～T05-03 | <Badge type="tip" text="已完成" /> |
 | 六：新能力结论与文档 | T06-01～T06-03 | <Badge type="tip" text="已完成" /> |
-| 七：目标环境验收 | T07-01～T07-03 | <Badge type="warning" text="Web/Desktop 已完成；T07-03 待真机" /> |
+| 七：目标环境验收 | T07-01～T07-03 | <Badge type="tip" text="已完成（含真机）" /> |
 
 ## 变更记录
 
