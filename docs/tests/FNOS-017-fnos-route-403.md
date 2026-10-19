@@ -87,11 +87,11 @@ verifiedAt: 2026-10-18
 
 ### 真机执行结果（2026-10-18，真实 fnOS NAS）
 
-环境：设备 `fnos-mi`，经 `https://xiaomi-cn.fnos.net` 远程访问，`dsh-fnos` `0.2.1-rc.2.4`（代码来源 `file:/vol1/@appcenter/fn-deepseek-harness/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz`，即内置形态安装）。
+环境：设备 `<nas-host>`，经 `https://<nas>.fnos.net` 远程访问，`dsh-fnos` `0.2.1-rc.2.4`（代码来源 `file:/vol1/@appcenter/fn-deepseek-harness/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz`，即内置形态安装）。
 
 | 用例 | 结果 | 证据 |
 | --- | --- | --- |
-| TC-001 | 通过 | `POST /app/fn-deepseek-harness/plugins/dsh-fnos/authorized-directories/entries` 返回 **200**，响应体含 5 条授权目录（`/vol2/1000/fnos-fpk`、`/vol1/@appshare`、`/vol1/@apphome`、`/vol1/@appdata`、`/vol1/@appconf` 下的 `fn-deepseek-harness`）。请求头为 `origin: https://xiaomi-cn.fnos.net`、`sec-fetch-site: same-origin` —— 正是修复前被判 403 的形态 |
+| TC-001 | 通过 | `POST /app/fn-deepseek-harness/plugins/dsh-fnos/authorized-directories/entries` 返回 **200**，响应体含 5 条授权目录（`/vol2/1000/fnos-fpk`、`/vol1/@appshare`、`/vol1/@apphome`、`/vol1/@appdata`、`/vol1/@appconf` 下的 `fn-deepseek-harness`）。请求头为 `origin: https://<nas>.fnos.net`、`sec-fetch-site: same-origin` —— 正是修复前被判 403 的形态 |
 | TC-002 | 通过 | 会话输入区输入 `/fn` 后弹出「指令 fn — 选择已授权的 NAS 文件或目录」，列出全部 5 个目录及语义名 |
 | TC-003 | 通过 | 插件详情页「fnOS 集成」渲染出授权目录区块，5 个目录齐全，含「添加授权目录」「刷新」「取消授权」按钮；同页 `gateway/proxy-paths` 与 `authorized-directories` 两个 GET 均 200 |
 | TC-004～TC-006 | 通过（本地） | 跨站拒绝无法从页面内伪造——浏览器控制 `Origin` 头，页面脚本改不了。三类拒绝由本地请求桩用例覆盖 |
@@ -109,11 +109,11 @@ verifiedAt: 2026-10-18
 
 10 条全部通过，FNOS-017 在真实 fnOS NAS 远程访问下确认修复。
 
-真机证据的核心是这一条：`origin: https://xiaomi-cn.fnos.net` + `sec-fetch-site: same-origin` 的请求拿到 **200** 与完整目录数据。这正是缺陷报告里被判 403 的同一形态——修复让它从「两侧取值来源不同、永远不相等」变成「两侧都读网关改写后的同一权威」。
+真机证据的核心是这一条：`origin: https://<nas>.fnos.net` + `sec-fetch-site: same-origin` 的请求拿到 **200** 与完整目录数据。这正是缺陷报告里被判 403 的同一形态——修复让它从「两侧取值来源不同、永远不相等」变成「两侧都读网关改写后的同一权威」。
 
 同时确认修复没有放松鉴权：去掉凭据后请求失败（`Failed to fetch`），跨站拒绝的三类分支由本地用例继续守住。
 
-**2026-10-19 复验（版本 `5.9.0-0.2.1-rc.2.6`）**：在 `http://192.168.0.17:5666` 真机环境重跑核心断言——`POST /app/fn-deepseek-harness/plugins/dsh-fnos/authorized-directories/entries` 返回 **200**，列出 4 个授权目录（`@appshare`/`@apphome`/`@appdata` 等）。同一版本的全部 240 条插件单测通过，其中 `request-trust.spec.ts` 的 8 条用例覆盖三类拒绝分支。
+**2026-10-19 复验（版本 `5.9.0-0.2.1-rc.2.6`）**：在真实 fnOS NAS 环境重跑核心断言——`POST /app/fn-deepseek-harness/plugins/dsh-fnos/authorized-directories/entries` 返回 **200**，列出 4 个授权目录（`@appshare`/`@apphome`/`@appdata` 等）。同一版本的全部 240 条插件单测通过，其中 `request-trust.spec.ts` 的 8 条用例覆盖三类拒绝分支。
 
 需要记录一个**测试方法上的限制**：从页面内用 `fetch` 伪造 `Origin` / `Sec-Fetch-Site` 无效——浏览器 Fetch 规范禁止脚本设置这两个头，伪造值被静默丢弃，请求实际仍以同源身份发出，服务器返回 200。因此「跨站拒绝」**不能**用页面内 fetch 验证，只能由单测覆盖；本次已确认伪造尝试得到 200，未据此误判为防护失效。
 

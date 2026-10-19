@@ -26,7 +26,7 @@ cd apps/fn-deepseek-harness/tests
 # 只跑安全的只读验收（默认，排除 destructive 标签）
 DSH_FPK_DIR="<只放 FPK 的最小目录>" pnpm run test:e2e
 
-# 指定 NAS 地址（默认 http://192.168.0.110:5666/）
+# 指定 NAS 地址（必填）
 DSH_NAS_URL="http://<nas>:5666/" DSH_FPK_DIR=... pnpm run test:e2e
 ```
 
@@ -35,7 +35,7 @@ DSH_NAS_URL="http://<nas>:5666/" DSH_FPK_DIR=... pnpm run test:e2e
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
 | `DSH_FPK_DIR` | **是** | 待上传 FPK 所在目录。**只授权这一个最小目录**，不要给仓库根或家目录。 |
-| `DSH_NAS_URL` | 否 | 被测 fnOS Web 地址，默认 `http://192.168.0.110:5666/` |
+| `DSH_NAS_URL` | **是** | 被测 fnOS Web 地址，如 `http://<nas>:5666/`。不内置默认值——设备地址属于环境信息，不进仓库 |
 
 ### 前置条件
 

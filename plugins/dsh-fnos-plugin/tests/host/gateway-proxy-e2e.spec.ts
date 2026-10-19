@@ -218,7 +218,7 @@ describe('gateway proxy-path route over the real DSH webserver', () => {
         body: JSON.stringify({ version: 1, paths: ['/store/api'] }),
         headers: {
           origin: 'http://nas.local:5666',
-          'x-forwarded-host': 'xiaomi-cn.fnos.net',
+          'x-forwarded-host': 'nas-abc123.fnos.net',
           'x-forwarded-proto': 'https',
         },
       })

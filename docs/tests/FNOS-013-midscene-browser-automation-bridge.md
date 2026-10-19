@@ -235,7 +235,7 @@ verifiedAt: 2026-10-12
 | TC-054 | [FNOS-013-01](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-01) | DSH Web + 本地测试 | 通过 | 2026-10-12 | **实测**：占住 8787 后启动，桥自动改用 8788（`curl 8788/v1/health` → 200）；健康端点 `port: 8788`；`/v1/midscene-env` 的 `MIDSCENE_MODEL_BASE_URL` 与 `content` 均为 8788 且不含 8787；配置写回 `port: 8788`，重启后仍用 8788（不重复扫描）。单测覆盖：跳号后服务可用、端点报实际端口、连续 20 个端口被占抛 `BridgePortExhaustedError` |
 | TC-055 | [FNOS-013-05](/requirements/FNOS-013-midscene-browser-automation-bridge#fnos-013-05) | DSH Web（用户真实 Chrome） | 通过 | 2026-10-12 | **实测**（Bridge Mode，Midscene 官方《Chrome 桥接模式》流程）：脚本作 server（默认 `127.0.0.1:3766`），真实 Chrome 里的 Midscene 扩展（v1.105）作为 client 反向连接（日志 `one client connected`、`Bridge connected, cli-side v1.15.1, browser-side v1.15.0`）。用入仓脚本 `scripts/bridge-smoke.ts` 完成：首页 `aiAssert` 通过 → 点击「插件」→ 页面内独立核实 `hasAddPlugin: true` → 插件列表 `aiAssert` 通过。视口为真实窗口 1920×906（无侧边栏收缩），无 macOS 钥匙串弹窗，浏览器窗口用户可见 |
 
-| TC-100 | 应用级<br>安装后验收 | 真实 NAS（fnOS `192.168.0.110`） | 通过<br>（含一次超时） | 2026-10-13 | **实测**（Midscene Test，一次连接跑完全部用例）：应用详情页读到「当前版本 `5.7.1`」与「来源 = 手动安装」。判定由 `dsh.assertInPage` 做（早期版本用 `javascript` 步骤，其 `throw` 被 CDP 吞掉，见同表 TC-103 备注）。执行载体 `apps/fn-deepseek-harness/tests/e2e/`。**另一次运行中导航步骤 `aiAct` 超时 300 s**——断言本身已两次证明有效，超时出在「回桌面 → 关窗口 → 进应用中心」这一步的自然语言导航，属**待改进的稳定性问题**（见下方遗留风险）|
+| TC-100 | 应用级<br>安装后验收 | 真实 NAS（fnOS `<nas>`） | 通过<br>（含一次超时） | 2026-10-13 | **实测**（Midscene Test，一次连接跑完全部用例）：应用详情页读到「当前版本 `5.7.1`」与「来源 = 手动安装」。判定由 `dsh.assertInPage` 做（早期版本用 `javascript` 步骤，其 `throw` 被 CDP 吞掉，见同表 TC-103 备注）。执行载体 `apps/fn-deepseek-harness/tests/e2e/`。**另一次运行中导航步骤 `aiAct` 超时 300 s**——断言本身已两次证明有效，超时出在「回桌面 → 关窗口 → 进应用中心」这一步的自然语言导航，属**待改进的稳定性问题**（见下方遗留风险）|
 | TC-101 | 应用级<br>内置插件声明 | 真实 NAS | **通过** | 2026-10-14 | **复验通过**（升级到 `5.7.3` 后）：`desc` 列出 fnOS / Codex Auth / CodeBuddy / Failover Search 四项，且**不再声称内置 Midscene**，与发布清单一致。该用例先在 `5.7.1` 上**正确失败**（旧构建仍声称内置 Midscene），是断言假阳性被修复后的直接收益——同一判定在早期用 `javascript` 步骤写时显示通过 |
 | TC-102 | 应用级<br>应用启动 | 真实 NAS | 通过 | 2026-10-13 | **实测**：点桌面图标启动应用，外壳以 `iframe[src*="/app/fn-deepseek-harness"]` 挂载且**同源可读**；iframe 内文本含「新会话」「插件」入口 |
 | TC-103 | 应用级<br>内置插件装载 | 真实 NAS | **通过** | 2026-10-14 | **复验通过**（升级到 `5.7.3` 后）：客户端模块图含 fnOS / CodeBuddy / Codex Auth / Failover Search 四项，且**不含** `@tnnevol/dsh-midscene`。实证数据：外壳 52 605 字节、HTTP 200。**本条也是假阳性缺陷的现场**——同一判定在 `5.7.1` 上用 `javascript` 步骤写时显示「通过」（实际含 midscene），改用 `dsh.assertInPage` 后先**正确失败**、本次升级后**正确通过** |
@@ -257,7 +257,7 @@ verifiedAt: 2026-10-12
 
 ## 真实 NAS 回归（2026-10-13，应用 v5.7.1）
 
-在真实 fnOS NAS（`192.168.0.110:5666`）上以「手动安装 → 从电脑上传」升级安装
+在真实 fnOS NAS（`<nas>:5666`）上以「手动安装 → 从电脑上传」升级安装
 `fn-deepseek-harness.fpk` 后，用 Midscene Bridge Mode 驱动真实 Chrome 做回归。完整证据见
 [FNOS-013 v5.7.1 真实 NAS 安装验收记录](/validation/FNOS-013-nas-v571-2026-10-13)。
 

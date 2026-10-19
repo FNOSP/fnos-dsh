@@ -1,7 +1,7 @@
 # FNOS-009-13 node-pty 免编译安装与跨平台构建（真机验收）
 
 - 执行日期：2026-10-08
-- 目标环境：飞牛 fnOS，`192.168.124.181:5666`，`x86_64`
+- 目标环境：飞牛 fnOS，`<nas>:5666`，`x86_64`
 - 应用版本：`fn-deepseek-harness` 5.5.0，DSH `0.2.0-rc.2`
 - 安装位置：**存储空间 1**（`/vol1/@appcenter/fn-deepseek-harness`）
 - 关联需求：[FNOS-009-13](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-13)

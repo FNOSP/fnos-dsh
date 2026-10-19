@@ -142,7 +142,7 @@ verifiedAt: 2026-09-30
 
 **测试设备与入口（固定）**：
 
-- 测试在内网 NAS 桌面网页完成：`http://192.168.119.6:5666/`。
+- 测试在内网 NAS 桌面网页完成，地址由执行者指定（不写进文档与用例，见[对外回复规范](/contributing#对外回复规范-issue-pr-discussions)对设备地址的约定）。
 - **禁止存储 NAS 账号密码**：任何受版本管理文件、测试文档、脚本和环境变量清单中都不得出现 NAS 凭据；需要登录时**向需求提出人询问**，或使用 `trim-cli` 的 OAuth 交互式登录（不索取、不代填账号密码）。
 - 登录后进入 fnOS 桌面进行应用测试；浏览器操作可由 Chrome DevTools（CDP）驱动完成（先例见 `docs/validation/` 既有记录）。
 
@@ -150,7 +150,7 @@ verifiedAt: 2026-09-30
 
 - **trim-cli 安装**（优先，结果可断言）：
   ```bash
-  trim-cli --host 192.168.119.6 --port 5666 --profile home --scheme http \
+  trim-cli --host <nas> --port 5666 --profile home --scheme http \
     --allow-insecure-http app install-fpk <fpk 文件> --volume-id <存储1 的 volume-id> --yes
   ```
   写操作必须显式 `--yes`；`--volume-id` 通过 `trim-cli ... storage pools` 查询「存储 1」对应 id；建议先加 `--dry-run` 验证安装信息与 guard。安装/更新会创建并轮询下载与安装任务，等待任务完成后再继续断言。
@@ -837,7 +837,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 - [ ] 涉及登录状态的测试按「登录态 → 非登录态 → 登录流程」顺序执行；auth 配置备份在 `tmp/auth-back/<插件名称>-<插件版本>-<备份日期>`，移除前已备份、恢复后权限为 `600`（见[账号状态测试顺序与 auth 配置备份](#账号状态测试顺序与-auth-配置备份)）。
 - [ ] Desktop 测试使用项目根 `.dsh/profiles/desktop`，未使用 `~/.dsh/profiles/desktop`，启动前已确认 `DSH_HOME` 指向项目根（见[DSH Desktop 测试](#dsh-desktop-测试)）。
 - [ ] Desktop 测试完成后已以缺省 `DSH_HOME` 重启一次，Desktop 已交还给 `~/.dsh` 的全局 profile，并在执行结果备注登记恢复动作（见[DSH Desktop 测试](#dsh-desktop-测试)）。
-- [ ] NAS 测试在内网 `http://192.168.119.6:5666/` 桌面完成，未存储 NAS 凭据；安装到存储 1，日志从 `/var/log/apps/<应用名称>.log` 取证（见[真实 NAS 测试](#真实-nas-测试)）。
+- [ ] NAS 测试在内网桌面完成（地址不写入文档），未存储 NAS 凭据；安装到存储 1，日志从 `/var/log/apps/<应用名称>.log` 取证（见[真实 NAS 测试](#真实-nas-测试)）。
 - [ ] UI 用例在亮色与暗色主题下各执行一遍，已核对文本/阴影/border/背景对比、间距叠加与 BFC、毛玻璃层级（模糊在父元素、子元素不重复叠加）（见[UI 测试](#ui-测试视觉与样式)）。
 - [ ] 测试账号密码、NAS 凭据与 auth 文件未进入仓库（代码、文档、脚本、测试夹具均不含凭据；备份仅在 git 忽略的 `tmp/auth-back/`）。
 - [ ] 测试数据清理动作已登记，无个人生产账号（见[测试数据清理](#测试数据清理)）。
@@ -860,7 +860,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 2026-09-30 | 新增版本记录、数据清理与基线来源要求 | 执行前记录环境版本三元组并校验 Desktop 运行时与插件锚定版本匹配；测试数据按位置约定清理并登记；回归用例标注基线来源，「与基线一致」须附可观察特征。用例模板增加基线来源列。 |
 | 2026-09-30 | 新增账号状态测试顺序与 auth 配置备份 | Codex/CodeBuddy 登录态测试按「登录态 Bug → 非登录态 Bug → 登录流程」顺序执行；状态切换前备份 auth 配置到 `tmp/auth-back/<插件名称>-<插件版本>-<备份日期>`，恢复登录从备份还原并保持 600 权限。 |
 | 2026-09-30 | 约束 Desktop 测试 profile 位置 | Desktop 测试禁止使用 `~/.dsh/profiles/desktop`，必须使用项目根 `.dsh/profiles/desktop`，与 Web 测试共用 `DSH_HOME=<repo>/.dsh`；登记 profile 创建与插件链接命令。 |
-| 2026-09-30 | 新增真实 NAS 测试规范 | 固定测试入口 `http://192.168.119.6:5666/`；禁止存储 NAS 凭据，登录向需求提出人询问或走 trim-cli OAuth；安装走 trim-cli（`app install-fpk --volume-id`）或 Chrome CDP 应用中心，目标存储为存储 1；日志在 `/var/log/apps/<应用名称>.log`。测试账号密码与 auth 文件禁止上传仓库（代码与测试通用红线）。 |
+| 2026-09-30 | 新增真实 NAS 测试规范 | 固定测试入口为内网 NAS 桌面地址（后续按对外回复规范不再写入具体地址）；禁止存储 NAS 凭据，登录向需求提出人询问或走 trim-cli OAuth；安装走 trim-cli（`app install-fpk --volume-id`）或 Chrome CDP 应用中心，目标存储为存储 1；日志在 `/var/log/apps/<应用名称>.log`。测试账号密码与 auth 文件禁止上传仓库（代码与测试通用红线）。 |
 | 2026-09-30 | 新增 UI 测试规范 | UI 用例亮暗主题各执行一遍并核对文本/阴影/border/背景对比；检查 padding/margin 叠加与 BFC（margin 折叠、穿透、浮层裁剪）；毛玻璃加在父元素，子元素禁止重复叠加 backdrop-filter 与透明背景；CSS 变量优先使用 DSH 官方变量。 |
 | 2026-10-06 | 修正 Desktop profile 创建方式并新增测试后恢复全局 profile | `desktop` 为 Electron 应用保留名且非内置模板，原 `dsh --from-default-profile desktop` 命令无法执行；改为用项目 `DSH_HOME` 启动 Desktop 由应用创建 profile，并补充 CDP（`--remote-debugging-port`）驱动 Desktop 界面取证的方法。新增强制收尾：测试完成后以缺省 `DSH_HOME` 重启一次，把 Desktop 交还 `~/.dsh` 全局 profile，并在执行结果备注登记。 |
 | 2026-10-12 | 新增「Midscene 浏览器自动化测试」章节 | 新增可选执行路径：Midscene 以自然语言驱动浏览器完成「打开页面 → 交互 → 断言」，模型请求经 [Midscene Bridge](/plugins/dsh-midscene) 走 DSH 已配置模型。章节含适用边界（按用例类型选择，不是强制自动化）、项目测试环境前置条件（桥健康检查 + `.env` 接入配置 + `vision: true` 模型）、三类被测环境接入（本地 Web 直连 / Desktop CDP 附加以实测为准 / NAS 只读走查）、证据登记与版本记录要求、接入配置不入仓库红线、与人工走查/CDP 取证的工分表。顺带修复本文档变更记录表的分隔行损坏（2026-10-08 行误占分隔行位置）。依据：FNOS-013-07。 |

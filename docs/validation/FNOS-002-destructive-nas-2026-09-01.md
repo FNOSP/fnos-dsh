@@ -2,7 +2,7 @@
 feature: FNOS-002
 acceptance: FNOS-002-P1-NAS-destructive-2026-09-01
 environment: fnOS NAS
-entrypoint: http://192.168.119.6:5666/
+entrypoint: http://<nas>:5666/
 verifiedAt: 2026-09-01
 status: failed
 ---

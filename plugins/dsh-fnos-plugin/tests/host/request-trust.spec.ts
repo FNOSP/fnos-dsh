@@ -39,7 +39,7 @@ describe('fnOS 路由同源判定（FNOS-017）', () => {
       host: loopbackAuthority,
       origin: loopbackOrigin,
       'sec-fetch-site': 'same-origin',
-      'x-forwarded-host': 'xiaomi-cn.fnos.net',
+      'x-forwarded-host': 'nas-abc123.fnos.net',
       'x-forwarded-proto': 'https',
     }))).toBe(true)
   })
@@ -50,7 +50,7 @@ describe('fnOS 路由同源判定（FNOS-017）', () => {
       host: loopbackAuthority,
       origin: loopbackOrigin,
       'sec-fetch-site': 'same-origin',
-      'x-forwarded-host': 'cdn.example, xiaomi-cn.fnos.net',
+      'x-forwarded-host': 'cdn.example, nas-abc123.fnos.net',
       'x-forwarded-proto': 'https, http',
     }))).toBe(true)
   })
@@ -75,7 +75,7 @@ describe('fnOS 路由同源判定（FNOS-017）', () => {
     expect(isTrustedFnosRequest(request({
       host: loopbackAuthority,
       'sec-fetch-site': 'same-origin',
-    }, '192.168.1.50'))).toBe(false)
+    }, '192.0.2.50'))).toBe(false)
   })
 
   it('无 Origin 的回环请求按本地直通放行', () => {

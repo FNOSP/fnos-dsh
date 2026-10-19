@@ -1,7 +1,7 @@
 # FNOS-009 fnos 插件真机验收与 BUG-04/05 修复记录
 
 - 执行日期：2026-10-08
-- 目标环境：飞牛 fnOS，`192.168.124.181:5666`（主机名 `fnos-mi`），`x86_64`
+- 目标环境：飞牛 fnOS，`<nas>:5666`（主机名 `<nas-host>`），`x86_64`
 - 应用版本：`fn-deepseek-harness` 5.5.2（修复包），DSH `0.2.0-rc.2`
 - 安装位置：存储空间 1
 - 关联需求：[FNOS-009-02](/requirements/FNOS-009-dsh-020-rc2-adaptation#fnos-009-02)、

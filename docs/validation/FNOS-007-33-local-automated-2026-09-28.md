@@ -24,7 +24,7 @@ status: passed
 浏览器报告：
 
 ```
-PUT http://192.168.119.6:5666/app/fn-deepseek-harness/plugins/dsh-fnos/gateway/proxy-paths 400 (Bad Request)
+PUT http://<nas>:5666/app/fn-deepseek-harness/plugins/dsh-fnos/gateway/proxy-paths 400 (Bad Request)
 ```
 
 `400` 的响应体是**空的**，页面只能显示「保存失败」。根因是两个缺陷叠加：

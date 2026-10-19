@@ -37,7 +37,7 @@ verifiedAt: 2026-10-10
 | 功能 | 目标环境 | 执行方式 |
 | --- | --- | --- |
 | [01](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-01)、[04](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-04)、[05](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-05) | DSH Web、DSH Desktop | Web：`pnpm run start -- --web`（`DSH_HOME=<repo>/.dsh`）；Desktop：项目 `.dsh/profiles/desktop`；两者均需覆盖 |
-| [02](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-02)、[03](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-03) | 真实 fnOS NAS | 内网 NAS 桌面 `http://192.168.119.6:5666/`；构造现场后走真实启动链路，日志从 `/var/log/apps/fn-deepseek-harness.log` 取证 |
+| [02](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-02)、[03](/requirements/FNOS-011-credential-permission-diagnostics#fnos-011-03) | 真实 fnOS NAS | 内网 NAS 桌面 `http://<nas>:5666/`；构造现场后走真实启动链路，日志从 `/var/log/apps/fn-deepseek-harness.log` 取证 |
 
 **现场构造与恢复约定**（强约束，全部用例通用）：
 

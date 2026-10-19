@@ -14,7 +14,7 @@
  * ```bash
  * pnpm --filter @tnnevol/fn-deepseek-harness-e2e run test:e2e
  * # 或指定目标地址
- * DSH_NAS_URL="http://192.168.0.110:5666/" pnpm run test:e2e
+ * DSH_NAS_URL="http://<nas>:5666/" pnpm run test:e2e
  * ```
  *
  * 前置：
@@ -33,8 +33,16 @@ import { createMidsceneNodes } from '@midscene/test/midscene'
 import { AgentOverChromeBridge } from '@midscene/web/bridge-mode'
 import { actUntilNode, assertInPage, clickInPage, defineBridgeSetup, type BridgeContext } from '@tnnevol/dsh-e2e-kit'
 
-/** 被测 NAS 的 fnOS Web 地址。默认值便于本地复跑，仍建议显式传入。 */
-const targetUrl = process.env.DSH_NAS_URL ?? 'http://192.168.0.110:5666/'
+/**
+ * 被测 NAS 的 fnOS Web 地址。
+ *
+ * 不给默认值：设备地址属于环境信息，写进仓库等于把内网拓扑公开（见贡献指南的
+ * 对外回复规范）。要求显式传入，与 `DSH_FPK_DIR` 的处理方式一致。
+ */
+const targetUrl = process.env.DSH_NAS_URL
+if (targetUrl === undefined || targetUrl === '') {
+  throw new Error('缺少 DSH_NAS_URL：请指向被测 fnOS Web 地址（如 http://<nas>:5666/）')
+}
 
 /** FPK 上传目录：只授权这一个目录，最小权限（见测试规范的文件上传约定）。 */
 const allowedDir = process.env.DSH_FPK_DIR

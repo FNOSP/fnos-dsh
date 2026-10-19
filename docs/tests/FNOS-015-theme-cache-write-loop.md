@@ -110,7 +110,7 @@ verifiedAt: 2026-10-18
 
 ### 真实 fnOS NAS（2026-10-18）
 
-环境：设备 `fnos-mi`，经 `https://xiaomi-cn.fnos.net` 远程访问；`@tnnevol/dsh-fnos` `0.2.1-rc.2.4`（内置形态，`file:/vol1/@appcenter/fn-deepseek-harness/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz`）；DSH `0.2.1-rc.2`。
+环境：设备 `<nas-host>`，经 `https://<nas>.fnos.net` 远程访问；`@tnnevol/dsh-fnos` `0.2.1-rc.2.4`（内置形态，`file:/vol1/@appcenter/fn-deepseek-harness/bundled-dsh-plugins/@tnnevol/dsh-fnos.tgz`）；DSH `0.2.1-rc.2`。
 
 **主题测试路径（供下次复测直接照用）**：
 

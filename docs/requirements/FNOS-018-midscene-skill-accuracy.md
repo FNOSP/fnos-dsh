@@ -23,7 +23,7 @@ lastVerified: 2026-10-18
 
 `dsh-midscene` 技能是 agent 在本环境使用 Midscene 的入口说明，其中桥接模式的操作写法和注入说明（`BRIDGE_PRELUDE`）由插件自己维护。实际使用中发现**三处表述与 `@midscene/web` 的真实 API 不符**，导致按说明操作时静默失效或报错，需要回头翻源码才能定位。
 
-触发本次核查的场景：用 Bridge 模式驱动用户 Chrome 打开 `xiaomi-cn.fnos.net` 装应用时，按说明写 `setActiveTabId(id, { activate: false })` 无法确认静默是否生效；改用 `evaluate` 取页面数据返回 `undefined`；`.env` 放在运行目录也不会被 SDK 自动加载。
+触发本次核查的场景：用 Bridge 模式驱动用户 Chrome 打开 `<nas>.fnos.net` 装应用时，按说明写 `setActiveTabId(id, { activate: false })` 无法确认静默是否生效；改用 `evaluate` 取页面数据返回 `undefined`；`.env` 放在运行目录也不会被 SDK 自动加载。
 
 ## 调研结论
 

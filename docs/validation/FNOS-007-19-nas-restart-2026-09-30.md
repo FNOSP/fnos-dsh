@@ -43,7 +43,7 @@ status: passed
 重启是写操作，按 `trim-cli` 规范显式传 `--yes`：
 
 ```text
-$ trim-cli --host 192.168.119.6 --port 5666 --profile home --scheme http \
+$ trim-cli --host <nas> --port 5666 --profile home --scheme http \
     --allow-insecure-http app restart fn-deepseek-harness --yes
 Restarted app-center app fn-deepseek-harness        # 退出码 0
 ```

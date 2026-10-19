@@ -354,10 +354,10 @@ describe('gateway server', () => {
     await once(client, 'connect')
     client.write([
       `GET ${GATEWAY_PREFIX}/api/events.mux HTTP/1.1`,
-      'Host: 192.168.119.6:5666',
+      'Host: 192.0.2.119:5666',
       'Connection: Upgrade',
       'Upgrade: websocket',
-      'Origin: http://192.168.119.6:5666',
+      'Origin: http://192.0.2.119:5666',
       'Sec-Fetch-Site: cross-site',
       'Sec-WebSocket-Version: 13',
       'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',

@@ -441,7 +441,7 @@ describe('selectTab 在重复标签页中选页', () => {
   // 真因（选页选错了）。规则改为「优先当前活动页」。
   const TAB = (id: string, extra: Record<string, unknown> = {}) => ({
     id,
-    url: 'http://192.168.0.110:5666/',
+    url: 'http://192.0.2.110:5666/',
     ...extra,
   })
 
@@ -451,14 +451,14 @@ describe('selectTab 在重复标签页中选页', () => {
       TAB('1'),
       TAB('2'),
       TAB('3', { currentActiveTab: true }),
-    ], 'http://192.168.0.110:5666/')
+    ], 'http://192.0.2.110:5666/')
     expect(result.reuseTabId).toBe('3')
     expect(result.reason).toBe('active')
   })
 
   it('没有活动页时退回列表顺序第一个（保持既有行为）', async () => {
     const { selectTab } = await import('../src/tab-policy.ts')
-    const result = selectTab([TAB('1'), TAB('2')], 'http://192.168.0.110:5666/')
+    const result = selectTab([TAB('1'), TAB('2')], 'http://192.0.2.110:5666/')
     expect(result.reuseTabId).toBe('1')
     expect(result.reason).toBe('existing')
   })
