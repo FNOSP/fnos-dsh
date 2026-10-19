@@ -9,6 +9,7 @@ import { runCommand } from '../core/process.js'
 import { addBooleanArgs, addOptionalValueArg } from '../core/command-args.js'
 import { maintainLatestTag, npmDistTag } from './publish-latest.js'
 import { askPublishPlugins } from '../ui/prompts.js'
+import { regenerateMarketIndex } from '../core/market-index.js'
 
 /**
  * 确定本次要发布哪些插件。
@@ -121,6 +122,7 @@ async function runCommandCaptured(
 }
 
 export async function runPublish(args: string[]): Promise<void> {
+  const skipMarketIndex = args.includes('--skip-market-index')
   const targets = await selectPublishTargets(optionValue(args, '--plugin'), args.includes('--all'))
   if (targets === undefined) return
 
@@ -155,6 +157,10 @@ export async function runPublish(args: string[]): Promise<void> {
       console.warn(`  可稍后手动校正：npm dist-tag add ${target.name}@${version} latest`)
     }
   }
+
+  // 索引由生成器读取 **npm 上已发布版本** 的 tarball 产出，因此必须放在发布之后。
+  // 它不会自动跟随 npm：漏了这一步，「发现」页显示旧版本且不报错。
+  await regenerateMarketIndex({ skip: skipMarketIndex })
 }
 
 program
@@ -162,9 +168,10 @@ program
   .description('Publish DSH plugins to npm using the next dist-tag')
   .option('--plugin [plugin]', 'publish one plugin, or prompt for plugins')
   .option('--all', 'publish every plugin without prompting (for CI and non-interactive runs)')
+  .option('--skip-market-index', 'do not regenerate the plugin market index after publishing')
   .action(async (options: OptionValues) => {
     const args: string[] = []
     addOptionalValueArg(args, options, 'plugin')
-    addBooleanArgs(args, options, ['all'])
+    addBooleanArgs(args, options, ['all', 'skipMarketIndex'])
     await runPublish(args)
   })

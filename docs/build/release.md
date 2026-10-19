@@ -31,11 +31,26 @@ v5.0.7
 pnpm run publish                        # 交互多选要发布的插件
 pnpm run publish -- --plugin fnos       # 只发一个
 pnpm run publish -- --all               # 发全部插件（CI 与非交互环境用）
+pnpm run publish -- --all --skip-market-index   # 跳过收尾的索引同步
 ```
 
 `--all` 与 `--plugin` 同时给出会**直接报错**，不会静默取其一——静默选择会让人以为「只发了指定的那个」而实际发了全部，这类误发无法撤回。
 
 选定后逐个**串行**发布（不并发：同时启动会让 npm 在每个包上各弹一次授权，而首个凭据尚未落盘）。每个包先 `pnpm pack` 出产物并校验 `catalog:` 已解析，再交给 `npm publish`——`npm publish <tgz>` 用 npm 自己的凭据，不受 pnpm 侧凭据问题影响。共享的 `dsh-semi-ui` 包不参与发布。
+
+### 插件市场索引由发布命令自动同步
+
+插件市场索引（`docs/public/plugins/market/index.json`）由上游生成器读取 **npm 上已发布版本**的
+tarball 产出，不随源码或 `npm publish` 自动变化。发布命令在全部插件发完后自动重新生成，
+因此不需要手动记这一步。
+
+- 生成器不在本仓库内，位于上游检出。定位顺序：`DSH_DESKTOP_APP_DIR` → 工作区内的
+  `fork-pj/deepseek-harness`。找不到时**只警告不中断**：包已经发出去了，索引是事后可补的动作。
+- 生成器不可用时（未配置检出、离线）事后补跑：`pnpm exec fnos-dsh-cli market:index`。
+- **成功判据是「索引文件真被改动」而不是退出码**：pnpm 在没有任何项目匹配 filter 时也以 0 退出，
+  只看退出码会把「命令成功、索引没变」误报成同步完成。
+- 离线或不需要时用 `--skip-market-index` 跳过。
+- 仓库测试守住一致性：索引里每个插件的最高版本必须等于 npm 上该插件的 `next` 标签，落后即失败并提示重新生成（见 [插件市场索引](/plugins/market)）。
 
 ### `latest` dist-tag 由发布命令自动维护（FNOS-012-04）
 
