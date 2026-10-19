@@ -246,11 +246,41 @@ export async function runVersion(args: string[]): Promise<void> {
   const options = parseVersionOptions(filtered)
 
   const workspaceYaml = await readFile(join(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8')
-  const baseline = readDshBaselineFromCatalog(workspaceYaml)
-  if (baseline === undefined) {
+  const currentBaseline = readDshBaselineFromCatalog(workspaceYaml)
+  if (currentBaseline === undefined) {
     throw new Error("pnpm-workspace.yaml 的 catalog 未声明 '@deepseek-ai/dsh'，无法确定 DSH 基线")
   }
-  await releaseAll(options, baseline)
+
+  // `--baseline <版本>`：DSH 发了新基线时用它一步到位——把 catalog 改成新基线，
+  // 版本号的基线段随之切换、迭代号重置为 0。
+  //
+  // 这一步必须在**命令内部**做：`pnpm run` 在脚本执行前就做依赖校验，若先手工把
+  // catalog 改成新基线（那时新版本通常还没 `pnpm install`），连本命令都进不来。
+  const targetBaseline = options.baseline ?? currentBaseline
+  if (options.baseline !== undefined && options.baseline !== currentBaseline) {
+    await writeDshBaselineToCatalog(workspaceYaml, options.baseline)
+  }
+  await releaseAll(options, targetBaseline)
+}
+
+/**
+ * 把 catalog 中的 `@deepseek-ai/dsh` 条目改成新基线。
+ *
+ * 只改这一行；不碰其它 catalog 条目，也不改动任何插件里对 DSH 的依赖声明——
+ * 依赖升级由 `pnpm install` 单独完成，与本命令职责分离。
+ *
+ * @param workspaceYaml 当前 `pnpm-workspace.yaml` 文本。
+ * @param baseline 新基线版本号。
+ */
+async function writeDshBaselineToCatalog(workspaceYaml: string, baseline: string): Promise<void> {
+  const updated = workspaceYaml.replace(
+    /^(\s{2}'@deepseek-ai\/dsh':\s*)\S+(\s*)$/mu,
+    `$1${baseline}$2`,
+  )
+  if (updated === workspaceYaml) {
+    throw new Error("未能改写 pnpm-workspace.yaml 中的 '@deepseek-ai/dsh' 条目；请检查该行格式")
+  }
+  await writeFile(join(repositoryRoot, 'pnpm-workspace.yaml'), updated)
 }
 
 /**
@@ -363,10 +393,11 @@ async function releaseAll(
 
 program
   .command('version [args...]')
-  .description('Version the project/FPK area or selected DSH plugins')
+  .description('Bump the project, every plugin, and optionally switch the DSH baseline')
   .option('--no-commit', 'only update version files')
   .option('--no-tag', 'do not create a version tag')
   .option('--no-push', 'do not push tags')
+  .option('--baseline <version>', 'switch the catalog DSH baseline and reset the iteration to 0')
   .option('--yes', 'skip the version confirmation')
   .action(async (args: string[], options: OptionValues) => {
     addNegatedArgs(args, options, [
@@ -375,5 +406,8 @@ program
       ['push', '--no-push'],
     ])
     addBooleanArgs(args, options, ['yes'])
-    await runVersion(args)
+    // `--baseline <版本>` 的值要连同选项一起传下去：它会被当成位置参数过滤掉，
+    // 由 `parseVersionOptions` 单独解析。
+    const baseline = typeof options.baseline === 'string' ? options.baseline : undefined
+    await runVersion(baseline === undefined ? args : [...args, '--baseline', baseline])
   })
