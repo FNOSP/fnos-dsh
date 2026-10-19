@@ -57,7 +57,7 @@ flowchart TD
 | PLAN-FNOS-016 | [插件市场索引与插件元数据](/plans/PLAN-FNOS-016-plugin-market-index) | 已完成 |
 | PLAN-FNOS-017 | [fnOS 插件路由 403 误拒修复](/plans/PLAN-FNOS-017-fnos-route-403) | 阶段一完成；真机验收待执行 |
 | PLAN-FNOS-018 | [Midscene 桥接使用说明准确性修正](/plans/PLAN-FNOS-018-midscene-skill-accuracy) | 已完成（单阶段 4 个任务） |
-| PLAN-FNOS-019 | [FPK 版本方案固定前缀与插件基线小尾巴](/plans/PLAN-FNOS-019-fpk-version-scheme) | 实施中（三阶段，阶段一、二已完成） |
+| PLAN-FNOS-019 | [FPK 版本方案固定前缀与插件基线小尾巴](/plans/PLAN-FNOS-019-fpk-version-scheme) | 已完成（三阶段全部完成） |
 | PLAN-FNOS-020 | [CodeBuddy 瞬时 400 终止整轮修复](/plans/PLAN-FNOS-020-codebuddy-transient-400) | 阶段一完成；阶段二待发布后复验 |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。
