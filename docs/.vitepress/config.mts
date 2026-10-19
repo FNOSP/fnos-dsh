@@ -308,6 +308,14 @@ const requirementsSidebar = [
         text: 'FNOS-018 Midscene 桥接使用说明准确性修正',
         link: '/requirements/FNOS-018-midscene-skill-accuracy'
       },
+      {
+        text: 'FNOS-019 FPK 版本方案固定前缀与插件基线小尾巴',
+        link: '/requirements/FNOS-019-fpk-version-scheme'
+      },
+      {
+        text: 'FNOS-020 CodeBuddy 瞬时 400 终止整轮修复',
+        link: '/requirements/FNOS-020-codebuddy-transient-400'
+      },
       ]
   }
 ]
@@ -389,6 +397,14 @@ const plansSidebar = [
         text: 'PLAN-FNOS-018 Midscene 桥接使用说明准确性修正',
         link: '/plans/PLAN-FNOS-018-midscene-skill-accuracy'
       },
+      {
+        text: 'PLAN-FNOS-019 FPK 版本方案固定前缀与插件基线小尾巴',
+        link: '/plans/PLAN-FNOS-019-fpk-version-scheme'
+      },
+      {
+        text: 'PLAN-FNOS-020 CodeBuddy 瞬时 400 终止整轮修复',
+        link: '/plans/PLAN-FNOS-020-codebuddy-transient-400'
+      },
     ]
   }
 ]
@@ -438,6 +454,14 @@ const testsSidebar = [
       {
         text: 'FNOS-018 Midscene 桥接使用说明准确性修正',
         link: '/tests/FNOS-018-midscene-skill-accuracy'
+      },
+      {
+        text: 'FNOS-019 FPK 版本方案固定前缀与插件基线小尾巴',
+        link: '/tests/FNOS-019-fpk-version-scheme'
+      },
+      {
+        text: 'FNOS-020 CodeBuddy 瞬时 400 终止整轮修复',
+        link: '/tests/FNOS-020-codebuddy-transient-400'
       },
     ]
   }
