@@ -3,19 +3,19 @@
   "plugins": [
     {
       "name": "@tnnevol/dsh-codebuddy",
-      "version": "0.2.1-rc.2.5"
+      "version": "0.2.1-rc.2.6"
     },
     {
       "name": "@tnnevol/dsh-codex-auth",
-      "version": "0.2.1-rc.2.5"
+      "version": "0.2.1-rc.2.6"
     },
     {
       "name": "@tnnevol/dsh-fnos",
-      "version": "0.2.1-rc.2.5"
+      "version": "0.2.1-rc.2.6"
     },
     {
       "name": "@tnnevol/dsh-failover-search",
-      "version": "0.2.1-rc.2.5"
+      "version": "0.2.1-rc.2.6"
     },
     {
       "name": "dshmarket",
