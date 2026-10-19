@@ -13,6 +13,8 @@ import { parseVersionOptions } from '../core/args.js'
 import {
   assertProjectVersionShape,
   nextProjectVersion,
+  parseProjectVersion,
+  pluginVersionOf,
   readDshBaselineFromCatalog,
 } from '../core/project-version.js'
 import { readPackageInfo } from '../core/package.js'
@@ -29,84 +31,6 @@ const projectVersionTextFiles = [
 ]
 
 type JsonObject = Record<string, unknown>
-
-type ParsedVersion = {
-  major: number
-  minor: number
-  patch: number
-  prerelease?: string[]
-}
-
-function parsePluginVersion(version: string): ParsedVersion {
-  const match = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(version)
-  if (match === null) throw new Error(`Invalid plugin version: ${version}`)
-  const [, major, minor, patch, prerelease] = match
-  return {
-    major: Number(major),
-    minor: Number(minor),
-    patch: Number(patch),
-    ...(prerelease === undefined ? {} : { prerelease: prerelease.split('.') }),
-  }
-}
-
-function formatPluginVersion(version: ParsedVersion): string {
-  const base = `${version.major}.${version.minor}.${version.patch}`
-  return version.prerelease === undefined
-    ? base
-    : `${base}-${version.prerelease.join('.')}`
-}
-
-function prereleaseVersion(major: number, minor: number, patch: number): string {
-  return formatPluginVersion({
-    major,
-    minor,
-    patch,
-    prerelease: ['beta', '1'],
-  })
-}
-
-function bumpPluginVersion(currentVersion: string, release: string): string {
-  const normalizedRelease = release.trim()
-  if (/^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(normalizedRelease)) {
-    parsePluginVersion(normalizedRelease)
-    return normalizedRelease.replace(/^v/, '')
-  }
-
-  const current = parsePluginVersion(currentVersion)
-  switch (release) {
-    case 'patch':
-      return formatPluginVersion({
-        major: current.major,
-        minor: current.minor,
-        patch: current.patch + (current.prerelease === undefined ? 1 : 0),
-      })
-    case 'minor':
-      return formatPluginVersion({ major: current.major, minor: current.minor + 1, patch: 0 })
-    case 'major':
-      return formatPluginVersion({ major: current.major + 1, minor: 0, patch: 0 })
-    case 'prepatch':
-      return prereleaseVersion(current.major, current.minor, current.patch + 1)
-    case 'preminor':
-      return prereleaseVersion(current.major, current.minor + 1, 0)
-    case 'premajor':
-      return prereleaseVersion(current.major + 1, 0, 0)
-    case 'prerelease':
-      return current.prerelease === undefined
-        ? prereleaseVersion(current.major, current.minor, current.patch)
-        : formatPluginVersion({
-            ...current,
-            prerelease: current.prerelease.at(-1) !== undefined && /^\d+$/.test(current.prerelease.at(-1)!)
-              ? [...current.prerelease.slice(0, -1), String(Number(current.prerelease.at(-1)) + 1)]
-              : [...current.prerelease, '1'],
-          })
-    case 'next':
-      return current.prerelease === undefined
-        ? bumpPluginVersion(currentVersion, 'patch')
-        : bumpPluginVersion(currentVersion, 'prerelease')
-    default:
-      throw new Error(`Unsupported plugin release: ${release}`)
-  }
-}
 
 async function readJson(relativePath: string): Promise<JsonObject> {
   const value: unknown = JSON.parse(await readFile(join(repositoryRoot, relativePath), 'utf8'))
@@ -303,11 +227,10 @@ function formatTag(version: string): string {
  * 项目版本的迭代号 +1，并让**每个插件**在自身版本上递增，结果落在同一条提交里。
  * 原先的「选择要维护版本的区域」菜单已移除，避免同一件事有两种入口。
  *
- * 两套版本的递增规则不同，故不能合并成一个数字：
- * - 项目版本是 `<基础段>-<DSH 基线>.<迭代号>`，只动末尾迭代号；
- * - 插件版本是 `<DSH 基线>.<修订号>`，各插件当前值并不相同（各自独立发布过），
- *   因此**逐个在自己的值上递增**，不强行对齐——对齐会让从未改动的插件凭空跳号，
- *   也会破坏已发布版本的历史。
+ * **统一管理：项目与全部插件共用同一个迭代号。** 插件版本就是项目版本去掉基础段
+ * 前缀（`5.9.0-0.2.1-rc.2.5` ↔ `0.2.1-rc.2.5`），因此迭代号只算一次，插件直接沿用。
+ * 发出前还会核对现状：若有插件与项目不同号就报错，而不是默默拉平——静默改写会让
+ * 「谁在何时改了版本」无从追溯。
  *
  * `project` / `plugin` 作为历史参数仍被接受，但语义已合并为同一条流程。
  */
@@ -340,25 +263,56 @@ async function releaseAll(
   options: ReturnType<typeof parseVersionOptions>,
   baseline: string,
 ): Promise<void> {
+  // 本方案下所有版本共用一个迭代号，只能「+1」，没有 minor/major 的语义空间：
+  // 前三段由基础段与 DSH 基线决定，都不归发布流程管。与其静默忽略，不如明确拒绝——
+  // 否则调用者以为 `minor` 生效了，实际只是迭代号 +1。
+  const release = String(options.release)
+  // 完整版本号是允许的（用于切换 DSH 基线）：它自带基线与迭代号，不走 +1 逻辑。
+  const isExplicitVersion = /^v?\d+\.\d+\.\d+-\d+\.\d+\.\d+/u.test(release)
+  if (!isExplicitVersion && release !== 'patch' && release !== 'prerelease') {
+    throw new Error(
+      `不支持版本档位 "${release}"：项目与插件共用同一个迭代号，发布时只递增它。`
+      + '请使用 `pnpm run version -- patch`，或传完整版本号（如 5.9.0-0.2.2-rc.1.0）以切换 DSH 基线。',
+    )
+  }
+
   const project = await readPackageInfo('package.json')
   // 校验项目版本形态（不认字面量）：裸 MAJOR.MINOR.PATCH 会被拒绝。
-  assertProjectVersionShape(project.version, baseline)
+  const projectParts = assertProjectVersionShape(project.version, baseline)
 
-  // 插件各自递增：先算出每个插件的目标版本，再一次性写盘并提交。
-  //
-  // 插件当前版本都带预发布段（`0.2.1-rc.2.x`）。对这种版本用 `patch` 会**丢掉预发布段**
-  // ——`0.2.1-rc.2.5` 会变成 `0.2.1`，等于把版本号降级，设备会拒装。因此默认档位在这里
-  // 换成 `prerelease`（递增末尾那段数字）；调用者显式给其它档位时保持原样。
-  const requestedRelease = String(options.release)
-  const pluginRelease = requestedRelease === 'patch' ? 'prerelease' : requestedRelease
   const targets = pluginTargets
   const packages = await Promise.all(targets.map(target => readPackageInfo(target.path)))
+
+  // 统一管理：**项目与全部插件共用同一个迭代号**。
+  //
+  // 插件版本就是项目版本去掉基础段前缀（`5.9.0-0.2.1-rc.2.5` ↔ `0.2.1-rc.2.5`），
+  // 所以迭代号只从项目版本算一次，插件直接沿用。原先让插件「各自递增」的做法虽然
+  // 起点相同时能保持同步，但只要有人手工改过其中之一就会**永久错位**，那时统一管理
+  // 名存实亡。
+  const nextProject = nextProjectVersion(project.version, baseline)
+  const nextProjectParts = parseProjectVersion(nextProject, baseline)
+  if (nextProjectParts === undefined) {
+    throw new Error(`无法从项目版本 "${nextProject}" 推导插件版本`)
+  }
+  const currentPluginVersion = pluginVersionOf(projectParts)
+  const nextPluginVersion = pluginVersionOf(nextProjectParts)
+
+  // 发布前核对现状：若有插件与项目不同号，说明版本文件被绕过本命令改过。
+  // 此时**报错而不是默默拉平**——静默改写会让「谁在何时改了版本」无从追溯。
+  const drifted = packages.filter(pkg => pkg.version !== currentPluginVersion)
+  if (drifted.length > 0) {
+    const detail = drifted.map(pkg => `${pkg.name}@${pkg.version}`).join('、')
+    throw new Error(
+      `插件版本与项目版本不同号，拒绝发布：${detail}。`
+      + `项目当前对应插件版本 ${currentPluginVersion}，请先把上述插件统一到该值。`,
+    )
+  }
+
   const plan = targets.map((target, index) => {
     const pkg = packages[index]!
-    return { target, name: pkg.name, from: pkg.version, to: bumpPluginVersion(pkg.version, pluginRelease) }
+    return { target, name: pkg.name, from: pkg.version, to: nextPluginVersion }
   })
 
-  const nextProject = nextProjectVersion(project.version, baseline)
   if (options.confirm && !await confirmUnifiedRelease(project.version, nextProject, plan)) return
 
   // 项目侧：先对齐历史遗留的版本文件，再交给 bumpp 完成替换。

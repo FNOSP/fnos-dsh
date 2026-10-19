@@ -96,6 +96,19 @@ export function formatProjectVersion(parts: ProjectVersionParts): string {
 }
 
 /**
+ * 由项目版本推导对应的插件版本。
+ *
+ * 插件版本就是项目版本**去掉基础段**：`5.9.0-0.2.1-rc.2.5` → `0.2.1-rc.2.5`。
+ * 这样两者永远共用同一个基线与迭代号，不存在各自递增而错位的可能。
+ *
+ * @param parts 项目版本的拆解结果。
+ * @returns 插件版本串（`<基线>.<迭代号>`）。
+ */
+export function pluginVersionOf(parts: ProjectVersionParts): string {
+  return `${parts.baseline}.${parts.iteration}`
+}
+
+/**
  * 计算下一次发布的项目版本。
  *
  * 规则：**基础段原样继承当前版本**（不推进、也不写死）；基线取当前 DSH 运行时基线；
