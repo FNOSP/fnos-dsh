@@ -1,4 +1,4 @@
-import { cancel, confirm, isCancel, multiselect, select, text } from '@clack/prompts'
+import { autocomplete, cancel, confirm, isCancel, multiselect, select } from '@clack/prompts'
 import { pluginTargets, type PluginTarget } from '../config/targets.js'
 import type { FpkApp } from '../config/workspace.js'
 
@@ -68,16 +68,32 @@ export async function askVersionReleaseKind(currentBaseline: string): Promise<Ve
  * @returns 新基线版本号；取消时返回 `undefined`。
  */
 export async function askTargetBaseline(currentBaseline: string): Promise<string | undefined> {
-  const result = await text({
+  // 建议值取「当前基线 +1」——DSH 通常紧挨着发下一个 rc，这是最可能的输入。
+  const suggested = bumpBaseline(currentBaseline)
+  const result = await autocomplete<string>({
     message: `输入新的 DSH 基线（当前 ${currentBaseline}）`,
-    placeholder: '0.2.1-rc.5',
+    // placeholder 由 clack 原生支持「按 Tab 复制进输入框」，所以这里放建议值，
+    // 而不是只当提示文字用。
+    placeholder: suggested,
+    // 动态候选：始终把「当前输入」本身列出，这样用户可以直接敲任意版本号回车，
+    // 不必被选项列表限制。
+    options() {
+      // 这是 clack 的动态候选：`this` 即 prompt 实例，`userInput` 是当前输入框内容。
+      const typed = (this.userInput ?? '').trim()
+      const options = [{ value: suggested, label: suggested, hint: '当前基线 +1' }]
+      if (typed !== '' && typed !== suggested) {
+        options.unshift({ value: typed, label: typed, hint: '使用输入的版本号' })
+      }
+      return options
+    },
+    maxItems: 3,
     validate: value => {
-      const trimmed = value?.trim() ?? ''
+      const trimmed = String(value ?? '').trim()
       if (trimmed === '') return '请输入基线版本号'
       if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u.test(trimmed)) {
         return '基线形态应为 MAJOR.MINOR.PATCH，可带预发布段（如 0.2.1-rc.5）'
       }
-      if (trimmed === currentBaseline) return `与当前基线相同，不会被视为基线变化；本次请改用「迭代号 +1」`
+      if (trimmed === currentBaseline) return '与当前基线相同，不会被视为基线变化；本次请改用「迭代号 +1」'
       return undefined
     },
   })
@@ -86,6 +102,23 @@ export async function askTargetBaseline(currentBaseline: string): Promise<string
     return undefined
   }
   return String(result).trim()
+}
+
+/**
+ * 把基线版本推到「下一个」。
+ *
+ * 只递增最后一段，保留其余部分：`0.2.1-rc.2` → `0.2.1-rc.3`。DSH 发布节奏通常是
+ * 同一 minor 内连续推 rc，所以这是最常见的下一个版本号。最后一段不是数字时（极少见）
+ * 原样返回，让 placeholder 退化成「当前值」，用户仍能自己输入。
+ *
+ * @param baseline 当前基线。
+ * @returns 建议的下一个基线。
+ */
+export function bumpBaseline(baseline: string): string {
+  const match = /^(.*\.)(\d+)$/u.exec(baseline)
+  if (match === null) return baseline
+  const [, prefix, last] = match
+  return `${prefix}${Number(last) + 1}`
 }
 
 export async function askCheckSelection(): Promise<CheckSelection[] | undefined> {
