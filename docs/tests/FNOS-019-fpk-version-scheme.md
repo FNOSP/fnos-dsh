@@ -76,6 +76,8 @@ lastVerified: 2026-10-18
 
 | 用例ID | 所属功能 | 功能点 | 关联验收 | 前置条件 | 执行步骤 | 预期结果 | 优先级 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-023 | [FNOS-019-08](/requirements/FNOS-019-fpk-version-scheme#功能列表) | 一步切换 DSH 基线 | [AC-01](/requirements/FNOS-019-fpk-version-scheme#验收条件与完成状态) | catalog 仍为旧基线 | `pnpm run version -- --baseline 0.2.1-rc.5` | catalog 被改写；项目与全部插件落到 `…rc.5.0`（迭代号归零） | P0 | catalog 在命令内部才改，故 pnpm 的依赖校验不会拦 |
+| TC-024 | [FNOS-019-08](/requirements/FNOS-019-fpk-version-scheme#功能列表) | 只改版本号，不碰依赖 | [AC-01](/requirements/FNOS-019-fpk-version-scheme#验收条件与完成状态) | 同上 | 切换后检查插件 `package.json` | 只有 `version` 字段变化；`@deepseek-ai/dsh-*` 依赖声明一字未动 | P0 | 依赖升级由 `pnpm install` 单独完成 |
 | TC-021 | [FNOS-019-07](/requirements/FNOS-019-fpk-version-scheme#功能列表) | 不同号时拒绝发布 | [AC-02](/requirements/FNOS-019-fpk-version-scheme#验收条件与完成状态) | 人为把某个插件改成与项目不同号 | 执行版本命令 | 报错并**点名**该插件与应有版本；不静默拉平 | P0 | 静默改写会让版本变更无从追溯 |
 | TC-022 | [FNOS-019-07](/requirements/FNOS-019-fpk-version-scheme#功能列表) | 拒绝 minor/major | [AC-02](/requirements/FNOS-019-fpk-version-scheme#验收条件与完成状态) | 无 | 执行 `pnpm run version -- minor` | 明确报错说明只有迭代号可递增；不静默当成 +1 | P1 | 否则调用者以为版本结构变了 |
 | TC-018 | [FNOS-019-06](/requirements/FNOS-019-fpk-version-scheme#功能列表) | 一次执行推进两套版本 | [AC-01](/requirements/FNOS-019-fpk-version-scheme#验收条件与完成状态) | 项目与插件版本均合法 | 执行 `pnpm run version -- --no-commit` | 项目迭代号 +1，且每个插件在自己的当前版本上递增；两套改动同时产生 | P0 | 无区域菜单，一条命令完成 |
@@ -110,6 +112,8 @@ lastVerified: 2026-10-18
 | TC-016 | 同基线不同迭代号可覆盖安装 | 真实 fnOS NAS | 未执行 | — | 当前环境无法访问设备（`192.168.0.110` 超时），缺真机证据 |
 | TC-017 | 已装历史 `5.9.0` 的升级路径 | 真实 fnOS NAS | 未执行 | — | 同上 |
 | TC-018 | 一次执行推进两套版本 | 本地单测 + 命令实跑 | 通过 | 2026-10-19 | 实跑输出：项目 `5.9.0-…rc.2.5 → …rc.2.6`，6 个插件同步 `0.2.1-…rc.2.5 → …rc.2.6`（同号） |
+| TC-023 | 一步切换 DSH 基线 | 本地单测 + 命令实跑 | 通过 | 2026-10-19 | 实跑：`…rc.2.5 → …rc.5.0`，六个插件同步；catalog 被改写为 `0.2.1-rc.5`；未出现依赖校验报错 |
+| TC-024 | 只改版本号不碰依赖 | 本地单测 | 通过 | 2026-10-19 | 断言写出的 package.json 中无任何 dsh 依赖被改成新基线 |
 | TC-021 | 不同号时拒绝发布 | 本地单测 + 命令实跑 | 通过 | 2026-10-19 | 把 dsh-fnos 改成 `0.2.1-rc.2.2` 后执行，报「插件版本与项目版本不同号，拒绝发布：@tnnevol/dsh-fnos@0.2.1-rc.2.2」并给出应有值 |
 | TC-022 | 拒绝 minor/major | 本地单测 + 命令实跑 | 通过 | 2026-10-19 | `-- minor` 报「不支持版本档位 minor」，并提示改用 patch 或传完整版本号 |
 | TC-019 | 插件不对齐到同一版本 | 本地单测 + 命令实跑 | 通过 | 2026-10-18 | 实跑中各插件在自己值上 +1：`0.2.1-rc.2.2→.3`（三个）、`rc.2.3→.4`、`rc.2.5→.6`，未被拉平 |
