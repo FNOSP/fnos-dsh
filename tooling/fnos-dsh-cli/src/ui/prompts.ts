@@ -1,6 +1,14 @@
-import { cancel, confirm, isCancel, multiselect } from '@clack/prompts'
+import { cancel, confirm, isCancel, multiselect, select, text } from '@clack/prompts'
 import { pluginTargets, type PluginTarget } from '../config/targets.js'
 import type { FpkApp } from '../config/workspace.js'
+
+/**
+ * 发布类型：普通递增，或切换到新的 DSH 基线。
+ *
+ * 两者产出完全不同的版本号（`…rc.2.5 → …rc.2.6` 对 `…rc.2.5 → …rc.5.0`），
+ * 所以必须在发布前明确选，而不是靠记住某个 flag。
+ */
+export type VersionReleaseKind = 'patch' | 'baseline'
 
 export type BuildSelection = 'plugins' | 'fpk' | 'docs'
 export type StartSelection = 'docs' | 'plugins' | 'web'
@@ -18,6 +26,66 @@ export async function askPlugin(): Promise<PluginTarget[] | undefined> {
   }
   const selected = new Set(result as string[])
   return pluginTargets.filter(target => selected.has(target.value))
+}
+
+/**
+ * 询问本次发布的类型。
+ *
+ * @param currentBaseline 当前 catalog 中的 DSH 基线，用于在选项里直接显示。
+ * @returns 发布类型；取消时返回 `undefined`。
+ */
+export async function askVersionReleaseKind(currentBaseline: string): Promise<VersionReleaseKind | undefined> {
+  const result = await select({
+    message: '选择本次发布类型',
+    initialValue: 'patch',
+    options: [
+      {
+        value: 'patch',
+        label: '迭代号 +1',
+        hint: `DSH 基线不变（${currentBaseline}），项目与插件一起 +1`,
+      },
+      {
+        value: 'baseline',
+        label: '切换 DSH 基线',
+        hint: 'DSH 发了新版本：改 catalog 并把迭代号重置为 0',
+      },
+    ],
+  })
+  if (isCancel(result)) {
+    cancel('已取消版本维护')
+    return undefined
+  }
+  return result as VersionReleaseKind
+}
+
+/**
+ * 询问新的 DSH 基线版本号。
+ *
+ * 会校验形态并提示「与当前相同则不会被视为基线变化」，避免输入错值后误以为是
+ * 一次基线切换。
+ *
+ * @param currentBaseline 当前基线，作为默认值与对照。
+ * @returns 新基线版本号；取消时返回 `undefined`。
+ */
+export async function askTargetBaseline(currentBaseline: string): Promise<string | undefined> {
+  const result = await text({
+    message: `输入新的 DSH 基线（当前 ${currentBaseline}）`,
+    placeholder: '0.2.1-rc.5',
+    validate: value => {
+      const trimmed = value?.trim() ?? ''
+      if (trimmed === '') return '请输入基线版本号'
+      if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u.test(trimmed)) {
+        return '基线形态应为 MAJOR.MINOR.PATCH，可带预发布段（如 0.2.1-rc.5）'
+      }
+      if (trimmed === currentBaseline) return `与当前基线相同，不会被视为基线变化；本次请改用「迭代号 +1」`
+      return undefined
+    },
+  })
+  if (isCancel(result)) {
+    cancel('已取消版本维护')
+    return undefined
+  }
+  return String(result).trim()
 }
 
 export async function askCheckSelection(): Promise<CheckSelection[] | undefined> {

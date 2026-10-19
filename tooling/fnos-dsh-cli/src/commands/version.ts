@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { versionBump, type VersionBumpRelease } from 'bumpp'
 import { program } from '../program.js'
 import { addBooleanArgs, addNegatedArgs } from '../core/command-args.js'
+import { askTargetBaseline, askVersionReleaseKind } from '../ui/prompts.js'
 import { projectVersionFiles, repositoryRoot } from '../config/paths.js'
 import { pluginTargets } from '../config/targets.js'
 import { parseVersionOptions } from '../core/args.js'
@@ -206,10 +207,16 @@ async function confirmUnifiedRelease(
   projectFrom: string,
   projectTo: string,
   plan: readonly { name: string, from: string, to: string }[],
+  baselineChange?: { from: string, to: string },
 ): Promise<boolean> {
   const detail = plan.map(item => `  ${item.name}: ${item.from} -> ${item.to}`).join('\n')
+  // 基线切换与普通 +1 产出的版本号形态完全不同，所以单独一行点明；没换基线时不显示，
+  // 避免每次发布都被无关信息干扰。
+  const baselineLine = baselineChange === undefined
+    ? ''
+    : `\nDSH 基线 ${baselineChange.from} -> ${baselineChange.to}（迭代号重置为 0）\n`
   const result = await confirm({
-    message: `项目 ${projectFrom} -> ${projectTo}\n插件（${plan.length} 个）：\n${detail}\n\n继续吗？`,
+    message: `${baselineLine}项目 ${projectFrom} -> ${projectTo}\n插件（${plan.length} 个）：\n${detail}\n\n继续吗？`,
     initialValue: true,
   })
   return isCancel(result) ? false : result
@@ -256,11 +263,41 @@ export async function runVersion(args: string[]): Promise<void> {
   //
   // 这一步必须在**命令内部**做：`pnpm run` 在脚本执行前就做依赖校验，若先手工把
   // catalog 改成新基线（那时新版本通常还没 `pnpm install`），连本命令都进不来。
-  const targetBaseline = options.baseline ?? currentBaseline
-  if (options.baseline !== undefined && options.baseline !== currentBaseline) {
-    await writeDshBaselineToCatalog(workspaceYaml, options.baseline)
+  //
+  // 没给 `--baseline` 且处于交互模式时，主动问一次发布类型——两种选择产出的版本号
+  // 完全不同（`…rc.2.5 → …rc.2.6` 对 `…rc.2.5 → …rc.5.0`），不该靠记住某个 flag。
+  const interactive = options.confirm && options.baseline === undefined
+  const targetBaseline = interactive
+    ? await resolveBaselineInteractively(currentBaseline, options.release)
+    : options.baseline ?? currentBaseline
+
+  if (targetBaseline === undefined) return
+  if (targetBaseline !== currentBaseline) {
+    await writeDshBaselineToCatalog(workspaceYaml, targetBaseline)
   }
-  await releaseAll(options, targetBaseline)
+  await releaseAll(options, targetBaseline, currentBaseline)
+}
+
+/**
+ * 交互式确定目标基线。
+ *
+ * 提供给调用者的判断依据是「本次发布要不要换 DSH 版本」，而不是「要不要传某个 flag」。
+ *
+ * @param currentBaseline catalog 中的当前基线。
+ * @param release 位置参数解析出的档位；显式给了完整版本号时不再询问。
+ * @returns 目标基线；取消时返回 `undefined`。
+ */
+async function resolveBaselineInteractively(
+  currentBaseline: string,
+  release: VersionBumpRelease,
+): Promise<string | undefined> {
+  // 显式传了完整版本号（自带基线段）时不打扰：那种写法已经表达了基线。
+  if (/^v?\d+\.\d+\.\d+-\d+\.\d+\.\d+/u.test(String(release))) return currentBaseline
+
+  const kind = await askVersionReleaseKind(currentBaseline)
+  if (kind === undefined) return undefined
+  if (kind === 'patch') return currentBaseline
+  return await askTargetBaseline(currentBaseline)
 }
 
 /**
@@ -292,6 +329,7 @@ async function writeDshBaselineToCatalog(workspaceYaml: string, baseline: string
 async function releaseAll(
   options: ReturnType<typeof parseVersionOptions>,
   baseline: string,
+  previousBaseline: string = baseline,
 ): Promise<void> {
   // 本方案下所有版本共用一个迭代号，只能「+1」，没有 minor/major 的语义空间：
   // 前三段由基础段与 DSH 基线决定，都不归发布流程管。与其静默忽略，不如明确拒绝——
@@ -343,7 +381,12 @@ async function releaseAll(
     return { target, name: pkg.name, from: pkg.version, to: nextPluginVersion }
   })
 
-  if (options.confirm && !await confirmUnifiedRelease(project.version, nextProject, plan)) return
+  if (options.confirm && !await confirmUnifiedRelease(
+    project.version,
+    nextProject,
+    plan,
+    previousBaseline === baseline ? undefined : { from: previousBaseline, to: baseline },
+  )) return
 
   // 项目侧：先对齐历史遗留的版本文件，再交给 bumpp 完成替换。
   // 提交与 tag 都由本函数统一处理（两套版本必须落在同一条提交里）。
