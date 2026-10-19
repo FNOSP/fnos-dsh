@@ -115,3 +115,42 @@ describe('publish：latest 维护失败不中断整批发布', () => {
     await expect(runPublish([])).rejects.toThrow('npm publish 失败')
   })
 })
+
+describe('publish：--all 一次性发布全部插件', () => {
+  // CI 与非交互环境需要一条命令发全部：不给参数会进交互多选，非 TTY 下直接失败。
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.runCommand.mockResolvedValue(undefined)
+    mocks.readFile.mockResolvedValue(JSON.stringify({ name: 'x', version: '1.2.3' }))
+    const impl = (command: string): Promise<{ stdout: string, stderr: string }> => {
+      if (command === 'pnpm') return Promise.resolve({ stdout: '/tmp/fake-package.tgz\n', stderr: '' })
+      if (command === 'tar') {
+        return Promise.resolve({
+          stdout: JSON.stringify({ name: '@tnnevol/dsh-x', version: '1.2.3', dependencies: { dayjs: '^1.11.13' } }),
+          stderr: '',
+        })
+      }
+      return Promise.reject(new Error(`unexpected command ${command}`))
+    }
+    mocks.execFile.mockImplementation(impl)
+    Object.defineProperty(mocks.execFile, Symbol.for('nodejs.util.promisify.custom'), {
+      value: impl,
+      configurable: true,
+    })
+  })
+
+  it('--all 发布全部插件，且不进入交互', async () => {
+    await runPublish(['--all'])
+
+    // 两个 mock target 都被发布
+    const published = mocks.runCommand.mock.calls.filter(call => call[0] === 'npm')
+    expect(published).toHaveLength(2)
+    expect(mocks.askPublishPlugins).not.toHaveBeenCalled()
+  })
+
+  it('--all 与 --plugin 同时给出时报错，不静默取其一', async () => {
+    // 静默选择会让人以为「只发指定那个」而实际发了全部——这类误发无法撤回。
+    await expect(runPublish(['--all', '--plugin', 'alpha'])).rejects.toThrow(/Cannot combine --all and --plugin/u)
+    expect(mocks.runCommand).not.toHaveBeenCalled()
+  })
+})

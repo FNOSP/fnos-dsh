@@ -25,14 +25,17 @@ v5.0.7
 
 ## 发布 npm 插件
 
-当前 npm 发布仅支持 `next` dist-tag。CLI 会先询问要发布的插件，所有选择完成后再统一发布：
+当前 npm 发布仅支持 `next` dist-tag。三种入口：
 
 ```bash
-pnpm run publish
-pnpm run publish -- --plugin fnos
+pnpm run publish                        # 交互多选要发布的插件
+pnpm run publish -- --plugin fnos       # 只发一个
+pnpm run publish -- --all               # 发全部插件（CI 与非交互环境用）
 ```
 
-该命令调用各插件的 `publish:next` 脚本，不会发布共享的 `dsh-semi-ui` 包。
+`--all` 与 `--plugin` 同时给出会**直接报错**，不会静默取其一——静默选择会让人以为「只发了指定的那个」而实际发了全部，这类误发无法撤回。
+
+选定后逐个**串行**发布（不并发：同时启动会让 npm 在每个包上各弹一次授权，而首个凭据尚未落盘）。每个包先 `pnpm pack` 出产物并校验 `catalog:` 已解析，再交给 `npm publish`——`npm publish <tgz>` 用 npm 自己的凭据，不受 pnpm 侧凭据问题影响。共享的 `dsh-semi-ui` 包不参与发布。
 
 ### `latest` dist-tag 由发布命令自动维护（FNOS-012-04）
 

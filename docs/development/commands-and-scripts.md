@@ -16,7 +16,7 @@
 | `pnpm run build` | 构建 harness 插件、FPK 应用和文档 | 可选 |
 | `pnpm run check` | 检查 SDD、文档、共享包、harness 插件和构建工具 | 可选 |
 | `pnpm run version` | 维护项目/FPK 或单个 harness 插件版本 | 可选 |
-| `pnpm run publish` | 交互选择并发布 DSH 插件到 npm（`next` dist-tag） | 可选 |
+| `pnpm run publish` | 发布 DSH 插件到 npm（`next` dist-tag）：不带参数进入交互多选，`--plugin <名字>` 发单个，`--all` 发全部（非交互场景用） | 可选 |
 | `pnpm run release:notes` | 使用 `changelogithub` 生成 Release 说明 | 否 |
 | `pnpm run typecheck` | 通过 Turbo 执行所有包的类型检查 | 否 |
 | `pnpm run test` | 通过 Turbo 执行单元测试 | 否 |

@@ -3,14 +3,33 @@ import { dirname, join } from 'node:path'
 import { type OptionValues } from 'commander'
 import { program } from '../program.js'
 import { repositoryRoot } from '../config/paths.js'
-import { findPluginTarget, type PluginTarget } from '../config/targets.js'
+import { findPluginTarget, pluginTargets, type PluginTarget } from '../config/targets.js'
 import { optionValue } from '../core/args.js'
 import { runCommand } from '../core/process.js'
-import { addOptionalValueArg } from '../core/command-args.js'
+import { addBooleanArgs, addOptionalValueArg } from '../core/command-args.js'
 import { maintainLatestTag, npmDistTag } from './publish-latest.js'
 import { askPublishPlugins } from '../ui/prompts.js'
 
-function selectPublishTargets(plugin?: string): PluginTarget[] | Promise<PluginTarget[] | undefined> {
+/**
+ * 确定本次要发布哪些插件。
+ *
+ * 三种入口：`--all` 发全部、`--plugin <名字>` 发单个、都不给时进入交互多选。
+ * `--all` 与 `--plugin` 同时给出属于调用错误，直接抛错而不是静默取其一——静默选择
+ * 会让人以为「指定了某个插件」而实际发了全部，这类误发无法撤回。
+ *
+ * @param plugin `--plugin` 的取值。
+ * @param all 是否传入 `--all`。
+ * @returns 待发布插件列表；交互取消时返回 `undefined`。
+ */
+function selectPublishTargets(
+  plugin?: string,
+  all = false,
+): PluginTarget[] | Promise<PluginTarget[] | undefined> {
+  if (all && plugin !== undefined) {
+    throw new Error('Cannot combine --all and --plugin')
+  }
+  // 按 targets 的既有顺序发布，与交互多选的结果顺序一致；串行发布由调用方负责。
+  if (all) return [...pluginTargets]
   if (plugin === undefined) return askPublishPlugins()
   const target = findPluginTarget(plugin)
   if (target === undefined) throw new Error(`Unknown plugin: ${plugin}`)
@@ -102,7 +121,7 @@ async function runCommandCaptured(
 }
 
 export async function runPublish(args: string[]): Promise<void> {
-  const targets = await selectPublishTargets(optionValue(args, '--plugin'))
+  const targets = await selectPublishTargets(optionValue(args, '--plugin'), args.includes('--all'))
   if (targets === undefined) return
 
   // 逐个发布，不并发：同时启动会让 npm 在每个包上各弹一次 Web 授权，而第一个凭据
@@ -140,10 +159,12 @@ export async function runPublish(args: string[]): Promise<void> {
 
 program
   .command('publish')
-  .description('Publish selected DSH plugins to npm using the next dist-tag')
+  .description('Publish DSH plugins to npm using the next dist-tag')
   .option('--plugin [plugin]', 'publish one plugin, or prompt for plugins')
+  .option('--all', 'publish every plugin without prompting (for CI and non-interactive runs)')
   .action(async (options: OptionValues) => {
     const args: string[] = []
     addOptionalValueArg(args, options, 'plugin')
+    addBooleanArgs(args, options, ['all'])
     await runPublish(args)
   })
