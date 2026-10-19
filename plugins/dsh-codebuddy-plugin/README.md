@@ -7,7 +7,7 @@
 插件发布在 npm，要求 DSH `0.2.0-rc.2`。安装命令：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-codebuddy@0.2.1-rc.2.6
+dsh plugin --profile web add @tnnevol/dsh-codebuddy@0.2.1-rc.2.7
 ```
 
 装完重启 Web profile 即可。
