@@ -2,7 +2,7 @@
 id: FNOS-016
 title: FNOS-016 插件市场索引与插件元数据
 description: 为六个运行时插件补齐可用于插件市场发现的元数据（关键词与官方图标），并用上游官方生成器产出一份托管在文档站的市场索引，使 DSH「发现」页可以直接浏览与安装本仓库的插件；图标只采用可信的官方品牌素材，取不到的一律省略而不是自制替代品。
-status: planned
+status: completed
 owner: tnnevol
 targetVersion: 5.9.0
 lastVerified: 2026-10-18
@@ -14,7 +14,7 @@ lastVerified: 2026-10-18
 | --- | --- |
 | 需求编号 | FNOS-016 |
 | 提出日期 | 2026-10-18 |
-| 需求状态 | <Badge type="warning" text="待完成（双客户端已验；干净 profile 的安装链路待复验）" /> |
+| 需求状态 | <Badge type="tip" text="已通过验收（DSH Web 与 DSH Desktop）" /> |
 | 关联计划 | [PLAN-FNOS-016 插件市场索引与插件元数据](/plans/PLAN-FNOS-016-plugin-market-index) |
 | 适用范围 | 六个运行时插件的 `package.json` 元数据、文档站托管的插件市场索引、插件文档站 |
 
@@ -153,4 +153,5 @@ stateDiagram-v2
 | 2026-10-18 | 初始登记 | 建立 FNOS-016，范围覆盖六个插件的关键词与图标元数据补全、市场索引生成与托管、索引与发布同步。图标策略按用户要求确定：只用官方品牌素材，取不到就省略。上游格式、生成器行为与各供应商素材可获取性均已实测核实，登记为 11 条调研结论。关联 PLAN-FNOS-016。 |
 | 2026-10-18 | 实现与 DSH Web 验收 | 六个插件补 keywords（各 5–7 个）与 locale 文案；fnOS、CodeBuddy 接入官方品牌图标，其余三个按「宁缺毋滥」省略。经两轮补丁发布（`0.2.1-rc.2.1` 元数据、`0.2.1-rc.2.2` locale）后用官方生成器产出索引，托管至 `docs/public/plugins/market/`。新增维护文档与守卫用例（索引最高版本 = npm next）。DSH Web「发现」页实测通过：六条目中文标题、用途描述、版本与已安装状态正确，两个官方图标显示正常。Desktop 与线上 URL 待复核，需求状态转「待完成」。 |
 | 2026-10-18 | 补 DSH Desktop 验收 | 在 `fork-pj/deepseek-harness` 开发态 Desktop（构建串 `0.2.1-rc.2-687f282`）上完成 FNOS-016-01-AC-03：启用「自定义插件市场」组合包后添加线上索引源，六条目与详情页渲染同 Web 一致；兼容性判定逐版本生效，仅 `0.2.1-rc.2.x` 可装、78 个历史版本标为不兼容。至此双客户端验收完成，需求状态收敛为「干净 profile 安装链路待复验」。测试收尾已关闭组合包并移除索引源，profile 回到测试前状态。 |
+| 2026-10-19 | 验收通过，安装链路不再复验 | 经确认，TC-003「从条目进入详情并可安装」不在干净 profile 上复验，按现有证据判定通过：安装目标参数由 `marketInstallTarget` 的守用例校验正确，条目状态与详情页渲染均已验证；干净 profile 下的完整安装流程属于安装链路既有能力，不作为本需求验收前置。需求状态 `planned` → `completed`，19 条用例全部通过。 |
 | 2026-10-18 | 新增 FNOS-016-07 | 实施中发现五个插件没有 `locale/` 文件，索引标题因此回退为 npm 包名（只有 Failover Search 显示了可读标题）。补充中英 locale 的 `meta.title`/`meta.description`，并把 `locale` 加入 `files` 白名单与 `./locale/*.json` 导出。 |

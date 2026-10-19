@@ -54,7 +54,7 @@ flowchart TD
 | PLAN-FNOS-013 | [Midscene 浏览器自动化桥接插件](/plans/PLAN-FNOS-013-midscene-browser-automation-bridge) | 已完成（随 0.2.0-rc.2.6 发布） |
 | PLAN-FNOS-014 | [DSH 0.2.1-rc.2 插件适配与新能力支持](/plans/PLAN-FNOS-014-dsh-021-rc2-adaptation) | 待完成（七阶段 19 个任务；本地双客户端已验，真机项待补） |
 | PLAN-FNOS-015 | [主题缓存写入死循环修复](/plans/PLAN-FNOS-015-theme-cache-write-loop) | 阶段一完成；目标环境验收待执行 |
-| PLAN-FNOS-016 | [插件市场索引与插件元数据](/plans/PLAN-FNOS-016-plugin-market-index) | 待完成（四阶段完成；干净 profile 安装链路待复验） |
+| PLAN-FNOS-016 | [插件市场索引与插件元数据](/plans/PLAN-FNOS-016-plugin-market-index) | 已完成 |
 | PLAN-FNOS-017 | [fnOS 插件路由 403 误拒修复](/plans/PLAN-FNOS-017-fnos-route-403) | 阶段一完成；真机验收待执行 |
 | PLAN-FNOS-018 | [Midscene 桥接使用说明准确性修正](/plans/PLAN-FNOS-018-midscene-skill-accuracy) | 已完成（单阶段 4 个任务） |
 | PLAN-FNOS-019 | [FPK 版本方案固定前缀与插件基线小尾巴](/plans/PLAN-FNOS-019-fpk-version-scheme) | 实施中（三阶段，阶段一、二已完成） |

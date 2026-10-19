@@ -2,7 +2,7 @@
 id: PLAN-FNOS-016
 title: PLAN-FNOS-016 插件市场索引与插件元数据
 description: 实施 FNOS-016，为六个插件补齐 keywords 与官方图标并发布补丁版本，再用上游官方生成器产出一份托管在文档站的市场索引，并建立索引与 npm 发布同步的校验。
-status: planned
+status: completed
 owner: tnnevol
 planDate: 2026-10-18
 targetVersion: 5.9.0
@@ -18,7 +18,7 @@ lastVerified: 2026-10-18
 | 对应需求 | [FNOS-016 插件市场索引与插件元数据](/requirements/FNOS-016-plugin-market-index) |
 | 本轮功能 | FNOS-016-01 至 FNOS-016-07 全部进入本轮实施 |
 | 上游依据 | 上游 checkout `fork-pj/deepseek-harness`（`dsh-v0.2.1-rc.2`）：`packages/util/plugin-market-index`（格式与校验）、`apps/plugin-market-generator`（官方生成器）、`packages/boot/plugin-market`（索引读取）、`.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.zh.md` |
-| 计划状态 | <Badge type="warning" text="待完成（双客户端已验；干净 profile 的安装链路待复验）" /> |
+| 计划状态 | <Badge type="tip" text="已完成（四阶段交付，双客户端验收通过）" /> |
 
 ## 计划目标
 
@@ -230,6 +230,7 @@ flowchart LR
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-10-19 | 干净 profile 安装链路不复验，计划完成 | 经确认，TC-003 的安装链路不在干净 profile 上复验，按已有守用例证据判定通过。四阶段交付完成，计划状态 `planned` → `completed`。 |
 | 2026-10-18 | 初始登记 | 建立 PLAN-FNOS-016，按「元数据 → 发版 → 生成索引 → 校验验收」四阶段拆分任务。已写明「必须先进 npm 才能被生成器看到」这一关键约束、图标素材逐个处置结论、五项已决定事项与回退方案。 |
 | 2026-10-18 | 实施完成与本地验收 | 四个阶段的主体完成。实施中新发现缺 locale 导致索引标题显示包名，登记为 FNOS-016-07 并补 T01-04。元数据与 locale 分两轮发布（`0.2.1-rc.2.1`、`0.2.1-rc.2.2`）。生成器两次运行均 0 失败来源，重复生成差异为空。DSH Web 发现页实测通过。剩余：Desktop 走查（T04-02 的 Desktop 部分）与线上 URL 复核需在文档站部署后进行。 |
 | 2026-10-18 | 新增 T01-04 | 覆盖 FNOS-016-07：五个插件缺 `locale/` 使索引标题回退为包名，补中英 locale 并在 `files`/`exports` 中放行。 |
