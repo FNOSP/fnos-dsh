@@ -189,6 +189,42 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
     expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 
+  it('--baseline 切换 DSH 基线：改 catalog 并把迭代号重置为 0', async () => {
+    // 这是基线变更的唯一入口：catalog 在命令内部才改写，所以 pnpm run 的依赖校验
+    // （发生在命令启动前）看到的是变化前的状态，不会拦下命令。
+    await runVersion(['--baseline', '0.2.1-rc.5', '--no-commit', '--yes'])
+
+    // catalog 被改写为新基线
+    const yamlWrite = mocks.writeFile.mock.calls.find(call => String(call[0]).endsWith('pnpm-workspace.yaml'))
+    expect(String(yamlWrite?.[1])).toContain("'@deepseek-ai/dsh': 0.2.1-rc.5")
+
+    // 项目版本：基线段换新、迭代号重置为 0
+    expect(mocks.versionBump).toHaveBeenCalledWith(expect.objectContaining({
+      release: '5.9.0-0.2.1-rc.5.0',
+    }))
+
+    // 插件同步到同一个新号
+    const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
+    const fnos = written.find(([p2]) => p2.includes('dsh-fnos') && p2.endsWith('package.json'))
+    expect(fnos?.[1]).toContain('"version": "0.2.1-rc.5.0"')
+  })
+
+  it('--baseline 不触碰插件里的 DSH 依赖声明', async () => {
+    // 依赖升级由 pnpm install 单独完成，版本命令只改版本号。
+    await runVersion(['--baseline', '0.2.1-rc.5', '--no-commit', '--yes'])
+
+    const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
+    for (const [path, content] of written) {
+      if (!path.endsWith('package.json')) continue
+      // 只允许 version 字段变化；这里断言没把依赖写成新基线。
+      expect(content).not.toMatch(/"@deepseek-ai\/dsh-[a-z-]+":\s*"0\.2\.1-rc\.5"/u)
+    }
+  })
+
+  it('--baseline 缺少版本号时明确报错', async () => {
+    await expect(runVersion(['--baseline', '--yes'])).rejects.toThrow(/--baseline/u)
+  })
+
   it('不再弹出「选择要维护版本的区域」', async () => {
     // 区域选择已移除；命令不带位置参数即可跑完，不该调用任何选择/文本输入提示。
     await runVersion(['--yes'])
