@@ -224,8 +224,18 @@ cases:
           label: 覆盖安装后模块图不再含 dsh-midscene（确认装上的是新构建）
           script: |
             (async () => {
-              const res = await fetch('/app/fn-deepseek-harness');
-              if (!res.ok) return { pass: false, detail: '获取应用外壳失败：HTTP ' + res.status };
+              // 安装完成不等于服务已就绪：进度对话框消失后，网关与 dsh web 仍需数秒启动，
+              // 这段时间访问外壳会拿到 502（实测踩到：断言在启动窗口内执行而误判失败）。
+              // 因此这里轮询等待，而不是一次性读取。
+              let res = null;
+              for (let i = 0; i < 30; i += 1) {
+                res = await fetch('/app/fn-deepseek-harness');
+                if (res.ok) break;
+                await new Promise(r => setTimeout(r, 2000));
+              }
+              if (!res || !res.ok) {
+                return { pass: false, detail: '应用外壳在 60 秒内未就绪：HTTP ' + (res ? res.status : '无响应') };
+              }
               const html = await res.text();
               const m = html.match(/plugins\/\?\?((?:[^"'&]*@tnnevol[^"'&]*)+)/);
               if (!m) return { pass: false, detail: '外壳未包含 @tnnevol bundle 引用（安装可能未生效）' };
