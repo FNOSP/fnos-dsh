@@ -28,6 +28,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-017 | [fnOS 插件路由 403 误拒修复](/tests/FNOS-017-fnos-route-403) | [PLAN-FNOS-017](/plans/PLAN-FNOS-017-fnos-route-403) | 部分通过 | 10 条中 7 通过、3 待真机 |
 | FNOS-018 | [Midscene 桥接使用说明准确性修正](/tests/FNOS-018-midscene-skill-accuracy) | [PLAN-FNOS-018](/plans/PLAN-FNOS-018-midscene-skill-accuracy) | 通过 | 9 条全部通过；发现并修正 4 处与 SDK 实际不符的表述 |
 | FNOS-019 | [FPK 版本方案固定前缀与插件基线小尾巴](/tests/FNOS-019-fpk-version-scheme) | [PLAN-FNOS-019](/plans/PLAN-FNOS-019-fpk-version-scheme) | 通过 | 17 条全部通过；含真实 fnOS NAS 设备升级（同基线迭代号覆盖安装、裸 5.9.0 升级路径） |
-| FNOS-020 | [CodeBuddy 瞬时 400 终止整轮修复](/tests/FNOS-020-codebuddy-transient-400) | [PLAN-FNOS-020](/plans/PLAN-FNOS-020-codebuddy-transient-400) | 部分通过 | 6 条中 5 条通过（策略层断言）；真实环境复验 1 条待发布 |
+| FNOS-020 | [CodeBuddy 瞬时 400 终止整轮修复](/tests/FNOS-020-codebuddy-transient-400) | [PLAN-FNOS-020](/plans/PLAN-FNOS-020-codebuddy-transient-400) | 部分通过 | 10 条中 6 通过、4 未执行（DSH Desktop）；DSH Web 运行时已验证重试生效与自动恢复 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

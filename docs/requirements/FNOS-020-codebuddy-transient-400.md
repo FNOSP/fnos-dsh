@@ -14,7 +14,7 @@ lastVerified: 2026-10-19
 | --- | --- |
 | 需求编号 | FNOS-020 |
 | 提出日期 | 2026-10-19 |
-| 需求状态 | <Badge type="warning" text="实现完成；待发布并在真实环境复验" /> |
+| 需求状态 | <Badge type="warning" text="实现完成；DSH Web 已验，DSH Desktop 待验" /> |
 | 关联计划 | [PLAN-FNOS-020 CodeBuddy 瞬时 400 终止整轮修复](/plans/PLAN-FNOS-020-codebuddy-transient-400) |
 | 影响插件 | `@tnnevol/dsh-codebuddy` |
 | 关联需求 | [FNOS-014](/requirements/FNOS-014-dsh-021-rc2-adaptation)（当前运行时基线）、[FNOS-012](/requirements/FNOS-012-codebuddy-model-speed-and-client-version)（同插件既有缺陷修复） |
@@ -81,10 +81,10 @@ lastVerified: 2026-10-19
 
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-020-01 | P0 | 瞬时 400 不再终止整轮 | 会话遇到 `Invalid request parameters` 时短暂停顿后自动继续，不再弹出错误并中断 | <Badge type="warning" text="实现完成，待真实环境复验" /> |
-| FNOS-020-02 | P0 | 路由自带重试策略 | `codebuddy` 路由覆写 `providerRetryPolicy()`，返回含 `INVALID_REQUEST` 的有界策略 | <Badge type="tip" text="已验（单测 5 条）" /> |
+| FNOS-020-01 | P0 | 瞬时 400 不再终止整轮 | 会话遇到 `Invalid request parameters` 时短暂停顿后自动继续，不再弹出错误并中断 | <Badge type="tip" text="已验（DSH Web 运行时）" /> |
+| FNOS-020-02 | P0 | 路由自带重试策略 | `codebuddy` 路由覆写 `providerRetryPolicy()`，返回含 `INVALID_REQUEST` 的有界策略 | <Badge type="tip" text="已验（单测 5 条 + 产物层 8 项）" /> |
 | FNOS-020-03 | P1 | 不误重试确定性错误 | `CONTEXT_WINDOW_EXCEEDED` 与 `QUOTA` 不在重试集合内，行为与修复前一致 | <Badge type="tip" text="已验（单测断言）" /> |
-| FNOS-020-04 | P1 | 重试次数有界 | 最多重试 2 次，避免把必然失败的请求放大成 5 次 | <Badge type="tip" text="已验（单测断言）" /> |
+| FNOS-020-04 | P1 | 重试次数有界 | 最多重试 2 次，避免把必然失败的请求放大成 5 次 | <Badge type="tip" text="已验（单测 + 运行时实测 3 次请求）" /> |
 
 ### 验收环境范围
 
@@ -152,3 +152,4 @@ stateDiagram-v2
 | --- | --- | --- |
 | 2026-10-19 | 初始登记 | 建立 FNOS-020。登记三次现场取证（含 `requestId`）、六条排除项（上下文/输出/参数/内容/工具/1017 适配）与两条未定位说明。确认修复点为适配器自带重试策略：`INVALID_REQUEST` 既不在 DSH 默认重试集合，也不在插件换号集合。关联 PLAN-FNOS-020。 |
 | 2026-10-19 | 实现完成 | `adapter.ts` 新增 `CODEBUDDY_RETRY_POLICY` 并覆写 `providerRetryPolicy()`：官方默认五码 + `INVALID_REQUEST`，`maxRetries: 2`。新增 `tests/retry-policy.spec.ts` 5 条用例钉住「已纳入」「有界」「不混入确定性错误码」。插件 72 个测试文件 914 条用例全绿。真实环境复验待发布后进行。 |
+| 2026-10-19 | DSH Web 运行时验证通过 | 按测试规范在 DSH Web（8070，项目 `.dsh` profile）执行：`llm/retry` 的 `policyKey` 为 `["normal",2,[…,"INVALID_REQUEST",…],500,10000,0.1]`，确认运行时采用本路由策略（修复前为 `maxRetries: 5` 且不含该码）。故障注入下首次 400 后 459ms 自动重试并成功完成；始终 400 时主对话恰好 3 次请求（1+2）后失败，未出现重复内容。DSH Desktop 未执行，因此按兼容基线**尚不构成完成结论**。 |

@@ -16,7 +16,7 @@ lastVerified: 2026-10-19
 | 计划日期 | 2026-10-19 |
 | 对应需求 | [FNOS-020 CodeBuddy 瞬时 400 终止整轮修复](/requirements/FNOS-020-codebuddy-transient-400) |
 | 本轮功能 | FNOS-020-01 至 FNOS-020-04 |
-| 计划状态 | <Badge type="warning" text="阶段一完成；阶段二待发布后复验" /> |
+| 计划状态 | <Badge type="warning" text="阶段一完成；阶段二 DSH Web 已验、Desktop 待验" /> |
 
 ## 计划目标
 
@@ -71,6 +71,13 @@ CodeBuddy 对该类失败只回一句 `Invalid request parameters`，**不带业
 | PLAN-FNOS-020-T02-01 | FNOS-020-01 / AC-01 | 发布插件新版本并更新目标 profile，等待偶发 400 出现 | 插件发布、profile 指向新版本 | 会话不再中断；或从事件流确认出现 `llm/retry` 后继续 |
 | PLAN-FNOS-020-T02-02 | FNOS-020-01 / AC-02 | 同一次恢复中核对输出与工具调用无重复 | T02-01 | 事件流中无重复 tool/call；界面无重复内容 |
 
+## 执行进展
+
+| 阶段 | 状态 | 说明 |
+| --- | --- | --- |
+| 阶段一 实现与本地验证 | <Badge type="tip" text="已完成" /> | 策略实现 + 单测 5 条 + 产物层复核 8 项；插件全量 914 条无回归 |
+| 阶段二 运行时与恢复验证 | <Badge type="warning" text="DSH Web 已完成；DSH Desktop 未执行" /> | DSH Web：`policyKey` 确认为 `maxRetries: 2` 且含 `INVALID_REQUEST`；首次 400 后自动重试成功；始终 400 时有界失败（1 + 2 次）。Desktop 开发态未构建，未执行 |
+
 ## 数据、权限和错误处理
 
 - 无新增数据结构、无权限变更、无配置项。
@@ -87,3 +94,11 @@ CodeBuddy 对该类失败只回一句 `Invalid request parameters`，**不带业
 | 风险三 | 发布生效链路：运行中的 profile 从 npm 安装插件，源码修改需发布新版本并更新 profile 才对用户生效 |
 | 决策 | 不改 `mode: 'always'`：无限重试会把确定性失败变成挂死 |
 | 决策 | 不把 `QUOTA` 加入重试：该码的正确动作是换号，重试同一账号只会白耗请求 |
+
+## 变更记录
+
+| 日期 | 变更 | 说明 |
+| --- | --- | --- |
+| 2026-10-19 | 建立 PLAN-FNOS-020 | 拆出两个阶段：阶段一实现与本地验证、阶段二发布后真实环境复验。明确修复落在适配器自带的 `providerRetryPolicy()`，不改 DSH 上游。 |
+| 2026-10-19 | 阶段二改用故障注入 | 原计划等网关偶发 400，但该条件不可控。改为本地桩返回同形响应（HTTP 400 + 同文案 + 无业务码）并把活动账号 endpoint 指向桩，从而在 DSH Web 内跑完真实代码路径。附四个必须注意的点：桩需提供合法模型目录、endpoint 覆盖、改配置后须重启、区分标题生成请求。 |
+| 2026-10-19 | 阶段二 DSH Web 验证完成 | 运行时 `policyKey` = `["normal",2,[…INVALID_REQUEST…],500,10000,0.1]`（修复前 `maxRetries: 5` 且无该码）；首次 400 后 459ms 重试成功、轮次「已完成」；始终 400 时主对话恰好 3 次请求后失败。DSH Desktop 未执行（开发态未构建），阶段二未完全收口。 |
