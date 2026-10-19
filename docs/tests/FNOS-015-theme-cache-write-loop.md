@@ -129,7 +129,7 @@ fnOS 桌面 → 左下角「个人设置」→「我的账号」弹框 → 左�
 | TC-006 | FNOS-015-02 | 真实 fnOS NAS | 通过 | 2026-10-18 | `unset` 后主题跟随仍生效：iframe 内 `theme-mode=dark`、`data-ds-dark-theme` 存在、`color-scheme: dark` |
 | TC-007 | FNOS-015-03 | 真实 fnOS NAS | **通过** | 2026-10-19 | 在「我的账号 → 主题壁纸」切 light→dark→light，每次切换恰好 1 次 `settings/mutate`（无重复、无循环）。payload 为 `{ns:"dsh-fnos", ops:[{op:"set", path:["systemTheme"], value:"dark"}]}`，宿主响应 `ok: true` |
 | TC-008 | FNOS-015-03 | 真实 fnOS NAS | **通过（注入路径）** | 2026-10-19 | 缓存为 `dark` 时外壳 HTML 含 `const preference = "dark"`，即注入生效；NAS 为 dark 时宿主/DSH/注入值三者一致。首屏视觉闪烁以注入值一致为判据，未做逐帧观感 |
-| TC-009 | FNOS-015-03 | 真实 fnOS NAS | 未执行 | — | 需在 DSH 侧切显式 light/dark 后核对首屏；本次未找到 DSH 主题偏好入口，留待下一轮 |
+| TC-009 | FNOS-015-03 | 真实 fnOS NAS | **通过** | 2026-10-19 | 在 DSH「设置 → 通用设置 → 外观」依次切「浅色 / 深色 / 跟随系统」，每次恰好 2 次写：`ui-theme` 的 `preference` 与 `dsh-fnos` 的 `systemTheme`。切显式 light/dark 时后者为 `op: unset`（旧缓存被清除），切回「跟随系统」时为 `op: set`（缓存恢复）。首屏注入随之切换：跟随系统→注入 `light`（=fnOS 缓存值）、显式深色→注入 `dark`（=DSH 偏好），`data-ds-theme-source` 分别为 `system` / `dark`。**旧缓存不再影响显式偏好下的首屏** |
 | TC-010 | FNOS-015-04 | 真实 fnOS NAS | 通过 | 2026-10-18 | 加载完成后静置 20 秒：`settings/mutate` 0 次、`describe` 0 次、`credentials/describe` 0 次、`modelCatalog` 0 次 |
 | TC-011 | FNOS-015-04 | 真实 fnOS NAS | 通过 | 2026-10-18 | 模型选择器正常显示 `Space-Bunny · x0.08 · Max`，无「正在刷新模型列表」 |
 | TC-012 | FNOS-015-04 | 真实 fnOS NAS | 通过 | 2026-10-18 | 静置期间无 300ms 级组件反复挂载 |
@@ -165,7 +165,7 @@ fnOS 桌面 → 左下角「个人设置」→「我的账号」弹框 → 左�
 
 ## 测试结论
 
-真实 fnOS NAS 上完成两轮执行，**核心目标全部通过，issue #13 可判定已修复**。
+真实 fnOS NAS 上完成三轮执行，**全部功能点通过，issue #13 判定已修复**。
 
 **写入收敛（FNOS-015-01，AC-01）**：
 
@@ -182,7 +182,9 @@ fnOS 桌面 → 左下角「个人设置」→「我的账号」弹框 → 左�
 
 **连带症状（FNOS-015-04）**：静置期 `mutate`/`describe`/`credentials`/`modelCatalog` 均为 0，模型选择器正常，未见组件反复挂载。
 
-**未验收项（FNOS-015-03，AC-03 / TC-009）**：DSH 侧切为显式 light/dark 后「首屏不使用旧缓存」未验——本次未找到 DSH 主题偏好入口。该项是既有行为的回归确认，不影响 #13 的修复判定。
+**显式偏好不使用旧缓存（FNOS-015-03，AC-03）**：在 DSH「设置 → 通用设置 → 外观」切「浅色 / 深色 / 跟随系统」，每次恰好 2 次写——`ui-theme` 的 `preference` 与 `dsh-fnos` 的 `systemTheme`。切显式 light/dark 时 `systemTheme` 为 `op: unset`（旧缓存被清除），切回「跟随系统」时为 `op: set`（缓存恢复），与设计意图一致。首屏注入随之切换：跟随系统注入 `light`（=fnOS 缓存值），显式深色注入 `dark`（=DSH 偏好），`data-ds-theme-source` 分别为 `system` / `dark`。
+
+**至此 FNOS-015 全部功能点通过，无未验收项。**
 
 ### 关于 issue #13 的病态前提
 
