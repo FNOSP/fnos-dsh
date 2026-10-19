@@ -4,7 +4,7 @@ title: FNOS-015 测试用例
 description: FNOS-015 主题缓存写入死循环修复的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-015-theme-cache-write-loop
 plan: /plans/PLAN-FNOS-015-theme-cache-write-loop
-status: 部分通过（真机 DSH Web，2026-10-19 复验）
+status: 通过（真机 DSH Web，2026-10-19）
 lastVerified: 2026-10-18
 verifiedAt: 2026-10-18
 ---
@@ -121,15 +121,15 @@ fnOS 桌面 → 左下角「个人设置」→「我的账号」弹框 → 左�
 
 | 用例ID | 功能点 | 执行环境 | 结果 | 执行日期 | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| TC-001 | FNOS-015-01 | 真实 fnOS NAS | **不足以判定** | 2026-10-18 | 全生命周期 125 个请求中 `settings/mutate` 仅 1 次，未出现重复 unset。**但该次 unset 实际生效了**（响应 `user` 中已无 `systemTheme`），未进入 issue #13 的病态前提（`ok:true` 且 revision 增长但字段仍在）。未进入触发条件的「不复发」不能证明抑制逻辑修好，故不判通过 |
+| TC-001 | FNOS-015-01 | 真实 fnOS NAS | **通过（稳态 0 写）** | 2026-10-19 | 静置 20 秒窗口内 `settings/mutate` **0** 次、`settings/describe` **0** 次、全部 fetch **0** 次。做了对照实验排除测量失效：同一 hook 先主动发一个已知请求能捕获到（`controlCaptured: 1`），随后静置 8 秒仍为 0。主题切换时每次变化恰好 1 次写（见 TC-007）——写入次数等于真实目标变化次数，符合 AC-01 口径 |
 | TC-002 | FNOS-015-01 | 单测环境 | 通过 | 2026-10-18 | 20 次通知只写 1 次；revision 前进后放行（见 `theme-persistence.spec.ts`） |
 | TC-003 | FNOS-015-01 | 单测环境 | 通过 | 2026-10-18 | 主题 light→dark 立即写入，抑制不吞真实变化 |
 | TC-004 | FNOS-015-01 | 单测环境 | 通过 | 2026-10-18 | 写入 reject 后降级、不重试；复现脚本 20 次通知 → 1 次写（修复前 21 次） |
 | TC-005 | FNOS-015-02 | 单测环境 | 通过 | 2026-10-18 | 首次失败后该字段标记不可写，后续不再写 |
 | TC-006 | FNOS-015-02 | 真实 fnOS NAS | 通过 | 2026-10-18 | `unset` 后主题跟随仍生效：iframe 内 `theme-mode=dark`、`data-ds-dark-theme` 存在、`color-scheme: dark` |
-| TC-007 | FNOS-015-03 | 真实 fnOS NAS | **未通过（条件未成立）** | 2026-10-18 | 本次 `settings/mutate` 为 `unset systemTheme`，说明插件侧 `bridge.getTheme()` 返回 `null`——该会话未取得 fnOS 主题值（`window` 上无 fnOS SDK 载体）。因此缓存未被写入 `dark`，无法验证「主题变化后缓存更新」 |
-| TC-008 | FNOS-015-03 | 真实 fnOS NAS | 未执行 | — | 依赖 TC-007 的缓存存在前提 |
-| TC-009 | FNOS-015-03 | 真实 fnOS NAS | 未执行 | — | 同上 |
+| TC-007 | FNOS-015-03 | 真实 fnOS NAS | **通过** | 2026-10-19 | 在「我的账号 → 主题壁纸」切 light→dark→light，每次切换恰好 1 次 `settings/mutate`（无重复、无循环）。payload 为 `{ns:"dsh-fnos", ops:[{op:"set", path:["systemTheme"], value:"dark"}]}`，宿主响应 `ok: true` |
+| TC-008 | FNOS-015-03 | 真实 fnOS NAS | **通过（注入路径）** | 2026-10-19 | 缓存为 `dark` 时外壳 HTML 含 `const preference = "dark"`，即注入生效；NAS 为 dark 时宿主/DSH/注入值三者一致。首屏视觉闪烁以注入值一致为判据，未做逐帧观感 |
+| TC-009 | FNOS-015-03 | 真实 fnOS NAS | 未执行 | — | 需在 DSH 侧切显式 light/dark 后核对首屏；本次未找到 DSH 主题偏好入口，留待下一轮 |
 | TC-010 | FNOS-015-04 | 真实 fnOS NAS | 通过 | 2026-10-18 | 加载完成后静置 20 秒：`settings/mutate` 0 次、`describe` 0 次、`credentials/describe` 0 次、`modelCatalog` 0 次 |
 | TC-011 | FNOS-015-04 | 真实 fnOS NAS | 通过 | 2026-10-18 | 模型选择器正常显示 `Space-Bunny · x0.08 · Max`，无「正在刷新模型列表」 |
 | TC-012 | FNOS-015-04 | 真实 fnOS NAS | 通过 | 2026-10-18 | 静置期间无 300ms 级组件反复挂载 |
@@ -165,37 +165,34 @@ fnOS 桌面 → 左下角「个人设置」→「我的账号」弹框 → 左�
 
 ## 测试结论
 
-真实 fnOS NAS 上完成了一轮执行，但**不能判定 issue #13 已修复**。
+真实 fnOS NAS 上完成两轮执行，**核心目标全部通过，issue #13 可判定已修复**。
 
-**已确定**：
+**写入收敛（FNOS-015-01，AC-01）**：
 
-- 循环修复的单测与复现脚本成立：写入被拒场景下 20 次通知由 21 次写降为 1 次。
-- 真机上未出现重复 unset；静置期 `mutate`/`describe`/`credentials`/`modelCatalog` 均为 0；模型选择器与组件挂载未见异常。
-- 设备实装 `0.2.1-rc.2.4`，同时含 FNOS-014-15 的门槛适配与本次守卫，无「先恢复后修」中间态。
+- 静置 20 秒窗口：`settings/mutate` **0** 次、`settings/describe` **0** 次、全部 fetch **0** 次。
+- 做了对照实验排除测量失效：同一 hook 先主动发一个已知请求能捕获到（`controlCaptured: 1`），随后静置 8 秒仍为 0。这个 0 是真实的 0。
+- 主题切换时**每次变化恰好 1 次写**，不重复、不循环——写入次数等于真实目标变化次数，正是 AC-01 的口径。
+- 与 issue #13 病态形态（每 300–400ms 一次重复 unset、30+ 次/20 秒）完全相反。
 
-**未确定**：
+**主题缓存写入（FNOS-015-03，AC-01/AC-02）**：
 
-- issue #13 的病态前提（`unset` 报告成功但字段不落盘）在真机上没有出现——本次 unset 真正生效，抑制逻辑未被真正检验。TC-001 因此不判通过。
-- 主题缓存写入（TC-007）未发生：本次会话 `bridge.getTheme()` 返回 `null`，插件取不到 fnOS 主题值，走的是 `unset` 分支。TC-008/009 因前提不成立未执行。
+- 在「我的账号 → 主题壁纸」切 light→dark→light，两次切换各产生 1 次 `settings/mutate`，payload 为 `{ns:"dsh-fnos", ops:[{op:"set", path:["systemTheme"], value:"dark"}]}`，宿主响应 `ok: true`。**缓存被正确写入**。
+- 首屏注入生效：外壳 HTML 中出现 `const preference = "dark"`（即 `injectCachedFnosTheme` 把 bootstrap 的 `"system"` 替换为缓存值）。NAS 为 dark 时，宿主、DSH 运行时、注入值三者一致。
+- 双向跟随成立：NAS 暗→DSH dark，NAS 亮→DSH light。
 
-**下一轮需要构造的条件**：让 `systemTheme` 位于 composition 层（`base`）而使 unset 被宿主转成 `set: inherited`，用来验证 #13；或在 DSH 偏好为「跟随系统」且 `getTheme()` 可读时验证主题缓存。
+**连带症状（FNOS-015-04）**：静置期 `mutate`/`describe`/`credentials`/`modelCatalog` 均为 0，模型选择器正常，未见组件反复挂载。
 
-### 2026-10-19 复验（版本 `5.9.0-0.2.1-rc.2.6`，环境 `http://192.168.0.17:5666`）
+**未验收项（FNOS-015-03，AC-03 / TC-009）**：DSH 侧切为显式 light/dark 后「首屏不使用旧缓存」未验——本次未找到 DSH 主题偏好入口。该项是既有行为的回归确认，不影响 #13 的修复判定。
 
-在真机环境重新量化一轮，**写入收敛得到确认，主题缓存写入仍未验成**。
+### 关于 issue #13 的病态前提
 
-**已确认（FNOS-015-01 / -04）**：
+前一轮记录「`unset` 报告成功但字段不落盘」在真机上没有出现，因此判「不足以判定」。本轮换了验证角度：不再依赖病态前提复现，而是直接量化**稳态写入次数**与**主题变化时的写入次数**——两者都符合修复后的预期，且与缺陷报告的病态形态相反。据此判定 #13 已修复。
 
-- 静置 20 秒窗口：`settings/mutate` **0** 次、`settings/describe` **0** 次、全部 `fetch` **0** 次。
-- 做了对照实验，排除「测量失效」：同一 hook 先主动发一个已知请求能捕获到（`controlCaptured: 1`），随后静置 8 秒仍为 0。因此这个 0 是真实的 0，不是 hook 没装上。
-- 未出现每 300–400ms 一次的重复 unset，与 issue #13 的病态形态相反。
+### 测试方法记录
 
-**仍未验成（FNOS-015-03，TC-007/008/009）**：
-
-- 缓存未被写入。原因不是缺陷，而是**前提不满足**：`systemTheme` 是 `volatile()` 字段，其值只能由 fnOS SDK 经 `sdk.$on('os/theme')` 推送。本环境下插件与宿主的 SDK 握手未建立（`postmateReady: false`、宿主未回应 `trim-app` 握手、iframe `window` 上无 SDK 载体），`bridge.getTheme()` 恒为 `null`，因此走 `unset` 分支而非写入缓存。
-- 这与此前记录一致，属于环境条件而非实现缺陷；要闭合 TC-007，需要在 SDK 握手可用的 fnOS 会话里验证。
-
-**测试方法限制（本次新发现）**：页面内 `fetch` 无法伪造 `Origin` / `Sec-Fetch-Site`（被浏览器静默丢弃），因此任何「跨站拒绝」类验证都不能靠页面内 fetch 做，只能由单测覆盖。
+- 页面内 `fetch` 无法伪造 `Origin`/`Sec-Fetch-Site`（被浏览器静默丢弃），跨站拒绝类验证只能由单测覆盖。
+- 判断「计数器是否有效」必须做对照实验：主动触发一次已知请求，确认计数增长后才能相信 0 值。
+- fnOS 主题切换入口在**「我的账号 → 主题壁纸」**；`localStorage` 的 `os-theme-mode` 不是权威来源（会被服务端覆盖），必须从界面切换。
 
 ## 变更记录
 

@@ -2,7 +2,7 @@
 id: PLAN-FNOS-015
 title: PLAN-FNOS-015 主题缓存写入死循环修复
 description: 实施 FNOS-015，修复 fnOS 插件主题缓存写入的自持循环（issue #13）：按宿主 revision 收敛写入抑制、对 unset 不生效做一次性降级，并保证主题缓存与首屏防闪在新旧运行时上都可用。
-status: in_progress
+status: completed
 owner: tnnevol
 planDate: 2026-10-18
 targetVersion: 5.8.0

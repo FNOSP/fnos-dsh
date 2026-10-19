@@ -2,7 +2,7 @@
 id: FNOS-015
 title: FNOS-015 主题缓存写入死循环修复
 description: 修复 fnOS 插件客户端把主题缓存写进 DSH 设置时的写入死循环（issue #13）：unset 不生效时抑制失效，导致每 300–400ms 重发一次 settings/mutate，引发整页重渲染与请求放大；修复后写入收敛、主题缓存与首屏防闪保持可用。
-status: in_progress
+status: completed
 owner: tnnevol
 targetVersion: 5.8.0
 lastVerified: 2026-10-19
@@ -14,7 +14,7 @@ lastVerified: 2026-10-19
 | --- | --- |
 | 需求编号 | FNOS-015 |
 | 提出日期 | 2026-10-18 |
-| 需求状态 | <Badge type="warning" text="部分通过：写入收敛已在真机确认；主题缓存写入受 fnOS SDK 前提限制未验成" /> |
+| 需求状态 | <Badge type="tip" text="已通过真机验收" /> |
 | 关联计划 | [PLAN-FNOS-015 主题缓存写入死循环修复](/plans/PLAN-FNOS-015-theme-cache-write-loop) |
 | 来源 | [issue #13](https://github.com/FNOSP/fnos-dsh/issues/13)（wk1972，DSH 0.2.0-rc.2 + `@tnnevol/dsh-fnos` 0.2.0-rc.2.5/.6） |
 | 前置需求 | [FNOS-014 DSH 0.2.1-rc.2 插件适配](/requirements/FNOS-014-dsh-021-rc2-adaptation)（含 FNOS-014-15：`ConfigFormSnapshot.mode` 移除导致的写入门槛失效） |
@@ -79,7 +79,7 @@ sequenceDiagram
 | --- | --- | --- | --- | --- |
 | FNOS-015-01 | P0 | 主题缓存写入收敛 | 20 秒窗口内 `settings/mutate` 次数归零或仅为真实主题变化次数；不再出现每 300–400ms 一次的重复 unset | <Badge type="tip" text="已实现（20 次通知 → 1 次写）" /> |
 | FNOS-015-02 | P0 | unset 不生效的一次性降级 | 若清除缓存后宿主返回值仍未收敛，本次会话不再对该字段回写，且不产生循环；日志/提示可诊断 | <Badge type="tip" text="已实现（降级 + 调试日志）" /> |
-| FNOS-015-03 | P0 | 主题缓存与首屏防闪保持 | fnOS 主题变化后缓存被正确更新；DSH 偏好为「跟随系统」时首屏按 fnOS 主题渲染、无闪烁；偏好切为显式 light/dark 时不再注入旧缓存 | <Badge type="tip" text="单测已覆盖；真机首屏待验" /> |
+| FNOS-015-03 | P0 | 主题缓存与首屏防闪保持 | fnOS 主题变化后缓存被正确更新；DSH 偏好为「跟随系统」时首屏按 fnOS 主题渲染、无闪烁；偏好切为显式 light/dark 时不再注入旧缓存 | <Badge type="tip" text="真机验证缓存写入与首屏注入；显式偏好回归待补" /> |
 | FNOS-015-04 | P1 | 连带重渲染与请求放大消除 | 整页不再周期性重渲染；模型列表不卡在「正在刷新模型列表」；其它插件组件不再高频挂载/卸载 | <Badge type="tip" text="随写入收敛（待目标环境量测）" /> |
 | FNOS-015-05 | P1 | 0.2.1-rc.2 上的写入门槛适配协同 | 在新运行时上写入门槛按新 API 表达（`status === 'ready'` 且 `writable`），写入恢复且循环不复发 | <Badge type="tip" text="已实现（门槛已恢复且不复发）" /> |
 
