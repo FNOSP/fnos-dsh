@@ -65,6 +65,18 @@ install_dep_apps      = nodejs_v24
 - 两个字段都是单行 INI 值：换行用 `<br />` 表达，不写真实换行；值内不要出现未转义的 `#` 开头注释或引号包裹。
 - 更新后运行 `pnpm run check -- --all` 确认清单检查通过。
 
+### 版本发布时不会自动改 desc 与 changelog
+
+`pnpm run version` 只改**版本字段**（`manifest` 的 `version`、根 `package.json`、`packages/*`、插件版本与文档里的安装命令），**不碰** `desc` 与 `changelog`——这两项是给用户看的内容，机器推不出该写什么。
+
+因此发版时的检查项是「确认它们已经是本轮要发布的内容」，而不是「现在补写」：
+
+1. 功能完成时先写好 `changelog`（与需求文档变更记录同源），再推版本；
+2. 执行 `pnpm run version` 后，用 `git diff` 或 `git show --stat` 确认本次版本提交**没有覆盖** `changelog`；
+3. 若 `changelog` 仍是上一轮的内容，说明功能阶段的第 1 步漏了——在版本提交前补一次功能提交，不要混进版本提交。
+
+`changelog` 的写法要求（面向用户、只写可感知变化、覆盖本轮项目与插件的全部对外变化）见[版本发布后要维护什么](/build/versioning#版本发布后要维护什么)。
+
 ## 与其他配置的对应关系
 
 Manifest 里的关键字段必须在别处真实成立，否则安装后才会暴露问题：

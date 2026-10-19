@@ -164,25 +164,56 @@ pnpm run version -- patch --no-commit --no-tag
 
 只有无法从本仓库推导的值才作为常量维护：`dshmarket` 是第三方包，注册表版本就是契约本身；`DSH_VERSION` 与 `PNPM_VERSION` 属于 DSH 基线，判断依据是它们与 `cmd/install_callback`、native 配置之间的**一致性**。
 
-### 装机验证时临时提升 FPK 版本
+### 版本发布后要维护什么
 
-在真实 fnOS 设备上验证安装或升级时，先把 `apps/fn-deepseek-harness/manifest` 的 `version` 临时
-把**迭代号**加一（`…rc.2.1` → `…rc.2.2`），验证完成后再决定是否保留：
+`pnpm run version` 会**自动**改这些地方，不需要手工跟进：
 
-- **为什么需要**：fnOS 应用中心按版本号判断是否需要安装。版本与已装应用相同时，手动安装会被
-  当作同版本处理，无法走完整的安装/升级链路；只有版本更高才会真正执行安装回调。
-- **怎么改**：只改 `manifest` 的 `version` 一行。应用版本只从 `manifest` 读取
-  （`tooling/fnos-dsh-cli/src/config/workspace.ts`），不需要同步其他地方。
-- **为什么写在规范里**：这是**临时**手段，不是发布流程的一部分。正式发版仍通过
-  `pnpm run version -- <档位>` 由 `bumpp` 统一更新根 `package.json`、文档包、`packages/*`、
-  `tooling/fnos-dsh-cli`、`manifest` 与 README 版本引用，并同时推进全部插件版本、打本地 Tag。
-- **收尾**：验证结束后，如果该版本要进入正式流程，用 `pnpm run version -- patch` 让各处版本
-  重新对齐；如果只是本地验证，把 `manifest` 改回原版本，不要留下与 `package.json` 不一致的
-  应用版本进入发布。
+| 类别 | 自动同步的内容 |
+| --- | --- |
+| 版本字段 | 根 `package.json`、`docs/package.json`、`packages/*`、`tooling/fnos-dsh-cli`、`apps/fn-deepseek-harness/manifest` |
+| 插件副本 | `apps/fn-deepseek-harness/app/published-dsh-plugins.json` 的版本字段 |
+| 文档版本 | `docs/development/manifest.md` 的当前版本引用、各插件文档与总览页的安装命令 |
+| Git | 一条 `chore: release v<版本>` 提交 + 本地 Tag（不推送） |
 
-> 注意：插件版本（`plugins/*/package.json`）在验证时**不需要**跟着改。插件版本由统一版本
-> 命令管理，且构建会校验 `app/published-dsh-plugins.json` 与插件源码一致；手工改插件版本
-> 会让构建失败。
+**它不会改 `manifest` 的 `desc` 与 `changelog`**——这两项是给用户看的**内容**，机器推不出该写什么，必须人工维护。
+
+#### `manifest` 的 `desc` 与 `changelog`
+
+`apps/fn-deepseek-harness/manifest` 里：
+
+| 字段 | 写什么 | 更新时机 |
+| --- | --- | --- |
+| `desc` | 应用简介，支持 HTML 富文本；描述**当前功能**，不是本轮改动 | 功能或定位变化时 |
+| `changelog` | **本轮**变更摘要：新功能、修复、行为变化 | 每次功能完成时 |
+
+`changelog` 的口径要求（与文档站保持一致，读者在应用中心和文档站看到同一件事）：
+
+- **写用户能感知的变化**，不写内部重构、依赖升级、测试改动这类对使用者无影响的内容。
+- **与需求文档的变更记录同源**：本轮改了哪几条需求，`changelog` 就概括那几条的**结果**，不逐条罗列实现细节。
+- **覆盖本轮全部对外变化**：项目版本与插件版本在同一次发布里推进，插件的行为变化也要写进 `changelog`，否则用户只看到应用版本变了却不知道插件改了什么。
+- 中文，一到三句话；涉及不兼容或需要用户操作的变化（如需要重新授权、需要改配置）必须写明。
+
+维护节奏（两处各管一段，不重复劳动）：
+
+1. **功能完成时**：更新 `changelog` 与 `desc`，与需求文档的变更记录一起写；此时不改版本号。
+2. **发版时**：跑 `pnpm run version`，它只改版本字段，**不覆盖**第 1 步写好的内容；提交前用 `git diff` 确认 `changelog` 仍是本轮要发布的那段。
+
+所以正常顺序是「先写内容、再推版本」，两条提交分开（功能提交 + 版本提交），见[版本更新时机](#版本更新时机强制)。
+
+### 装机验证时提升版本
+
+在真实 fnOS 设备上验证安装或升级时，**用统一版本命令**推进一个迭代号，不要手工只改 `manifest`：
+
+```bash
+pnpm run version -- patch      # 项目与全部插件一起 +1，并生成版本提交
+pnpm run build -- --fpk --app fn-deepseek-harness --bundle-dsh-plugins
+```
+
+- **为什么必须换号**：fnOS 应用中心按版本号判定是否需要安装。版本与已装应用相同时，手动安装会被当作同版本处理，直接弹「已安装相同或更高版本」而拒绝，走不到安装回调。
+- **为什么不用手工改 `manifest`**：应用版本在 `manifest`、根 `package.json`、`docs/package.json` 与 `packages/*` 中都有副本。实测只改 `manifest` 一行**也能打包成功**（构建不校验这几处是否一致），产出的 FPK 版本会与仓库其它版本文件**漂移**；下一次 `pnpm run version` 以后者为准，又把 `manifest` 覆盖回去，前一次的号就白改了。走命令则各处一次对齐，并留下可追溯的版本提交。
+- **验证后不要手工回退**：该版本本身就是一次正常发布的迭代，继续往前走即可；确实要丢弃时用 `git revert` 回退整条版本提交，不要只改回某几个文件。
+
+> 插件版本由同一条命令一起推进，**不要单独手工改**：`app/published-dsh-plugins.json` 与插件源码版本不一致时构建会失败（构建校验这份副本没有漂移）。走 `pnpm run version` 则会一次对齐两处。
 
 ### 更新 DSH 基线时必须同步三方插件版本
 
