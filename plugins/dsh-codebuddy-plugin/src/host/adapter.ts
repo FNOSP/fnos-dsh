@@ -21,8 +21,9 @@ import {
   ProviderRequestId,
   QUOTA_EXCEEDED_CODE,
   ReasoningEffortId,
+  resolveRetryPolicy,
 } from '@deepseek-ai/dsh-llm'
-import type { GenerateOptions, LlmModelInfo, LlmModelReasoningInfo, LlmProviderInfo, LlmReasoningEffortInfo, LlmResolvedModelInfo, PreparedAdapterCall, StreamChunk } from '@deepseek-ai/dsh-llm'
+import type { GenerateOptions, LlmModelInfo, LlmModelReasoningInfo, LlmProviderInfo, LlmReasoningEffortInfo, LlmResolvedModelInfo, PreparedAdapterCall, ResolvedRetryPolicy, StreamChunk } from '@deepseek-ai/dsh-llm'
 import {
   CODEBUDDY_DISPLAY_NAME,
   DEFAULT_CONTEXT_WINDOW,
@@ -258,6 +259,36 @@ function reasoningInfo(model: CodeBuddyModel): LlmModelReasoningInfo | undefined
 }
 
 /**
+ * 本路由的请求重试策略：官方默认集合 + `INVALID_REQUEST`。
+ *
+ * **为什么追加**：CodeBuddy 把请求校验失败报成 HTTP 400，响应体只有一句
+ * `Invalid request parameters`，**不带业务码**。它既可能是请求确实不合法，也可能
+ * 是网关侧的瞬时拒绝——两者在响应里无法区分。官方默认集合（EMPTY_RESPONSE /
+ * RATE_LIMIT / SERVER / TIMEOUT / TRANSPORT）不含该码，实测后果是：一次瞬时 400
+ * 直接终止整轮，用户必须手动「继续」才能恢复。
+ *
+ * **为什么重试是安全的**：该错误在产出任何 chunk **之前**抛出（`stream()` 的
+ * `emitted` 恒为 false），因此重试不会重复内容、不会重复执行工具调用。需要用户
+ * 干预的确定性缺陷各自另有错误码：上下文超限是 `CONTEXT_WINDOW_EXCEEDED`，额度
+ * 耗尽是 `QUOTA`——后者由本适配器的换号逻辑处理，刻意不放进重试集合。
+ *
+ * **为什么只给 2 次**：400 属于确定性错误的概率高于瞬时抖动；有界重试足以覆盖
+ * 「网关抽一下」，又不至于把一次必然失败的请求放大成 5 次。
+ */
+export const CODEBUDDY_RETRY_POLICY: ResolvedRetryPolicy = resolveRetryPolicy({
+  mode: 'normal',
+  maxRetries: 2,
+  retryableCodes: [
+    'EMPTY_RESPONSE',
+    'RATE_LIMIT',
+    'SERVER',
+    'TIMEOUT',
+    'TRANSPORT',
+    'INVALID_REQUEST',
+  ],
+}, 'dsh-codebuddy: retryPolicy')
+
+/**
  * CodeBuddy 适配器。一个实例服务于单一的 `codebuddy` 路由以及该路由目录
  * 报告的每一个模型。
  */
@@ -268,6 +299,16 @@ export class CodeBuddyAdapter extends LlmAdapter {
 
   override providerInfo(provider: string): LlmProviderInfo {
     return { id: provider, name: CODEBUDDY_DISPLAY_NAME }
+  }
+
+  /**
+   * 本路由自带重试策略（见 {@link CODEBUDDY_RETRY_POLICY}）。
+   *
+   * 必须显式覆写：基类默认实现返回 `undefined`，调用方随即退回官方默认集合——
+   * 那正是把瞬时 400 当作致命错误的一套。
+   */
+  override providerRetryPolicy(_provider: string): ResolvedRetryPolicy {
+    return CODEBUDDY_RETRY_POLICY
   }
 
   override async listModels(provider: string): Promise<readonly LlmModelInfo[]> {
