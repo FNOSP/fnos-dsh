@@ -272,10 +272,13 @@ export async function runVersion(args: string[]): Promise<void> {
     : options.baseline ?? currentBaseline
 
   if (targetBaseline === undefined) return
-  if (targetBaseline !== currentBaseline) {
-    await writeDshBaselineToCatalog(workspaceYaml, targetBaseline)
-  }
-  await releaseAll(options, targetBaseline, currentBaseline)
+  // catalog 不在这里改：必须等确认之后再写。否则用户取消后 catalog 已被改成新基线，
+  // 而版本号没动，留下一个连 `pnpm run` 都进不去的不一致状态（实测踩到过）。
+  await releaseAll(options, targetBaseline, currentBaseline, async () => {
+    if (targetBaseline !== currentBaseline) {
+      await writeDshBaselineToCatalog(workspaceYaml, targetBaseline)
+    }
+  })
 }
 
 /**
@@ -330,6 +333,7 @@ async function releaseAll(
   options: ReturnType<typeof parseVersionOptions>,
   baseline: string,
   previousBaseline: string = baseline,
+  writeBaseline: (() => Promise<void>) | undefined = undefined,
 ): Promise<void> {
   // 本方案下所有版本共用一个迭代号，只能「+1」，没有 minor/major 的语义空间：
   // 前三段由基础段与 DSH 基线决定，都不归发布流程管。与其静默忽略，不如明确拒绝——
@@ -387,6 +391,9 @@ async function releaseAll(
     plan,
     previousBaseline === baseline ? undefined : { from: previousBaseline, to: baseline },
   )) return
+
+  // 确认之后才改 catalog：取消时不留下「catalog 已换基线、版本号没动」的状态。
+  if (writeBaseline !== undefined) await writeBaseline()
 
   // 项目侧：先对齐历史遗留的版本文件，再交给 bumpp 完成替换。
   // 提交与 tag 都由本函数统一处理（两套版本必须落在同一条提交里）。

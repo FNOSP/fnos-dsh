@@ -41,13 +41,13 @@ export async function askVersionReleaseKind(currentBaseline: string): Promise<Ve
     options: [
       {
         value: 'patch',
-        label: '迭代号 +1',
-        hint: `DSH 基线不变（${currentBaseline}），项目与插件一起 +1`,
+        label: `迭代号 +1（当前基线 ${currentBaseline}）`,
+        hint: '项目与全部插件一起 +1',
       },
       {
         value: 'baseline',
         label: '切换 DSH 基线',
-        hint: 'DSH 发了新版本：改 catalog 并把迭代号重置为 0',
+        hint: 'DSH 发新版：改 catalog、迭代号归零',
       },
     ],
   })
