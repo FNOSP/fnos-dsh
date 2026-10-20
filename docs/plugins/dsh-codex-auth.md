@@ -27,9 +27,7 @@ flowchart TD
     E --> F[选择 Codex 模型并开始对话]
 ```
 
-![Codex Auth 插件管理页](</images/plugins/dsh-codex-auth/settings.jpg>)
-
-![Codex Auth 登录状态与全局模型设置](</images/plugins/dsh-codex-auth/auth-panel.jpg>)
+![Codex Auth 插件详情页：插件运行状态、登录状态与全局模型设置](</images/plugins/dsh-codex-auth/auth-panel.jpg>)
 
 ## 模型与用量
 
