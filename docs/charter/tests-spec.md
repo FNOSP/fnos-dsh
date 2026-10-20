@@ -130,6 +130,9 @@ verifiedAt: 2026-09-30
   - **单窗口的连带要求**：Desktop 只有**一个**窗口，会话页与插件详情页共用它，改一处全局可见。因此每条用例必须先归一到自己需要的前置状态（点历史会话回到会话页、进插件面板点开插件条目），否则失败原因会被误读成产品缺陷。
   - **读样式要等过渡结束**：控件样式带 `transition`（实测药丸按钮 `background-color 100ms`）。点击后立刻读 `getComputedStyle` 会读到**过渡中间值**——实测两态都被读成同一个颜色，于是「两态不同」被误判为「没变」。点击后的判定必须先等待过渡完成再读。
   - **类名不可作选择器**：DSH 界面的类名带构建哈希（实测侧边栏为 `_58WOtG_panelRow` 一类），换个构建即失效。需要按可见文本定位时用共享包的「容器 + 文本完全相等」Node，避免误中包含该文本的祖先节点。
+  - **输入富文本编辑器要用 `Input.insertText`**：`document.execCommand('insertText')` 对 DSH 输入框无效——实测写入后 `textContent` 仍为空，于是「发送了一条空消息」会被误读成产品缺陷。正确做法是先 `focus()` 再走 CDP 的 `Input.insertText`（浏览器层合成真实输入事件，编辑器会更新自身状态），发送用 `Input.dispatchKeyEvent` 合成 Enter。
+  - **macOS 上全选是 Cmd+A**：CDP 的 `modifiers` 位掩码为 Alt=1 / Ctrl=2 / Meta=4 / Shift=8，macOS 用 **4**。用 Ctrl（2）时不会选中，随后的退格只删掉一个字符——清空输入框更稳的做法是 `commands: ['selectAll']` 加 `commands: ['deleteBackward']`，不依赖平台快捷键映射。
+  - **启动前先确认产物**：`dev:desktop` 会自行构建，构建过程要重建 `.desktop-build` 临时工程；若该检出不在当前工作区内，沙箱可能以 `EPERM` 拒绝删除，表现为启动即失败——这是环境限制而非应用缺陷，需在放行后重试。确认产物已是最新时可用 `--skip-build` 省去该步。
 
 - **测试完成后必须把 Desktop 改回全局 profile（强制）**：用项目 `DSH_HOME` 启动的 Desktop 会以项目 profile 作为日常环境，测试结束后把应用交还给用户个人的全局 profile。若测试期间**同时**启动过系统安装的 Desktop（缺省 `DSH_HOME` 即 `~/.dsh`），收尾动作固定为：退出该实例 → 不带 `DSH_HOME` 重新启动 → 确认 profile 已回落。
   - 开发态 Desktop 与本地 Web 测试共用 `<repo>/.dsh`；收尾时**只处理 Desktop 实例**，不影响正在运行的 `pnpm run start -- --web`。
@@ -849,6 +852,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-10-20 | Desktop CDP 补三条操作要点 | 在 FNOS-020 的 Desktop 用例执行中踩到并登记：① `document.execCommand('insertText')` 对 DSH 输入框无效，须用 CDP `Input.insertText`，否则会误判成「发不出消息」；② macOS 上全选是 Cmd+A（`modifiers: 4`）而非 Ctrl+A，用错时退格只删一个字符，清空建议用 `commands: ['selectAll']` + `['deleteBackward']`；③ `dev:desktop` 会重建 `.desktop-build`，检出在工作区外时沙箱可能以 `EPERM` 拒绝，属环境限制，产物最新时可用 `--skip-build`。 |
 | 2026-10-19 | theme 用例补两侧入口与 AC-03 判据 | 分清两个主题入口：fnOS 的「我的账号 → 主题壁纸」决定宿主主题并经 SDK 形成 `dsh-fnos.systemTheme` 缓存；DSH 的「设置 → 通用设置 → 外观」是应用自身偏好，切显式 light/dark 时清除缓存。补「显式偏好不使用旧缓存」的判据：切显式时应看到 `ui-theme.preference` 写入 + `systemTheme: unset`，切回「跟随系统」变 `set`；首屏注入值与 `data-ds-theme-source` 随之切换。 |
 | 2026-10-19 | 新增「观测证据的可信度」小节 | FNOS-015/017 真机验收中踩到三类会让结论失真的坑，统一登记：①「计数为 0」必须配对照实验（主动发一个已知请求确认钩子生效），否则分不开「行为没发生」与「没测到」；② 浏览器禁止脚本伪造 `Origin`/`Sec-Fetch-Site`，页面内构造跨站请求得到 200 只证明伪造无效，拒绝逻辑只能由单测覆盖；③ `localStorage` 等状态位可能是镜像、会被服务端覆盖，不是权威来源（实例：改 `os-theme-mode` 刷新后被退回，正确入口是界面「我的账号 → 主题壁纸」）。 |
 | 2026-10-19 | 真实 NAS 测试补升级验证与就绪等待 | ① fnOS 拒绝同版本或更低版本安装（「已安装相同或更高版本的 DeepSeek Harness」），验证升级必须先推进一个迭代号再打包，否则拿到的是拒绝而非结论；升级后要核对应用中心版本、内置 tgz 版本、profile 插件版本三处一致。② 进度对话框消失时网关与 `dsh web` 才启动，此时访问外壳返回 502，断言前须轮询等待就绪，否则把「还没起来」误判成「安装失败」。③ 主题缓存类用例要先在 NAS 切一次可见主题模式，确认主题确实会经 SDK 推送——「跟随系统」下应用可能取不到主题值，写入路径根本不会走到。 |

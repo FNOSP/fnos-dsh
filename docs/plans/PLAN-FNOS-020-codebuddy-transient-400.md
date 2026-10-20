@@ -2,10 +2,10 @@
 id: PLAN-FNOS-020
 title: PLAN-FNOS-020 CodeBuddy 瞬时 400 终止整轮修复
 description: 为 codebuddy 路由实现自带重试策略，把 INVALID_REQUEST 纳入有界重试；配套单测覆盖纳入、有界与不误重试三类断言。分阶段：阶段一实现与本地验证，阶段二发布后在真实环境复验。
-status: in_progress
+status: completed
 owner: tnnevol
 targetVersion: 5.9.0
-lastVerified: 2026-10-19
+lastVerified: 2026-10-20
 ---
 
 # PLAN-FNOS-020 CodeBuddy 瞬时 400 终止整轮修复
@@ -16,7 +16,7 @@ lastVerified: 2026-10-19
 | 计划日期 | 2026-10-19 |
 | 对应需求 | [FNOS-020 CodeBuddy 瞬时 400 终止整轮修复](/requirements/FNOS-020-codebuddy-transient-400) |
 | 本轮功能 | FNOS-020-01 至 FNOS-020-04 |
-| 计划状态 | <Badge type="warning" text="阶段一完成；阶段二 DSH Web 已验、Desktop 待验" /> |
+| 计划状态 | <Badge type="tip" text="已完成（两阶段均完成，双客户端已验）" /> |
 
 ## 计划目标
 
@@ -76,7 +76,7 @@ CodeBuddy 对该类失败只回一句 `Invalid request parameters`，**不带业
 | 阶段 | 状态 | 说明 |
 | --- | --- | --- |
 | 阶段一 实现与本地验证 | <Badge type="tip" text="已完成" /> | 策略实现 + 单测 5 条 + 产物层复核 8 项；插件全量 914 条无回归 |
-| 阶段二 运行时与恢复验证 | <Badge type="warning" text="DSH Web 已完成；DSH Desktop 未执行" /> | DSH Web：`policyKey` 确认为 `maxRetries: 2` 且含 `INVALID_REQUEST`；首次 400 后自动重试成功；始终 400 时有界失败（1 + 2 次）。Desktop 开发态未构建，未执行 |
+| 阶段二 运行时与恢复验证 | <Badge type="tip" text="已完成" /> | DSH Web：`policyKey` 确认为 `maxRetries: 2` 且含 `INVALID_REQUEST`；首次 400 后自动重试成功；始终 400 时有界失败（1 + 2 次）。DSH Desktop：同样读到新 `policyKey`，首次 400 后 513ms 重试成功 |
 
 ## 数据、权限和错误处理
 
@@ -102,3 +102,4 @@ CodeBuddy 对该类失败只回一句 `Invalid request parameters`，**不带业
 | 2026-10-19 | 建立 PLAN-FNOS-020 | 拆出两个阶段：阶段一实现与本地验证、阶段二发布后真实环境复验。明确修复落在适配器自带的 `providerRetryPolicy()`，不改 DSH 上游。 |
 | 2026-10-19 | 阶段二改用故障注入 | 原计划等网关偶发 400，但该条件不可控。改为本地桩返回同形响应（HTTP 400 + 同文案 + 无业务码）并把活动账号 endpoint 指向桩，从而在 DSH Web 内跑完真实代码路径。附四个必须注意的点：桩需提供合法模型目录、endpoint 覆盖、改配置后须重启、区分标题生成请求。 |
 | 2026-10-19 | 阶段二 DSH Web 验证完成 | 运行时 `policyKey` = `["normal",2,[…INVALID_REQUEST…],500,10000,0.1]`（修复前 `maxRetries: 5` 且无该码）；首次 400 后 459ms 重试成功、轮次「已完成」；始终 400 时主对话恰好 3 次请求后失败。DSH Desktop 未执行（开发态未构建），阶段二未完全收口。 |
+| 2026-10-20 | 阶段二收口：DSH Desktop 验证 | 开发态 Desktop 复验通过：模型选择器列出 CodeBuddy 分组、消息正常完成；故障注入下首次 400 后 513ms 重试成功，界面「已完成」，运行时 `policyKey` 与 DSH Web 一致。阶段二完成，计划收尾。 |

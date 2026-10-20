@@ -4,8 +4,8 @@ title: FNOS-020 测试用例
 description: FNOS-020 CodeBuddy 瞬时 400 终止整轮修复的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-020-codebuddy-transient-400
 plan: /plans/PLAN-FNOS-020-codebuddy-transient-400
-status: 部分通过（DSH Web 已验；DSH Desktop 未执行）
-lastVerified: 2026-10-19
+status: 通过
+lastVerified: 2026-10-20
 verifiedAt: 2026-10-19
 ---
 
@@ -16,8 +16,8 @@ verifiedAt: 2026-10-19
 | 需求编号 | FNOS-020 |
 | 关联需求 | [FNOS-020 CodeBuddy 瞬时 400 终止整轮修复](/requirements/FNOS-020-codebuddy-transient-400) |
 | 关联计划 | [PLAN-FNOS-020 CodeBuddy 瞬时 400 终止整轮修复](/plans/PLAN-FNOS-020-codebuddy-transient-400) |
-| 测试状态 | <Badge type="warning" text="部分通过（9 条中 6 条通过；DSH Desktop 3 条未执行）" /> |
-| 执行环境 | 本地构测（单测）、DSH Web（本地 8070） |
+| 测试状态 | <Badge type="tip" text="通过（11 条全部通过，含 DSH Web 与 DSH Desktop）" /> |
+| 执行环境 | 本地构测（单测）、DSH Web（本地 8070）、DSH Desktop（开发态） |
 
 ## 测试范围与需求分析
 
@@ -78,6 +78,7 @@ verifiedAt: 2026-10-19
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TC-009 | [FNOS-020-01](/requirements/FNOS-020-codebuddy-transient-400#fnos-020-01) | DSH Web 正常加载插件 | AC-01 | DSH Web（8070，项目 `.dsh` profile） | 1.打开 Web 2.选 CodeBuddy 模型 3.发消息 | 模型选择器出现 CodeBuddy 分组与倍速；消息正常完成 | P0 | 客户端覆盖 |
 | TC-010 | [FNOS-020-01](/requirements/FNOS-020-codebuddy-transient-400#fnos-020-01) | DSH Desktop 正常加载插件 | AC-01 | 开发态 Desktop（`fork-pj/deepseek-harness` 检出） | 同 TC-009，改用 Desktop | 同上 | P0 | 客户端覆盖 |
+| TC-011 | [FNOS-020-01](/requirements/FNOS-020-codebuddy-transient-400#fnos-020-01) | DSH Desktop 首次 400 后自动恢复 | AC-01、AC-02 | 同上；桩配置为「首次 chat 返回 400，之后成功」 | 1.发一条消息 2.观察界面与桩日志 3.读事件流 `policyKey` | 轮次「已完成」并产出内容；桩日志首次 400、第二次成功；`policyKey` 含 `INVALID_REQUEST` 且 `maxRetries: 2` | P0 | 客户端覆盖 |
 
 ## 执行结果
 
@@ -109,7 +110,8 @@ pnpm run test（插件全量）                          →  72 files / 914 tes
 | TC-007 | FNOS-020-01 | DSH Web | 通过 | 2026-10-19 | 桩日志：`主对话第 1 次 → 400`，459ms 后 `主对话第 2 次 → 200`；界面「已完成，用时 1 秒」并产出内容 |
 | TC-008 | FNOS-020-01 | DSH Web | 通过 | 2026-10-19 | 桩收到主对话 3 次请求（1 原始 + 2 重试）；界面「已重试模型请求（2/2）· 2s」后失败；事件流 `retry=1`、`retry=2` 各一次，无第三次 |
 | TC-009 | FNOS-020-01 | DSH Web | 通过 | 2026-10-19 | 模型选择器出现 CodeBuddy 分组与倍速（`Deepseek-V4.1-Flash · x0.11` 等 12 项）；消息正常完成 |
-| TC-010 | FNOS-020-01 | DSH Desktop | 未执行 | — | 开发态 Desktop 未构建（`fork-pj/deepseek-harness/apps/desktop/dist` 不存在）；构建并启动 Electron 窗口会占用使用者桌面，本轮未做 |
+| TC-010 | FNOS-020-01 | DSH Desktop | 通过 | 2026-10-20 | 开发态 Desktop（`@deepseek-ai/dsh-desktop@0.2.1-rc.2`，上游检出，CDP 9333）；模型选择器列出 CodeBuddy 分组共 12 项（`Deepseek-V4.1-Flash · x0.11` 等），选 CodeBuddy 模型后消息正常完成（「已完成，用时 3 秒」→「收到」） |
+| TC-011 | FNOS-020-01 | DSH Desktop | 通过 | 2026-10-20 | 桩日志：`主对话第 1 次 → 400`，513ms 后 `主对话第 2 次 → 200`；界面「已完成，用时 1 秒」并产出内容；事件流 `llm/retry` 的 `policyKey` = `["normal",2,["EMPTY_RESPONSE","INVALID_REQUEST","RATE_LIMIT","SERVER","TIMEOUT","TRANSPORT"],500,10000,0.1]`，与 DSH Web 一致 |
 
 #### 故障注入的做法（供复现）
 
@@ -139,15 +141,17 @@ DSH `0.2.1-rc.2`（`@deepseek-ai/dsh`）/ 插件 `@tnnevol/dsh-codebuddy@0.2.1-r
 
 ## 测试结论
 
-**部分通过。** 10 条中 6 条通过、0 失败、0 阻塞、4 条未执行（TC-010 为 DSH Desktop；逐条见下）。
+**通过。** 11 条全部通过，无失败、无阻塞、无未执行。
 
-**已确定**：策略值正确（含 `INVALID_REQUEST`、`maxRetries: 2`、排除确定性错误码），且在 **DSH Web 的真实运行时**被采纳——`policyKey` 与修复前不同；首次 400 后自动重试并成功完成，耗尽 2 次重试后有界失败，未出现重复内容。
+**策略层**：值正确（含 `INVALID_REQUEST`、`maxRetries: 2`、排除 `CONTEXT_WINDOW_EXCEEDED` 与 `QUOTA`），且构建产物与源码一致。
 
-**未确定**：DSH Desktop 未执行。按[兼容基线](/charter/tests-spec#测试环境执行方式)，非 fnOS 插件须同时覆盖 Web 与 Desktop，**只记录单一客户端不构成完成结论**，因此本需求暂不判验收通过。
+**运行时（DSH Web 与 DSH Desktop 两个客户端）**：均读到 `policyKey` = `["normal",2,[…,"INVALID_REQUEST",…],500,10000,0.1]`，与修复前的 `["normal",5,[…]]` 明确不同——策略被运行时采纳；首次 400 后自动重试并成功完成（Web 459ms、Desktop 513ms），耗尽 2 次重试后有界失败（Web 实测 1 原始 + 2 重试），未出现重复内容。
+
+按[兼容基线](/charter/tests-spec#测试环境执行方式)，非 fnOS 插件须同时覆盖 Web 与 Desktop；两个客户端均已覆盖，构成完成结论。
 
 需要说明的是：本次是**缓解**而非根治。根因未定位，若后续证明该 400 由 `attemptStream` 的读取竞态导致，应另立需求收敛读取时序。
 
-另一处如实登记：TC-007 与 TC-008 的 400 来自故障注入桩而非网关偶发，覆盖的是「响应形态 → 错误码 → 重试判定」这条真实代码路径，**不覆盖**「网关为何偶发该 400」。
+另一处如实登记：TC-007、TC-008、TC-011 的 400 来自故障注入桩而非网关偶发，覆盖的是「响应形态 → 错误码 → 重试判定」这条真实代码路径，**不覆盖**「网关为何偶发该 400」。
 
 ## 变更记录
 
@@ -156,3 +160,4 @@ DSH `0.2.1-rc.2`（`@deepseek-ai/dsh`）/ 插件 `@tnnevol/dsh-codebuddy@0.2.1-r
 | 2026-10-19 | 初始登记 | 建立 FNOS-020 测试用例文档：6 条用例，策略层 5 条 + 真实环境 1 条（当时判定「依赖网关偶发 400，本地不可构造」）。 |
 | 2026-10-19 | 补故障注入路径并新增 4 条用例 | 发现该 400 可用本地桩构造同形响应来覆盖真实代码路径，原「不可构造」的判断不再成立。新增 TC-006（运行时采纳策略）、TC-007（首次 400 后自动恢复）、TC-008（重试耗尽后有界失败）、TC-009（DSH Web 客户端加载）与 TC-010（DSH Desktop 客户端加载）。补「故障注入的做法」小节，记录四个必须注意的点（合法目录、endpoint 覆盖、重启读盘、区分标题请求）。 |
 | 2026-10-19 | 回填 DSH Web 执行结果 | 6 条通过、TC-010 未执行。关键证据：`llm/retry` 的 `policyKey` 为 `["normal",2,[…INVALID_REQUEST…],500,10000,0.1]`（修复前为 `5` 且无该码）；桩日志显示首次 400 后 459ms 重试成功、轮次「已完成」；始终 400 时主对话恰好 3 次请求后失败。补版本三元组与数据清理动作。状态「未执行」→「部分通过」。 |
+| 2026-10-20 | 补 DSH Desktop 执行结果，整体判定通过 | 开发态 Desktop（上游检出，CDP 9333，项目 `.dsh` profile）两个客户端均已覆盖：TC-010 模型选择器列出 CodeBuddy 分组 12 项、选 CodeBuddy 模型后消息正常完成；新增 TC-011 验证 Desktop 首次 400 后自动恢复（桩日志首次 400、513ms 后成功，界面「已完成」），运行时 `policyKey` 与 DSH Web 一致。11 条全部通过，状态「部分通过」→「通过」。同时登记一个 Desktop 专有的操作要点：`document.execCommand('insertText')` 对该富文本编辑器无效，输入须用 CDP 的 `Input.insertText`；macOS 上全选是 Cmd+A（`modifiers: 4`）而非 Ctrl+A。 |
