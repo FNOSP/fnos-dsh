@@ -38,6 +38,30 @@ pnpm run publish -- --all --skip-market-index   # 跳过收尾的索引同步
 
 选定后逐个**串行**发布（不并发：同时启动会让 npm 在每个包上各弹一次授权，而首个凭据尚未落盘）。每个包先 `pnpm pack` 出产物并校验 `catalog:` 已解析，再交给 `npm publish`——`npm publish <tgz>` 用 npm 自己的凭据，不受 pnpm 侧凭据问题影响。共享的 `dsh-semi-ui` 包不参与发布。
 
+### `pnpm login` 不等于 `npm` 已登录（发布前自检）
+
+发布命令用 **`npm publish`**：只有 pnpm 会解析 `catalog:`，所以包由 `pnpm pack` 打、
+由 `npm` 上传。这意味着**两个工具各自的凭据都要能对上**，而它们读的配置文件不同：
+
+| 工具 | macOS 上的配置位置 |
+| --- | --- |
+| `pnpm` | `~/Library/Preferences/pnpm/config.yaml` |
+| `npm` | `~/.npmrc` |
+
+`pnpm login` 只写 pnpm 那边。此时 `pnpm whoami` 正常、`npm whoami` 返回 401，而
+`npm publish` 的报错是 **E404 Not Found**（npm 对无权限的 PUT 不返回 401），文案是
+「could not be found or you do not have permission」——看起来像包不存在。
+
+发布命令因此加了前置自检：`npm` 未登录时**一个包都不发**并直接给出同步命令。手工修复：
+
+```sh
+npm config set //registry.npmjs.org/:_authToken "$(pnpm config get //registry.npmjs.org/:_authToken)"
+npm whoami # 应打印用户名；仍 401 说明 token 已失效，需要重新签发
+```
+
+若 token 确实失效（`curl -H "Authorization: Bearer <token>" https://registry.npmjs.org/-/whoami`
+返回 401），只能去 npm 网站重新签发——同步命令解决的是「位置不对」，不是「凭据过期」。
+
 ### 插件市场索引由发布命令自动同步
 
 插件市场索引（`docs/public/plugins/market/index.json`）由上游生成器读取 **npm 上已发布版本**的

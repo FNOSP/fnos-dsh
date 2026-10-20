@@ -10,6 +10,7 @@ import { addBooleanArgs, addOptionalValueArg } from '../core/command-args.js'
 import { maintainLatestTag, npmDistTag } from './publish-latest.js'
 import { askPublishPlugins } from '../ui/prompts.js'
 import { regenerateMarketIndex } from '../core/market-index.js'
+import { checkPublishAuth } from '../core/npm-auth.js'
 
 /**
  * 确定本次要发布哪些插件。
@@ -125,6 +126,17 @@ export async function runPublish(args: string[]): Promise<void> {
   const skipMarketIndex = args.includes('--skip-market-index')
   const targets = await selectPublishTargets(optionValue(args, '--plugin'), args.includes('--all'))
   if (targets === undefined) return
+
+  /**
+   * 发布前先确认 npm 已登录。
+   *
+   * 放在「选完插件之后、开始逐个发布之前」：此时用户已经表达了意图，而任何包都还没
+   * 发出去——失败发生在第一个包上时最迷惑（npm 对无权限的 PUT 回 E404 而不是 401）。
+   */
+  const auth = await checkPublishAuth()
+  if (!auth.ok) {
+    throw new Error(auth.message)
+  }
 
   // 逐个发布，不并发：同时启动会让 npm 在每个包上各弹一次 Web 授权，而第一个凭据
   // 还没落盘，于是同一个 registry 账号被反复要求授权。

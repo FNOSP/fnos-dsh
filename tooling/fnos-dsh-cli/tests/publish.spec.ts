@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   npmDistTag: vi.fn(async () => undefined),
   askPublishPlugins: vi.fn(),
   readFile: vi.fn(),
+  checkPublishAuth: vi.fn(),
 }))
 
 const targets = [
@@ -44,6 +45,8 @@ vi.mock('../src/commands/publish-latest.js', () => ({
   npmDistTag: mocks.npmDistTag,
 }))
 vi.mock('../src/ui/prompts.js', () => ({ askPublishPlugins: mocks.askPublishPlugins }))
+// 发布前的 npm 登录自检单独有用例（tests/npm-auth.spec.ts）；这里默认放行。
+vi.mock('../src/core/npm-auth.js', () => ({ checkPublishAuth: mocks.checkPublishAuth }))
 // 发布流程先用 `pnpm pack` 出产物再校验（只有 pnpm 会解析 catalog:），用例里用假产物替代。
 vi.mock('node:child_process', async importOriginal => ({
   ...(await importOriginal<typeof import('node:child_process')>()),
@@ -62,6 +65,7 @@ describe('publish：latest 维护失败不中断整批发布', () => {
   // 而它们本可以成功。包已发出，dist-tag 是事后可补的动作，不该拖垮发布本身。
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.checkPublishAuth.mockResolvedValue({ ok: true, message: 'npm 已登录：tester' })
     mocks.askPublishPlugins.mockResolvedValue(targets)
     mocks.runCommand.mockResolvedValue(undefined)
     mocks.readFile.mockResolvedValue(JSON.stringify({ name: 'x', version: '1.2.3' }))
@@ -107,6 +111,18 @@ describe('publish：latest 维护失败不中断整批发布', () => {
     expect(warnings).toContain('不影响本次发布')
     expect(warnings).toContain('npm dist-tag add @tnnevol/dsh-codebuddy@1.2.3 latest')
     warn.mockRestore()
+  })
+
+  it('npm 未登录时一个包都不发，并抛出指引', async () => {
+    // 放在首个包之前检查：否则错误发生在第一个包上，而 npm 对无权限的 PUT 回 E404，
+    // 会被误读成「包不存在」。
+    mocks.checkPublishAuth.mockResolvedValue({
+      ok: false,
+      message: 'npm 未登录，但 pnpm 已登录（better-vae）\n  npm config set ...',
+    })
+
+    await expect(runPublish([])).rejects.toThrow('pnpm 已登录')
+    expect(mocks.runCommand).not.toHaveBeenCalled()
   })
 
   it('发布本身失败时仍然抛出（不吞掉真正的失败）', async () => {
