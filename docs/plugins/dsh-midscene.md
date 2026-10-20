@@ -18,6 +18,8 @@ dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.1-rc.2.10
 
 ## 桥接服务
 
+![Midscene 桥接插件详情页：接入设置、接入密钥与指定测试模型](</images/plugins/dsh-midscene/bridge-settings.jpg>)
+
 插件启动后在 **`127.0.0.1`** 提供四个端点（只绑回环地址，不向局域网暴露）。**端口默认 8787，被占用时自动向上尝试**（最多 20 个），实际端口以插件设置页或 `/v1/midscene-env` 为准：
 
 | 端点 | 用途 |

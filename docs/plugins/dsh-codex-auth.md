@@ -29,7 +29,7 @@ flowchart TD
 
 ![Codex Auth 插件管理页](</images/plugins/dsh-codex-auth/settings.jpg>)
 
-![Codex Auth 登录状态与全局模型设置](</images/plugins/dsh-codex-auth/auth-panel.png>)
+![Codex Auth 登录状态与全局模型设置](</images/plugins/dsh-codex-auth/auth-panel.jpg>)
 
 ## 模型与用量
 

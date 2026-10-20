@@ -14,6 +14,8 @@ dsh plugin --profile web add @tnnevol/dsh-fnos@0.2.1-rc.2.10
 
 ## 在 fnOS 中使用
 
+![从 fnOS 应用入口打开的 DSH：应用框内运行，可读取 NAS 主题并调用目录授权](</images/plugins/dsh-fnos/hosted-in-fnos.jpg>)
+
 文件授权和系统文件操作需要从 fnOS 应用入口打开 DSH。普通浏览器仍可使用 DSH 的基本功能，但无法调用 fnOS 的目录授权和系统文件操作。
 
 ```mermaid

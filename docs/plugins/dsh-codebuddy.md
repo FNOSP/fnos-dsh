@@ -19,7 +19,7 @@ dsh plugin --profile web add @tnnevol/dsh-codebuddy@0.2.1-rc.2.10
 3. 按需填写备注名，选择登录客户端和对应环境；使用企业账号时按界面提示填写企业信息。
 4. 点击「打开登录」，在浏览器中完成 CodeBuddy 授权。授权完成后，账号会出现在账号列表中。
 
-![CodeBuddy 插件详情页的账号列表](</images/plugins/dsh-codebuddy/plugin-manager-account-list.jpg>)
+![CodeBuddy 插件详情页：组件状态、来源信息与账号管理](</images/plugins/dsh-codebuddy/plugin-detail.jpg>)
 
 添加账号时可选填写备注名，方便区分多个账号。再次添加已有账号会更新登录状态，不会重复创建账号；添加其他账号不会改变当前使用的账号。
 
@@ -40,7 +40,7 @@ DSH Desktop 会在系统默认浏览器中打开授权页面。完成授权后�
 
 账号卡片还会显示可用额度、资源包和到期时间。选择「刷新」可重新获取账号状态。某些账号类型不支持的功能不会显示。
 
-![CodeBuddy 账号管理面板：额度总览与账号卡片](</images/plugins/dsh-codebuddy/account-management.png>)
+![CodeBuddy 账号管理面板：额度总览与账号卡片](</images/plugins/dsh-codebuddy/account-management.jpg>)
 
 ## 使用模型
 
@@ -60,9 +60,9 @@ DSH Desktop 会在系统默认浏览器中打开授权页面。完成授权后�
 
 管理面板可从「管理面板」入口或输入区附近的管理图标打开。账号管理页可查看额度总览和资源包详情；「Token 统计」页可按时间范围查看 CodeBuddy 调用的 Token 用量、趋势及模型或工作区分布。统计范围可选近 7、30 或 90 天；数据取自本地 DSH 会话记录，不上传到 CodeBuddy。插件详情页里的「账号管理」与「Token 统计」是同级区块，标题常驻，进入即可看到内容。
 
-![CodeBuddy Token 统计：用量总览与年度活跃热力图](</images/plugins/dsh-codebuddy/token-stats.png>)
+![CodeBuddy Token 统计：用量总览与年度活跃热力图](</images/plugins/dsh-codebuddy/token-stats.jpg>)
 
-![CodeBuddy 用量趋势、用量分布与会话排名](</images/plugins/dsh-codebuddy/usage-trend.png>)
+![CodeBuddy 用量趋势、用量分布与会话排名](</images/plugins/dsh-codebuddy/usage-trend.jpg>)
 
 ## 常见问题
 

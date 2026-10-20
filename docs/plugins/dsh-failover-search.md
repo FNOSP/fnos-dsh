@@ -43,6 +43,8 @@ flowchart LR
 
 下表与插件详情页的表单逐项对应。
 
+![Failover Search 插件详情页的配置区：平台账号、转移与均摊、用量展示与探测](</images/plugins/dsh-failover-search/config.jpg>)
+
 ### 搜索来源与账号
 
 | 配置项 | 说明 | 取值范围 | 默认值 |
@@ -76,6 +78,8 @@ flowchart LR
 ## 用量展示与请求前探测
 
 插件详情页的「平台用量」区块按平台分列各账号：
+
+![Failover Search 平台用量区块：按平台分列各账号的 key 用量与套餐额度](</images/plugins/dsh-failover-search/usage.jpg>)
 
 - **Tavily**：Key 用量、套餐名称与套餐已用/上限。
 - **TinyFish**：钱包余额、自动充值状态与搜索单价。
