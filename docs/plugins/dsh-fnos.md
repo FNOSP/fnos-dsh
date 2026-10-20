@@ -16,6 +16,9 @@ dsh plugin --profile web add @tnnevol/dsh-fnos@0.2.1-rc.2.10
 
 ![从 fnOS 应用入口打开的 DSH：应用框内运行，可读取 NAS 主题并调用目录授权](</images/plugins/dsh-fnos/hosted-in-fnos.jpg>)
 
+
+![fnOS 真机上的 dsh-fnos 插件详情页：运行状态、来源信息与授权目录入口](</images/plugins/dsh-fnos/plugin-detail.jpg>)
+
 文件授权和系统文件操作需要从 fnOS 应用入口打开 DSH。普通浏览器仍可使用 DSH 的基本功能，但无法调用 fnOS 的目录授权和系统文件操作。
 
 ```mermaid
@@ -47,7 +50,7 @@ flowchart TD
 - 填写后按 `Ctrl+S`（macOS 为 `⌘S`）可直接保存；
 - `/api`、`/plugins` 等网关保留路径不可用，保存时会给出提示。
 
-![fnOS 授权目录设置页](</images/plugins/dsh-fnos/authorized-directories.jpg>)
+![fnOS 真机上的授权目录管理：已授权目录、取消授权与第三方插件 proxy 前缀配置](</images/plugins/dsh-fnos/authorized-directories.jpg>)
 
 在 fnOS 中点击对话、工具结果或生成文件里的路径，可交由系统文件管理器打开。会话日志菜单支持下载到当前电脑，或导出到已授权的 NAS 目录。
 
