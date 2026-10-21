@@ -127,6 +127,7 @@ allowBuilds:
   esbuild: true
   koffi: false
   lefthook: true
+  node-mac-permissions: false
   node-pty: false
   protobufjs: true
   sharp: false
