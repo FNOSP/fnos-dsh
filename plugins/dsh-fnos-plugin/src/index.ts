@@ -11,8 +11,6 @@ import { FnosSettingsSchema } from './contracts/theme-schema.ts'
 import { registerGatewayProxyRoutes } from './host/gateway-proxy-routes.ts'
 import { registerStaticAssetRoute } from './host/static-assets.ts'
 import { registerPresentedPathRoute } from './host/presented-open.ts'
-import { applyLoginOriginBridge } from './host/login-origin-bridge.ts'
-import { registerAccountLoginRelayRoute } from './host/account-login-relay.ts'
 
 /** Stable Host bundle name. */
 export const name = '@tnnevol/dsh-fnos'
@@ -52,8 +50,6 @@ export function apply(ctx: Context, config?: FnosConfig): void {
   registerGatewayProxyRoutes(ctx, DSH_SETTINGS_ENTRY_ID)
   registerStaticAssetRoute(ctx)
   registerPresentedPathRoute(ctx)
-  applyLoginOriginBridge(ctx)
-  registerAccountLoginRelayRoute(ctx)
   ctx.inject(['webServer'], httpCtx => {
     httpCtx.effect(
       () => httpCtx.webServer.tapIndex(html => injectCachedFnosTheme(
