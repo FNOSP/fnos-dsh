@@ -105,7 +105,7 @@ flowchart TD
 | 阶段 | 状态 | 说明 |
 | --- | --- | --- |
 | 阶段一 实现与本地验证 | <Badge type="tip" text="已完成" /> | T01-01～T01-07 全部完成；插件 941 条用例全绿，typecheck 与 build 通过。 |
-| 阶段二 真实受限账号验证 | <Badge type="warning" text="部分完成" /> | T02-01、T02-02 通过（真实受限账号自动切换、提示可见、第二轮不再失败）；T02-03（DSH Desktop 复验）待补——本次改动全在宿主侧，Web 与 Desktop 共用同一逻辑。 |
+| 阶段二 真实受限账号验证 | <Badge type="warning" text="部分完成" /> | T02-01、T02-02 通过（真实受限账号自动切换、提示可见、第二轮不再失败）；AC-03「偏好关闭仍换号」改由适配器级集成验证（显式 `autoSwitch: () => false`）；T02-03（DSH Desktop 复验）待补——本次改动全在宿主侧，Web 与 Desktop 共用同一逻辑。 |
 
 ## 交互和行为设计
 
