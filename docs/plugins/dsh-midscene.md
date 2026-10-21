@@ -9,7 +9,7 @@
 **本插件不随 fnOS 应用（FPK）内置分发**——浏览器自动化是用完即走的场景，需要时自行安装。任何 DSH 环境（含 fnOS 上的 DSH）都执行：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.1-rc.2.11
+dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.1-rc.2.12
 ```
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。
@@ -25,7 +25,7 @@ dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.1-rc.2.11
 | 端点 | 用途 |
 | --- | --- |
 | `GET /v1/models` | 模型目录：DSH 当前全部可用模型，标识为「提供方/模型」形式 |
-| `GET /v1/midscene-env` | **生成接入配置**：直接给出可写入 `.env` 的四行变量（`?model=` 指定模型，省略则自动挑一个具备图片能力的） |
+| `GET /v1/midscene-env` | **生成接入配置**：默认给出四行；为专用职责配了模型后，按职责追加对应变量组 |
 | `POST /v1/chat/completions` | 对话补全：流式（SSE）与非流式 |
 | `GET /v1/health` | 健康检查：提供方列表、模型数量、附件服务可用性 |
 
@@ -107,19 +107,14 @@ for m in json.load(sys.stdin)['data']:
 
 **只有标记 `IMG`（`vision: true`）的模型能驱动 Midscene**——它靠截图理解页面，需要图片输入。
 
-指定模型时用 `?model=`，返回里会带上该模型的家族与同能力的备选模型：
-
-```sh
-curl -s "http://127.0.0.1:8787/v1/midscene-env?model=codebuddy/glm-5.3-flash"
-```
+**模型在插件设置页选，不通过 URL 参数传**——`/v1/midscene-env` 不接受 `?model=`，它始终按当前设置生成配置。
 
 #### 关于 `MIDSCENE_MODEL_FAMILY`
 
-插件按模型 id 推断家族，覆盖 Midscene 官方支持的主要系列（豆包 Seed、Qwen、智谱 GLM、Gemini、GPT、DeepSeek、Kimi、MiMo、UI-TARS）。
+插件按**实际使用哪个模型**推断家族，覆盖 Midscene 官方支持的主要系列（豆包 Seed、Qwen、智谱 GLM、Gemini、GPT、DeepSeek、Kimi、MiMo、UI-TARS）。每个职责各自推导，互不串用。
 
-- **推断不出来时不写入该变量**，并在响应里给出 `familyWarning`。这是刻意的保守行为：错的 family 会让坐标定位**静默失准**，比缺值更难排查。
-- 遇到 `familyWarning` 时：换一个已知系列的模型（如目录里的 GLM / DeepSeek / GPT / Kimi 系列），或到 [Midscene 模型配置](https://midscenejs.com/zh/model-common-config)查该模型对应的家族值手动补上。
-- 部分内部代号模型（如 CodeBuddy 的 `hy3`、`space-bunny`、`minimax-m3`）不在 Midscene 官方家族列表内，插件不会替它们猜家族。
+- 识别不出家族的模型（如 CodeBuddy 的 `hy3`、`space-bunny`、`minimax-m3`）**回落到通用协议** `glm-v`：它在 Midscene 未适配的识图模型上实测可正常定位，比让用户自己猜家族值更省事。
+- 家族**不出现在界面上**，也不需要你设置：它是「按哪个模型对话就该用哪套坐标协议」的推论，写错的表现是点击偏几像素而不报错。
 
 ### 跑一条命令
 
@@ -142,9 +137,11 @@ npx -y @midscene/web@1 close
 | `ios-device-automation` | iOS（WebDriverAgent） |
 | `harmonyos-device-automation` | HarmonyOS（HDC） |
 | `vitest-midscene-e2e` | 用 Vitest + Midscene 写跨平台 E2E |
-| `midscenejs` | 知识与 API 参考（概念、模型与 FAMILY、Agent API、YAML 运行器、Midscene Test） |
+| `midscenejs` | 知识与 API 参考（概念、模型与 FAMILY、四职责模型、Agent API、YAML 运行器、Midscene Test、CI 集成） |
 
 前 6 个来自官方 [midscene-skills](https://github.com/web-infra-dev/midscene-skills)（与 Midscene 官方文档「支持的平台」一一对应），`midscenejs` 来自 [tnnevol/skills](https://github.com/tnnevol/skills)。来源与版本见包内 `skills/SOURCE.md`。
+
+`midscenejs` 当前快照对齐 **Midscene v1.16.0**（skill 1.1.0），包含定位模型独立槽位（`MIDSCENE_LOCATE_MODEL_*`）、`jev` 家族与它的适用边界、Puppeteer Test Node、资源清理语义强化，以及 CI 里运行 Midscene Test 的说明。
 
 **技能内容与官方逐字节一致**：插件不改上游文件，升级时整目录覆盖即可，不存在需要重新施加的补丁。
 
@@ -187,7 +184,7 @@ Midscene 的三种运行方式读取**同一套模型环境变量**，接入配�
 | 模型家族不匹配 / 定位不准 | `MIDSCENE_MODEL_FAMILY` 与所选模型不符。核对 Midscene 的模型家族取值；也可用 Midscene 的 `--deep-locate` 提升定位精度 |
 | 图片请求被拒（400） | 所选模型不具备图片输入能力。改用 `/v1/models` 里 `vision: true` 的模型 |
 | 技能目录里看不到 `browser-automation` | 插件未启用或未安装。确认插件管理页里本插件为启用状态并重启 DSH；若你自己装过同名技能，以你的版本为准 |
-| 响应里有 `familyWarning` | 所选模型未匹配到 Midscene 已知家族，配置里没有 `MIDSCENE_MODEL_FAMILY`。换一个已知系列的模型，或按官方文档手动补该值 |
+| 定位偏几像素 | 家族与实际模型不匹配。正常不会发生（插件按模型自动推导）；若手工改过 `.env` 里的 `MIDSCENE_MODEL_FAMILY`，删掉该行重新拉取配置 |
 | npm 权限报错 | `npx` 首次运行需要写 npm 缓存目录。按系统提示修正 `~/.npm` 权限，或设置 `npm_config_cache` 指向可写目录 |
 
 ## 隐私与边界
@@ -204,8 +201,7 @@ Midscene 的三种运行方式读取**同一套模型环境变量**，接入配�
 
 | 配置 | 默认值 | 说明 |
 | --- | --- | --- |
-| `port` | `8787` | 监听端口；占用即报错，不自动更换 |
-| `defaultProvider` | 空 | 裸模型名（不含 `/`）的默认提供方；留空时只接受「提供方/模型」形式 |
+| `port` | `8787` | 首选监听端口；被占用时自动向上尝试（最多 20 个），并把实际端口写回该字段 |
 | `requestTimeoutMs` | `300000` | 单次模型请求超时（毫秒）；`0` 表示不超时 |
 | `logRequests` | `true` | 是否记录每次请求的一行摘要日志 |
 
@@ -252,15 +248,46 @@ pnpm --filter @tnnevol/dsh-midscene run test:bridge "http://127.0.0.1:8070/?toke
 桥接模式复用桌面浏览器配置，因此 `viewportWidth`、`userAgent`、`cookie`、`extraHTTPHeaders`、
 `chromeArgs` 等选项会被忽略。模型配置必须放在 **Node 侧**（终端环境变量）——本仓库的 `.env` 约定正合此要求。
 
-## 指定测试模型
+## 各职责使用的模型（Tabs）
 
-设置页只有一个与模型相关的选项：**指定测试模型**（**单选**）。留空则跟随 DSH 当前会话模型；选定后把鼠标移到选择框上，点右侧的 **×** 即可清空、回到「跟随会话模型」。
+Midscene 把模型按**职责**分成四类，插件用 Tabs 分别配置（对应上游的 `MIDSCENE_*_MODEL_*` 四组变量）：
 
-下拉里**只列出具备识图能力的模型**——Midscene 靠截图理解页面，纯文本模型选进来也跑不了。因此这里不提供「只看识图模型」之类的开关：列出来的本来就是能用的。
+| Tab | 职责 | 留空时 |
+| --- | --- | --- |
+| **默认** | 所有职责的基础模型 | 跟随 DSH 当前会话模型（需具备识图能力） |
+| **定位** | 元素定位与 `deepLocate` | 沿用默认职责 |
+| **规划** | 多步骤规划与分支判断 | 沿用默认职责 |
+| **页面理解** | 断言、数据提取、`aiQuery` / `aiAsk` | 沿用默认职责 |
 
-**为什么是单选而不是列表**：Midscene 的协议家族在启动期从 `.env` 读取，且只有**一个**。如果允许选多个不同系列的模型，回退到备用模型时家族仍是最初那个，反而造成静默错位；而同族备用能救的场景又极少。既然任何时刻只可能有一个模型生效，界面就如实只让选一个。指定的模型在目录中不存在时，插件会如实提示（保留原选择、不静默改选别的）。
+**只配默认就够了**。专用职责是可选优化：界面控件小、点击定位不稳时换一个更擅长定位的模型，长流程分支多时给规划单独配一个，通常比反复调提示词有效。每个 Tab 都会显示「当前实际使用」的模型，据此能确认留空是否按预期回落。
 
-**DSH 里一个识图模型都没有时**，该字段会显示一条提示（说明需要先安装并登录一个提供方），而不是给一个空下拉。
+下拉里**只列出具备识图能力的模型**——Midscene 靠截图理解页面，纯文本模型选进来也跑不了。指定的模型在目录中不存在时，插件会如实提示（保留原选择、不静默改选别的）。**DSH 里一个识图模型都没有时**，整块显示一条提示（说明需要先安装并登录一个提供方），而不是给空下拉。
+
+**为什么每个职责只让选一个、不让选列表**：协议家族由该职责实际使用的模型推导，而它在启动期读入后只有**一个**。多选若混入不同系列，回退到备用模型时家族仍是最初那个，反而造成静默错位；同族备用能救的场景又极少。
+
+### 接入配置只在配置后才变长
+
+默认只有四行。**你为某个职责指定模型后**，该职责才会追加一组变量（并在文件里带一行注释说明）。没配的职责不写，Midscene 自己回落到默认模型：
+
+```sh
+# 只配默认职责时（全部留空也是这样）
+MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"
+MIDSCENE_MODEL_API_KEY="…"
+MIDSCENE_MODEL_NAME="dsh-model"
+MIDSCENE_MODEL_FAMILY="glm-v"
+```
+
+```sh
+# 另外配了「定位」之后，多出这一组
+# 以下为「定位」职责单独指定的模型；不配置则沿用上面的默认模型。
+MIDSCENE_LOCATE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"
+MIDSCENE_LOCATE_MODEL_API_KEY="…"
+MIDSCENE_LOCATE_MODEL_NAME="dsh-model@locate"
+MIDSCENE_LOCATE_MODEL_FAMILY="deepseek"
+MIDSCENE_LOCATE_MODEL_STREAM_MODE="non-stream"
+```
+
+模型名带 `@职责` 后缀是**桥的路由依据**：桥据它判断这次调用属于哪个职责，再打到该职责配置的模型上。所以四组不能共用一个名字——共名会让专用职责的模型永远不被用上。已经写好的四行 `.env` 不需要重新拉取；只有你在设置页新增了专用职责才需要更新它。
 
 ### 协议家族是自动的
 
@@ -284,7 +311,7 @@ Midscene 需要一个 `MIDSCENE_MODEL_FAMILY`（协议家族）才能解析模�
 | --- | --- |
 | 接入密钥 | 安装时自动生成；可一键随机重新生成，或自定义。生成后需同步更新 Midscene 的 `.env`（重新拉一次即可） |
 | Midscene 协议家族 | 下拉选择，选项即 Midscene 接受的白名单（默认 `glm-v`）。它决定提示词模板与坐标解析协议，换模型时可能需要同步调整 |
-| 指定测试模型 | **下拉选择**（可多选、可搜索），选项来自 DSH 当前实际可用的模型目录，默认只列支持图片的模型。留空则跟随 DSH 会话模型；可多选并按顺序尝试第一个可用的 |
+| 各职责使用的模型 | 四个 Tab（默认 / 定位 / 规划 / 页面理解），每个一个下拉（可搜索、可清空），选项只含支持图片的模型。默认留空跟随 DSH 会话模型；其余留空沿用默认 |
 
 「指定测试模型」用下拉而不是手填：手填要求记住「提供方/模型」全称（如 `codebuddy/glm-5.3-flash`），
 写错只会在真正跑 Midscene 时才报错，而用户也无从知道有哪些合法值。下拉选项与 `/v1/models` **同源**
