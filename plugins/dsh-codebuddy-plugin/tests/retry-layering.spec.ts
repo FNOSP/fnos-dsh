@@ -33,8 +33,8 @@ describe('内层只负责换账号，不重复外层的等待与重试', () => {
     const predicate = /const swappable = ([\s\S]*?)(?:\n\s*if \()/.exec(run)?.[1] ?? ''
     expect(predicate).toContain('QUOTA_EXCEEDED_CODE')
     expect(predicate).toContain("'RATE_LIMIT'")
-    // 账号被上游限制也属于「换账号可解决」的一类。
-    expect(predicate).toContain('restricted')
+    // 账号级失败（受限 11140 与其它 403）也属于「换账号可解决」的一类。
+    expect(predicate).toContain('accountRejected')
   })
 
   it('瞬时故障仍交给外层原地重试（换账号无益）', () => {

@@ -17,7 +17,7 @@ const ADAPTER = readFileSync(`${ROOT}/host/adapter.ts`, 'utf8')
 const USAGE_STATUS = readFileSync(`${ROOT}/components/CodeBuddyUsageStatus.tsx`, 'utf8')
 const INDEX = readFileSync(`${ROOT}/client/index.tsx`, 'utf8')
 
-describe('① 开关关闭后被动换号也不生效（账号受限除外）', () => {
+describe('① 开关关闭后被动换号也不生效（账号级失败除外）', () => {
   it('开关是总闸：被动路径也检查 autoSwitch', () => {
     // 用户的直觉是「关掉自动切换 = 不要自动换账号」，包含被动那条路径。
     // 判定收敛到一个函数，两处共用（切换点 + catch）
@@ -25,9 +25,9 @@ describe('① 开关关闭后被动换号也不生效（账号受限除外）', 
     // catch 里把 autoSwitchAllowed 与「可切换错误」两个条件一起判
     expect(ADAPTER).toMatch(/const swappable = error\.code === QUOTA_EXCEEDED_CODE/)
     expect(ADAPTER).toMatch(/\|\| error\.code === 'RATE_LIMIT'/)
-    expect(ADAPTER).toMatch(/\|\| restricted/)
+    expect(ADAPTER).toMatch(/\|\| accountRejected/)
     // 开关仍然拦住额度/限流；账号受限是唯一例外（该账号无法服务任何请求）。
-    expect(ADAPTER).toMatch(/if \(\(!autoSwitchAllowed\(\) && !restricted\) \|\| !swappable\) throw error/)
+    expect(ADAPTER).toMatch(/if \(\(!autoSwitchAllowed\(\) && !accountRejected\) \|\| !swappable\) throw error/)
   })
 
   it('autoSwitch 取值来自 host 的当前开关状态（而非客户端本地值）', () => {
@@ -57,15 +57,15 @@ describe('① 开关关闭后被动换号也不生效（账号受限除外）', 
     expect(throwAt).toBeGreaterThan(guardAt)
     expect(switchAt).toBeGreaterThan(throwAt)
     // 账号受限是不受开关限制的例外，必须在同一处显式写出。
-    expect(run).toMatch(/const restrictedTriggered = lastError\?\.code === ACCOUNT_RESTRICTED_CODE/)
-    expect(run).toMatch(/if \(!autoSwitchAllowed\(\) && !restrictedTriggered\)/)
+    expect(run).toMatch(/const accountRejectedTriggered = lastError\?\.code === ACCOUNT_RESTRICTED_CODE/)
+    expect(run).toMatch(/if \(!autoSwitchAllowed\(\) && !accountRejectedTriggered\)/)
   })
 
   it('两处共用同一个判定函数（避免一处改了另一处漏改）', () => {
     expect(ADAPTER).toMatch(/const autoSwitchAllowed = \(\): boolean => this\.config\.autoSwitch\?\.\(\) \?\? true/)
     // catch 里也用同一个函数
     // 开关仍然拦住额度/限流；账号受限是唯一例外（该账号无法服务任何请求）。
-    expect(ADAPTER).toMatch(/if \(\(!autoSwitchAllowed\(\) && !restricted\) \|\| !swappable\) throw error/)
+    expect(ADAPTER).toMatch(/if \(\(!autoSwitchAllowed\(\) && !accountRejected\) \|\| !swappable\) throw error/)
   })
 })
 

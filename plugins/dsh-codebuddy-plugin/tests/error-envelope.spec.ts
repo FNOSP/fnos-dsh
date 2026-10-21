@@ -66,9 +66,12 @@ describe('wireErrorDetail：分类文本带上业务码', () => {
 })
 
 describe('httpErrorCode 的分类', () => {
-  it('401/403 → AUTH（不看文案）', () => {
+  it('401 → AUTH；其它 403 → ACCOUNT_FORBIDDEN（可换号）', () => {
+    // 401 = 凭据本身不被接受（鉴权失败）；
+    // 403 = 上游拒绝这次请求，换账号可继续，因此独立成码并进入换号集合。
+    // 内容拦截与账号受限都在此之前按业务码分流，不会落到这里。
     expect(httpErrorCode(401, FLAT)).toBe('AUTH')
-    expect(httpErrorCode(403, undefined)).toBe('AUTH')
+    expect(httpErrorCode(403, undefined)).toBe('ACCOUNT_FORBIDDEN')
   })
 
   it('429 + 业务码 6004 → QUOTA（账号×模型额度耗尽，需换账号）', () => {
@@ -136,6 +139,25 @@ describe('httpErrorCode 的分类', () => {
     const modelRate = { code: 11140, msg: 'The model provider is busy, please retry later' }
     expect(httpErrorCode(400, modelRate)).toBe('INVALID_REQUEST')
     expect(httpErrorCode(429, modelRate)).toBe('RATE_LIMIT')
+  })
+
+  /**
+   * 其它 403：上游拒绝这次请求，但既不是内容拦截也不是账号受限。
+   * 它同样只针对当前账号，换号可继续——与 `AUTH` 分开才能进入换号集合。
+   */
+  it('无业务码的 403 → ACCOUNT_FORBIDDEN', () => {
+    expect(httpErrorCode(403, undefined)).toBe('ACCOUNT_FORBIDDEN')
+    expect(httpErrorCode(403, { msg: 'forbidden' })).toBe('ACCOUNT_FORBIDDEN')
+  })
+
+  /** 403 上的两类已知形态必须先被业务码分流，不能落进「其它 403」。 */
+  it('403 上的内容拦截与账号受限仍走各自的分支', () => {
+    const blocked = { code: 11128, msg: 'Illegal API invocation from an unapproved channel' }
+    const restricted = { code: 11140, msg: 'request illegal' }
+    expect(httpErrorCode(403, blocked)).toBe('CONTENT_BLOCKED')
+    expect(httpErrorCode(403, restricted)).toBe('ACCOUNT_RESTRICTED')
+    expect(httpErrorCode(403, blocked)).not.toBe('ACCOUNT_FORBIDDEN')
+    expect(httpErrorCode(403, restricted)).not.toBe('ACCOUNT_FORBIDDEN')
   })
 
   it('受限不被误判为鉴权失败或内容拦截', () => {

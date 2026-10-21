@@ -45,6 +45,8 @@ describe('CodeBuddy 路由重试策略', () => {
   it('账号受限不在可重试集合里（换号才是正确动作）', () => {
     // 重试同一个受限账号毫无意义；它由本层的换号逻辑处理，不是重试。
     expect(normalPolicy().retryableCodes).not.toContain('ACCOUNT_RESTRICTED')
+    // 其它 403 同理：换账号比原地重试更有效。
+    expect(normalPolicy().retryableCodes).not.toContain('ACCOUNT_FORBIDDEN')
   })
 
   it('内容策略拦截不在可重试集合里（确定性失败）', () => {

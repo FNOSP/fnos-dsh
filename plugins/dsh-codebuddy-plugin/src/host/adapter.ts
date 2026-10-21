@@ -200,6 +200,19 @@ const CODEBUDDY_RESTRICTED_MARKER = 'request illegal'
 const ACCOUNT_RESTRICTED_CODE = 'ACCOUNT_RESTRICTED'
 
 /**
+ * **其它 403** 的 harness 错误码：上游拒绝了这次请求，但既不是内容拦截
+ * （11128）也不是账号级受限（11140 + `request illegal`）。
+ *
+ * 为什么也要换号：这类拒绝同样只针对当前账号，换用其它账号往往可以继续；
+ * 归进 `AUTH` 则既不换号也无法自我恢复，用户只能手动切号。
+ *
+ * 为什么不写进受限集合：受限是**持续**的账号状态（需重新登录），而其它 403 可能
+ * 只是某次请求的策略拒绝。把临时拒绝当作长期状态会把可用账号永久跳过，因此只在
+ * 本次请求内排除（复用「已尝试」集合）。
+ */
+const ACCOUNT_FORBIDDEN_CODE = 'ACCOUNT_FORBIDDEN'
+
+/**
  * 从错误体里取业务码的候选字段。
  *
  * CodeBuddy 有两种信封形态（扁平 `{code,msg}` 与嵌套 `{error:{code,data:{code}}}`），
@@ -224,6 +237,7 @@ function wireBusinessCode(error: WireError | undefined): string {
  */
 function switchReasonText(code: string | undefined): string {
   if (code === ACCOUNT_RESTRICTED_CODE) return '账号被上游限制（需重新登录），'
+  if (code === ACCOUNT_FORBIDDEN_CODE) return '账号被上游拒绝（HTTP 403），'
   if (code === 'RATE_LIMIT') return '请求被限流，'
   return '额度不足，'
 }
@@ -254,7 +268,12 @@ export function httpErrorCode(status: number, error?: WireError): string {
     && detail.toLowerCase().includes(CODEBUDDY_RESTRICTED_MARKER)) {
     return ACCOUNT_RESTRICTED_CODE
   }
-  if (status === 401 || status === 403) return 'AUTH'
+  /**
+   * 其余 403：既非内容拦截也非账号受限，同样属于「换个账号可继续」的一类。
+   * 401 仍然是鉴权失败——那表示凭据本身不被接受，与本条的处理不同。
+   */
+  if (status === 403) return ACCOUNT_FORBIDDEN_CODE
+  if (status === 401) return 'AUTH'
   if (isQuotaExceededError(detail)) return QUOTA_EXCEEDED_CODE
   // 业务码 6004：账号×模型的额度用尽（见常量注释）。归 QUOTA 才能触发换账号。
   if (businessCode === CODEBUDDY_QUOTA_EXHAUSTED_CODE) {
@@ -592,8 +611,10 @@ export class CodeBuddyAdapter extends LlmAdapter {
          * 不可用，因此不受「自动切换」偏好拦截。代价是用户会看到一次可见提示
          * （见下方文案），这正是知情的前提。
          */
-        const restrictedTriggered = lastError?.code === ACCOUNT_RESTRICTED_CODE
-        if (!autoSwitchAllowed() && !restrictedTriggered) {
+        /** 账号级失败（受限与其它 403）不受偏好限制，理由见循环入口注释。 */
+        const accountRejectedTriggered = lastError?.code === ACCOUNT_RESTRICTED_CODE
+          || lastError?.code === ACCOUNT_FORBIDDEN_CODE
+        if (!autoSwitchAllowed() && !accountRejectedTriggered) {
           if (lastError === undefined) break
           throw lastError
         }
@@ -678,7 +699,13 @@ export class CodeBuddyAdapter extends LlmAdapter {
          * 瞬时故障（网络、5xx、超时）仍交给外层原地重试：那些换账号确实无益。
          * 内容拦截（CONTENT_BLOCKED）刻意不在此列：换账号不会让同一份内容变合法。
          */
+        /**
+         * 账号级失败：受限（11140）与其它 403。两者都只针对当前账号，换号可继续，
+         * 并且都不受「自动切换」偏好限制——保持原账号只会继续失败。
+         * 区别在持久性：受限写入进程内集合，403 不写（见 ACCOUNT_FORBIDDEN 注释）。
+         */
         const restricted = error.code === ACCOUNT_RESTRICTED_CODE
+        const accountRejected = restricted || error.code === ACCOUNT_FORBIDDEN_CODE
         if (restricted && attemptId !== undefined) {
           /**
            * 记下受限账号，后续请求直接从候选里排除，避免每次都先撞一次失败。
@@ -688,9 +715,9 @@ export class CodeBuddyAdapter extends LlmAdapter {
         }
         const swappable = error.code === QUOTA_EXCEEDED_CODE
           || error.code === 'RATE_LIMIT'
-          || restricted
-        // 受限不受「自动切换」偏好限制：该账号无法服务任何请求，见上方循环入口注释。
-        if ((!autoSwitchAllowed() && !restricted) || !swappable) throw error
+          || accountRejected
+        // 账号级失败不受「自动切换」偏好限制：该账号无法服务任何请求，见上方循环入口注释。
+        if ((!autoSwitchAllowed() && !accountRejected) || !swappable) throw error
         // 把**本轮真正被拒的账号**交给下一轮决策，而不是届时重新读当前账号。
         rejectedId = attemptId
         rejectedReasonCode = error.code

@@ -74,6 +74,7 @@ flowchart TD
 | FNOS-019 | [FPK 版本方案固定前缀与插件基线小尾巴](/requirements/FNOS-019-fpk-version-scheme) | 已完成（本地单测、打包一致性与真实设备升级均通过） |
 | FNOS-020 | [CodeBuddy 瞬时 400 终止整轮修复](/requirements/FNOS-020-codebuddy-transient-400) | 已完成（11 条用例全部通过，含 DSH Web 与 DSH Desktop 双客户端运行时验证） |
 | FNOS-021 | [Midscene 库能力对齐与接入简化](/requirements/FNOS-021-midscene-library-integration) | 规划中（库基线 1.15.1 → 1.16.0、多职责模型接入、思考开关透传、家族推断修正、技能与说明页同步） |
+| FNOS-024 | [CodeBuddy 403 纳入账号切换](/requirements/FNOS-024-codebuddy-403-failover) | 已完成（403 触发换号；适配器级集成验证通过） |
 | FNOS-023 | [CodeBuddy 受限账号触发自动切换](/requirements/FNOS-023-codebuddy-restricted-account-failover) | 已完成（受限账号自动切换；DSH Web 已验，Desktop 待补） |
 | FNOS-022 | [CodeBuddy 模型调用被内容审核拦截修复](/requirements/FNOS-022-codebuddy-content-block-fix) | 已完成（17 条用例全部通过，DSH Web 与 DSH Desktop 双客户端已验；原参考项目对齐项因来源项目停更已取消） |
 

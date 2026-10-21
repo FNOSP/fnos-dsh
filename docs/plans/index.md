@@ -60,6 +60,7 @@ flowchart TD
 | PLAN-FNOS-019 | [FPK 版本方案固定前缀与插件基线小尾巴](/plans/PLAN-FNOS-019-fpk-version-scheme) | 已完成（三阶段全部完成） |
 | PLAN-FNOS-020 | [CodeBuddy 瞬时 400 终止整轮修复](/plans/PLAN-FNOS-020-codebuddy-transient-400) | 已完成（两个阶段均完成，双客户端已验） |
 | PLAN-FNOS-021 | [Midscene 库能力对齐与接入简化](/plans/PLAN-FNOS-021-midscene-library-integration) | 规划中（三阶段 18 个任务） |
+| PLAN-FNOS-024 | [CodeBuddy 403 纳入账号切换](/plans/PLAN-FNOS-024-codebuddy-403-failover) | 已完成（阶段一完成；阶段二以适配器级集成验证执行） |
 | PLAN-FNOS-023 | [CodeBuddy 受限账号触发自动切换](/plans/PLAN-FNOS-023-codebuddy-restricted-account-failover) | 已完成（阶段一完成；阶段二 Web 已验、Desktop 待补） |
 | PLAN-FNOS-022 | [CodeBuddy 模型调用被内容审核拦截修复](/plans/PLAN-FNOS-022-codebuddy-content-block-fix) | 已完成（两阶段 10 个任务，双客户端已验） |
 
