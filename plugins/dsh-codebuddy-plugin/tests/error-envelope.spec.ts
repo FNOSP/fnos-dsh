@@ -98,6 +98,34 @@ describe('httpErrorCode 的分类', () => {
     expect(httpErrorCode(400, { msg: '参数不合法' })).toBe('INVALID_REQUEST')
   })
 
+  /**
+   * 内容策略拦截：判决依据是**业务码**，不是状态码也不是文案。
+   *
+   * 实测两种状态码都出现过（400 与 403，视上游节点而定），而 403 与鉴权失败同码，
+   * 因此必须在按状态分派之前按业务码识别——否则 403 的拦截会被误判成 AUTH。
+   */
+  it('业务码 11128 → CONTENT_BLOCKED（400 与 403 都识别）', () => {
+    const blocked = { code: 11128, msg: 'Illegal API invocation from an unapproved channel' }
+    expect(httpErrorCode(400, blocked)).toBe('CONTENT_BLOCKED')
+    expect(httpErrorCode(403, blocked)).toBe('CONTENT_BLOCKED')
+  })
+
+  it('嵌套信封里的 11128 同样识别', () => {
+    expect(httpErrorCode(400, { error: { data: { code: 11128, msg: 'blocked' } } }))
+      .toBe('CONTENT_BLOCKED')
+    expect(httpErrorCode(400, { error: { code: '11128', message: 'blocked' } }))
+      .toBe('CONTENT_BLOCKED')
+  })
+
+  it('内容拦截不被误判为额度或请求非法', () => {
+    // 三者都是 400/403 家族，但处理方式完全不同：拦截不重试、不换号；
+    // 额度换号；请求非法重试。分类错了就会触发错误的恢复动作。
+    const blocked = { code: 11128, msg: 'Illegal API invocation from an unapproved channel' }
+    expect(httpErrorCode(400, blocked)).not.toBe('INVALID_REQUEST')
+    expect(httpErrorCode(400, blocked)).not.toBe('QUOTA')
+    expect(httpErrorCode(403, blocked)).not.toBe('AUTH')
+  })
+
   it('5xx → SERVER', () => {
     expect(httpErrorCode(503, undefined)).toBe('SERVER')
   })

@@ -141,12 +141,60 @@ function clientUserAgent(client: CodeBuddyClientId, version: string | undefined)
 const CODEBUDDY_QUOTA_EXHAUSTED_CODE = '6004'
 
 /**
+ * CodeBuddy 的业务码：**请求被上游内容策略拦截**。
+ *
+ * 实测语义：上游对请求体做逐字精确匹配（非语义审核），系统提示开头的身份说明
+ * 命中即被拒，响应体为 `{"code":11128,"msg":"Illegal API invocation from an
+ * unapproved channel"}`（HTTP 400），界面文案「请求被拦截，请重新发送」。
+ *
+ * 与「请求参数确实不合法」的区别：本码**带业务码**，可稳定识别；而 FNOS-020
+ * 处理的那类 400 是响应体只有一句话、不带业务码的形态，两者不能混为一谈。
+ *
+ * 为什么必须独立成码，而不是继续归 `INVALID_REQUEST`：
+ *  - `INVALID_REQUEST` 在 {@link CODEBUDDY_RETRY_POLICY} 的**可重试集合**里，
+ *    于是确定性拦截会被当作瞬时抖动重试 2 次，纯属放大无效请求；
+ *  - 它与账号健康无关（实测同账号、同模型、仅改请求内容即切换结果），
+ *    换账号同样无效，不该进换号集合；
+ *  - 独立码让失败**一次即返回且可诊断**，用户能看懂发生了什么。
+ */
+const CODEBUDDY_CONTENT_BLOCKED_CODE = '11128'
+
+/**
+ * 内容策略拦截的 harness 错误码。
+ *
+ * 刻意**不放进** {@link CODEBUDDY_RETRY_POLICY} 的可重试集合，也**不放进**
+ * 换号触发集合（换号判定只认 `QUOTA` 与 `RATE_LIMIT`）：这是确定性失败，
+ * 重试与换号都不会让同一份请求内容变得合法。
+ */
+const CONTENT_BLOCKED_CODE = 'CONTENT_BLOCKED'
+
+/**
+ * 从错误体里取业务码的候选字段。
+ *
+ * CodeBuddy 有两种信封形态（扁平 `{code,msg}` 与嵌套 `{error:{code,data:{code}}}`），
+ * 业务码可能出现在三处中的任意一处，因此逐层取第一个非空值。
+ * @param error - 解析出的错误体。
+ * @returns 业务码字符串；未披露时为 `''`。
+ */
+function wireBusinessCode(error: WireError | undefined): string {
+  const nested = error?.error?.data?.code ?? error?.error?.code ?? error?.code
+  return nested === undefined || nested === null ? '' : String(nested)
+}
+
+/**
  * 把 HTTP 状态映射为稳定的 harness 错误码。
  * @param status - 非 2xx 的状态码。
  * @param error - 可读时为解析出的 provider 错误体。
  * @returns 规范化后的错误码。
  */
 export function httpErrorCode(status: number, error?: WireError): string {
+  /**
+   * 内容策略拦截必须**先于** `AUTH` 与 400 的通用分支判定。
+   *
+   * 实测两种状态码都出现过（400 与 403，视上游节点而定），且 403 与鉴权失败
+   * 同码，因此只能在按状态分派之前按业务码识别。
+   */
+  if (wireBusinessCode(error) === CODEBUDDY_CONTENT_BLOCKED_CODE) return CONTENT_BLOCKED_CODE
   if (status === 401 || status === 403) return 'AUTH'
   /**
    * 分类文本由 `wireErrorDetail` 生成：把业务 `code` 也拼进去。
@@ -158,7 +206,7 @@ export function httpErrorCode(status: number, error?: WireError): string {
   const detail = wireErrorDetail(error)
   if (isQuotaExceededError(detail)) return QUOTA_EXCEEDED_CODE
   // 业务码 6004：账号×模型的额度用尽（见常量注释）。归 QUOTA 才能触发换账号。
-  if (String(error?.code ?? error?.error?.data?.code ?? '') === CODEBUDDY_QUOTA_EXHAUSTED_CODE) {
+  if (wireBusinessCode(error) === CODEBUDDY_QUOTA_EXHAUSTED_CODE) {
     return QUOTA_EXCEEDED_CODE
   }
   if (status === 429) return 'RATE_LIMIT'

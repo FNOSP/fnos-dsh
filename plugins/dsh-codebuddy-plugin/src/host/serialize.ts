@@ -10,6 +10,7 @@
 
 import { contentHasImage, LlmError } from '@deepseek-ai/dsh-llm'
 import type { ContentBlock, GenerateOptions, RequestMessage } from '@deepseek-ai/dsh-llm'
+import { maskAuditFingerprints } from './outbound-mask.ts'
 import type { WireMessage, WireRequest, WireTool } from './types.ts'
 
 /** 拼接一条消息的文本块。 */
@@ -102,7 +103,9 @@ export function serializeMessages(
   for (const message of messages) {
     assertSupportedContent(message.content, supportsImages)
     if (message.role === 'system' || message.role === 'developer') {
-      wire.push({ role: 'system', content: flattenText(message.content) })
+      // 系统来源文本需过一遍指纹改写：上游按逐字匹配拦截系统提示开头的身份说明，
+      // 详见 {@link maskAuditFingerprints}。其余角色实测不触发，不做改写。
+      wire.push({ role: 'system', content: maskAuditFingerprints(flattenText(message.content)) })
       continue
     }
     if (message.role === 'assistant') {
@@ -150,7 +153,9 @@ export function buildWireRequest(messages: WireMessage[], options: GenerateOptio
 
   const wireMessages: WireMessage[] = []
   if (options.system !== undefined) {
-    wireMessages.push({ role: 'system', content: options.system })
+    // 这是请求里**第一个**系统消息，其开头正是上游审核比对的锚点位置，
+    // 必须与 session 内的系统消息走同一套改写。
+    wireMessages.push({ role: 'system', content: maskAuditFingerprints(options.system) })
   }
   wireMessages.push(...messages)
 

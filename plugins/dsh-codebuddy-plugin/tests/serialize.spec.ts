@@ -124,3 +124,85 @@ describe('CodeBuddy request serialization', () => {
     expect(tool.tool_call_id).toBe(shortId)
   })
 })
+
+/**
+ * 出站指纹改写必须覆盖**两条**系统消息来源：`options.system`（请求开头的
+ * 系统提示，上游审核比对的锚点）与 session 内的 system/developer 消息。
+ * 只接一处会让另一条路径继续被 400/11128 拦截。
+ */
+describe('出站指纹改写接入', () => {
+  const BANNER = 'You are an AI agent powered by DeepSeek Harness.'
+
+  it('options.system 开头的身份说明被改写', () => {
+    const options = {
+      provider: 'codebuddy',
+      model: 'x',
+      system: `${BANNER}\n\nYou are a coding agent.`,
+      messages: [textMessage],
+    } as GenerateOptions
+    const request = serializeRequest(options, false)
+    const system = request.messages[0] as { role: string, content: string }
+    expect(system.role).toBe('system')
+    expect(system.content.startsWith('You are an AI agent powered via DeepSeek Harness.')).toBe(true)
+    expect(system.content.endsWith('\n\nYou are a coding agent.')).toBe(true)
+  })
+
+  it('session 内的 system 消息同样被改写', () => {
+    const systemMessage: Message = {
+      id: 's' as never,
+      role: 'system',
+      content: [{ type: 'text', text: BANNER }],
+      source: { kind: 'system' } as never,
+    }
+    const options = {
+      provider: 'codebuddy',
+      model: 'x',
+      messages: [systemMessage, textMessage],
+    } as GenerateOptions
+    const request = serializeRequest(options, false)
+    const system = request.messages[0] as { role: string, content: string }
+    expect(system.role).toBe('system')
+    expect(system.content).toBe('You are an AI agent powered via DeepSeek Harness.')
+  })
+
+  it('developer 消息按系统消息处理后同样被改写', () => {
+    const developer: Message = {
+      id: 'd' as never,
+      role: 'developer',
+      content: [{ type: 'text', text: BANNER }],
+      source: { kind: 'system' } as never,
+    }
+    const options = {
+      provider: 'codebuddy',
+      model: 'x',
+      messages: [developer, textMessage],
+    } as GenerateOptions
+    const request = serializeRequest(options, false)
+    const system = request.messages[0] as { role: string, content: string }
+    expect(system.role).toBe('system')
+    expect(system.content).toBe('You are an AI agent powered via DeepSeek Harness.')
+  })
+
+  /** 用户正文不参与改写：上游只比对系统提示开头，改用户内容属于多余误伤。 */
+  it('用户消息内的同一句保持原样', () => {
+    const userMessage: Message = {
+      id: 'u' as never,
+      role: 'user',
+      content: [{ type: 'text', text: BANNER }],
+      source: { kind: 'user' } as never,
+    }
+    const options = {
+      provider: 'codebuddy',
+      model: 'x',
+      messages: [userMessage],
+    } as GenerateOptions
+    const request = serializeRequest(options, false)
+    expect(request.messages[0]).toEqual({ role: 'user', content: BANNER })
+  })
+
+  it('无系统提示时请求形态不变', () => {
+    const options = { provider: 'codebuddy', model: 'x', messages: [textMessage] } as GenerateOptions
+    const request = serializeRequest(options, false)
+    expect(request.messages).toEqual([{ role: 'user', content: 'hello' }])
+  })
+})
