@@ -304,3 +304,55 @@ describe('decideReactiveTarget：被动切换', () => {
     expect(d.kind).toBe('stay')
   })
 })
+
+/**
+ * 账号被上游限制（403 / 业务码 11140）后的候选处理。
+ *
+ * 受限与「额度不足」「凭据过期」都不同：凭据仍有效、额度也可能充足，但上游拒绝
+ * 为该账号服务。把它当普通候选会让切换目标立刻再失败一次。
+ */
+describe('受限账号不进入切换候选', () => {
+  const restrictedCandidate = (id: string, remainingPct: number): SwitchCandidate => ({
+    id,
+    nickname: `账号${id}`,
+    credentialValid: true,
+    restricted: true,
+    remainingPct,
+  })
+
+  it('主动切换不会选受限账号（即便它额度更高）', () => {
+    const decision = decideProactiveTarget(proactive({
+      candidates: [candidate('A', 5), restrictedCandidate('R', 99)],
+    }))
+    expect(decision.kind).toBe('stay')
+  })
+
+  it('被动切换跳过受限账号，改选其余可用账号', () => {
+    const decision = decideReactiveTarget({
+      candidates: [restrictedCandidate('R', 90), candidate('B', 50)],
+      failedId: 'A',
+      triedIds: ['A'],
+    })
+    expect(decision.kind).toBe('switch')
+    if (decision.kind === 'switch') expect(decision.targetId).toBe('B')
+  })
+
+  it('全部候选都受限时保持不动（由调用方报错说明需重新登录）', () => {
+    const decision = decideReactiveTarget({
+      candidates: [restrictedCandidate('R1', 90), restrictedCandidate('R2', 80)],
+      failedId: 'A',
+      triedIds: ['A'],
+    })
+    expect(decision.kind).toBe('stay')
+    if (decision.kind === 'stay') expect(decision.code).toBe('no-viable-candidate')
+  })
+
+  it('未标记受限的账号行为不变（回归）', () => {
+    const decision = decideReactiveTarget({
+      candidates: [candidate('B', 50)],
+      failedId: 'A',
+      triedIds: ['A'],
+    })
+    expect(decision.kind).toBe('switch')
+  })
+})

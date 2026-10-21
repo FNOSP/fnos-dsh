@@ -131,8 +131,10 @@ export function decideReactiveTarget(input: ReactiveSwitchInput): SwitchDecision
   }
   // 被动切换同样要求额度已知：未知额度的账号可能同样被拒，切过去只是浪费一次尝试。
   // 但在**没有**任何已知额度账号时放宽——有凭据有效且未尝试的账号总比直接失败好。
-  const known = remaining.filter(candidate => candidate.credentialValid && candidate.remainingPct !== undefined)
-  const pool = known.length > 0 ? known : remaining.filter(candidate => candidate.credentialValid)
+  // 被上游限制的账号不再作为候选：它只会再失败一次，与「已尝试过」同等对待。
+  const usable = remaining.filter(candidate => candidate.restricted !== true)
+  const known = usable.filter(candidate => candidate.credentialValid && candidate.remainingPct !== undefined)
+  const pool = known.length > 0 ? known : usable.filter(candidate => candidate.credentialValid)
   if (pool.length === 0) {
     return { kind: 'stay', code: 'no-viable-candidate', reason: '未尝试过的账号凭据都已失效' }
   }
@@ -164,6 +166,8 @@ function pickBest(args: {
 }): { candidate: SwitchCandidate, remainingPct: number, gainPct: number } | undefined {
   const viable = args.candidates.filter((candidate) => {
     if (candidate.id === args.activeId) return false
+    // 被上游限制的账号不参与主动切换：切过去只会再失败一次。
+    if (candidate.restricted === true) return false
     if (!candidate.credentialValid) return false
     // 额度未知的候选不参与主动切换：切过去可能同样不足。
     if (candidate.remainingPct === undefined) return false

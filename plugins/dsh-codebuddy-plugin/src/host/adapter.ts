@@ -169,6 +169,37 @@ const CODEBUDDY_CONTENT_BLOCKED_CODE = '11128'
 const CONTENT_BLOCKED_CODE = 'CONTENT_BLOCKED'
 
 /**
+ * CodeBuddy 的业务码：**账号被上游限制**（需重新登录才能恢复）。
+ *
+ * 实测形态：HTTP 403 + `{"code":11140,"msg":"request illegal"}`。判定要点：
+ *  - 与请求内容、模型无关——同一时刻换用其它账号即可正常调用，被拒账号持续失败；
+ *  - 与鉴权失败不同：token 本身仍有效，只是该账号被上游限制，因此**不应**据此
+ *    丢弃内存凭据，也不能当作「凭据过期」处理；
+ *  - 与内容拦截（11128）相反：内容拦截换号无效，账号受限**必须换号**。
+ *
+ * 该码还承载另一种与账号无关的形态：模型级限流文案。两者只能按文案区分，
+ * 见 {@link CODEBUDDY_RESTRICTED_MARKER}。
+ */
+const CODEBUDDY_ACCOUNT_RESTRICTED_CODE = '11140'
+
+/**
+ * 账号级受限的文案特征。
+ *
+ * 上游把 11140 同时用于两种情况，业务码本身不足以区分：账号级授权问题带
+ * `request illegal` 文案；模型级限流带模型提供方相关文案（那种应归 `RATE_LIMIT`，
+ * 换账号也可能有效，但语义是限流而非封禁）。因此只在文案命中时判账号受限。
+ */
+const CODEBUDDY_RESTRICTED_MARKER = 'request illegal'
+
+/**
+ * 账号被上游限制的 harness 错误码。
+ *
+ * 与 {@link CONTENT_BLOCKED_CODE} 的区别：内容拦截**不换号**，受限**必须换号**。
+ * 两者都不进可重试集合——重试同一账号对这一类失败没有意义。
+ */
+const ACCOUNT_RESTRICTED_CODE = 'ACCOUNT_RESTRICTED'
+
+/**
  * 从错误体里取业务码的候选字段。
  *
  * CodeBuddy 有两种信封形态（扁平 `{code,msg}` 与嵌套 `{error:{code,data:{code}}}`），
@@ -182,31 +213,51 @@ function wireBusinessCode(error: WireError | undefined): string {
 }
 
 /**
+ * 生成切换提示里的「原因」片段。
+ *
+ * 提示必须说明**为什么**切换：额度不足、被限流、账号被限制三者的用户动作完全不同
+ * （前者等重置、中者可换模型、后者要重新登录）。旧实现一律写「额度不足」，
+ * 对后两种都是误导。
+ *
+ * @param code - 触发本次切换的错误码。
+ * @returns 可直接拼进提示的原因文本（含结尾逗号）。
+ */
+function switchReasonText(code: string | undefined): string {
+  if (code === ACCOUNT_RESTRICTED_CODE) return '账号被上游限制（需重新登录），'
+  if (code === 'RATE_LIMIT') return '请求被限流，'
+  return '额度不足，'
+}
+
+/**
  * 把 HTTP 状态映射为稳定的 harness 错误码。
  * @param status - 非 2xx 的状态码。
  * @param error - 可读时为解析出的 provider 错误体。
  * @returns 规范化后的错误码。
  */
 export function httpErrorCode(status: number, error?: WireError): string {
+  const businessCode = wireBusinessCode(error)
+  const detail = wireErrorDetail(error)
   /**
    * 内容策略拦截必须**先于** `AUTH` 与 400 的通用分支判定。
    *
    * 实测两种状态码都出现过（400 与 403，视上游节点而定），且 403 与鉴权失败
    * 同码，因此只能在按状态分派之前按业务码识别。
    */
-  if (wireBusinessCode(error) === CODEBUDDY_CONTENT_BLOCKED_CODE) return CONTENT_BLOCKED_CODE
-  if (status === 401 || status === 403) return 'AUTH'
+  if (businessCode === CODEBUDDY_CONTENT_BLOCKED_CODE) return CONTENT_BLOCKED_CODE
   /**
-   * 分类文本由 `wireErrorDetail` 生成：把业务 `code` 也拼进去。
-   *
-   * DSH 的 `isQuotaExceededError` 判定正则只认**英文**，而 CodeBuddy 的文案是
-   * 中文（「您的使用量已超出频率限制」），单靠文案匹配不上；因此下面额外按
-   * **业务码**判定，不让分类退化成「凡是 429 都是限流」。
+   * 账号被上游限制同样带 403，必须在 `AUTH` 之前识别出来：
+   * 它需要**换号**（与鉴权失败不换号、要重新登录的处理不同）。
+   * 只在文案命中 `request illegal` 时判受限，其余 11140（模型级限流）留给
+   * 下面的限流分支。
    */
-  const detail = wireErrorDetail(error)
+  if (businessCode === CODEBUDDY_ACCOUNT_RESTRICTED_CODE
+    && detail.toLowerCase().includes(CODEBUDDY_RESTRICTED_MARKER)) {
+    return ACCOUNT_RESTRICTED_CODE
+  }
+  if (status === 401 || status === 403) return 'AUTH'
   if (isQuotaExceededError(detail)) return QUOTA_EXCEEDED_CODE
   // 业务码 6004：账号×模型的额度用尽（见常量注释）。归 QUOTA 才能触发换账号。
-  if (wireBusinessCode(error) === CODEBUDDY_QUOTA_EXHAUSTED_CODE) {
+  if (businessCode === CODEBUDDY_QUOTA_EXHAUSTED_CODE) {
     return QUOTA_EXCEEDED_CODE
   }
   if (status === 429) return 'RATE_LIMIT'
@@ -506,6 +557,13 @@ export class CodeBuddyAdapter extends LlmAdapter {
     /** 上一轮被拒的账号 id；供下一轮换号决策排除「已失败的那个」。 */
     let rejectedId: string | undefined
     /**
+     * 上一轮被拒的错误码：只用于生成**按原因区分**的切换提示。
+     *
+     * 与 `rejectedId` 同时写入：提示要说明「为什么切换」，而 `lastError` 在下一轮
+     * 结束前就可能被覆盖，用码单独记住比从错误对象里反复推断更可靠。
+     */
+    let rejectedReasonCode: string | undefined
+    /**
      * 开关是否允许换号。**在切换点显式检查**，而不是依赖「上一轮 catch 检查过」
      * 这个隐式前提。
      *
@@ -515,13 +573,27 @@ export class CodeBuddyAdapter extends LlmAdapter {
      * **包含被动换号在内**的全部自动换号。
      */
     const autoSwitchAllowed = (): boolean => this.config.autoSwitch?.() ?? true
+    /**
+     * 切换提示是否已经作为**块 0** 产出。
+     *
+     * 提示必须先于模型输出呈现，而模型输出的块索引从 0 开始；两者共用一套索引
+     * 会互相覆盖。因此提示占用块 0，模型输出从块 1 起（见 attemptStream 的
+     * `startIndex`）。标记在这里作用域内，供每一轮尝试读取。
+     */
+    let noticeBlockEmitted = false
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       // 首次尝试前不切换；之后的每一轮都已经由上一轮末尾切好了账号。
       if (attempt > 0) {
         // 走到这里说明上一轮的 catch 已经记下了错误（否则第 0 轮就抛出去了），
         // 但保持显式判空：不依赖「另一个分支的副作用」，将来挪动循环结构也不会
         // 变成抛一个 undefined。
-        if (!autoSwitchAllowed()) {
+        /**
+         * 账号**被上游限制**是例外：该账号无法服务任何请求，保持原样等于让插件
+         * 不可用，因此不受「自动切换」偏好拦截。代价是用户会看到一次可见提示
+         * （见下方文案），这正是知情的前提。
+         */
+        const restrictedTriggered = lastError?.code === ACCOUNT_RESTRICTED_CODE
+        if (!autoSwitchAllowed() && !restrictedTriggered) {
           if (lastError === undefined) break
           throw lastError
         }
@@ -539,14 +611,19 @@ export class CodeBuddyAdapter extends LlmAdapter {
          * 重试本身仍然继续：这正是这个分支存在的意义（旧实现在这里直接失败）。
          */
         if (switched.from !== switched.to) {
-          // 在重试的流开始前，把接管以可见的助手文本呈现出来：StreamChunk
-          // 联合类型没有 status 成员，而用户应当看到请求为何短暂停顿、以及
-          // 后续对话由谁的额度来支付。
-          yield {
-            type: 'text-delta',
-            index: 0,
-            text: `\n[CodeBuddy] 账号「${switched.from}」额度不足，已自动切换至「${switched.to}」继续。\n`,
-          }
+          /**
+           * 把接管以**可见的助手文本**呈现出来：用户应当看到请求为何短暂停顿、
+           * 以及后续对话由谁的额度来支付。
+           *
+           * 必须按完整的块协议产出（block-start → text-delta → block-end）：
+           * 只发一个裸 `text-delta` 时宿主不会为它开块，文本会被丢弃——实测
+           * 界面完全没有提示。`StreamChunk` 联合类型也没有 status 成员可用。
+           */
+          const notice = `[CodeBuddy] ${switchReasonText(rejectedReasonCode)}账号「${switched.from}」，已自动切换至「${switched.to}」继续。`
+          yield { type: 'block-start', index: 0, blockType: 'text' }
+          yield { type: 'text-delta', index: 0, text: notice }
+          yield { type: 'block-end', index: 0, block: { type: 'text', text: notice } }
+          noticeBlockEmitted = true
         }
       }
 
@@ -568,7 +645,7 @@ export class CodeBuddyAdapter extends LlmAdapter {
        */
       let emitted = false
       try {
-        for await (const chunk of this.attemptStream(options)) {
+        for await (const chunk of this.attemptStream(options, noticeBlockEmitted ? 1 : 0)) {
           emitted = true
           yield chunk
         }
@@ -579,7 +656,8 @@ export class CodeBuddyAdapter extends LlmAdapter {
         if (emitted) throw error
         lastError = error
         /**
-         * 换账号的两个触发条件：额度耗尽（QUOTA）与被限流（RATE_LIMIT）。
+         * 换账号的三个触发条件：额度耗尽（QUOTA）、被限流（RATE_LIMIT）与
+         * **账号被上游限制**（ACCOUNT_RESTRICTED）。
          *
          * 曾经只认 QUOTA，理由是「限流是服务端对该账号的节流，换账号不解决」。
          * **实测否证了这个前提**：CodeBuddy 的 429 是**账号 × 模型**级别的额度
@@ -594,12 +672,28 @@ export class CodeBuddyAdapter extends LlmAdapter {
          * 同一个账号同一个模型，在重置时间之前不可能成功——白耗 5 次请求后失败，
          * 用户看到的就是「开启了自动切换却没有切换」。
          *
+         * 受限账号（403/11140）同理：实测同一时刻换账号即恢复正常，保持原账号
+         * 只会让每个请求都失败，用户不得不手动切号才能继续。
+         *
          * 瞬时故障（网络、5xx、超时）仍交给外层原地重试：那些换账号确实无益。
+         * 内容拦截（CONTENT_BLOCKED）刻意不在此列：换账号不会让同一份内容变合法。
          */
-        const swappable = error.code === QUOTA_EXCEEDED_CODE || error.code === 'RATE_LIMIT'
-        if (!autoSwitchAllowed() || !swappable) throw error
+        const restricted = error.code === ACCOUNT_RESTRICTED_CODE
+        if (restricted && attemptId !== undefined) {
+          /**
+           * 记下受限账号，后续请求直接从候选里排除，避免每次都先撞一次失败。
+           * 该状态只在进程内，不写凭据文件；重新登录会清掉。
+           */
+          try { this.config.session.markAccountRestricted(attemptId) } catch { /* 标记失败不影响换号 */ }
+        }
+        const swappable = error.code === QUOTA_EXCEEDED_CODE
+          || error.code === 'RATE_LIMIT'
+          || restricted
+        // 受限不受「自动切换」偏好限制：该账号无法服务任何请求，见上方循环入口注释。
+        if ((!autoSwitchAllowed() && !restricted) || !swappable) throw error
         // 把**本轮真正被拒的账号**交给下一轮决策，而不是届时重新读当前账号。
         rejectedId = attemptId
+        rejectedReasonCode = error.code
       }
     }
     // 换不动了（没有未尝试过的账号、或尝试次数用尽）：把最后一次的失败如实抛出，
@@ -643,6 +737,8 @@ export class CodeBuddyAdapter extends LlmAdapter {
         id: entry.id,
         nickname: entry.account.nickname,
         credentialValid: entry.auth.refreshExpiresAt > Date.now(),
+        // 受限账号不进入候选：它的凭据与额度都可能正常，但上游拒绝服务。
+        ...this.config.session.isAccountRestricted(entry.id) ? { restricted: true } : {},
         ...remainingPct === undefined ? {} : { remainingPct },
       })
     }
@@ -692,7 +788,7 @@ export class CodeBuddyAdapter extends LlmAdapter {
    * 对当前活动账号的一次请求尝试：解析身份与端点、fetch 并翻译 SSE 体。
    * 不重试、不故障转移——那些由上面的包装层负责。
    */
-  private async * attemptStream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+  private async * attemptStream(options: GenerateOptions, startIndex = 0): AsyncIterable<StreamChunk> {
     // 每次调用只解析一次，且发生在第一个 yield 之前：端点事实与身份一起
     // 冻结，流中途刷新的 token 不会与另一代端点配对。
     const connection = this.config.options()
@@ -818,14 +914,29 @@ export class CodeBuddyAdapter extends LlmAdapter {
       } catch {
         // 只吞掉错误体解析失败：状态码仍能标识故障，畸形的 JSON 不能掩盖它。
       }
-      if (response.status === 401 || response.status === 403) {
+      const code = httpErrorCode(response.status, providerError)
+      /**
+       * 只有**鉴权真的失败**才丢弃内存凭据。
+       *
+       * 旧实现把 401/403 一律视为「token 被拒」，但 403 还承载两类与凭据无关的
+       * 情况：内容拦截（11128）与账号被上游限制（11140）。那两种情形下 token
+       * 仍然有效，丢弃它只会让下一次调用重新读同一份凭据，误导排查方向。
+       */
+      if (code === 'AUTH') {
         // 已存储的 token 被直接拒绝；把它从内存里丢弃，让下一次调用重新读
         // 文件（并发的登录可能已经替换了它），而不是重试一个已知被拒的 token。
         this.config.session.invalidate()
       }
       const delay = providerRetryAfterMs(response.headers.get('retry-after'))
       const id = requestId(response.headers)
-      throw new LlmError(message, httpErrorCode(response.status, providerError), {
+      /**
+       * 账号受限的原文只有 `request illegal`，对用户没有可操作性。补一句下一步
+       * 动作：这类账号靠等待无法恢复，必须重新登录。
+       */
+      const finalMessage = code === ACCOUNT_RESTRICTED_CODE
+        ? `CodeBuddy 账号被上游限制，该账号需重新登录（上游原文：${message}）`
+        : message
+      throw new LlmError(finalMessage, code, {
         status: response.status,
         ...delay === undefined ? {} : { providerRetryAfterMs: delay },
         ...id === undefined ? {} : { requestId: id },
@@ -836,7 +947,7 @@ export class CodeBuddyAdapter extends LlmAdapter {
       throw new LlmError('CodeBuddy API returned no response body', 'EMPTY_RESPONSE')
     }
 
-    yield* translate(parseSse(response.body), options.tools)
+    yield* translate(parseSse(response.body), options.tools, startIndex)
   }
 }
 

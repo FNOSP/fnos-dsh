@@ -101,6 +101,19 @@ export class CodeBuddySession {
    */
   private readonly probes = new UsageProbeCache()
 
+  /**
+   * 被上游**限制**的账号 id（账号级 403 / 业务码 11140）。
+   *
+   * 为什么需要跨请求记住：被动换号本来只排除「本次请求已尝试过」的账号，但那
+   * 只覆盖一次请求。受限是**持续状态**——不做记录的话，每个新请求都会先撞一次
+   * 失败再切换，用户每次都要多等一轮。
+   *
+   * 为什么只在进程内：它是上游对账号的临时状态，写进凭据文件会让「重新登录」
+   * 与「文件迁移」都背上额外语义；进程结束即复位，代价只是重启后多失败一次。
+   * 重新登录（凭据被替换）或账号被删除时清除，见 {@link clearRestricted}。
+   */
+  private readonly restrictedAccountIds = new Set<string>()
+
   constructor(private readonly logger?: SessionLogger) {}
 
   /** 进行中的流式请求数，供主动切换判定是否避让。 */
@@ -363,6 +376,37 @@ export class CodeBuddySession {
   }
 
   /**
+   * 标记某账号被上游限制（账号级 403 / 业务码 11140）。
+   *
+   * 由 adapter 在识别到该错误时调用；被标记的账号在换号候选里被排除，直到
+   * 重新登录或进程重启。
+   * @param id - 账号本地 id。
+   */
+  markAccountRestricted(id: string): void {
+    this.restrictedAccountIds.add(id)
+  }
+
+  /**
+   * 该账号是否处于「被上游限制」状态。
+   * @param id - 账号本地 id。
+   * @returns 是否受限。
+   */
+  isAccountRestricted(id: string): boolean {
+    return this.restrictedAccountIds.has(id)
+  }
+
+  /**
+   * 清除受限标记：账号重新登录（凭据被替换）或已被删除时调用。
+   *
+   * 不提供「全部清除」以外的批量语义：受限是针对单个账号的上游状态，账号集合
+   * 变化时逐个对齐更不容易误放行。
+   * @param id - 账号本地 id。
+   */
+  clearRestricted(id: string): void {
+    this.restrictedAccountIds.delete(id)
+  }
+
+  /**
    * 凭据文档中的账号总数。
    *
    * 供 adapter 决定内层尝试上限：内层语义是「每个账号试一次」，上限因此天然由
@@ -426,6 +470,8 @@ export class CodeBuddySession {
         id: entry.id,
         nickname: entry.account.nickname,
         credentialValid,
+        // 受限账号不参与切换决策（见 Session.restrictedAccountIds）。
+        ...this.isAccountRestricted(entry.id) ? { restricted: true } : {},
         ...remainingPct === undefined ? {} : { remainingPct },
       })
     }

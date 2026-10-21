@@ -150,8 +150,15 @@ function closeBlock(block: OpenBlock, tools: readonly ToolDefinition[]): Content
 export async function* translate(
   payloads: AsyncIterable<string>,
   tools: readonly ToolDefinition[] = [],
+  /**
+   * 起始块索引。
+   *
+   * 默认 0；调用方若已经产出过前置块（例如「已自动切换账号」提示），则传 1 让出
+   * 块 0——否则模型输出的第一个块会与提示块撞索引、互相覆盖。
+   */
+  startIndex = 0,
 ): AsyncGenerator<StreamChunk> {
-  let nextIndex = 0
+  let nextIndex = startIndex
   let textBlock: OpenBlock | undefined
   let reasoningBlock: OpenBlock | undefined
   const toolBlocks = new Map<number, OpenBlock>()

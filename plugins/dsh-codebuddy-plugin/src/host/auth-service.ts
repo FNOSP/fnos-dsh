@@ -1628,6 +1628,12 @@ export class CodeBuddyAuthService {
         }
       }
       await saveStorage(next)
+      /**
+       * 重新登录意味着**新的凭据**，此前因账号被上游限制而记下的标记应随之失效：
+       * 否则用户重新登录后该账号仍被排除在候选之外，表现为「登录了却还是不用它」。
+       * 标记只存在于进程内，这里清的是同一进程里的旧状态。
+       */
+      this.session?.clearRestricted(fresh.id)
       this.notifyModels()
       return fresh
     } catch (error) {

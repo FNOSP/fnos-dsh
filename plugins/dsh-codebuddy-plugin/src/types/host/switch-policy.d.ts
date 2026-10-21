@@ -41,6 +41,14 @@ export interface SwitchCandidate {
    * `decideProactiveTarget` 中关于未知额度的说明。
    */
   remainingPct?: number
+  /**
+   * 该账号是否已被上游**限制**（账号级 403 / 业务码 11140）。
+   *
+   * 与 `credentialValid` 和 `remainingPct` 都是不同维度：凭据仍有效、额度也可能
+   * 充足，但上游拒绝为该账号服务，只能重新登录恢复。受限账号**不得**被选为切换
+   * 目标——切过去只会再失败一次。
+   */
+  restricted?: boolean
 }
 /** 主动切换的输入。 */
 export interface ProactiveSwitchInput {

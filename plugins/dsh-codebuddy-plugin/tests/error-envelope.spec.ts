@@ -117,6 +117,35 @@ describe('httpErrorCode 的分类', () => {
       .toBe('CONTENT_BLOCKED')
   })
 
+  /**
+   * 账号被上游限制：403 + 业务码 11140 + `request illegal`。
+   *
+   * 它必须独立于 `AUTH`：鉴权失败要重新登录（且不换号），受限账号则是**换号即可
+   * 恢复**，两者对用户与对故障转移的意义完全不同。
+   */
+  it('业务码 11140 + request illegal → ACCOUNT_RESTRICTED', () => {
+    const restricted = { code: 11140, msg: 'request illegal' }
+    expect(httpErrorCode(403, restricted)).toBe('ACCOUNT_RESTRICTED')
+  })
+
+  /**
+   * 同一个业务码还承载「模型级限流」形态：那种文案不含 `request illegal`，
+   * 应归 `RATE_LIMIT`（限流，不是封禁）。只按码判定会把限流误报成受限。
+   */
+  it('业务码 11140 但文案是模型级限流 → 仍按限流处理', () => {
+    const modelRate = { code: 11140, msg: 'The model provider is busy, please retry later' }
+    expect(httpErrorCode(400, modelRate)).toBe('INVALID_REQUEST')
+    expect(httpErrorCode(429, modelRate)).toBe('RATE_LIMIT')
+  })
+
+  it('受限不被误判为鉴权失败或内容拦截', () => {
+    const restricted = { code: 11140, msg: 'request illegal' }
+    expect(httpErrorCode(403, restricted)).not.toBe('AUTH')
+    expect(httpErrorCode(403, restricted)).not.toBe('CONTENT_BLOCKED')
+    // 401 仍必须是鉴权失败：token 真的无效时要让上层丢弃内存凭据。
+    expect(httpErrorCode(401, { msg: 'unauthorized' })).toBe('AUTH')
+  })
+
   it('内容拦截不被误判为额度或请求非法', () => {
     // 三者都是 400/403 家族，但处理方式完全不同：拦截不重试、不换号；
     // 额度换号；请求非法重试。分类错了就会触发错误的恢复动作。

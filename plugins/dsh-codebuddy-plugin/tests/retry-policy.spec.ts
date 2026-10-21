@@ -42,6 +42,11 @@ describe('CodeBuddy 路由重试策略', () => {
    * 它带业务码 11128，因此与 FNOS-020 处理的那类「不带业务码的瞬时 400」
    * 可以区分——后者该重试，前者重试纯属放大无效请求。
    */
+  it('账号受限不在可重试集合里（换号才是正确动作）', () => {
+    // 重试同一个受限账号毫无意义；它由本层的换号逻辑处理，不是重试。
+    expect(normalPolicy().retryableCodes).not.toContain('ACCOUNT_RESTRICTED')
+  })
+
   it('内容策略拦截不在可重试集合里（确定性失败）', () => {
     expect(normalPolicy().retryableCodes).not.toContain('CONTENT_BLOCKED')
     // 拦截与账号健康无关，换号也无用；换号集合只认额度与限流。

@@ -29,9 +29,12 @@ describe('内层只负责换账号，不重复外层的等待与重试', () => {
       ADAPTER.indexOf('private async * runWithFailover'),
       ADAPTER.indexOf('private async failoverToNextAccount'),
     )
-    const predicate = /const swappable = ([^\n]+)/.exec(run)?.[1] ?? ''
+    // 可切换集合现在跨多行书写，因此取到 `throw error` 之前的那一段。
+    const predicate = /const swappable = ([\s\S]*?)(?:\n\s*if \()/.exec(run)?.[1] ?? ''
     expect(predicate).toContain('QUOTA_EXCEEDED_CODE')
     expect(predicate).toContain("'RATE_LIMIT'")
+    // 账号被上游限制也属于「换账号可解决」的一类。
+    expect(predicate).toContain('restricted')
   })
 
   it('瞬时故障仍交给外层原地重试（换账号无益）', () => {
@@ -131,6 +134,8 @@ describe('已产出 chunk 后绝不重放', () => {
 
   it('逐个 chunk 转发（而不是一次性 yield* 整个流）', () => {
     // 必须逐块转发才能知道「是否已产出」，`yield*` 无法区分。
-    expect(run()).toMatch(/for await \(const chunk of this\.attemptStream\(options\)\)/)
+    // 签名后来增加了「模型输出起始块索引」（切换提示占用块 0 时让出），
+    // 断言只钉住「逐块 for-await 转发」这一点。
+    expect(run()).toMatch(/for await \(const chunk of this\.attemptStream\(options[,)]/)
   })
 })
