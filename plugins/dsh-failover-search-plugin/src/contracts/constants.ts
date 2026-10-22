@@ -31,6 +31,14 @@ export const TAVILY_PLATFORM_ID = 'tavily'
 /** 官方搜索来源 id（对齐官方提供方 `DEEPSEEK_PROVIDER_ID`）。 */
 export const OFFICIAL_SOURCE_ID = 'deepseek-official'
 
+/**
+ * `web` 行的配置命名空间：搜索与抓取提供方的选择写在这里。
+ *
+ * 官方「网络搜索」设置页与插件的「智能搜索」开关都通过它读写
+ * `searchProvider` / `fetchProvider`；两边是**同一个命名空间**，后写者生效。
+ */
+export const WEB_SETTINGS_NAMESPACE = 'web'
+
 /** 默认转移顺序：免费额度优先 → 按次计费 → 消耗模型额度的官方殿后。 */
 export const DEFAULT_FAILOVER_ORDER = [TINYFISH_PLATFORM_ID, TAVILY_PLATFORM_ID, OFFICIAL_SOURCE_ID] as const
 

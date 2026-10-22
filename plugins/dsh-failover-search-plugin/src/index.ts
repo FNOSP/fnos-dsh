@@ -47,6 +47,8 @@ import { resolveOfficialOptions } from './host/official-fallback.ts'
 import { SessionToggleStore, runWithSession, shouldBypassActiveSession } from './host/session-toggle.ts'
 import { usageFingerprint } from './host/usage-fingerprint.ts'
 import { UsageStore } from './host/usage-store.ts'
+import { ensureWebSelection } from './host/web-selection.ts'
+import type { SettingsFormsLike } from './host/web-selection.ts'
 
 export { Config } from './contracts/config.ts'
 export type { FailoverSearchConfig, FailoverSearchSettings, AccountConfig } from './contracts/config.ts'
@@ -57,6 +59,7 @@ export type { UsageSnapshot } from './contracts/usage-rpc.ts'
 export { FailoverSearchProvider } from './host/failover-provider.ts'
 export { UsageStore } from './host/usage-store.ts'
 export { usageFingerprint } from './host/usage-fingerprint.ts'
+export { ensureWebSelection } from './host/web-selection.ts'
 export { buildPool } from './host/account-pool.ts'
 export { maskApiKey } from './host/mask.ts'
 export { parsePublishedAt } from './host/date.ts'
@@ -285,6 +288,21 @@ export function apply(ctx: Context, config: FailoverSearchConfig = Config({}) as
         const request = (payload ?? {}) as Partial<ToggleRequest>
         if (request.sessionId === undefined) throw new Error('toggle-set requires a sessionId')
         toggle.setEnabled(request.sessionId, request.enabled === true)
+        // 重新开启时顺带把接缝选择修回本插件：官方「网络搜索」设置页会把 `web` 行的
+        // searchProvider / fetchProvider 写成官方 id，接缝因此**固定选择**官方提供方，
+        // 本插件注册了也不会被走到（表现为插件正常但网页工具走官方端点）。
+        // 只在开启方向写：关闭是会话级偏好，不应改动其它会话的全局选择。
+        // 写失败只记日志——开关本身必须生效。
+        if (request.enabled === true) {
+          try {
+            const outcome = await ensureWebSelection(ctx.get('settings') as SettingsFormsLike | undefined)
+            if (outcome === 'updated') {
+              ctx.logger.info('[failover-search] 已把 web 接缝的搜索/抓取选择切回本插件')
+            }
+          } catch (error) {
+            ctx.logger.warn('[failover-search] 改写 web 接缝选择失败：%s', error instanceof Error ? error.message : String(error))
+          }
+        }
         const value: ToggleSnapshot = { enabled: toggle.isEnabled(request.sessionId) }
         return { ok: true, value }
       }
