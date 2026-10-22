@@ -307,9 +307,10 @@ async function fetchRawItems() {
 /**
  * 判定某事项本轮是否需要值班处理：
  * - 维护者自己发的公告不处理；
- * - 最后一条评论来自维护者，说明已经答复过，不重复回复；
  * - 带机器人签名的评论不重复回复；
- * - 本地状态里已处理、且处理后没有新评论的事项不重复处理。
+ * - 最后一条评论来自维护者，说明已经答复过，不重复回复；
+ * - 已知事项只有在「上次查看之后出现新评论、且最新评论不是维护者答复」时才重新进入待处理，
+ *   否则用户后续的追问会被永久漏掉。
  */
 function decidePending(item, comments, maintainers, record) {
   const authorIsMaintainer = item.author !== null && maintainers.has(item.author)
@@ -317,26 +318,28 @@ function decidePending(item, comments, maintainers, record) {
   const lastAuthor = lastComment?.user?.login ?? null
   const answeredByMaintainer = lastAuthor !== null && maintainers.has(lastAuthor)
   const hasBotSignature = comments.some(comment => String(comment.body ?? '').includes(SIGNATURE))
-  const handledAt = record?.handledAt ? new Date(record.handledAt).getTime() : 0
-  const newCommentAfterHandled = handledAt > 0 && lastComment !== undefined
-    && new Date(lastComment.created_at).getTime() > handledAt
+  const lastActivityAt = lastComment?.created_at ?? item.updatedAt ?? item.createdAt ?? null
+  const previousActivityAt = record?.lastActivityAt ?? null
+  const newActivity = previousActivityAt === null
+    ? true
+    : new Date(lastActivityAt ?? 0).getTime() > new Date(previousActivityAt).getTime()
 
-  if (newCommentAfterHandled) {
-    return { pending: true, reason: '处理后有新评论', answeredByMaintainer, hasBotSignature }
-  }
-  if (record !== undefined && record.status !== 'pending') {
-    return { pending: false, reason: '本地状态已处理', answeredByMaintainer, hasBotSignature }
-  }
   if (authorIsMaintainer) {
-    return { pending: false, reason: '维护者自己发布', answeredByMaintainer, hasBotSignature }
-  }
-  if (answeredByMaintainer) {
-    return { pending: false, reason: '维护者已答复', answeredByMaintainer, hasBotSignature }
+    return { pending: false, reason: '维护者自己发布', answeredByMaintainer, hasBotSignature, lastActivityAt }
   }
   if (hasBotSignature) {
-    return { pending: false, reason: '已有机器人回复', answeredByMaintainer, hasBotSignature }
+    return { pending: false, reason: '已有机器人回复', answeredByMaintainer, hasBotSignature, lastActivityAt }
   }
-  return { pending: true, reason: '待处理', answeredByMaintainer, hasBotSignature }
+  if (answeredByMaintainer) {
+    return { pending: false, reason: '维护者已答复', answeredByMaintainer, hasBotSignature, lastActivityAt }
+  }
+  if (record !== undefined && !newActivity) {
+    return { pending: false, reason: '本地状态已处理', answeredByMaintainer, hasBotSignature, lastActivityAt }
+  }
+  if (record !== undefined && record.status !== 'pending') {
+    return { pending: true, reason: '上次查看后有新评论', answeredByMaintainer, hasBotSignature, lastActivityAt }
+  }
+  return { pending: true, reason: '待处理', answeredByMaintainer, hasBotSignature, lastActivityAt }
 }
 
 async function cmdScan() {
@@ -356,6 +359,7 @@ async function cmdScan() {
     }
     const record = state.items[key]
     const decision = decidePending(item, comments, maintainers, record)
+    const now = new Date().toISOString()
     const entry = {
       key,
       kind: item.kind,
@@ -376,14 +380,23 @@ async function cmdScan() {
     }
     if (decision.pending) {
       pending.push(entry)
-      if (record === undefined) {
-        state.items[key] = { key, kind: item.kind, number: item.number, status: 'pending', firstSeen: new Date().toISOString(), lastSeen: new Date().toISOString() }
-      }
     } else {
       skipped.push(entry)
-      if (record === undefined) {
-        state.items[key] = { key, kind: item.kind, number: item.number, status: 'ignored', reason: decision.reason, firstSeen: new Date().toISOString(), lastSeen: new Date().toISOString() }
-      }
+    }
+    // 台账始终记录最后一次见到的活动时间：下一轮据此识别「用户又追问了一次」
+    const previous = state.items[key]
+    state.items[key] = {
+      ...(previous ?? {}),
+      key,
+      kind: item.kind,
+      number: item.number,
+      status: decision.pending
+        ? 'pending'
+        : (previous !== undefined && previous.status !== 'pending' ? previous.status : 'ignored'),
+      reason: decision.reason,
+      lastActivityAt: decision.lastActivityAt,
+      firstSeen: previous?.firstSeen ?? now,
+      lastSeen: now,
     }
   }
 
@@ -553,12 +566,15 @@ function cmdMark(args) {
   }
   const state = loadState()
   const previous = state.items[key] ?? {}
+  const now = new Date().toISOString()
   state.items[key] = {
     ...previous,
     key,
     status,
-    handledAt: new Date().toISOString(),
-    lastSeen: new Date().toISOString(),
+    handledAt: now,
+    // 水位线推进到本次处理之后：用户在新评论里再次追问时下一轮能识别出来
+    lastActivityAt: now,
+    lastSeen: now,
     ...(args.card ? { cardId: String(args.card) } : {}),
     ...(args.note ? { note: String(args.note) } : {}),
   }
@@ -578,7 +594,15 @@ function cmdState() {
     items: items
       .sort((a, b) => String(b.lastSeen ?? '').localeCompare(String(a.lastSeen ?? '')))
       .slice(0, 30)
-      .map(item => ({ key: item.key, status: item.status, cardId: item.cardId ?? null, handledAt: item.handledAt ?? null, note: item.note ?? null })),
+      .map(item => ({
+        key: item.key,
+        status: item.status,
+        cardId: item.cardId ?? null,
+        handledAt: item.handledAt ?? null,
+        lastActivityAt: item.lastActivityAt ?? null,
+        reason: item.reason ?? null,
+        note: item.note ?? null,
+      })),
   }, null, 2)}\n`)
 }
 
