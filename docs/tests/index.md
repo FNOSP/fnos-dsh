@@ -29,7 +29,7 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-018 | [Midscene 桥接使用说明准确性修正](/tests/FNOS-018-midscene-skill-accuracy) | [PLAN-FNOS-018](/plans/PLAN-FNOS-018-midscene-skill-accuracy) | 通过 | 9 条全部通过；发现并修正 4 处与 SDK 实际不符的表述 |
 | FNOS-019 | [FPK 版本方案固定前缀与插件基线小尾巴](/tests/FNOS-019-fpk-version-scheme) | [PLAN-FNOS-019](/plans/PLAN-FNOS-019-fpk-version-scheme) | 通过 | 17 条全部通过；含真实 fnOS NAS 设备升级（同基线迭代号覆盖安装、裸 5.9.0 升级路径） |
 | FNOS-020 | [CodeBuddy 瞬时 400 终止整轮修复](/tests/FNOS-020-codebuddy-transient-400) | [PLAN-FNOS-020](/plans/PLAN-FNOS-020-codebuddy-transient-400) | 通过 | 11 条全部通过；DSH Web 与 DSH Desktop 双客户端均已验证重试生效与首次 400 后自动恢复 |
-| FNOS-021 | [Midscene 库能力对齐与接入简化](/tests/FNOS-021-midscene-library-integration) | [PLAN-FNOS-021](/plans/PLAN-FNOS-021-midscene-library-integration) | 部分执行 | 69 条中 11 条已通过（技能同步 5 + 多职责 6）；其余待执行 |
+| FNOS-021 | [Midscene 库能力对齐与接入简化](/tests/FNOS-021-midscene-library-integration) | [PLAN-FNOS-021](/plans/PLAN-FNOS-021-midscene-library-integration) | 规划中 | 尚未执行（用例已登记 69 条） |
 | FNOS-024 | [CodeBuddy 403 纳入账号切换](/tests/FNOS-024-codebuddy-403-failover) | [PLAN-FNOS-024](/plans/PLAN-FNOS-024-codebuddy-403-failover) | 通过 | 9 条全部通过；桩 403 触发换号并完成，提示文本正确 |
 | FNOS-023 | [CodeBuddy 受限账号触发自动切换](/tests/FNOS-023-codebuddy-restricted-account-failover) | [PLAN-FNOS-023](/plans/PLAN-FNOS-023-codebuddy-restricted-account-failover) | 通过 | 15 条全部通过；真实受限账号触发自动切换且提示可见；第二轮受限失败 0 次 |
 | FNOS-022 | [CodeBuddy 模型调用被内容审核拦截修复](/tests/FNOS-022-codebuddy-content-block-fix) | [PLAN-FNOS-022](/plans/PLAN-FNOS-022-codebuddy-content-block-fix) | 通过 | 17 条全部通过；DSH Web 与 DSH Desktop 双客户端模型调用正常；本地桩注入验证只失败一次、不重试、不换号 |

@@ -318,6 +318,10 @@ const requirementsSidebar = [
         link: '/requirements/FNOS-020-codebuddy-transient-400'
       },
       {
+        text: 'FNOS-021 Midscene 库能力对齐与接入简化',
+        link: '/requirements/FNOS-021-midscene-library-integration'
+      },
+      {
         text: 'FNOS-022 CodeBuddy 模型调用被内容审核拦截修复',
         link: '/requirements/FNOS-022-codebuddy-content-block-fix'
       },
@@ -419,6 +423,10 @@ const plansSidebar = [
         link: '/plans/PLAN-FNOS-020-codebuddy-transient-400'
       },
       {
+        text: 'PLAN-FNOS-021 Midscene 库能力对齐与接入简化',
+        link: '/plans/PLAN-FNOS-021-midscene-library-integration'
+      },
+      {
         text: 'PLAN-FNOS-022 CodeBuddy 模型调用被内容审核拦截修复',
         link: '/plans/PLAN-FNOS-022-codebuddy-content-block-fix'
       },
@@ -487,6 +495,10 @@ const testsSidebar = [
       {
         text: 'FNOS-020 CodeBuddy 瞬时 400 终止整轮修复',
         link: '/tests/FNOS-020-codebuddy-transient-400'
+      },
+      {
+        text: 'FNOS-021 Midscene 库能力对齐与接入简化',
+        link: '/tests/FNOS-021-midscene-library-integration'
       },
       {
         text: 'FNOS-022 CodeBuddy 模型调用被内容审核拦截修复',
