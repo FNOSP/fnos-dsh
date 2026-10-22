@@ -37,7 +37,9 @@ export default defineTestProject<BridgeContext>({
   ],
   test: {
     // 交互用例串行执行：同一浏览器窗口里并行操作会互相干扰。
-    maxConcurrency: 1,
+    // 1.16.5 起旧的 `maxConcurrency` 被移除且运行期显式拒绝；两字段默认值均为 1。
+    maxConcurrentFiles: 1,
+    maxConcurrentProjects: 1,
     testTimeout: 180_000,
   },
   output: { reportDir: './midscene_run/report' },

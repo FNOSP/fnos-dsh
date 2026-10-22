@@ -16,7 +16,7 @@ verifiedAt: 2026-10-22
 | 需求编号 | FNOS-021 |
 | 关联需求 | [FNOS-021 Midscene 库能力对齐与接入简化](/requirements/FNOS-021-midscene-library-integration) |
 | 关联计划 | [PLAN-FNOS-021 Midscene 库能力对齐与接入简化](/plans/PLAN-FNOS-021-midscene-library-integration) |
-| 测试状态 | <Badge type="warning" text="部分执行（24/69 通过，其余待补测）" /> |
+| 测试状态 | <Badge type="warning" text="部分执行（29/75 通过，其余待补测）" /> |
 | 执行环境 | 本地构测、DSH Web（本地 8070）、DSH Desktop（开发态） |
 
 ## 测试范围与需求分析
@@ -79,7 +79,7 @@ FNOS-021
 
 ### 关键风险点
 
-- **升级引入「判定变严」而非真实回归**：`1.16.0` 强化了资源清理语义，既有 e2e 可能出现新的失败。判定时必须区分「产品坏了」与「框架判得更严」，否则会误改被测应用（TC-012 专为此设计）。
+- **升级引入「判定变严」而非真实回归**：`1.16.0` 起强化了资源清理语义、`1.16.5` 又引入环境准备/清理超时，既有 e2e 可能出现新的失败。判定时必须区分「产品坏了」与「框架判得更严」，否则会误改被测应用（TC-012 专为此设计）。
 - **留空语义被误解**：四行配置若把「留空」呈现得像「未配置完成」，用户会以为必须填满，反而回到手写 `.env` 的老路（TC-016、TC-024 守住）。
 - **思考档位「看起来传了」**：宿主不接受未声明的档位并会在发请求前报错。TC-031/TC-032 用反向断言守住「未命中就不要传」。
 - **家族修正可能反向打坏既有映射**：调整规则顺序会改变匹配结果，`glm-4.6v` 之类必须仍是 `glm-v`（TC-004 反向断言）。
@@ -96,7 +96,7 @@ FNOS-021
 
 **不需要真实 NAS**：本需求不涉及 fnOS 宿主能力。
 
-**版本基线（执行时填写）**：DSH `0.2.1-rc.2` / 插件 `@tnnevol/dsh-midscene@<待填>` / 应用 `5.9.0`；额外记录 Midscene 库版本（应为 `1.16.0`）。
+**版本基线（执行时填写）**：DSH `0.2.1-rc.2` / 插件 `@tnnevol/dsh-midscene@<待填>` / 应用 `5.9.0`；额外记录 Midscene 库版本（应为 `1.16.5`）。
 
 ## 测试用例
 
@@ -116,7 +116,7 @@ FNOS-021
 
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TC-008 | [FNOS-021-01](/requirements/FNOS-021-midscene-library-integration#fnos-021-01) | 三个直接依赖均为 1.16.0 | [AC-01](/requirements/FNOS-021-midscene-library-integration#fnos-021-01) | 已执行安装 | 1. 读取 `node_modules/@midscene/{web,test,computer}/package.json`；2. 核对 workspace catalog 三行与豁免列表 6 行 | 三包版本均为 `1.16.0`；catalog 与豁免列表均为 `1.16.0` | P0 | 新增行为，无回归基线 |
+| TC-008 | [FNOS-021-01](/requirements/FNOS-021-midscene-library-integration#fnos-021-01) | 三个直接依赖均为 1.16.5 | [AC-01](/requirements/FNOS-021-midscene-library-integration#fnos-021-01) | 已执行安装 | 1. 读取 `node_modules/@midscene/{web,test}/package.json`；2. 核对 workspace catalog 三行与豁免列表 6 行 | 三包版本均为 `1.16.5`；catalog 与豁免列表均为 `1.16.5`；锁文件内无 `1.16.0` 残留 | P0 | 新增行为，无回归基线 |
 | TC-009 | [FNOS-021-01](/requirements/FNOS-021-midscene-library-integration#fnos-021-01) | 锁文件与目录一致 | [AC-01](/requirements/FNOS-021-midscene-library-integration#fnos-021-01) | 已执行安装 | 在冻结模式下重新安装 | 安装成功、锁文件无变更 | P0 | 新增行为，无回归基线 |
 | TC-010 | [FNOS-021-01](/requirements/FNOS-021-midscene-library-integration#fnos-021-01) | 插件类型检查与单测通过 | [AC-02](/requirements/FNOS-021-midscene-library-integration#fnos-021-01) | 已升级 | 执行插件 `check`（类型检查 + 单测） | 全部通过，无新增失败 | P0 | 基线：升级前全绿 |
 | TC-011 | [FNOS-021-01](/requirements/FNOS-021-midscene-library-integration#fnos-021-01) | 桥接冒烟在新版本下通过 | [AC-03](/requirements/FNOS-021-midscene-library-integration#fnos-021-01) | DSH Web 运行中、Chrome 已装扩展、目标页已打开 | 执行插件 `test:bridge` 冒烟 | 冒烟通过；每步以页面内状态独立核实 | P0 | 基线：FNOS-013 的冒烟脚本结论 |
@@ -193,6 +193,17 @@ FNOS-021
 | TC-048 | [FNOS-021-07](/requirements/FNOS-021-midscene-library-integration#fnos-021-07) | 说明页的端点与字段与实现一致 | AC-02 | — | 逐项核对说明页列出的端点、配置项、设置页字段 | 与 `bridge-server.ts` / `config.ts` / 设置区块实现逐项一致 | P1 | 缺陷场景 |
 | TC-049 | [FNOS-021-07](/requirements/FNOS-021-midscene-library-integration#fnos-021-07) | 不支持能力在说明页被明确列出 | AC-02 | — | 检索说明页的「当前不支持」小节 | 明确列出 Responses 协议、结构化输出、Jev 三项及其替代做法 | P2 | 新增行为，无回归基线 |
 
+### [FNOS-021-08 1.16.5 新增测试编排契约的对齐](/requirements/FNOS-021-midscene-library-integration#fnos-021-08)
+
+| 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-061 | [FNOS-021-08](/requirements/FNOS-021-midscene-library-integration#fnos-021-08) | **全仓** e2e 配置不再使用已被移除的 `maxConcurrency` | AC-01 | 已安装 `@midscene/test@1.16.5` | `grep -rn "maxConcurrency" --include=midscene.config.ts` 扫全仓（5 处配置文件） | 无字段赋值残留（仅允许解释性注释）；5 处均出现 `maxConcurrentFiles` 与 `maxConcurrentProjects`，取值均为 1 | P0 | 缺陷场景（`1.16.5` 运行期会显式拒绝旧字段） |
+| TC-062 | [FNOS-021-08](/requirements/FNOS-021-midscene-library-integration#fnos-021-08) | `1.16.5` 下 e2e 配置类型检查通过 | AC-01 | 同上 | 1. 全仓 `pnpm run typecheck`；2. 对不在 CI 图内的两处（`dsh-e2e-desktop`、应用 `tests`）单独跑 `tsc --noEmit` | 两者均通过。若保留旧字段会报 `TS2353: 'maxConcurrency' does not exist in type 'TestOptions'` | P0 | 新增行为，无回归基线 |
+| TC-063 | [FNOS-021-08](/requirements/FNOS-021-midscene-library-integration#fnos-021-08) | 并发语义与升级前一致 | AC-02 | 同上 | 1. 读取 `TestOptions` 对两字段的说明；2. 核对配置文件取值 | 两字段默认值均为 1（`null` 才是不限）；显式写 1 后 e2e 仍串行跑同一浏览器窗口 | P1 | 基线：`1.16.0` 的 `maxConcurrency: 1` |
+| TC-064 | [FNOS-021-08](/requirements/FNOS-021-midscene-library-integration#fnos-021-08) | 扩展未连接时得到可诊断的 `SETUP_TIMEOUT` | AC-03 | Chrome 已装扩展但**未连接**（或不启动 Chrome） | 执行一次 e2e | 在 `setupTimeout` 上限内失败并报 `SETUP_TIMEOUT`（含 `timeoutMs`），而不是无限挂起 | P1 | 新增行为（`1.16.0` 下为无限等待） |
+| TC-065 | [FNOS-021-08](/requirements/FNOS-021-midscene-library-integration#fnos-021-08) | 「可用但不采用」项均有结论登记 | AC-04 | — | 检索需求「不在本次范围内」与计划决策 D6/D7 | `defineFileSetup`/`FileSetupContext`/`TProjectContext` 与 `AUTH_MODE=siwc` 各有「不采用」的理由，无悬空项 | P2 | 新增行为，无回归基线 |
+| TC-066 | [FNOS-021-08](/requirements/FNOS-021-midscene-library-integration#fnos-021-08) | `1.16.5` 全量回归：单测与构建 | AC-01 | 已安装 `1.16.5` | 执行插件 `check`（typecheck + 单测）与 `build` | 211 条单测全绿、构建通过；桥行为与 `1.16.0` 一致（家族/职责变量/思考字段复核结论见需求调研结论） | P0 | 基线：`1.16.0` 下 211 条全绿 |
+
 ### 安全与异常专项（OWASP Top 10 2021 子集）
 
 | 用例ID | 类别 | 场景 | 关联验收 | Payload / 构造 | 预期防御 |
@@ -216,9 +227,9 @@ FNOS-021
 
 ## 测试执行结果
 
-执行日期 **2026-10-22**。版本三元组：DSH 运行时 `0.2.1-rc.2`、插件 `0.2.1-rc.2.14`（功能提交 `5d25e40`；后续 `7eaf957` 仅改版本号）、应用 `5.9.0-0.2.1-rc.2.14`；Midscene 库由 `1.15.1` 升至 **`1.16.0`**。
+执行日期 **2026-10-22**（两轮：先在 `1.16.0` 上验收，后按上游最新推进到 `1.16.5` 复跑）。版本三元组：DSH 运行时 `0.2.1-rc.2`、插件 `0.2.1-rc.2.14`、应用 `5.9.0-0.2.1-rc.2.14`；Midscene 库由 `1.15.1` 升至 **`1.16.5`**。
 
-**汇总：69 条用例，24 条通过，0 条失败，45 条未执行**（未执行项全部依赖 DSH Web / DSH Desktop 界面、真实 Chrome 与已装扩展、或真实提供方凭据，需在对应环境补测）。
+**汇总：75 条用例，29 条通过，0 条失败，46 条未执行**（未执行项全部依赖 DSH Web / DSH Desktop 界面、真实 Chrome 与已装扩展、或真实提供方凭据，需在对应环境补测）。
 
 ### 已执行（本地构测环境）
 
@@ -233,7 +244,7 @@ FNOS-021
 | TC-005 | FNOS-021-04 | 本地单测 | ✅ 通过 | 2026-10-22 | 白名单 21 项，与上游 `MODEL_FAMILY_VALUES` 逐项一致（含 `jev`） |
 | TC-006 | FNOS-021-04 | 本地单测 | ✅ 通过 | 2026-10-22 | `codebuddy/hy3` → 通用 `glm-v`，`exact: false`，理由含「通用协议」 |
 | TC-007 | FNOS-021-04 | 本地单测 | ✅ 通过 | 2026-10-22 | 遍历真实模型标识，推断结果全部落在白名单内 |
-| TC-008 | FNOS-021-01 | 本地 | ✅ 通过 | 2026-10-22 | 已安装版本实测 `1.16.0`；catalog 三行与豁免列表 6 行均为 `1.16.0` |
+| TC-008 | FNOS-021-01 | 本地 | ✅ 通过 | 2026-10-22 | 已安装版本实测 **`1.16.5`**；catalog 三行与豁免列表 6 行均为 `1.16.5`；锁文件内 `1.16.0` 残留为 0 |
 | TC-009 | FNOS-021-01 | 本地 | ✅ 通过 | 2026-10-22 | `pnpm install` 成功，锁文件随 catalog 更新 |
 | TC-010 | FNOS-021-01 | 本地单测 | ✅ 通过 | 2026-10-22 | `check`（typecheck + 单测）211 条全绿；`build` 成功 |
 | TC-014 | FNOS-021-01 | 本地 | ✅ 通过 | 2026-10-22 | 全仓 `pnpm run typecheck` 11/11 通过（含 `dsh-e2e-kit`） |
@@ -275,6 +286,11 @@ FNOS-021
 | TC-051 | 安全 | 本地单测 | ✅ 通过 | 2026-10-22 | 错误密钥 → 401；比较为定长比较 |
 | TC-056 | 安全 | 本地单测 | ✅ 通过 | 2026-10-22 | 远程 `image_url` 被拒（桥不做任意 URL 抓取），只接受 base64 数据 URI |
 | TC-058 | 兼容性 | 本地单测 | ✅ 通过 | 2026-10-22 | 老配置缺三个新字段时按「未配置」处理，`model` 语义不变，接入密钥不变 |
+| TC-061 | FNOS-021-08 | 本地检查 | ✅ 通过 | 2026-10-22 | 全仓 5 处 e2e 配置均已迁移：`dsh-midscene-plugin`、`dsh-codebuddy-plugin`、`dsh-failover-search-plugin`、`dsh-e2e-desktop`、`fn-deepseek-harness/tests`；字段赋值零残留（`dsh-codebuddy-plugin` 目录被 `.gitignore` 忽略，该处只在本机） |
+| TC-062 | FNOS-021-08 | 本地 | ✅ 通过 | 2026-10-22 | 全仓 `pnpm run typecheck` **11/11** 通过；`dsh-e2e-desktop` 与应用 `tests` 单文件 `tsc --noEmit` 均 exit=0。迁移前先复现了 `TS2353`（BUG-021-03） |
+| TC-063 | FNOS-021-08 | 本地检查 | ✅ 通过 | 2026-10-22 | `1.16.5` 的两字段默认值均为 1（`null` 才不限），显式写 1 与升级前 `maxConcurrency: 1` 语义一致 |
+| TC-065 | FNOS-021-08 | 本地检查 | ✅ 通过 | 2026-10-22 | `defineFileSetup` 等三项与 `AUTH_MODE=siwc` 已在需求「不在本次范围内」与计划决策 D6/D7 各有理由 |
+| TC-066 | FNOS-021-08 | 本地 | ✅ 通过 | 2026-10-22 | `1.16.5` 上重跑 `check` 与 `build`：**211 条单测全绿**、构建成功；家族白名单/职责变量/`jev` 限制/思考字段形态复核与 `1.16.0` 一致 |
 
 ### 未执行（需界面或真实环境）
 
@@ -285,6 +301,7 @@ FNOS-021
 | TC-015、TC-021、TC-022、TC-023、TC-024、TC-026、TC-059 | 需 DSH Web 设置页交互（四职责 Tabs、空态、清空、预览复制） |
 | TC-036 | 需真实任务与报告观察（定性判定） |
 | TC-042a | 需真实提供方凭据逐 provider 冒烟 |
+| TC-064 | 需「Chrome 已装扩展但未连接」的真实场景，验证 `SETUP_TIMEOUT` 取代无限等待 |
 | TC-046 | 需可卸载的测试 profile |
 | TC-052 | 需 `ctx.webServer` 真实挂载后验证跨站写入被拒 |
 | TC-053、TC-055 | 需检查宿主运行日志 |
@@ -300,12 +317,13 @@ FNOS-021
 | --- | --- | --- | --- | --- |
 | BUG-021-01 | TC-027b（`/v1/midscene-env` 变量字典） | `content` 里有专用职责的变量，但 `variables` 字典里取不到 `MIDSCENE_LOCATE_MODEL_NAME` | `Object.fromEntries(dedicated.map(...))` 里 `map` 每一项返回的是「键值对数组」而不是「键值对」，被当成非法条目丢弃 | 改为 `flatMap` 返回键值对数组 |
 | BUG-021-02 | TC-042（未知路径 404） | 未带密钥访问未知路径得到 401 而非 404 | 鉴权在路由之前（既有设计，且是有意的：不向未授权调用者披露端点清单） | 不改实现；修正用例前置条件为「带密钥」 |
+| BUG-021-03 | TC-062（升级到 `1.16.5` 后的类型检查） | `plugins/dsh-midscene-plugin/tests/e2e/midscene.config.ts` 报 `TS2353: 'maxConcurrency' does not exist in type 'TestOptions'`；即使绕过类型检查，运行期也会被 `Midscene config test.maxConcurrency is no longer supported.` 直接拒绝 | 上游 `1.16.5` 把 `maxConcurrency` 拆成 `maxConcurrentFiles`/`maxConcurrentProjects`，并**显式拒绝旧字段**（属破坏性变更；`1.16.0` 不会暴露）。首次只修了本插件，全仓 typecheck 立刻抓出 `dsh-failover-search-plugin` 的同类写法，`grep` 后确认**共 5 处** | 迁移为 `maxConcurrentFiles: 1` + `maxConcurrentProjects: 1`（两字段默认值均为 1，语义不变），并在配置注释里写明这条破坏性变更 |
 
-另有一处**设计发现**（非缺陷）：`@midscene/*` 上游在 2026-10-21～10-22 又发布了 `1.16.1`、`1.16.2`、`1.16.5`。本次仍以 `1.16.0` 为基线，理由是 `1.16.5` 距执行时刻不足 24 小时，低于仓库 `minimumReleaseAge` 的等待期；且经逐文件比对，`1.16.0` 与 `1.16.5` 的**家族白名单与职责变量名完全一致**（`1.16.5` 仅新增 `AUTH_MODE` 等增量），不影响本需求任何验收项。
+另有一处**版本线记录**：`@midscene/*` 上游在 2026-10-21～10-22 发布了 `1.16.1`、`1.16.2`、`1.16.5`。首轮验收基于 `1.16.0`；随后按用户确认把基线**推进到 `1.16.5`** 并复跑。实测仓库的 `minimumReleaseAge` 门槛为 **24 小时**（`1.16.1` 距 30h 免豁免；`1.16.2` 22.2h、`1.16.5` 3.2h 均被拦），因此 `1.16.5` 显式登记进 `minimumReleaseAgeExclude`。逐项复核确认 `1.16.5` 与 `1.16.0` 的家族白名单、四职责变量名、`jev` 限制、专用职责不继承与思考字段形态完全一致，**唯一需要改代码的是 `maxConcurrency` 的移除**（BUG-021-03），其余为增量能力（`AUTH_MODE`、`defineFileSetup`、`setupTimeout`），取舍已登记。
 
 ## 测试结论
 
-- 结论：<Badge type="warning" text="部分执行（69 条中 24 条通过，45 条待补测）" />
+- 结论：<Badge type="warning" text="部分执行（75 条中 29 条通过，46 条待补测）" />
 - 已执行部分：**24/24 通过，0 失败**；包级单测 211 条全绿，全仓类型检查 11/11 通过，构建成功。
 - 未执行部分：全部依赖 DSH Web / DSH Desktop 界面、真实 Chrome 与扩展、或真实提供方凭据，**不构成本轮功能正确性的阻塞证据**，但按需求「验收环境范围」仍需在对应环境补测后转「已完成」。
 - 一句话结论：库基线升级、四职责接入配置、思考开关透传、家族推断修正、技能同步与说明页纠偏在本地构测环境全部验证通过，界面与真实运行链路待环境补测。
@@ -323,6 +341,7 @@ FNOS-021
 | [FNOS-021-05](/requirements/FNOS-021-midscene-library-integration#fnos-021-05) | 6 | ✅ | ✅ | ✅ | — | — | 无数据一致性面 |
 | [FNOS-021-06](/requirements/FNOS-021-midscene-library-integration#fnos-021-06) | 6 | ✅ | ✅ | ✅ | ✅ | ✅ | 权限由 TC-050～TC-052 覆盖；TC-042a 跨 provider 覆盖数据一致性（全部路由可达） |
 | [FNOS-021-07](/requirements/FNOS-021-midscene-library-integration#fnos-021-07) | 3 | ✅ | ✅ | — | — | — | 文档用例无边界与数据面 |
+| [FNOS-021-08](/requirements/FNOS-021-midscene-library-integration#fnos-021-08) | 6 | ✅ | ✅ | ✅ | — | ✅ | 「权限」不适用（测试编排配置）；边界覆盖「默认值 1 与显式 1 等价」「超时上限」 |
 
 ### 未启用章节与原因
 
@@ -349,4 +368,5 @@ FNOS-021
 | 2026-10-20 | 初始登记 | 建立 FNOS-021 测试用例文档，共 60 条用例：家族推断 7 条、库基线 7 条、多职责接入 13 条、思考透传 10 条、协议指引 5 条、技能 4 条、说明页 3 条、安全与异常 7 条、兼容与易用 4 条。按系统形态识别未启用性能/移动端/AI 算法/数据迁移/灰度/ERP 六类专项，原因已逐项登记。 |
 | 2026-10-20 | 更正 FNOS-021-06 用例方向并新增跨 provider 用例 | 原 TC-038 断言「带 `response_format` 返回 400」。复核确认该字段自 1.15.1 起就被桥忽略、现有 58 条验收在此状态下全部通过，且 Midscene 有 `callAiAndParseWithRetry` 语义重试兜底——按原设计会把可用功能推成失败。修订：TC-038 反转为「仍返回 200」作为倒退守卫；TC-039 改为「接入配置显式声明协议」；TC-040/041/042 收敛到「误配时给可读指引」；**新增 TC-042a「全部已配置 provider 均可经桥调用」**，直接验证「DSH 全部模型都能给 Midscene 用」这条核心承诺（依据 2026-10-20 实桥逐 provider 实测）。用例总数 60 → 61。 |
 | 2026-10-20 | 补充 6 条多职责守卫用例 | 新增 TC-027a～TC-027f，钉住「默认只出四行」「四职责模型名互不相同」「提供方/模型 老路径不受影响」「专用职责打自己的模型」「未配置/失效回落默认」「未配置职责不登记实际使用」六条不变量，该功能用例数 13 → 19，总数 63 → 69。断言只写**行为**（不规定模型名取值与内部函数名），实现方案由计划阶段决定。 |
-| 2026-10-22 | 回填首轮执行结果（本地构测环境） | 库基线升至 `1.16.0`（catalog 3 行 + 豁免列表 6 行）。包级单测由 152 增至 **211 条全绿**（新增 `reasoning.spec.ts` 15 条、`intent-models.spec.ts` 7 条，并扩充 `config`/`settings-routes`/`settings-rpc`/`bridge-server` 的份额）；`typecheck`、`build` 与全仓 `typecheck`（11/11）通过。回填 69 条用例中的 **24 条通过、0 失败、45 条未执行**（未执行项均依赖 DSH Web/Desktop 界面、真实 Chrome 与扩展、真实提供方凭据，已逐条登记阻塞原因）。执行期抓出并修复 BUG-021-01（`/v1/midscene-env` 的 `variables` 字典丢失专用职责键，`map` 误用为 `flatMap`）；BUG-021-02 为用例前置条件错（鉴权先于路由，实现不改）。另登记上游 `1.16.1/1.16.2/1.16.5` 已发布但未纳入基线的理由（发布未满 `minimumReleaseAge`，且家族白名单与职责变量名与 `1.16.0` 完全一致）。 |
+| 2026-10-22 | 回填首轮执行结果（本地构测环境；当时基线 `1.16.0`、用例 69 条，次日推进到 `1.16.5` / 75 条） | 库基线升至 `1.16.0`（catalog 3 行 + 豁免列表 6 行）。包级单测由 152 增至 **211 条全绿**（新增 `reasoning.spec.ts` 15 条、`intent-models.spec.ts` 7 条，并扩充 `config`/`settings-routes`/`settings-rpc`/`bridge-server` 的份额）；`typecheck`、`build` 与全仓 `typecheck`（11/11）通过。回填 69 条用例中的 **24 条通过、0 失败、45 条未执行**（未执行项均依赖 DSH Web/Desktop 界面、真实 Chrome 与扩展、真实提供方凭据，已逐条登记阻塞原因）。执行期抓出并修复 BUG-021-01（`/v1/midscene-env` 的 `variables` 字典丢失专用职责键，`map` 误用为 `flatMap`）；BUG-021-02 为用例前置条件错（鉴权先于路由，实现不改）。另登记上游 `1.16.1/1.16.2/1.16.5` 已发布但未纳入基线的理由（发布未满 `minimumReleaseAge`，且家族白名单与职责变量名与 `1.16.0` 完全一致）。 |
+| 2026-10-22 | **基线推进到 `1.16.5`，补登 FNOS-021-08 的 6 条用例** | 首轮验收基于 `1.16.0`；按用户确认把基线推进到 `1.16.5` 并在其上复跑。新增 FNOS-021-08 用例 TC-061～TC-066（并发字段迁移、类型检查、并发语义等价、`SETUP_TIMEOUT` 可诊断、新能力取舍登记、全量回归），用例总数 **69 → 75**。执行结果 **29 通过 / 0 失败 / 46 待补测**（新增 5 条通过；TC-064 需「扩展已装未连接」场景）。新增 BUG-021-03：`TestOptions.maxConcurrency` 在 `1.16.5` 被移除并运行期显式拒绝，**全仓 5 处** e2e 配置正在使用（本插件、codebuddy、failover-search、e2e-desktop、应用 tests），属**破坏性变更**（`1.16.0` 不暴露），已全部迁移为 `maxConcurrentFiles`/`maxConcurrentProjects`。另记录 `minimumReleaseAge` 门槛实测为 24 小时（`1.16.1` 30h 免豁免，`1.16.2` 22.2h 与 `1.16.5` 3.2h 被拦）。 |

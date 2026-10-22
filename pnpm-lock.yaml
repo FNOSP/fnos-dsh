@@ -50,11 +50,11 @@ catalogs:
       specifier: ^5.19.0
       version: 5.19.0
     '@midscene/test':
-      specifier: 1.16.0
-      version: 1.16.0
+      specifier: 1.16.5
+      version: 1.16.5
     '@midscene/web':
-      specifier: 1.16.0
-      version: 1.16.0
+      specifier: 1.16.5
+      version: 1.16.5
     '@miletorix/vitepress-image-viewer':
       specifier: 1.3.2
       version: 1.3.2
@@ -306,7 +306,7 @@ importers:
         version: 5.19.0(eslint@9.39.5(jiti@2.7.0)(supports-color@7.2.0))(supports-color@7.2.0)(typescript@5.9.3)
       '@midscene/test':
         specifier: 'catalog:'
-        version: 1.16.0(@midscene/web@1.16.0(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
+        version: 1.16.5(@midscene/web@1.16.5(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
       '@miletorix/vitepress-image-viewer':
         specifier: 'catalog:'
         version: 1.3.2(vue@3.5.41(typescript@5.9.3))
@@ -354,10 +354,10 @@ importers:
     devDependencies:
       '@midscene/test':
         specifier: 'catalog:'
-        version: 1.16.0(@midscene/web@1.16.0(playwright@1.64.0)(supports-color@7.2.0))(@types/node@26.5.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
+        version: 1.16.5(@midscene/web@1.16.5(playwright@1.64.0)(supports-color@7.2.0))(@types/node@26.5.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
       '@midscene/web':
         specifier: 'catalog:'
-        version: 1.16.0(playwright@1.64.0)(supports-color@7.2.0)
+        version: 1.16.5(playwright@1.64.0)(supports-color@7.2.0)
       '@tnnevol/dsh-e2e-kit':
         specifier: workspace:*
         version: link:../../../packages/dsh-e2e-kit
@@ -384,7 +384,7 @@ importers:
     devDependencies:
       '@midscene/test':
         specifier: 'catalog:'
-        version: 1.16.0(@midscene/web@1.16.0(playwright@1.64.0)(supports-color@7.2.0))(@types/node@26.5.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
+        version: 1.16.5(@midscene/web@1.16.5(playwright@1.64.0)(supports-color@7.2.0))(@types/node@26.5.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
       '@tnnevol/dsh-e2e-kit':
         specifier: workspace:*
         version: link:../dsh-e2e-kit
@@ -393,10 +393,10 @@ importers:
     devDependencies:
       '@midscene/test':
         specifier: 'catalog:'
-        version: 1.16.0(@midscene/web@1.16.0(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
+        version: 1.16.5(@midscene/web@1.16.5(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
       '@midscene/web':
         specifier: 'catalog:'
-        version: 1.16.0(playwright@1.64.0)(supports-color@7.2.0)
+        version: 1.16.5(playwright@1.64.0)(supports-color@7.2.0)
       '@types/node':
         specifier: 'catalog:'
         version: 22.20.1
@@ -555,10 +555,10 @@ importers:
         version: 2.90.2(supports-color@7.2.0)
       '@midscene/test':
         specifier: 'catalog:'
-        version: 1.16.0(@midscene/web@1.16.0(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
+        version: 1.16.5(@midscene/web@1.16.5(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
       '@midscene/web':
         specifier: 'catalog:'
-        version: 1.16.0(playwright@1.64.0)(supports-color@7.2.0)
+        version: 1.16.5(playwright@1.64.0)(supports-color@7.2.0)
       '@tnnevol/dsh-e2e-kit':
         specifier: workspace:*
         version: link:../../packages/dsh-e2e-kit
@@ -747,10 +747,10 @@ importers:
         version: 3.18.5
       '@midscene/test':
         specifier: 'catalog:'
-        version: 1.16.0(@midscene/web@1.16.0(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
+        version: 1.16.5(@midscene/web@1.16.5(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
       '@midscene/web':
         specifier: 'catalog:'
-        version: 1.16.0(playwright@1.64.0)(supports-color@7.2.0)
+        version: 1.16.5(playwright@1.64.0)(supports-color@7.2.0)
       '@tnnevol/dsh-e2e-kit':
         specifier: workspace:*
         version: link:../../packages/dsh-e2e-kit
@@ -916,10 +916,10 @@ importers:
         version: 3.18.5
       '@midscene/test':
         specifier: 'catalog:'
-        version: 1.16.0(@midscene/web@1.16.0(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
+        version: 1.16.5(@midscene/web@1.16.5(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)
       '@midscene/web':
         specifier: 'catalog:'
-        version: 1.16.0(playwright@1.64.0)(supports-color@7.2.0)
+        version: 1.16.5(playwright@1.64.0)(supports-color@7.2.0)
       '@tnnevol/dsh-e2e-kit':
         specifier: workspace:*
         version: link:../../packages/dsh-e2e-kit
@@ -5034,26 +5034,26 @@ packages:
   '@mermaid-js/parser@1.2.1':
     resolution: {integrity: sha512-n12NohV3mrUyUL2o93IgG/ifeW9FTyeJn3zDxkhwa8MJ9Fxg3HQMlA3RiGmD/3UnJvheztkjjQAjA2T4LmUcpw==}
 
-  '@midscene/core@1.16.0':
-    resolution: {integrity: sha512-4bri3d7gHy23BuLDpvPUhZGI1YKMv0neWlUN4uDMb8hywcgHVIoj6nw6sJSPc0RECBfXS+Fzvvftce2va9iA+w==}
+  '@midscene/core@1.16.5':
+    resolution: {integrity: sha512-prkh2tBBTwFVlKKecYdKyDf6aNC3icHRQFRw3insiz4iSkNiAYabmfqQfDqb4TcaHfrj7whKJIaUuOFX5hDBhg==}
     engines: {node: '>=18.19.0'}
 
-  '@midscene/playground@1.16.0':
-    resolution: {integrity: sha512-qjOOV2hkTyBTd6SiuWfaGPcl7EmCgH0zkcJ9quxlwM6NVicnCdZhfKwXuQM26VA8iYU09A98UiMQVu8D9pO2ZA==}
+  '@midscene/playground@1.16.5':
+    resolution: {integrity: sha512-yinJMct18qHjuzlSuj23aYctgwa/iUByu18v+V7eJd7fewSDJYE4iavWmwbDJGIhHXtMXDng3TxZ3X9cQyKI6A==}
 
-  '@midscene/shared@1.16.0':
-    resolution: {integrity: sha512-KUeKb0n52AK99rXC1eq/DSN4ZlakaZKGBAqmbBWqI5W3BYzvDC/Jb3i60GDVqdTwfIMMZ1pI6RKyyHkdz3okOA==}
+  '@midscene/shared@1.16.5':
+    resolution: {integrity: sha512-5bBRV50yd3wLNN9ZpCysKClHqrIU4zyqDEUYZeBMq+WGLeItm9sw/1X3RWJogTFoYenxbQ6SyUPdl3rve+tyRA==}
 
-  '@midscene/test@1.16.0':
-    resolution: {integrity: sha512-VT1/64w/lvwho5jE/HfrlqDZuZAaQounHNbUQpiker/M4s74c8zJp3mU55S+FNpHU5P4Mk6N+excRRN+xJmzvw==}
+  '@midscene/test@1.16.5':
+    resolution: {integrity: sha512-I9CeMxPrivqa2MpV/S7tv7ccuiaZWL2VBVqKkkVVkfOaq2wovreJ3MZf9+RspIpBSFLFCbZojW7jHc68d4Pyww==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
     hasBin: true
     peerDependencies:
-      '@midscene/android': 1.16.0
-      '@midscene/computer': 1.16.0
-      '@midscene/harmony': 1.16.0
-      '@midscene/ios': 1.16.0
-      '@midscene/web': 1.16.0
+      '@midscene/android': 1.16.5
+      '@midscene/computer': 1.16.5
+      '@midscene/harmony': 1.16.5
+      '@midscene/ios': 1.16.5
+      '@midscene/web': 1.16.5
       playwright: ^1.45.0
       puppeteer: 24.6.0
     peerDependenciesMeta:
@@ -5072,8 +5072,8 @@ packages:
       puppeteer:
         optional: true
 
-  '@midscene/web@1.16.0':
-    resolution: {integrity: sha512-co8bSX3T6CmyCUjFEwdx0Fzqy7RCGtxJGfVmixh+ADfZQUc83q3cRsR9G4Hi5BruFiJAQkFCmMUO0gcoorHJ3w==}
+  '@midscene/web@1.16.5':
+    resolution: {integrity: sha512-yE+WGelneTMcKf6xGx//ngBuaVYTNziS2uonDZV2fn/1pC4sRYIjgzdT2YlUDU938zMFylKiSNCMN5IOMc2+Fg==}
     engines: {node: '>=18.19.0'}
     hasBin: true
     peerDependencies:
@@ -8274,6 +8274,9 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
+
+  jose@5.9.6:
+    resolution: {integrity: sha512-AMlnetc9+CV9asI19zHmrgS/WYsWUwCn2R7RzlbJWD7F9eWYUTGyBmU9o6PxngtLGOiDGPRu+Uc4fhKzbpteZQ==}
 
   jose@6.2.12:
     resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==}
@@ -15547,13 +15550,14 @@ snapshots:
     dependencies:
       '@chevrotain/types': 11.1.2
 
-  '@midscene/core@1.16.0(supports-color@7.2.0)(ws@8.21.3)':
+  '@midscene/core@1.16.5(supports-color@7.2.0)(ws@8.21.3)':
     dependencies:
-      '@midscene/shared': 1.16.0(supports-color@7.2.0)
+      '@midscene/shared': 1.16.5(supports-color@7.2.0)
       '@ui-tars/action-parser': 1.2.3
       dayjs: 1.11.23
       dotenv: 16.6.1
       fetch-socks: 1.3.3
+      jose: 5.9.6
       js-yaml: 4.1.0
       jsonrepair: 3.15.0
       mdast-util-from-markdown: 2.0.3(supports-color@7.2.0)
@@ -15566,10 +15570,10 @@ snapshots:
       - supports-color
       - ws
 
-  '@midscene/playground@1.16.0(supports-color@7.2.0)(ws@8.21.3)':
+  '@midscene/playground@1.16.5(supports-color@7.2.0)(ws@8.21.3)':
     dependencies:
-      '@midscene/core': 1.16.0(supports-color@7.2.0)(ws@8.21.3)
-      '@midscene/shared': 1.16.0(supports-color@7.2.0)
+      '@midscene/core': 1.16.5(supports-color@7.2.0)(ws@8.21.3)
+      '@midscene/shared': 1.16.5(supports-color@7.2.0)
       cors: 2.8.6
       dotenv: 16.6.1
       express: 4.22.3(supports-color@7.2.0)
@@ -15579,7 +15583,7 @@ snapshots:
       - supports-color
       - ws
 
-  '@midscene/shared@1.16.0(supports-color@7.2.0)':
+  '@midscene/shared@1.16.5(supports-color@7.2.0)':
     dependencies:
       '@silvia-odwyer/photon': 0.3.3
       debug: 4.4.0(supports-color@7.2.0)
@@ -15591,11 +15595,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@midscene/test@1.16.0(@midscene/web@1.16.0(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)':
+  '@midscene/test@1.16.5(@midscene/web@1.16.5(playwright@1.64.0)(supports-color@7.2.0))(@types/node@22.20.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)':
     dependencies:
       '@inquirer/prompts': 7.10.1(@types/node@22.20.1)
-      '@midscene/core': 1.16.0(supports-color@7.2.0)(ws@8.21.3)
-      '@midscene/shared': 1.16.0(supports-color@7.2.0)
+      '@midscene/core': 1.16.5(supports-color@7.2.0)(ws@8.21.3)
+      '@midscene/shared': 1.16.5(supports-color@7.2.0)
       chalk: 4.1.2
       dotenv: 16.6.1
       execa: 9.3.0
@@ -15603,12 +15607,13 @@ snapshots:
       http-server: 14.1.1(supports-color@7.2.0)
       js-yaml: 4.1.0
       lodash.merge: 4.6.2
+      string-width: 4.2.3
       tinyglobby: 0.2.15
       tsx: 4.23.13
       yargs: 17.7.3
       zod: 3.25.76
     optionalDependencies:
-      '@midscene/web': 1.16.0(playwright@1.64.0)(supports-color@7.2.0)
+      '@midscene/web': 1.16.5(playwright@1.64.0)(supports-color@7.2.0)
       playwright: 1.64.0
     transitivePeerDependencies:
       - '@types/node'
@@ -15616,11 +15621,11 @@ snapshots:
       - supports-color
       - ws
 
-  '@midscene/test@1.16.0(@midscene/web@1.16.0(playwright@1.64.0)(supports-color@7.2.0))(@types/node@26.5.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)':
+  '@midscene/test@1.16.5(@midscene/web@1.16.5(playwright@1.64.0)(supports-color@7.2.0))(@types/node@26.5.1)(playwright@1.64.0)(supports-color@7.2.0)(ws@8.21.3)':
     dependencies:
       '@inquirer/prompts': 7.10.1(@types/node@26.5.1)
-      '@midscene/core': 1.16.0(supports-color@7.2.0)(ws@8.21.3)
-      '@midscene/shared': 1.16.0(supports-color@7.2.0)
+      '@midscene/core': 1.16.5(supports-color@7.2.0)(ws@8.21.3)
+      '@midscene/shared': 1.16.5(supports-color@7.2.0)
       chalk: 4.1.2
       dotenv: 16.6.1
       execa: 9.3.0
@@ -15628,12 +15633,13 @@ snapshots:
       http-server: 14.1.1(supports-color@7.2.0)
       js-yaml: 4.1.0
       lodash.merge: 4.6.2
+      string-width: 4.2.3
       tinyglobby: 0.2.15
       tsx: 4.23.13
       yargs: 17.7.3
       zod: 3.25.76
     optionalDependencies:
-      '@midscene/web': 1.16.0(playwright@1.64.0)(supports-color@7.2.0)
+      '@midscene/web': 1.16.5(playwright@1.64.0)(supports-color@7.2.0)
       playwright: 1.64.0
     transitivePeerDependencies:
       - '@types/node'
@@ -15641,11 +15647,11 @@ snapshots:
       - supports-color
       - ws
 
-  '@midscene/web@1.16.0(playwright@1.64.0)(supports-color@7.2.0)':
+  '@midscene/web@1.16.5(playwright@1.64.0)(supports-color@7.2.0)':
     dependencies:
-      '@midscene/core': 1.16.0(supports-color@7.2.0)(ws@8.21.3)
-      '@midscene/playground': 1.16.0(supports-color@7.2.0)(ws@8.21.3)
-      '@midscene/shared': 1.16.0(supports-color@7.2.0)
+      '@midscene/core': 1.16.5(supports-color@7.2.0)(ws@8.21.3)
+      '@midscene/playground': 1.16.5(supports-color@7.2.0)(ws@8.21.3)
+      '@midscene/shared': 1.16.5(supports-color@7.2.0)
       cors: 2.8.6
       dayjs: 1.11.23
       dotenv: 16.6.1
@@ -19066,6 +19072,8 @@ snapshots:
   jiti@2.6.1: {}
 
   jiti@2.7.0: {}
+
+  jose@5.9.6: {}
 
   jose@6.2.12: {}
 

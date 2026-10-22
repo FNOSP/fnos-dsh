@@ -81,7 +81,17 @@ export default defineTestProject<BridgeContext>({
   ],
   test: {
     // 同一浏览器窗口里并行操作会互相干扰；破坏性用例还要串行改文件状态。
-    maxConcurrency: 1,
+    //
+    // 1.16.5 起 `maxConcurrency` 被拆成两个字段并**在运行期显式拒绝旧名**
+    // （`Midscene config test.maxConcurrency is no longer supported.`）。两者的默认值
+    // 都是 1，因此写与不写行为一致；这里显式写出来，避免将来默认值变化时静默变成并发。
+    maxConcurrentFiles: 1,
+    maxConcurrentProjects: 1,
+    // 1.16.5 新增的环境准备/清理上限（缺省不启用，与 1.16.0 一致）。本项目 setup 要
+    // 连真实 Chrome 里的扩展，扩展未连上时旧行为是**无限等待**；设上限把它变成可诊断的
+    // `SETUP_TIMEOUT`。取值按「本机扩展连接正常时数秒内完成」留足余量。
+    setupTimeout: 120_000,
+    teardownTimeout: 120_000,
     // 设置/图标类用例都在 200s 内完成；TC-060 要在一个陌生站点里逐级导航并自我纠正，
     // 实测 180s 会在它已经诊断出「点到了相邻行」时被掐断，因此按最慢的那条留余量。
     testTimeout: 600_000,

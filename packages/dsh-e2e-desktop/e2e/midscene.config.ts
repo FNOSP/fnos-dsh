@@ -82,7 +82,9 @@ export default defineTestProject<DesktopCdpContext>({
   ],
   test: {
     // 用例改的是同一个渲染进程，串行执行避免互相干扰。
-    maxConcurrency: 1,
+    // 1.16.5 起旧的 `maxConcurrency` 被移除且运行期显式拒绝；两字段默认值均为 1。
+    maxConcurrentFiles: 1,
+    maxConcurrentProjects: 1,
     // 页面内判定是毫秒级，超时只需覆盖偶发的渲染阻塞。
     testTimeout: 120_000,
   },
