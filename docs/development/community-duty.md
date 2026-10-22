@@ -1,12 +1,13 @@
 # 社区值班
 
-本页说明 `FNOSP/fnos-dsh` 社区值班定时任务的运行方式、判定口径和硬性约束。值班任务由任务看板的定时执行驱动，仓库内只保留一个确定性助手脚本负责取数、发评论和去重，**判断与措辞由执行会话负责**。
+本页说明 `FNOSP/fnos-dsh` 社区值班自动化任务的运行方式、判定口径和硬性约束。值班由 **DSH 自动化任务**（schedule，cron 定时）驱动，到点把值班提示投递回值班会话；仓库内只保留一个确定性助手脚本负责取数、发评论和去重，**判断与措辞由值班会话负责**。
 
 ## 值班节奏
 
-- 看板定时任务「fnos-dsh 社区值班」，cron 表达式 `0 */4 * * *`，即本地时间 00:00 / 04:00 / 08:00 / 12:00 / 16:00 / 20:00 各触发一轮，每轮一个独立会话。
+- DSH 自动化任务「fnos-dsh 社区值班」，cron 表达式 `0 */4 * * *`（时区 `Asia/Shanghai`），即本地时间 00:00 / 04:00 / 08:00 / 12:00 / 16:00 / 20:00 各触发一轮，提示投递回创建它的值班会话。
 - 每轮范围：`FNOSP/fnos-dsh` 的 open issues、open PRs、discussions。
 - 本轮没有待处理事项时**直接结束**：不建卡、不评论、不回复。
+- 定时由 DSH 宿主调度，宿主停机期间错过的窗口只在恢复后补投一次；自动化任务绑定值班会话，会话归档后需重新创建。
 
 ## 一轮的标准动作
 
@@ -15,7 +16,7 @@
 | 1. 取数 | `node scripts/community-duty.mjs scan` | 输出 JSON：`pending`（待处理）、`skipped`（已答复/维护者自述等）、`rateLimit`（剩余额度） |
 | 2. 分流 | 按下方口径逐条判定 | 简单问题可自动回复；复杂或高风险一律不回复 |
 | 3. 回复 | 正文写入 `tmp/community-duty/outbox/<key>.md`，再执行 `node scripts/community-duty.mjs reply --key issue#16 --body-file tmp/community-duty/outbox/issue#16.md` | 脚本自动追加 `<!-- dsh-bot:v1 -->` 签名；发布前做本地内容拦截 |
-| 4. 建卡 | `taskboard_create` | 已自动回复的卡片状态 `in_review`（待验收）；需人工处理的卡片状态 `todo` |
+| 4. 建卡 | `taskboard_create` | 已自动回复的卡片状态 `in_review`（待验收）；需人工处理的卡片状态 `todo`。看板卡只用于跟踪已处理事项，定时本身由 DSH 自动化任务负责，看板不挂定时卡 |
 | 5. 登记 | `node scripts/community-duty.mjs mark --key issue#16 --status replied --card <卡片ID>` | 状态写入本地台账，下一轮据此去重 |
 | 6. 交接 | `taskboard_execution_report` + `taskboard_comment_add` | 记录本轮处理了哪些事项、如何判定、剩余风险 |
 
@@ -60,6 +61,6 @@
 
 ## 手动补跑
 
-- 看板定时卡上可手动触发一轮；每轮结束宿主会保留本卡待验收并新建承接下一轮的待办卡。
+- 值班会话里直接说明「现在补跑一轮社区值班」即可按上面的标准动作走一轮。
 - 只补跑取数不发评论：`node scripts/community-duty.mjs scan`。
 - 只验证正文能否发布：`node scripts/community-duty.mjs reply --key <key> --body-file <文件> --dry-run`。
