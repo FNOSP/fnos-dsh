@@ -213,6 +213,7 @@ const developmentSidebar = [
     items: [
       { text: '路径与编码', link: '/development/conventions' },
       { text: 'GitHub Workflow', link: '/development/github-workflows' },
+      { text: '社区值班', link: '/development/community-duty' },
       { text: '贡献指南', link: '/contributing' },
       { text: 'SDD 模式转换报告（历史）', link: '/charter/sdd-transition-report' }
     ]
