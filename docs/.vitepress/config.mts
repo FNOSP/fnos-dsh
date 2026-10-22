@@ -520,6 +520,10 @@ const testsSidebar = [
         text: 'FNOS-024 CodeBuddy 403 纳入账号切换',
         link: '/tests/FNOS-024-codebuddy-403-failover'
       },
+      {
+        text: 'FNOS-025 CodeBuddy 插件下架',
+        link: '/tests/FNOS-025-codebuddy-plugin-delisting'
+      },
     ]
   }
 ]

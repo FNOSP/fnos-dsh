@@ -2,7 +2,7 @@
 id: FNOS-025
 title: FNOS-025 CodeBuddy 插件下架
 description: 上游对非官方客户端通道收紧风控，CodeBuddy 插件已无法稳定使用。插件停止维护并不再随应用分发、不再发布、不再出现在文档站；源码保留在本机，不再由仓库追踪。
-status: 规划中
+status: 待验证
 owner: tnnevol
 targetVersion: 5.9.0-0.2.1-rc.2.13
 lastVerified: 2026-10-22
@@ -14,7 +14,7 @@ lastVerified: 2026-10-22
 | --- | --- |
 | 需求编号 | FNOS-025 |
 | 提出日期 | 2026-10-22 |
-| 需求状态 | <Badge type="info" text="规划中" /> |
+| 需求状态 | <Badge type="warning" text="待验证（真实 NAS 安装与升级验收待执行）" /> |
 | 关联计划 | [PLAN-FNOS-025 CodeBuddy 插件下架](/plans/PLAN-FNOS-025-codebuddy-plugin-delisting) |
 | 影响插件 | `@tnnevol/dsh-codebuddy`（停止维护并下架） |
 | 关联需求 | [FNOS-012](/requirements/FNOS-012-codebuddy-model-speed-and-client-version)、[FNOS-020](/requirements/FNOS-020-codebuddy-transient-400)、[FNOS-022](/requirements/FNOS-022-codebuddy-content-block-fix)、[FNOS-023](/requirements/FNOS-023-codebuddy-restricted-account-failover)、[FNOS-024](/requirements/FNOS-024-codebuddy-403-failover) |
@@ -65,11 +65,11 @@ lastVerified: 2026-10-22
 
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-025-01 | P0 | 插件不再随应用内置 | 安装或升级应用后，插件管理器里不再出现 CodeBuddy 插件 | <Badge type="info" text="待验" /> |
-| FNOS-025-02 | P0 | 文档站不再收录该插件 | 文档站插件总览里没有该插件，搜索不到它的说明页 | <Badge type="info" text="待验" /> |
-| FNOS-025-03 | P1 | 仓库不再追踪插件源码 | 仓库中查不到该插件目录，但本机文件仍完整保留 | <Badge type="info" text="待验" /> |
-| FNOS-025-04 | P1 | 发布链路不再包含该插件 | 发版与发布插件的命令不再列出、也不再产出该插件 | <Badge type="info" text="待验" /> |
-| FNOS-025-05 | P2 | 升级后清理老用户环境残留 | 老用户升级后，插件管理器里不再有该插件 | <Badge type="info" text="待验" /> |
+| FNOS-025-01 | P0 | 插件不再随应用内置 | 安装或升级应用后，插件管理器里不再出现 CodeBuddy 插件 | <Badge type="tip" text="已验" />（真实 NAS 待验） |
+| FNOS-025-02 | P0 | 文档站不再收录该插件 | 文档站插件总览里没有该插件，搜索不到它的说明页 | <Badge type="tip" text="已验" /> |
+| FNOS-025-03 | P1 | 仓库不再追踪插件源码 | 仓库中查不到该插件目录，但本机文件仍完整保留 | <Badge type="tip" text="已验" /> |
+| FNOS-025-04 | P1 | 发布链路不再包含该插件 | 发版与发布插件的命令不再列出、也不再产出该插件 | <Badge type="tip" text="已验" /> |
+| FNOS-025-05 | P2 | 升级后清理老用户环境残留 | 老用户升级后，插件管理器里不再有该插件 | <Badge type="warning" text="待验" />（真实 NAS） |
 
 ### 验收环境范围
 
@@ -152,4 +152,5 @@ sequenceDiagram
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-10-22 | 实现完成，真实 NAS 验收待执行 | 下架在分发清单、文档站、仓库追踪与发布链路四条链路上均已落地并验证：FPK 构建通过且包内清单不含该插件、文档构建通过、版本管理的文件集合中查不到该插件目录（源码保留在本机）、版本维护与发布候选列表不含该插件、市场索引已重生成。18 条用例中 16 条通过，真实 NAS 的安装与升级验收 2 条待执行。需求状态改为待验证。 |
 | 2026-10-22 | 初始登记 | 建立 FNOS-025。登记 5 项功能与 9 条验收条件；明确源码保留不删、文档站移除、FPK 移除内置、发布链路排除、升级清理残留五条边界；登记与 FNOS-012 至 FNOS-024 的归属关系，并说明 FNOS-012-04/05/06 不受影响。关联 PLAN-FNOS-025。 |
