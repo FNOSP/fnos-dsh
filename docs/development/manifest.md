@@ -19,7 +19,7 @@ apps/<appname>/
 
 ```ini
 appname               = fn-deepseek-harness
-version               = 5.9.0-0.2.1-rc.2.15
+version               = 5.9.0-0.2.1-rc.2.16
 display_name          = DeepSeek Harness
 desc                  = DeepSeek AI 开源的插件化智能代理工具，通过 Web UI 提供 dsh 操作界面。
 platform              = x86
