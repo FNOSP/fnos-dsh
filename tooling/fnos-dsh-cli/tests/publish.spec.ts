@@ -25,6 +25,8 @@ const targets = [
     filter: '@tnnevol/dsh-codebuddy...',
     path: 'plugins/dsh-codebuddy-plugin/package.json',
     slug: 'dsh-codebuddy',
+    // 只在本机维护：源码不入库，但可以显式发布到 npm。
+    localOnly: true,
   },
   {
     value: 'beta',
@@ -33,10 +35,15 @@ const targets = [
     filter: '@tnnevol/dsh-codex-auth...',
     path: 'plugins/dsh-codex-auth-plugin/package.json',
     slug: 'dsh-codex-auth',
+    localOnly: false,
   },
 ]
 
-vi.mock('../src/config/targets.js', () => ({ pluginTargets: targets, findPluginTarget: vi.fn() }))
+vi.mock('../src/config/targets.js', () => ({
+  pluginTargets: targets,
+  findPluginTarget: vi.fn((alias: string | undefined) =>
+    targets.find(target => target.value === alias || target.name === alias)),
+}))
 vi.mock('../src/core/process.js', () => ({ runCommand: mocks.runCommand }))
 vi.mock('../src/commands/publish-latest.js', () => ({
   maintainLatestTag: mocks.maintainLatestTag,
@@ -155,13 +162,23 @@ describe('publish：--all 一次性发布全部插件', () => {
     })
   })
 
-  it('--all 发布全部插件，且不进入交互', async () => {
+  it('--all 发布随仓库发布的插件，跳过只在本机维护的，且不进入交互', async () => {
+    // 只在本机维护的插件要不要发由人决定：批量发布是例行发版的一环，不该在没人
+    // 过问的情况下把它顺带推上去。要发就用 --plugin 显式指定，或在交互多选里选。
     await runPublish(['--all'])
 
-    // 两个 mock target 都被发布
     const published = mocks.runCommand.mock.calls.filter(call => call[0] === 'npm')
-    expect(published).toHaveLength(2)
+    expect(published).toHaveLength(1)
+    expect(String(published[0]?.[2])).toContain('dsh-codex-auth-plugin')
     expect(mocks.askPublishPlugins).not.toHaveBeenCalled()
+  })
+
+  it('--plugin 能显式发布只在本机维护的插件', async () => {
+    await runPublish(['--plugin', 'alpha'])
+
+    const published = mocks.runCommand.mock.calls.filter(call => call[0] === 'npm')
+    expect(published).toHaveLength(1)
+    expect(String(published[0]?.[2])).toContain('dsh-codebuddy-plugin')
   })
 
   it('--all 与 --plugin 同时给出时报错，不静默取其一', async () => {

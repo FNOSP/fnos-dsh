@@ -48,6 +48,8 @@ vi.mock('../src/config/targets.js', () => ({
       filter: '@tnnevol/dsh-codebuddy...',
       path: 'plugins/dsh-codebuddy-plugin/package.json',
       slug: 'dsh-codebuddy',
+      // 只在本机维护：源码被 gitignore，路径不得进暂存列表。
+      localOnly: true,
     },
     {
       value: 'fnos',
@@ -56,6 +58,7 @@ vi.mock('../src/config/targets.js', () => ({
       filter: '@tnnevol/dsh-fnos...',
       path: 'plugins/dsh-fnos-plugin/package.json',
       slug: 'dsh-fnos',
+      localOnly: false,
     },
   ],
 }))
@@ -86,7 +89,6 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
         return JSON.stringify({
           version: 1,
           plugins: [
-            { name: '@tnnevol/dsh-codebuddy', version: PLUGIN_START },
             { name: '@tnnevol/dsh-fnos', version: PLUGIN_START },
           ],
         })
@@ -125,6 +127,22 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
     // 两者都落到 0.2.1-rc.2.5 —— 与项目 5.9.0-0.2.1-rc.2.5 的迭代号一致。
     expect(codebuddy?.[1]).toContain('"version": "0.2.1-rc.2.5"')
     expect(fnos?.[1]).toContain('"version": "0.2.1-rc.2.5"')
+  })
+
+  it('只在本机维护的插件照常升版本，但路径不进暂存列表', async () => {
+    await runVersion(['--yes'])
+
+    // 版本号照常推进到本机文件——它还要靠这个版本号发布到 npm。
+    const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
+    const codebuddy = written.find(([path]) => path.includes('dsh-codebuddy') && path.endsWith('package.json'))
+    expect(codebuddy?.[1]).toContain('"version": "0.2.1-rc.2.5"')
+
+    // 但它的路径不能进 `git add`：源码被 gitignore，git add 碰到被忽略的路径会以
+    // 退出码 1 失败，把整个版本命令打断。
+    const addCall = mocks.spawnSync.mock.calls.find(call => (call[1] as string[] | undefined)?.[0] === 'add')
+    const staged = (addCall?.[1] ?? []).join(' ')
+    expect(staged).not.toContain('dsh-codebuddy-plugin')
+    expect(staged).toContain('dsh-fnos-plugin')
   })
 
   it('插件与项目不同号时拒绝发布，并指出是哪几个', async () => {

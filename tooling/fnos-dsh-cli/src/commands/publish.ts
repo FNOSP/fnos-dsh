@@ -31,7 +31,10 @@ function selectPublishTargets(
     throw new Error('Cannot combine --all and --plugin')
   }
   // 按 targets 的既有顺序发布，与交互多选的结果顺序一致；串行发布由调用方负责。
-  if (all) return [...pluginTargets]
+  //
+  // 批量发布跳过只在本机维护的插件：它们不随仓库一起发布，要不要发由人显式决定
+  // （`--plugin <名字>` 或交互多选仍可选中它们）。
+  if (all) return pluginTargets.filter(target => !target.localOnly)
   if (plugin === undefined) return askPublishPlugins()
   const target = findPluginTarget(plugin)
   if (target === undefined) throw new Error(`Unknown plugin: ${plugin}`)

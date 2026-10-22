@@ -79,6 +79,6 @@ data/
 # Midscene Test 生成的节点说明书（由 `midscene-test nodes` 产出，随配置变化）
 midscene-node-spec.*.md
 
-# CodeBuddy 插件：已下架，不再随 FPK 内置、不再发布、不再进文档站。
-# 源码保留在本机供查阅与后续恢复，但**不再由 git 追踪**——仓库只保留它的历史。
+# CodeBuddy 插件：只在本机维护。源码保留在本机，**不由 git 追踪**；不随 FPK 内置，
+# 不进仓库文档与插件市场索引。发布到 npm 仍走既有链路（`publish --plugin codebuddy`）。
 plugins/dsh-codebuddy-plugin/

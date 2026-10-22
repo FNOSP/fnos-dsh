@@ -4,12 +4,13 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { dirname } from 'node:path'
 import { versionBump, type VersionBumpRelease } from 'bumpp'
 import { program } from '../program.js'
 import { addBooleanArgs, addNegatedArgs } from '../core/command-args.js'
 import { askTargetBaseline, askVersionReleaseKind } from '../ui/prompts.js'
 import { projectVersionFiles, repositoryRoot } from '../config/paths.js'
-import { pluginTargets } from '../config/targets.js'
+import { pluginTargets, type PluginTarget } from '../config/targets.js'
 import { parseVersionOptions } from '../core/args.js'
 import {
   assertProjectVersionShape,
@@ -125,6 +126,19 @@ export function pluginDocPageOf(pluginName: string): string | undefined {
   if (explicit !== undefined) return explicit
   const slug = pluginName.split('/').pop()
   return slug === undefined || slug === '' ? undefined : slug
+}
+
+/**
+ * 只在本机维护的插件的目录前缀。
+ *
+ * 这些插件的源码被 `.gitignore` 忽略，路径一旦进暂存列表，`git add` 就会以「该路径
+ * 被忽略」失败（退出码 1），把整个版本命令打断。它们照常升版本号、照常发布到 npm，
+ * 只是改动不落进仓库。
+ */
+function localOnlyPrefixes(targets: readonly PluginTarget[]): string[] {
+  return targets
+    .filter(target => target.localOnly)
+    .map(target => `${dirname(target.path)}/`)
 }
 
 /** 把某个插件安装命令里的版本号替换为目标版本。 */
@@ -413,14 +427,17 @@ async function releaseAll(
 
   // 插件侧：逐个写入，并收集被改动的文档路径。
   const changedPaths = new Set<string>(projectVersionFiles)
+  const localOnly = localOnlyPrefixes(targets)
+  const isLocalOnlyPath = (path: string) => localOnly.some(prefix => path.startsWith(prefix))
   for (const item of plan) {
     await updatePackageVersion(item.target.path, item.to)
-    changedPaths.add(item.target.path)
+    // 只在本机维护的插件照常升版本号，但它的路径不进暂存列表（源码被 git 忽略）。
+    if (!item.target.localOnly) changedPaths.add(item.target.path)
     if (await syncPublishedPluginVersion(item.name, item.to)) changedPaths.add(publishedDshPluginsPath)
     if (await syncPluginIndexDocVersion(item.name, item.to)) changedPaths.add(pluginIndexDocPath)
     const pluginDirectory = item.target.path.split('/')[1] ?? ''
     for (const path of await syncPluginInstallVersions(item.name, pluginDirectory, item.to)) {
-      changedPaths.add(path)
+      if (!isLocalOnlyPath(path)) changedPaths.add(path)
     }
   }
 
@@ -428,7 +445,11 @@ async function releaseAll(
     // 只暂存本命令写过的路径（`projectVersionFiles` 里的 glob 由 git 自己展开）。
     // 不用 `git add -A`——那会把调用者工作区里的无关改动一并卷进 release 提交，
     // 属于最难排查的一类事故。
-    runGit(['add', '--', ...changedPaths])
+    //
+    // 只在本机维护的插件路径额外过滤掉：它们被 `.gitignore` 忽略，`git add` 碰到
+    // 被忽略的路径会以退出码 1 失败，把整个版本命令打断。
+    const stagedPaths = [...changedPaths].filter(path => !isLocalOnlyPath(path))
+    runGit(['add', '--', ...stagedPaths])
     runGit(['commit', '-m', `chore: release v${nextProject}`])
     if (!options.noTag) runGit(['tag', formatTag(nextProject)])
   }

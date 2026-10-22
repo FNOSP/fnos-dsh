@@ -15,6 +15,11 @@ export type PluginTarget = {
   path: string
   /** 包名最后一段，用于插件选择和发布提交消息。 */
   slug: string
+  /**
+   * 是否只在本机维护：源码不由 git 追踪、不进仓库文档，但照常参与本地构建、
+   * 本地 profile、版本维护与 npm 发布。
+   */
+  localOnly: boolean
 }
 
 type PluginManifest = {
@@ -30,21 +35,25 @@ const LEGACY_ALIASES: Record<string, string> = {
 }
 
 /**
- * 已下架插件的目录名。
+ * 只在本机维护的插件目录。
  *
- * 这些插件的源码仍留在本机（供查阅历史实现、以备日后恢复），但它们**已不属于本
- * 仓库的工作范围**：不再由 git 追踪、不再随 FPK 内置、不再发布到 npm，也不再
- * 出现在文档站。
+ * 这些插件的源码**不由 git 追踪**（目录被 `.gitignore` 忽略），也不出现在仓库文档与
+ * 插件市场索引里，但它们仍是正常的插件：可以本地构建、进本地 profile、跟随项目的
+ * 版本迭代号，并**照常发布到 npm**。
  *
- * 之所以必须显式排除，而不是「目录没了自然就消失」：插件列表是按 `plugins/` 目录
- * **动态发现**的，而下架只解除了 git 追踪，源码仍在磁盘上。目录还在，它就会继续
- * 被 `pnpm run version` 一起升版本（紧接着 `git add` 一个被 gitignore 的路径直接
- * 失败）、被 `pnpm run publish --all` 发到 npm、被构建与发布的插件选择列表选中。
- * 「下架」因此是一条必须写下来的规则，不是「把文件挪走」的自然结果。
+ * 之所以要显式登记，而不是「目录被忽略了自然就消失」：插件列表是按 `plugins/` 目录
+ * **动态发现**的，目录还在磁盘上就仍会被一切链路看见。要让它们真正留在本机，需要在
+ * 两处区别对待：
+ *
+ * - **版本提交**必须跳过它们的路径——`git add` 遇到被忽略的路径会直接以退出码 1
+ *   失败，把整个版本命令打断；
+ * - **批量发布**（`publish --all`）默认跳过它们——批量发布面向的是随仓库一起发布的
+ *   那批插件，本机专属插件应由人显式指定发布，不该在一次例行发版里被顺带推上去。
+ *
+ * 其余链路（本地构建、本地 profile、版本号迭代、显式发布）一律与普通插件一致。
  */
-const DELISTED_PLUGIN_DIRECTORIES = new Set([
-  // CodeBuddy：2026-10-22 因上游对非官方客户端通道收紧拦截而停止维护并下架，
-  // 见 FNOS-025。源码保留在本机，不参与版本维护、发布与打包。
+const LOCAL_ONLY_PLUGIN_DIRECTORIES = new Set([
+  // CodeBuddy：2026-10-22 起按「不入仓库、不入文档、可发 npm」的约定在本机维护。
   'dsh-codebuddy-plugin',
 ])
 
@@ -75,6 +84,7 @@ function readPluginTarget(directoryName: string): PluginTarget | undefined {
     filter: `${manifest.name}...`,
     path: `plugins/${directoryName}/package.json`,
     slug,
+    localOnly: LOCAL_ONLY_PLUGIN_DIRECTORIES.has(directoryName),
   }
 }
 
@@ -87,7 +97,6 @@ function readPluginTargets(): PluginTarget[] {
   }
   return entries
     .filter(entry => entry.isDirectory())
-    .filter(entry => !DELISTED_PLUGIN_DIRECTORIES.has(entry.name))
     .map(entry => readPluginTarget(entry.name))
     .filter((target): target is PluginTarget => target !== undefined)
 }
