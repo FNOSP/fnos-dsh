@@ -42,7 +42,6 @@ const DSHMARKET_NAME = 'dshmarket'
 // 新增内置插件要在这里登记，而不是像「有源码就放行」那样自动通过；漏登记会在
 // 构建期报错并点名，避免清单被无意改动后无人发现。
 const FPK_REQUIRED_BUNDLED_PLUGIN_NAMES = [
-  '@tnnevol/dsh-codebuddy',
   '@tnnevol/dsh-codex-auth',
   '@tnnevol/dsh-fnos',
 ]
@@ -196,10 +195,9 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
   if (codex === undefined) {
     throw new Error(`The published DSH plugin manifest must bundle the Codex plugin: ${manifestPath}`)
   }
-  const codeBuddy = manifest.plugins.find(plugin => plugin?.name === '@tnnevol/dsh-codebuddy')
-  if (codeBuddy === undefined) {
-    throw new Error(`The published DSH plugin manifest must bundle CodeBuddy: ${manifestPath}`)
-  }
+  // CodeBuddy 曾在此处有「必须内置」的守卫。它已于 2026-10-22 下架：上游对非官方
+  // 客户端通道收紧拦截，插件无法再稳定可用。守卫随之移除——保留它只会让清单
+  // 永远无法合法地少一个插件。
   // 三方插件的版本由清单持有。这里只校验它存在且为精确版本——把版本写进校验代码
   // 会让「升级插件」变成「同时改两处」，漏改一处就构建失败（`dshmarket` 从 1.66.3
   // 升到 1.66.11 时正是如此）。清单值的正确性由 peer 覆盖与真机安装验证来保证。

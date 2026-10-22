@@ -87,17 +87,17 @@ cases:
       # （曾把药丸按钮本身误判成开关控件），因此这类判定必须用代码，且要用
       # `dsh.assertInPage` 才能真的失败（`javascript` 的 throw 被吞）。
       - dsh.assertInPage:
-          label: 介绍列出四个内置插件且未声称内置 Midscene
+          label: 介绍列出三个内置插件且未声称内置 Midscene
           script: |
             (() => {
               const text = document.body.innerText || '';
-              const want = ['fnOS', 'Codex Auth', 'CodeBuddy', 'Failover Search'];
+              const want = ['fnOS', 'Codex Auth', 'Failover Search'];
               const missing = want.filter(n => !text.includes(n));
               if (missing.length > 0) return { pass: false, detail: '缺少 ' + missing.join('、') };
               if (/内置[^。]*Midscene/.test(text)) {
                 return { pass: false, detail: '仍声称内置 Midscene，与发布清单不符' };
               }
-              return { pass: true, detail: '四项齐备，且未声称内置 Midscene' };
+              return { pass: true, detail: '三项齐备，且未声称内置 Midscene' };
             })()
 
   # ── 应用可启动 ────────────────────────────────────────────────────
@@ -168,8 +168,8 @@ cases:
               }
               if (combos === 0) return { pass: false, detail: '外壳未包含 plugins/?? combo 引用' };
               const names = [...found];
-              const want = ['@tnnevol/dsh-fnos', '@tnnevol/dsh-codebuddy',
-                            '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-failover-search'];
+              const want = ['@tnnevol/dsh-fnos', '@tnnevol/dsh-codex-auth',
+                            '@tnnevol/dsh-failover-search'];
               const missing = want.filter(n => !names.includes(n));
               if (missing.length > 0) {
                 return {
@@ -246,13 +246,13 @@ cases:
                   detail: '安装后仍内置 dsh-midscene——装上的还是旧构建，或安装未真正替换',
                 };
               }
-              const want = ['@tnnevol/dsh-fnos', '@tnnevol/dsh-codebuddy',
-                            '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-failover-search'];
+              const want = ['@tnnevol/dsh-fnos', '@tnnevol/dsh-codex-auth',
+                            '@tnnevol/dsh-failover-search'];
               const missing = want.filter(n => !found.includes(n));
               if (missing.length > 0) {
                 return { pass: false, detail: '新构建缺少内置插件：' + missing.join('、') };
               }
-              return { pass: true, detail: '新构建已生效：四个内置插件齐备且不含 dsh-midscene' };
+              return { pass: true, detail: '新构建已生效：三个内置插件齐备且不含 dsh-midscene' };
             })()
       # 安装后应用中心是否反映了本次安装：走确定性断言，不用视觉判断。
       # 实测教训：原先这里是 `aiAssert: 应用中心列表里 … 显示为已安装且可打开`，安装明明

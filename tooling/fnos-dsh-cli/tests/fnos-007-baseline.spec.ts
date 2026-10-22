@@ -23,7 +23,6 @@ const targetVersion = await runtimeBaseline()
 // 而当时的守卫在变异检验下对该插件「恒真」。
 // 新增插件必须一并加入本列表：漏项 = 该插件的清单与 catalog 声明无人守门。
 const pluginDirectories = [
-  'dsh-codebuddy-plugin',
   'dsh-codex-auth-plugin',
   'dsh-failover-search-plugin',
   'dsh-fnos-plugin',
@@ -32,13 +31,15 @@ const pluginDirectories = [
 ]
 
 /**
- * The three plugins the FPK bundles, mapped to their source directories.
+ * The plugins with a source directory in this repo, mapped to that directory.
  *
  * `dsh-semi-ui-showcase-plugin` is intentionally absent: it is published but
  * not bundled into the package, so it has no entry in the manifest.
+ *
+ * CodeBuddy was removed from this list on 2026-10-22: it was delisted and no
+ * longer bundled with the FPK (see FNOS-025).
  */
 const bundledPluginDirectories = {
-  '@tnnevol/dsh-codebuddy': 'dsh-codebuddy-plugin',
   '@tnnevol/dsh-codex-auth': 'dsh-codex-auth-plugin',
   '@tnnevol/dsh-failover-search': 'dsh-failover-search-plugin',
   '@tnnevol/dsh-fnos': 'dsh-fnos-plugin',
@@ -87,12 +88,10 @@ describe('FNOS-007 DSH baseline', () => {
       plugins: Array<{ name: string, version: string }>
     }
     const documented: Array<[string, string]> = [
-      ['plugins/dsh-codebuddy-plugin/README.md', '@tnnevol/dsh-codebuddy'],
       ['plugins/dsh-codex-auth-plugin/README.md', '@tnnevol/dsh-codex-auth'],
       ['plugins/dsh-failover-search-plugin/README.md', '@tnnevol/dsh-failover-search'],
       ['plugins/dsh-fnos-plugin/README.md', '@tnnevol/dsh-fnos'],
       ['plugins/dsh-semi-ui-showcase-plugin/README.md', '@tnnevol/dsh-semi-ui-showcase'],
-      ['docs/plugins/dsh-codebuddy.md', '@tnnevol/dsh-codebuddy'],
       ['docs/plugins/dsh-codex-auth.md', '@tnnevol/dsh-codex-auth'],
       ['docs/plugins/dsh-failover-search.md', '@tnnevol/dsh-failover-search'],
       ['docs/plugins/dsh-fnos.md', '@tnnevol/dsh-fnos'],
@@ -132,14 +131,15 @@ describe('FNOS-007 DSH baseline', () => {
     // literal in the test rots exactly like one in the build guard: both said
     // 0.2.0-rc.2 after the plugins moved to 0.2.0-rc.2.0, so the test went red
     // while the release it was meant to protect still shipped a stale pin.
-    for (const name of ['@tnnevol/dsh-codebuddy', '@tnnevol/dsh-codex-auth', '@tnnevol/dsh-fnos'] as const) {
+    for (const name of ['@tnnevol/dsh-codex-auth', '@tnnevol/dsh-fnos'] as const) {
       const directory = bundledPluginDirectories[name]
       const source = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as { version: string }
       expect(published.plugins.find(plugin => plugin.name === name), name).toEqual({ name, version: source.version })
     }
-    // 三个自有插件 + Failover Search（均随 FPK 安装）+ 三方 dshmarket。
+    // 两个自有插件（Codex Auth、fnOS）+ Failover Search（均随 FPK 安装）+ 三方 dshmarket。
     // `@tnnevol/dsh-midscene` 不随 FPK 分发，由需要的人自行安装。
-    expect(published.plugins).toHaveLength(5)
+    // CodeBuddy 已于 2026-10-22 下架，不再随 FPK 内置（见 FNOS-025）。
+    expect(published.plugins).toHaveLength(4)
     // Third-party dshmarket has no local source, so its exact pin stays a
     // literal: the registry version is the contract, not a copy. 每次更新 DSH
     // 基线都要同步升级它，否则其 peer 范围可能不覆盖新基线而被兼容门禁拒绝。

@@ -114,7 +114,6 @@ async function syncPublishedPluginVersion(pluginName: string, version: string): 
  * 用户照抄就装到旧包（守卫能报出来，但根本不该漏）。
  */
 const pluginDocPages: Record<string, string> = {
-  '@tnnevol/dsh-codebuddy': 'dsh-codebuddy',
   '@tnnevol/dsh-codex-auth': 'dsh-codex-auth',
   '@tnnevol/dsh-fnos': 'dsh-fnos',
   '@tnnevol/dsh-semi-ui-showcase': 'dsh-semi-ui-showcase',

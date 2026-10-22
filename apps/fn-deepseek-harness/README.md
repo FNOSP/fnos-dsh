@@ -10,8 +10,7 @@
 ## 功能
 
 - DSH Web 界面和 fnOS 文件入口
-- CodeBuddy、Codex Auth、fnOS 和 Semi UI Showcase 插件集成
-- CodeBuddy 成长任务、任务中心和执行日志
+- Codex Auth、fnOS、Failover Search 和 Semi UI Showcase 插件集成
 - NAS 目录授权、文件引用和会话日志导出
 - 第三方插件 API 反向代理
 

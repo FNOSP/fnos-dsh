@@ -29,6 +29,25 @@ const LEGACY_ALIASES: Record<string, string> = {
   '@tnnevol/dsh-semi-ui-showcase': 'showcase',
 }
 
+/**
+ * 已下架插件的目录名。
+ *
+ * 这些插件的源码仍留在本机（供查阅历史实现、以备日后恢复），但它们**已不属于本
+ * 仓库的工作范围**：不再由 git 追踪、不再随 FPK 内置、不再发布到 npm，也不再
+ * 出现在文档站。
+ *
+ * 之所以必须显式排除，而不是「目录没了自然就消失」：插件列表是按 `plugins/` 目录
+ * **动态发现**的，而下架只解除了 git 追踪，源码仍在磁盘上。目录还在，它就会继续
+ * 被 `pnpm run version` 一起升版本（紧接着 `git add` 一个被 gitignore 的路径直接
+ * 失败）、被 `pnpm run publish --all` 发到 npm、被构建与发布的插件选择列表选中。
+ * 「下架」因此是一条必须写下来的规则，不是「把文件挪走」的自然结果。
+ */
+const DELISTED_PLUGIN_DIRECTORIES = new Set([
+  // CodeBuddy：2026-10-22 因上游对非官方客户端通道收紧拦截而停止维护并下架，
+  // 见 FNOS-025。源码保留在本机，不参与版本维护、发布与打包。
+  'dsh-codebuddy-plugin',
+])
+
 const pluginsDirectory = join(repositoryRoot, 'plugins')
 
 function deriveAlias(slug: string): string {
@@ -68,6 +87,7 @@ function readPluginTargets(): PluginTarget[] {
   }
   return entries
     .filter(entry => entry.isDirectory())
+    .filter(entry => !DELISTED_PLUGIN_DIRECTORIES.has(entry.name))
     .map(entry => readPluginTarget(entry.name))
     .filter((target): target is PluginTarget => target !== undefined)
 }

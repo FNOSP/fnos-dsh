@@ -13,10 +13,25 @@ import { describe, expect, it } from 'vitest'
  */
 
 const INDEX = new URL('../../../docs/public/plugins/market/index.json', import.meta.url)
+const SOURCES = new URL('../../../docs/public/plugins/market/plugins.txt', import.meta.url)
 
 interface MarketIndex {
   format: number
   plugins: Array<{ name: string, versions: Array<{ version: string }> }>
+}
+
+/**
+ * 索引源列表里的包名（跳过注释与空行）。
+ *
+ * 索引必须与源列表一致：源列表是索引的输入，两边对不上意味着「发布后忘了重新
+ * 生成索引」或「源列表改了但索引没动」——两者都表现为用户看到过期条目且无人报错。
+ */
+async function sourcePackages(): Promise<string[]> {
+  const content = await readFile(SOURCES, 'utf8')
+  return content
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0 && !line.startsWith('#'))
 }
 
 /** npm registry 的 dist-tags；网络不可用时返回 undefined，由用例跳过。 */
@@ -34,10 +49,14 @@ async function nextTag(name: string): Promise<string | undefined> {
 }
 
 describe('插件市场索引', () => {
-  it('是合法的 format 1 文档且列出六个插件', async () => {
+  it('是合法的 format 1 文档且与源列表一致', async () => {
     const index = JSON.parse(await readFile(INDEX, 'utf8')) as MarketIndex
     expect(index.format).toBe(1)
-    expect(index.plugins.length).toBe(6)
+    // 数量与成员都按源列表核对，而不是写死数字：写死的数字会在插件增减时静默过期
+    // （CodeBuddy 下架时就出现过索引已更新、断言仍写着旧数量）。
+    const sources = await sourcePackages()
+    expect(index.plugins.length).toBe(sources.length)
+    expect(index.plugins.map(plugin => plugin.name).sort()).toEqual([...sources].sort())
     for (const plugin of index.plugins) {
       expect(plugin.versions.length).toBeGreaterThan(0)
     }
