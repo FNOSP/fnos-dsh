@@ -4,10 +4,10 @@ skills/midscenejs 的参考文件提炼自 **Midscene 主仓库的中文文档�
 （`apps/site/docs/zh/`，rspress 驱动 midscenejs.com 的同一份源码）。
 
 - **Source:** `sources/midscenejs`
-- **Pinned tag:** `v1.15.1`（npm release，与文档同 commit 发布）
-- **Git SHA:** `72c51b7a16fd33f8e823003184ee70a5012ca0fe`
-- **Skill version:** `1.0.0`
-- **Synced:** 2026-10-12
+- **Pinned tag:** `v1.16.0`（npm release，与文档同 commit 发布）
+- **Git SHA:** `06af256f7cca1243de200e27e7f16db5048a02cd`
+- **Skill version:** `1.1.0`
+- **Synced:** 2026-10-19
 - **语言范围:** 仅简体中文（`apps/site/docs/zh`）。上游英文页（`docs/en`）不纳入本技能。
 
 ## 快照范围
@@ -23,7 +23,7 @@ sitemap 的 50 个中文页面一一对应。其中 38 个内容页映射到本�
 | `references/platforms.md` | `platforms/android`、`platforms/ios`、`platforms/harmonyos`、`platforms/desktop`、`quick-start` |
 | `references/skills.md` | `skills`、`mcp` |
 | `references/yaml-runner.md` | `yaml-script-runner`、`automate-with-scripts-in-yaml`、`migrate-to-midscene-test` |
-| `references/midscene-test/*` | `midscene-test/overview`、`use`、`configuration`、`extend` |
+| `references/midscene-test/*` | `midscene-test/overview`、`use`、`configuration`、`extend`、`github-actions` |
 | `references/faq.md` | `faq`、`caching`、`consume-report-file`、`data-privacy` |
 
 **未纳入**的页面及其原因：
@@ -35,6 +35,26 @@ sitemap 的 50 个中文页面一一对应。其中 38 个内容页映射到本�
 | `showcases*`、`awesome-midscene` | 视频与社区项目清单，维护频率高、时效性强 |
 | `advanced/bdd-style-scripts-with-gherkin` | Beta 特性，面向特定场景，用户问到时再查源码 |
 | `bridge-mode`、`llm-txt`、`common/*`、`blog-*` | 要点已并入其他参考页 |
+
+## v1.16.0 同步记录（2026-10-19）
+
+从 `v1.15.1` 同步到 `v1.16.0`，中文文档差异 21 个文件（+981 / -228），技能已改写：
+
+| 变更 | 影响 | 落到哪个参考文件 |
+| --- | --- | --- |
+| **新增 Locate 模型角色**（`MIDSCENE_LOCATE_MODEL_*`） | 模型职责从 3 种变 4 种；默认模型改为「必填、提供所有能力」；Locate 模型不逐字段继承、失败不自动切换；各模型 `_STREAM_MODE` 独立 | `model-config.md`、`SKILL.md` |
+| **新增 Jev 实验性模型** | `MIDSCENE_MODEL_FAMILY="jev"`；不能作默认模型；用 System One 而非 OpenAI 协议；图像最长边 ≤1568px | `model-config.md` |
+| **新增 Puppeteer Test Node** | `PuppeteerAgent` 等可传入 `createMidsceneNodes()`；与 Playwright 共用 Web Node Schema；`networkidle` 映射为 `networkidle0`；专用 `waitUntil` 值混用报错 | `midscene-test/configuration.md`、`SKILL.md` |
+| **清理与资源隔离强化** | 超时后等操作退出最多 30s；清理两段等待（1s / 10s）；超限记 `cleanup pending` 且资源仍隔离；资源异常中止重试并停止调度该项目后续文件 | `midscene-test/configuration.md`、`use.md`、`SKILL.md` |
+| **报告重构** | Project → File → Case 三层；新增 `passed after retry` 标记（Passed 的子集，不重复计数） | `midscene-test/use.md` |
+| **`create` 命令改为交互式引导** | 新增 `--yes`/`--skip-install` 等参数；CI 必须给目录和 `--platform` | `midscene-test/use.md` |
+| **示例模板换成在线 TodoMVC** | 五平台模板改用 TodoMVC；Web 模板带 `nodes/todo.ts`；串行 + `test.bail: 1` | `midscene-test/use.md` |
+| iOS 新增 `WDA_BASE_URL` / `WDA_MJPEG_*` | 网关连接与远程视频流配置方式 | `midscene-test/use.md` |
+| `chatgpt-subscription` 独立成页 | SIWC 流程从 `model-common-config` 拆出；`model-config` 的 Codex 锚点随之迁移 | 已并入 `model-config.md` |
+
+### ⚠️ 快照未覆盖的页面
+
+`midscene-test/github-actions` **线上已发布但 v1.16.0 的 release 尚未包含该源文件**（`git ls-tree v1.16.0` 中不存在），因此不在子模块快照内。本技能已单独建 `references/midscene-test/github-actions.md`，内容取自线上页面并在页首标注该情况。待上游 release 包含后再并入子模块范围。
 
 ## 源文件格式注意
 

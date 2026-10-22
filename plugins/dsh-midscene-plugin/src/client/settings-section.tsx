@@ -29,10 +29,16 @@ import {
   DshIconCopy,
   DshInput,
   DshSelect,
+  DshTabs,
   DshTag,
 } from '@tnnevol/dsh-semi-ui'
-import type { MidsceneSettingsSnapshot } from '../contracts/settings-rpc.ts'
+import {
+  INTENT_CONFIG_FIELD,
+  MIDSCENE_INTENTS,
+  type MidsceneIntent,
+} from '../contracts/intents.ts'
 import type { MidsceneLocaleKey } from './locales.ts'
+import type { MidsceneIntentSlot, MidsceneSettingsSnapshot } from '../contracts/settings-rpc.ts'
 
 /** 设置区块参数。 */
 export interface MidsceneSettingsSectionProps {
@@ -46,6 +52,51 @@ export interface MidsceneSettingsSectionProps {
 
 /** 区块根节点类名（样式在 plugin-ui 语义变量下维护）。 */
 const ROOT = 'dsh-midscene-settings'
+
+/** 各职责当前「用户选了什么」的初值（全部未指定）。 */
+const EMPTY_SELECTION: Record<MidsceneIntent, string> = {
+  default: '',
+  locate: '',
+  planning: '',
+  insight: '',
+}
+
+/**
+ * 从快照里取出各职责已选择的模型。
+ * @param snapshot - 状态快照。
+ * @returns 职责 → 已选模型标识。
+ */
+function selectionOf(snapshot: MidsceneSettingsSnapshot): Record<MidsceneIntent, string> {
+  const selection = { ...EMPTY_SELECTION }
+  for (const slot of snapshot.slots) selection[slot.intent] = slot.configuredModel
+  return selection
+}
+
+/**
+ * 职责 → Tab 文案键。
+ * @param intent - 职责。
+ * @returns 文案键。
+ */
+function intentLabelKey(intent: MidsceneIntent): MidsceneLocaleKey {
+  const keys: Record<MidsceneIntent, MidsceneLocaleKey> = {
+    default: 'intentDefault',
+    locate: 'intentLocate',
+    planning: 'intentPlanning',
+    insight: 'intentInsight',
+  }
+  return keys[intent]
+}
+
+/**
+ * 取某个职责的状态；快照里缺失时按「未指定」处理。
+ * @param snapshot - 状态快照。
+ * @param intent - 职责。
+ * @returns 职责状态。
+ */
+function slotOf(snapshot: MidsceneSettingsSnapshot, intent: MidsceneIntent): MidsceneIntentSlot {
+  return snapshot.slots.find(slot => slot.intent === intent)
+    ?? { intent, configuredModel: '', family: '', dedicated: false }
+}
 
 /**
  * 逐字段渲染一个设置项。
@@ -80,7 +131,8 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   const [copied, setCopied] = useState(false)
   const [customKey, setCustomKey] = useState('')
   const [editingKey, setEditingKey] = useState(false)
-  const [model, setModel] = useState('')
+  const [selection, setSelection] = useState<Record<MidsceneIntent, string>>(EMPTY_SELECTION)
+  const [activeIntent, setActiveIntent] = useState<MidsceneIntent>('default')
   // 只看支持图片的模型（默认开启）：Midscene 靠截图理解页面，文本模型选进来也跑不了。
 
   /** 读一次状态（失败呈现为可重试的错误，不静默留空）。 */
@@ -88,7 +140,7 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
     try {
       const next = await load()
       setSnapshot(next)
-      setModel(next.model)
+      setSelection(selectionOf(next))
       setError(undefined)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -103,7 +155,7 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
     try {
       const next = await update(request)
       setSnapshot(next)
-      setModel(next.model)
+      setSelection(selectionOf(next))
       setError(undefined)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -134,8 +186,6 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   // 可选模型 = 宿主给出的**可识图模型**清单（宿主已过滤掉无图片能力的模型：Midscene 靠
   // 截图理解页面，文本模型选进来也跑不了）。
   const selectableModels = snapshot.availableModels
-  // 已指定但当前目录里没有的模型：如实提示，不静默改选别的（可能是提供方被卸载或改名）。
-  const modelMissing = model !== '' && !selectableModels.some(entry => entry.id === model)
   // 一个可识图模型都没有：不渲染空下拉（那看起来像坏了），改为给出可操作的提示。
   const noModels = snapshot.availableModels.length === 0
 
@@ -150,16 +200,17 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
   }
 
   /**
-   * 提交模型选择。
+   * 提交某个职责的模型选择。
    *
-   * 只选一个：Midscene 的协议家族在启动期从 `.env` 读取且只有一个，多选若混入不同
-   * 系列的模型，回退到备用时家族仍是旧的，反而制造静默错位。既然任何时刻只可能有一个
-   * 模型生效，界面就如实只让选一个。
-   * @param next - 新选择的模型 id；空串表示跟随 DSH 当前会话模型。
+   * 每个职责只选一个：Midscene 的协议家族在启动期从 `.env` 读取且一个职责只有一个家族，
+   * 多选若混入不同系列的模型，回退到备用时家族仍是旧的，反而制造静默错位。既然任何时刻
+   * 只可能有一个模型生效，界面就如实只让选一个。
+   * @param intent - 职责。
+   * @param next - 新选择的模型 id；空串表示未指定（默认职责跟随会话模型，其余沿用默认）。
    */
-  const applyModel = (next: string): void => {
-    setModel(next)
-    void submit({ action: 'update', model: next })
+  const applyModel = (intent: MidsceneIntent, next: string): void => {
+    setSelection(current => ({ ...current, [intent]: next }))
+    void submit({ action: 'update', [INTENT_CONFIG_FIELD[intent]]: next })
   }
 
   return (
@@ -210,26 +261,59 @@ export function MidsceneSettingsSection({ t, load, update }: MidsceneSettingsSec
           /* 一个可识图模型都没有：给可操作的提示而不是空下拉（空下拉看起来像坏了）。 */
           <span className={`${ROOT}__hint`}>{t('modelsUnavailable')}</span>
         ) : (
-          <>
-            <DshSelect
-              filter
-              showClear
-              size="small"
-              style={{ width: 420 }}
-              value={model === '' ? undefined : model}
-              placeholder={t('modelsNoneSelected')}
-              onChange={(value?: string) => { applyModel(value ?? '') }}
-            >
-              {selectableModels.map(entry => (
-                <DshSelect.Option key={entry.id} value={entry.id}>
-                  {entry.name === undefined ? entry.id : `${entry.name} · ${entry.id}`}
-                </DshSelect.Option>
-              ))}
-            </DshSelect>
-            {modelMissing ? (
-              <DshTag color="orange" size="small">{t('modelsStale')}: {model}</DshTag>
-            ) : null}
-          </>
+          <DshTabs
+            type="button"
+            size="small"
+            activeKey={activeIntent}
+            onChange={(key: string) => { setActiveIntent(key as MidsceneIntent) }}
+          >
+            {MIDSCENE_INTENTS.map((intent) => {
+              const slot = slotOf(snapshot, intent)
+              const value = selection[intent] ?? ''
+              // 已指定但当前目录里没有的模型：如实提示，不静默改选别的（可能是提供方被卸载或改名）。
+              const missing = value !== '' && !selectableModels.some(entry => entry.id === value)
+              return (
+                <DshTabs.TabPane
+                  key={intent}
+                  itemKey={intent}
+                  tab={(
+                    <span className={`${ROOT}__tab`}>
+                      {t(intentLabelKey(intent))}
+                      {/* 单独指定了模型的职责带一个标记，一眼看出哪些职责已定制。 */}
+                      {slot.dedicated ? <i className={`${ROOT}__tab-dot`} /> : null}
+                    </span>
+                  )}
+                >
+                  <div className={`${ROOT}__intent`}>
+                    <DshSelect
+                      filter
+                      showClear
+                      size="small"
+                      style={{ width: 420 }}
+                      value={value === '' ? undefined : value}
+                      placeholder={t(intent === 'default' ? 'modelsNoneSelected' : 'intentInheritPlaceholder')}
+                      onChange={(next?: string) => { applyModel(intent, next ?? '') }}
+                    >
+                      {selectableModels.map(entry => (
+                        <DshSelect.Option key={entry.id} value={entry.id}>
+                          {entry.name === undefined ? entry.id : `${entry.name} · ${entry.id}`}
+                        </DshSelect.Option>
+                      ))}
+                    </DshSelect>
+                    {missing ? (
+                      <DshTag color="orange" size="small">{t('modelsStale')}: {value}</DshTag>
+                    ) : null}
+                    <div className={`${ROOT}__hint`}>
+                      {t('intentResolved')}
+                      {'：'}
+                      {slot.resolvedModel ?? t('intentNoModel')}
+                      {slot.dedicated ? '' : `（${t('intentInherited')}）`}
+                    </div>
+                  </div>
+                </DshTabs.TabPane>
+              )
+            })}
+          </DshTabs>
         )}
       </Field>
 

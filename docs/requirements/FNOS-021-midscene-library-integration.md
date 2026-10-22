@@ -2,10 +2,10 @@
 id: FNOS-021
 title: FNOS-021 Midscene 库能力对齐与接入简化
 description: 把插件内置的 Midscene 库从 1.15.1 升级到 1.16.0，并补齐「默认使用会话模型、优先使用插件配置模型」这一核心承诺在新增能力上的表达：多职责模型（定位/规划/理解）、模型原生思考开关、家族推断准确性、技能内容同步；同时修正插件说明页与实现不一致的三处描述。
-status: planned
+status: in_progress
 owner: tnnevol
 targetVersion: 5.9.0
-lastVerified: 2026-10-20
+lastVerified: 2026-10-22
 ---
 
 # FNOS-021 Midscene 库能力对齐与接入简化
@@ -14,7 +14,7 @@ lastVerified: 2026-10-20
 | --- | --- |
 | 需求编号 | FNOS-021 |
 | 提出日期 | 2026-10-20 |
-| 需求状态 | <Badge type="warning" text="规划中" /> |
+| 需求状态 | <Badge type="warning" text="开发中（本地构测已实现，界面与环境验收待补测）" /> |
 | 关联计划 | [PLAN-FNOS-021 Midscene 库能力对齐与接入简化](/plans/PLAN-FNOS-021-midscene-library-integration) |
 | 影响插件 | `@tnnevol/dsh-midscene` |
 | 关联需求 | [FNOS-013](/requirements/FNOS-013-midscene-browser-automation-bridge)（插件基线）、[FNOS-018](/requirements/FNOS-018-midscene-skill-accuracy)（同插件说明准确性） |
@@ -71,13 +71,13 @@ lastVerified: 2026-10-20
 
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-021-01 | P1 | Midscene 库基线升级 | 插件的浏览器、桌面、移动端与测试框架能力与上游稳定版一致；既有 e2e 用例与桥接冒烟在新版本下照常通过 | <Badge type="warning" text="待实现" /> |
-| FNOS-021-02 | P1 | 多职责模型的接入配置 | 用户可在插件设置页以 Tabs 分别为「默认 / 定位 / 规划 / 页面理解」指定模型；默认职责留空即跟随会话模型，其余留空即沿用默认。生成的接入配置**默认只出四行**，配置后才按职责扩展 | <Badge type="warning" text="待实现" /> |
-| FNOS-021-03 | P1 | 模型原生思考开关如实传递 | 使用 Midscene 时模型的思考行为与 Midscene 的设定一致（默认不额外开思考），不因插件而变慢或变贵；模型不支持该档位时请求照常发出，不报错 | <Badge type="warning" text="待实现" /> |
-| FNOS-021-04 | P2 | 模型家族推断准确性 | AutoGLM 系列判为 `auto-glm`、豆包系 UI-TARS 判为对应 UI-TARS 家族；家族白名单与上游一致 | <Badge type="warning" text="待实现" /> |
-| FNOS-021-05 | P2 | 内置技能内容与上游同步 | 会话里的 Midscene 技能说明覆盖新版本能力（多职责模型、`jev` 的适用边界、CI 集成），并与上游快照一致 | <Badge type="warning" text="待实现" /> |
-| FNOS-021-06 | P1 | 接入配置显式声明协议并指引误配 | 生成的接入配置直接写明桥使用的协议；用户若照 Midscene 官方文档另配 Responses 协议而打错路径时，拿到可读指引而不是困惑的 404 | <Badge type="warning" text="待实现" /> |
-| FNOS-021-07 | P2 | 说明页与实现一致 | 说明页只出现真实存在的配置项、端点行为与界面控件；照着文档操作不会失败 | <Badge type="warning" text="待实现" /> |
+| FNOS-021-01 | P1 | Midscene 库基线升级 | 插件的浏览器、桌面、移动端与测试框架能力与上游稳定版一致；既有 e2e 用例与桥接冒烟在新版本下照常通过 | <Badge type="tip" text="已完成（本地构测；桥冒烟与 e2e 待补测）" /> |
+| FNOS-021-02 | P1 | 多职责模型的接入配置 | 用户可在插件设置页以 Tabs 分别为「默认 / 定位 / 规划 / 页面理解」指定模型；默认职责留空即跟随会话模型，其余留空即沿用默认。生成的接入配置**默认只出四行**，配置后才按职责扩展 | <Badge type="tip" text="已完成（本地构测；DSH Web 与 Desktop 界面待验收）" /> |
+| FNOS-021-03 | P1 | 模型原生思考开关如实传递 | 使用 Midscene 时模型的思考行为与 Midscene 的设定一致（默认不额外开思考），不因插件而变慢或变贵；模型不支持该档位时请求照常发出，不报错 | <Badge type="tip" text="已完成（本地构测；真实任务表现待观察）" /> |
+| FNOS-021-04 | P2 | 模型家族推断准确性 | AutoGLM 系列判为 `auto-glm`、豆包系 UI-TARS 判为对应 UI-TARS 家族；家族白名单与上游一致 | <Badge type="tip" text="已完成" /> |
+| FNOS-021-05 | P2 | 内置技能内容与上游同步 | 会话里的 Midscene 技能说明覆盖新版本能力（多职责模型、`jev` 的适用边界、CI 集成），并与上游快照一致 | <Badge type="tip" text="已完成" /> |
+| FNOS-021-06 | P1 | 接入配置显式声明协议并指引误配 | 生成的接入配置直接写明桥使用的协议；用户若照 Midscene 官方文档另配 Responses 协议而打错路径时，拿到可读指引而不是困惑的 404 | <Badge type="tip" text="已完成（本地构测）" /> |
+| FNOS-021-07 | P2 | 说明页与实现一致 | 说明页只出现真实存在的配置项、端点行为与界面控件；照着文档操作不会失败 | <Badge type="tip" text="已完成" /> |
 
 ### 既有功能变更关系
 
@@ -187,3 +187,5 @@ sequenceDiagram
 | --- | --- | --- |
 | 2026-10-20 | 初始登记 | 建立 FNOS-021。登记 18 条调研结论（版本差、上游新增能力、宿主可支持面、家族推断缺陷、文档漂移），确定 7 项功能与两项明确不立项（Jev、Responses）。前置调研基于对 6 个上游包 `1.15.1`/`1.16.0` 的逐文件比对与本地实测。关联 PLAN-FNOS-021。 |
 | 2026-10-20 | 更正 Responses 与结构化输出的立项判断 | 用户指出「把 DSH 所有模型适配给 Midscene 库」是核心原则，不立项需给出更强理由。复核后确认三条事实并据此改写：① DSH 已在宿主内归一各提供方上游协议，实桥逐 provider 实测（codex/za-newapi/codebuddy/opencode-go/dsh-opencode-go 经 Chat Completions 全部正常）证明桥只用一种协议即可覆盖 DSH 全部模型——因此 Responses 不做的理由是**不增加模型覆盖**（而非无法实现），并补充「宿主 `GenerateOptions` 无协议选择入口」作为实现成本依据；② `response_format` 在 1.15.1 就已在发且桥一直忽略，现有功能在忽略状态下全部验收通过，故 **FNOS-021-06 由「拒绝该字段」改为「配置显式声明协议 + 误配时给指引」**，明确要求保持忽略以免把可用功能推成失败；③ 补登 Midscene 的 `callAiAndParseWithRetry` 语义重试兜底，说明结构化输出只是优化项。同步把 FNOS-021-06 从 P2 提到 P1（它承载「覆盖全部模型」这条核心承诺的可诊断性）。 |
+| 2026-10-22 | 实现登记（本地构测）：七项功能全部落地 | 库基线升至 `1.16.0`；`Config` 新增 `locateModel`/`planningModel`/`insightModel`，桥按 `dsh-model@<职责>` 后缀路由到各职责自己的模型，接入配置默认仍只出四行、配置专用职责后才追加其变量组（专用职责写 `*_STREAM_MODE="non-stream"`，默认职责不写）；新增 `src/host/reasoning.ts` 把 `thinking.type`/`enable_thinking`/`reasoning_effort`/Gemini `thinking_level` 映射到宿主 `reasoningEffort`（只用宿主披露的档位，未命中不传）；`FAMILY_RULES` 顺序修正（`auto-glm` 先于 `glm-v`、UI-TARS 先于 `doubao`）且白名单补 `jev`（21 项）；`midscenejs` 同步上游 `b3f7fd6`（v1.16.0 快照，22 个文件）；接入配置头部显式声明 Chat Completions 协议，`/v1/responses` 与 `/v1/systemone` 改为带指引的 404 且**保持忽略** `response_format`。包级单测 211 条全绿，全仓类型检查 11/11。界面（DSH Web/Desktop）与真实 Chrome 冒烟、e2e、逐 provider 冒烟待环境补测。 |
+| 2026-10-22 | 登记上游版本线变化与基线选择理由 | 上游 `@midscene/*` 在需求成文（2026-10-20）后继续发布 `1.16.1`（10-21）、`1.16.2`（10-21）、`1.16.5`（10-22）。本次**仍以 `1.16.0` 为基线**：① `1.16.5` 距执行时刻不足 24 小时，低于仓库 `minimumReleaseAge` 的安装等待期，越级安装需显式加入豁免列表；② 经逐文件比对，`1.16.0` 与 `1.16.5` 的**家族白名单（21 项，含 `jev`）与四个职责的变量名完全一致**，`1.16.5` 的增量是 `AUTH_MODE`（`api-key`/`siwc`）与若干适配器修复，不影响本需求任何验收项。后续可另行登记升级。 |

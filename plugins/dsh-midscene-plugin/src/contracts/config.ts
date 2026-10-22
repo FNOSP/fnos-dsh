@@ -15,6 +15,14 @@
 import { randomBytes } from 'node:crypto'
 import type { Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
+import {
+  DEDICATED_INTENTS,
+  FIXED_MODEL_NAME,
+  INTENT_ENV_PREFIX,
+  INTENT_LABEL_ZH,
+  intentModelName,
+  type DedicatedIntent,
+} from './intents.ts'
 
 /**
  * 桥接服务的首选端口。
@@ -48,8 +56,10 @@ export const OPENAI_API_PREFIX = '/v1'
  *
  * 桥按这个名字决定「用哪个模型」：优先用插件配置指定的模型，否则跟随 DSH 当前
  * 模型选择。做成固定值后，用户可以把 `.env` 写死、不必随模型变化更新它。
+ *
+ * 定义在 `intents.ts`（浏览器半侧渲染 Tabs 也要用），这里转出以保持既有导入路径可用。
  */
-export const FIXED_MODEL_NAME = 'dsh-model'
+export { FIXED_MODEL_NAME }
 
 /**
  * Midscene 接受的协议家族白名单。
@@ -59,11 +69,15 @@ export const FIXED_MODEL_NAME = 'dsh-model'
  * 技术的：family 决定 Midscene 用哪套提示词模板与坐标解析协议，绑定到具体模型的
  * 输出格式，无法为未知家族生成请求。
  *
- * 列表取自 Midscene v1.15.0 的运行时错误信息与 `ModelFamily` 类型定义；上游新增
- * 家族时需同步本表（{@link isKnownFamily} 用于在配置面提前给出可读提示，而不是
- * 等运行时才报错）。
+ * 列表取自 Midscene v1.16.0 的 `TModelFamily` / `MODEL_FAMILY_VALUES` 与运行时错误
+ * 信息；上游新增家族时需同步本表（{@link isKnownFamily} 用于在配置面提前给出可读
+ * 提示，而不是等运行时才报错）。
+ *
+ * `jev` 在白名单内但**永不由此插件推导**：它是 TypeSafe 的商业模型（私有 System One
+ * 协议），且上游明确它不能作默认模型；插件按用户已有的 DSH 模型推导家族，不会猜出它。
  */
 export const MIDSCENE_FAMILIES = [
+  'jev',
   'doubao-vision',
   'doubao-seed',
   'gemini',
@@ -146,30 +160,74 @@ export function volatileValue<T>(value: Volatile<T> | T | undefined): T | undefi
 }
 
 /**
- * 生成 Midscene 侧固定四行的接入配置。
+ * 接入配置里一个**专用职责**的变量组。
  *
- * 四行都是固定值（基址、密钥、模型名、家族），因此用户可以把 `.env` 写死：换模型
+ * 只在该职责单独指定了模型时才出现——上游对「未配置专用模型」的职责会自动沿用默认
+ * 模型，因此插件不写这组变量即可，无需自己实现回落逻辑。
+ */
+export interface DedicatedEnvSlot {
+  /** 职责。 */
+  readonly intent: DedicatedIntent
+  /** 该职责自己的协议家族（按该职责的模型推导，不沿用默认家族的取值）。 */
+  readonly family: string
+}
+
+/**
+ * 生成 Midscene 侧的接入配置。
+ *
+ * **默认职责固定四行**（基址、密钥、模型名、家族），因此用户可以把 `.env` 写死：换模型
  * 只需改插件设置，不必动这个文件。`MIDSCENE_MODEL_NAME` 固定为 {@link FIXED_MODEL_NAME}，
  * 由桥决定实际用哪个模型。
+ *
+ * **专用职责只在用户为它指定了模型后才追加一组变量**（{@link DedicatedEnvSlot}）。没配的
+ * 职责不写——上游自己回落到默认模型，于是「全部留空」时输出与升级前逐字符一致。
  *
  * **`port` 必须传桥实际监听的端口**（`BridgeServer.port`），不是配置里的首选端口：
  * 端口被占用而自动跳号时，配置字段与实际情况可能不一致，`.env` 里写错端口会让
  * Midscene 直接连不上。
- * @param config - 桥接配置中与接入文件相关的三项。
+ *
+ * 头部注释额外声明**协议**（Chat Completions）：本桥只提供这一种协议，用户照上游文档
+ * 自行改成 Responses 协议会打错路径。声明为注释而不是多写一个环境变量，是为了不改变
+ * 既有四行的取值（已按旧格式写入 `.env` 的用户不受影响）。
+ * @param config - 桥接配置中与接入文件相关的项。
  * @param config.port - 桥**实际**监听的端口。
  * @param config.apiKey - 桥接入密钥。
- * @param config.family - Midscene 协议家族。
+ * @param config.family - 默认职责的协议家族。
+ * @param config.dedicated - 专用职责的变量组（可选；未配置的职责不出现在这里）。
  * @returns `.env` 文本。
  */
-export function renderEnvFile(config: { readonly port: number, readonly apiKey: string, readonly family: string }): string {
-  return [
+export function renderEnvFile(config: {
+  readonly port: number
+  readonly apiKey: string
+  readonly family: string
+  readonly dedicated?: readonly DedicatedEnvSlot[]
+}): string {
+  const baseUrl = `http://${BRIDGE_HOST}:${config.port}${OPENAI_API_PREFIX}`
+  const lines: string[] = [
     '# DSH Midscene Bridge 接入配置：四行都是固定值，换模型请改插件设置而非本文件。',
-    `MIDSCENE_MODEL_BASE_URL="http://${BRIDGE_HOST}:${config.port}${OPENAI_API_PREFIX}"`,
-    `MIDSCENE_MODEL_API_KEY="${config.apiKey}"`,
-    `MIDSCENE_MODEL_NAME="${FIXED_MODEL_NAME}"`,
-    `MIDSCENE_MODEL_FAMILY="${config.family}"`,
-    '',
-  ].join('\n')
+    '# 协议：OpenAI Chat Completions（openai-chat）——本桥只提供这一种协议。',
+    `${INTENT_ENV_PREFIX.default}_BASE_URL="${baseUrl}"`,
+    `${INTENT_ENV_PREFIX.default}_API_KEY="${config.apiKey}"`,
+    `${INTENT_ENV_PREFIX.default}_NAME="${FIXED_MODEL_NAME}"`,
+    `${INTENT_ENV_PREFIX.default}_FAMILY="${config.family}"`,
+  ]
+  for (const intent of DEDICATED_INTENTS) {
+    const slot = config.dedicated?.find(entry => entry.intent === intent)
+    if (slot === undefined) continue
+    const prefix = INTENT_ENV_PREFIX[intent]
+    lines.push(
+      `# 以下为「${INTENT_LABEL_ZH[intent]}」职责单独指定的模型；不配置则沿用上面的默认模型。`,
+      `${prefix}_BASE_URL="${baseUrl}"`,
+      `${prefix}_API_KEY="${config.apiKey}"`,
+      `${prefix}_NAME="${intentModelName(intent)}"`,
+      `${prefix}_FAMILY="${slot.family}"`,
+      // 专用职责的流式模式**不继承**默认模型：上游各自独立读取，未设置时默认 non-stream。
+      // 写明确比让它默默回落更可控。
+      `${prefix}_STREAM_MODE="non-stream"`,
+    )
+  }
+  lines.push('')
+  return lines.join('\n')
 }
 
 /** 配置字段的推导类型（`z.object` 的泛型参数）。 */
@@ -178,6 +236,9 @@ interface BridgeConfigShape {
   apiKey: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
   family: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
   model: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
+  locateModel: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
+  planningModel: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
+  insightModel: z<NoInfer<string>, NoInfer<string>, 'volatile-defined'>
   requestTimeoutMs: z<NoInfer<number>, NoInfer<number>, 'volatile-defined'>
   logRequests: z<NoInfer<boolean>, NoInfer<boolean>, 'volatile-defined'>
 }
@@ -185,11 +246,13 @@ interface BridgeConfigShape {
 /**
  * 桥接服务配置。
  *
- * `model` 为空（默认）时桥跟随 DSH 当前模型选择（需具备识图能力）；指定时用它。
+ * `model` 是**默认职责**的模型：为空时桥跟随 DSH 当前模型选择（需具备识图能力）；
+ * 指定时用它。三个专用职责（`locateModel` / `planningModel` / `insightModel`）留空时
+ * 沿用默认职责——与上游「未配置专用模型的职责使用默认模型」一致。
  *
- * **为什么是单个而不是列表**：Midscene 的协议家族在启动期从 `.env` 读取，而家族只
- * 有一个——多选里若混入不同系列的模型，回退到备用模型时家族仍是最初那个，反而制造
- * 静默错位。既然任何时刻只可能有一个模型生效，界面就如实只让选一个。
+ * **为什么每个职责只让选一个、不选列表**：Midscene 的协议家族在启动期从 `.env` 读取，
+ * 而一个职责只有一个家族——多选里若混入不同系列的模型，回退到备用模型时家族仍是最初
+ * 那个，反而制造静默错位。既然任何时刻只可能有一个模型生效，界面就如实只让选一个。
  */
 export const Config: z<Schemastery.ObjectS<NoInfer<BridgeConfigShape>>, Schemastery.ObjectT<NoInfer<BridgeConfigShape>>, 'plain'> = z.object({
   port: z.natural().default(DEFAULT_BRIDGE_PORT).volatile()
@@ -199,7 +262,13 @@ export const Config: z<Schemastery.ObjectS<NoInfer<BridgeConfigShape>>, Schemast
   family: z.string().default(GENERIC_FAMILY).volatile()
     .description('Midscene 协议家族（**自动维护**，无需手工设置）：桥按实际使用的模型推导。识别得出家族就用该家族，识别不出但能识图的模型用通用家族。它只影响 Midscene 的提示词模板与坐标解析协议'),
   model: z.string().default('').volatile()
-    .description('指定用于 Midscene 测试的模型（「提供方/模型」形式）。留空则跟随 DSH 当前模型选择（需具备识图能力）'),
+    .description('**默认职责**用于 Midscene 的模型（「提供方/模型」形式）。留空则跟随 DSH 当前模型选择（需具备识图能力）。其余三个职责留空时沿用默认职责'),
+  locateModel: z.string().default('').volatile()
+    .description('**定位职责**（元素定位、deepLocate）单独指定的模型（「提供方/模型」形式）。留空则沿用默认职责'),
+  planningModel: z.string().default('').volatile()
+    .description('**规划职责**（多步骤规划与分支判断）单独指定的模型（「提供方/模型」形式）。留空则沿用默认职责'),
+  insightModel: z.string().default('').volatile()
+    .description('**页面理解职责**（断言、数据提取、aiQuery）单独指定的模型（「提供方/模型」形式）。留空则沿用默认职责'),
   requestTimeoutMs: z.natural().default(300_000).volatile()
     .description('单次模型请求的超时毫秒数；0 表示不超时'),
   logRequests: z.boolean().default(true).volatile()
@@ -224,6 +293,9 @@ export function liveConfig(raw: BridgeConfig): BridgeConfig {
     get apiKey() { return read('apiKey') },
     get family() { return read('family') },
     get model() { return read('model') ?? '' },
+    get locateModel() { return read('locateModel') ?? '' },
+    get planningModel() { return read('planningModel') ?? '' },
+    get insightModel() { return read('insightModel') ?? '' },
     get requestTimeoutMs() { return read('requestTimeoutMs') },
     get logRequests() { return read('logRequests') },
   }
@@ -243,8 +315,14 @@ export interface BridgeConfig {
   readonly apiKey: string
   /** Midscene 协议家族。 */
   readonly family: string
-  /** 指定的测试模型；空表示跟随 DSH 当前模型选择。 */
+  /** 默认职责的模型；空表示跟随 DSH 当前模型选择。 */
   readonly model: string
+  /** 定位职责的模型；空表示沿用默认职责。 */
+  readonly locateModel: string
+  /** 规划职责的模型；空表示沿用默认职责。 */
+  readonly planningModel: string
+  /** 页面理解职责的模型；空表示沿用默认职责。 */
+  readonly insightModel: string
   /** 单次模型请求超时（毫秒）；0 表示不超时。 */
   readonly requestTimeoutMs: number
   /** 是否记录请求摘要日志。 */

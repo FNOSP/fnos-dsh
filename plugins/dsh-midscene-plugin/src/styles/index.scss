@@ -99,4 +99,32 @@
     font-size: 12px;
     line-height: 18px;
   }
+
+  // 职责 Tab 的标签：「单独指定了模型」的职责带一个小圆点，一眼看出哪些职责已定制。
+  &__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__tab-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--dsw-alias-label-primary);
+  }
+
+  // 每个 Tab 的内容：下拉 + 「当前实际使用」说明。纵向排列，避免与标签挤在一行。
+  &__intent {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding-top: 8px;
+  }
+
+  // Tab 内容里的说明行紧跟控件，不再额外撑开底部间距。
+  &__intent &__hint {
+    margin-bottom: 0;
+  }
 }

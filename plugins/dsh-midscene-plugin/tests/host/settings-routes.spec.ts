@@ -14,6 +14,9 @@ const config = {
   apiKey: 'k'.repeat(32),
   family: 'glm-v',
   model: '',
+  locateModel: '',
+  planningModel: '',
+  insightModel: '',
   requestTimeoutMs: 1000,
   logRequests: false,
 }
@@ -120,5 +123,115 @@ describe('写入校验', () => {
   it('无受支持字段时返回空补丁（调用方据此回 400）', () => {
     expect(normalizePatchForTest({ action: 'update' })).toEqual({})
     expect(normalizePatchForTest({ family: 123, models: 'nope' })).toEqual({})
+  })
+})
+
+describe('各职责的模型状态（FNOS-021-02）', () => {
+  /** 造一份逐职责决策结果，模拟桥的 resolveIntentModels 输出。 */
+  function slotsOf(overrides: Partial<Record<'default' | 'locate' | 'planning' | 'insight', {
+    modelId?: string
+    family: string
+    dedicated: boolean
+  }>> = {}): Record<string, unknown> {
+    const base = {
+      intent: 'default',
+      modelId: 'codebuddy/glm-5.3',
+      family: 'glm-v',
+      dedicated: false,
+      source: 'inherited',
+      skippedConfigured: [],
+    }
+    return {
+      default: { ...base, intent: 'default', source: 'configured', ...overrides.default },
+      locate: { ...base, intent: 'locate', ...overrides.locate },
+      planning: { ...base, intent: 'planning', ...overrides.planning },
+      insight: { ...base, intent: 'insight', ...overrides.insight },
+    } as never
+  }
+
+  it('快照里四个职责都有一份状态，顺序即 Tab 顺序', async () => {
+    const snapshot = await statusSnapshotForTest({
+      readConfig: () => config,
+      listModels: async () => [{ id: 'codebuddy/glm-5.3', vision: true }],
+      resolveSlots: async () => slotsOf() as never,
+    }) as { slots: { intent: string, configuredModel: string, resolvedModel?: string, family: string, dedicated: boolean }[] }
+
+    expect(snapshot.slots.map(slot => slot.intent)).toEqual(['default', 'locate', 'planning', 'insight'])
+    // 未配置专用职责：configuredModel 为空，resolvedModel 沿用默认，dedicated 为 false。
+    expect(snapshot.slots[1]).toMatchObject({
+      intent: 'locate',
+      configuredModel: '',
+      resolvedModel: 'codebuddy/glm-5.3',
+      dedicated: false,
+    })
+  })
+
+  it('专用职责配了模型后，快照如实反映「选了什么」与「实际用什么」', async () => {
+    const snapshot = await statusSnapshotForTest({
+      readConfig: () => ({ ...config, locateModel: 'codebuddy/deepseek-v4.1-flash' }),
+      listModels: async () => [
+        { id: 'codebuddy/glm-5.3', vision: true },
+        { id: 'codebuddy/deepseek-v4.1-flash', vision: true },
+      ],
+      resolveSlots: async () => slotsOf({
+        locate: { modelId: 'codebuddy/deepseek-v4.1-flash', family: 'deepseek', dedicated: true },
+      }) as never,
+    }) as {
+      slots: { intent: string, configuredModel: string, resolvedModel?: string, family: string, dedicated: boolean }[]
+      envFile: string
+    }
+
+    expect(snapshot.slots[1]).toMatchObject({
+      intent: 'locate',
+      configuredModel: 'codebuddy/deepseek-v4.1-flash',
+      resolvedModel: 'codebuddy/deepseek-v4.1-flash',
+      family: 'deepseek',
+      dedicated: true,
+    })
+    // 接入配置预览同步变长：追加定位那一组，且家族用该职责自己的。
+    expect(snapshot.envFile).toContain('MIDSCENE_LOCATE_MODEL_NAME="dsh-model@locate"')
+    expect(snapshot.envFile).toContain('MIDSCENE_LOCATE_MODEL_FAMILY="deepseek"')
+  })
+
+  it('专用职责只在真的单独配置时才让接入配置变长（未配置不写变量组）', async () => {
+    const snapshot = await statusSnapshotForTest({
+      readConfig: () => config,
+      listModels: async () => [{ id: 'codebuddy/glm-5.3', vision: true }],
+      resolveSlots: async () => slotsOf() as never,
+    }) as { envFile: string }
+    expect(snapshot.envFile).not.toContain('MIDSCENE_LOCATE_MODEL')
+  })
+
+  it('没有逐职责结果时（旧调用方）只有默认职责有效，其余沿用', async () => {
+    const snapshot = await statusSnapshotForTest({
+      readConfig: () => ({ ...config, locateModel: 'codebuddy/gone' }),
+      listModels: async () => [{ id: 'codebuddy/glm-5.3', vision: true }],
+      resolveModel: async () => 'codebuddy/glm-5.3',
+    }) as { slots: { intent: string, resolvedModel?: string, dedicated: boolean }[] }
+
+    // 配了但无法确认存在：保守地不认为它是专用职责，接入配置不追加（上游会回落默认）。
+    expect(snapshot.slots[1]).toMatchObject({ intent: 'locate', resolvedModel: 'codebuddy/glm-5.3', dedicated: false })
+  })
+})
+
+describe('写入校验：三个专用职责字段', () => {
+  it('接受三个专用职责字段并去掉首尾空白', () => {
+    expect(normalizePatchForTest({
+      locateModel: '  codebuddy/deepseek-v4.1-flash ',
+      planningModel: 'codebuddy/glm-5.3',
+      insightModel: 'codebuddy/kimi-k3-1',
+    })).toEqual({
+      locateModel: 'codebuddy/deepseek-v4.1-flash',
+      planningModel: 'codebuddy/glm-5.3',
+      insightModel: 'codebuddy/kimi-k3-1',
+    })
+  })
+
+  it('空串表示「沿用默认职责」（合法值）', () => {
+    expect(normalizePatchForTest({ locateModel: '' })).toEqual({ locateModel: '' })
+  })
+
+  it('非字符串被忽略（调用方据此回 400）', () => {
+    expect(normalizePatchForTest({ locateModel: 1, planningModel: null })).toEqual({})
   })
 })

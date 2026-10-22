@@ -20,7 +20,9 @@ dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.1-rc.2.13
 
 ![Midscene 桥接插件详情页：接入设置、接入密钥与指定测试模型](</images/plugins/dsh-midscene/bridge-settings.jpg>)
 
-插件启动后在 **`127.0.0.1`** 提供四个端点（只绑回环地址，不向局域网暴露）。**端口默认 8787，被占用时自动向上尝试**（最多 20 个），实际端口以插件设置页或 `/v1/midscene-env` 为准：
+插件启动后在 **`127.0.0.1`** 提供四个端点（只绑回环地址，不向局域网暴露）。**端口默认 8787，被占用时自动向上尝试**（最多 20 个），实际端口以插件设置页的接入配置预览或 `/v1/midscene-env` 为准：
+
+四个端点里只有 `/v1/chat/completions` 会**校验接入密钥**：同一台机器上的其它进程同样能访问回环端口，密钥把「能访问回环端口的进程」与「持有接入配置的 Midscene」区分开。另外三个是发现类端点，不校验密钥，方便你直接复制命令排查。
 
 | 端点 | 用途 |
 | --- | --- |
@@ -38,11 +40,25 @@ curl -s http://127.0.0.1:8787/v1/health # 若端口已自动跳号，用插件�
 ```json
 {
   "status": "ok",
+  "host": "127.0.0.1",
+  "port": 8787,
+  "fixedModelName": "dsh-model",
+  "family": "glm-v",
+  "resolvedModel": "codebuddy/glm-5.3-flash",
+  "configuredModel": "",
+  "slots": {
+    "default": { "model": "codebuddy/glm-5.3-flash", "family": "glm-v", "dedicated": false, "source": "session" },
+    "locate": { "model": "codebuddy/glm-5.3-flash", "family": "glm-v", "dedicated": false, "source": "session" },
+    "planning": { "model": "codebuddy/glm-5.3-flash", "family": "glm-v", "dedicated": false, "source": "session" },
+    "insight": { "model": "codebuddy/glm-5.3-flash", "family": "glm-v", "dedicated": false, "source": "session" }
+  },
   "providers": ["openai-codex", "deepseek-official", "codebuddy"],
   "models": 24,
   "attachments": true
 }
 ```
+
+其中 `port` 是实际监听端口，`resolvedModel` 是当前会真正被调用的模型；`slots` 给出四个职责各自的模型、家族与来源（`source` 为 `configured` / `session` / `fallback`，`dedicated` 表示该职责是否单独指定了模型）。
 
 端口**不固定**：默认从 `8787` 开始，被占用时自动尝试 `8788`、`8789`…（最多 20 个）。换成可用端口后：
 
@@ -56,7 +72,7 @@ curl -s http://127.0.0.1:8787/v1/health # 若端口已自动跳号，用插件�
 
 ## 接入 Midscene
 
-**不需要准备任何模型 API key。** 插件的存在意义就是让 Midscene 用 DSH 已经配好的模型：凭据在 DSH 的提供方插件里，桥不接触、也不转发。
+**不需要准备任何模型 API key。** 插件的存在意义就是让 Midscene 用 DSH 已经配好的模型：凭据在 DSH 的提供方插件里，桥不接触、也不转发。接入配置里那把密钥是**桥自己的接入密钥**（插件安装时自动生成），与任何模型服务商无关。
 
 Midscene 强制要求四个模型环境变量（其中 `MIDSCENE_MODEL_FAMILY` 决定它的提示词模板与坐标解析协议）。插件知道 DSH 里有哪些模型，因此**直接替你算好这份配置**。
 
@@ -77,25 +93,28 @@ curl -s http://127.0.0.1:8787/v1/midscene-env |
 得到的 `.env`：
 
 ```sh
-# DSH Midscene Bridge 接入配置（由插件生成，无需填入任何真实密钥）
+# DSH Midscene Bridge 接入配置：四行都是固定值，换模型请改插件设置而非本文件。
+# 协议：OpenAI Chat Completions（openai-chat）——本桥只提供这一种协议。
 MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"
-MIDSCENE_MODEL_API_KEY="local-bridge"
-MIDSCENE_MODEL_NAME="codebuddy/glm-5.3-flash"
+MIDSCENE_MODEL_API_KEY="9f4c1d7a2b8e0356c1f09ad47b62e8d3"
+MIDSCENE_MODEL_NAME="dsh-model"
 MIDSCENE_MODEL_FAMILY="glm-v"
 ```
 
 | 变量 | 说明 |
 | --- | --- |
-| `MIDSCENE_MODEL_BASE_URL` | 固定指向本地桥 |
-| `MIDSCENE_MODEL_API_KEY` | **占位值**。桥不做鉴权（回环绑定 + 本机使用），填真实密钥也不会被转发 |
-| `MIDSCENE_MODEL_NAME` | 「提供方/模型」形式（DSH 的模型标识），不是厂商模型名 |
-| `MIDSCENE_MODEL_FAMILY` | 由插件按模型 id 推断（如 `glm-5.3` → `glm-v`、`gpt-6-luna` → `gpt-6`、`deepseek-flash` → `deepseek`） |
+| `MIDSCENE_MODEL_BASE_URL` | 固定指向本地桥（含实际端口） |
+| `MIDSCENE_MODEL_API_KEY` | **桥的接入密钥**：安装时自动生成的一串 32 位十六进制。它不是模型密钥，也不会被转发给任何提供方；但推理请求必须带上它，否则桥返回 401 |
+| `MIDSCENE_MODEL_NAME` | 固定写 `dsh-model`。Midscene 不需要知道 DSH 的模型标识，桥按这个名字决定实际用哪个模型 |
+| `MIDSCENE_MODEL_FAMILY` | 由插件按**实际使用的模型**推导（如 `glm-5.3` → `glm-v`、`gpt-6-luna` → `gpt-6`、`deepseek-flash` → `deepseek`） |
 
-> 该文件只含占位值，仍建议放在不入版本管理的位置并确认 `.gitignore` 覆盖它。
+> 该文件不含任何模型服务商的密钥，但仍建议放在不入版本管理的位置并确认 `.gitignore` 覆盖它。
 
 ### 选模型
 
-不指定模型时，插件自动挑一个**具备图片能力且家族可推断**的模型：
+不指定模型时，桥按固定优先级挑一个：**插件设置里指定的模型 → DSH 当前会话模型 → 目录里第一个具备识图能力的模型**。会话模型是纯文本模型时会被跳过——Midscene 靠截图理解页面，纯文本模型跑不了。
+
+查一下当前目录里有哪些模型：
 
 ```sh
 curl -s http://127.0.0.1:8787/v1/models | python3 -c "
@@ -111,7 +130,7 @@ for m in json.load(sys.stdin)['data']:
 
 #### 关于 `MIDSCENE_MODEL_FAMILY`
 
-插件按**实际使用哪个模型**推断家族，覆盖 Midscene 官方支持的主要系列（豆包 Seed、Qwen、智谱 GLM、Gemini、GPT、DeepSeek、Kimi、MiMo、UI-TARS）。每个职责各自推导，互不串用。
+插件按**实际使用哪个模型**推断家族，覆盖 Midscene 官方支持的主要系列（豆包 Seed、Qwen、智谱 GLM、Gemini、GPT、DeepSeek、Kimi、MiMo、UI-TARS、AutoGLM）。每个职责各自推导，互不串用。
 
 - 识别不出家族的模型（如 CodeBuddy 的 `hy3`、`space-bunny`、`minimax-m3`）**回落到通用协议** `glm-v`：它在 Midscene 未适配的识图模型上实测可正常定位，比让用户自己猜家族值更省事。
 - 家族**不出现在界面上**，也不需要你设置：它是「按哪个模型对话就该用哪套坐标协议」的推论，写错的表现是点击偏几像素而不报错。
@@ -175,13 +194,16 @@ Midscene 的三种运行方式读取**同一套模型环境变量**，接入配�
 
 | 现象 | 原因与处理 |
 | --- | --- |
-| 连接被拒绝 / `ECONNREFUSED` | 桥接服务未启动，**或端口已自动跳号**。启动日志会写明实际端口；也可在插件设置页看「桥接地址」。确认 DSH 在运行且插件已启用 |
+| 连接被拒绝 / `ECONNREFUSED` | 桥接服务未启动，**或端口已自动跳号**。启动日志会写明实际端口；也可在插件设置页的接入配置预览里看 `MIDSCENE_MODEL_BASE_URL`。确认 DSH 在运行且插件已启用 |
 | 之前能用、现在连不上 | 端口被占用后插件换了端口，`.env` 仍指向旧端口。重新拉一次 `/v1/midscene-env` 覆盖 `.env` 即可 |
 | 启动日志报端口冲突 | 8787 被别的进程占用。`lsof -i :8787` 找到并停止它，或修改插件配置的 `port` 后重启 DSH |
+| 401 `invalid_api_key` | 请求带的接入密钥与桥当前的不一致（常见于在设置页重新生成过密钥后 `.env` 还是旧的）。重新拉一次接入配置覆盖 `.env` 即可 |
+| 404 且提示「本桥只提供 Chat Completions」 | 把协议设成了 `openai-responses`。本桥只提供 Chat Completions，请把 `MIDSCENE_MODEL_PROTOCOL` 设回默认的 `openai-chat` |
+| 404 且提示「Jev 的私有协议不经本桥」 | 请求打到了 `/v1/systemone`。Jev 用的是私有 System One 协议，请改用通用模型作默认模型 |
 | `MISSING_CREDENTIAL` | 所选提供方未配置凭据。桥返回的错误会指名「提供方/模型」，按提示到 DSH Web 设置里登录（CodeBuddy / Codex）或补齐 API key（如 `DEEPSEEK_API_KEY`） |
 | `QUOTA` / `ACCOUNT_QUOTA` | 该提供方额度或余额不足。换一个「提供方/模型」或到对应平台充值 |
 | `no such provider` / 模型路由错误 | 模型名写错了，或该提供方插件未安装。用 `/v1/models` 核对准确标识（注意是「提供方/模型」全称，不是裸模型名） |
-| 模型家族不匹配 / 定位不准 | `MIDSCENE_MODEL_FAMILY` 与所选模型不符。核对 Midscene 的模型家族取值；也可用 Midscene 的 `--deep-locate` 提升定位精度 |
+| 模型家族不匹配 / 定位不准 | `MIDSCENE_MODEL_FAMILY` 与所选模型不符。只在手工改过 `.env` 时出现：删掉该行重新拉取配置即可。也可用 Midscene 的 `--deep-locate` 提升定位精度 |
 | 图片请求被拒（400） | 所选模型不具备图片输入能力。改用 `/v1/models` 里 `vision: true` 的模型 |
 | 技能目录里看不到 `browser-automation` | 插件未启用或未安装。确认插件管理页里本插件为启用状态并重启 DSH；若你自己装过同名技能，以你的版本为准 |
 | 定位偏几像素 | 家族与实际模型不匹配。正常不会发生（插件按模型自动推导）；若手工改过 `.env` 里的 `MIDSCENE_MODEL_FAMILY`，删掉该行重新拉取配置 |
@@ -189,21 +211,26 @@ Midscene 的三种运行方式读取**同一套模型环境变量**，接入配�
 
 ## 隐私与边界
 
-- 桥**不读取、不存储、不转发**任何凭据：请求经宿主模型层路由，凭据解析与续期在对应提供方插件内完成。
-- 桥只监听回环地址，不做鉴权体系（本机使用场景）；请不要把 8787 暴露到局域网。
+- 桥**不读取、不存储、不转发**任何凭据：请求经宿主模型层路由，凭据解析与续期在对应提供方插件内完成。桥只校验自己那把接入密钥。
+- 桥只监听回环地址，推理请求需带上接入密钥；发现类端点不校验。请不要把端口暴露到局域网。
 - 桥的日志只记录每次请求的一行摘要（模型、流式/缓冲、消息条数），**不含消息内容与图片数据**；可用配置项 `logRequests: false` 关闭。
 - 图片以数据 URI 交给桥后，会经 DSH 的附件服务落成受管附件（与你在会话里发图片走同一套机制），不绕过宿主的图片策略。
 - chrome-devtools MCP 不受影响，可继续使用。
 
 ## 配置项
 
-第一版不做设置界面，配置走插件配置默认值：
+插件的配置分两处：**DSH 官方的插件配置表单**承载标量字段，**插件详情页的「Midscene 接入设置」区块**承载需要交互的字段（接入密钥与各职责使用的模型）。
 
 | 配置 | 默认值 | 说明 |
 | --- | --- | --- |
 | `port` | `8787` | 首选监听端口；被占用时自动向上尝试（最多 20 个），并把实际端口写回该字段 |
+| `apiKey` | 安装时自动生成 | 桥接接入密钥；可在「Midscene 接入设置」区块重新随机生成或自定义 |
+| `family` | `glm-v` | 协议家族，**自动维护**：桥按实际使用的模型推导，通常不需要手工设置 |
+| `model` | 空 | 指定用于 Midscene 测试的模型；留空则跟随 DSH 当前会话模型 |
 | `requestTimeoutMs` | `300000` | 单次模型请求超时（毫秒）；`0` 表示不超时 |
 | `logRequests` | `true` | 是否记录每次请求的一行摘要日志 |
+
+`port`、`requestTimeoutMs`、`logRequests` 这类标量字段由 DSH 官方配置表单渲染，可以直接编辑，改动立即作用于运行中的桥，不需要重启 DSH。
 
 ## 在真实 Chrome 中驱动（Bridge Mode）
 
@@ -220,7 +247,7 @@ Midscene 官方支持 **Chrome 桥接模式**：本插件的验证脚本作为�
 前提条件（一次性）：Chrome 安装 [Midscene 扩展](https://midscenejs.com/zh/bridge-mode.html)，首次连接时在扩展弹窗点 **Allow**（或 **Always Allow** 后续免确认）。
 
 **扩展自身的模型也要指向本插件**：扩展侧边栏的 Playground 自带模型配置项，把下面第 1 步拿到的
-四行粘进**扩展的侧边栏设置**即可 —— 那里的模型就是 DSH 当前会话模型，**不需要申请任何第三方密钥**。
+四行粘进**扩展的侧边栏设置**即可 —— 那里的模型由桥决定（跟随 DSH 会话模型，或你在插件设置里指定的模型），**不需要申请任何第三方密钥**。
 漏掉这一步时，扩展用不上 DSH 的模型，会把你引向申请外部 key，而那正是本插件要消除的成本。
 
 ```sh
@@ -293,7 +320,7 @@ MIDSCENE_LOCATE_MODEL_STREAM_MODE="non-stream"
 
 Midscene 需要一个 `MIDSCENE_MODEL_FAMILY`（协议家族）才能解析模型返回的坐标，而它的取值取决于**实际使用哪个模型**。这件事由插件在生成接入配置时自动完成，**不需要你设置、界面上也不出现**：
 
-- 能识别出家族的模型 → 用对应家族（`glm-*` → `glm-v`，`deepseek-*` → `deepseek`，依此类推）；
+- 能识别出家族的模型 → 用对应家族（`glm-*` → `glm-v`，`deepseek-*` → `deepseek`，`autoglm-*` → `auto-glm`，依此类推）；
 - 识别不出、但**具备识图能力**的模型（Midscene 未适配的系列，如 `codebuddy/hy3`）→ 使用通用协议，**同样可以正常使用**；
 - 家族随模型变化自动更新：换了模型，`.env` 里的家族跟着变。
 
@@ -301,7 +328,7 @@ Midscene 需要一个 `MIDSCENE_MODEL_FAMILY`（协议家族）才能解析模�
 
 **跟随会话模型时**同样安全：若会话当前用的是纯文本模型，桥会跳过它、改用目录里其他识图模型（而不是让 Midscene 因为无法识图而失败）。
 
-> 换模型后需要重新拉取一次 `.env`（家族写在里面）。设置页的「复制 .env 内容」或 `GET /v1/midscene-env` 都能拿到最新值。
+> 换模型后需要重新拉取一次 `.env`（家族写在里面）。设置页的「复制接入配置」或 `GET /v1/midscene-env` 都能拿到最新值。
 
 ## 插件设置页
 
@@ -310,10 +337,12 @@ Midscene 需要一个 `MIDSCENE_MODEL_FAMILY`（协议家族）才能解析模�
 | 设置项 | 说明 |
 | --- | --- |
 | 接入密钥 | 安装时自动生成；可一键随机重新生成，或自定义。生成后需同步更新 Midscene 的 `.env`（重新拉一次即可） |
-| Midscene 协议家族 | 下拉选择，选项即 Midscene 接受的白名单（默认 `glm-v`）。它决定提示词模板与坐标解析协议，换模型时可能需要同步调整 |
 | 各职责使用的模型 | 四个 Tab（默认 / 定位 / 规划 / 页面理解），每个一个下拉（可搜索、可清空），选项只含支持图片的模型。默认留空跟随 DSH 会话模型；其余留空沿用默认 |
+| 接入配置 | 直接显示当前接入配置全文，可一键复制（命令行 `.env` 与 Midscene 浏览器扩展两处都用它） |
 
-「指定测试模型」用下拉而不是手填：手填要求记住「提供方/模型」全称（如 `codebuddy/glm-5.3-flash`），
+协议家族**不出现在这个区块里**：它由每个职责实际使用的模型推导，界面不呈现这个概念。
+
+各职责的模型用下拉而不是手填：手填要求记住「提供方/模型」全称（如 `codebuddy/glm-5.3-flash`），
 写错只会在真正跑 Midscene 时才报错，而用户也无从知道有哪些合法值。下拉选项与 `/v1/models` **同源**
 （同一份目录缓存），不会出现「界面上能选、桥上查不到」的不一致；已配置但当前目录中不存在的模型
 （提供方被卸载或模型改名）会以提示标出，不静默丢弃。
@@ -323,6 +352,49 @@ Midscene 需要一个 `MIDSCENE_MODEL_FAMILY`（协议家族）才能解析模�
 ## 接入配置由插件生成
 
 `/v1/midscene-env` 生成的配置在每次请求时按当前模型目录实时计算——新增提供方、换模型后重新拉一次即可，不需要记忆任何变量取值，也不需要为任何模型准备密钥。
+
+## 能力边界
+
+插件的定位是**让 Midscene 用上 DSH 已有的模型**，不是把 DSH 的全部协议能力在桥里再实现一遍。下面几件事看着像「缺功能」，其实是有意为之。
+
+### 结构化输出被忽略，但不是缺陷
+
+Midscene 的各家族适配器会在请求里带上 `response_format: { type: "json_object" }`，要求模型按 JSON 回复。**桥不读这个字段，直接忽略，请求照常成功。**
+
+为什么不改成报错：
+
+1. 该字段自 1.15.1 基线起就一直随请求发出，桥也一直在忽略——现有功能与全部验收用例都是在这个状态下通过的；
+2. 改成 400 等于把今天可用的功能推成失败；
+3. Midscene 对解析失败自带兜底：解析不过时它会把错误回灌给模型、要求修正后重试（默认重试一次）。所以结构化输出只是**提高首轮命中率**的优化项，不是功能成立的前提。
+
+**你看到的现象**：模型返回的不是 JSON 时，Midscene 自己会重试一次；你看到的是 Midscene 侧的语义重试，桥不会报错。
+
+### 为什么不需要 Responses 协议
+
+Midscene 支持把协议切成 `openai-responses`。**本桥只提供 Chat Completions 一种协议**，也不需要提供 Responses：
+
+- DSH 已在**宿主内**把各提供方的上游协议归一（Codex 走 responses、CodeBuddy 走私有形态，都由各自的适配器处理），桥对外只暴露 Chat Completions 就能触达 DSH 全部已配置模型——这一点经实桥逐提供方实测（`openai-codex`、`za-newapi`、`codebuddy`、`opencode-go`、`dsh-opencode-go`）全部正常返回；
+- 宿主本身也没有协议选择入口，调用方无法要求宿主改走另一种协议；
+- 因此在桥里实现 `/v1/responses` **不会多覆盖任何模型**，只是多一条进入同一批模型的路径，还要自建一套并行的请求/响应词汇。
+
+生成的接入配置里已经写明本桥使用的协议，不需要你自行判断该配哪一种。
+
+**误配时的表现**：你若自行把协议设成 `openai-responses` 并把请求打到 `/v1/responses`，桥会返回 404，并在响应里附带可读指引：本桥只提供 Chat Completions，请把协议设回默认的 `openai-chat`。
+
+### Jev 为什么不经过本桥
+
+Jev 用的是 TypeSafe 的**私有 System One 协议**（`POST {base}/v1/systemone`），不是 OpenAI 协议；上游也明确它**不能作为默认模型**（作为默认模型时上游会直接抛错）。桥要支持它等于自建一套私有协议适配，与「用 DSH 已有模型」的插件定位不符。
+
+**误配时的表现**：把请求打到 `/v1/systemone` 同样会得到 404，附带指引：Jev 的私有协议不经本桥，请改用通用模型作默认模型。
+
+### 模型原生思考开关
+
+Midscene **默认关闭**模型原生思考（各家族适配器会在请求里带上 `thinking.type`、`enable_thinking`、`reasoning_effort` 之类的字段）。桥会如实识别这个意图，并映射到宿主支持的思考档位：
+
+- 模型支持对应档位 → 按 Midscene 的设定生效；
+- 模型不支持 → **不传**该设置，请求照常发出（不会返回 `UNSUPPORTED_REASONING_EFFORT`），行为退化为与升级前一致。
+
+取舍是「宁可少传，不可乱传」：传一个模型不存在的档位会让请求直接失败，而不传只是沿用模型的默认行为。
 
 ## 图标来源
 

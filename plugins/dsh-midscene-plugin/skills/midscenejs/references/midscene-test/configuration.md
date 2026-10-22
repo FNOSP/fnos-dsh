@@ -180,6 +180,39 @@ beforeEach:
       waitUntil: domcontentloaded
 ```
 
+### Puppeteer（v1.16 新增）
+
+Puppeteer 提供**同名**的 `gotoUrl`、`setCookies`、`clearCookies`、`setViewportSize` Node，装 `puppeteer` 同级依赖后，把 `PuppeteerAgent`（或 `PuppeteerBrowserAgent`）传给 `createMidsceneNodes()` 即可：
+
+```bash
+pnpm add -D puppeteer
+```
+
+```ts
+import { PuppeteerAgent } from '@midscene/web/puppeteer';
+import { createMidsceneNodes } from '@midscene/test/midscene';
+
+const midsceneNodes = createMidsceneNodes<ProjectContext>({
+  agentClass: PuppeteerAgent,
+  getAgent: ({ context }) => {
+    context.agent ??= new PuppeteerAgent(context.page, {
+      testRunner: { baseURL: 'https://example.com' },
+    });
+    return context.agent;
+  },
+});
+```
+
+Playwright 和 Puppeteer **共用同一套 Web Node Schema 和执行实现**，浏览器相关代码只保留 Driver 适配层；两者对 Cookie 的引用和结果脱敏规则也一致。
+
+跨浏览器共用 YAML 时的注意点：
+
+- `gotoUrl.waitUntil` 用 `domcontentloaded`、`load` 或 `networkidle` 即可；**Puppeteer 适配器会把 `networkidle` 映射为 `networkidle0`**。
+- 浏览器专用值仍兼容：Playwright 支持 `commit`，Puppeteer 支持 `networkidle0` / `networkidle2`；**把这些值用于另一种 Driver 会返回明确错误**。
+- **相对 URL** 会先基于 `testRunner.baseURL` 解析；未配置时再基于当前 HTTP(S) 页面地址解析。
+
+> v1.16 起，`createMidsceneNodes()` 可接受的类扩展为 `PuppeteerAgent`、`PuppeteerPageAgent`、`PuppeteerBrowserAgent`。
+
 ### Android
 
 `createMidsceneNodes({ agentClass: AndroidAgent, getAgent })` 注册 `launch`、`terminate`、`runAdbShell`、`back`、`home`、`recentApps`。传入的 Agent 需提供对应方法。
@@ -361,6 +394,15 @@ Node 通过 `AbortSignal` 接收取消通知，**内部异步操作不会因此�
 运行被中断后，框架仍会尝试执行 `afterEach`、`afterAll` 和通过 `onTeardown()` 注册的清理函数。执行 `afterEach`/`afterAll` 中的 Node 时，若运行的 `signal` 已被取消，框架会**换用新的、尚未取消的 signal**，使清理继续执行；这些清理步骤仍受步骤超时配置约束。
 
 > **`onTeardown()` 注册的清理函数不会收到新的 `signal`**。不要在其中复用原步骤的 `signal`：它可能已因超时或中断被取消，导致清理请求立即失败。
+
+### 资源隔离与清理等待（v1.16 强化）
+
+- **超时不代表底层操作已退出。** 继续同阶段的后续 Step 前，框架会等待已取消的操作结束，**默认最多 30 秒**；仍未结束就停止后续步骤。等待单独计时，不占下一步的超时预算。
+- **新的 `signal` 不绕过资源占用检查**：同一 Agent 的旧操作尚未退出时，清理 Node 不能与它重叠执行，对应操作会被标记为未执行。例：点击操作超时后仍在运行，`afterEach` 中使用同一 Agent 的点击不能同时开始。
+- **生命周期钩子结束后的清理默认分两段等待**：先等运行中的操作退出（默认最多 **1 秒**），操作退出后再等注册的清理回调执行（回调阶段默认最多 **10 秒**）。
+- 超过期限时，框架记录 **`cleanup pending`** 并返回快照，**这不表示底层资源已释放**——资源继续保持隔离，底层操作退出后才执行释放。这些期限**不会强制终止**底层操作或清理函数，也不替代 Step 自身的超时。
+- **Node 超时后仍未退出时，注册的资源清理会延后**，避免释放正在使用的资源。清理回调抛错后仍会尝试剩余回调。
+- 并发名额同理：项目从初始化到**返回清理结果**始终占用名额，清理超时返回 `pending` 时资源仍保持隔离。
 
 ## 编程式 API
 

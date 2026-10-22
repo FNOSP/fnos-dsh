@@ -15,6 +15,12 @@
  * 埋在下面。
  */
 import type { ModelCatalogSnapshot, OpenAiModelEntry } from './catalog.ts'
+import { resolveFamily } from '../contracts/model-family.ts'
+import {
+  DEDICATED_INTENTS,
+  INTENT_CONFIG_FIELD,
+  type MidsceneIntent,
+} from '../contracts/intents.ts'
 
 /** 决策结果：选中的模型 + 来源说明（用于诊断与提示）。 */
 export interface ModelChoice {
@@ -87,4 +93,120 @@ export function chooseModel(
 
   // 目录里连一个图片模型都没有：退回第一个，让能力门控如实报错。
   return { entry: snapshot.entries[0]!, source: 'fallback', skippedConfigured }
+}
+
+/**
+ * 按职责决策模型所需的配置面（只取与模型选择有关的字段）。
+ *
+ * 与完整的 {@link BridgeConfig} 解耦，使这个纯函数可以在单测里直接构造。
+ */
+export interface IntentModelConfig {
+  /** 默认职责配置的模型。 */
+  readonly model: string
+  /** 定位职责配置的模型。 */
+  readonly locateModel: string
+  /** 规划职责配置的模型。 */
+  readonly planningModel: string
+  /** 页面理解职责配置的模型。 */
+  readonly insightModel: string
+  /** 目录为空时家族回落用的值。 */
+  readonly family: string
+}
+
+/** 某个职责的模型决策结果。 */
+export interface IntentModelChoice {
+  /** 职责。 */
+  readonly intent: MidsceneIntent
+  /** 该职责实际会使用的模型标识；目录为空时为 `undefined`。 */
+  readonly modelId: string | undefined
+  /** 该职责使用的协议家族（按它自己的模型推导）。 */
+  readonly family: string
+  /** 该职责是否单独指定了模型（`false` 表示沿用默认职责）。 */
+  readonly dedicated: boolean
+  /**
+   * 该职责的模型来源：
+   * - `configured`：用户为该职责显式指定了模型；
+   * - `session`：跟随 DSH 当前会话模型（仅默认职责可能出现）；
+   * - `fallback`：兜底挑的识图模型（仅默认职责可能出现）；
+   * - `inherited`：沿用默认职责的结果。
+   */
+  readonly source: 'configured' | 'session' | 'fallback' | 'inherited'
+  /** 配置了但目录中不存在的模型（供界面如实提示，不静默改选）。 */
+  readonly skippedConfigured: readonly string[]
+}
+
+/**
+ * 按**每个职责自己的模型**分别决策（FNOS-021-02）。
+ *
+ * 与 {@link chooseModel} 的差别在两处，都源于上游的职责语义：
+ *
+ * 1. **家族按职责分别推导**：上游对专用职责的家族是独立变量（`MIDSCENE_LOCATE_MODEL_FAMILY`
+ *    等），且专用模型**不逐字段继承**默认模型。若沿用「按默认模型推导一次」，用户把定位
+ *    模型换成另一个系列时家族会停在默认模型那一套——正是需求禁止的「静默失准」。
+ * 2. **未配置专用模型时回落默认职责**：不是回落会话模型。默认职责已经按
+ *    「插件配置 → 会话模型 → 识图兜底」决策完毕，专用职责未配置就该跟着它的结果走。
+ *
+ * 专用职责配了但**目录里没有**该模型（提供方被卸载或模型改名）时，同样回落默认职责并
+ * 如实登记（`skippedConfigured`），界面据此提示、配置保留用户的选择。
+ * @param snapshot - 目录快照。
+ * @param config - 各职责配置的模型。
+ * @param session - DSH 当前模型选择的读取面。
+ * @returns 每个职责的决策结果。
+ */
+export function resolveIntentModels(
+  snapshot: ModelCatalogSnapshot,
+  config: IntentModelConfig,
+  session: SessionModelReader,
+): Record<MidsceneIntent, IntentModelChoice> {
+  const defaultChoice = chooseModel(snapshot, config.model, session)
+  const defaultModelId = defaultChoice?.entry.id
+  const defaultFamily = resolveFamily(defaultModelId ?? config.family).family
+
+  const slots = {} as Record<MidsceneIntent, IntentModelChoice>
+  slots.default = {
+    intent: 'default',
+    modelId: defaultModelId,
+    family: defaultFamily,
+    dedicated: false,
+    source: defaultChoice?.source ?? 'fallback',
+    skippedConfigured: defaultChoice?.skippedConfigured ?? [],
+  }
+
+  for (const intent of DEDICATED_INTENTS) {
+    const configured = (config[INTENT_CONFIG_FIELD[intent]] ?? '').trim()
+    // 未配置：沿用默认职责（不写专用变量组，上游自己会回落）。
+    if (configured === '') {
+      slots[intent] = {
+        intent,
+        modelId: defaultModelId,
+        family: defaultFamily,
+        dedicated: false,
+        source: 'inherited',
+        skippedConfigured: [],
+      }
+      continue
+    }
+    const entry = snapshot.entries.find(candidate => candidate.id === configured)
+    // 配了但目录里没有：回落默认职责并如实登记，不静默改选别的模型。
+    if (entry === undefined) {
+      slots[intent] = {
+        intent,
+        modelId: defaultModelId,
+        family: defaultFamily,
+        dedicated: false,
+        source: 'inherited',
+        skippedConfigured: [configured],
+      }
+      continue
+    }
+    slots[intent] = {
+      intent,
+      modelId: entry.id,
+      family: resolveFamily(entry.id).family,
+      dedicated: true,
+      source: 'configured',
+      skippedConfigured: [],
+    }
+  }
+  return slots
 }

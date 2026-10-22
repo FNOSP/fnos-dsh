@@ -2,15 +2,22 @@
 
 本页汇总 Midscene 的模型选择、环境变量全集、多模型组合与验证方式。
 
-## 模型策略：三种角色
+## 模型策略：四种角色
 
-| 模型 | 作用 |
-| --- | --- |
-| **默认模型** | 基础能力：元素定位（Locate），以及未交给 Planning / Insight 的任务 |
-| **Planning 模型** | 增强复杂目标、多步骤任务和分支场景的规划能力 |
-| **Insight 模型** | 增强数据提取、断言和页面理解能力 |
+> 🆕 **v1.16 起默认模型改为「必填」**，不再承担某一特定职责；定位、规划、页面理解可各自绑定专用模型。
 
-默认用一个多模态模型完成规划、定位和页面理解，**可覆盖大多数场景**，也是最少配置的起点。仅当复杂规划或页面理解遇到明确能力瓶颈时，才引入专用模型——组合会增加耗时和 Token。
+| 模型 | 作用 | 是否必填 |
+| --- | --- | --- |
+| **默认模型** | **提供所有能力**；未配置专用模型的职责使用它 | **必填** |
+| **Locate 模型**（🆕 v1.16） | 负责独立的元素定位：操作中的目标定位、`aiAct` 内的独立定位、`deepLocate` | 可选 |
+| **Planning 模型** | 增强复杂目标、多步骤任务和分支场景的规划能力 | 可选 |
+| **Insight 模型** | 增强数据提取、断言和页面理解能力 | 可选 |
+
+默认用一个多模态模型完成规划、定位和页面理解，**可覆盖大多数场景**，也是最少配置的起点。仅当定位、复杂规划或页面理解遇到明确能力瓶颈时，才引入专用模型——组合会增加耗时和 Token。
+
+> ⚠️ **Locate 模型不逐字段继承**：配置后地址、API Key 和其他参数**独立读取**，不从默认模型继承，也**不在调用失败后自动切换模型**。
+>
+> ⚠️ **流式模式按模型独立配置**（各自前缀的 `STREAM_MODE`）。专用模型未设置时默认 `non-stream`，**不继承默认模型的流式设置**；单次调用显式指定的 `stream` 选项优先生效。
 
 ## 必选配置
 
@@ -174,6 +181,7 @@ export MIDSCENE_MODEL_FAMILY="gpt-6"
 
 | 系列 | 配置 |
 | --- | --- |
+| **Jev（🆕 v1.16 实验性）** | `MIDSCENE_MODEL_FAMILY="jev"`，**不能作默认模型**，详见下方专节 |
 | 智谱 AutoGLM（9B 开源） | `MIDSCENE_MODEL_FAMILY="auto-glm"`（中文环境优化）或 `auto-glm-multilingual`（英语等）。更适合移动端交互；用 `aiAssert`/`aiQuery` 时建议单独配 `MIDSCENE_INSIGHT_MODEL_*` |
 | UI-TARS | `MIDSCENE_MODEL_FAMILY="vlm-ui-tars"`（v1.0）、`vlm-ui-tars-doubao-1.5` 或 `vlm-ui-tars-doubao`（火山 v1.5） |
 
@@ -184,6 +192,42 @@ UI-TARS 迁移：旧 `MIDSCENE_USE_VLM_UI_TARS` 已废弃 →
 | `MIDSCENE_USE_VLM_UI_TARS=1.0` | `MIDSCENE_MODEL_FAMILY="vlm-ui-tars"` |
 | `MIDSCENE_USE_VLM_UI_TARS=1.5` | `MIDSCENE_MODEL_FAMILY="vlm-ui-tars-doubao-1.5"` |
 | `MIDSCENE_USE_VLM_UI_TARS=DOUBAO` | `MIDSCENE_MODEL_FAMILY="vlm-ui-tars-doubao"` |
+
+## Jev（实验性，v1.16 新增）
+
+模型供应商：[TypeSafe](https://typesafe.ai/)。`MIDSCENE_MODEL_FAMILY="jev"`。
+
+> ⚠️ **Jev 不能作默认模型**。它无法生成输入内容等开放式文本，因此**必须同时配置一个通用大模型作为默认模型**，为 Jev 无法完成的任务兜底。
+
+Jev 可用于 Locate / Planning / Insight 中的任一或多个职责。以 TypeSafe 官方服务 `jev-1.14.0` 为例：
+
+```bash
+# 默认模型（必填，兜底）：通用多模态模型
+export MIDSCENE_MODEL_BASE_URL="https://..."
+export MIDSCENE_MODEL_API_KEY="..."
+export MIDSCENE_MODEL_NAME="qwen3.7-plus"
+export MIDSCENE_MODEL_FAMILY="qwen3"
+
+# Jev 用于定位、规划和 Insight（按需选择职责）
+export MIDSCENE_LOCATE_MODEL_BASE_URL="https://api.typesafe.ai/v1"
+export MIDSCENE_LOCATE_MODEL_API_KEY="..."
+export MIDSCENE_LOCATE_MODEL_NAME="jev-1.14.0"
+export MIDSCENE_LOCATE_MODEL_FAMILY="jev"
+```
+
+各职责交给 Jev 后的分工：
+
+| 职责 | Jev 处理 | 默认模型兜底 |
+| --- | --- | --- |
+| **定位** | 全部元素定位 | — |
+| **Insight** | `aiBoolean`、`aiAssert`、`aiWaitFor` 的判断 | `aiQuery`、`aiString`、`aiNumber`、`aiAsk` |
+| **任务规划** | `aiAct` 选择点击/滚动/等待等动作并判断完成 | 涉及输入内容生成或 Jev 不支持的参数时，当前规划步骤；Locate 配置为其他模型时，点击与滚动步骤所需的目标描述 |
+
+关键限制：
+
+- ⚠️ **Jev 请求失败不会自动切换到默认模型。**
+- ⚠️ **协议不同**：Jev 使用 TypeSafe 的 **System One** 协议，**不使用 OpenAI 协议**。温度、原生思考、响应格式、流式输出等 OpenAI 相关配置**对 Jev 不适用**。
+- ⚠️ **图像尺寸限制**：Jev 要求输入图像最长边不超过 **1568 像素**，Midscene 会等比缩放超限图像并在定位后映射回原图坐标；不足 280 像素的边会补白。该处理逻辑后续可能调整。
 
 ## 设置环境变量（三选一）
 
@@ -224,29 +268,51 @@ dotenv 默认**保留**当前 Shell 已有值。
 
 ## 配置多个模型（可选）
 
-多数场景只需默认模型。复杂规划或页面理解需要独立模型时才配置，可只配一个也可两个都配：
+多数场景只需默认模型。需要分别控制定位、规划或页面理解时才配置，**每个职责独立选择**，未配置的职责使用默认模型：
 
 ```bash
-# 默认模型：Qwen 3.5（负责视觉定位）
+# 默认模型（必填）：Qwen 3.5
 export MIDSCENE_MODEL_BASE_URL="https://..."
 export MIDSCENE_MODEL_API_KEY="..."
 export MIDSCENE_MODEL_NAME="qwen3.5-plus"
-export MIDSCENE_MODEL_FAMILY="qwen3.5"
+export MIDSCENE_MODEL_FAMILY="qwen3"
 
-# Planning 模型：GPT-5.4
-export MIDSCENE_PLANNING_MODEL_API_KEY="sk-..."
+# Locate 定位模型（🆕 v1.16）：Gemini 3.5 Flash
+export MIDSCENE_LOCATE_MODEL_BASE_URL="https://..."
+export MIDSCENE_LOCATE_MODEL_API_KEY="..."
+export MIDSCENE_LOCATE_MODEL_NAME="gemini-3.5-flash"
+export MIDSCENE_LOCATE_MODEL_FAMILY="gemini"
+
+# Planning 模型：GPT-6
 export MIDSCENE_PLANNING_MODEL_BASE_URL="https://..."
-export MIDSCENE_PLANNING_MODEL_NAME="gpt-5.4"
-export MIDSCENE_PLANNING_MODEL_FAMILY="gpt-5"
+export MIDSCENE_PLANNING_MODEL_API_KEY="sk-..."
+export MIDSCENE_PLANNING_MODEL_NAME="gpt-6-sol"
+export MIDSCENE_PLANNING_MODEL_FAMILY="gpt-6"
 
-# Insight 模型：GPT-5.4
-export MIDSCENE_INSIGHT_MODEL_API_KEY="sk-..."
+# Insight 模型：GPT-6
 export MIDSCENE_INSIGHT_MODEL_BASE_URL="https://..."
-export MIDSCENE_INSIGHT_MODEL_NAME="gpt-5.4"
-export MIDSCENE_INSIGHT_MODEL_FAMILY="gpt-5"
+export MIDSCENE_INSIGHT_MODEL_API_KEY="sk-..."
+export MIDSCENE_INSIGHT_MODEL_NAME="gpt-6-sol"
+export MIDSCENE_INSIGHT_MODEL_FAMILY="gpt-6"
 ```
 
-⚠️ 配置了独立 Planning/Insight 模型后，本页表格中的 `MIDSCENE_MODEL_*` 需改用对应的 `MIDSCENE_INSIGHT_MODEL_*` / `MIDSCENE_PLANNING_MODEL_*` 才生效。这两组变量支持各自的 `_PROTOCOL`、`_TIMEOUT`、`_TEMPERATURE`、`_RETRY_*`、`_HTTP_PROXY`、`_SOCKS_PROXY`、`_INIT_CONFIG_JSON`、`_EXTRA_BODY_JSON`、`_RESPONSE_FORMAT`。
+### 专用模型的完整变量
+
+Locate / Planning / Insight 三组变量结构相同，各自独立读取（**不逐字段继承默认模型**）：
+
+| 变量后缀 | 说明 |
+| --- | --- |
+| `_API_KEY` / `_BASE_URL` / `_NAME` / `_FAMILY` | 该模型的基础四项（`BASE_URL` 同样不要拼 `/chat/completions` 或 `/responses`） |
+| `_PROTOCOL` | `openai-chat`（默认）或 `openai-responses` |
+| `_STREAM_MODE` | `stream` 或 `non-stream`（**默认 `non-stream`**） |
+| `_TIMEOUT` / `_TEMPERATURE` | 该职责单次请求硬超时 / 采样温度 |
+| `_RETRY_COUNT` / `_RETRY_INTERVAL` | 该职责的重试次数 / 间隔 |
+| `_HTTP_PROXY` / `_SOCKS_PROXY` | 该职责的代理 |
+| `_INIT_CONFIG_JSON` / `_EXTRA_BODY_JSON` | SDK 初始化配置 / 每次请求体合并 |
+| `_RESPONSE_FORMAT` | 结构化响应策略 |
+| `_REASONING_ENABLED` / `_REASONING_EFFORT` / `_REASONING_BUDGET` | 原生思考控制，各模型独立，实际支持取决于模型及其 family |
+
+> ⚠️ 配置了专用模型后，本页表格中的 `MIDSCENE_MODEL_*` 需改用对应前缀才在该职责生效。
 
 ## 验证配置
 

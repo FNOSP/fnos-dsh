@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { MidsceneSettingsRequest, MidsceneSettingsSnapshot } from '../../src/contracts/settings-rpc.ts'
 import {
+  DEDICATED_INTENTS,
+  INTENT_CONFIG_FIELD,
+  INTENT_ENV_PREFIX,
+  MIDSCENE_INTENTS,
+  intentModelName,
+  parseIntentModelName,
+} from '../../src/contracts/intents.ts'
+import {
   MIDSCENE_SETTINGS_NAMESPACE,
   MIDSCENE_SETTINGS_STATUS_PATH,
   MIDSCENE_SETTINGS_UPDATE_PATH,
@@ -55,5 +63,62 @@ describe('清空模型（单选的必备能力）', () => {
     const cleared: MidsceneSettingsSnapshot['model'] = ''
     expect(selected).not.toBe(cleared)
     expect(cleared).toBe('')
+  })
+})
+
+describe('多职责快照契约（FNOS-021-02）', () => {
+  it('职责列表与契约导出一致且顺序固定（Tabs 顺序由它决定）', () => {
+    expect([...MIDSCENE_INTENTS]).toEqual(['default', 'locate', 'planning', 'insight'])
+    // 可选职责是职责列表去掉 default，不多不少。
+    expect([...DEDICATED_INTENTS]).toEqual(MIDSCENE_INTENTS.filter(intent => intent !== 'default'))
+  })
+
+  it('每个职责都有各自的配置字段与环境变量前缀（共名会让桥无法路由）', () => {
+    // 字段名与前缀都是「每个职责一个」，没有共用同一个键的组合。
+    expect(new Set(Object.values(INTENT_CONFIG_FIELD)).size).toBe(MIDSCENE_INTENTS.length)
+    expect(new Set(Object.values(INTENT_ENV_PREFIX)).size).toBe(MIDSCENE_INTENTS.length)
+    // 前缀与上游一致：默认用 MIDSCENE_MODEL_*，专用职责用 MIDSCENE_<职责>_MODEL_*。
+    expect(INTENT_ENV_PREFIX.default).toBe('MIDSCENE_MODEL')
+    expect(INTENT_ENV_PREFIX.locate).toBe('MIDSCENE_LOCATE_MODEL')
+  })
+
+  it('对外模型名：默认是固定名，专用职责带 @职责 后缀且互不相同', () => {
+    const names = MIDSCENE_INTENTS.map(intent => intentModelName(intent))
+    expect(names).toEqual(['dsh-model', 'dsh-model@locate', 'dsh-model@planning', 'dsh-model@insight'])
+    expect(new Set(names).size).toBe(names.length)
+    // 反解回职责（桥就是靠这一步判断请求属于哪个职责）。
+    for (const intent of MIDSCENE_INTENTS) {
+      expect(parseIntentModelName(intentModelName(intent))).toBe(intent)
+    }
+  })
+
+  it('不是本桥固定名形态的取值不解析成职责（交给「提供方/模型」路径）', () => {
+    for (const raw of ['codebuddy/glm-5.3', 'dsh-model@nope', 'dsh-model@', 'dsh-modelx', '']) {
+      expect(parseIntentModelName(raw), raw).toBeUndefined()
+    }
+  })
+
+  it('写入请求可携带三个专用职责字段，空串表示沿用默认', () => {
+    const request: MidsceneSettingsRequest = {
+      action: 'update',
+      locateModel: '',
+      planningModel: 'codebuddy/glm-5.3',
+      insightModel: 'codebuddy/kimi-k3-1',
+    }
+    expect(request.locateModel).toBe('')
+  })
+
+  it('快照的每个职责条目带「选了什么」与「实际用什么」两个字段', () => {
+    const slot: MidsceneSettingsSnapshot['slots'][number] = {
+      intent: 'locate',
+      configuredModel: '',
+      resolvedModel: 'codebuddy/glm-5.3',
+      family: 'glm-v',
+      dedicated: false,
+    }
+    // 未配置专用职责时：configuredModel 为空、resolvedModel 是默认职责的结果。
+    expect(slot.configuredModel).toBe('')
+    expect(slot.resolvedModel).toBe('codebuddy/glm-5.3')
+    expect(slot.dedicated).toBe(false)
   })
 })

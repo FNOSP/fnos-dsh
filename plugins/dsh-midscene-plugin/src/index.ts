@@ -43,9 +43,21 @@ export {
   GENERIC_FAMILY,
   renderEnvFile,
 } from './contracts/config.ts'
-export type { BridgeConfig, MidsceneFamily } from './contracts/config.ts'
-export { chooseModel } from './host/model-choice.ts'
-export type { ModelChoice, SessionModelReader } from './host/model-choice.ts'
+export type { BridgeConfig, DedicatedEnvSlot, MidsceneFamily } from './contracts/config.ts'
+export {
+  DEDICATED_INTENTS,
+  INTENT_CONFIG_FIELD,
+  INTENT_ENV_PREFIX,
+  INTENT_LABEL_ZH,
+  MIDSCENE_INTENTS,
+  intentModelName,
+  parseIntentModelName,
+} from './contracts/intents.ts'
+export type { DedicatedIntent, IntentConfigField, MidsceneIntent } from './contracts/intents.ts'
+export { chooseModel, resolveIntentModels } from './host/model-choice.ts'
+export type { IntentModelChoice, IntentModelConfig, ModelChoice, SessionModelReader } from './host/model-choice.ts'
+export { parseThinkingIntent, pickReasoningEffort, resolveReasoningEffort } from './host/reasoning.ts'
+export type { ThinkingIntent } from './host/reasoning.ts'
 export { resolveModelName, formatModelName } from './contracts/model-name.ts'
 export type { ResolvedModel } from './contracts/model-name.ts'
 export { buildCatalog, modelSupportsImage, toOpenAiModel } from './host/catalog.ts'
@@ -111,6 +123,9 @@ export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unkn
     get apiKey() { return apiKey() },
     get family() { return live.family },
     get model() { return live.model },
+    get locateModel() { return live.locateModel },
+    get planningModel() { return live.planningModel },
+    get insightModel() { return live.insightModel },
     get requestTimeoutMs() { return live.requestTimeoutMs },
     get logRequests() { return live.logRequests },
   }
@@ -207,6 +222,8 @@ export function apply(ctx: Context, rawConfig: BridgeConfig = Config({}) as unkn
       // 「当前会实际使用的模型」：家族由它推导，设置页也用它说明「正在用哪个模型」。
       // 复用桥的同一套决策（chooseModel），保证设置页显示与真实调用一致。
       resolveModel: async () => await bridge.resolveModel(),
+      // 各职责的模型决策结果：设置页的 Tabs 与接入配置预览都据此渲染。
+      resolveSlots: async () => await bridge.resolveSlots(),
       update: async patch => { await settings.update(MIDSCENE_SETTINGS_NAMESPACE, patch) },
       log,
     })

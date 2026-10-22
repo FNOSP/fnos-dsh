@@ -21,7 +21,7 @@
 | 技能组 | 上游仓库 | 上游路径 | 上游提交 | 同步日期 | 许可 |
 | --- | --- | --- | --- | --- | --- |
 | 官方 6 个 | https://github.com/web-infra-dev/midscene-skills | `skills/*`（6 个目录） | `dec1d1c55252ecb1a90c4ecbcfd0d2cb3ce0ac7b`（2026-08-14） | 2026-10-13 | MIT（Copyright (c) 2024-present Bytedance, Inc. and its affiliates.） |
-| `midscenejs` | https://github.com/tnnevol/skills | `skills/midscenejs/` | `b2616bbe0d587d4a5847ef7143d2da447ce9df02`（2026-10-12） | 2026-10-12 | 见上游仓库 |
+| `midscenejs` | https://github.com/tnnevol/skills | `skills/midscenejs/` | `b3f7fd6cc2bbe48d6d5e3cad804de168b2a615dd`（2026-10-21） | 2026-10-22 | 见上游仓库 |
 
 > 目录名与技能名（frontmatter `name`）的差异：官方仓库目录 `browser/` 的技能名是 `browser-automation`，本插件目录用技能名（便于对照发现结果）。其余目录名与技能名一致。
 
@@ -47,15 +47,16 @@
 | `computer-automation/SKILL.md` | `3c9e4fd842b50375` |
 | `harmony-automation/SKILL.md` | `80d91a1cad8ba0d2` |
 | `ios-automation/SKILL.md` | `2c2014c57d2c28e5` |
-| `midscenejs/GENERATION.md` | `da48a073de9830b9` |
-| `midscenejs/SKILL.md` | `56a13ae404a4f2ca` |
+| `midscenejs/GENERATION.md` | `b5d0415ef5e536aa` |
+| `midscenejs/SKILL.md` | `0fe4385588843e75` |
 | `midscenejs/references/faq.md` | `1b206b4c59d64c1a` |
 | `midscenejs/references/integration.md` | `93a8f06abad2cd61` |
-| `midscenejs/references/midscene-test/configuration.md` | `bfb91507bc2df728` |
+| `midscenejs/references/midscene-test/configuration.md` | `09a69288e12ceac5` |
 | `midscenejs/references/midscene-test/extend.md` | `7331e7e72b583995` |
+| `midscenejs/references/midscene-test/github-actions.md` | `c922fb5831443892` |
 | `midscenejs/references/midscene-test/overview.md` | `0dcca0a6d0dea8e8` |
-| `midscenejs/references/midscene-test/use.md` | `bc0442eee205ac26` |
-| `midscenejs/references/model-config.md` | `045c7483ff72dbfb` |
+| `midscenejs/references/midscene-test/use.md` | `bd50a734328aa303` |
+| `midscenejs/references/model-config.md` | `0a57a1948b163e57` |
 | `midscenejs/references/overview.md` | `3bffc80b05bc0cb0` |
 | `midscenejs/references/platforms.md` | `b80ee8e660448a13` |
 | `midscenejs/references/skills.md` | `829f6e5307403e16` |

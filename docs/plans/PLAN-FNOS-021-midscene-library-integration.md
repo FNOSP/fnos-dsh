@@ -2,10 +2,10 @@
 id: PLAN-FNOS-021
 title: PLAN-FNOS-021 Midscene 库能力对齐与接入简化
 description: 把插件依赖的 Midscene 库从 1.15.1 升级到 1.16.0，并把「默认跟随会话模型、优先使用插件配置模型」从单职责扩展到四个职责；同时补上模型原生思考透传、家族推断修正、技能同步与说明页纠偏。分三阶段：基线升级与缺陷修复、多职责接入、思考透传与协议可诊断性。
-status: planned
+status: in_progress
 owner: tnnevol
 targetVersion: 5.9.0
-lastVerified: 2026-10-20
+lastVerified: 2026-10-22
 ---
 
 # PLAN-FNOS-021 Midscene 库能力对齐与接入简化
@@ -16,7 +16,7 @@ lastVerified: 2026-10-20
 | 计划日期 | 2026-10-20 |
 | 对应需求 | [FNOS-021 Midscene 库能力对齐与接入简化](/requirements/FNOS-021-midscene-library-integration) |
 | 本轮功能 | FNOS-021-01 至 FNOS-021-07 |
-| 计划状态 | <Badge type="warning" text="规划中" /> |
+| 计划状态 | <Badge type="warning" text="开发中（三阶段代码完成，界面与环境验收待补测）" /> |
 
 ## 计划目标
 
@@ -284,9 +284,9 @@ sequenceDiagram
 
 | 阶段 | 状态 | 说明 |
 | --- | --- | --- |
-| 阶段一 基线升级与准确性缺陷 | <Badge type="warning" text="待开始" /> | 7 个任务 |
-| 阶段二 多职责模型接入 | <Badge type="warning" text="待开始" /> | 6 个任务 |
-| 阶段三 思考透传与协议可诊断性 | <Badge type="warning" text="待开始" /> | 6 个任务 |
+| 阶段一 基线升级与准确性缺陷 | <Badge type="tip" text="已完成" /> | 7 个任务；T01-03 的桥冒烟与 e2e 待环境补测 |
+| 阶段二 多职责模型接入 | <Badge type="tip" text="已完成" /> | 6 个任务；T02-05 的设置页需在 DSH Web 与 Desktop 双客户端验收 |
+| 阶段三 思考透传与协议可诊断性 | <Badge type="tip" text="已完成" /> | 6 个任务；TC-042a 的逐 provider 冒烟待真实凭据环境 |
 
 ## 变更记录
 
@@ -294,3 +294,4 @@ sequenceDiagram
 | --- | --- | --- |
 | 2026-10-20 | 初始登记 | 建立 PLAN-FNOS-021。三阶段 18 个任务：阶段一依赖升级（catalog 与豁免列表）与家族/白名单/技能修正；阶段二把接入配置从单模型扩展到四职责；阶段三补思考开关透传与协议可诊断性。登记 4 项风险（升级判定变化、多职责成本、档位语义、文档时效）与 4 项决策（不做 Jev、不做 Responses、家族不暴露、保留 `model` 语义）。 |
 | 2026-10-20 | 更正阶段三设计：拒绝改指引，避免倒退 | 原 T03-04 计划「请求带 `response_format` 就返回 400」。复核发现该字段自 1.15.1 起就存在、桥一直忽略，而现有 58 条验收用例在此状态下全部通过，Midscene 另有 `callAiAndParseWithRetry` 语义重试兜底——改成 400 会把可用功能推成失败。修订：① 阶段三改名为「思考开关透传与协议可诊断性」，任务由 5 个增至 6 个；② T03-04 改为「接入配置显式声明协议」；③ T03-05 明确「保持忽略 `response_format`」，只新增 `/v1/responses`、`/v1/systemone` 的可读 404 指引，并加单测钉住「带该字段仍返回 200」；④ 决策 D2 的理由由「仅 GPT 系可选」改为「**不增加模型覆盖**」，依据是实桥逐 provider 实测（codex/za-newapi/codebuddy/opencode-go/dsh-opencode-go 经 Chat Completions 全部正常）与宿主 `GenerateOptions` 无协议选择入口；⑤ 新增决策 D5 记录「保持忽略」的取舍。FNOS-021-06 相应从 P2 提到 P1。 |
+| 2026-10-22 | 三阶段 19 个任务实现完成（本地构测） | 阶段一：catalog 与等待期豁免升至 `1.16.0`；`FAMILY_RULES` 顺序修正（`auto-glm` 先于 `glm-v`、`vlm-ui-tars-*` 先于 `doubao-*`）；白名单补 `jev`（21 项）；`midscenejs` 同步上游 `b3f7fd6`（22 个文件，零本地补丁）。阶段二：新增 `src/contracts/intents.ts`（四职责常量与 `dsh-model@<职责>` 命名）、`Config` 三字段、`resolveIntentModels()` 按职责决策与推导家族、`renderEnvFile` 按职责扩展、`/v1/midscene-env` 与设置快照按职责返回、设置页改为四职责 Tabs。阶段三：新增 `src/host/reasoning.ts`（意图解析 + 档位匹配 + 降级）、接入配置显式声明协议、`/v1/responses` 与 `/v1/systemone` 可读 404 指引、**保持忽略** `response_format` 并加倒退守卫。验证：包级单测 211 条全绿（新增 `reasoning.spec.ts` 15 条、`intent-models.spec.ts` 7 条），`typecheck`/`build`/全仓 `typecheck`（11/11）通过。执行期修复 `/v1/midscene-env` 的 `variables` 字典丢失专用职责键（`map` 误用，应 `flatMap`）。遗留：桥冒烟、e2e、双客户端界面验收与逐 provider 冒烟待环境补测。 |

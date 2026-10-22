@@ -15,11 +15,18 @@ import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { GenerateOptions, LlmRuntime } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { BRIDGE_HOST, FIXED_MODEL_NAME, OPENAI_API_PREFIX, PORT_SCAN_LIMIT, renderEnvFile, type BridgeConfig } from '../contracts/config.ts'
+import {
+  DEDICATED_INTENTS,
+  INTENT_ENV_PREFIX,
+  intentModelName,
+  parseIntentModelName,
+  type MidsceneIntent,
+} from '../contracts/intents.ts'
 import { resolveModelName } from '../contracts/model-name.ts'
 import { buildCatalog, type ModelCatalogSnapshot } from './catalog.ts'
-import { resolveFamily } from '../contracts/model-family.ts'
-import { chooseModel, type SessionModelReader } from './model-choice.ts'
+import { chooseModel, resolveIntentModels, type IntentModelChoice, type SessionModelReader } from './model-choice.ts'
 import { convertMessages, convertTools, RequestConversionError } from './convert.ts'
+import { resolveReasoningEffort } from './reasoning.ts'
 import { aggregateStream, makeChunk, sseLine, toFinishReason, toOpenAiError } from './stream.ts'
 
 /** 桥接服务的运行依赖。 */
@@ -106,6 +113,24 @@ export class CatalogCache {
 
 /** 读取请求体（上限 32 MiB：图片数据 URI 会显著放大 JSON 体积）。 */
 const MAX_BODY_BYTES = 32 * 1024 * 1024
+
+/**
+ * 协议误配时的可读指引。
+ *
+ * 用户照上游文档自行把协议改成 Responses（或把 Jev 当默认模型）时，请求会打到本桥
+ * 不提供的路径上。没有指引时用户只看到一个无上下文的 404，只能自己猜。**保留 404 状态
+ * 码**（那确实是「本桥没有这个端点」），但补上原因与做法。
+ */
+const PROTOCOL_GUIDANCE: Readonly<Record<string, string>> = {
+  [`${OPENAI_API_PREFIX}/responses`]:
+    '本桥只提供 OpenAI Chat Completions 协议（/v1/chat/completions）。'
+    + '请把 MIDSCENE_MODEL_PROTOCOL 保持为默认值 openai-chat：'
+    + 'DSH 已在宿主内把各提供方的上游协议归一（Codex 的 Responses、CodeBuddy 的私有形态都由各自适配器处理），'
+    + '因此单用 Chat Completions 即可触达 DSH 里已配置的全部模型。',
+  [`${OPENAI_API_PREFIX}/systemone`]:
+    'Jev 使用 TypeSafe 的私有 System One 协议，不经本桥（它也不是 OpenAI 协议）。'
+    + '请在插件设置页的「默认」职责选一个通用模型作为默认模型，并重新拉取接入配置。',
+}
 
 /**
  * 读取并解析 JSON 请求体。
@@ -242,6 +267,37 @@ export class BridgeServer {
   async resolveModel(): Promise<string | undefined> {
     const snapshot = await this.catalog.get()
     return chooseModel(snapshot, this.deps.config.model, this.deps.sessionModel)?.entry.id
+  }
+
+  /**
+   * 每个职责的模型决策结果。
+   *
+   * 供设置页展示「各职责当前实际使用哪个模型」与生成接入配置。设置页与桥共用同一套
+   * 决策函数，因此界面显示的与真实调用的必然一致。
+   * @returns 每个职责的决策结果。
+   */
+  async resolveSlots(): Promise<Record<MidsceneIntent, IntentModelChoice>> {
+    const snapshot = await this.catalog.get()
+    return this.#slots(snapshot)
+  }
+
+  /**
+   * 按职责决策模型（内部实现）。
+   * @param snapshot - 目录快照。
+   * @returns 每个职责的决策结果。
+   */
+  #slots(snapshot: ModelCatalogSnapshot): Record<MidsceneIntent, IntentModelChoice> {
+    return resolveIntentModels(
+      snapshot,
+      {
+        model: this.deps.config.model,
+        locateModel: this.deps.config.locateModel,
+        planningModel: this.deps.config.planningModel,
+        insightModel: this.deps.config.insightModel,
+        family: this.deps.config.family,
+      },
+      this.deps.sessionModel,
+    )
   }
 
   /**
@@ -410,7 +466,7 @@ export class BridgeServer {
       }
       if (request.method === 'GET' && path === `${OPENAI_API_PREFIX}/health`) {
         const snapshot = await this.catalog.get()
-        const healthChoice = chooseModel(snapshot, this.deps.config.model, this.deps.sessionModel)
+        const slots = this.#slots(snapshot)
         sendJson(response, 200, {
           status: 'ok',
           host: BRIDGE_HOST,
@@ -420,39 +476,80 @@ export class BridgeServer {
           fixedModelName: FIXED_MODEL_NAME,
           // 家族按**实际会使用的模型**推导（用户不配置它）。取不到模型时回落到
           // 配置里的当前值，健康检查不应因目录为空而失败。
-          family: resolveFamily(healthChoice?.entry.id ?? this.deps.config.family).family,
-          resolvedModel: healthChoice?.entry.id,
+          family: slots.default.family,
+          resolvedModel: slots.default.modelId,
           configuredModel: this.deps.config.model,
+          // 各职责的决策结果：让用户能确认「专用职责是否真的用上了自己的模型」。
+          slots: Object.fromEntries(
+            Object.entries(slots).map(([intent, slot]) => [intent, {
+              model: slot.modelId,
+              family: slot.family,
+              dedicated: slot.dedicated,
+              source: slot.source,
+              ...slot.skippedConfigured.length === 0 ? {} : { skippedConfigured: slot.skippedConfigured },
+            }]),
+          ),
           providers: snapshot.providers,
           models: snapshot.entries.length,
           attachments: this.deps.attachments !== undefined,
         })
         return
       }
-      // 接入配置：四行全是固定值（基址、密钥、固定模型名、协议家族），因此用户
-      // 可以把 .env 写死——换模型只改插件设置，不动这个文件。
+      // 接入配置：默认职责四行全是固定值（基址、密钥、固定模型名、协议家族），因此用户
+      // 可以把 .env 写死——换模型只改插件设置，不动这个文件。用户为某个专用职责指定了
+      // 模型之后，才会追加该职责的一组变量。
       if (request.method === 'GET' && path === `${OPENAI_API_PREFIX}/midscene-env`) {
         const snapshot = await this.catalog.get()
-        const choice = chooseModel(snapshot, this.deps.config.model, this.deps.sessionModel)
-        // 家族随实际模型推导：Midscene 按它解析坐标，写错会静默错位。用户在界面只选模型，
+        const slots = this.#slots(snapshot)
+        const defaultSlot = slots.default
+        // 家族随各自模型推导：Midscene 按它解析坐标，写错会静默错位。用户在界面只选模型，
         // 家族由这里保证一致。
-        const family = resolveFamily(choice?.entry.id ?? this.deps.config.family).family
+        const dedicated = DEDICATED_INTENTS
+          .filter(intent => slots[intent].dedicated)
+          .map(intent => ({ intent, family: slots[intent].family }))
+        const baseUrl = `http://${BRIDGE_HOST}:${this.port}${OPENAI_API_PREFIX}`
         sendJson(response, 200, {
-          content: renderEnvFile({ ...this.deps.config, port: this.port, family }),
+          content: renderEnvFile({
+            port: this.port,
+            apiKey: this.deps.config.apiKey,
+            family: defaultSlot.family,
+            dedicated,
+          }),
           variables: {
-            MIDSCENE_MODEL_BASE_URL: `http://${BRIDGE_HOST}:${this.port}${OPENAI_API_PREFIX}`,
-            MIDSCENE_MODEL_API_KEY: this.deps.config.apiKey,
-            MIDSCENE_MODEL_NAME: FIXED_MODEL_NAME,
-            MIDSCENE_MODEL_FAMILY: family,
+            [`${INTENT_ENV_PREFIX.default}_BASE_URL`]: baseUrl,
+            [`${INTENT_ENV_PREFIX.default}_API_KEY`]: this.deps.config.apiKey,
+            [`${INTENT_ENV_PREFIX.default}_NAME`]: FIXED_MODEL_NAME,
+            [`${INTENT_ENV_PREFIX.default}_FAMILY`]: defaultSlot.family,
+            // 专用职责的变量组：只在用户为该职责指定了模型时出现。
+            ...Object.fromEntries(dedicated.flatMap(slot => {
+              const prefix = INTENT_ENV_PREFIX[slot.intent]
+              return [
+                [`${prefix}_BASE_URL`, baseUrl],
+                [`${prefix}_API_KEY`, this.deps.config.apiKey],
+                [`${prefix}_NAME`, intentModelName(slot.intent)],
+                [`${prefix}_FAMILY`, slot.family],
+                [`${prefix}_STREAM_MODE`, 'non-stream'],
+              ]
+            })),
           },
           // 当前会实际使用的模型与它的来源，便于用户确认「跟随会话」是否生效。
-          ...choice === undefined ? {} : {
-            resolvedModel: choice.entry.id,
-            resolvedFrom: choice.source,
+          ...defaultSlot.modelId === undefined ? {} : {
+            resolvedModel: defaultSlot.modelId,
+            resolvedFrom: defaultSlot.source,
           },
-          ...choice === undefined || choice.skippedConfigured.length === 0 ? {} : {
-            skippedConfigured: choice.skippedConfigured,
+          ...defaultSlot.skippedConfigured.length === 0 ? {} : {
+            skippedConfigured: defaultSlot.skippedConfigured,
           },
+          // 各职责的决策结果（含专用职责自己的模型与家族）。
+          resolvedSlots: Object.fromEntries(
+            Object.entries(slots).map(([intent, slot]) => [intent, {
+              model: slot.modelId,
+              family: slot.family,
+              dedicated: slot.dedicated,
+              source: slot.source,
+              ...slot.skippedConfigured.length === 0 ? {} : { skippedConfigured: slot.skippedConfigured },
+            }]),
+          ),
           availableModels: snapshot.entries
             .filter(entry => entry.vision === true)
             .map(entry => entry.id),
@@ -464,7 +561,12 @@ export class BridgeServer {
         return
       }
       sendJson(response, 404, {
-        error: { message: `unknown endpoint ${path}; available: ${OPENAI_API_PREFIX}/models, ${OPENAI_API_PREFIX}/chat/completions, ${OPENAI_API_PREFIX}/midscene-env, ${OPENAI_API_PREFIX}/health`, type: 'invalid_request_error', code: null },
+        error: {
+          message: PROTOCOL_GUIDANCE[path]
+            ?? `unknown endpoint ${path}; available: ${OPENAI_API_PREFIX}/models, ${OPENAI_API_PREFIX}/chat/completions, ${OPENAI_API_PREFIX}/midscene-env, ${OPENAI_API_PREFIX}/health`,
+          type: 'invalid_request_error',
+          code: null,
+        },
       })
     } catch (error) {
       sendError(response, error)
@@ -481,19 +583,23 @@ export class BridgeServer {
     const rawModel = typeof body.model === 'string' ? body.model : ''
     const snapshot = await this.catalog.get()
 
-    // 固定模型名（Midscene 侧的默认写法）：由桥决定实际用哪个模型——配置指定的
-    // 优先，否则跟随 DSH 当前模型选择，最后兜底挑一个具备图片能力的。
-    if (rawModel === FIXED_MODEL_NAME) {
-      const choice = chooseModel(snapshot, this.deps.config.model, this.deps.sessionModel)
-      if (choice === undefined) {
+    // 固定模型名（Midscene 侧的默认写法）与带职责后缀的专用名：由桥决定实际用哪个模型。
+    //
+    // 专用名带 `@职责` 后缀（`dsh-model@locate`）——桥靠它判断这次调用属于哪个职责。
+    // 四组若共用一个名字，桥无从区分，专用职责配的模型就永远不会被用上，**而且不会
+    // 报错**。
+    const intent = parseIntentModelName(rawModel)
+    if (intent !== undefined) {
+      const slot = this.#slots(snapshot)[intent]
+      if (slot.modelId === undefined) {
         throw new RequestConversionError(
           'no model is available in DSH; configure a provider in DSH first',
           400,
           'invalid_request_error',
         )
       }
-      const attribution = choice.entry.id
-      await this.#runCompletion(body, attribution, choice.entry.vision === true, response)
+      const known = snapshot.entries.find(entry => entry.id === slot.modelId)
+      await this.#runCompletion(body, slot.modelId, known === undefined ? true : known.vision === true, response)
       return
     }
 
@@ -548,6 +654,11 @@ export class BridgeServer {
       return
     }
 
+    // 思考开关：Midscene 默认关闭模型原生思考，桥把它映射到宿主的 reasoningEffort。
+    // 取不到可表达的档位时**不传**（FNOS-021-03 的取舍）：不传时按宿主默认，可能仍会
+    // 思考，但比传一个不存在的档位导致 UNSUPPORTED_REASONING_EFFORT 安全。
+    const reasoningEffort = await resolveReasoningEffort(this.deps.llm, provider!, model, body)
+
     const options: GenerateOptions = {
       provider: provider!,
       model,
@@ -562,6 +673,7 @@ export class BridgeServer {
         const tools = convertTools(body.tools)
         return tools === undefined ? {} : { tools }
       })(),
+      ...reasoningEffort === undefined ? {} : { reasoningEffort },
     }
 
     const wantsStream = body.stream === true

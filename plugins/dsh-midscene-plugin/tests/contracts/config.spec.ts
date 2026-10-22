@@ -21,10 +21,40 @@ import {
 
 describe('Midscene 协议家族白名单', () => {
   it('内置完整白名单且包含默认家族', () => {
-    // 与 Midscene v1.15.0 运行时错误信息逐字一致；上游新增家族时需同步。
-    expect(MIDSCENE_FAMILIES).toHaveLength(20)
+    // 与 Midscene v1.16.0 的 MODEL_FAMILY_VALUES 逐项一致；上游新增家族时需同步。
+    expect(MIDSCENE_FAMILIES).toHaveLength(21)
     expect(MIDSCENE_FAMILIES).toContain(DEFAULT_FAMILY)
     expect(DEFAULT_FAMILY).toBe('glm-v')
+  })
+
+  it('白名单与上游 1.16.0 的家族集合一致（含 v1.16 新增的 jev）', () => {
+    // FNOS-021-04-AC-02：白名单是「Midscene 接受的值集合」，与上游逐项一致。
+    // jev 是 v1.16 新增的家族；插件不会推导它（商业模型 + 不能作默认模型），
+    // 但白名单必须收下，否则用户手工指定合法值时会被误判为非法。
+    expect(MIDSCENE_FAMILIES).toContain('jev')
+    expect([...MIDSCENE_FAMILIES].sort()).toEqual([
+      'auto-glm',
+      'auto-glm-multilingual',
+      'deepseek',
+      'doubao-seed',
+      'doubao-vision',
+      'gemini',
+      'glm-v',
+      'gpt-5',
+      'gpt-6',
+      'jev',
+      'kimi',
+      'kimi3',
+      'qwen2.5-vl',
+      'qwen3',
+      'qwen3-vl',
+      'qwen3.5',
+      'qwen3.6',
+      'vlm-ui-tars',
+      'vlm-ui-tars-doubao',
+      'vlm-ui-tars-doubao-1.5',
+      'xiaomi-mimo',
+    ])
   })
 
   it('白名单里没有 dsh-model（实测被 Midscene 运行时拒绝）', () => {
@@ -64,6 +94,104 @@ describe('renderEnvFile', () => {
   })
 })
 
+describe('renderEnvFile：多职责扩展（FNOS-021-02）', () => {
+  /** 升级前就是这四行；「全部留空」时必须逐字符保持不变。 */
+  const BASELINE_FOUR_LINES = [
+    'MIDSCENE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"',
+    'MIDSCENE_MODEL_API_KEY="abc123"',
+    'MIDSCENE_MODEL_NAME="dsh-model"',
+    'MIDSCENE_MODEL_FAMILY="glm-v"',
+  ] as const
+
+  it('不传 dedicated 时，四个变量行与升级前逐字符一致（AC-02）', () => {
+    const lines = renderEnvFile({ port: 8787, apiKey: 'abc123', family: 'glm-v' }).split('\n')
+    // 连续出现、顺序不变。
+    const start = lines.indexOf(BASELINE_FOUR_LINES[0])
+    expect(start).toBeGreaterThanOrEqual(0)
+    expect(lines.slice(start, start + BASELINE_FOUR_LINES.length)).toEqual([...BASELINE_FOUR_LINES])
+  })
+
+  it('默认职责**永不**写 STREAM_MODE（写了就破坏「与升级前一致」）', () => {
+    const env = renderEnvFile({
+      port: 8787,
+      apiKey: 'abc123',
+      family: 'glm-v',
+      dedicated: [{ intent: 'locate', family: 'deepseek' }],
+    })
+    expect(env).not.toContain('MIDSCENE_MODEL_STREAM_MODE')
+    // 专用职责则必须写明（上游对专用职责的流式模式不作继承）。
+    expect(env).toContain('MIDSCENE_LOCATE_MODEL_STREAM_MODE="non-stream"')
+  })
+
+  it('空数组与不传等价（只有默认四行）', () => {
+    const withEmpty = renderEnvFile({ port: 8787, apiKey: 'k', family: 'glm-v', dedicated: [] })
+    const without = renderEnvFile({ port: 8787, apiKey: 'k', family: 'glm-v' })
+    expect(withEmpty).toBe(without)
+    expect(withEmpty).not.toContain('MIDSCENE_LOCATE_MODEL')
+    expect(withEmpty).not.toContain('MIDSCENE_PLANNING_MODEL')
+    expect(withEmpty).not.toContain('MIDSCENE_INSIGHT_MODEL')
+  })
+
+  it('配了专用职责才追加该职责的一组变量（含注释、模型名带职责后缀、家族按该职责推导）', () => {
+    const env = renderEnvFile({
+      port: 8787,
+      apiKey: 'abc123',
+      family: 'glm-v',
+      dedicated: [{ intent: 'locate', family: 'deepseek' }],
+    })
+    // 分组注释说明「不配置则沿用上面的默认模型」，避免用户以为这组是必填。
+    expect(env).toContain('# 以下为「定位」职责单独指定的模型；不配置则沿用上面的默认模型。')
+    expect(env).toContain('MIDSCENE_LOCATE_MODEL_BASE_URL="http://127.0.0.1:8787/v1"')
+    expect(env).toContain('MIDSCENE_LOCATE_MODEL_API_KEY="abc123"')
+    // 模型名必须与其他职责不同：桥靠 `@职责` 后缀判断这次调用属于哪个职责。
+    expect(env).toContain('MIDSCENE_LOCATE_MODEL_NAME="dsh-model@locate"')
+    expect(env).toContain('MIDSCENE_LOCATE_MODEL_FAMILY="deepseek"')
+    // 只多出定位这一组，没有规划/理解。
+    expect(env).not.toContain('MIDSCENE_PLANNING_MODEL')
+    expect(env).not.toContain('MIDSCENE_INSIGHT_MODEL')
+  })
+
+  it('四职责模型名互不相同（共名会让专用职责的模型永远不被用上，且不报错）', () => {
+    const env = renderEnvFile({
+      port: 8787,
+      apiKey: 'k',
+      family: 'glm-v',
+      dedicated: [
+        { intent: 'locate', family: 'deepseek' },
+        { intent: 'planning', family: 'gpt-6' },
+        { intent: 'insight', family: 'kimi' },
+      ],
+    })
+    const names = [...env.matchAll(/MIDSCENE_\w*MODEL_NAME="([^"]+)"/gu)].map(match => match[1])
+    expect(names).toEqual(['dsh-model', 'dsh-model@locate', 'dsh-model@planning', 'dsh-model@insight'])
+    expect(new Set(names).size).toBe(names.length)
+  })
+
+  it('专用职责按固定顺序输出（定位 → 规划 → 页面理解），与传入顺序无关', () => {
+    const env = renderEnvFile({
+      port: 8787,
+      apiKey: 'k',
+      family: 'glm-v',
+      dedicated: [
+        { intent: 'insight', family: 'kimi' },
+        { intent: 'locate', family: 'deepseek' },
+      ],
+    })
+    const locateAt = env.indexOf('MIDSCENE_LOCATE_MODEL_BASE_URL')
+    const insightAt = env.indexOf('MIDSCENE_INSIGHT_MODEL_BASE_URL')
+    expect(locateAt).toBeGreaterThan(0)
+    expect(insightAt).toBeGreaterThan(locateAt)
+  })
+
+  it('显式声明协议为 Chat Completions（FNOS-021-06-AC-01）', () => {
+    // 声明为注释而不是多写一个环境变量：既让用户知道该配哪种，又不改变既有的四行取值。
+    const env = renderEnvFile({ port: 8787, apiKey: 'k', family: 'glm-v' })
+    expect(env).toContain('openai-chat')
+    expect(env).toContain('Chat Completions')
+    expect(env).toContain('本桥只提供这一种协议')
+  })
+})
+
 describe('volatileValue', () => {
   it('普通值原样返回', () => {
     expect(volatileValue('glm-v')).toBe('glm-v')
@@ -94,6 +222,9 @@ describe('liveConfig', () => {
       get apiKey() { return state.apiKey },
       get family() { return state.family },
       get model() { return state.model },
+      get locateModel() { return '' },
+      get planningModel() { return '' },
+      get insightModel() { return '' },
       get requestTimeoutMs() { return 1000 },
       get logRequests() { return false },
     })
@@ -114,6 +245,9 @@ describe('liveConfig', () => {
       get apiKey() { return 'k' },
       get family() { return { get: () => family } as unknown as string },
       get model() { return '' },
+      get locateModel() { return '' },
+      get planningModel() { return '' },
+      get insightModel() { return '' },
       get requestTimeoutMs() { return 1000 },
       get logRequests() { return true },
     })
@@ -128,9 +262,16 @@ describe('liveConfig', () => {
       get apiKey() { return 'k' },
       get family() { return 'glm-v' },
       get model() { return undefined as unknown as string },
+      get locateModel() { return undefined as unknown as string },
+      get planningModel() { return undefined as unknown as string },
+      get insightModel() { return undefined as unknown as string },
       get requestTimeoutMs() { return 1000 },
       get logRequests() { return true },
     })
     expect(config.model).toBe('')
+    // 三个专用职责同理：老配置里没有这些字段时按「未配置」处理。
+    expect(config.locateModel).toBe('')
+    expect(config.planningModel).toBe('')
+    expect(config.insightModel).toBe('')
   })
 })

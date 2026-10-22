@@ -34,8 +34,14 @@ interface FamilyRule {
 }
 
 /**
- * 映射规则表。**顺序有意义**：先匹配到的胜出，因此更具体的规则必须排在更宽泛的前面
- * （例如 `kimi-k3` 必须排在 `kimi` 之前，否则 K3 会被判成旧家族）。
+ * 映射规则表。**顺序有意义**：先匹配到的胜出，因此更具体的规则必须排在更宽泛的前面。
+ *
+ * 三组顺序是硬约束（历史上都排错过，症状是「不报错但点位偏移几十像素」）：
+ * - `kimi3` 排在 `kimi` 之前——否则 K3 会被判成旧家族；
+ * - `auto-glm` 排在 `glm-v` 之前——否则 `autoglm-phone` 这类 AutoGLM 会被宽泛的
+ *   `glm` 规则先命中，判成智谱 GLM 视觉家族（上游把两者视为不同适配器）；
+ * - `vlm-ui-tars-*` 排在 `doubao-*` 之前——否则 `doubao-1.5-ui-tars` 会被宽泛的
+ *   `doubao` 规则先命中，判成豆包旧视觉系列而不是 UI-TARS 1.5。
  */
 const FAMILY_RULES: readonly FamilyRule[] = [
   { family: 'kimi3', pattern: /kimi[-_.]?k3|kimi3/u, reason: 'Kimi K3 系列（始终开启思考模式）' },
@@ -43,6 +49,9 @@ const FAMILY_RULES: readonly FamilyRule[] = [
   { family: 'gpt-6', pattern: /gpt[-_.]?6/u, reason: 'GPT-6 系列' },
   { family: 'gpt-5', pattern: /gpt[-_.]?5/u, reason: 'GPT-5 系列（UI 定位需 5.4 及以上）' },
   { family: 'gemini', pattern: /gemini/u, reason: 'Google Gemini（坐标顺序为 yx，与其他家族相反）' },
+  { family: 'vlm-ui-tars-doubao-1.5', pattern: /ui[-_.]?tars.*1\.5|1\.5.*ui[-_.]?tars/u, reason: 'UI-TARS 1.5（豆包）' },
+  { family: 'vlm-ui-tars-doubao', pattern: /ui[-_.]?tars.*doubao/u, reason: 'UI-TARS（豆包）' },
+  { family: 'vlm-ui-tars', pattern: /ui[-_.]?tars/u, reason: 'UI-TARS 原生系列' },
   { family: 'doubao-seed', pattern: /doubao[-_.]?seed|seed[-_.]?\d/u, reason: '豆包 Seed 系列' },
   { family: 'doubao-vision', pattern: /doubao/u, reason: '豆包旧视觉系列' },
   { family: 'qwen3-vl', pattern: /qwen3[-_.]?vl/u, reason: '千问 Qwen3-VL' },
@@ -51,12 +60,9 @@ const FAMILY_RULES: readonly FamilyRule[] = [
   { family: 'qwen3.5', pattern: /qwen3\.5/u, reason: '千问 Qwen3.5' },
   { family: 'qwen3', pattern: /qwen[-_.]?3/u, reason: '千问 Qwen3 系列' },
   { family: 'deepseek', pattern: /deepseek/u, reason: 'DeepSeek 视觉系列（坐标形状为 point）' },
+  { family: 'auto-glm', pattern: /auto[-_.]?glm/u, reason: 'AutoGLM 系列' },
   { family: 'glm-v', pattern: /glm/u, reason: '智谱 GLM 视觉系列' },
   { family: 'xiaomi-mimo', pattern: /mimo/u, reason: '小米 MiMo' },
-  { family: 'vlm-ui-tars-doubao-1.5', pattern: /ui[-_.]?tars.*1\.5|1\.5.*ui[-_.]?tars/u, reason: 'UI-TARS 1.5（豆包）' },
-  { family: 'vlm-ui-tars-doubao', pattern: /ui[-_.]?tars.*doubao/u, reason: 'UI-TARS（豆包）' },
-  { family: 'vlm-ui-tars', pattern: /ui[-_.]?tars/u, reason: 'UI-TARS 原生系列' },
-  { family: 'auto-glm', pattern: /auto[-_.]?glm/u, reason: 'AutoGLM 系列' },
 ]
 
 /** 映射结果。 */

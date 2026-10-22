@@ -31,8 +31,16 @@ import {
   BRIDGE_HOST,
   type BridgeConfig,
 } from '../contracts/config.ts'
+import {
+  DEDICATED_INTENTS,
+  INTENT_CONFIG_FIELD,
+  MIDSCENE_INTENTS,
+  type MidsceneIntent,
+} from '../contracts/intents.ts'
 import { resolveFamily } from '../contracts/model-family.ts'
 import { MIDSCENE_SETTINGS_NAMESPACE, MIDSCENE_SETTINGS_STATUS_PATH, MIDSCENE_SETTINGS_UPDATE_PATH } from '../contracts/settings-rpc.ts'
+import type { MidsceneIntentSlot } from '../contracts/settings-rpc.ts'
+import type { IntentModelChoice } from './model-choice.ts'
 
 /** 设置界面可选的模型条目。 */
 export interface SelectableModel {
@@ -57,6 +65,13 @@ export interface SettingsRouteDeps {
    * 与桥 /v1/models 同源。
    */
   readonly listModels: () => Promise<readonly SelectableModel[]>
+  /**
+   * 读各职责的模型决策结果（默认 / 定位 / 规划 / 页面理解）。
+   *
+   * 供设置页显示「各职责当前实际使用哪个模型」与生成接入配置。缺席时只有默认职责
+   * 有效——其余职责一律沿用默认（这正是「留空即继承」的语义）。
+   */
+  readonly resolveSlots?: () => Promise<Record<MidsceneIntent, IntentModelChoice>>
   /**
    * 读「当前会实际使用的模型」标识。
    *
@@ -144,15 +159,56 @@ function readJsonBody(request: IncomingMessage): Promise<unknown> {
 }
 
 /**
+ * 组装各职责的状态。
+ *
+ * 每个职责都给出两件事：**用户选了什么**（`configuredModel`）与**实际会用哪个**
+ * （`resolvedModel`）。两者不一致时——例如选了一个已被卸载的模型——界面能立刻看出来，
+ * 而不是等 Midscene 跑起来才失败。
+ *
+ * 专用职责未单独指定模型时沿用默认职责的结果（与上游「未配置专用模型的职责使用默认
+ * 模型」一致），此时 `dedicated` 为 `false`，界面据此显示「沿用默认」。
+ * @param deps - 端点依赖。
+ * @param config - 当前配置。
+ * @returns 各职责状态（顺序即 Tab 顺序）。
+ */
+async function buildIntentSlots(
+  deps: Pick<SettingsRouteDeps, 'resolveSlots' | 'resolveModel'>,
+  config: BridgeConfig,
+): Promise<MidsceneIntentSlot[]> {
+  const choices = deps.resolveSlots === undefined
+    ? undefined
+    : await deps.resolveSlots().catch(() => undefined)
+  // 没有逐职责结果时（旧的调用方），只有默认职责有效——其余职责沿用它。
+  const defaultModel = choices?.default.modelId
+    ?? (deps.resolveModel === undefined ? undefined : await deps.resolveModel())
+  const defaultFamily = choices?.default.family
+    ?? resolveFamily(defaultModel ?? config.family).family
+
+  return MIDSCENE_INTENTS.map((intent) => {
+    const choice = choices?.[intent]
+    const configured = config[INTENT_CONFIG_FIELD[intent]] ?? ''
+    const modelId = intent === 'default' ? defaultModel : choice?.modelId ?? defaultModel
+    const family = intent === 'default' ? defaultFamily : choice?.family ?? defaultFamily
+    return {
+      intent,
+      configuredModel: configured,
+      ...modelId === undefined ? {} : { resolvedModel: modelId },
+      family,
+      dedicated: choice?.dedicated ?? false,
+    }
+  })
+}
+
+/**
  * 组装状态快照。
  *
- * 包含界面需要的全部事实：当前密钥、家族与可选值、指定模型、固定模型名与桥地址、
+ * 包含界面需要的全部事实：当前密钥、家族与可选值、各职责的模型、固定模型名与桥地址、
  * 以及一份可直接复制的 `.env` 文本。让界面只依赖这一个响应，避免多处读取产生不一致。
  * @param deps - 端点依赖。
  * @returns 状态快照。
  */
 export async function statusSnapshotForTest(
-  deps: Pick<SettingsRouteDeps, 'readConfig' | 'listModels' | 'resolveModel'>,
+  deps: Pick<SettingsRouteDeps, 'readConfig' | 'listModels' | 'resolveModel' | 'resolveSlots'>,
 ): Promise<Record<string, unknown>> {
   const config = deps.readConfig()
   const apiKey = config.apiKey.length > 0 ? config.apiKey : generateApiKey()
@@ -161,10 +217,17 @@ export async function statusSnapshotForTest(
 
   // 家族由**实际会使用的模型**推导，不是用户配置项（见 `resolveFamily`）。因此设置页
   // 只呈现「模型」这一件事，`.env` 里的家族随模型变化自动跟上。
-  const chosen = deps.resolveModel === undefined ? undefined : await deps.resolveModel()
-  const family = chosen === undefined
+  const slots = await buildIntentSlots(deps, config)
+  const defaultSlot = slots.find(slot => slot.intent === 'default')
+  const family = defaultSlot?.resolvedModel === undefined
     ? { family: config.family, exact: false, reason: '尚未选择测试模型' }
-    : resolveFamily(chosen)
+    : resolveFamily(defaultSlot.resolvedModel)
+
+  // 接入配置：默认职责四行；用户为某个专用职责指定了模型之后，才追加该职责的一组变量。
+  const dedicated = DEDICATED_INTENTS.flatMap((intent) => {
+    const slot = slots.find(entry => entry.intent === intent)
+    return slot === undefined || !slot.dedicated ? [] : [{ intent, family: slot.family }]
+  })
 
   return {
     // 界面只需要「能识图的模型」：Midscene 靠截图理解页面，文本模型选进来也跑不了。
@@ -180,29 +243,32 @@ export async function statusSnapshotForTest(
     family: family.family,
     familyReason: family.reason,
     model: config.model,
+    slots,
     fixedModelName: FIXED_MODEL_NAME,
     baseUrl: `http://${BRIDGE_HOST}:${config.port}${OPENAI_API_PREFIX}`,
-    envFile: renderEnvFile({ port: config.port, apiKey, family: family.family }),
+    envFile: renderEnvFile({ port: config.port, apiKey, family: family.family, dedicated }),
   }
 }
 
 /**
  * 校验并归一化一次配置写入请求。
  *
- * 只接受**单个模型**：协议家族由桥按实际使用的模型自动推导（`resolveFamily`），不是用户
+ * 只接受**每个职责一个模型**：协议家族由桥按实际使用的模型自动推导（`resolveFamily`），不是用户
  * 配置项——把它暴露给用户既要求他们理解 Midscene 的内部协议，又必然产生「家族与模型不
  * 匹配」的静默错位。若请求里带了 `family`，这里直接忽略（老版本界面或脚本可能仍会发送），
  * 由桥在生成接入配置时按真实模型覆盖。
  *
- * 空串是合法值，表示「未指定，跟随 DSH 当前会话模型」。
+ * 空串是合法值，表示「未指定，跟随 DSH 当前会话模型」（默认职责）或「沿用默认职责」
+ * （三个专用职责）。
  * @param input - 写入请求体。
  * @returns 归一化后的补丁（只含出现过的字段）。
  */
 export function normalizePatchForTest(input: Record<string, unknown>): Record<string, unknown> {
   const patch: Record<string, unknown> = {}
-  if (typeof input.model === 'string') {
-    // 空串是合法值：表示「未指定，跟随 DSH 当前会话模型」。
-    patch.model = input.model.trim()
+  for (const intent of MIDSCENE_INTENTS) {
+    const field = INTENT_CONFIG_FIELD[intent]
+    const value = input[field]
+    if (typeof value === 'string') patch[field] = value.trim()
   }
   return patch
 }

@@ -226,9 +226,9 @@ describe('包内技能资产（AC-02）', () => {
     }
 
     const files = await walk(root)
-    // 21 个上游文件：6 个官方技能（含 vitest 的 references/scripts）+ midscenejs 的 13 个。
+    // 22 个上游文件：6 个官方技能（含 vitest 的 references/scripts）+ midscenejs 的 14 个。
     // 插件自有的 dsh-midscene 已排除（见上），若把它的文件算进来，说明排除逻辑失效。
-    expect(files.length).toBe(21)
+    expect(files.length).toBe(22)
     for (const file of files) {
       const digest = createHash('sha256').update(await readFile(file)).digest('hex').slice(0, 16)
       expect(source, file.slice(root.length + 1)).toContain(digest)
@@ -241,7 +241,7 @@ describe('包内技能资产（AC-02）', () => {
     expect(source).toContain('web-infra-dev/midscene-skills')
     expect(source).toContain('dec1d1c55252ecb1a90c4ecbcfd0d2cb3ce0ac7b')
     expect(source).toContain('tnnevol/skills')
-    expect(source).toContain('b2616bbe0d587d4a5847ef7143d2da447ce9df02')
+    expect(source).toContain('b3f7fd6cc2bbe48d6d5e3cad804de168b2a615dd')
     expect(source).toContain('MIT')
     // 说明注入机制必须被登记：否则下次同步时无人知道「环境约束在哪施加」。
     expect(source).toContain('BRIDGE_PRELUDE')

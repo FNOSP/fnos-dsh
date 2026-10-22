@@ -57,6 +57,25 @@ describe('guessFamily：已知模型的判定', () => {
     expect(guessFamily('kimi-k2.6')?.family).toBe('kimi')
   })
 
+  it('更具体的规则优先：AutoGLM 判为 auto-glm 而非 glm-v（FNOS-021-04-AC-01）', () => {
+    // 回归守卫：宽泛的 `glm` 规则曾排在 `auto-glm` 之前，AutoGLM 被判成智谱 GLM
+    // 视觉家族。症状不报错，只是坐标解析协议用错 → 点击偏移。
+    for (const id of ['autoglm-phone', 'auto-glm-multilingual', 'zhipu/autoglm-phone']) {
+      expect(guessFamily(id)?.family, id).toBe('auto-glm')
+    }
+  })
+
+  it('更具体的规则优先：豆包系 UI-TARS 判为 UI-TARS 家族而非 doubao-vision（FNOS-021-04-AC-01）', () => {
+    // 回归守卫：宽泛的 `doubao` 规则曾排在 UI-TARS 之前，`doubao-1.5-ui-tars`
+    // 被判成豆包旧视觉系列。
+    expect(guessFamily('doubao-1.5-ui-tars')?.family).toBe('vlm-ui-tars-doubao-1.5')
+    expect(guessFamily('doubao-ui-tars')?.family).toBe('vlm-ui-tars')
+    expect(guessFamily('ui-tars-1.5')?.family).toBe('vlm-ui-tars-doubao-1.5')
+    // 纯豆包系列仍判为豆包家族（顺序调整没有把范围扩大）。
+    expect(guessFamily('doubao-seed-2-1-turbo')?.family).toBe('doubao-seed')
+    expect(guessFamily('doubao-vision-pro')?.family).toBe('doubao-vision')
+  })
+
   it('给出可核对的判断依据（不是「插件说啥就是啥」）', () => {
     expect(guessFamily('glm-5.3')?.reason).toContain('GLM')
     expect(guessFamily('deepseek-v4.1-flash')?.reason).toContain('DeepSeek')

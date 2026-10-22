@@ -8,6 +8,11 @@
  * @module dsh-midscene/settings-rpc
  */
 
+import { MIDSCENE_INTENTS, type MidsceneIntent } from './intents.ts'
+
+export { MIDSCENE_INTENTS }
+export type { MidsceneIntent }
+
 /** 包名（客户端模块图与详情页 subject 判定都按它匹配）。 */
 export const MIDSCENE_PACKAGE_NAME = '@tnnevol/dsh-midscene'
 
@@ -26,6 +31,25 @@ export const MIDSCENE_SETTINGS_STATUS_PATH = '/plugins/dsh-midscene-plugin/setti
 /** 写入接入设置的端点。 */
 export const MIDSCENE_SETTINGS_UPDATE_PATH = '/plugins/dsh-midscene-plugin/settings/update'
 
+/**
+ * 一个模型职责在设置页上的状态（FNOS-021-02）。
+ *
+ * 设置页用 Tabs 呈现四个职责，每个 Tab 显示「用户选了什么」与「实际会用哪个」——
+ * 两者不一致时（例如选了一个已被卸载的模型）用户能立刻看出来。
+ */
+export interface MidsceneIntentSlot {
+  /** 职责。 */
+  readonly intent: MidsceneIntent
+  /** 用户为该职责选择的模型标识；空串表示未单独指定（沿用默认职责）。 */
+  readonly configuredModel: string
+  /** 该职责实际会使用的模型标识；目录里没有可用模型时为 `undefined`。 */
+  readonly resolvedModel?: string
+  /** 该职责实际使用的协议家族（按它自己的模型推导）。 */
+  readonly family: string
+  /** 是否单独指定了模型（`false` 表示沿用默认职责）。 */
+  readonly dedicated: boolean
+}
+
 /** 设置区块渲染所需的全部事实。 */
 export interface MidsceneSettingsSnapshot {
   /** 设置命名空间。 */
@@ -41,7 +65,7 @@ export interface MidsceneSettingsSnapshot {
   readonly family: string
   /** 家族判定依据（供诊断说明，不要求用户理解）。 */
   readonly familyReason: string
-  /** 指定的测试模型；空表示跟随 DSH 当前会话模型。 */
+  /** 默认职责的测试模型；空表示跟随 DSH 当前会话模型。 */
   readonly model: string
   /**
    * 可供选择的模型目录（设置界面下拉选项）。
@@ -59,6 +83,8 @@ export interface MidsceneSettingsSnapshot {
     readonly name?: string
     readonly vision: boolean
   }[]
+  /** 各职责的状态（顺序即 Tab 顺序）。 */
+  readonly slots: readonly MidsceneIntentSlot[]
   /** 固定模型名（`MIDSCENE_MODEL_NAME` 的值）。 */
   readonly fixedModelName: string
   /** 桥地址（`.env` 里 `MIDSCENE_MODEL_BASE_URL` 的值）。 */
@@ -74,10 +100,16 @@ export type MidsceneSettingsRequest =
   | {
     readonly action: 'update'
     /**
-     * 测试模型（「提供方/模型」形式）；空串表示跟随 DSH 当前会话模型。
+     * 默认职责的测试模型（「提供方/模型」形式）；空串表示跟随 DSH 当前会话模型。
      *
      * 协议家族不在此列：它由桥按实际使用的模型推导，不是用户配置项。请求里若带了
      * `family` 会被忽略（旧版界面或脚本可能仍会发送）。
      */
     readonly model?: string
+    /** 定位职责的模型；空串表示沿用默认职责。 */
+    readonly locateModel?: string
+    /** 规划职责的模型；空串表示沿用默认职责。 */
+    readonly planningModel?: string
+    /** 页面理解职责的模型；空串表示沿用默认职责。 */
+    readonly insightModel?: string
   }

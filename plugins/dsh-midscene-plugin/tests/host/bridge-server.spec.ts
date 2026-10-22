@@ -40,6 +40,12 @@ function fakeLlm(options: {
   models?: Record<string, readonly LlmModelInfo[]>
   chunks?: readonly StreamChunk[]
   fail?: Error
+  /**
+   * 各模型披露的思考档位（模型 id → 档位 id 列表，由弱到强）。
+   *
+   * 不传时替身**没有** `resolveModelInfo`，用于覆盖「宿主给不出元数据」的降级路径。
+   */
+  reasoningEfforts?: Record<string, readonly string[]>
 } = {}): { llm: LlmRuntime, calls: GenerateOptions[] } {
   const calls: GenerateOptions[] = []
   const llm = {
@@ -47,6 +53,19 @@ function fakeLlm(options: {
     listModels: async (provider: string) => options.models?.[provider] ?? [
       { provider, id: 'glm-5.3-flash', name: 'GLM', inputModalities: ['text', 'image'] },
     ],
+    ...options.reasoningEfforts === undefined ? {} : {
+      resolveModelInfo: async (provider: string, model: string) => {
+        const ids = options.reasoningEfforts?.[`${provider}/${model}`]
+        if (ids === undefined) return { provider, id: model, name: model }
+        if (ids.length === 0) return { provider, id: model, name: model }
+        return {
+          provider,
+          id: model,
+          name: model,
+          reasoning: { efforts: ids.map(id => ({ id, name: id.charAt(0).toUpperCase() + id.slice(1) })) },
+        }
+      },
+    },
     stream: (request: GenerateOptions): AsyncIterable<StreamChunk> => {
       calls.push(request)
       const chunks = options.chunks ?? [
@@ -101,6 +120,9 @@ async function startBridge(overrides: Partial<BridgeConfig> = {}, deps: {
       apiKey: 'test-key',
       family: 'glm-v',
       model: '',
+      locateModel: '',
+      planningModel: '',
+      insightModel: '',
       requestTimeoutMs: 10_000,
       logRequests: false,
       ...overrides,
@@ -142,7 +164,7 @@ describe('FNOS-013-01 服务与健康检查', () => {
     const server = new BridgeServer({
       llm,
       attachments: undefined,
-      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', requestTimeoutMs: 1000, logRequests: false },
+      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', locateModel: '', planningModel: '', insightModel: '', requestTimeoutMs: 1000, logRequests: false },
       sessionModel: { current: () => undefined },
       log: message => { logs.push(message) },
     })
@@ -168,7 +190,7 @@ describe('FNOS-013-01 服务与健康检查', () => {
     const server = new BridgeServer({
       llm,
       attachments: undefined,
-      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', requestTimeoutMs: 1000, logRequests: false },
+      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', locateModel: '', planningModel: '', insightModel: '', requestTimeoutMs: 1000, logRequests: false },
       sessionModel: { current: () => undefined },
       log: () => {},
     })
@@ -200,7 +222,7 @@ describe('FNOS-013-01 服务与健康检查', () => {
     const server = new BridgeServer({
       llm,
       attachments: undefined,
-      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', requestTimeoutMs: 1000, logRequests: false },
+      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', locateModel: '', planningModel: '', insightModel: '', requestTimeoutMs: 1000, logRequests: false },
       sessionModel: { current: () => undefined },
       log: () => {},
     })
@@ -211,7 +233,7 @@ describe('FNOS-013-01 服务与健康检查', () => {
 
   it('stop 后端口真正释放，可被新实例立即复用（AC-02）', async () => {
     const port = await freePort()
-    const config: BridgeConfig = { port, apiKey: 'test-key', family: 'glm-v', model: '', requestTimeoutMs: 1000, logRequests: false }
+    const config: BridgeConfig = { port, apiKey: 'test-key', family: 'glm-v', model: '', locateModel: '', planningModel: '', insightModel: '', requestTimeoutMs: 1000, logRequests: false }
     const first = new BridgeServer({ llm: fakeLlm().llm, attachments: undefined, config, sessionModel: { current: () => undefined }, log: () => {} })
     await first.start()
     await first.stop()
@@ -795,7 +817,7 @@ describe('目录缓存失效（AC-03）', () => {
     const server = new BridgeServer({
       llm,
       attachments: undefined,
-      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', requestTimeoutMs: 1000, logRequests: false },
+      config: { port, apiKey: 'test-key', family: 'glm-v', model: '', locateModel: '', planningModel: '', insightModel: '', requestTimeoutMs: 1000, logRequests: false },
       sessionModel: { current: () => undefined },
       log: () => {},
     })
@@ -811,5 +833,228 @@ describe('目录缓存失效（AC-03）', () => {
 
     const after = await (await fetch(`http://127.0.0.1:${port}/v1/models`, { headers: { authorization: 'Bearer test-key' } })).json() as { data: { id: string }[] }
     expect(after.data.map(entry => entry.id).sort()).toEqual(['brandnew/m', 'codebuddy/m'])
+  })
+})
+
+describe('多职责路由（FNOS-021-02）', () => {
+  /** 两个不同系列的模型：家族不同，路由错了能立刻看出来。 */
+  const twoModels = {
+    providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],
+    models: {
+      codebuddy: [
+        { provider: 'codebuddy', id: 'glm-5.3-flash', name: 'GLM', inputModalities: ['text' as const, 'image' as const] },
+        { provider: 'codebuddy', id: 'deepseek-v4.1-flash', name: 'DeepSeek', inputModalities: ['text' as const, 'image' as const] },
+      ],
+    },
+  }
+
+  it('dsh-model@locate 打到定位职责配的模型（而不是默认模型）', async () => {
+    const { llm } = fakeLlm(twoModels)
+    const { port, calls } = await startBridge(
+      { model: 'codebuddy/glm-5.3-flash', locateModel: 'codebuddy/deepseek-v4.1-flash' },
+      { llm },
+    )
+    await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ model: 'dsh-model@locate', messages: [{ role: 'user', content: 'hi' }] }),
+    })
+    // 若四组共用模型名，桥无从区分，这里会错误地打到 glm。
+    expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'deepseek-v4.1-flash' })
+  })
+
+  it('dsh-model 仍然打到默认职责', async () => {
+    const { llm } = fakeLlm(twoModels)
+    const { port, calls } = await startBridge(
+      { model: 'codebuddy/glm-5.3-flash', locateModel: 'codebuddy/deepseek-v4.1-flash' },
+      { llm },
+    )
+    await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ model: 'dsh-model', messages: [{ role: 'user', content: 'hi' }] }),
+    })
+    expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'glm-5.3-flash' })
+  })
+
+  it('专用职责已清空但 .env 是旧的（仍发 @locate）时回落默认，不报错', async () => {
+    // 用户先在设置页配了定位模型并拉了 .env，之后又清空了它。旧 .env 仍带 @locate 后缀。
+    const { llm } = fakeLlm(twoModels)
+    const { port, calls } = await startBridge({ model: 'codebuddy/glm-5.3-flash' }, { llm })
+    const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ model: 'dsh-model@locate', messages: [{ role: 'user', content: 'hi' }] }),
+    })
+    expect(response.status).toBe(200)
+    expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'glm-5.3-flash' })
+  })
+
+  it('未配置任何专用职责时，接入配置只有默认四行', async () => {
+    const { llm } = fakeLlm(twoModels)
+    const { port } = await startBridge({ model: 'codebuddy/glm-5.3-flash' }, { llm })
+    const body = await (await fetch(`http://127.0.0.1:${port}/v1/midscene-env`)).json() as {
+      content: string
+      variables: Record<string, string>
+      resolvedSlots: Record<string, { model?: string, family: string, dedicated: boolean }>
+    }
+    expect(body.content).not.toContain('MIDSCENE_LOCATE_MODEL')
+    expect(body.variables.MIDSCENE_LOCATE_MODEL_NAME).toBeUndefined()
+    expect(body.resolvedSlots.locate).toMatchObject({ model: 'codebuddy/glm-5.3-flash', dedicated: false })
+  })
+
+  it('配置定位职责后，接入配置追加该职责一组变量，且家族按该职责的模型推导', async () => {
+    const { llm } = fakeLlm(twoModels)
+    const { port } = await startBridge(
+      { model: 'codebuddy/glm-5.3-flash', locateModel: 'codebuddy/deepseek-v4.1-flash' },
+      { llm },
+    )
+    const body = await (await fetch(`http://127.0.0.1:${port}/v1/midscene-env`)).json() as {
+      content: string
+      variables: Record<string, string>
+      resolvedSlots: Record<string, { model?: string, family: string, dedicated: boolean }>
+    }
+    expect(body.content).toContain('MIDSCENE_LOCATE_MODEL_NAME="dsh-model@locate"')
+    // 家族跟着定位自己的模型（deepseek），不是默认的 glm-v。
+    expect(body.content).toContain('MIDSCENE_LOCATE_MODEL_FAMILY="deepseek"')
+    expect(body.content).toContain('MIDSCENE_LOCATE_MODEL_STREAM_MODE="non-stream"')
+    expect(body.variables.MIDSCENE_LOCATE_MODEL_NAME).toBe('dsh-model@locate')
+    expect(body.variables.MIDSCENE_LOCATE_MODEL_FAMILY).toBe('deepseek')
+    expect(body.resolvedSlots.locate).toMatchObject({
+      model: 'codebuddy/deepseek-v4.1-flash',
+      family: 'deepseek',
+      dedicated: true,
+    })
+    // 默认职责的家族保持 glm-v，未被专用职责覆盖。
+    expect(body.resolvedSlots.default).toMatchObject({ family: 'glm-v' })
+  })
+})
+
+describe('协议误配的可读指引（FNOS-021-06）', () => {
+  it('/v1/responses 返回 404，但带「只提供 Chat Completions」的指引', async () => {
+    const { port } = await startBridge()
+    const response = await fetch(`http://127.0.0.1:${port}/v1/responses`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ model: 'dsh-model', input: 'hi' }),
+    })
+    // 状态码保持 404（本桥确实没有这个端点），但要能诊断。
+    expect(response.status).toBe(404)
+    const body = await response.json() as { error: { message: string } }
+    expect(body.error.message).toContain('Chat Completions')
+    expect(body.error.message).toContain('openai-chat')
+  })
+
+  it('/v1/systemone 返回 404，并说明 Jev 的私有协议不经本桥', async () => {
+    const { port } = await startBridge()
+    const response = await fetch(`http://127.0.0.1:${port}/v1/systemone`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ questions: [] }),
+    })
+    expect(response.status).toBe(404)
+    const body = await response.json() as { error: { message: string } }
+    expect(body.error.message).toContain('Jev')
+    expect(body.error.message).toContain('System One')
+  })
+
+  it('未知路径仍给通用 404（不误伤）', async () => {
+    const { port } = await startBridge()
+    // 未知路径同样要求接入密钥：不给未授权调用者返回端点清单。
+    const response = await fetch(`http://127.0.0.1:${port}/v1/nope`, {
+      headers: { authorization: 'Bearer test-key' },
+    })
+    expect(response.status).toBe(404)
+    const body = await response.json() as { error: { message: string } }
+    expect(body.error.message).toContain('unknown endpoint')
+  })
+
+  it('带 response_format 的请求仍然成功（倒退守卫：改成报错会把今天可用的功能推成失败）', async () => {
+    // 该字段自 1.15.1 基线起就存在，桥一直忽略，全部既有验收都在此状态下通过；
+    // Midscene 对解析失败另有语义重试兜底。因此这里钉住「忽略但成功」。
+    const { llm } = fakeLlm({
+      providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],
+      models: { codebuddy: [{ provider: 'codebuddy', id: 'glm-5.3-flash', name: 'GLM', inputModalities: ['text', 'image'] }] },
+    })
+    const { port, calls } = await startBridge({}, { llm })
+    const response = await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({
+        model: 'dsh-model',
+        messages: [{ role: 'user', content: 'hi' }],
+        response_format: { type: 'json_object' },
+      }),
+    })
+    expect(response.status).toBe(200)
+    // 字段被忽略：既不报错，也不出现在宿主调用入参里。
+    expect(calls[0]).not.toHaveProperty('response_format')
+  })
+})
+
+describe('思考开关透传（FNOS-021-03）', () => {
+  /** 一个带 off/low/high 档位的模型。 */
+  const withEfforts = {
+    providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],
+    models: { codebuddy: [{ provider: 'codebuddy', id: 'glm-5.3-flash', name: 'GLM', inputModalities: ['text' as const, 'image' as const] }] },
+    reasoningEfforts: { 'codebuddy/glm-5.3-flash': ['off', 'low', 'high'] },
+  }
+
+  /**
+   * 发一次补全。
+   * @param port - 桥端口。
+   * @param extra - 额外的请求体字段。
+   * @returns 响应。
+   */
+  async function post(port: number, extra: Record<string, unknown> = {}): Promise<Response> {
+    return await fetch(`http://127.0.0.1:${port}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer test-key' },
+      body: JSON.stringify({ model: 'dsh-model', messages: [{ role: 'user', content: 'hi' }], ...extra }),
+    })
+  }
+
+  it('Midscene 关闭思考时，桥传宿主的「关闭」档位（AC-01）', async () => {
+    const { llm } = fakeLlm(withEfforts)
+    const { port, calls } = await startBridge({ model: 'codebuddy/glm-5.3-flash' }, { llm })
+    expect((await post(port, { thinking: { type: 'disabled' } })).status).toBe(200)
+    expect(calls[0]?.reasoningEffort).toBe('off')
+  })
+
+  it('千问的 enable_thinking:false 同样映射为关闭', async () => {
+    const { llm } = fakeLlm(withEfforts)
+    const { port, calls } = await startBridge({ model: 'codebuddy/glm-5.3-flash' }, { llm })
+    await post(port, { enable_thinking: false })
+    expect(calls[0]?.reasoningEffort).toBe('off')
+  })
+
+  it('模型不支持该档位时不传 reasoningEffort，请求照常成功（AC-02）', async () => {
+    // 宿主只披露 low/high，没有「关闭」档位：宁可少传，也不能拼一个不存在的档位
+    // （那会在发起请求前被 UNSUPPORTED_REASONING_EFFORT 拦下）。
+    const { llm } = fakeLlm({ ...withEfforts, reasoningEfforts: { 'codebuddy/glm-5.3-flash': ['low', 'high'] } })
+    const { port, calls } = await startBridge({ model: 'codebuddy/glm-5.3-flash' }, { llm })
+    const response = await post(port, { thinking: { type: 'disabled' } })
+    expect(response.status).toBe(200)
+    expect(calls[0]).not.toHaveProperty('reasoningEffort')
+  })
+
+  it('请求里没有思考字段时不传（行为与升级前一致，AC-03）', async () => {
+    const { llm } = fakeLlm(withEfforts)
+    const { port, calls } = await startBridge({ model: 'codebuddy/glm-5.3-flash' }, { llm })
+    await post(port)
+    expect(calls[0]).not.toHaveProperty('reasoningEffort')
+    // 其它字段照常转换，未被思考链路影响。
+    expect(calls[0]).toMatchObject({ provider: 'codebuddy', model: 'glm-5.3-flash' })
+  })
+
+  it('宿主给不出元数据（没有 resolveModelInfo）时降级为不传', async () => {
+    const { llm } = fakeLlm({
+      providers: [{ id: 'codebuddy', name: 'CodeBuddy' }],
+      models: { codebuddy: [{ provider: 'codebuddy', id: 'glm-5.3-flash', name: 'GLM', inputModalities: ['text', 'image'] }] },
+    })
+    const { port, calls } = await startBridge({ model: 'codebuddy/glm-5.3-flash' }, { llm })
+    const response = await post(port, { thinking: { type: 'disabled' } })
+    expect(response.status).toBe(200)
+    expect(calls[0]).not.toHaveProperty('reasoningEffort')
   })
 })
