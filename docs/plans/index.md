@@ -63,6 +63,6 @@ flowchart TD
 | PLAN-FNOS-024 | [CodeBuddy 403 纳入账号切换](/plans/PLAN-FNOS-024-codebuddy-403-failover) | 已完成（阶段一完成；阶段二以适配器级集成验证执行） |
 | PLAN-FNOS-023 | [CodeBuddy 受限账号触发自动切换](/plans/PLAN-FNOS-023-codebuddy-restricted-account-failover) | 已完成（阶段一完成；阶段二 Web 已验、Desktop 待补） |
 | PLAN-FNOS-022 | [CodeBuddy 模型调用被内容审核拦截修复](/plans/PLAN-FNOS-022-codebuddy-content-block-fix) | 已完成（两阶段 10 个任务，双客户端已验） |
-| PLAN-FNOS-025 | [CodeBuddy 插件下架](/plans/PLAN-FNOS-025-codebuddy-plugin-delisting) | 执行中（三阶段 11 个任务） |
+| PLAN-FNOS-025 | [CodeBuddy 插件下架](/plans/PLAN-FNOS-025-codebuddy-plugin-delisting) | 已完成（三阶段全部完成；真实 NAS 验收不在本轮范围） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

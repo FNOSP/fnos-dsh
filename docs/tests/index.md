@@ -33,6 +33,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-024 | [CodeBuddy 403 纳入账号切换](/tests/FNOS-024-codebuddy-403-failover) | [PLAN-FNOS-024](/plans/PLAN-FNOS-024-codebuddy-403-failover) | 通过 | 9 条全部通过；桩 403 触发换号并完成，提示文本正确 |
 | FNOS-023 | [CodeBuddy 受限账号触发自动切换](/tests/FNOS-023-codebuddy-restricted-account-failover) | [PLAN-FNOS-023](/plans/PLAN-FNOS-023-codebuddy-restricted-account-failover) | 通过 | 15 条全部通过；真实受限账号触发自动切换且提示可见；第二轮受限失败 0 次 |
 | FNOS-022 | [CodeBuddy 模型调用被内容审核拦截修复](/tests/FNOS-022-codebuddy-content-block-fix) | [PLAN-FNOS-022](/plans/PLAN-FNOS-022-codebuddy-content-block-fix) | 通过 | 17 条全部通过；DSH Web 与 DSH Desktop 双客户端模型调用正常；本地桩注入验证只失败一次、不重试、不换号 |
-| FNOS-025 | [CodeBuddy 插件下架](/tests/FNOS-025-codebuddy-plugin-delisting) | [PLAN-FNOS-025](/plans/PLAN-FNOS-025-codebuddy-plugin-delisting) | 部分通过 | 18 条中 16 条已通过（分发清单、文档站、仓库追踪、发布链路、升级清理五条链路）；真实 NAS 安装与升级验收 2 条待执行 |
+| FNOS-025 | [CodeBuddy 插件下架](/tests/FNOS-025-codebuddy-plugin-delisting) | [PLAN-FNOS-025](/plans/PLAN-FNOS-025-codebuddy-plugin-delisting) | 通过 | 15 条全部通过；覆盖应用分发、文档站、仓库追踪与发布工具链四条链路 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。
