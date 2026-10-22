@@ -37,7 +37,7 @@ const srcPath = (...segments: string[]) => join(here, '..', 'src', ...segments)
 
 ## 依赖与版本来源
 
-**外部依赖的版本只写在 `pnpm-workspace.yaml` 的 catalog 里**，各 workspace 的 manifest 一律用协议引用，不写字面版本：
+**外部依赖的版本只写在 `pnpm-workspace.yaml` 的 catalog 里**，各 workspace 的 manifest 用协议引用，不写字面版本：
 
 | 依赖类型 | 写法 |
 | --- | --- |
@@ -45,14 +45,15 @@ const srcPath = (...segments: string[]) => join(here, '..', 'src', ...segments)
 | 命名 catalog 收录的包（如 DSH 运行时） | `"catalog:dsh"` |
 | 本仓库内的 workspace 包 | `"workspace:*"` |
 
-四条依赖字段（`dependencies`、`devDependencies`、`peerDependencies`、`optionalDependencies`）**同一规则，没有豁免**。DSH `peerDependencies` 曾经允许写精确字面版本作为「精确兼容契约」的例外，2026-10-22 起取消：`pnpm run version --baseline` 只改 catalog、明确不动插件里的声明，字面量会变成每次基线升级都要手改的第二份版本号。
+四条依赖字段（`dependencies`、`devDependencies`、`peerDependencies`、`optionalDependencies`）同一规则，**唯一例外是 DSH 运行时包的 `peerDependencies`**（见下）。
 
-「发布出去的 peer 仍是精确版本」这条契约由打包链路保证，而不是由源码字面量保证：
+**DSH peer 必须写具体版本**（`"@deepseek-ai/dsh-llm": "0.2.1-rc.2"`），不能用 `catalog:dsh`：
 
-- `pnpm pack` / `pnpm publish` 会把 `catalog:` 重写成 catalog 里的真实版本；
-- `pnpm run publish` 侧的 `assertCatalogResolved` 扫描产物，发现残留的 `catalog:` 直接报错——所以必须用 pnpm 打包，不能用 `npm pack`；
-- `tooling/fnos-dsh-cli` 的构建门禁与 `tests/fnos-007-baseline.spec.ts` 会拦住任何写回字面量的 manifest；
-- 本机开发 profile 用 `link:` 装仓库插件，profile 侧需要具体版本时**物化自己的副本**（`package.json` 归一化、其余条目软链回源码），不得写穿软链改到仓库 manifest。
+1. DSH 运行时加载插件时，对 manifest 里 `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-*` 的 peer 做 **semver 范围校验**（`satisfies(runtimeVersion, range)`）。`catalog:dsh` 不是合法 range，一律判为不满足 → 插件被**整体跳过**，DSH Web 起来了却没有任何插件。
+2. 本地联调时 DSH 经安装锚点解析插件目录，命中的是 `node_modules/.pnpm/node_modules/@tnnevol/<plugin>` 这个指向**仓库源码**的软链，因此校验读到的就是**仓库里的 manifest**——profile 里那份副本不参与校验。
+3. 已发布的 npm 产物不受影响：pnpm 在 pack 时会把 peer 重写成 catalog 里的真实版本。
+
+这条约束由 `tooling/fnos-dsh-cli/tests/fnos-007-baseline.spec.ts` 守卫；`build.ts` 的 catalog 门禁对 DSH peer 显式豁免。
 
 ## 类型定义策略
 

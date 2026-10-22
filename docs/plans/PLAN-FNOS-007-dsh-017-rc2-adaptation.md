@@ -358,7 +358,7 @@ sequenceDiagram
 | 任务 ID | 对应验收 | 实施内容 | 验证 |
 | --- | --- | --- | --- |
 | PLAN-FNOS-007-T12-01 | FNOS-007-16-AC-01、02 | 在链接本地插件并启动 Turbo watch 前，递归检查仓库 `node_modules`、`.dsh/profiles` 和 `.pnpm-store/v11/projects`，只移除目标不存在的悬空软链接；插件链接完成后再执行一次，覆盖 dsh CLI 对 hoisted links 的修改 | 本地悬空 `.bin`、旧 CLI 和临时项目链接夹具；`pnpm start -- --web` 的 watcher 不再因 `walkdir` 报错退出 |
-| PLAN-FNOS-007-T12-02 | FNOS-007-16-AC-03、04 | 从 `pnpm-workspace.yaml` 读取 default/named catalog 包名，对所有 workspace manifest 的**四条依赖字段**实施 catalog 协议门禁（2026-10-22 起 DSH peers 不再例外）；DSH peer 另按 catalog 解析后校验等于运行时基线，并单独校验 `@earendil-works/pi-ai` 使用 `catalog:` | CLI 构建门禁、FNOS-007 baseline 测试、四插件 manifest 扫描和 `git diff --check` |
+| PLAN-FNOS-007-T12-02 | FNOS-007-16-AC-03、04 | 从 `pnpm-workspace.yaml` 读取 default/named catalog 包名，对所有 workspace manifest 的依赖字段实施 catalog 协议门禁；保留既有 DSH peer 精确版本兼容契约，并单独校验 `@earendil-works/pi-ai` 使用 `catalog:` | CLI 构建门禁、FNOS-007 baseline 测试、四插件 manifest 扫描和 `git diff --check` |
 
 ### T13：插件未使用 DSH 依赖清理
 

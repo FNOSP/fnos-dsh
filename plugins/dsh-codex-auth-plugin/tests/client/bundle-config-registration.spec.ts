@@ -80,22 +80,11 @@ describe('Codex Auth 配置注册在插件详情页', () => {
     // 上游 ui-settings-shell 同样以 devDependencies 持有该包；运行时通过 slot
     // 名注册，不 import 该包，避免客户端模块表缺项。
     expect(manifest.dsh.client.inject).toContain(pkg)
-    // 与 catalog 同源：不重述版本号。
-    // 2026-10-22 起 DSH peers 与其它依赖一样统一走 catalog，因此这里断言声明形态是
-    // `catalog:dsh`，再按命名 catalog 解析回运行时基线——「发布出去的 peer 精确等于
-    // 基线」这条契约仍被守住（pnpm 打包时会重写，publish 侧另有产物级守卫）。
+    // 与 catalog 同源：只断言「peer 精确等于运行时基线」，不再重述版本号。
     const workspace = await readFile(new URL('../../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
     const baseline = workspace.match(/'@deepseek-ai\/dsh':\s*(\d[0-9A-Za-z.+-]*)/u)?.[1]
     expect(baseline).toBeDefined()
-    const dshCatalog = new Map<string, string>()
-    const catalogBlock = /^catalogs:\n((?: {2}.*\n|\n)*)/mu.exec(workspace)?.[1] ?? ''
-    const dshBlock = /^ {2}dsh:\n((?: {4}.*\n)+)/mu.exec(catalogBlock)?.[1] ?? ''
-    for (const line of dshBlock.split('\n')) {
-      const entry = /^ {4}(['"]?@[^:]+['"]?):\s*(\S+)\s*$/u.exec(line)
-      if (entry !== null) dshCatalog.set(entry[1]!.replace(/^['"]|['"]$/gu, ''), entry[2]!)
-    }
-    expect(manifest.peerDependencies[pkg]).toBe('catalog:dsh')
-    expect(dshCatalog.get(pkg), pkg).toBe(baseline)
+    expect(manifest.peerDependencies[pkg]).toBe(baseline)
     expect(manifest.devDependencies[pkg]).toBe('catalog:dsh')
   })
 

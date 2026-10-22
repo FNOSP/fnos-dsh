@@ -275,10 +275,12 @@ async function validateCatalogVersionedDependencies(): Promise<void> {
       if (typeof block !== 'object' || block === null) continue
       for (const [name, range] of Object.entries(block as Record<string, unknown>)) {
         if (!catalogPackages.has(name)) continue
-        // 四条依赖字段一律只允许 catalog 协议（含 DSH peers——2026-10-22 起不再豁免）。
-        // pnpm 在打包时把 `catalog:dsh` 重写成精确版本，publish 侧的
-        // `assertCatalogResolved` 会扫描产物确认没有 `catalog:` 泄漏，
-        // 因此「发布出去的 peer 仍精确等于运行时基线」这条契约不受影响。
+        // Published DSH plugins intentionally expose the target runtime as an
+        // exact peer range. pnpm resolves `catalog:dsh` in peerDependencies to
+        // that exact value, and FNOS-007's compatibility gate relies on it;
+        // keep this existing release contract while enforcing catalogs for
+        // every other catalog-managed dependency (including pi-ai).
+        if (field === 'peerDependencies' && name.startsWith('@deepseek-ai/dsh-')) continue
         if (typeof range === 'string' && range.startsWith('catalog:')) continue
         throw new Error(
           `${manifestPath} must declare ${name} through the pnpm catalog (catalog: or catalog:<name>), not ${String(range)}`,

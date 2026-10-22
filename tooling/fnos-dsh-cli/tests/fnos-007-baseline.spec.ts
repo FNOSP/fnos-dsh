@@ -58,10 +58,16 @@ describe('FNOS-007 DSH baseline', () => {
     expect(workspace).toMatch(new RegExp(`'@deepseek-ai/dsh-llm-pi-ai':\\s*${targetVersion.replaceAll('.', '\\.')}`, 'u'))
   })
 
-  // 这里原有一条「DSH peer 必须写字面量基线」的守卫。2026-10-22 起 DSH peers 与其它
-  // 依赖一样统一走 catalog（版本只存在于 pnpm-workspace.yaml），该守卫改为由下方
-  // 「requires every DSH peer on the target runtime baseline」承担：它先按 catalog
-  // 解析、再断言解析结果等于基线，既覆盖原意图又覆盖全部插件（含 dsh-fnos-plugin）。
+  it('keeps published DSH plugin peer ranges on the exact runtime baseline', async () => {
+    for (const directory of pluginDirectories.filter(value => value !== 'dsh-fnos-plugin')) {
+      const manifest = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as {
+        peerDependencies: Record<string, string>
+      }
+      for (const [name, range] of Object.entries(manifest.peerDependencies)) {
+        if (name.startsWith('@deepseek-ai/dsh-')) expect(range, `${directory}:${name}`).toBe(targetVersion)
+      }
+    }
+  })
 
   it('declares the runtime baseline in every plugin compatibility manifest', async () => {
     for (const directory of pluginDirectories) {
@@ -151,21 +157,6 @@ describe('FNOS-007 DSH baseline', () => {
 
   it('requires every DSH peer on the target runtime baseline', async () => {
     const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
-    // 两种 catalog 都要能解析：catalog:（默认）与 catalog:dsh（命名）。
-    const defaultCatalog = new Map<string, string>()
-    let inDefaultCatalog = false
-    for (const line of workspace.split(/\r?\n/u)) {
-      if (line === 'catalog:') {
-        inDefaultCatalog = true
-        continue
-      }
-      if (inDefaultCatalog && /^[A-Za-z0-9_-]+:/u.test(line)) break
-      if (inDefaultCatalog) {
-        const match = /^ {2}(['"]?@[^:]+['"]?):\s*(\S+)$/u.exec(line)
-        if (match !== null) defaultCatalog.set(match[1]!.replace(/^['"]|['"]$/gu, ''), match[2]!)
-      }
-    }
-
     const catalog = new Map<string, string>()
     let inDshCatalog = false
     for (const line of workspace.split(/\r?\n/u)) {
@@ -186,11 +177,7 @@ describe('FNOS-007 DSH baseline', () => {
       }
       for (const [name, range] of Object.entries(manifest.peerDependencies)) {
         if (!name.startsWith('@deepseek-ai/dsh')) continue
-        const resolved = range === 'catalog:dsh'
-          ? catalog.get(name)
-          : range === 'catalog:'
-            ? defaultCatalog.get(name)
-            : range
+        const resolved = range === 'catalog:dsh' ? catalog.get(name) : range
         expect(resolved, `${directory}:${name}`).toBe(targetVersion)
       }
     }
@@ -264,9 +251,7 @@ describe('FNOS-007 DSH baseline', () => {
       for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
         for (const [name, range] of Object.entries(manifest[field] ?? {})) {
           if (!name.startsWith('@deepseek-ai/')) continue
-          // DSH peers 自 2026-10-22 起不再豁免：四条依赖字段统一只允许 catalog 协议。
-          // 发布时 pnpm 会把 catalog: 重写为精确版本（已用 pnpm pack 核对产物无泄漏），
-          // 因此对消费者与既有「精确基线兼容契约」都没有差异。
+          if (field === 'peerDependencies' && name.startsWith('@deepseek-ai/dsh-')) continue
           expect(range, `${directory}:${field}:${name}`).toMatch(/^catalog:/u)
         }
       }

@@ -56,11 +56,24 @@ const demoSite = process.env.DSH_BRIDGE_SITE ?? ''
 const demoPath = process.env.DSH_BRIDGE_PATH ?? ''
 const demoFile = process.env.DSH_BRIDGE_FILE ?? ''
 
+/**
+ * 桥接服务的**起始探测端口**（可选）。
+ *
+ * 默认从 8787 往上探测。同一台机器上可能同时跑着多个 DSH 实例（各带一个桥），此时
+ * 探测会抓到**先占用端口的那个**——不一定是本次要验的实例。用这个变量把探测起点指到
+ * 目标实例的桥：
+ *
+ * ```bash
+ * DSH_BRIDGE_PORT=8791 pnpm run test:e2e
+ * ```
+ */
+const bridgePort = process.env.DSH_BRIDGE_PORT === undefined ? undefined : Number(process.env.DSH_BRIDGE_PORT)
+
 export default defineTestProject<BridgeContext>({
   projects: [
     {
       name: 'dsh-web',
-      setup: defineBridgeSetup({ targetUrl }),
+      setup: defineBridgeSetup({ targetUrl, ...(bridgePort === undefined ? {} : { bridgePort }) }),
       nodes: [
         ...createMidsceneNodes<BridgeContext>({
           agentClass: AgentOverChromeBridge,

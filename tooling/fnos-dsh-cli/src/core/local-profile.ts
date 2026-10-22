@@ -1,5 +1,5 @@
-import { lstat, mkdir, readdir, readFile, realpath, symlink, unlink, writeFile } from 'node:fs/promises'
-import { dirname, join, relative } from 'node:path'
+import { readdir, readFile, realpath, unlink, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { dshHomeDirectory, repositoryRoot } from '../config/paths.js'
 import { pluginTargets, type PluginTarget } from '../config/targets.js'
 import { runRepoDsh, runTurbo } from './turbo.js'
@@ -104,22 +104,13 @@ function manifestCarriesPlugin(manifest: ProfileManifest, target: PluginTarget, 
  * Local source manifests use pnpm's catalog aliases, but a standalone DSH
  * profile cannot resolve workspace catalogs while checking plugin peers. Keep
  * the repository manifests catalog-based and normalize only the profile's
- * installed copy to the current runtime version.
- *
- * The profile installs repository plugins as `link:` specs, so pnpm puts a
- * **symlink** at `node_modules/<name>` pointing back at the source directory.
- * Writing through that symlink would rewrite the repository manifest — the
- * source would lose its `catalog:dsh` aliases on every `pnpm start`, and the
- * working tree would be dirtied by a command that is supposed to be read-only
- * with respect to it. The profile copy is therefore materialized as a real
- * directory: `package.json` is a normalized real file, every other entry is a
- * symlink back into the source so builds and edits keep working.
+ * installed link copy to the current runtime version.
  */
-export async function normalizeLinkedPluginManifest(directory: string, target: PluginTarget): Promise<void> {
-  const linkPath = join(directory, 'node_modules', ...target.name.split('/'))
+async function normalizeLinkedPluginManifest(directory: string, target: PluginTarget): Promise<void> {
+  const packageJsonPath = join(directory, 'node_modules', ...target.name.split('/'), 'package.json')
   let manifest: LinkedPluginManifest
   try {
-    manifest = JSON.parse(await readFile(join(linkPath, 'package.json'), 'utf8')) as LinkedPluginManifest
+    manifest = JSON.parse(await readFile(packageJsonPath, 'utf8')) as LinkedPluginManifest
   } catch {
     return
   }
@@ -132,51 +123,7 @@ export async function normalizeLinkedPluginManifest(directory: string, target: P
       changed = true
     }
   }
-  if (!changed) return
-  const packageJsonPath = join(linkPath, 'package.json')
-  await materializeProfileCopy(linkPath)
-  await writeFile(packageJsonPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
-}
-
-/**
- * Make the profile's plugin entry a real directory when it is a link back into
- * the repository.
- *
- * A symlinked entry is replaced by a directory that mirrors the source: each
- * entry except `package.json` (normalized separately) and `node_modules` (the
- * profile resolves its own dependencies) becomes a relative symlink into the
- * source. An entry that is already a real directory is left alone.
- *
- * @param linkPath - The profile's `node_modules/<name>` path.
- */
-export async function materializeProfileCopy(linkPath: string): Promise<void> {
-  let stats
-  try {
-    stats = await lstat(linkPath)
-  } catch {
-    return
-  }
-  if (!stats.isSymbolicLink()) return
-
-  let source: string
-  try {
-    source = await realpath(linkPath)
-  } catch {
-    return
-  }
-  let entries
-  try {
-    entries = await readdir(source, { withFileTypes: true })
-  } catch {
-    return
-  }
-
-  await unlink(linkPath)
-  await mkdir(linkPath, { recursive: true })
-  for (const entry of entries) {
-    if (entry.name === 'package.json' || entry.name === 'node_modules') continue
-    await symlink(relative(linkPath, join(source, entry.name)), join(linkPath, entry.name))
-  }
+  if (changed) await writeFile(packageJsonPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
 }
 
 /**
