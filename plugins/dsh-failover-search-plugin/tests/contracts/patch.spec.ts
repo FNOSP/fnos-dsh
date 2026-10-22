@@ -14,7 +14,7 @@ async function read(relative: string): Promise<string> {
  */
 async function workspaceRuntimeBaseline(): Promise<string> {
   const workspace = await readFile(new URL('../../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
-  const match = workspace.match(/'@deepseek-ai\/dsh':\s*([0-9][0-9A-Za-z.+-]*)/u)
+  const match = workspace.match(/'@deepseek-ai\/dsh':\s*(\d[0-9A-Za-z.+-]*)/u)
   if (match?.[1] === undefined) throw new Error('pnpm-workspace.yaml must declare @deepseek-ai/dsh in the catalog')
   return match[1]
 }
