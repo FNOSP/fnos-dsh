@@ -88,7 +88,7 @@ verifiedAt: 2026-09-30
 | 被测对象 | 执行环境 | 执行方式 |
 | --- | --- | --- |
 | fnOS 插件（`dsh-fnos`）及依赖 fnOS 宿主桥接、NAS 文件能力、安装/升级生命周期的功能 | 真实 fnOS NAS | 见[真实 NAS 测试](#真实-nas-测试)，证据按[验收证据规范](../validation/README.md)登记 `docs/validation/` |
-| 其他 DSH 插件（Codex Auth、CodeBuddy、Semi UI Showcase 等）与插件 UI 功能 | **DSH Web 与 DSH Desktop（至少两者）** | Web：`pnpm run start -- --web`；Desktop：在安装的 DSH Desktop 客户端中加载待测插件版本后人工走查（见下） |
+| 其他 DSH 插件（Codex Auth、Failover Search、Semi UI Showcase 等）与插件 UI 功能 | **DSH Web 与 DSH Desktop（至少两者）** | Web：`pnpm run start -- --web`；Desktop：在安装的 DSH Desktop 客户端中加载待测插件版本后人工走查（见下） |
 | 纯文档与构建产物 | 文档站构建环境 | `pnpm run build -- --docs` 与 `git diff --check` |
 
 **兼容基线**：除 fnOS 插件只需兼容真实 NAS 外，其他 DSH 插件**至少同时兼容 DSH Web 与 DSH Desktop**；测试用例必须覆盖两个客户端，只记录单一客户端结果不构成该插件的完成结论。
@@ -737,7 +737,7 @@ await new Promise(r => setTimeout(r, 20000))
 
 ### 账号状态测试顺序与 auth 配置备份
 
-Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作测试账号**（无需每次走真实登录流程）。涉及登录状态的测试按固定顺序执行，并在状态切换前备份/恢复 auth 配置：
+Codex Auth 插件的**已登录账号配置文件可直接用作测试账号**（无需每次走真实登录流程）。涉及登录状态的测试按固定顺序执行，并在状态切换前备份/恢复 auth 配置：
 
 **测试顺序**（登录态 Bug → 非登录态 Bug → 登录流程）：
 
@@ -750,8 +750,7 @@ Codex Auth 与 CodeBuddy 插件的**已登录账号配置文件可直接用作�
 | 插件 | 配置文件 | 说明 |
 | --- | --- | --- |
 | Codex Auth（`dsh-codex-auth`） | `.openai-codex-auth.json` | 单文件承载 OAuth 凭据 |
-| CodeBuddy（`dsh-codebuddy`） | `codebuddy-auth.json` 及同目录兄弟文件 `.auto-switch.json`、`.auto-checkin.json`、`.auto-travel.json` | 账号凭据与自动行为偏好；涉及对应功能时一并备份 |
-| DSH 自身（`dsh-credentials-local`） | `.credentials.yaml` | 模型 provider 的 API key 等凭据。**该文件读不了会让 `credentials` 插件初始化失败，连带 11 个依赖插件挂起并使 DSH Web 直接退出**，恢复时优先级最高 |
+| DSH 自身（`dsh-credentials-local`） | `.credentials.yaml` | 模型 provider 的 API key 等凭据。**该文件读不了会让 `credentials` 插件初始化失败，连带依赖它的插件挂起并使 DSH Web 直接退出**，恢复时优先级最高 |
 
 **备份与恢复规则**：
 

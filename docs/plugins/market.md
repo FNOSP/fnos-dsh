@@ -1,6 +1,6 @@
 # 插件市场索引
 
-DSH `0.2.1` 起支持第三方插件市场：在「发现」页添加一个索引 URL，就能浏览该市场列出的插件并直接安装。本仓库发布一份这样的索引，列出全部六个运行时插件。
+DSH `0.2.1` 起支持第三方插件市场：在「发现」页添加一个索引 URL，就能浏览该市场列出的插件并直接安装。本仓库发布一份这样的索引，列出全部五个运行时插件。
 
 本文说明如何添加本项目的索引源、索引里有什么，以及维护者如何重新生成它。
 
@@ -46,7 +46,6 @@ https://fndsh-doc.tnnevol.cn/plugins/market/index.json
 | 插件 | 图标 |
 | --- | --- |
 | `@tnnevol/dsh-fnos` | 飞牛 fnOS 官方品牌标识 |
-| `@tnnevol/dsh-codebuddy` | 腾讯 CodeBuddy 官方标识 |
 | `@tnnevol/dsh-midscene` | 本插件自有图标 |
 | `@tnnevol/dsh-codex-auth` | 无（未取到可确认归属的官方素材，省略） |
 | `@tnnevol/dsh-failover-search` | 无（同上） |

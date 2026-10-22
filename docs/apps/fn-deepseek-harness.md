@@ -70,7 +70,6 @@ FPK 安装和升级时会按发布清单以精确版本准备插件：
 | --- | --- |
 | [`@tnnevol/dsh-fnos`](/plugins/dsh-fnos) | fnOS 主题、授权目录、NAS 文件访问、会话日志导出 |
 | [`@tnnevol/dsh-codex-auth`](/plugins/dsh-codex-auth) | ChatGPT 账号登录 Codex、模型目录、用量与图片输入 |
-| [`@tnnevol/dsh-codebuddy`](/plugins/dsh-codebuddy) | CodeBuddy 账号、用量面板与成长任务 |
 | [`@tnnevol/dsh-failover-search`](/plugins/dsh-failover-search) | 三方网页搜索与网页抓取兜底、平台用量展示 |
 
 精确版本由发布清单 `apps/fn-deepseek-harness/app/published-dsh-plugins.json` 持有，本页不重复登记（避免两处版本号漂移）。

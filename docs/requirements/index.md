@@ -77,5 +77,6 @@ flowchart TD
 | FNOS-024 | [CodeBuddy 403 纳入账号切换](/requirements/FNOS-024-codebuddy-403-failover) | 已完成（403 触发换号；适配器级集成验证通过） |
 | FNOS-023 | [CodeBuddy 受限账号触发自动切换](/requirements/FNOS-023-codebuddy-restricted-account-failover) | 已完成（受限账号自动切换；DSH Web 已验，Desktop 待补） |
 | FNOS-022 | [CodeBuddy 模型调用被内容审核拦截修复](/requirements/FNOS-022-codebuddy-content-block-fix) | 已完成（17 条用例全部通过，DSH Web 与 DSH Desktop 双客户端已验；原参考项目对齐项因来源项目停更已取消） |
+| FNOS-025 | [CodeBuddy 插件下架](/requirements/FNOS-025-codebuddy-plugin-delisting) | 规划中（上游收紧非官方客户端通道风控，插件停止维护并下架；源码保留在本机但不再由仓库追踪） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

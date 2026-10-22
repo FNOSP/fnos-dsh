@@ -214,7 +214,7 @@ FNOS-007-03-AC-03：设置写入失败时，原有设置不会被清空或覆盖
 | --- | --- | --- |
 | `dsh-fnos` 插件及使用 fnOS 专属 API、授权目录或宿主能力的功能 | DSH Web 与真实 fnOS NAS | NAS 用于验证 fnOS 宿主桥接、权限、目录授权及设备生命周期；不相关的其他插件不因此附加 NAS 验收 |
 | 网关、FPK、应用安装/升级/卸载及依赖 fnOS 生命周期的行为 | 真实 fnOS NAS；另按客户端功能需要覆盖 DSH Web/Desktop | 构建通过不能替代 NAS 上的真实安装与运行验证 |
-| 其他 DSH 插件（如 CodeBuddy、Codex Auth、Semi UI） | DSH Web 与 DSH Desktop | 插件不依赖 fnOS 专属能力时，不要求 NAS 验收；涉及外部登录或服务时另验证真实网络/账号条件 |
+| 其他 DSH 插件（如 Codex Auth、Failover Search、Semi UI） | DSH Web 与 DSH Desktop | 插件不依赖 fnOS 专属能力时，不要求 NAS 验收；涉及外部登录或服务时另验证真实网络/账号条件 |
 | 文档站及构建工具 | 对应的文档站/构建环境 | 不要求 NAS，除非变更同时影响上述 fnOS 专属行为 |
 
 当一个功能列表或验收条件混合上述多种模块时，必须拆分验收条件或在计划的验证矩阵中按模块列出环境。状态应分别记录（例如“待 Web/Desktop 验收”和“fnOS 部分待 NAS 验收”），不能把一项插件的 NAS 状态扩散成所有插件的阻塞状态。

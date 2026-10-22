@@ -50,8 +50,8 @@ Failed plugins (1):
     Error: EACCES: permission denied, open '$DSH_HOME/.credentials.yaml'
 ```
 
-`credentials` 是关键单点：它初始化失败会让 11 个依赖插件（`connection`、`authorization`、
-`deepseek-account`、`file-upload`、`dsh-codebuddy`、`dsh-codex-auth` 等）全部挂起，
+`credentials` 是关键单点：它初始化失败会让依赖它的插件（`connection`、`authorization`、
+`deepseek-account`、`file-upload`、`dsh-codex-auth` 等）全部挂起，
 DSH Web 因此直接退出。界面上只看到恢复页，没有任何指向权限的提示。
 
 排查与修复：
@@ -62,8 +62,8 @@ find "$DSH_HOME" -maxdepth 3 -type f -perm 000
 
 # 2. 恢复为属主可读
 chmod 600 "$DSH_HOME/.credentials.yaml"
-chmod 600 "$DSH_HOME/codebuddy-auth.json"        # 如存在
 chmod 600 "$DSH_HOME/.openai-codex-auth.json"    # 如存在
+chmod 600 "$DSH_HOME/codebuddy-auth.json"        # 如存在（下架前装过 CodeBuddy 插件的机器）
 
 # 3. 在 Web 端恢复页点「重启」，或重启应用
 ```

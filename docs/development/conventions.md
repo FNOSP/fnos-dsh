@@ -45,7 +45,7 @@ const srcPath = (...segments: string[]) => join(here, '..', 'src', ...segments)
 
 ## 测试布局
 
-仓库中的六个可发布 TypeScript workspace（`plugins/*` 四个插件、`packages/*` 两个包）采用一致约定：源码放在 workspace 自己的 `src/`，单元测试集中放在同级 `tests/`，通过 `test` 调用该 workspace 的 `vitest.config.ts`。
+仓库中的九个可发布 TypeScript workspace（`plugins/*` 五个插件、`packages/*` 四个包）采用一致约定：源码放在 workspace 自己的 `src/`，单元测试集中放在同级 `tests/`，通过 `test` 调用该 workspace 的 `vitest.config.ts`。
 
 新增测试应优先放入对应 workspace 的 `tests/`，按被测模块组织文件；不要把跨 workspace 的测试复制到根目录，也不要把测试混入 `apps/` 下的 fnOS 应用目录。
 

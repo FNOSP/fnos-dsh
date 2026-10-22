@@ -14,7 +14,7 @@ dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.1-rc.2.12
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。
 
-> 同一 DSH 里已安装的应用内置插件（fnOS、Codex Auth、CodeBuddy、Failover Search）随应用升级自动更新，与本插件互不影响。
+> 同一 DSH 里已安装的应用内置插件（fnOS、Codex Auth、Failover Search）随应用升级自动更新，与本插件互不影响。
 
 ## 桥接服务
 

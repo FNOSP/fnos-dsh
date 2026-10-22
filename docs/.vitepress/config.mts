@@ -118,7 +118,6 @@ const pluginItems = [
   { text: '插件总览', link: '/plugins/' },
   { text: 'dsh-fnos', link: '/plugins/dsh-fnos' },
   { text: 'dsh-codex-auth', link: '/plugins/dsh-codex-auth' },
-  { text: 'dsh-codebuddy', link: '/plugins/dsh-codebuddy' },
   { text: 'dsh-failover-search', link: '/plugins/dsh-failover-search' },
   { text: 'dsh-midscene', link: '/plugins/dsh-midscene' },
   { text: 'DSH 0.2.1 新增能力支持结论', link: '/plugins/dsh-021-capabilities' },
@@ -334,6 +333,10 @@ const requirementsSidebar = [
         text: 'FNOS-024 CodeBuddy 403 纳入账号切换',
         link: '/requirements/FNOS-024-codebuddy-403-failover'
       },
+      {
+        text: 'FNOS-025 CodeBuddy 插件下架',
+        link: '/requirements/FNOS-025-codebuddy-plugin-delisting'
+      },
       ]
   }
 ]
@@ -438,6 +441,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-024 CodeBuddy 403 纳入账号切换',
         link: '/plans/PLAN-FNOS-024-codebuddy-403-failover'
+      },
+      {
+        text: 'PLAN-FNOS-025 CodeBuddy 插件下架',
+        link: '/plans/PLAN-FNOS-025-codebuddy-plugin-delisting'
       },
     ]
   }
