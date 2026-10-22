@@ -60,6 +60,8 @@ git push origin v<版本号>
 | `build-dsh` | 构建 FPK 并上传到该草稿，产物重命名为 `fn-deepseek-harness-<Tag>-dsh-<DSH 基线>.fpk` |
 | `publish-release` | 用 `changelogithub` 生成说明并发布 Release（`draft=false`） |
 
+> 需要**把 FPK 装到真实 NAS 上验证**时，按[从电脑上传 FPK 到 NAS 并安装](/guide/nas-fpk-install)操作；该册同时记录了版本号比较规则、瘦包与升级路径的坑。
+
 ### 构建失败时
 
 任一阶段失败时 `report-failure` 会把 Release 复位为草稿，并在 job summary 里给出各阶段状态。此时**不要重新打 Tag**，用 `workflow_dispatch` 传入原 Tag 重建：

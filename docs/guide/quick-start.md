@@ -51,7 +51,7 @@ cd /path/to/<appname>
 appcenter-cli install-local
 ```
 
-需要分发安装包时，使用生成的 `.fpk` 文件，通过应用中心手动安装或执行：
+需要分发安装包时，使用生成的 `.fpk` 文件，通过应用中心手动安装（步骤见[从电脑上传 FPK 到 NAS 并安装](/guide/nas-fpk-install)）或执行：
 
 ```bash
 appcenter-cli install-fpk <appname>.fpk

@@ -151,7 +151,8 @@ const appSidebar = [
 // `/charter/` 路由仍可直达，因此复用同一组 sidebar，避免出现重复菜单。
 const gettingStartedItems = [
   { text: '快速开始', link: '/guide/quick-start' },
-  { text: '仓库结构', link: '/guide/repository-structure' }
+  { text: '仓库结构', link: '/guide/repository-structure' },
+  { text: '从电脑上传 FPK 到 NAS 并安装', link: '/guide/nas-fpk-install' }
 ]
 
 const charterItems = [
@@ -316,6 +317,18 @@ const requirementsSidebar = [
         text: 'FNOS-020 CodeBuddy 瞬时 400 终止整轮修复',
         link: '/requirements/FNOS-020-codebuddy-transient-400'
       },
+      {
+        text: 'FNOS-022 CodeBuddy 模型调用被内容审核拦截修复',
+        link: '/requirements/FNOS-022-codebuddy-content-block-fix'
+      },
+      {
+        text: 'FNOS-023 CodeBuddy 受限账号触发自动切换',
+        link: '/requirements/FNOS-023-codebuddy-restricted-account-failover'
+      },
+      {
+        text: 'FNOS-024 CodeBuddy 403 纳入账号切换',
+        link: '/requirements/FNOS-024-codebuddy-403-failover'
+      },
       ]
   }
 ]
@@ -405,6 +418,18 @@ const plansSidebar = [
         text: 'PLAN-FNOS-020 CodeBuddy 瞬时 400 终止整轮修复',
         link: '/plans/PLAN-FNOS-020-codebuddy-transient-400'
       },
+      {
+        text: 'PLAN-FNOS-022 CodeBuddy 模型调用被内容审核拦截修复',
+        link: '/plans/PLAN-FNOS-022-codebuddy-content-block-fix'
+      },
+      {
+        text: 'PLAN-FNOS-023 CodeBuddy 受限账号触发自动切换',
+        link: '/plans/PLAN-FNOS-023-codebuddy-restricted-account-failover'
+      },
+      {
+        text: 'PLAN-FNOS-024 CodeBuddy 403 纳入账号切换',
+        link: '/plans/PLAN-FNOS-024-codebuddy-403-failover'
+      },
     ]
   }
 ]
@@ -462,6 +487,18 @@ const testsSidebar = [
       {
         text: 'FNOS-020 CodeBuddy 瞬时 400 终止整轮修复',
         link: '/tests/FNOS-020-codebuddy-transient-400'
+      },
+      {
+        text: 'FNOS-022 CodeBuddy 模型调用被内容审核拦截修复',
+        link: '/tests/FNOS-022-codebuddy-content-block-fix'
+      },
+      {
+        text: 'FNOS-023 CodeBuddy 受限账号触发自动切换',
+        link: '/tests/FNOS-023-codebuddy-restricted-account-failover'
+      },
+      {
+        text: 'FNOS-024 CodeBuddy 403 纳入账号切换',
+        link: '/tests/FNOS-024-codebuddy-403-failover'
       },
     ]
   }

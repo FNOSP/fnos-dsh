@@ -165,6 +165,10 @@ git push origin v<版本号>
 - 文件名中的版本是否与 Tag 一致。
 - Release 是否包含正确的提交记录。
 
+## 在真实 NAS 上装机验证
+
+Release 附件里的 FPK 拿到后，建议先在真实 fnOS NAS 上装一次再提交上架申请。操作步骤、版本号比较规则与排障见[从电脑上传 FPK 到 NAS 并安装](/guide/nas-fpk-install)。
+
 ## 提交应用上架申请
 
 Release 发布成功并取得 FPK 后，按[应用上架规范](../charter/app-listing-spec.md)准备材料并提交飞牛上架申请。该规范给出表单字段口径、平台与上架类型的取值、官方 7 条自查规则在本项目的落点，以及提交前检查清单。
