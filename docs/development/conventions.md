@@ -35,6 +35,25 @@ const srcPath = (...segments: string[]) => join(here, '..', 'src', ...segments)
 - 描述该规则本身时不可避免要写出被禁形态；判据以真实用户名为准，占位写法（`/Users/<name>/...`）属说明性文本，不算违规。
 - 文档中作为外部示例的绝对路径不受限，但不要使用真实个人主目录。
 
+## 依赖与版本来源
+
+**外部依赖的版本只写在 `pnpm-workspace.yaml` 的 catalog 里**，各 workspace 的 manifest 一律用协议引用，不写字面版本：
+
+| 依赖类型 | 写法 |
+| --- | --- |
+| 默认 catalog 收录的包 | `"catalog:"` |
+| 命名 catalog 收录的包（如 DSH 运行时） | `"catalog:dsh"` |
+| 本仓库内的 workspace 包 | `"workspace:*"` |
+
+四条依赖字段（`dependencies`、`devDependencies`、`peerDependencies`、`optionalDependencies`）**同一规则，没有豁免**。DSH `peerDependencies` 曾经允许写精确字面版本作为「精确兼容契约」的例外，2026-10-22 起取消：`pnpm run version --baseline` 只改 catalog、明确不动插件里的声明，字面量会变成每次基线升级都要手改的第二份版本号。
+
+「发布出去的 peer 仍是精确版本」这条契约由打包链路保证，而不是由源码字面量保证：
+
+- `pnpm pack` / `pnpm publish` 会把 `catalog:` 重写成 catalog 里的真实版本；
+- `pnpm run publish` 侧的 `assertCatalogResolved` 扫描产物，发现残留的 `catalog:` 直接报错——所以必须用 pnpm 打包，不能用 `npm pack`；
+- `tooling/fnos-dsh-cli` 的构建门禁与 `tests/fnos-007-baseline.spec.ts` 会拦住任何写回字面量的 manifest；
+- 本机开发 profile 用 `link:` 装仓库插件，profile 侧需要具体版本时**物化自己的副本**（`package.json` 归一化、其余条目软链回源码），不得写穿软链改到仓库 manifest。
+
 ## 类型定义策略
 
 类型依赖采用 pnpm catalog 统一版本（`pnpm-workspace.yaml` 的 `catalog`），不在每个 workspace 随意锁定版本。
