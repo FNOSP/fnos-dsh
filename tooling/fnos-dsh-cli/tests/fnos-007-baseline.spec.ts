@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
  */
 async function runtimeBaseline(): Promise<string> {
   const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
-  const match = workspace.match(/'@deepseek-ai\/dsh':\s*([0-9][0-9A-Za-z.+-]*)/u)
+  const match = workspace.match(/'@deepseek-ai\/dsh':\s*(\d[0-9A-Za-z.+-]*)/u)
   if (match?.[1] === undefined) throw new Error('pnpm-workspace.yaml must declare @deepseek-ai/dsh in the catalog')
   return match[1]
 }
@@ -143,7 +143,7 @@ describe('FNOS-007 DSH baseline', () => {
     // Third-party dshmarket has no local source, so its exact pin stays a
     // literal: the registry version is the contract, not a copy. 每次更新 DSH
     // 基线都要同步升级它，否则其 peer 范围可能不覆盖新基线而被兼容门禁拒绝。
-    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.66.37', source: 'thirdparty' })
+    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.66.47', source: 'thirdparty' })
     expect(published.registry).toBeUndefined()
     expect(published.bundled ?? []).toEqual([])
 
