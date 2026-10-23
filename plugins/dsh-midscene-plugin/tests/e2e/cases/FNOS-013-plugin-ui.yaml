@@ -10,9 +10,9 @@
 # ## 断言契约（取自组件源码，不靠猜）
 #
 # - 设置区块根类名：`.dsh-midscene-settings`（`src/client/settings-section.tsx`）
-# - 字段文案（`src/client/locales.ts`）：「接入密钥」「指定测试模型」「Midscene .env」
+# - 字段文案（`src/client/locales.ts`）：「接入密钥」「各职责使用的模型」「接入配置」
 #   - `apiKeyHint`：桥接服务的接入密钥，不是模型密钥。
-#   - `modelsHint`：只列出具备识图能力的模型…
+#   - `modelsHint`：只列出具备识图能力的模型…（FNOS-021 起该字段是**四个职责 Tab**）
 #
 # ## 断言方式
 #
@@ -56,7 +56,19 @@ cases:
                 return { pass: false, detail: '未找到 .dsh-midscene-settings（设置区块未挂载）' };
               }
               const text = root.textContent || '';
-              const want = ['接入密钥', '指定测试模型', '接入配置'];
+              // FNOS-021-02：模型选择必须是四个职责 Tab，不再是单个下拉。
+              const tabs = Array.from(root.querySelectorAll('[role="tab"], .semi-tabs-tab'))
+                .map(t => (t.textContent || '').trim());
+              const wantTabs = ['默认', '定位', '规划', '页面理解'];
+              const missingTabs = wantTabs.filter(n => !tabs.includes(n));
+              if (missingTabs.length > 0) {
+                return { pass: false, detail: '缺少职责 Tab：' + missingTabs.join('、') + '；实际：' + tabs.join('/') };
+              }
+              // 每个职责一个下拉（四个 Tab 各一个）。
+              if (root.querySelectorAll('.semi-select').length < 4) {
+                return { pass: false, detail: '下拉数量不足 4 个：' + root.querySelectorAll('.semi-select').length };
+              }
+              const want = ['接入密钥', '各职责使用的模型', '接入配置'];
               const missing = want.filter(n => !text.includes(n));
               if (missing.length > 0) {
                 return { pass: false, detail: '缺少字段文案：' + missing.join('、') };
@@ -82,7 +94,7 @@ cases:
                 detail: '三个字段齐备；接入配置同时覆盖 .env 与浏览器扩展，并声明不需要第三方密钥',
               };
             })()
-      - aiAssert: 插件详情页里可以看到 Midscene 的设置区，包含接入密钥、指定测试模型与接入配置预览
+      - aiAssert: 插件详情页里可以看到 Midscene 的设置区，包含接入密钥、四个职责的模型选择与接入配置预览
 
   # ── 接入密钥可显示与重新生成 ──────────────────────────────────────
   - name: TC-034b 接入密钥可显示且重新生成后变化
@@ -107,11 +119,11 @@ cases:
               return { pass: true, detail: '密钥可见（' + hex[0].slice(0, 8) + '…，长度 32）' };
             })()
 
-  # ── 指定测试模型：列出且可清空 ────────────────────────────────────
-  - name: TC-034c 指定测试模型可下拉选择且可清空
+  # ── 各职责模型：四个 Tab、下拉且可清空 ────────────────────────────
+  - name: TC-034c 各职责模型以四个 Tab 呈现、可下拉选择且可清空
     tags: [FNOS-013, ui, settings]
     steps:
-      - aiAct: 在 Midscene 插件的设置区里，点击「指定测试模型」的下拉选择框，展开选项列表
+      - aiAct: 在 Midscene 插件的设置区里，点击「各职责使用的模型」下面「默认」Tab 的下拉选择框，展开选项列表
       - dsh.assertInPage:
           label: 下拉展开后有可选项，且存在清空入口
           script: |
