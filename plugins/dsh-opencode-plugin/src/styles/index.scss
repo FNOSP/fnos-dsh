@@ -1,0 +1,568 @@
+/**
+ * OpenCode 插件详情页区块与输入区用量胶囊的样式。
+ *
+ * 只使用 DSH 语义变量（`--dsw-*`），不硬编码颜色，亮色与暗色主题自动切换。
+ * 卡片表面沿用官方设置卡片的 `settings-card-fill/stroke` 与 `--dsw-radius-*`；
+ * 不使用 `.semi-*` 选择器覆盖 Semi 的主题，组件外观统一由共享包主题维护。
+ *
+ * 浮层背景与毛玻璃由共享包主题统一作用于 `.semi-popover-wrapper` 父容器：
+ * `background: var(--dsw-specific-menu)` 与
+ * `backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%))`。
+ * 这里的内容层只负责版式并保持透明，避免子元素重复叠加模糊。
+ */
+
+.dsh-opencode-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.dsh-opencode-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dsh-opencode-section-title {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+.dsh-opencode-section-desc {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dsh-opencode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 0.5px solid var(--dsw-alias-settings-card-stroke);
+  border-radius: var(--dsw-radius-xl);
+  background: var(--dsw-alias-settings-card-fill);
+}
+
+.dsh-opencode-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dsh-opencode-card-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dsh-opencode-card-title {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.dsh-opencode-card-desc {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-card-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dsh-opencode-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dsh-opencode-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+
+  &--signed-in { background: var(--dsw-alias-state-success-primary); }
+  &--signing-in,
+  &--loading { background: var(--dsw-alias-brand-primary); }
+  &--error { background: var(--dsw-alias-state-error-primary); }
+  &--signed-out { background: var(--dsw-alias-label-dimmed); }
+}
+
+.dsh-opencode-body {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dsh-opencode-muted {
+  margin: 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-error {
+  margin: 0;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-error-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dsh-opencode-success {
+  color: var(--dsw-alias-state-success-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-link {
+  color: var(--dsw-alias-link);
+  font-size: 13px;
+  line-height: 20px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+
+  &:hover { text-decoration: underline; }
+}
+
+.dsh-opencode-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* 账号信息：标签在上、值在下，窄屏自动换列。 */
+.dsh-opencode-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.dsh-opencode-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dsh-opencode-fact-label {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-fact-value {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.dsh-opencode-signin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dsh-opencode-signin-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dsh-opencode-code {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.dsh-opencode-key {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+.dsh-opencode-key-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* 三个额度窗口。 */
+.dsh-opencode-usage-windows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dsh-opencode-usage-window {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dsh-opencode-usage-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dsh-opencode-usage-value {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-usage-progress {
+  height: 8px;
+}
+
+.dsh-opencode-usage-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dsh-opencode-usage-reset {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* 目录提示条。 */
+.dsh-opencode-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-notice--warning {
+  border-color: var(--dsw-alias-state-warn-primary);
+}
+
+.dsh-opencode-notice-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.dsh-opencode-notice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dsh-opencode-notice-title {
+  color: var(--dsw-alias-label-primary);
+  font-weight: 500;
+}
+
+.dsh-opencode-notice-list {
+  margin: 0;
+  padding-left: 16px;
+  overflow-wrap: anywhere;
+}
+
+/* 目录工具行与模型列表。 */
+.dsh-opencode-catalog-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.dsh-opencode-search {
+  flex: 1 1 220px;
+  min-width: 160px;
+}
+
+.dsh-opencode-models {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+.dsh-opencode-model {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+
+  &.is-disabled { opacity: 0.55; }
+
+  &.is-hidden .dsh-opencode-model-main { opacity: 0.6; }
+}
+
+.dsh-opencode-model-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dsh-opencode-model-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dsh-opencode-model-name {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.dsh-opencode-model-id {
+  color: var(--dsw-alias-label-tertiary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  overflow-wrap: anywhere;
+}
+
+.dsh-opencode-model-desc {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.dsh-opencode-model-facts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 2px;
+}
+
+.dsh-opencode-model-fact {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-model-toggle {
+  flex: 0 0 auto;
+  padding-top: 2px;
+}
+
+/* 设置行。 */
+.dsh-opencode-setting {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.dsh-opencode-setting-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  flex: 1 1 auto;
+}
+
+.dsh-opencode-setting-label {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dsh-opencode-setting-hint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-setting-select {
+  width: 140px;
+}
+
+.dsh-opencode-setting-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsh-opencode-setting-number {
+  width: 96px;
+}
+
+.dsh-opencode-setting-unit {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ---------------------------- 输入区用量胶囊 ---------------------------- */
+
+.dsh-opencode-usage-progress {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dsh-opencode-usage-progress-track {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+}
+
+.dsh-opencode-usage-popover-trigger {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 50%;
+  outline: none;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--dsw-alias-brand-primary);
+  }
+}
+
+/* 内容层保持透明：背景与毛玻璃来自共享主题的 .semi-popover-wrapper。 */
+.dsh-opencode-usage-popover {
+  box-sizing: border-box;
+  min-width: 264px;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--dsw-radius-xl);
+  background: transparent;
+  box-shadow: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.dsh-opencode-usage-popover-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dsh-opencode-usage-popover-empty {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-usage-popover-plan {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-usage-popover-window {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dsh-opencode-usage-popover-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-opencode-usage-popover-progress {
+  height: 8px;
+}
+
+.dsh-opencode-usage-popover-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dsh-opencode-usage-popover-reset {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.dsh-opencode-usage-popover-actions {
+  display: flex;
+  justify-content: flex-end;
+}

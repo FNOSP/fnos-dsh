@@ -118,6 +118,7 @@ const pluginItems = [
   { text: '插件总览', link: '/plugins/' },
   { text: 'dsh-fnos', link: '/plugins/dsh-fnos' },
   { text: 'dsh-codex-auth', link: '/plugins/dsh-codex-auth' },
+  { text: 'dsh-opencode', link: '/plugins/dsh-opencode' },
   { text: 'dsh-failover-search', link: '/plugins/dsh-failover-search' },
   { text: 'dsh-midscene', link: '/plugins/dsh-midscene' },
   { text: 'DSH 0.2.1 新增能力支持结论', link: '/plugins/dsh-021-capabilities' },
@@ -337,6 +338,10 @@ const requirementsSidebar = [
         text: 'FNOS-025 CodeBuddy 插件下架',
         link: '/requirements/FNOS-025-codebuddy-plugin-delisting'
       },
+      {
+        text: 'FNOS-026 OpenCode Go 模型接入与套餐用量',
+        link: '/requirements/FNOS-026-dsh-opencode-plugin'
+      },
       ]
   }
 ]
@@ -446,6 +451,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-025 CodeBuddy 插件下架',
         link: '/plans/PLAN-FNOS-025-codebuddy-plugin-delisting'
       },
+      {
+        text: 'PLAN-FNOS-026 OpenCode Go 模型接入与套餐用量',
+        link: '/plans/PLAN-FNOS-026-dsh-opencode-plugin'
+      },
     ]
   }
 ]
@@ -523,6 +532,10 @@ const testsSidebar = [
       {
         text: 'FNOS-025 CodeBuddy 插件下架',
         link: '/tests/FNOS-025-codebuddy-plugin-delisting'
+      },
+      {
+        text: 'FNOS-026 OpenCode Go 模型接入与套餐用量',
+        link: '/tests/FNOS-026-dsh-opencode-plugin'
       },
     ]
   }
