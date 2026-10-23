@@ -138,6 +138,16 @@ verifiedAt: 2026-09-30
   - **插件页显示「不兼容 / 异常」时先查 profile 装配，不要判定插件缺陷**：Desktop 的 profile 若把仓库插件以 `link:` 指向源码目录，源码 `peerDependencies` 里是 pnpm 工作区协议（`catalog:dsh` / `catalog:`），独立 profile 解析不出语义化版本，于是整包被判「与当前 DSH 不兼容」。处置：换成**实体副本**并把 `catalog:dsh` 规范化为运行时基线版本、`catalog:` 换成该依赖的具体范围（与 `pnpm-workspace.yaml` 的 catalog 保持一致）；不要为了让检查通过去改源码的 peer 声明。该改动属本地 profile 状态，须按[测试数据清理](#测试数据清理)登记。
   - **结束进程只能按检出路径精确匹配（强制）**：清理 Desktop 进程必须用检出路径，例如 `pkill -f "fork-pj/deepseek-harness"`。**禁止**使用 `dsh-desktop`、`Electron`、`DeepSeek Harness` 这类宽模式——用户日常运行的 `/Applications/DeepSeek Harness.app` 子进程命令行里带 `--user-data-dir=…/@deepseek-ai/dsh-desktop`，会被同一模式命中而被误杀（实测发生过，用户日常环境被打断）。被误杀后**无法由 agent 恢复**：从沙箱内启动会以 `task_name_for_pid: (os/kern) failure (5)`（codesign/task-for-pid 权限失败）退出，`open -a` 也绕不过；正确做法是清掉 `~/Library/Application Support/@deepseek-ai/dsh-desktop/Singleton*` 残留锁（若存在）后，**请用户自己启动**该应用，并在结论中如实登记这次误操作。
 
+- **同一个 profile 路径上只能跑一个 DSH 实例（强制）**：开发态 Desktop 与 `dsh web` 若共用一个 `DSH_HOME`（本项目固定为 `<repo>/.dsh`），两者会争抢同一个 profile 里的会话——后发起的那个客户端发送时会被拒：
+  ```
+  当前会话已被占用，可能是其他正在运行的 DSH 导致的（如其他 dsh web、桌面端），
+  请退出其他正在运行的 DSH 后重试。
+  ```
+  处置：**先在另一侧释放**（退出 `dsh web`，或退出开发态 Desktop），确认只有一个实例后再发送；不要两头同时发。
+  - 判据是"同一会话不能两端同时持有"，**不是**端口冲突——两个实例可以各自正常启动、界面也都能打开，只是发送被拒，很容易误判成插件故障。
+  - 顺序上建议：Desktop 测试期间不启动 `dsh web`；确需对照时，先退出 Desktop 再起 `dsh web`。
+  - 收尾时用端口反查进程确认已释放：`lsof -nP -iTCP:<CDP 或宿主端口> -sTCP:LISTEN`，再按 PID 精确关闭。
+
 - **收尾只处理开发态实例，不触碰发行版（强制）**：开发态 Desktop 与系统安装的发行版是**相互独立**的进程，前者用自己的 `DSH_HOME`（缺省落在该检出的构建目录）。测试结束后**退出开发态实例即可**——不要为了「把 Desktop 交还全局 profile」去启动或重启 `/Applications/DeepSeek Harness.app`：那是使用者自己的环境，与测试无关，启动它只会造成干扰（实测曾在清理开发态进程时误杀过它）。「交还全局 profile」只在测试者**本人**另外启动过发行版做对照时才适用，动作是：退出该实例 → 不带 `DSH_HOME` 重新启动 → 确认 profile 已回落。
   - 开发态 Desktop 与本地 Web 测试共用 `<repo>/.dsh`；收尾时**只处理开发态实例**，不影响正在运行的 `pnpm run start -- --web`。
   - 恢复动作与「测试数据清理」（见[测试数据清理](#测试数据清理)）一并在测试执行结果的备注列登记；未登记的视为测试未收尾。
@@ -864,6 +874,7 @@ Codex Auth 插件的**已登录账号配置文件可直接用作测试账号**�
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-10-23 | 补「同一 profile 同时只能一个实例」强制条款 | 开发态 Desktop 与 `dsh web` 共用 `<repo>/.dsh` 时会争抢同一会话，后发起的客户端发送被拒并提示「当前会话已被占用」。该现象是会话占用而非端口冲突——两实例都能正常启动、界面都能打开，只有发送失败，容易被误判成插件缺陷（实测踩到，白查了一轮）。规范写明先释放另一侧、Desktop 测试期间不起 `dsh web`，并给出用 `lsof` 按端口反查 PID 的收尾方式。 |
 | 2026-10-23 | 纠正 Desktop 口径：只用开发态，不涉及发行版 | 两处会误导的表述已改正：① 「测试环境执行方式」表格里的 Desktop 一栏原写「在安装的 DSH Desktop 客户端中加载待测插件版本」，与后文「不使用系统安装的发行版」自相矛盾，改为「在上游检出的开发态 Desktop 里加载」；② 「测试完成后必须把 Desktop 改回全局 profile」把开发态实例与使用者的发行版混为一谈，改为「收尾只退出开发态实例，不启动/重启发行版」，仅当测试者本人另外启动过发行版做对照时才适用交还动作。启动命令、`ELECTRON_RUN_AS_NODE` 与 profile 装配三件事另在[开发环境](../development/environment)新增「DSH Desktop 联调」小节陈述。 |
 | 2026-10-23 | 补 DSH Web 取 token URL、Desktop 启动环境与进程清理三类实测教训 | ① Web：裸访问 8070 返回 401，取证须用启动日志里带 `?token=` 的地址，且不要把启动输出接进管道（会缓冲到进程结束、吞掉那一行）；② Desktop：宿主注入的 `ELECTRON_RUN_AS_NODE=1` 会让 Electron 以 Node 模式启动并报 `bad option: --remote-debugging-port=…`，启动前须 unset；③ Desktop 插件页显示「不兼容/异常」多半是 profile 把插件以 `link:` 指向源码、peer 里是 `catalog:dsh` 解析不出语义化版本，处置是实体副本 + 规范化 peer，而非改源码；④ 结束 Desktop 进程只能按检出路径精确匹配，禁止用 `dsh-desktop` 等宽模式——会误杀用户日常发行版（其子进程命令行含 `@deepseek-ai/dsh-desktop`），且被误杀后 agent 无法恢复（沙箱内报 `task_name_for_pid` failure 5），只能请用户手动启动。 |
 | 2026-10-20 | 新增「禁止 SSH 改动测试设备」强制条款 | 明确禁止通过 SSH 直接改测试机器上已安装应用的文件/配置/插件/凭据，也不许用临时改设备文件的方式验证猜想；SSH 只用于只读取证。正确路径是「改项目代码 → 构建 FPK → 走应用中心正常安装 → 观察验证」，理由是不绕过安装流程、结论可复现、不给设备留隐性状态。 |
