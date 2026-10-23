@@ -104,6 +104,7 @@ verifiedAt: 2026-09-30
 - **启动命令**：`pnpm run start -- --web`（需要同时 watch 插件时加 `--plugin`，详见[本地 DSH Web](../development/local-dsh-web.md)）；不要手工另起 DSH 进程。
 - **`DSH_HOME` 必须指向项目的 `.dsh` 目录**：CLI 的 `start --web` 已自动注入（`<repo>/.dsh`），手工执行 `dsh` 命令核对配置时同样必须带 `DSH_HOME="$PWD/.dsh"`；禁止把本地测试指向 `$HOME/.dsh` 或其他检出目录。
 - 本地端口固定 `8070`，与 FPK 网关的 `127.0.0.1:3080` 互不冲突，可同时运行。
+- **必须用启动日志里打印的带 token 地址访问**：直接访问 `http://127.0.0.1:8070/` 会得到 `dsh web authentication required`（HTTP 401）。启动日志里有一行 `dsh web: http://127.0.0.1:8070/?token=…`，取证走这一条。启动时**不要**把输出接进 `tail` / `head` 之类的管道——管道会让日志缓冲到进程结束才可见，开头那行 token URL 因此被吞掉（实测踩到）。
 
 ### DSH Desktop 测试
 
@@ -133,6 +134,9 @@ verifiedAt: 2026-09-30
   - **输入富文本编辑器要用 `Input.insertText`**：`document.execCommand('insertText')` 对 DSH 输入框无效——实测写入后 `textContent` 仍为空，于是「发送了一条空消息」会被误读成产品缺陷。正确做法是先 `focus()` 再走 CDP 的 `Input.insertText`（浏览器层合成真实输入事件，编辑器会更新自身状态），发送用 `Input.dispatchKeyEvent` 合成 Enter。
   - **macOS 上全选是 Cmd+A**：CDP 的 `modifiers` 位掩码为 Alt=1 / Ctrl=2 / Meta=4 / Shift=8，macOS 用 **4**。用 Ctrl（2）时不会选中，随后的退格只删掉一个字符——清空输入框更稳的做法是 `commands: ['selectAll']` 加 `commands: ['deleteBackward']`，不依赖平台快捷键映射。
   - **启动前先确认产物**：`dev:desktop` 会自行构建，构建过程要重建 `.desktop-build` 临时工程；若该检出不在当前工作区内，沙箱可能以 `EPERM` 拒绝删除，表现为启动即失败——这是环境限制而非应用缺陷，需在放行后重试。确认产物已是最新时可用 `--skip-build` 省去该步。
+  - **启动前必须 `unset ELECTRON_RUN_AS_NODE`**：宿主/父进程若注入该变量，Electron 会以 Node 模式启动，并把 `--remote-debugging-port=…`、`--user-data-dir=…` 一并当作非法开关拒绝，表现为 `Electron: bad option: --remote-debugging-port=9333` 后立即退出（实测踩到）。看到 `bad option:` 应先查这个变量，而不是怀疑构建或插件。
+  - **插件页显示「不兼容 / 异常」时先查 profile 装配，不要判定插件缺陷**：Desktop 的 profile 若把仓库插件以 `link:` 指向源码目录，源码 `peerDependencies` 里是 pnpm 工作区协议（`catalog:dsh` / `catalog:`），独立 profile 解析不出语义化版本，于是整包被判「与当前 DSH 不兼容」。处置：换成**实体副本**并把 `catalog:dsh` 规范化为运行时基线版本、`catalog:` 换成该依赖的具体范围（与 `pnpm-workspace.yaml` 的 catalog 保持一致）；不要为了让检查通过去改源码的 peer 声明。该改动属本地 profile 状态，须按[测试数据清理](#测试数据清理)登记。
+  - **结束进程只能按检出路径精确匹配（强制）**：清理 Desktop 进程必须用检出路径，例如 `pkill -f "fork-pj/deepseek-harness"`。**禁止**使用 `dsh-desktop`、`Electron`、`DeepSeek Harness` 这类宽模式——用户日常运行的 `/Applications/DeepSeek Harness.app` 子进程命令行里带 `--user-data-dir=…/@deepseek-ai/dsh-desktop`，会被同一模式命中而被误杀（实测发生过，用户日常环境被打断）。被误杀后**无法由 agent 恢复**：从沙箱内启动会以 `task_name_for_pid: (os/kern) failure (5)`（codesign/task-for-pid 权限失败）退出，`open -a` 也绕不过；正确做法是清掉 `~/Library/Application Support/@deepseek-ai/dsh-desktop/Singleton*` 残留锁（若存在）后，**请用户自己启动**该应用，并在结论中如实登记这次误操作。
 
 - **测试完成后必须把 Desktop 改回全局 profile（强制）**：用项目 `DSH_HOME` 启动的 Desktop 会以项目 profile 作为日常环境，测试结束后把应用交还给用户个人的全局 profile。若测试期间**同时**启动过系统安装的 Desktop（缺省 `DSH_HOME` 即 `~/.dsh`），收尾动作固定为：退出该实例 → 不带 `DSH_HOME` 重新启动 → 确认 profile 已回落。
   - 开发态 Desktop 与本地 Web 测试共用 `<repo>/.dsh`；收尾时**只处理 Desktop 实例**，不影响正在运行的 `pnpm run start -- --web`。
@@ -860,6 +864,7 @@ Codex Auth 插件的**已登录账号配置文件可直接用作测试账号**�
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-10-23 | 补 DSH Web 取 token URL、Desktop 启动环境与进程清理三类实测教训 | ① Web：裸访问 8070 返回 401，取证须用启动日志里带 `?token=` 的地址，且不要把启动输出接进管道（会缓冲到进程结束、吞掉那一行）；② Desktop：宿主注入的 `ELECTRON_RUN_AS_NODE=1` 会让 Electron 以 Node 模式启动并报 `bad option: --remote-debugging-port=…`，启动前须 unset；③ Desktop 插件页显示「不兼容/异常」多半是 profile 把插件以 `link:` 指向源码、peer 里是 `catalog:dsh` 解析不出语义化版本，处置是实体副本 + 规范化 peer，而非改源码；④ 结束 Desktop 进程只能按检出路径精确匹配，禁止用 `dsh-desktop` 等宽模式——会误杀用户日常发行版（其子进程命令行含 `@deepseek-ai/dsh-desktop`），且被误杀后 agent 无法恢复（沙箱内报 `task_name_for_pid` failure 5），只能请用户手动启动。 |
 | 2026-10-20 | 新增「禁止 SSH 改动测试设备」强制条款 | 明确禁止通过 SSH 直接改测试机器上已安装应用的文件/配置/插件/凭据，也不许用临时改设备文件的方式验证猜想；SSH 只用于只读取证。正确路径是「改项目代码 → 构建 FPK → 走应用中心正常安装 → 观察验证」，理由是不绕过安装流程、结论可复现、不给设备留隐性状态。 |
 | 2026-10-20 | Desktop CDP 补三条操作要点 | 在 FNOS-020 的 Desktop 用例执行中踩到并登记：① `document.execCommand('insertText')` 对 DSH 输入框无效，须用 CDP `Input.insertText`，否则会误判成「发不出消息」；② macOS 上全选是 Cmd+A（`modifiers: 4`）而非 Ctrl+A，用错时退格只删一个字符，清空建议用 `commands: ['selectAll']` + `['deleteBackward']`；③ `dev:desktop` 会重建 `.desktop-build`，检出在工作区外时沙箱可能以 `EPERM` 拒绝，属环境限制，产物最新时可用 `--skip-build`。 |
 | 2026-10-19 | theme 用例补两侧入口与 AC-03 判据 | 分清两个主题入口：fnOS 的「我的账号 → 主题壁纸」决定宿主主题并经 SDK 形成 `dsh-fnos.systemTheme` 缓存；DSH 的「设置 → 通用设置 → 外观」是应用自身偏好，切显式 light/dark 时清除缓存。补「显式偏好不使用旧缓存」的判据：切显式时应看到 `ui-theme.preference` 写入 + `systemTheme: unset`，切回「跟随系统」变 `set`；首屏注入值与 `data-ds-theme-source` 随之切换。 |
