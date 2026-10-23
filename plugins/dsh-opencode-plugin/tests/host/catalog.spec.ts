@@ -95,6 +95,16 @@ describe('OpenCode 模型目录归一化', () => {
     expect(byId.get('gemini-4-argon')?.baseURL).toBe('https://opencode.ai/inference/google/v1beta')
   })
 
+  it('Go roster 独有模型从 Zen 目录段继承逐模型协议（不退回 provider 缺省）', async () => {
+    const catalog = await publicCatalog()
+    const byId = new Map(catalog.models.filter(model => model.plan === 'go').map(model => [model.id, model]))
+    expect(byId.get('grok-4.6')?.api).toBe('openai-responses')
+    expect(byId.get('grok-4.6')?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
+    expect(byId.get('qwen3.6-plus')?.api).toBe('anthropic-messages')
+    expect(byId.get('qwen3.6-plus')?.baseURL).toBe('https://opencode.ai/inference/go/anthropic')
+    expect(byId.get('glm-5.1')?.api).toBe('openai-completions')
+  })
+
   it('免费模型被标记（价格全为 0）', async () => {
     const catalog = await publicCatalog()
     expect(catalog.models.find(model => model.id === 'big-pickle' && model.plan === 'zen')?.free).toBe(true)

@@ -25,6 +25,8 @@ dsh plugin --profile web add @tnnevol/dsh-opencode@0.2.1-rc.2.22
 - Zen 按量模型需要 Console 余额；免费模型上游只允许在 OpenCode 客户端内使用，在 DSH 中调用会返回 403。
 - Go 套餐额度只对 OpenCode Go 组的模型有意义，按量模型不显示套餐额度。
 - 路由 id 为 `dsh-opencode` / `dsh-opencode-go`，不会覆盖你手工配置的 `opencode` / `opencode-go` 路由。
+- 部分模型受地区限制（如 `gpt-6-luna`、`muse-spark-*`、`beam-free`），上游返回 403；Gemini 模型需要工作空间在 Console Privacy 设置中允许「会用于训练的付费端点」。
+
 
 ## 图标
 

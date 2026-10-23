@@ -116,6 +116,8 @@ flowchart TD
 - **OpenCode Go 套餐按模型月度上限计算额度**：额度由 OpenCode 按套餐与模型的月度上限计算，插件只做展示，不参与计费或换算金额；OAuth 与 Console 服务账号 API Key 均可调用 Go 模型。
 - **路由使用 `dsh-` 前缀**：插件注册 `dsh-opencode` 与 `dsh-opencode-go`，与手工配置的 `opencode` / `opencode-go` 并存；不要为同一用途再手工创建 `dsh-` 同名路由。
 - **图片生成、视频生成模型不参与对话**：它们与 DSH 对话所需的文本输入协议不同，不在本插件范围内。
+- **部分模型受地区限制**：`gpt-6-luna`、`muse-spark-*`、`beam-free` 等模型在部分国家/地区返回 403（`unsupported_country_region_territory` / `RegionError`）；目录仍会展示，调用失败时按上游错误提示，插件不提供绕过方式。
+- **Google Generative AI 需要工作空间隐私设置**：Gemini 模型要求 Console 工作空间允许「会用于训练的付费端点」，否则上游返回 400；这是工作空间级设置，插件无法代为开启。
 
 ## 常见问题
 

@@ -216,6 +216,23 @@ verifiedAt: 2026-10-23
 | Zen 免费模型 | 返回 403 `FreeTierError`（仅允许在 OpenCode 客户端使用；属上游限制，见「已知限制」） |
 | 版本记录 | DSH 运行时 `0.2.1-rc.2`、插件 `0.2.1-rc.2.21`；DSH Desktop 版本待执行 Desktop 用例时补充 |
 
+### 协议可用性与真实会话测试（2026-10-23，DSH Web 会话级）
+
+在 DSH Web（插件 `0.2.1-rc.2.22` 构建 + 协议继承修复）用同一真实账号、同一会话逐个切换模型，提示词为「只回复 ok，不要调用任何工具」，每个模型 1 轮 1 步。目的是验证四种协议在 DSH 中端到端可用，并尽量选择最便宜（优先免费）的模型：
+
+| 协议 | 模型（OpenCode Go） | 价格（输入/输出，USD/1M） | 结果 | 说明 |
+| --- | --- | --- | --- | --- |
+| OpenAI Chat Completions | MiMo-V2.6-Flash | 0.14 / 0.28 | 通过：回复 `ok`，4 秒，19.4K tok | 免费 `beam-free` 在当前地区返回 403 `RegionError`，改用最便宜可用模型 |
+| OpenAI Responses | Grok 4.6 | 2.00 / 6.00 | 通过：回复 `ok`，5 秒，19.1K tok | `gpt-6-luna`、`muse-spark-1.3-contributor` 均因地区限制 403；Grok 为当前地区最便宜可用 Responses 模型 |
+| Anthropic Messages | Claude Haiku 5.5 | 0.10 / 0.50 | 通过：回复 `ok`，2 秒，29.1K tok | 本轮最便宜的可用模型 |
+| Google Generative AI | Gemini 4 Argon Contributor | 4.00 / 20.00 | 阻塞：上游 400（工作空间隐私设置未允许「会用于训练的付费端点」） | 请求已到达上游，路径与鉴权正确；需在 Console Privacy 设置中允许后才能使用 |
+
+本轮同时发现并修复一个协议继承缺陷：Go roster 独有模型若只在 Zen 目录段有元数据（`grok-4.6` 为 Responses、`qwen3.6-plus` 为 Anthropic），此前会被 Go 的 provider 级 `@ai-sdk/openai-compatible` 覆盖，导致 DSH 返回 `ModelProtocolUnsupported`。修复后逐模型声明优先于 provider 缺省，两个模型已复测（Grok 4.6 会话级通过、Qwen3.6 Plus 端点级通过）。
+
+费用：以上 3 次会话级调用合计约 67.6K 输入 token（含系统提示），按各自价格估算 **< 0.05 USD**；未测试高价位模型。
+
+说明：这些是会话级联调证据，不改变上方用例的「未执行」状态；DSH Desktop 与设备码授权流程仍待完整验收。
+
 **未执行说明**：TC-042 至 TC-047 为本轮新增用例，均未执行；TC-044 有接口级修复证据，但完整回归仍需在预置手工 `opencode-go` 配置的环境中按步骤执行并覆盖 DSH Desktop。版本三元组中的 Desktop 一栏在正式执行时补充。
 
 | 用例ID | 功能点 | 执行环境 | 结果 | 执行日期 | 备注 |
@@ -296,5 +313,6 @@ verifiedAt: 2026-10-23
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-23 | 改为双供应商与模型列表 UI 改版用例，并回填路由修复证据 | 用例改为 `OpenCode`（Zen 按量）与 `OpenCode Go`（套餐）双供应商口径：更新 TC-001、TC-005、TC-007、TC-009 至 TC-017、TC-018 至 TC-021、TC-022 至 TC-027、TC-031 至 TC-037、TC-039；新增 TC-042（已登录隐藏 API Key 入口）、TC-043（分组筛选与 plan 标签）、TC-044（`opencode-go` 路由冲突回归）、TC-045（能力图标与气泡）、TC-046（固定高度与内部滚动）、TC-047（无 Go 订阅）。补充「已知限制（上游）」登记 Zen 402/403；在执行结果新增双供应商与路由修复复测，记录根因 `DUPLICATE_ADAPTER`、`dsh-` 前缀修复、OAuth 调用 Go 模型 200、Zen 402/403；新增 BUG-01（已修复）。用例总数 41 → 47，状态改为执行中。 |
+| 2026-10-23 | 回填协议可用性与真实会话测试 | 在 DSH Web 同一会话逐个切换模型，验证 Chat Completions（MiMo-V2.6-Flash）、Responses（Grok 4.6）、Anthropic Messages（Claude Haiku 5.5）端到端通过；Google Generative AI 因工作空间隐私设置阻塞；记录免费/低价模型选择、费用估算与协议继承缺陷修复。 |
 | 2026-10-23 | 按真实账号联调结果更正目录口径与补充证据 | 更正 TC-009（目录以公开清单为全集、账号配置只叠加覆盖，`models` 为空不代表没有模型）与 TC-010（账号配置不可读时仍服务公开目录并说明来源），补充一条风险点；在「测试执行结果」新增 2026-10-23 本地 DSH Web 联调记录（插件加载、API Key 登录、额度、36 个目录模型、四种协议端点直连探测与 `x-opencode-session` 要求），并标注未执行单模型对话用例。 |
 | 2026-10-23 | 建立 FNOS-026 测试用例文档 | 按九个功能分节登记 41 条用例，覆盖正向、逆向、边界、权限与数据一致性五类；执行结果全部为「未执行」，Bug 与结论待回填。登记四条遗留风险（含同名路由冲突）与一条待确认项。 |

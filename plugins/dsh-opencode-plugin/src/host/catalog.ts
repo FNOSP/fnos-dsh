@@ -432,16 +432,20 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
   const consoleReasoning = consoleCaps !== undefined && 'reasoning' in consoleCaps
     ? consoleCaps.reasoning
     : undefined
+  // 协议解析顺序：逐模型声明优先于 provider 级缺省。Go roster 里有些模型只在
+  // Zen 目录段有元数据（例如 grok-4.6 是 Responses、qwen3.6-plus 是 Anthropic），
+  // 若先取 Go 的 provider 级 `@ai-sdk/openai-compatible` 会把它们错误地投影成
+  // Chat Completions，上游返回 `ModelProtocolUnsupported`。
   const declaredNpm = nonEmptyString(consoleEntry?.package)
     ?? nonEmptyString(record(catalogEntry?.provider)?.npm)
+    ?? nonEmptyString(record(fallbackCatalogEntry?.provider)?.npm)
     ?? nonEmptyString(entry.providerNpm)
     ?? nonEmptyString(entry.consoleProviderNpm)
-    ?? nonEmptyString(record(fallbackCatalogEntry?.provider)?.npm)
   let api: OpenCodeApiKind | undefined = apiFromPackage(consoleEntry?.package)
     ?? apiFromPackage(record(catalogEntry?.provider)?.npm)
+    ?? apiFromPackage(record(fallbackCatalogEntry?.provider)?.npm)
     ?? apiFromPackage(entry.providerNpm)
     ?? apiFromPackage(entry.consoleProviderNpm)
-    ?? apiFromPackage(record(fallbackCatalogEntry?.provider)?.npm)
     ?? apiFromPackage(record(builtin?.compat)?.package)
     ?? builtinApiKind(builtin)
     ?? builtinApiKind(fallbackBuiltin)
