@@ -1,30 +1,35 @@
 /**
- * OpenCode 模型目录归一化。
+ * OpenCode 模型目录归一化（Zen 按量与 Go 套餐两组）。
  *
  * 输入有三个来源，优先级从高到低：
  *
  * 1. **Console 工作空间配置**（`GET /console/api/v2/config`）：登录账号后
- *    才能读到，是「用户空间里启用了哪些模型」的唯一权威来源，并且带逐模型的
- *    能力（思考 effort/toggle、输入模态、容量、禁用标记）。
- * 2. **公开模型目录**（`models.opencode.ai/api.json` 的 `opencode-go` 段）：
- *    models.dev 形态的完整能力元数据，未登录也可读。
- * 3. **pi-ai 内置目录**（`opencodeGoProvider()`）：提供经过上游验证的
- *    wire 兼容开关（`thinkingFormat`、`maxTokensField`、会话亲和等）与
- *    兜底的思考等级映射。
+ *    才能读到，按 provider 给出工作空间级覆盖（停用标记、能力/容量覆盖、
+ *    自定义条目）以及推理请求要带的路由头（`x-opencode-org-id` 等）。
+ * 2. **公开模型清单与目录**（`/inference/v1/models`、`/inference/go/v1/models`
+ *    与 `models.opencode.ai/api.json` 的 `opencode` / `opencode-go` 段）：
+ *    未登录也可读，是模型全集的来源。
+ * 3. **pi-ai 内置目录**（`opencodeProvider()` / `opencodeGoProvider()`）：
+ *    提供经过上游验证的 wire 兼容开关与兜底的思考等级映射。
  *
- * 三者合并后得到 {@link OpenCodeModel}：协议族、端点、能力、容量都固定下来，
- * 供适配器与界面共用。图片生成模型（输出含 `image`）与无法识别协议的条目
- * 会被跳过并记入 `warnings`，不会静默变成一个发不出去的模型。
+ * 两个来源各注册一组供应商（见 `contracts/identity.ts`），因此同名模型可以
+ * 同时存在于两组：Zen 走 `/inference/...`，Go 走 `/inference/go/...`。
+ * 图片生成模型（输出含 `image`）与无法识别协议的条目会被跳过并记入
+ * `warnings`，不会静默变成一个发不出去的模型。
  *
  * @module dsh-opencode/catalog
  */
 
 import type { Api, Model } from '@earendil-works/pi-ai'
 import {
-  OPENCODE_API_PATHS,
-  OPENCODE_INFERENCE_ORIGIN,
   OPENCODE_GO_MODELS_URL,
+  OPENCODE_INFERENCE_ORIGIN,
   OPENCODE_MODEL_CATALOG_URL,
+  OPENCODE_MODELS_URL,
+  OPENCODE_PROVIDERS,
+  OPENCODE_USER_AGENT,
+  providerForPlan,
+  type OpenCodePlan,
 } from '../contracts/identity.ts'
 import {
   OPENCODE_REASONING_LEVELS,
@@ -54,8 +59,33 @@ const NPM_TO_API: Readonly<Record<string, OpenCodeApiKind>> = {
   '@ai-sdk/google': 'google-generative-ai',
 }
 
-/** Console 工作空间里可识别的 provider id（Go 套餐是本插件的作用域）。 */
-const CONSOLE_PROVIDER_IDS = ['opencode-go'] as const
+/** 各 plan 的协议端点前缀（anthropic 由 SDK 追加 `/v1/messages`）。 */
+const API_PATHS: Readonly<Record<OpenCodePlan, Readonly<Record<OpenCodeApiKind, string>>>> = {
+  zen: {
+    'anthropic-messages': '/anthropic',
+    'google-generative-ai': '/google/v1beta',
+    'openai-completions': '/openai/v1',
+    'openai-responses': '/openai/v1',
+  },
+  go: {
+    'anthropic-messages': '/go/anthropic',
+    'google-generative-ai': '/go/google/v1beta',
+    'openai-completions': '/go/openai/v1',
+    'openai-responses': '/go/openai/v1',
+  },
+}
+
+/** Console provider id 到 plan 的映射。 */
+const CONSOLE_PROVIDER_PLANS: Readonly<Record<string, OpenCodePlan>> = {
+  'opencode': 'zen',
+  'opencode-go': 'go',
+}
+
+/** models.dev 目录段到 plan 的映射。 */
+const CATALOG_SECTION_PLANS: Readonly<Record<string, OpenCodePlan>> = {
+  'opencode': 'zen',
+  'opencode-go': 'go',
+}
 
 type JsonRecord = Record<string, unknown>
 
@@ -79,9 +109,22 @@ function nonEmptyString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
-/** 协议族对应的完整端点前缀。 */
-export function baseURLForApi(api: OpenCodeApiKind): string {
-  return `${OPENCODE_INFERENCE_ORIGIN}${OPENCODE_API_PATHS[api]}`
+/** 某个 plan 的协议族完整端点前缀。 */
+export function baseURLFor(plan: OpenCodePlan, api: OpenCodeApiKind): string {
+  return `${OPENCODE_INFERENCE_ORIGIN}${API_PATHS[plan][api]}`
+}
+
+/** 兼容旧调用：按协议族取端点（默认 Go）。 */
+export function baseURLForApi(api: OpenCodeApiKind, plan: OpenCodePlan = 'go'): string {
+  return baseURLFor(plan, api)
+}
+
+/** 协议族判定：pi-ai 的 `Api` 是开放字符串联合，必须显式收窄。 */
+export function isOpenCodeApiKind(value: unknown): value is OpenCodeApiKind {
+  return value === 'openai-completions'
+    || value === 'openai-responses'
+    || value === 'anthropic-messages'
+    || value === 'google-generative-ai'
 }
 
 /** 从 AI SDK 包名解析协议族；未知包名返回 undefined。 */
@@ -126,22 +169,6 @@ interface ReasoningShape {
   readonly budget: boolean
 }
 
-/** 把两种上游形态归一成同一组控制项。 */
-export function readReasoning(value: unknown): ReasoningShape | undefined {
-  if (value === false) return { effort: [], toggle: false, budget: false }
-  // models.dev：reasoning_options: [{type:'effort',values:[...]},{type:'toggle'},{type:'budget_tokens'}]
-  if (Array.isArray(value)) return readReasoningOptions(value)
-  // Console：{ supported, toggle?, effort?: string[], budget?: {min,max} }
-  const source = record(value)
-  if (source === undefined) return undefined
-  if (source.supported === false) return { effort: [], toggle: false, budget: false }
-  return {
-    effort: array(source.effort).filter((entry): entry is string => typeof entry === 'string'),
-    toggle: source.toggle === true,
-    budget: record(source.budget) !== undefined,
-  }
-}
-
 /** 解析 models.dev 的 reasoning_options 数组。 */
 function readReasoningOptions(value: readonly unknown[]): ReasoningShape {
   const options = value.map(record).filter((entry): entry is JsonRecord => entry !== undefined)
@@ -156,6 +183,22 @@ function readReasoningOptions(value: readonly unknown[]): ReasoningShape {
     if (option.type === 'budget_tokens') budget = true
   }
   return { effort, toggle, budget }
+}
+
+/** 把两种上游形态归一成同一组控制项。 */
+export function readReasoning(value: unknown): ReasoningShape | undefined {
+  if (value === false) return { effort: [], toggle: false, budget: false }
+  // models.dev：reasoning_options: [{type:'effort',values:[...]},{type:'toggle'},{type:'budget_tokens'}]
+  if (Array.isArray(value)) return readReasoningOptions(value)
+  // Console：{ supported, toggle?, effort?: string[], budget?: {min,max} }
+  const source = record(value)
+  if (source === undefined) return undefined
+  if (source.supported === false) return { effort: [], toggle: false, budget: false }
+  return {
+    effort: array(source.effort).filter((entry): entry is string => typeof entry === 'string'),
+    toggle: source.toggle === true,
+    budget: record(source.budget) !== undefined,
+  }
 }
 
 /**
@@ -174,8 +217,7 @@ export function thinkingLevelMapFromReasoning(value: unknown): OpenCodeThinkingL
   const reasoning = readReasoning(value)
   if (reasoning === undefined) return undefined
   const offered = new Set(reasoning.effort)
-  const hasEffort = reasoning.effort.length > 0
-  if (!hasEffort) return undefined
+  if (reasoning.effort.length === 0) return undefined
   const map: OpenCodeThinkingLevelMap = {}
   for (const level of OPENCODE_REASONING_LEVELS) {
     if (level === 'off') continue
@@ -187,13 +229,14 @@ export function thinkingLevelMapFromReasoning(value: unknown): OpenCodeThinkingL
   return map
 }
 
-/** 读取 models.dev 形态的某个 provider 段。 */
-function catalogModelRecord(catalog: unknown, providerId: string): {
+/** 读取某个 plan 的 models.dev 目录段。 */
+export function catalogSection(catalog: unknown, plan: OpenCodePlan): {
   provider: JsonRecord | undefined
   models: ReadonlyMap<string, JsonRecord>
 } {
   const providers = record(catalog)
-  const provider = providers !== undefined ? record(providers[providerId]) : undefined
+  const providerId = Object.keys(CATALOG_SECTION_PLANS).find(key => CATALOG_SECTION_PLANS[key] === plan)
+  const provider = providers !== undefined && providerId !== undefined ? record(providers[providerId]) : undefined
   const models = new Map<string, JsonRecord>()
   const entries = record(provider?.models)
   if (entries !== undefined) {
@@ -206,48 +249,19 @@ function catalogModelRecord(catalog: unknown, providerId: string): {
 }
 
 /** Console 配置中的一个模型条目。 */
-interface ConsoleModelEntry {
+export interface ConsoleModelEntry {
   readonly id: string
   readonly entry: JsonRecord
 }
 
-/**
- * 从 Console 配置里取出 `opencode-go` 工作空间模型。
- *
- * 结构不对（未登录、404、字段漂移）时返回 `undefined`，调用方回退到公开目录；
- * 这是「登录后能读到用户空间」的增强路径，不能成为单点故障。
- */
-export function consoleModelsFromConsoleConfig(config: unknown): {
+/** Console 配置中某个 plan 的工作空间范围。 */
+export interface ConsoleScope {
+  readonly plan: OpenCodePlan
   readonly providerId: string
   readonly packageName?: string
   /** Console 下发的路由头（如工作空间 id）；只保留 `x-opencode-*`。 */
   readonly headers?: Readonly<Record<string, string>>
   readonly models: readonly ConsoleModelEntry[]
-} | undefined {
-  const body = record(config)
-  const providers = record(body?.providers) ?? body
-  if (providers === undefined) return undefined
-  for (const providerId of CONSOLE_PROVIDER_IDS) {
-    const provider = record(providers[providerId])
-    if (provider === undefined) continue
-    const models = record(provider.models) ?? {}
-    const entries: ConsoleModelEntry[] = []
-    for (const [key, value] of Object.entries(models)) {
-      const entry = record(value)
-      if (entry === undefined) continue
-      const requestId = nonEmptyString(entry.modelID) ?? key
-      entries.push({ id: requestId, entry })
-    }
-    const packageName = nonEmptyString(provider.package)
-    const headers = safeConsoleHeaders(provider.headers)
-    return {
-      providerId,
-      ...(packageName === undefined ? {} : { packageName }),
-      ...(headers === undefined ? {} : { headers }),
-      models: entries,
-    }
-  }
-  return undefined
 }
 
 /**
@@ -268,7 +282,60 @@ export function safeConsoleHeaders(value: unknown): Readonly<Record<string, stri
   return Object.keys(headers).length === 0 ? undefined : headers
 }
 
-/** 内置目录的索引：同时按请求 id 与上游 modelID 建索引。 */
+/**
+ * 从 Console 配置里取出两个 plan 的工作空间范围。
+ *
+ * 结构不对（未登录、404、字段漂移）时返回空 Map，调用方回退到公开目录；
+ * 这是「登录后能读到用户空间」的增强路径，不能成为单点故障。
+ */
+export function consoleScopesFromConsoleConfig(config: unknown): Map<OpenCodePlan, ConsoleScope> {
+  const scopes = new Map<OpenCodePlan, ConsoleScope>()
+  const body = record(config)
+  const providers = record(body?.providers) ?? body
+  if (providers === undefined) return scopes
+  for (const [providerId, plan] of Object.entries(CONSOLE_PROVIDER_PLANS)) {
+    const provider = record(providers[providerId])
+    if (provider === undefined) continue
+    const models = record(provider.models) ?? {}
+    const entries: ConsoleModelEntry[] = []
+    for (const [key, value] of Object.entries(models)) {
+      const entry = record(value)
+      if (entry === undefined) continue
+      const requestId = nonEmptyString(entry.modelID) ?? key
+      entries.push({ id: requestId, entry })
+    }
+    const packageName = nonEmptyString(provider.package)
+    const headers = safeConsoleHeaders(provider.headers)
+    scopes.set(plan, {
+      plan,
+      providerId,
+      ...(packageName === undefined ? {} : { packageName }),
+      ...(headers === undefined ? {} : { headers }),
+      models: entries,
+    })
+  }
+  return scopes
+}
+
+/** 兼容旧调用：只取 Go 套餐的 Console 范围。 */
+export function consoleModelsFromConsoleConfig(config: unknown): {
+  readonly providerId: string
+  readonly packageName?: string
+  readonly headers?: Readonly<Record<string, string>>
+  readonly models: readonly ConsoleModelEntry[]
+} | undefined {
+  const scope = consoleScopesFromConsoleConfig(config).get('go')
+  return scope === undefined
+    ? undefined
+    : {
+      providerId: scope.providerId,
+      ...(scope.packageName === undefined ? {} : { packageName: scope.packageName }),
+      ...(scope.headers === undefined ? {} : { headers: scope.headers }),
+      models: scope.models,
+    }
+}
+
+/** 内置目录的索引。 */
 export function builtinModelIndex(models: readonly Model<Api>[]): Map<string, Model<Api>> {
   const index = new Map<string, Model<Api>>()
   for (const model of models) index.set(model.id, model)
@@ -280,7 +347,7 @@ function builtinCompat(model: Model<Api> | undefined): JsonRecord | undefined {
   return model?.compat === undefined ? undefined : record(model.compat)
 }
 
-/** 新模型的协议兼容缺省值；与 pi-ai 只针对 opencode-go 的既有条目保持一致。 */
+/** 新模型的协议兼容缺省值；与 pi-ai 针对 opencode 的既有条目保持一致。 */
 function compatFor(api: OpenCodeApiKind, builtin: Model<Api> | undefined, interleaved: boolean): JsonRecord {
   const known = builtinCompat(builtin)
   if (known !== undefined) return structuredClone(known)
@@ -322,18 +389,28 @@ function costFrom(value: unknown): OpenCodeModelCost | undefined {
   }
 }
 
+/** 内置 pi-ai 模型自身的协议族。 */
+function builtinApiKind(model: Model<Api> | undefined): OpenCodeApiKind | undefined {
+  return isOpenCodeApiKind(model?.api) ? model.api : undefined
+}
+
 /** 单条模型的构建输入。 */
 export interface CatalogEntryInput {
   readonly id: string
+  readonly plan: OpenCodePlan
   /** Console 条目（若登录且该模型在工作空间内）。 */
   readonly consoleEntry?: JsonRecord
-  /** models.dev 条目（若公开目录描述了它）。 */
+  /** 本 plan 的 models.dev 条目。 */
   readonly catalogEntry?: JsonRecord
-  /** pi-ai 内置条目（若上游目录包含它）。 */
+  /** 另一 plan 的 models.dev 条目（仅补全协议/容量等缺失字段）。 */
+  readonly fallbackCatalogEntry?: JsonRecord
+  /** 本 plan 的 pi-ai 内置条目。 */
   readonly builtin?: Model<Api>
-  /** 公开目录的 provider 级 npm（模型条目缺省时继承）。 */
+  /** 另一 plan 的 pi-ai 内置条目（仅兜底）。 */
+  readonly fallbackBuiltin?: Model<Api>
+  /** 本 plan 目录的 provider 级 npm。 */
   readonly providerNpm?: string
-  /** Console 配置的 provider 级 package（模型条目缺省时继承）。 */
+  /** Console 配置的 provider 级 package。 */
   readonly consoleProviderNpm?: string
 }
 
@@ -343,74 +420,89 @@ export type CatalogEntryResult =
   | { readonly ok: false; readonly reason: string }
 
 /**
- * 合并一条模型的三方信息。
+ * 合并一条模型的多方信息。
  *
  * 纯函数，不读网络：Console 提供启用状态与最新能力，公开目录补全描述与容量，
  * 内置目录保留经过验证的 wire 兼容开关。
  */
 export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult {
-  const { id, consoleEntry, catalogEntry, builtin } = entry
+  const { id, plan, consoleEntry, catalogEntry, fallbackCatalogEntry, builtin, fallbackBuiltin } = entry
   const warnings: string[] = []
   const consoleCaps = record(consoleEntry?.capabilities)
   const consoleReasoning = consoleCaps !== undefined && 'reasoning' in consoleCaps
     ? consoleCaps.reasoning
     : undefined
-  const catalogProvider = record(catalogEntry?.provider)
   const declaredNpm = nonEmptyString(consoleEntry?.package)
-    ?? nonEmptyString(catalogProvider?.npm)
+    ?? nonEmptyString(record(catalogEntry?.provider)?.npm)
     ?? nonEmptyString(entry.providerNpm)
     ?? nonEmptyString(entry.consoleProviderNpm)
-  let api: OpenCodeApiKind | undefined = apiFromPackage(declaredNpm)
+    ?? nonEmptyString(record(fallbackCatalogEntry?.provider)?.npm)
+  let api: OpenCodeApiKind | undefined = apiFromPackage(consoleEntry?.package)
+    ?? apiFromPackage(record(catalogEntry?.provider)?.npm)
+    ?? apiFromPackage(entry.providerNpm)
+    ?? apiFromPackage(entry.consoleProviderNpm)
+    ?? apiFromPackage(record(fallbackCatalogEntry?.provider)?.npm)
     ?? apiFromPackage(record(builtin?.compat)?.package)
     ?? builtinApiKind(builtin)
+    ?? builtinApiKind(fallbackBuiltin)
   if (api === undefined) {
     // 上游明确声明了协议但我们不认识：跳过（端点无法猜）。
     if (declaredNpm !== undefined) return { ok: false, reason: `${id}: 无法识别的协议 ${declaredNpm}` }
-    // 活跃 roster 里有、但三份元数据都没描述：按 Go 网关最常见的
-    // OpenAI Chat Completions 投影，并明确提示这是推断。
+    // 活跃 roster 里有、但元数据都没描述：按该 plan 最常见的 Chat Completions
+    // 投影，并明确提示这是推断。
     api = 'openai-completions'
     warnings.push(`${id}: 上游没有协议元数据，按 openai-completions 推断`)
   }
 
   const output = array(consoleCaps?.output).length > 0
     ? array(consoleCaps?.output)
-    : array(record(catalogEntry?.modalities)?.output)
+    : array(record(catalogEntry?.modalities)?.output).length > 0
+      ? array(record(catalogEntry?.modalities)?.output)
+      : array(record(fallbackCatalogEntry?.modalities)?.output)
   if (output.includes('image')) return { ok: false, reason: `${id}: 图片生成模型不在适配范围` }
 
   const rawInput = array(consoleCaps?.input).length > 0
     ? consoleCaps?.input
     : array(record(catalogEntry?.modalities)?.input).length > 0
       ? record(catalogEntry?.modalities)?.input
-      : builtin?.input
+      : array(record(fallbackCatalogEntry?.modalities)?.input).length > 0
+        ? record(fallbackCatalogEntry?.modalities)?.input
+        : builtin?.input ?? fallbackBuiltin?.input
   const inputModalities = normalizeInputModalities(rawInput)
-  if (inputModalities.length === 0) {
-    warnings.push(`${id}: 上游没有输入模态元数据，按纯文本处理`)
-  }
+  if (inputModalities.length === 0) warnings.push(`${id}: 上游没有输入模态元数据，按纯文本处理`)
   const input: ('text' | 'image')[] = inputModalities.includes('image') ? ['text', 'image'] : ['text']
 
   const reasoning = consoleReasoning !== undefined
     ? readReasoning(consoleReasoning) !== undefined && record(consoleReasoning)?.supported !== false
       && consoleReasoning !== false
-    : catalogEntry?.reasoning === true || (catalogEntry?.reasoning === undefined && builtin?.reasoning === true)
+    : catalogEntry?.reasoning === true
+      || (catalogEntry?.reasoning === undefined && (fallbackCatalogEntry?.reasoning === true
+        || (fallbackCatalogEntry?.reasoning === undefined && (builtin?.reasoning === true || fallbackBuiltin?.reasoning === true))))
 
   const thinkingLevelMap = reasoning
     ? thinkingLevelMapFromReasoning(consoleReasoning)
       ?? thinkingLevelMapFromReasoning(catalogEntry?.reasoning_options)
+      ?? thinkingLevelMapFromReasoning(fallbackCatalogEntry?.reasoning_options)
       ?? builtin?.thinkingLevelMap
+      ?? fallbackBuiltin?.thinkingLevelMap
     : undefined
 
   const consoleLimit = record(consoleEntry?.limit)
-  const catalogLimit = record(catalogEntry?.limit)
+  const catalogLimit = record(catalogEntry?.limit) ?? record(fallbackCatalogEntry?.limit)
   const contextWindow = positiveInteger(consoleLimit?.context)
     ?? positiveInteger(catalogLimit?.context)
     ?? builtin?.contextWindow
+    ?? fallbackBuiltin?.contextWindow
     ?? DEFAULT_CONTEXT_WINDOW
   const maxTokens = positiveInteger(consoleLimit?.output)
     ?? positiveInteger(catalogLimit?.output)
     ?? builtin?.maxTokens
+    ?? fallbackBuiltin?.maxTokens
     ?? DEFAULT_MAX_TOKENS
 
-  const cost = costFrom(consoleEntry?.cost) ?? costFrom(catalogEntry?.cost)
+  const cost = costFrom(consoleEntry?.cost)
+    ?? costFrom(catalogEntry?.cost)
+    ?? costFrom(fallbackCatalogEntry?.cost)
     ?? (builtin === undefined
       ? undefined
       : costFrom({
@@ -419,13 +511,26 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
         cache_read: builtin.cost.cacheRead,
         cache_write: builtin.cost.cacheWrite,
       }))
+  const free = cost !== undefined && cost.input === 0 && cost.output === 0
 
-  const name = nonEmptyString(consoleEntry?.name) ?? nonEmptyString(catalogEntry?.name) ?? builtin?.name ?? id
-  const description = nonEmptyString(catalogEntry?.description)
-  const family = nonEmptyString(consoleEntry?.family) ?? nonEmptyString(catalogEntry?.family)
+  const name = nonEmptyString(consoleEntry?.name)
+    ?? nonEmptyString(catalogEntry?.name)
+    ?? nonEmptyString(fallbackCatalogEntry?.name)
+    ?? builtin?.name
+    ?? fallbackBuiltin?.name
+    ?? id
+  const description = nonEmptyString(catalogEntry?.description) ?? nonEmptyString(fallbackCatalogEntry?.description)
+  const family = nonEmptyString(consoleEntry?.family)
+    ?? nonEmptyString(catalogEntry?.family)
+    ?? nonEmptyString(fallbackCatalogEntry?.family)
   const interleaved = record(catalogEntry?.interleaved)?.field === 'reasoning_content'
-  const compat = compatFor(api, builtin, interleaved)
-  const inputLimits = record(builtin?.inputLimits)
+    || record(fallbackCatalogEntry?.interleaved)?.field === 'reasoning_content'
+  const compat = compatFor(api, builtin ?? fallbackBuiltin, interleaved)
+  const inputLimits = record(builtin?.inputLimits) ?? record(fallbackBuiltin?.inputLimits)
+  const tools = typeof consoleCaps?.tools === 'boolean'
+    ? consoleCaps.tools
+    : catalogEntry?.tool_call !== false && fallbackCatalogEntry?.tool_call !== false
+  const structuredOutput = catalogEntry?.structured_output === true || fallbackCatalogEntry?.structured_output === true
 
   return {
     ok: true,
@@ -435,7 +540,7 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
       ...(description === undefined ? {} : { description }),
       ...(family === undefined ? {} : { family }),
       api,
-      baseURL: baseURLForApi(api),
+      baseURL: baseURLFor(plan, api),
       reasoning,
       ...(thinkingLevelMap === undefined ? {} : { thinkingLevelMap }),
       input,
@@ -444,121 +549,124 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
       ...(cost === undefined ? {} : { cost }),
       ...(Object.keys(compat).length === 0 ? {} : { compat }),
       ...(inputLimits === undefined ? {} : { inputLimits }),
-      ...(catalogEntry?.status === 'deprecated' ? { deprecated: true } : {}),
+      plan,
+      tools,
+      ...(structuredOutput ? { structuredOutput: true } : {}),
+      free,
+      ...(catalogEntry?.status === 'deprecated' || fallbackCatalogEntry?.status === 'deprecated' ? { deprecated: true } : {}),
       ...(consoleEntry?.disabled === true ? { disabled: true } : {}),
-      go: true,
     },
     ...(warnings.length === 0 ? {} : { warnings }),
   }
-}
-
-/** 内置 pi-ai 模型自身的协议族（内置 provider 已按 api 分好类）。 */
-function builtinApiKind(model: Model<Api> | undefined): OpenCodeApiKind | undefined {
-  return isOpenCodeApiKind(model?.api) ? model.api : undefined
-}
-
-/** 协议族判定：pi-ai 的 `Api` 是开放字符串联合，必须显式收窄。 */
-export function isOpenCodeApiKind(value: unknown): value is OpenCodeApiKind {
-  return value === 'openai-completions'
-    || value === 'openai-responses'
-    || value === 'anthropic-messages'
-    || value === 'google-generative-ai'
 }
 
 /** 构建目录快照的输入。 */
 export interface BuildCatalogInput {
   /** `GET /console/api/v2/config` 的响应体。 */
   readonly consoleConfig?: unknown
+  /** `GET /inference/v1/models` 的响应体。 */
+  readonly zenRoster?: unknown
   /** `GET /inference/go/v1/models` 的响应体。 */
   readonly goRoster?: unknown
   /** `models.opencode.ai/api.json` 的响应体。 */
   readonly catalog?: unknown
-  /** pi-ai 内置的 OpenCode Go 模型。 */
-  readonly builtin?: readonly Model<Api>[]
+  /** pi-ai 内置的 OpenCode 模型，按 plan 分组。 */
+  readonly builtin?: { readonly zen?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
   readonly now?: number
 }
 
 /**
- * 合并三方来源，生成目录快照。
+ * 合并来源，生成目录快照。
  *
- * 模型集合的取舍：
- * - Console 配置可读且列出了模型 → 只服务这些模型（这就是「用户空间里启用的
- *   模型」）；`disabled: true` 的条目保留在快照里供界面展示，但不进入适配器。
- * - 否则 → 服务公开 roster 与公开目录的并集；两者都拿不到时退回内置目录。
+ * 每个 plan 的模型集合：活 roster 为全集；没有 roster 时回退公开目录的非
+ * deprecated 条目；再失败回退内置目录。Console 配置只做增补（自定义条目、
+ * `disabled` 标记、能力/容量覆盖、路由头）。
  */
 export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
   const now = input.now ?? Date.now()
-  const { provider: catalogProvider, models: catalogModels } = catalogModelRecord(input.catalog, 'opencode-go')
-  // Zen 段只作为**元数据**补充：同一模型可能只在 Zen 段落里被描述（Go roster
-  // 里有、Go 目录段还没有），端点与协议族仍按 Go 网关投影。
-  const { provider: zenProvider, models: zenModels } = catalogModelRecord(input.catalog, 'opencode')
-  const providerNpm = nonEmptyString(catalogProvider?.npm) ?? nonEmptyString(zenProvider?.npm)
-  const builtin = builtinModelIndex(input.builtin ?? [])
-  const consoleScope = consoleModelsFromConsoleConfig(input.consoleConfig)
-  // Console 的 provider 级 package 是模型级 package 的缺省值。
-  const consoleProviderNpm = consoleScope?.packageName
+  const consoleScopes = consoleScopesFromConsoleConfig(input.consoleConfig)
   const warnings: string[] = []
-
-  const rosterIds = new Set(modelIdsFrom(input.goRoster))
-  const catalogIds = new Set(catalogModels.keys())
-  const consoleEntries = new Map<string, JsonRecord>()
-  for (const entry of consoleScope?.models ?? []) consoleEntries.set(entry.id, entry.entry)
-
-  // Console 配置可读 ≠ 模型全集：实测 Go 工作空间的 `models` 可能为空，
-  // 它表示「没有额外覆盖/自定义条目」，而不是「一个模型都没启用」。因此
-  // 账号配置只做**增补**（自定义条目、禁用标记、路由头），模型全集仍以
-  // 活 roster 为准。
-  const ids: string[] = []
-  if (rosterIds.size > 0) {
-    ids.push(...rosterIds)
-  } else if (catalogIds.size > 0) {
-    // 没有活清单时退回目录，但要排除已标为 deprecated 的条目。
-    ids.push(...[...catalogIds].filter(id => catalogModels.get(id)?.status !== 'deprecated'))
-  } else {
-    ids.push(...builtin.keys())
-    if (ids.length > 0) warnings.push('无法读取 OpenCode 公开目录，暂用 pi-ai 内置目录')
-  }
-  for (const id of consoleEntries.keys()) if (!ids.includes(id)) ids.push(id)
-  // Console 配置读取成功即视为账号目录（即便没有额外条目）。
-  const source: 'console' | 'public' = consoleScope === undefined ? 'public' : 'console'
-  if (ids.length === 0) warnings.push('没有读到任何 OpenCode Go 模型')
-
   const models: OpenCodeModel[] = []
-  const seen = new Set<string>()
-  for (const id of ids) {
-    if (seen.has(id)) continue
-    seen.add(id)
-    const consoleEntry = consoleEntries.get(id)
-    const catalogEntry = catalogModels.get(id) ?? zenModels.get(id)
-    const builtinEntry = builtin.get(id)
-    const result = buildCatalogEntry({
-      id,
-      ...(consoleEntry === undefined ? {} : { consoleEntry }),
-      ...(catalogEntry === undefined ? {} : { catalogEntry }),
-      ...(builtinEntry === undefined ? {} : { builtin: builtinEntry }),
-      ...(providerNpm === undefined ? {} : { providerNpm }),
-      ...(consoleProviderNpm === undefined ? {} : { consoleProviderNpm }),
-    })
-    if (result.ok) {
-      models.push(result.model)
-      for (const warning of result.warnings ?? []) warnings.push(warning)
+  const rosters: Record<OpenCodePlan, unknown> = { zen: input.zenRoster, go: input.goRoster }
+  const builtinByPlan: Record<OpenCodePlan, Map<string, Model<Api>>> = {
+    zen: builtinModelIndex(input.builtin?.zen ?? []),
+    go: builtinModelIndex(input.builtin?.go ?? []),
+  }
+
+  for (const provider of OPENCODE_PROVIDERS) {
+    const plan = provider.plan
+    const label = provider.name
+    const scope = consoleScopes.get(plan)
+    const primary = catalogSection(input.catalog, plan)
+    const fallback = catalogSection(input.catalog, plan === 'zen' ? 'go' : 'zen')
+    const rosterIds = modelIdsFrom(rosters[plan])
+    const consoleEntries = new Map<string, JsonRecord>()
+    for (const entry of scope?.models ?? []) consoleEntries.set(entry.id, entry.entry)
+
+    const ids: string[] = []
+    if (rosterIds.length > 0) {
+      ids.push(...rosterIds)
+    } else if (primary.models.size > 0) {
+      // 没有活清单时退回目录，但要排除已标为 deprecated 的条目。
+      for (const [id, entry] of primary.models) {
+        if (entry.status !== 'deprecated') ids.push(id)
+      }
     } else {
-      warnings.push(result.reason)
+      ids.push(...builtinByPlan[plan].keys())
+      if (ids.length > 0) warnings.push(`${label}: 无法读取公开模型清单，暂用 pi-ai 内置目录`)
+    }
+    for (const id of consoleEntries.keys()) if (!ids.includes(id)) ids.push(id)
+    if (ids.length === 0) warnings.push(`${label}: 没有读到任何模型`)
+
+    const providerNpm = nonEmptyString(primary.provider?.npm) ?? nonEmptyString(fallback.provider?.npm)
+    const seen = new Set<string>()
+    for (const id of ids) {
+      if (seen.has(id)) continue
+      seen.add(id)
+      const consoleEntry = consoleEntries.get(id)
+      const catalogEntry = primary.models.get(id)
+      const fallbackCatalogEntry = fallback.models.get(id)
+      const builtin = builtinByPlan[plan].get(id)
+      const fallbackBuiltin = builtinByPlan[plan === 'zen' ? 'go' : 'zen'].get(id)
+      const result = buildCatalogEntry({
+        id,
+        plan,
+        ...(consoleEntry === undefined ? {} : { consoleEntry }),
+        ...(catalogEntry === undefined ? {} : { catalogEntry }),
+        ...(fallbackCatalogEntry === undefined ? {} : { fallbackCatalogEntry }),
+        ...(builtin === undefined ? {} : { builtin }),
+        ...(fallbackBuiltin === undefined ? {} : { fallbackBuiltin }),
+        ...(providerNpm === undefined ? {} : { providerNpm }),
+        ...(scope?.packageName === undefined ? {} : { consoleProviderNpm: scope.packageName }),
+      })
+      if (result.ok) {
+        models.push(result.model)
+        for (const warning of result.warnings ?? []) warnings.push(`${label}: ${warning}`)
+      } else {
+        warnings.push(`${label}: ${result.reason}`)
+      }
     }
   }
 
-  return { fetchedAt: now, source, models, warnings }
+  return {
+    fetchedAt: now,
+    source: consoleScopes.size > 0 ? 'console' : 'public',
+    models,
+    warnings,
+  }
 }
 
 /** 目录可能来自的 URL：供服务层与测试共用。 */
 export interface CatalogUrls {
-  readonly roster: string
+  readonly zenRoster: string
+  readonly goRoster: string
   readonly catalog: string
 }
 
 /** 默认的公开数据源地址。 */
 export const DEFAULT_CATALOG_URLS: CatalogUrls = {
-  roster: OPENCODE_GO_MODELS_URL,
+  zenRoster: OPENCODE_MODELS_URL,
+  goRoster: OPENCODE_GO_MODELS_URL,
   catalog: OPENCODE_MODEL_CATALOG_URL,
 } satisfies CatalogUrls
 
@@ -583,12 +691,12 @@ export interface FetchCatalogInput {
   readonly orgId?: string
   readonly server?: string
   readonly signal?: AbortSignal
-  readonly builtin?: readonly Model<Api>[]
+  readonly builtin?: { readonly zen?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
   readonly urls?: CatalogUrls
   readonly now?: number
   /** 跳过公开目录的抓取（调用方已有缓存）。 */
   readonly catalog?: unknown
-  /** 跳过 roster 的抓取（调用方已有缓存）。 */
+  readonly zenRoster?: unknown
   readonly goRoster?: unknown
 }
 
@@ -602,38 +710,43 @@ export interface FetchCatalogResult {
 /**
  * 抓取并合并目录。
  *
- * 公开 roster 与目录是硬依赖（失败时使用调用方传入的旧值或内置目录），
+ * 两个 roster 与公开目录是硬依赖（失败时使用调用方传入的旧值或内置目录），
  * Console 配置是软依赖：它的失败只记录为 `consoleError`，不阻断目录。
  */
 export async function fetchOpenCodeCatalog(input: FetchCatalogInput): Promise<FetchCatalogResult> {
   const fetchImpl = input.fetchImpl ?? fetch
   const urls = input.urls ?? DEFAULT_CATALOG_URLS
   const signal = input.signal ?? AbortSignal.timeout(20_000)
-  const json = (url: string, headers: Record<string, string> = {}): Promise<unknown> =>
-    fetchJson(url, { headers: { accept: 'application/json', ...headers }, signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
+  const headers = (auth: boolean): Record<string, string> => ({
+    accept: 'application/json',
+    'user-agent': OPENCODE_USER_AGENT,
+    ...(auth && input.accessToken !== undefined ? { authorization: `Bearer ${input.accessToken}` } : {}),
+    ...(auth && input.orgId !== undefined ? { 'x-org-id': input.orgId } : {}),
+  })
+  const json = (url: string, auth = false): Promise<unknown> =>
+    fetchJson(url, { headers: headers(auth), signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
 
   let consoleConfig: unknown
   let consoleError: string | undefined
   if (input.accessToken !== undefined) {
     const server = (input.server ?? 'https://opencode.ai/console').replace(/\/+$/, '')
     try {
-      consoleConfig = await json(`${server}/api/v2/config`, {
-        authorization: `Bearer ${input.accessToken}`,
-        ...(input.orgId === undefined ? {} : { 'x-org-id': input.orgId }),
-      })
+      consoleConfig = await json(`${server}/api/v2/config`, true)
     } catch (error) {
       consoleError = error instanceof Error ? error.message : String(error)
     }
   }
 
-  const [goRoster, catalog] = await Promise.all([
-    input.goRoster !== undefined ? Promise.resolve(input.goRoster) : json(urls.roster).catch(() => undefined),
+  const [zenRoster, goRoster, catalog] = await Promise.all([
+    input.zenRoster !== undefined ? Promise.resolve(input.zenRoster) : json(urls.zenRoster, true).catch(() => undefined),
+    input.goRoster !== undefined ? Promise.resolve(input.goRoster) : json(urls.goRoster, true).catch(() => undefined),
     input.catalog !== undefined ? Promise.resolve(input.catalog) : json(urls.catalog).catch(() => undefined),
   ])
 
   return {
     catalog: buildCatalog({
       ...(consoleConfig === undefined ? {} : { consoleConfig }),
+      ...(zenRoster === undefined ? {} : { zenRoster }),
       ...(goRoster === undefined ? {} : { goRoster }),
       ...(catalog === undefined ? {} : { catalog }),
       ...(input.builtin === undefined ? {} : { builtin: input.builtin }),
@@ -652,7 +765,7 @@ export interface CatalogServiceOptions {
     readonly server?: string
   } | undefined>
   readonly fetchImpl?: typeof fetch
-  readonly builtin?: () => readonly Model<Api>[]
+  readonly builtin?: () => { readonly zen?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
   readonly urls?: CatalogUrls
   readonly now?: () => number
 }
@@ -669,13 +782,14 @@ export class OpenCodeCatalogService {
   private consoleError: string | undefined
   private lastError: string | undefined
   private inflight: Promise<OpenCodeCatalog | undefined> | undefined
-  private roster: unknown
+  private zenRoster: unknown
+  private goRoster: unknown
   private rosterAt = 0
   private metadata: unknown
   private metadataAt = 0
   private consoleConfig: unknown
   private consoleAt = 0
-  private consoleHeaders: Readonly<Record<string, string>> | undefined
+  private readonly consoleHeaders = new Map<OpenCodePlan, Readonly<Record<string, string>>>()
 
   constructor(private readonly options: CatalogServiceOptions) {}
 
@@ -695,12 +809,12 @@ export class OpenCodeCatalogService {
   }
 
   /**
-   * Console 下发的路由头（工作空间 id 等），供推理请求携带。
+   * Console 下发给某个 plan 的路由头（工作空间 id 等），供推理请求携带。
    *
    * 与目录快照分开：这份数据不进 `/catalog` 响应，浏览器永远看不到它。
    */
-  requestHeaders(): Readonly<Record<string, string>> | undefined {
-    return this.consoleHeaders
+  requestHeaders(plan: OpenCodePlan): Readonly<Record<string, string>> | undefined {
+    return this.consoleHeaders.get(plan)
   }
 
   /** 强制刷新：忽略节流，重新读取所有来源。 */
@@ -731,7 +845,8 @@ export class OpenCodeCatalogService {
     const urls = this.options.urls ?? DEFAULT_CATALOG_URLS
     const signal = AbortSignal.timeout(20_000)
 
-    let goRoster = this.roster
+    let zenRoster = this.zenRoster
+    let goRoster = this.goRoster
     let catalog = this.metadata
     let consoleConfig = this.consoleConfig
 
@@ -741,47 +856,56 @@ export class OpenCodeCatalogService {
 
     const account = await this.options.resolveAccount()
     const server = (account?.server ?? 'https://opencode.ai/console').replace(/\/+$/, '')
-    const headers = (): Record<string, string> => ({
+    const authHeaders = (): Record<string, string> => ({
       accept: 'application/json',
+      'user-agent': OPENCODE_USER_AGENT,
       ...(account === undefined ? {} : { authorization: `Bearer ${account.access}` }),
       ...(account?.orgId === undefined ? {} : { 'x-org-id': account.orgId }),
     })
 
     const tasks: Promise<void>[] = []
     if (rosterStale) {
-      tasks.push(fetchJson(urls.roster, { headers: { accept: 'application/json' }, signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
-        .then((value) => { goRoster = value; this.roster = value; this.rosterAt = now })
+      tasks.push(fetchJson(urls.zenRoster, { headers: authHeaders(), signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
+        .then((value) => { zenRoster = value; this.zenRoster = value })
+        .catch((error: unknown) => { this.lastError = describe(error) }))
+      tasks.push(fetchJson(urls.goRoster, { headers: authHeaders(), signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
+        .then((value) => { goRoster = value; this.goRoster = value })
         .catch((error: unknown) => { this.lastError = describe(error) }))
     }
     if (metadataStale) {
-      tasks.push(fetchJson(urls.catalog, { headers: { accept: 'application/json' }, signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
+      tasks.push(fetchJson(urls.catalog, { headers: { accept: 'application/json', 'user-agent': OPENCODE_USER_AGENT }, signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
         .then((value) => { catalog = value; this.metadata = value; this.metadataAt = now })
         .catch((error: unknown) => { this.lastError = describe(error) }))
     }
     if (account !== undefined && consoleStale) {
-      tasks.push(fetchJson(`${server}/api/v2/config`, { headers: headers(), signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
+      tasks.push(fetchJson(`${server}/api/v2/config`, { headers: authHeaders(), signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
         .then((value) => {
           consoleConfig = value
           this.consoleConfig = value
           this.consoleAt = now
           this.consoleError = undefined
-          this.consoleHeaders = consoleModelsFromConsoleConfig(value)?.headers
+          this.consoleHeaders.clear()
+          for (const [plan, scope] of consoleScopesFromConsoleConfig(value)) {
+            if (scope.headers !== undefined) this.consoleHeaders.set(plan, scope.headers)
+          }
         })
         .catch((error: unknown) => {
           this.consoleError = describe(error)
           // 换了账号却拉不到配置时，宁可丢掉旧工作空间头，也不要把它带到
           // 新账号的推理请求上。
-          this.consoleHeaders = undefined
+          this.consoleHeaders.clear()
         }))
     } else if (account === undefined) {
       this.consoleError = undefined
       this.consoleConfig = undefined
-      this.consoleHeaders = undefined
+      this.consoleHeaders.clear()
     }
     await Promise.all(tasks)
+    if (rosterStale) this.rosterAt = now
 
     const next = buildCatalog({
       ...(consoleConfig === undefined ? {} : { consoleConfig }),
+      ...(zenRoster === undefined ? {} : { zenRoster }),
       ...(goRoster === undefined ? {} : { goRoster }),
       ...(catalog === undefined ? {} : { catalog }),
       ...(this.options.builtin === undefined ? {} : { builtin: this.options.builtin() }),
@@ -795,4 +919,9 @@ export class OpenCodeCatalogService {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+/** 某 plan 的供应商描述（供上层装配复用）。 */
+export function providerOfPlan(plan: OpenCodePlan): ReturnType<typeof providerForPlan> {
+  return providerForPlan(plan)
 }

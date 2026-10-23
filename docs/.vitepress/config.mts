@@ -339,7 +339,7 @@ const requirementsSidebar = [
         link: '/requirements/FNOS-025-codebuddy-plugin-delisting'
       },
       {
-        text: 'FNOS-026 OpenCode Go 模型接入与套餐用量',
+        text: 'FNOS-026 OpenCode Zen 与 OpenCode Go 模型接入及套餐用量',
         link: '/requirements/FNOS-026-dsh-opencode-plugin'
       },
       ]
@@ -452,7 +452,7 @@ const plansSidebar = [
         link: '/plans/PLAN-FNOS-025-codebuddy-plugin-delisting'
       },
       {
-        text: 'PLAN-FNOS-026 OpenCode Go 模型接入与套餐用量',
+        text: 'PLAN-FNOS-026 OpenCode Zen 与 OpenCode Go 模型接入及套餐用量',
         link: '/plans/PLAN-FNOS-026-dsh-opencode-plugin'
       },
     ]
@@ -534,7 +534,7 @@ const testsSidebar = [
         link: '/tests/FNOS-025-codebuddy-plugin-delisting'
       },
       {
-        text: 'FNOS-026 OpenCode Go 模型接入与套餐用量',
+        text: 'FNOS-026 OpenCode Zen 与 OpenCode Go 模型接入及套餐用量',
         link: '/tests/FNOS-026-dsh-opencode-plugin'
       },
     ]

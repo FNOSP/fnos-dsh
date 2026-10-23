@@ -8,6 +8,8 @@
  * @module dsh-opencode/catalog-contract
  */
 
+import type { OpenCodePlan } from './identity.ts'
+
 /** 网关承载的协议族；决定端点尾段与 pi-ai 的 api 实现。 */
 export type OpenCodeApiKind =
   | 'openai-completions'
@@ -68,12 +70,18 @@ export interface OpenCodeModel {
   readonly compat?: Readonly<Record<string, unknown>>
   /** 图片输入的预处理限制（来自 pi-ai 内置目录；不透明透传）。 */
   readonly inputLimits?: Readonly<Record<string, unknown>>
+  /** 模型来源：`zen` 按量 或 `go` 套餐。 */
+  readonly plan: OpenCodePlan
+  /** 是否支持工具调用。 */
+  readonly tools: boolean
+  /** 是否支持结构化输出。 */
+  readonly structuredOutput?: boolean
+  /** 是否免费（输入/输出价格均为 0）。 */
+  readonly free: boolean
   /** 上游目录标为 deprecated；仍可用时保留，只做展示提示。 */
   readonly deprecated?: boolean
   /** Console 明确标记为未启用；仅当 Console 配置可读时出现。 */
   readonly disabled?: boolean
-  /** 是否属于 Go 套餐（套餐用量只对 Go 模型有意义）。 */
-  readonly go: boolean
 }
 
 /** 目录快照。 */

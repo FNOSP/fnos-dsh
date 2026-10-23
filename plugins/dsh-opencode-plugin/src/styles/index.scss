@@ -322,17 +322,58 @@
   overflow-wrap: anywhere;
 }
 
-/* 目录工具行与模型列表。 */
-.dsh-opencode-catalog-toolbar {
+/* 目录控制区：分组筛选、搜索与计数固定在滚动列表上方。 */
+.dsh-opencode-catalog-controls {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 12px;
 }
 
+.dsh-opencode-catalog-filters {
+  flex: 0 0 auto;
+}
+
+.dsh-opencode-filter-count {
+  margin-left: 4px;
+  color: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  opacity: 0.72;
+}
+
 .dsh-opencode-search {
   flex: 1 1 220px;
   min-width: 160px;
+}
+
+/* 固定高度内部滚动：搜索栏与计数留在滚动区外，滚动条跟随 DSH 主题。 */
+.dsh-opencode-models-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+  /* 行的横向负边距只用于让 hover 背景铺满：不产生横向滚动条。 */
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dsw-alias-border-l3) transparent;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: var(--dsw-radius-xs);
+    background: var(--dsw-alias-border-l3);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--dsw-alias-label-dimmed);
+  }
 }
 
 .dsh-opencode-models {
@@ -349,8 +390,18 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 0;
+  padding: 8px;
+  /* 横向负边距让 hover 背景铺满；圆角在这里会被滚动容器裁掉，故不设置。 */
+  margin: 0 -8px;
   border-bottom: 1px solid var(--dsw-alias-border-l2);
+
+  &:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+
+  &:last-child {
+    border-bottom: 0;
+  }
 
   &.is-disabled { opacity: 0.55; }
 
@@ -388,20 +439,109 @@
   overflow-wrap: anywhere;
 }
 
-.dsh-opencode-model-desc {
-  margin: 0;
-  color: var(--dsw-alias-label-secondary);
+/* 能力图标：只有受支持的特性才出现，悬浮/聚焦时给出逐项气泡。 */
+.dsh-opencode-model-features {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 1px 4px;
+  border-radius: var(--dsw-radius-xs);
+  color: var(--dsw-alias-label-tertiary);
+  cursor: help;
+  outline: none;
+
+  &:hover { color: var(--dsw-alias-label-secondary); }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--dsw-alias-brand-primary);
+  }
+}
+
+.dsh-opencode-feature {
+  display: inline-flex;
+  align-items: center;
+
+  /* 免费是加分项：用语义成功色和其余能力区分开。 */
+  &--free { color: var(--dsw-alias-state-success-primary); }
+}
+
+/* 能力气泡：背景、圆角、阴影与文字色全部来自共享主题的 Tooltip 容器。 */
+.dsh-opencode-model-tip {
+  max-width: 260px;
+}
+
+.dsh-opencode-model-tip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  white-space: normal;
+}
+
+.dsh-opencode-model-tip-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+
+  &.is-unsupported { opacity: 0.55; }
+}
+
+.dsh-opencode-model-tip-mark {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.dsh-opencode-model-tip-label {
+  flex: 0 0 auto;
   font-size: 12px;
   line-height: 18px;
+  font-weight: 500;
+}
+
+.dsh-opencode-model-tip-detail {
+  flex: 1 1 auto;
+  font-size: 11px;
+  line-height: 16px;
+  opacity: 0.75;
   overflow-wrap: anywhere;
+}
+
+.dsh-opencode-model-tip-footer {
+  margin-top: 4px;
+  padding-top: 2px;
+  font-size: 11px;
+  line-height: 16px;
+  opacity: 0.7;
+}
+
+.dsh-opencode-model-tip-note {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.dsh-opencode-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .dsh-opencode-model-facts {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 12px;
-  margin-top: 2px;
+  gap: 2px 8px;
 }
 
 .dsh-opencode-model-fact {

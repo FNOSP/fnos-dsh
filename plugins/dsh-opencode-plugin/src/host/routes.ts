@@ -15,6 +15,7 @@ import { OPENCODE_ROUTES } from '../contracts/routes.ts'
 import type { OpenCodeAuthService } from './auth.ts'
 import type { OpenCodeCatalogService } from './catalog.ts'
 import type { OpenCodePreferencesStore } from './preferences.ts'
+import type { OpenCodeRouteStatus } from './provider.ts'
 import type { OpenCodeUsageService } from './usage.ts'
 
 /** 请求体上限：只有少量表单字段。 */
@@ -130,6 +131,8 @@ export interface OpenCodeRoutesOptions {
   readonly refresh: (force: boolean) => Promise<void>
   /** 偏好被写入后让宿主侧重新调度刷新。 */
   readonly preferencesChanged: () => Promise<void>
+  /** 两组供应商路由的注册状态，供详情页诊断。 */
+  readonly routes: () => readonly OpenCodeRouteStatus[]
 }
 
 /**
@@ -252,9 +255,14 @@ export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOpti
               catalog: current ?? null,
               ...(options.catalog.consoleDiagnostic() === undefined ? {} : { consoleError: options.catalog.consoleDiagnostic() }),
               ...(options.catalog.error() === undefined ? {} : { error: options.catalog.error() }),
+              routes: options.routes(),
             })
           } catch (error) {
-            json(res, 200, { catalog: null, error: safeMessage(error) || OPENCODE_CATALOG_UNAVAILABLE })
+            json(res, 200, {
+              catalog: null,
+              error: safeMessage(error) || OPENCODE_CATALOG_UNAVAILABLE,
+              routes: options.routes(),
+            })
           }
         },
       }),
@@ -271,6 +279,7 @@ export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOpti
               catalog: current ?? null,
               ...(options.catalog.consoleDiagnostic() === undefined ? {} : { consoleError: options.catalog.consoleDiagnostic() }),
               ...(options.catalog.error() === undefined ? {} : { error: options.catalog.error() }),
+              routes: options.routes(),
             })
           } catch (error) {
             json(res, 200, { catalog: options.catalog.current() ?? null, error: safeMessage(error) || OPENCODE_CATALOG_UNAVAILABLE })

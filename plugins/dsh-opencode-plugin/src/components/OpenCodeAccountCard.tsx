@@ -87,6 +87,12 @@ export function OpenCodeAccountCard({ t, timer }: OpenCodeAccountCardProps): Rea
     if (knownStatusRef.current && wasSignedInRef.current !== signedIn) bumpAuthEpoch()
     knownStatusRef.current = true
     wasSignedInRef.current = signedIn
+    // 已登录时收起并清空 API Key 输入：登录入口只在未登录时出现。
+    if (signedIn) {
+      setKeyOpen(false)
+      setApiKey('')
+      setKeyError(undefined)
+    }
     setState(toAccountState(next))
   }, [])
 
@@ -277,44 +283,47 @@ export function OpenCodeAccountCard({ t, timer }: OpenCodeAccountCardProps): Rea
         </div>
       ) : null}
 
-      <div className="dsh-opencode-key">
-        <DshButton
-          htmlType="button"
-          theme="borderless"
-          type="tertiary"
-          size="small"
-          onClick={() => {
-            setKeyOpen(open => !open)
-            setKeyError(undefined)
-          }}
-        >
-          {keyOpen ? t('accountApiKeyCollapse') : t('accountApiKeyToggle')}
-        </DshButton>
-        {keyOpen ? (
-          <div className="dsh-opencode-key-form">
-            <DshInput
-              mode="password"
-              value={apiKey}
-              disabled={busy}
-              placeholder={t('accountApiKeyPlaceholder')}
-              aria-label={t('accountApiKeyLabel')}
-              onChange={(value: string) => { setApiKey(value) }}
-            />
-            <DshButton
-              htmlType="button"
-              theme="solid"
-              type="primary"
-              size="small"
-              disabled={busy}
-              loading={busy}
-              onClick={() => { void submitKey() }}
-            >
-              {t('accountApiKeySubmit')}
-            </DshButton>
-          </div>
-        ) : null}
-        {keyError === undefined ? null : <p className="dsh-opencode-error" role="alert">{keyError}</p>}
-      </div>
+      {/* API Key 登录只作为未登录时的兜底入口；已登录（或状态未知）时不显示。 */}
+      {state.status === 'signed-in' || state.status === 'loading' ? null : (
+        <div className="dsh-opencode-key">
+          <DshButton
+            htmlType="button"
+            theme="borderless"
+            type="tertiary"
+            size="small"
+            onClick={() => {
+              setKeyOpen(open => !open)
+              setKeyError(undefined)
+            }}
+          >
+            {keyOpen ? t('accountApiKeyCollapse') : t('accountApiKeyToggle')}
+          </DshButton>
+          {keyOpen ? (
+            <div className="dsh-opencode-key-form">
+              <DshInput
+                mode="password"
+                value={apiKey}
+                disabled={busy}
+                placeholder={t('accountApiKeyPlaceholder')}
+                aria-label={t('accountApiKeyLabel')}
+                onChange={(value: string) => { setApiKey(value) }}
+              />
+              <DshButton
+                htmlType="button"
+                theme="solid"
+                type="primary"
+                size="small"
+                disabled={busy}
+                loading={busy}
+                onClick={() => { void submitKey() }}
+              >
+                {t('accountApiKeySubmit')}
+              </DshButton>
+            </div>
+          ) : null}
+          {keyError === undefined ? null : <p className="dsh-opencode-error" role="alert">{keyError}</p>}
+        </div>
+      )}
     </section>
   )
 }

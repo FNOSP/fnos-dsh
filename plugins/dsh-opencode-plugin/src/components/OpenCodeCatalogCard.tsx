@@ -1,9 +1,10 @@
-/** 插件详情页的模型目录卡片：来源、刷新、搜索、能力标签与显隐开关。 */
+/** 插件详情页的模型目录卡片：分组筛选、内部滚动列表、能力图标气泡与显隐开关。 */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   DshButton,
+  DshButtonGroup,
   DshIconAlertCircle,
   DshIconInfoCircle,
   DshIconRefresh,
@@ -12,6 +13,7 @@ import {
   DshSpin,
   DshSwitch,
   DshTag,
+  DshTooltip,
 } from '@tnnevol/dsh-semi-ui'
 import type { OpenCodeModel } from '../contracts/catalog.ts'
 import type { OpenCodeTranslate } from '../client/locales.ts'
@@ -19,13 +21,17 @@ import type { OpenCodeCatalogResponse } from '../client/services/catalog-data.ts
 import { readCatalog, refreshCatalog } from '../client/services/catalog-data.ts'
 import {
   apiKindLabelKey,
+  countCatalogModels,
+  featureLabelKey,
   filterCatalogModels,
   formatTokenCount,
+  modelFeatures,
+  planLabelKey,
   reasoningLevelLabelKey,
-  reasoningLevels,
-  supportsImageInput,
+  supportedFeatureIds,
   withModelVisibility,
 } from '../client/services/catalog-search.ts'
+import type { OpenCodeCatalogPlanFilter, OpenCodeFeatureId } from '../client/services/catalog-search.ts'
 import { formatTimestamp } from '../client/services/format.ts'
 import { errorMessage } from '../client/services/http.ts'
 import { autoRefreshIntervalMs, POLL_HEARTBEAT_MS, shouldPoll } from '../client/services/polling.ts'
@@ -47,17 +53,114 @@ export interface OpenCodeCatalogCardProps {
   readonly revision: number
 }
 
-/** 一个模型的标签集合。 */
-function ModelTags({ model, t }: { model: OpenCodeModel, t: OpenCodeTranslate }): ReactNode {
-  const levels = reasoningLevels(model)
+/** 分组筛选项的展示顺序。 */
+const PLAN_FILTERS: readonly OpenCodeCatalogPlanFilter[] = ['all', 'go', 'zen']
+
+/** 图标统一属性：内联 SVG、`currentColor` 描边，亮暗主题随文字色反转。 */
+const GLYPH_PROPS = {
+  viewBox: '0 0 24 24',
+  width: 14,
+  height: 14,
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.7,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': 'true',
+  focusable: 'false',
+} as const
+
+/** 能力图标：推理（星芒）、工具（扳手）、图片、文本、免费（礼物）。 */
+function FeatureGlyph({ id }: { id: OpenCodeFeatureId }): ReactNode {
+  if (id === 'reasoning') {
+    return (
+      <svg {...GLYPH_PROPS}>
+        <path d="M12 3.2 13.6 8.4 18.8 10 13.6 11.6 12 16.8 10.4 11.6 5.2 10 10.4 8.4Z" />
+        <path d="M18.6 15.4 19.1 17l1.6.5-1.6.5-.5 1.6-.5-1.6-1.6-.5 1.6-.5Z" />
+      </svg>
+    )
+  }
+  if (id === 'tools') {
+    return (
+      <svg {...GLYPH_PROPS}>
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+      </svg>
+    )
+  }
+  if (id === 'image') {
+    return (
+      <svg {...GLYPH_PROPS}>
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+        <circle cx="9" cy="10" r="1.6" />
+        <path d="M4 17.2 8.2 13a2 2 0 0 1 2.8 0L20 20" />
+      </svg>
+    )
+  }
+  if (id === 'text') {
+    return (
+      <svg {...GLYPH_PROPS}>
+        <path d="M5 7V5h14v2" />
+        <path d="M12 5v14" />
+        <path d="M9 19h6" />
+      </svg>
+    )
+  }
   return (
-    <>
-      {model.deprecated === true ? <DshTag size="small" color="orange">{t('catalogDeprecatedTag')}</DshTag> : null}
-      {model.disabled === true ? <DshTag size="small" color="red">{t('catalogDisabledTag')}</DshTag> : null}
-      {supportsImageInput(model) ? <DshTag size="small" type="light" color="blue">{t('catalogImageInput')}</DshTag> : null}
-      {levels.map(level => <DshTag key={level} size="small" type="light">{t(reasoningLevelLabelKey(level))}</DshTag>)}
-      {model.reasoning && levels.length === 0 ? <DshTag size="small" type="light">{t('catalogReasoning')}</DshTag> : null}
-    </>
+    <svg {...GLYPH_PROPS}>
+      <path d="M4.5 12v8.5h15V12" />
+      <path d="M3 7.5h18V12H3z" />
+      <path d="M12 20.5V7.5" />
+      <path d="M12 7.5H8.2a2.3 2.3 0 0 1 0-4.6c3 0 3.8 4.6 3.8 4.6Z" />
+      <path d="M12 7.5h3.8a2.3 2.3 0 0 0 0-4.6c-3 0-3.8 4.6-3.8 4.6Z" />
+    </svg>
+  )
+}
+
+/** 气泡里的勾选标记：支持用对勾，不支持用短横线。 */
+function FeatureMark({ supported }: { supported: boolean }): ReactNode {
+  return (
+    <svg {...GLYPH_PROPS} width={13} height={13} strokeWidth={2}>
+      {supported ? <path d="M20 6 9 17l-5-5" /> : <path d="M6 12h12" />}
+    </svg>
+  )
+}
+
+/**
+ * 能力气泡：每项一行，左侧勾选标记，右侧可带思考等级明细。
+ *
+ * 浮层背景、圆角与阴影由共享包主题的 Tooltip 容器统一提供（`--dsw-alias-tooltip-bg`
+ * 与 `--dsw-shadow-lv3`），这里只负责版式与文字层级，避免重复叠加背景。
+ */
+function ModelFeatureBubble({ model, t }: { model: OpenCodeModel, t: OpenCodeTranslate }): ReactNode {
+  return (
+    <span className="dsh-opencode-model-tip-body">
+      {modelFeatures(model).map(feature => (
+        <span
+          key={feature.id}
+          className={`dsh-opencode-model-tip-row${feature.supported ? '' : ' is-unsupported'}`}
+        >
+          <span className="dsh-opencode-model-tip-mark" aria-hidden="true">
+            <FeatureMark supported={feature.supported} />
+          </span>
+          <span className="dsh-opencode-model-tip-label">{t(featureLabelKey(feature.id))}</span>
+          {feature.levels === undefined ? null : (
+            <span className="dsh-opencode-model-tip-detail">
+              {feature.levels.map(level => t(reasoningLevelLabelKey(level))).join(' / ')}
+            </span>
+          )}
+          {feature.id === 'free' && feature.supported ? (
+            <span className="dsh-opencode-model-tip-detail">{t('catalogFreeClientOnly')}</span>
+          ) : null}
+          <span className="dsh-opencode-visually-hidden">
+            {feature.supported ? t('catalogFeatureSupported') : t('catalogFeatureUnsupported')}
+          </span>
+        </span>
+      ))}
+      <span className="dsh-opencode-model-tip-footer">{t(apiKindLabelKey(model.api))}</span>
+      <span className="dsh-opencode-model-tip-note">
+        {model.plan === 'zen' ? t('catalogPlanZenHint') : t('catalogPlanGoHint')}
+      </span>
+    </span>
   )
 }
 
@@ -79,6 +182,7 @@ export function OpenCodeCatalogCard({
   const [message, setMessage] = useState<string>()
   const [refreshing, setRefreshing] = useState(false)
   const [query, setQuery] = useState('')
+  const [planFilter, setPlanFilter] = useState<OpenCodeCatalogPlanFilter>('all')
   const [savingVisibility, setSavingVisibility] = useState(false)
   const [visibilityError, setVisibilityError] = useState<string>()
   const sequenceRef = useRef(0)
@@ -134,9 +238,12 @@ export function OpenCodeCatalogCard({
   const catalog = response?.catalog ?? undefined
   const hiddenSet = new Set(hiddenModels)
   const models = catalog?.models ?? []
-  const filtered = filterCatalogModels(models, query)
+  const filtered = filterCatalogModels(models, query, planFilter)
+  const counts = countCatalogModels(models)
   const hiddenCount = models.filter(model => hiddenSet.has(model.id)).length
   const updatedAt = formatTimestamp(catalog?.fetchedAt)
+  // 未注册的供应商组不会出现在模型选择器：目录卡顶部给出可读警告。
+  const unregisteredRoutes = (response?.routes ?? []).filter(route => !route.registered)
 
   const toggleModel = async (model: OpenCodeModel, visible: boolean): Promise<void> => {
     setVisibilityError(undefined)
@@ -177,6 +284,25 @@ export function OpenCodeCatalogCard({
           </DshButton>
         </div>
       </header>
+
+      {unregisteredRoutes.length === 0 ? null : (
+        <div className="dsh-opencode-notice dsh-opencode-notice--warning" role="status">
+          <DshIconAlertCircle className="dsh-opencode-notice-icon" />
+          <div className="dsh-opencode-notice-body">
+            <span className="dsh-opencode-notice-title">{t('catalogRouteWarningTitle')}</span>
+            <ul className="dsh-opencode-notice-list">
+              {unregisteredRoutes.map(route => (
+                <li key={route.id}>
+                  {t('catalogRouteWarningItem', {
+                    name: route.name,
+                    message: route.error ?? t('catalogRouteErrorUnknown'),
+                  })}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {state === 'loading' ? (
         <div className="dsh-opencode-status-row" role="status">
@@ -230,7 +356,30 @@ export function OpenCodeCatalogCard({
 
       {catalog === undefined ? null : (
         <>
-          <div className="dsh-opencode-catalog-toolbar">
+          {/* 分组筛选与搜索固定在列表上方，列表内部滚动时它们不跟着走。 */}
+          <div className="dsh-opencode-catalog-controls">
+            <DshButtonGroup
+              size="small"
+              className="dsh-opencode-catalog-filters"
+              aria-label={t('catalogFilterLabel')}
+            >
+              {PLAN_FILTERS.map(filter => {
+                const active = planFilter === filter
+                return (
+                  <DshButton
+                    key={filter}
+                    size="small"
+                    theme={active ? 'solid' : 'borderless'}
+                    type={active ? 'primary' : 'tertiary'}
+                    aria-pressed={active}
+                    onClick={() => { setPlanFilter(filter) }}
+                  >
+                    {filter === 'all' ? t('catalogFilterAll') : t(planLabelKey(filter))}
+                    <span className="dsh-opencode-filter-count">{counts[filter]}</span>
+                  </DshButton>
+                )
+              })}
+            </DshButtonGroup>
             <DshInput
               className="dsh-opencode-search"
               value={query}
@@ -249,48 +398,78 @@ export function OpenCodeCatalogCard({
           {visibilityError === undefined ? null : <p className="dsh-opencode-error" role="alert">{visibilityError}</p>}
 
           {filtered.length === 0 ? (
-            <p className="dsh-opencode-muted">{query.trim().length === 0 ? t('catalogEmpty') : t('catalogSearchEmpty')}</p>
+            <p className="dsh-opencode-muted">
+              {query.trim().length > 0
+                ? t('catalogSearchEmpty')
+                : planFilter === 'all' ? t('catalogEmpty') : t('catalogPlanEmpty')}
+            </p>
           ) : (
-            <ul className="dsh-opencode-models">
-              {filtered.map(model => {
-                const hidden = hiddenSet.has(model.id)
-                const disabled = model.disabled === true
-                const className = [
-                  'dsh-opencode-model',
-                  disabled ? 'is-disabled' : '',
-                  hidden && !disabled ? 'is-hidden' : '',
-                ].filter(Boolean).join(' ')
-                return (
-                  <li className={className} key={model.id}>
-                    <div className="dsh-opencode-model-main">
-                      <div className="dsh-opencode-model-heading">
-                        <span className="dsh-opencode-model-name">{model.name}</span>
-                        {hidden && !disabled ? <DshTag size="small" type="light">{t('catalogHiddenTag')}</DshTag> : null}
-                        <ModelTags model={model} t={t} />
+            <div className="dsh-opencode-models-scroll">
+              <ul className="dsh-opencode-models">
+                {filtered.map(model => {
+                  const hidden = hiddenSet.has(model.id)
+                  const disabled = model.disabled === true
+                  const icons = supportedFeatureIds(model)
+                  const featureSummary = icons.map(id => t(featureLabelKey(id))).join(' · ')
+                  const className = [
+                    'dsh-opencode-model',
+                    disabled ? 'is-disabled' : '',
+                    hidden && !disabled ? 'is-hidden' : '',
+                  ].filter(Boolean).join(' ')
+                  return (
+                    <li className={className} key={model.id}>
+                      <div className="dsh-opencode-model-main">
+                        <div className="dsh-opencode-model-heading">
+                          <span className="dsh-opencode-model-name">{model.name}</span>
+                          <DshTag size="small" type="light" color={model.plan === 'go' ? 'green' : 'grey'}>
+                            {t(planLabelKey(model.plan))}
+                          </DshTag>
+                          {disabled ? <DshTag size="small" color="red">{t('catalogDisabledTag')}</DshTag> : null}
+                          {model.deprecated === true ? <DshTag size="small" color="orange">{t('catalogDeprecatedTag')}</DshTag> : null}
+                          {icons.length === 0 ? null : (
+                            <DshTooltip
+                              className="dsh-opencode-model-tip"
+                              content={<ModelFeatureBubble model={model} t={t} />}
+                              position="top"
+                              showArrow={false}
+                              mouseEnterDelay={0.2}
+                              mouseLeaveDelay={0.1}
+                            >
+                              <span
+                                className="dsh-opencode-model-features"
+                                tabIndex={0}
+                                role="img"
+                                aria-label={`${t('catalogFeatures')}: ${featureSummary}`}
+                              >
+                                {icons.map(id => (
+                                  <span key={id} className={`dsh-opencode-feature dsh-opencode-feature--${id}`}>
+                                    <FeatureGlyph id={id} />
+                                  </span>
+                                ))}
+                              </span>
+                            </DshTooltip>
+                          )}
+                        </div>
+                        <div className="dsh-opencode-model-facts">
+                          <span className="dsh-opencode-model-id">{model.id}</span>
+                          <span className="dsh-opencode-model-fact">{`${t('catalogContext')} ${formatTokenCount(model.contextWindow) ?? '—'}`}</span>
+                          <span className="dsh-opencode-model-fact">{`${t('catalogMaxOutput')} ${formatTokenCount(model.maxTokens) ?? '—'}`}</span>
+                        </div>
                       </div>
-                      <span className="dsh-opencode-model-id">{model.id}</span>
-                      {model.description === undefined ? null : (
-                        <p className="dsh-opencode-model-desc">{model.description}</p>
-                      )}
-                      <div className="dsh-opencode-model-facts">
-                        <span className="dsh-opencode-model-fact">{t(apiKindLabelKey(model.api))}</span>
-                        <span className="dsh-opencode-model-fact">{`${t('catalogContext')} ${formatTokenCount(model.contextWindow) ?? '—'}`}</span>
-                        <span className="dsh-opencode-model-fact">{`${t('catalogMaxOutput')} ${formatTokenCount(model.maxTokens) ?? '—'}`}</span>
+                      <div className="dsh-opencode-model-toggle">
+                        <DshSwitch
+                          size="small"
+                          checked={!hidden}
+                          disabled={!preferencesLoaded || disabled || savingVisibility}
+                          aria-label={`${t('catalogVisibleSwitch')}: ${model.name}`}
+                          onChange={(next: boolean) => { void toggleModel(model, next) }}
+                        />
                       </div>
-                    </div>
-                    <div className="dsh-opencode-model-toggle">
-                      <DshSwitch
-                        size="small"
-                        checked={!hidden}
-                        disabled={!preferencesLoaded || disabled || savingVisibility}
-                        aria-label={`${t('catalogVisibleSwitch')}: ${model.name}`}
-                        onChange={(next: boolean) => { void toggleModel(model, next) }}
-                      />
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
           )}
         </>
       )}

@@ -1,11 +1,12 @@
 /**
- * 模型目录的纯计算：搜索过滤、容量展示、思考等级与显隐写入。
+ * 模型目录的纯计算：搜索与分组过滤、容量展示、能力特性、思考等级与显隐写入。
  *
  * @module dsh-opencode/client/catalog-search
  */
 
 import { OPENCODE_REASONING_LEVELS } from '../../contracts/catalog.ts'
 import type { OpenCodeApiKind, OpenCodeModel, OpenCodeReasoningLevel } from '../../contracts/catalog.ts'
+import type { OpenCodePlan } from '../../contracts/identity.ts'
 import type { OpenCodeLocaleKey } from '../locales.ts'
 
 /** 协议族 → 展示文案键；`Record` 保证新增协议族时编译期报错。 */
@@ -91,23 +92,126 @@ export function modelMatchesTerms(model: OpenCodeModel, terms: readonly string[]
   return terms.every(term => haystack.includes(term))
 }
 
+/** 目录分组筛选：`all` 表示不分组，其余对应一个 plan。 */
+export type OpenCodeCatalogPlanFilter = 'all' | OpenCodePlan
+
 /**
- * 按搜索词过滤目录；不改动顺序（上游顺序即选择器顺序）。
+ * 按搜索词与分组过滤目录；不改动顺序（上游顺序即选择器顺序）。
+ *
+ * 两个条件是 AND：用户先选分组再看搜索词，缩小的范围应当是两者的交集。
  * @param models - 目录条目。
  * @param query - 用户输入。
+ * @param plan - 分组筛选；缺省为全部。
  * @returns 命中的条目。
  */
-export function filterCatalogModels(models: readonly OpenCodeModel[], query: string): readonly OpenCodeModel[] {
+export function filterCatalogModels(
+  models: readonly OpenCodeModel[],
+  query: string,
+  plan: OpenCodeCatalogPlanFilter = 'all',
+): readonly OpenCodeModel[] {
   const terms = searchTerms(query)
-  if (terms.length === 0) return models
-  return models.filter(model => modelMatchesTerms(model, terms))
+  return models.filter(model => matchesPlanFilter(model, plan) && modelMatchesTerms(model, terms))
+}
+
+/**
+ * 一个模型是否属于所选分组。
+ * @param model - 目录条目。
+ * @param filter - 分组筛选。
+ * @returns 属于该分组时为 true；`all` 恒为 true。
+ */
+export function matchesPlanFilter(model: OpenCodeModel, filter: OpenCodeCatalogPlanFilter): boolean {
+  return filter === 'all' || model.plan === filter
+}
+
+/**
+ * 各分组的条目数量，用于筛选按钮上的计数。
+ * @param models - 目录条目。
+ * @returns `all` / `go` / `zen` 三个计数；输入为空时全为 0。
+ */
+export function countCatalogModels(
+  models: readonly OpenCodeModel[],
+): Readonly<Record<OpenCodeCatalogPlanFilter, number>> {
+  const counts: Record<OpenCodeCatalogPlanFilter, number> = { all: models.length, go: 0, zen: 0 }
+  for (const model of models) counts[model.plan] += 1
+  return counts
+}
+
+/**
+ * 分组标签的文案键：Go 显示「Go」，Zen 显示「按量」。
+ * @param plan - 契约里的分组。
+ * @returns 对应的 locale 键。
+ */
+export function planLabelKey(plan: OpenCodePlan): OpenCodeLocaleKey {
+  return plan === 'go' ? 'catalogPlanGo' : 'catalogPlanZen'
+}
+
+/** 模型能力：条目上用图标表达、气泡里逐项列出的五个特性。 */
+export type OpenCodeFeatureId = 'reasoning' | 'tools' | 'image' | 'text' | 'free'
+
+/** 一组能力描述。 */
+export interface OpenCodeFeature {
+  readonly id: OpenCodeFeatureId
+  readonly supported: boolean
+  /** 思考等级明细：仅 reasoning 受支持且模型声明了映射时存在。 */
+  readonly levels?: readonly OpenCodeReasoningLevel[]
+}
+
+/** 能力 → 展示文案键；`Record` 保证新增能力时编译期报错。 */
+const FEATURE_LABEL_KEYS: Record<OpenCodeFeatureId, OpenCodeLocaleKey> = {
+  reasoning: 'catalogFeatureReasoning',
+  tools: 'catalogFeatureTools',
+  image: 'catalogFeatureImage',
+  text: 'catalogFeatureText',
+  free: 'catalogFeatureFree',
+}
+
+/**
+ * 能力标签的文案键。
+ * @param id - 能力标识。
+ * @returns 对应的 locale 键。
+ */
+export function featureLabelKey(id: OpenCodeFeatureId): OpenCodeLocaleKey {
+  return FEATURE_LABEL_KEYS[id]
+}
+
+/**
+ * 模型能力的固定顺序清单。
+ *
+ * 顺序与契约字段顺序一致，条目上的图标和气泡里的行都按它排列，保证同一模型
+ * 在两处表达一致。
+ * @param model - 目录条目。
+ * @returns 五个能力及其是否受支持；reasoning 附带受支持的思考等级。
+ */
+export function modelFeatures(model: OpenCodeModel): readonly OpenCodeFeature[] {
+  const levels = reasoningLevels(model)
+  const features: OpenCodeFeature[] = [
+    model.reasoning === true && levels.length > 0
+      ? { id: 'reasoning', supported: true, levels }
+      : { id: 'reasoning', supported: model.reasoning === true },
+    { id: 'tools', supported: model.tools === true },
+    { id: 'image', supported: supportsImageInput(model) },
+    { id: 'text', supported: model.input.includes('text') },
+    { id: 'free', supported: model.free === true },
+  ]
+  return features
+}
+
+/**
+ * 条目上要画成图标的能力（只看受支持的，按固定顺序）。
+ * @param model - 目录条目。
+ * @returns 受支持能力的标识列表；模型没有任何能力时为空数组。
+ */
+export function supportedFeatureIds(model: OpenCodeModel): readonly OpenCodeFeatureId[] {
+  return modelFeatures(model)
+    .filter(feature => feature.supported)
+    .map(feature => feature.id)
 }
 
 /**
  * 模型实际开放的思考等级（顺序即契约顺序）。
  *
  * `thinkingLevelMap` 里值为 `null` 表示该等级不受支持；模型本身不支持思考或
- * 没有映射时返回空数组，由界面退化成「支持思考」标签。
+ * 没有映射时返回空数组，界面只在气泡里标出支持与否，不列等级明细。
  * @param model - 目录条目。
  * @returns 受支持的思考等级。
  */

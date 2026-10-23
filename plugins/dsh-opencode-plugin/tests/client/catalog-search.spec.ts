@@ -3,15 +3,22 @@ import { OPENCODE_REASONING_LEVELS } from '../../src/contracts/catalog.ts'
 import type { OpenCodeModel } from '../../src/contracts/catalog.ts'
 import {
   apiKindLabelKey,
+  countCatalogModels,
+  featureLabelKey,
   filterCatalogModels,
   formatTokenCount,
+  matchesPlanFilter,
+  modelFeatures,
   modelMatchesTerms,
+  planLabelKey,
   reasoningLevelLabelKey,
   reasoningLevels,
   searchTerms,
+  supportedFeatureIds,
   supportsImageInput,
   withModelVisibility,
 } from '../../src/client/services/catalog-search.ts'
+import type { OpenCodeFeatureId } from '../../src/client/services/catalog-search.ts'
 import { en, zh } from '../../src/client/locales.ts'
 
 /** 构造一个目录条目；只覆盖需要断言的字段。 */
@@ -23,7 +30,9 @@ function model(overrides: Partial<OpenCodeModel> & Pick<OpenCodeModel, 'id' | 'n
     input: ['text'],
     contextWindow: 128_000,
     maxTokens: 8_192,
-    go: true,
+    plan: 'zen',
+    tools: false,
+    free: false,
     ...overrides,
   }
 }
@@ -46,6 +55,13 @@ const gemini = model({
   name: 'Gemini 2.5 Pro',
   family: 'gemini',
   api: 'google-generative-ai',
+})
+const goModel = model({
+  id: 'minimax-m2',
+  name: 'MiniMax M2',
+  plan: 'go',
+  tools: true,
+  free: true,
 })
 
 describe('目录搜索', () => {
@@ -94,6 +110,88 @@ describe('容量展示', () => {
     expect(formatTokenCount(0)).toBeUndefined()
     expect(formatTokenCount(-1)).toBeUndefined()
     expect(formatTokenCount(Number.NaN)).toBeUndefined()
+  })
+})
+
+describe('模型分组', () => {
+  it('all 不过滤，go / zen 只保留本组条目', () => {
+    const models = [claude, goModel]
+    expect(matchesPlanFilter(claude, 'all')).toBe(true)
+    expect(matchesPlanFilter(goModel, 'all')).toBe(true)
+    expect(filterCatalogModels(models, '', 'all')).toEqual(models)
+    expect(filterCatalogModels(models, '', 'go')).toEqual([goModel])
+    expect(filterCatalogModels(models, '', 'zen')).toEqual([claude])
+  })
+
+  it('分组与搜索词是 AND 关系', () => {
+    const models = [claude, goModel]
+    expect(filterCatalogModels(models, 'minimax', 'go')).toEqual([goModel])
+    expect(filterCatalogModels(models, 'minimax', 'zen')).toEqual([])
+    expect(filterCatalogModels(models, 'claude', 'go')).toEqual([])
+  })
+
+  it('计数覆盖全部分组', () => {
+    expect(countCatalogModels([])).toEqual({ all: 0, go: 0, zen: 0 })
+    expect(countCatalogModels([claude, gpt, goModel])).toEqual({ all: 3, go: 1, zen: 2 })
+  })
+
+  it('分组标签走 locale：Go / 按量', () => {
+    expect(planLabelKey('go')).toBe('catalogPlanGo')
+    expect(planLabelKey('zen')).toBe('catalogPlanZen')
+    expect(en[planLabelKey('go')]).toBe('Go')
+    expect(zh[planLabelKey('zen')]).toBe('按量')
+    expect(en[planLabelKey('zen')]).toBeTruthy()
+    expect(zh[planLabelKey('go')]).toBeTruthy()
+  })
+})
+
+describe('模型能力特性', () => {
+  const full = model({
+    id: 'full',
+    name: 'Full',
+    reasoning: true,
+    thinkingLevelMap: { off: 'off', low: 'low', medium: null },
+    tools: true,
+    input: ['text', 'image'],
+    free: true,
+  })
+
+  it('固定顺序列出五项能力', () => {
+    expect(modelFeatures(full).map(feature => feature.id)).toEqual(['reasoning', 'tools', 'image', 'text', 'free'])
+    expect(modelFeatures(full).every(feature => feature.supported)).toBe(true)
+  })
+
+  it('按契约字段判定支持与否', () => {
+    const features = modelFeatures(gpt)
+    expect(features.find(feature => feature.id === 'reasoning')?.supported).toBe(false)
+    expect(features.find(feature => feature.id === 'tools')?.supported).toBe(false)
+    expect(features.find(feature => feature.id === 'image')?.supported).toBe(false)
+    expect(features.find(feature => feature.id === 'text')?.supported).toBe(true)
+    expect(features.find(feature => feature.id === 'free')?.supported).toBe(false)
+  })
+
+  it('推理能力带上受支持的等级明细', () => {
+    const reasoning = modelFeatures(full).find(feature => feature.id === 'reasoning')
+    expect(reasoning?.levels).toEqual(['off', 'low'])
+    const noMap = modelFeatures(model({ id: 'r', name: 'R', reasoning: true }))
+      .find(feature => feature.id === 'reasoning')
+    expect(noMap?.supported).toBe(true)
+    expect(noMap?.levels).toBeUndefined()
+  })
+
+  it('图标只取受支持的能力，并保持固定顺序', () => {
+    expect(supportedFeatureIds(full)).toEqual(['reasoning', 'tools', 'image', 'text', 'free'])
+    expect(supportedFeatureIds(goModel)).toEqual(['tools', 'text', 'free'])
+    expect(supportedFeatureIds(model({ id: 'bare', name: 'Bare', input: [] }))).toEqual([])
+  })
+
+  it('能力标签走 locale', () => {
+    const ids: readonly OpenCodeFeatureId[] = ['reasoning', 'tools', 'image', 'text', 'free']
+    for (const id of ids) {
+      const key = featureLabelKey(id)
+      expect(en[key]).toBeTruthy()
+      expect(zh[key]).toBeTruthy()
+    }
   })
 })
 

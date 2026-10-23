@@ -4,7 +4,8 @@
  * 装配关系：
  * - `OpenCodeAuthService` 管理 Console 设备码登录与 token 刷新；
  * - `OpenCodeCatalogService` 用 Auth token 读取工作空间模型，合并公开目录；
- * - `OpenCodeProviderRuntime` 把目录投影成 `opencode-go` 路由（动态 provider）；
+ * - `OpenCodeProviderRuntime` 把目录投影成 `dsh-opencode`（Zen 按量）与
+ *   `dsh-opencode-go`（Go 套餐）两组路由（动态 provider）；
  * - `OpenCodeUsageService` 读取 Go 套餐额度；
  * - `registerOpenCodeRoutes` 暴露同源 Web 路由给插件详情页与用量胶囊。
  *
@@ -14,6 +15,7 @@
  * @module dsh-opencode
  */
 
+import { opencodeProvider } from '@earendil-works/pi-ai/providers/opencode'
 import { opencodeGoProvider } from '@earendil-works/pi-ai/providers/opencode-go'
 import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
@@ -56,7 +58,10 @@ export function apply(ctx: Context): void {
     logger: ctx.logger,
   })
 
-  const builtinModels = opencodeGoProvider().getModels()
+  const builtinModels = {
+    zen: opencodeProvider().getModels(),
+    go: opencodeGoProvider().getModels(),
+  }
   const runtime = new OpenCodeProviderRuntime({
     resolveAccessToken: () => auth.accessToken(),
     resolveAttachments: () => ctx.get('attachments') as AttachmentStore | undefined,
@@ -86,14 +91,17 @@ export function apply(ctx: Context): void {
 
   const usage = new OpenCodeUsageService({ resolveToken: () => auth.accessToken() })
 
-  /** 把目录快照投影成 provider 模型，并应用「隐藏模型」偏好。 */
+  /** 把目录快照投影成两组 provider 模型，并应用「隐藏模型」偏好。 */
   const applyCatalog = async (snapshot: OpenCodeCatalog | undefined): Promise<void> => {
     if (snapshot === undefined) return
     const prefs = await preferences.read()
     const hidden = new Set(prefs.hiddenModels)
     runtime.update(
       snapshot.models.filter(model => model.disabled !== true && !hidden.has(model.id)),
-      catalog.requestHeaders() ?? {},
+      {
+        zen: catalog.requestHeaders('zen') ?? {},
+        go: catalog.requestHeaders('go') ?? {},
+      },
     )
   }
 
@@ -143,6 +151,7 @@ export function apply(ctx: Context): void {
         await applyCatalog(catalog.current())
         await schedule()
       },
+      routes: () => runtime.routeStatus(),
     })
   })
 }
