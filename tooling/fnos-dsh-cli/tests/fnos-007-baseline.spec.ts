@@ -62,7 +62,12 @@ describe('FNOS-007 DSH baseline', () => {
     for (const directory of pluginDirectories.filter(value => value !== 'dsh-fnos-plugin')) {
       const manifest = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as {
         peerDependencies: Record<string, string>
+        engines?: { dsh?: string }
       }
+      // 声明了 engines.dsh 时 DSH 只按它判兼容性（peerDependencies 被忽略），
+      // 因此这个字段必须与 catalog 基线一致，否则本地联调会把插件整体跳过。
+      const enginesDsh = manifest.engines?.dsh
+      if (enginesDsh !== undefined) expect(enginesDsh, `${directory}:engines.dsh`).toBe(targetVersion)
       for (const [name, range] of Object.entries(manifest.peerDependencies)) {
         if (name.startsWith('@deepseek-ai/dsh-')) expect(range, `${directory}:${name}`).toBe(targetVersion)
       }
@@ -155,7 +160,7 @@ describe('FNOS-007 DSH baseline', () => {
     expect(callback).not.toContain('node-pty-versions')
   })
 
-  it('requires every DSH peer on the target runtime baseline', async () => {
+  it('keeps every DSH peer and declared engines.dsh on the target runtime baseline', async () => {
     const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
     const catalog = new Map<string, string>()
     let inDshCatalog = false
@@ -174,7 +179,12 @@ describe('FNOS-007 DSH baseline', () => {
     for (const directory of pluginDirectories) {
       const manifest = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as {
         peerDependencies: Record<string, string>
+        engines?: { dsh?: string }
       }
+      // 声明了 engines.dsh 时 DSH 只按它判兼容性（peerDependencies 被忽略），
+      // 因此这个字段必须与 catalog 基线一致，否则本地联调会把插件整体跳过。
+      const enginesDsh = manifest.engines?.dsh
+      if (enginesDsh !== undefined) expect(enginesDsh, `${directory}:engines.dsh`).toBe(targetVersion)
       for (const [name, range] of Object.entries(manifest.peerDependencies)) {
         if (!name.startsWith('@deepseek-ai/dsh')) continue
         const resolved = range === 'catalog:dsh' ? catalog.get(name) : range

@@ -45,15 +45,22 @@ const srcPath = (...segments: string[]) => join(here, '..', 'src', ...segments)
 | 命名 catalog 收录的包（如 DSH 运行时） | `"catalog:dsh"` |
 | 本仓库内的 workspace 包 | `"workspace:*"` |
 
-四条依赖字段（`dependencies`、`devDependencies`、`peerDependencies`、`optionalDependencies`）同一规则，**唯一例外是 DSH 运行时包的 `peerDependencies`**（见下）。
+四条依赖字段（`dependencies`、`devDependencies`、`peerDependencies`、`optionalDependencies`）同一规则，DSH 运行时包的 `peerDependencies` 有两种受支持的写法：
 
-**DSH peer 必须写具体版本**（`"@deepseek-ai/dsh-llm": "0.2.1-rc.2"`），不能用 `catalog:dsh`：
+**推荐：`catalog:dsh` + 显式 `engines.dsh`。** manifest 同时声明运行时基线：
 
-1. DSH 运行时加载插件时，对 manifest 里 `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-*` 的 peer 做 **semver 范围校验**（`satisfies(runtimeVersion, range)`）。`catalog:dsh` 不是合法 range，一律判为不满足 → 插件被**整体跳过**，DSH Web 起来了却没有任何插件。
-2. 本地联调时 DSH 经安装锚点解析插件目录，命中的是 `node_modules/.pnpm/node_modules/@tnnevol/<plugin>` 这个指向**仓库源码**的软链，因此校验读到的就是**仓库里的 manifest**——profile 里那份副本不参与校验。
-3. 已发布的 npm 产物不受影响：pnpm 在 pack 时会把 peer 重写成 catalog 里的真实版本。
+```json
+"engines": { "node": "^22.19.0 || >=24.0.0", "dsh": "0.2.1-rc.2" },
+"peerDependencies": { "@deepseek-ai/dsh-llm": "catalog:dsh" }
+```
 
-这条约束由 `tooling/fnos-dsh-cli/tests/fnos-007-baseline.spec.ts` 守卫；`build.ts` 的 catalog 门禁对 DSH peer 显式豁免。
+DSH 的兼容性规则是「声明了 `engines.dsh` 时只由该范围决定，忽略 `peerDependencies`」（见 `@deepseek-ai/dsh-app-boot` 的插件兼容性检查），因此本地软链加载也能通过校验；各 peer 继续由 catalog 维护。`engines.dsh` 必须等于 `pnpm-workspace.yaml` 中 `dsh` catalog 的基线，由基线测试守卫。
+
+**兼容：DSH peer 写具体版本**（`"@deepseek-ai/dsh-llm": "0.2.1-rc.2"`）。未声明 `engines.dsh` 时，DSH 会对每个 DSH peer 做 **semver 范围校验**（`satisfies(runtimeVersion, range)`），`catalog:dsh` 不是合法 range，一律判为不满足 → 插件被**整体跳过**。本地联调时 DSH 经安装锚点解析到仓库源码软链，读到的是仓库里的 manifest，所以这条约束对本地同样生效。
+
+两种写法下，已发布的 npm 产物都不受影响：pnpm 在 pack 时会把 `catalog:` 重写成 catalog 里的真实版本。
+
+这两条约束由 `tooling/fnos-dsh-cli/tests/fnos-007-baseline.spec.ts` 守卫（DSH peer 与 `engines.dsh` 都必须落在目标基线）；`build.ts` 的 catalog 门禁对 DSH peer 显式豁免。
 
 ## 类型定义策略
 

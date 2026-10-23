@@ -20,4 +20,9 @@ dsh plugin --profile web add @tnnevol/dsh-opencode@0.2.1-rc.2.20
 - 插件详情页集中管理账号、套餐额度、模型目录与刷新策略
 - 对话输入区右侧常驻套餐用量胶囊（5 小时 / 每周 / 每月）
 
+## 图标
+
+插件图标取自 OpenCode 官方站点 `https://opencode.ai/web-app-manifest-512x512.png`，
+只用于标识本插件接入的 OpenCode 服务。
+
 更完整的说明见线上文档：<https://fndsh-doc.tnnevol.cn/plugins/dsh-opencode>
