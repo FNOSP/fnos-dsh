@@ -4,6 +4,8 @@ const mocks = vi.hoisted(() => ({
   runCommand: vi.fn(),
   existsSync: vi.fn(),
   statSync: vi.fn(),
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
 }))
 
 // `repositoryRoot` 由源码路径加载时层级比打包产物多一层（见 version.spec.ts 的同类说明），
@@ -16,6 +18,8 @@ vi.mock('node:fs', async importOriginal => ({
   ...(await importOriginal<typeof import('node:fs')>()),
   existsSync: mocks.existsSync,
   statSync: mocks.statSync,
+  readFileSync: mocks.readFileSync,
+  writeFileSync: mocks.writeFileSync,
 }))
 
 const {
@@ -121,8 +125,41 @@ describe('重建索引的降级行为', () => {
     mocks.runCommand.mockRejectedValue(new Error('generator blew up'))
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     await expect(regenerateMarketIndex()).resolves.toBeUndefined()
-    expect(warn.mock.calls.flat().join('\n')).toContain('不影响本次发布')
+    const warned = warn.mock.calls.flat().join('\n')
+    expect(warned).toContain('索引生成失败')
+    // 本地元数据归一化只依赖本仓库文件，生成失败时仍要继续跑，否则本地标题/图标
+    // 会一直停在旧值。
+    expect(warned).toContain('本地元数据')
     warn.mockRestore()
+  })
+
+  it('索引未变化时仍用本地元数据归一化标题与图标', async () => {
+    mocks.existsSync.mockReturnValue(true)
+    mocks.runCommand.mockResolvedValue(undefined)
+    // 前后 mtime 相同 → 走「未变化」分支；归一化仍必须发生，否则本地改过的
+    // 标题/图标会一直停在旧值（这条曾因提前 return 而失效）。
+    mocks.statSync.mockReturnValue({ mtimeMs: 42 })
+    mocks.readFileSync.mockImplementation((path: unknown) => {
+      const p = String(path)
+      if (p.endsWith('index.json')) {
+        return JSON.stringify({ format: 1, plugins: [{ name: '@tnnevol/dsh-demo', title: { zh: '演示 集成' } }] })
+      }
+      if (p.endsWith('locale/zh.json')) return JSON.stringify({ meta: { title: '演示' } })
+      if (p.endsWith('package.json')) return JSON.stringify({ icon: 'icon.png' })
+      if (p.endsWith('.png')) return Buffer.from('png-bytes')
+      throw new Error(`unexpected read: ${p}`)
+    })
+    mocks.writeFileSync.mockImplementation(() => {})
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await regenerateMarketIndex()
+
+    const written = mocks.writeFileSync.mock.calls.at(-1)?.[1]
+    expect(typeof written).toBe('string')
+    const parsed = JSON.parse(String(written)) as { plugins: Array<{ title: { zh: string }, icon: string }> }
+    expect(parsed.plugins[0]?.title.zh).toBe('演示')
+    expect(parsed.plugins[0]?.icon).toMatch(/^icons\/[0-9a-f]{16}\.png$/)
+    log.mockRestore()
   })
 
   it('显式跳过时不运行生成器', async () => {
