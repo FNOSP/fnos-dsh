@@ -7,7 +7,7 @@
       "name": "@tnnevol/dsh-fnos",
       "title": {
         "en": "fnOS",
-        "zh": "fnOS 集成"
+        "zh": "fnOS"
       },
       "description": {
         "en": "fnOS-specific integrations for DeepSeek Harness: theme following, authorized directories, NAS file access, and session log export.",
@@ -268,7 +268,7 @@
       "name": "@tnnevol/dsh-codex-auth",
       "title": {
         "en": "Codex Auth",
-        "zh": "Codex 身份验证"
+        "zh": "Codex"
       },
       "description": {
         "en": "ChatGPT OAuth account management that brings Codex models, usage, and image input into DeepSeek Harness.",
@@ -768,7 +768,7 @@
       "name": "@tnnevol/dsh-midscene",
       "title": {
         "en": "Midscene Bridge",
-        "zh": "Midscene 桥接"
+        "zh": "Midscene"
       },
       "description": {
         "en": "Loopback OpenAI-compatible bridge that lets Midscene browser automation use every model already configured in DeepSeek Harness.",
@@ -908,7 +908,7 @@
       "name": "@tnnevol/dsh-semi-ui-showcase",
       "title": {
         "en": "Semi UI Showcase",
-        "zh": "Semi UI 组件展示"
+        "zh": "Semi UI"
       },
       "description": {
         "en": "Runtime showcase for the shared DSH-themed Semi Design components, themes, and interaction states.",

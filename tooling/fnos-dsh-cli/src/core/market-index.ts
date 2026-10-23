@@ -18,7 +18,7 @@
  * @module fnos-dsh-cli/market-index
  */
 
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { repositoryRoot } from '../config/paths.js'
 import { runCommand } from './process.js'
@@ -37,6 +37,60 @@ const CACHE_PATH = join('tmp', 'plugin-market-cache')
 /** 索引的展示元数据；与 `plugins.txt` 顶部注释里记录的口径一致。 */
 const TITLE = '飞牛 fnOS DSH 插件'
 const DESCRIPTION = '为飞牛 fnOS 维护的 DSH 插件：模型提供方、搜索故障转移、浏览器自动化与系统集成。'
+
+/**
+ * 用本地插件的 `locale/zh.json` 覆盖索引里的中文标题。
+ *
+ * 生成器读的是 **npm 上已发布版本**的 tarball，因此「改本地标题」要等到下次发版
+ * 才会进入索引——在那之前，界面会一直显示旧标题。这里在生成之后补一步本地归一化：
+ * 本地 locale 永远为准，重新生成也不会把旧标题带回来。
+ *
+ * 只改 `title.zh`，其余字段（版本、图标、描述）仍然完全由生成器决定，避免这份
+ * 归一化悄悄盖掉发布信息。找不到对应插件或 locale 时静默跳过——索引里可能含
+ * 本仓库之外的来源。
+ *
+ * @returns 实际被改写的插件数。
+ */
+function applyLocalTitles(): number {
+  const indexPath = join(repositoryRoot, INDEX_PATH)
+  let index: unknown
+  try {
+    index = JSON.parse(readFileSync(indexPath, 'utf8'))
+  } catch {
+    return 0
+  }
+  if (typeof index !== 'object' || index === null) return 0
+  const plugins = (index as { plugins?: unknown }).plugins
+  if (!Array.isArray(plugins)) return 0
+
+  let changed = 0
+  for (const entry of plugins) {
+    if (typeof entry !== 'object' || entry === null) continue
+    const plugin = entry as { name?: unknown, title?: unknown }
+    if (typeof plugin.name !== 'string') continue
+    // 包名 `@tnnevol/dsh-midscene` → 目录 `plugins/dsh-midscene-plugin`。
+    const shortName = plugin.name.split('/').pop() ?? ''
+    if (shortName.length === 0) continue
+    const localePath = join(repositoryRoot, 'plugins', `${shortName}-plugin`, 'locale', 'zh.json')
+    let title: unknown
+    try {
+      const locale = JSON.parse(readFileSync(localePath, 'utf8')) as { meta?: { title?: unknown } }
+      title = locale.meta?.title
+    } catch {
+      continue
+    }
+    if (typeof title !== 'string' || title.length === 0) continue
+    const current = plugin.title
+    if (typeof current !== 'object' || current === null) continue
+    const titles = current as { zh?: unknown }
+    if (titles.zh === title) continue
+    titles.zh = title
+    changed += 1
+  }
+
+  if (changed > 0) writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`)
+  return changed
+}
 
 /**
  * 上游检出里生成器所在目录的候选路径。
@@ -147,10 +201,18 @@ export async function regenerateMarketIndex(options: { skip?: boolean } = {}): P
   const before = indexMtime()
   try {
     await runCommand('pnpm', marketIndexArgs(generatorRoot), repositoryRoot)
+    // 生成器读的是 npm 上已发布版本，本地改过的标题要等下次发版才生效；这里
+    // 用本地 locale 覆盖一遍，避免本地标题在重新生成时又退回旧值。
+    //
+    // 必须在「未变化就 return」之前做：索引没被重写时恰恰是**最需要**归一化的时候
+    // （发布前只改了本地标题、或生成本身没产出），此时提前返回会让本地标题留在旧值。
+    const retitled = applyLocalTitles()
+    if (retitled > 0) console.log(`  已用本地 locale 覆盖 ${retitled} 个插件的中文标题`)
+
     // **不能只看退出码**：pnpm 在没有任何项目匹配 filter 时也以 0 退出，
     // 那时索引根本没被重写。以「文件是否真被改动」作为成功判据更可靠。
     const after = indexMtime()
-    if (after === before) {
+    if (after === before && retitled === 0) {
       console.warn('  生成器已运行，但索引文件未变化——请确认生成器可用且索引确需更新。')
       console.warn('  若刚发版，可重跑：pnpm exec fnos-dsh-cli market:index')
       return
