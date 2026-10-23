@@ -41,7 +41,7 @@ export const zh = {
   addModel: '添加模型',
   removeModel: '移除',
   envLabel: '接入配置（命令行 .env 或 Midscene 浏览器扩展）',
-  envHint: '两条路都用这段内容：跑命令行时保存为工作目录的 .env；用 Chrome 里的 Midscene 扩展时，打开它的侧边栏设置把这段粘进去。默认只有四行；给专用职责配了模型后会自动追加对应变量组。不需要任何第三方模型密钥。',
+  envHint: '常规只需用在这里：跑命令行时保存为工作目录的 .env。桥接模式下推理在跑脚本这一侧完成，Chrome 里的 Midscene 扩展不必配模型——只有用扩展自带的 Playground 时，才需要把这段粘进它的侧边栏设置。默认只有四行；给专用职责配了模型后会自动追加对应变量组。不需要任何第三方模型密钥。',
   envCopy: '复制接入配置',
   loading: '正在读取当前设置…',
   loadFailed: '读取设置失败',

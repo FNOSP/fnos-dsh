@@ -9,7 +9,7 @@
 **本插件不随 fnOS 应用（FPK）内置分发**——浏览器自动化是用完即走的场景，需要时自行安装。任何 DSH 环境（含 fnOS 上的 DSH）都执行：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.1-rc.2.17
+dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.1-rc.2.18
 ```
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。
@@ -78,12 +78,23 @@ Midscene 强制要求四个模型环境变量（其中 `MIDSCENE_MODEL_FAMILY` �
 
 ### 一条命令生成接入配置
 
-这份配置有**两个去处**，内容完全相同：
+这份配置有**两个去处**，内容完全相同，但**只有第一个是常规必需**：
 
-| 去处 | 怎么用 |
-| --- | --- |
-| 命令行 | 在**运行 Midscene 命令的工作目录**保存为 `.env`（Midscene 只加载当前目录的 `.env`） |
-| **Midscene 浏览器扩展** | 打开扩展的**侧边栏设置**，把这四行粘进去（扩展侧边栏的 Playground 就是靠它接上 DSH 的模型） |
+| 去处 | 怎么用 | 何时需要 |
+| --- | --- | --- |
+| 命令行 / 脚本 | 在**运行 Midscene 命令的工作目录**保存为 `.env`（Midscene 只加载当前目录的 `.env`） | **总是**——推理发生在这一侧 |
+| **Midscene 浏览器扩展** | 打开扩展的**侧边栏设置**，把这四行粘进去 | **仅当**你要用扩展自带的 Playground |
+
+**Bridge 模式下扩展不需要配模型。** 扩展只当「眼睛和手」：截图、点击、输入；模型推理在跑脚本的
+Node / CLI 侧完成。因此：
+
+- 不给扩展任何模型配置，桥接自动化**照样跑通**；
+- 反过来去掉 CLI 侧的 `MIDSCENE_MODEL_NAME`，会直接报
+  `Model configuration is incomplete: model name (MIDSCENE_MODEL_NAME) is required` ——
+  **报错点在 CLI 侧**，这就是配置归属的判据。
+
+唯一需要配扩展的是**扩展自带的 Playground**（在侧边栏里手写自然语言指令、由扩展自己驱动页面），
+那是另一条链路。
 
 ```sh
 curl -s http://127.0.0.1:8787/v1/midscene-env |
@@ -248,13 +259,17 @@ Midscene 官方支持 **Chrome 桥接模式**：本插件的验证脚本作为�
 
 前提条件（一次性）：Chrome 安装 [Midscene 扩展](https://midscenejs.com/zh/bridge-mode.html)，首次连接时在扩展弹窗点 **Allow**（或 **Always Allow** 后续免确认）。
 
-**扩展自身的模型也要指向本插件**：扩展侧边栏的 Playground 自带模型配置项，把下面第 1 步拿到的
-四行粘进**扩展的侧边栏设置**即可 —— 那里的模型由桥决定（跟随 DSH 会话模型，或你在插件设置里指定的模型），**不需要申请任何第三方密钥**。
-漏掉这一步时，扩展用不上 DSH 的模型，会把你引向申请外部 key，而那正是本插件要消除的成本。
+**扩展不需要配模型。** 桥接模式下推理发生在跑脚本的这一侧，扩展只当「眼睛和手」：截图、点击、输入。
+所以「扩展里没填模型」不会导致连不上——能否连上只取决于扩展装没装、首次连接有没有点过 **Allow**。
+反向判据：把 CLI 侧的 `MIDSCENE_MODEL_NAME` 去掉，报错会出在 CLI 侧
+（`Model configuration is incomplete: model name (MIDSCENE_MODEL_NAME) is required`）。
+
+只有让用户用**扩展自带的 Playground**（在侧边栏里手写指令、由扩展自己驱动页面）时，才需要把
+接入配置粘进侧边栏设置 —— 那是另一条链路。
 
 ```sh
 # 1) 取接入配置（四行固定值；端口以 /v1/health 的 port 字段为准）
-#    同一份配置用于两处：命令行（存为工作目录的 .env）与 Midscene 浏览器扩展（粘进侧边栏设置）
+#    存为运行 Midscene 命令的工作目录下的 .env —— 桥接会话的脚本会从这里读
 curl -s "http://127.0.0.1:8787/v1/midscene-env" |
     python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" >.env
 # 2) 运行（目标 URL 用带 token 的完整地址）
