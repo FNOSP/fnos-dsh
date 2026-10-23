@@ -21,4 +21,3 @@
 @tnnevol/dsh-failover-search
 @tnnevol/dsh-midscene
 @tnnevol/dsh-semi-ui-showcase
-@tnnevol/dsh-opencode
