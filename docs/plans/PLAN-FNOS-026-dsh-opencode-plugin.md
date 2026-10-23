@@ -2,7 +2,7 @@
 id: PLAN-FNOS-026
 title: PLAN-FNOS-026 OpenCode Go 模型接入与套餐用量
 description: 为 @tnnevol/dsh-opencode 实施 OpenCode Console 登录、动态 OpenCode Go 模型目录与套餐用量展示，并完成插件说明页、菜单与市场源列表登记。
-status: planned
+status: in-progress
 owner: tnnevol
 planDate: 2026-10-23
 targetVersion: 5.9.0-0.2.1-rc.2.19
@@ -17,7 +17,7 @@ lastVerified: 2026-10-23
 | 计划日期 | 2026-10-23 |
 | 对应需求 | [FNOS-026 OpenCode Go 模型接入与套餐用量](/requirements/FNOS-026-dsh-opencode-plugin) |
 | 本轮功能 | FNOS-026-01、FNOS-026-02、FNOS-026-03、FNOS-026-04、FNOS-026-05、FNOS-026-06、FNOS-026-07、FNOS-026-08、FNOS-026-09 |
-| 计划状态 | <Badge type="warning" text="规划中" /> |
+| 计划状态 | <Badge type="warning" text="实施中（五阶段实现完成；发布相关任务待 npm 发布）" /> |
 
 ## 计划目标
 

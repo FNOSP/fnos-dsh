@@ -2,7 +2,7 @@
 id: FNOS-026
 title: FNOS-026 OpenCode Go 模型接入与套餐用量
 description: 通过 OpenCode Console 账号登录，把 OpenCode Go 模型及其能力（协议族、上下文、图片输入、思考等级）与套餐额度接入 DSH，并补齐插件说明页、菜单与市场源列表登记。
-status: planned
+status: in-progress
 owner: tnnevol
 targetVersion: 5.9.0-0.2.1-rc.2.19
 lastVerified: 2026-10-23
@@ -14,7 +14,7 @@ lastVerified: 2026-10-23
 | --- | --- |
 | 需求编号 | FNOS-026 |
 | 提出日期 | 2026-10-23 |
-| 需求状态 | <Badge type="warning" text="规划中" /> |
+| 需求状态 | <Badge type="warning" text="实施中（DSH Web 与 headless 已验证；DSH Desktop 与设备码登录待验收）" /> |
 | 关联计划 | [PLAN-FNOS-026 OpenCode Go 模型接入与套餐用量](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | 影响插件 | `@tnnevol/dsh-opencode`（新增） |
 | 关联需求 | [FNOS-014](/requirements/FNOS-014-dsh-021-rc2-adaptation)（DSH 0.2.1-rc.2 插件基线）、[FNOS-016](/requirements/FNOS-016-plugin-market-index)（插件市场索引与元数据） |
