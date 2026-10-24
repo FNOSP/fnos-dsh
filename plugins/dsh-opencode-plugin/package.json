@@ -2,7 +2,7 @@
   "name": "@tnnevol/dsh-opencode",
   "displayName": "OpenCode",
   "type": "module",
-  "version": "0.2.1-rc.2.37",
+  "version": "0.2.1-rc.2.38",
   "description": "OpenCode Console account login with a merged live OpenCode catalog (zen/go), full model capabilities, and subscription usage for DeepSeek Harness.",
   "author": "tnnevol",
   "license": "Apache-2.0",
