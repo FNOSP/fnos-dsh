@@ -79,6 +79,6 @@ flowchart TD
 | FNOS-022 | [CodeBuddy 模型调用被内容审核拦截修复](/requirements/FNOS-022-codebuddy-content-block-fix) | 已完成（17 条用例全部通过，DSH Web 与 DSH Desktop 双客户端已验；原参考项目对齐项因来源项目停更已取消） |
 | FNOS-025 | [CodeBuddy 插件下架](/requirements/FNOS-025-codebuddy-plugin-delisting) | 已完成（上游收紧非官方客户端通道风控，插件停止维护并下架；源码保留在本机但不再由仓库追踪；15 条用例全部通过） |
 | FNOS-026 | [OpenCode Zen 与 OpenCode Go 模型接入及套餐用量](/requirements/FNOS-026-dsh-opencode-plugin) | 实施中（单一 OpenCode 供应商与 zen/go 后缀已实现并通过 DSH Web 实测；DSH Desktop 与完整用例待验收） |
-| FNOS-027 | [ZCode Start Plan 模型接入与账号额度](/requirements/FNOS-027-dsh-zcode-plugin) | 实施中（登录、权益驱动的模型目录、能力与按模型额度已通过真实账号接口实测；上游风控 3012 拦截导致端到端对话未验证） |
+| FNOS-027 | [ZCode Start Plan 模型接入与账号额度](/requirements/FNOS-027-dsh-zcode-plugin) | 实施中（登录、目录、能力与额度已通过真实账号接口实测；Start Plan 托管通道在 DSH Web 完成三轮端到端对话，DSH Desktop 走查待执行） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

@@ -1,7 +1,7 @@
 ---
 id: FNOS-027
 title: FNOS-027 ZCode Start Plan 模型接入与账号额度
-description: 通过 ZCode（zcode.z.ai）账号的 OAuth 设备授权登录，把智谱 Z.ai 的 ZCode Start Plan 模型按账号权益动态接入 DSH，作为唯一 ZCode 供应商（路由 dsh-zcode）提供模型目录、能力与按模型额度；上游网关对第三方客户端存在风控拦截，端到端对话未验证，插件按上游业务码给出可读诊断。
+description: 通过 ZCode（zcode.z.ai）账号的 OAuth 设备授权登录，把智谱 Z.ai 的 ZCode Start Plan 模型按账号权益动态接入 DSH，作为唯一 ZCode 供应商（路由 dsh-zcode）提供模型目录、能力与按模型额度；Start Plan 的模型回合由托管的官方 agent 运行时执行，端到端对话已实测可用，插件如实登记通道依赖与限制。
 status: in-progress
 owner: tnnevol
 targetVersion: 5.9.0-0.2.1-rc.2.30
@@ -14,7 +14,7 @@ lastVerified: 2026-10-24
 | --- | --- |
 | 需求编号 | FNOS-027 |
 | 提出日期 | 2026-10-24 |
-| 需求状态 | <Badge type="warning" text="实施中（登录、目录、能力与额度读取已实现并通过真实账号接口实测；上游风控导致端到端对话未验证）" /> |
+| 需求状态 | <Badge type="warning" text="实施中（登录、目录、能力与额度已实测；Start Plan 托管通道在 DSH Web 完成三轮端到端对话，DSH Desktop 走查待执行）" /> |
 | 关联计划 | [PLAN-FNOS-027 ZCode Start Plan 模型接入与账号额度](/plans/PLAN-FNOS-027-dsh-zcode-plugin) |
 | 影响插件 | `@tnnevol/dsh-zcode`（新增） |
 | 关联需求 | [FNOS-014](/requirements/FNOS-014-dsh-021-rc2-adaptation)（DSH 0.2.1-rc.2 插件基线）、[FNOS-016](/requirements/FNOS-016-plugin-market-index)（插件市场索引与元数据）、[FNOS-026](/requirements/FNOS-026-dsh-opencode-plugin)（同类账号型模型供应商插件的行为基线） |
@@ -35,9 +35,9 @@ ZCode 是智谱 Z.ai 的编码代理产品，它在 `zcode.z.ai` 上提供 **Sta
 3. **能力描述无法表达**。GLM-5.3 系列在 ZCode 上是一百万 token 上下文、十二万八千最大输出，并声明了 low / high / max 三档思考等级。手工配置只能给一个「兼容」壳子，容量配错会让长对话被截断或请求被拒，思考等级更是没有入口。
 4. **额度不是单一百分比**。Start Plan 的额度按「每个模型 × 周期」表达：同一个模型可能既有日额度，又有一次性活动额度。用一个总百分比概括会掩盖「日额度用完但活动额度还有」这类实际状态。
 5. **账号有两个家族，用户不该为此做技术选择**。BigModel（国内）与 Z.ai（海外）的授权页域名不同，但令牌形态、额度接口与推理端点完全相同。让用户先理解两套域名再选一个，是把上游的部署差异转嫁给用户。
-6. **上游还会拦第三方客户端**。网关对来自第三方 harness 的模型请求返回 HTTP 405 与业务码 `3012`（`request has been blocked due to unusual activity.`）。这不是可以靠多试几次绕过的网络抖动：未授权模型返回的是另一个业务码（`3006`），说明鉴权与权益解析都已通过，被拦的是「谁在发请求」这一层。
+6. **上游会拦插件自己构造的第三方请求，但这条路并非无解**。插件直接发出的 Start Plan HTTP 请求会被网关按来源拦截，返回 HTTP 405 与业务码 `3012`（`request has been blocked due to unusual activity.`）。这不是可以靠多试几次绕过的网络抖动：未授权模型返回的是另一个业务码（`3006`），说明鉴权与权益解析都已通过，被拦的是「谁在发请求」这一层。关键事实是**官方 CLI 的 agent 二进制自己发请求时可以通过**——客户端身份与请求签名由它自己构造，插件在 Node 侧复现不出来。因此本需求的执行通道不是复刻请求，而是托管官方 agent 运行时（`zcode app-server`）来完成回合。
 
-本需求新增 `@tnnevol/dsh-zcode`，把「登录 ZCode 账号 → 按账号权益拉取模型清单并补全能力 → 在 DSH 里以唯一 `ZCode` 供应商看到并选择模型 → 查看每个模型的额度窗口」做成一条闭环，补齐面向用户的说明页与插件登记，并**如实登记**上游风控这一限制：插件不承诺端到端对话可用，也不提供绕过方式。
+本需求新增 `@tnnevol/dsh-zcode`，把「登录 ZCode 账号 → 按账号权益拉取模型清单并补全能力 → 在 DSH 里以唯一 `ZCode` 供应商看到并选择模型 → 查看每个模型的额度窗口 → 选中模型完成对话」做成一条闭环，补齐面向用户的说明页与插件登记，并**如实登记通道依赖与限制**：执行回合需要本机安装 ZCode 客户端（发行包内含 agent 运行时）；该通道的工具由 ZCode agent 原生执行，DSH 侧工具不参与；同一会话同时只有一个在途回合。
 
 ## 调研结论
 
@@ -53,24 +53,31 @@ ZCode 是智谱 Z.ai 的编码代理产品，它在 `zcode.z.ai` 上提供 **Sta
 | 模型能力来自 `GET /api/v1/client/configs` 的 **`data.builtinModels[]`**（不是 `data.providers[].models[]`，后者只列 GLM-5.2 与 GLM-5-Turbo）：`contextWindow`（GLM-5.3 与 GLM-5.3-Flash 为 1000000）、`maxCompletionTokens`（128000）；`reasoning.levels` 是**对象映射** `{low,high,max}` 而非数组；图片输入开关是 `capabilities.vision: true`（不是 `capabilities.inputFormat.supportsImage`）。**该接口无需鉴权**（不带 `Authorization` 也返回 200），因此不能用来判断登录态或账号权益 | 2026-10-24 真实账号实测（带 / 不带凭据对照，均 HTTP 200）＋ DSH Web 实测对照 | FNOS-027-03 | 已核实 |
 | 额度条目**没有 `period` 字段**，只有 `period_start` / `period_end` / `expires_at` 三个 **Unix 秒**（不是 ISO 字符串，也不是 epoch 毫秒）；周期须由窗口时长推导：日额度实测时长 86399 秒（起止取整点，差 1 秒），部分套餐是「激活到结束」的约 1.95 天窗口，不能按上界硬判成「每周」 | 2026-10-24 真实账号实测 `data.balances[]` 原始字段 | FNOS-027-02、FNOS-027-05 | 已核实 |
 | 思考等级以 **`output_config.effort`** 表达（上游客户端配置里 `reasoning.levels.<level>.anthropic.set` 就是往该路径写 low / high / max）。pi-ai 只有在模型带 `compat.forceAdaptiveThinking` 时才走 effort 分支，否则退回 `thinking.budget_tokens`，网关收不到 effort——用户选的思考等级等于没生效 | `@earendil-works/pi-ai@1.1.0` 的 `mapThinkingLevelToEffort` / `streamSimple`；2026-10-24 抓包断言请求体 | FNOS-027-03、FNOS-027-04 | 已核实 |
-| 本账号当前生效两份 Start Plan：`zcode-v3-start-plan-0817`（GLM-5.3 每日 3,000,000、GLM-5.3-Flash 每日 5,000,000）与 `zcode-v3-start-plan-1024`「ZCode 1024 Dev Day」（GLM-5.3 一次性 200,000,000、GLM-5.3-Flash 一次性 300,000,000），两者 `used_units` 均为 0 | 2026-10-24 真实账号实测 `data.plans[]` 与 `data.balances[]` | FNOS-027-05 | 已核实 |
-| 模型请求为 **Anthropic Messages 协议**：端点前缀 `https://zcode.z.ai/api/v1/zcode-plan/anthropic`，资源 `/v1/messages`；请求头包含 `authorization` 与 `x-api-key`（**两者写同一个账号 JWT**，与官方客户端一致）、`anthropic-version: 2023-06-01`、`anthropic-beta: mid-conversation-system-2026-04-07`、`http-referer: https://zcode.z.ai`、`user-agent: ZCode/<版本>`、`x-app-id`、`x-client-language`、`x-client-timezone`、`x-client-version`、`x-os-category`、`x-os-version`、`x-platform`、`x-release-channel`、`x-title`、`x-zcode-agent`、`x-zcode-app-version`、`x-device-mid`、`x-request-id`、`x-session-id`、`x-zcode-trace-id`、`x-query-id`、`x-zcode-query-source`、`x-zcode-session-type` | 2026-10-24 按官方客户端行为复现并逐项核对 | FNOS-027-04 | 已核实 |
-| **该网关路径对第三方 harness 的请求返回 HTTP 405 与业务码 `3012`（`request has been blocked due to unusual activity.`）**；判据是**未授权模型返回 HTTP 400 与业务码 `3006`（`model not allowed`）**——说明鉴权与账号权益解析都已通过，被拦的是请求来源这一层 | 2026-10-24 真实账号穷举探测：带/不带签名、项目访问令牌 + 完整 Ed25519 客户端请求签名 V4、带/不带 CDN 会话 Cookie、HTTP/1.1 与 HTTP/2、在 `zcode.z.ai` 源站自身的浏览器 fetch、多种请求头组合 | FNOS-027-04 | 已核实 |
-| **该账号的 GLM-5.3-Flash 日额度已被消耗 28,825 / 5,000,000 tokens**，说明存在能实际完成模型调用的路径（此前「所有 `used_units` 为 0」的判断已被推翻）。与此同时，插件按官方客户端形态复现的请求连发 8 次全部返回 `3012`，即对该请求形态是**确定性拦截**而非随机波动——差异不在请求头，而在调用方身份（客户端指纹或通道） | 2026-10-24 额度快照（`used_units=28825`）与连发 8 次一致性实测 | FNOS-027-04 | 已核实（原「从未消耗」判断已作废） |
-| 有第三方 DSH 插件作者公开报告同一现象：WAF 拦截直连 HTTP，其做法是托管官方 ZCode agent 二进制做反向代理来规避 | 第三方插件作者的公开说明（2026-10 读取） | FNOS-027-04 | 已核实 |
+| 本账号当前生效两份 Start Plan：`zcode-v3-start-plan-0817`（GLM-5.3 每日 3,000,000、GLM-5.3-Flash 每日 5,000,000）与 `zcode-v3-start-plan-1024`「ZCode 1024 Dev Day」（GLM-5.3 一次性 200,000,000、GLM-5.3-Flash 一次性 300,000,000），当时两份套餐的 `used_units` 均为 0（此后 GLM-5.3-Flash 已有消耗，见后文） | 2026-10-24 真实账号实测 `data.plans[]` 与 `data.balances[]` | FNOS-027-05 | 已核实 |
+| **插件自有 HTTP 通道使用 Anthropic Messages 协议**：端点前缀 `https://zcode.z.ai/api/v1/ultra/anthropic`，资源 `/v1/messages`；请求头包含 `authorization` 与 `x-api-key`（两者写同一个家族 MaaS 令牌）、`anthropic-version: 2023-06-01`、`anthropic-beta: mid-conversation-system-2026-04-07`，以及 `http-referer`、`user-agent`、`x-zcode-*`、`x-device-mid` 等客户端身份头。**Start Plan 回合不经过插件构造请求**，由托管 agent 运行时自行构造并签名 | 2026-10-24 按官方客户端行为复现并逐项核对＋托管通道实测 | FNOS-027-04 | 已核实 |
+| **插件自己构造的 Start Plan HTTP 请求被上游按来源拦截**：HTTP 405 与业务码 `3012`（`request has been blocked due to unusual activity.`）；判据是**未授权模型返回 HTTP 400 与业务码 `3006`（`model not allowed`）**——说明鉴权与账号权益解析都已通过，被拦的是请求来源这一层。该结论只适用于插件自行构造的 HTTP 请求，不代表 Start Plan 在 DSH 中不可用 | 2026-10-24 真实账号穷举探测：带/不带签名、项目访问令牌 + 完整 Ed25519 客户端请求签名 V4、带/不带 CDN 会话 Cookie、HTTP/1.1 与 HTTP/2、在 `zcode.z.ai` 源站自身的浏览器 fetch、多种请求头组合 | FNOS-027-04 | 已核实 |
+| **托管官方 agent 运行时（`zcode.cjs app-server`）可以完成回合**：实账号实测拿到 `turn.completed`，返回真实回复 `response`「通道可用」与 usage `inputTokens 19714` / `outputTokens 31` / `cacheReadTokens 15744`；本轮 `baseURL` 为 `https://zcode.z.ai/api/v1/zcode-plan/anthropic`，transport 为 `sse`，`finishReason` 为 `stop` | 2026-10-24 真实账号用 `zcode.cjs app-server` 托管通道实测 | FNOS-027-04 | 已核实 |
+| 该账号的 GLM-5.3-Flash 日额度已被消耗 28,825 / 5,000,000 tokens，说明存在能实际完成模型调用的路径（此前「所有 `used_units` 为 0」的判断已被推翻）；消耗来自官方 agent 运行时，而插件按官方客户端形态复现的 HTTP 请求连发 8 次全部返回 `3012`，是确定性拦截而非随机波动 | 2026-10-24 额度快照（`used_units=28825`）与连发 8 次一致性实测 | FNOS-027-04 | 已核实（原「从未消耗」判断已作废） |
+| 有第三方 DSH 插件作者公开报告同一现象：WAF 拦截直连 HTTP，其做法是托管官方 ZCode agent 二进制做反向代理；本需求独立实测后采用同方向的「托管官方运行时」，不复制其实现 | 第三方插件作者的公开说明（2026-10 读取）＋本需求实账号实测 | FNOS-027-04 | 已核实 |
+| **三个静默失败前提**（缺一个就卡住且不报错）：① 子进程数据目录必须**可写**——只读时 `session/send` 返回 accepted、状态变 `running`，但永远没有 model 请求；② `basedOnZCodeBuiltinRevision` 必须精确等于 `zcode-builtin:<revision>:<sha256(绝对路径)>`，否则账号注入被 registry 合并守卫**静默丢弃**；③ `session/create` → `subscribe` → `setModel` → `send` 之间要垫时间（约 2s / 1.5s / 1.5s），零延迟提交的回合会被丢弃 | 2026-10-24 实账号逐项对照实测 | FNOS-027-04 | 已核实 |
 | 上游业务码可用作诊断分层：`3001` 参数错误（含缺少设备标识）、`3006` 模型未授权、`3012` 风控拦截、`3007` 需要人机校验、`1113` 额度耗尽 | 2026-10-24 真实账号实测与上游响应原文 | FNOS-027-04 | 已核实 |
 | 同一模型在多份套餐下会有多条额度（实测 4 条对应 2 个模型），须按「模型 + 周期」合并后展示：合并后总量可累加（两份套餐的日额度确实叠加），但**不同周期不得合并**，否则会掩盖「日额度用完而活动额度仍有」 | 2026-10-24 真实账号实测与 DSH Web 实测 | FNOS-027-05、FNOS-027-06 | 已核实 |
 | 输入区用量图标的样式与显隐规则与 Codex 插件保持一致：26px 环形进度 + 环心品牌标记、悬停 tooltip、点击 popover 列各份额度；选中模型不属于本供应商时不挂出 | DSH Web 实测（同一座位并排比对 Codex 图标） | FNOS-027-06 | 已核实 |
 | **ZCode 登录凭据有有效期**：失效后额度接口返回 **HTTP 401（空响应体，无业务码）**，而模型能力接口仍返回 200。因此插件必须把 401 单独识别为「需要重新登录」，不能与网络故障或 `3012` 混为一谈 | 2026-10-24 真实账号实测（存留凭据失效后的对照） | FNOS-027-02、FNOS-027-08 | 已核实 |
 | 官方文档给出了两条**公开且不受风控拦截**的端点：Coding 套餐的 OpenAI 协议专用端点 `https://open.bigmodel.cn/api/coding/paas/v4`（实测 `/models` 返回 200，且模型清单含 `glm-5.3`、`glm-5.3-flash`），以及标准端点 `https://open.bigmodel.cn/api/paas/v4`。两者用当前账号的家族 MaaS 令牌发起对话均返回 `429 / 1113`（无可用额度） | [连接模型与套餐](https://zcode.z.ai/cn/docs/configuration)与 [API 介绍](https://docs.bigmodel.cn/cn/api/introduction)（2026-10-24 读取）＋ 实测 | FNOS-027-04 | 已核实 |
 | 官方文档明确：**账号只要购买过编程套餐（无论是否用完、是否到期），Anthropic 接口就不会走余额消费，需额外加白**。这解释了 `ultra/anthropic` 与 Coding 端点为何都返回 `1113`：该账号的 `providerFamilyConnectionSelections.bigmodel.kind` 为 `individual-coding-plan`，但并无对应的编程套餐额度，而它真正拥有的是 ZCode Start Plan 权益 | 同上文档「资源包 / 充值余额」小节 ＋ 账号 `setting.json` 实测 | FNOS-027-04 | 已核实 |
-| 官方内置配置 `config/provider/zcode-builtin.json` 中，`account:zai-start-plan` / `account:bigmodel-start-plan` 的 `api.baseUrl` 就是 **`https://zcode.z.ai/api/v1/zcode-plan/anthropic`**，`access.type` 为 `zhipu-account`；桌面端 `accountProviderRequestAuthService.resolveCurrent()` 对 `planKind === "start-plan"` 只返回 `{ apiKey: zcodeJwtToken }`。即**端点与凭据与插件当前实现完全一致**，差异不在请求内容 | 官方仓库 `config/provider/zcode-builtin.json`、`packages/services/src/model-provider/accountProviderRequestAuthService.ts` | FNOS-027-04 | 已核实 |
-| 差异位于**请求验证头**：桌面端会把 `runtimeProviderHeaders` 经 `allowRequestVerificationHeaders()` 并入请求头。而开源版该函数是**空实现**（`return {}`），`requiresRequestVerification()` 恒为 false——说明开源版把该能力裁掉，发行版另行提供。这解释了同一节点、同一凭据下，desktop 可通过而第三方 HTTP 客户端被 `3012` 拦截 | 官方仓库 `packages/shared/src/request-security-edition/verification-policy.ts`；与 desktop 实测可用、插件实测连发 8 次 3012 对照 | FNOS-027-04 | 已核实 |
+| 官方内置配置 `config/provider/zcode-builtin.json` 中，`account:zai-start-plan` / `account:bigmodel-start-plan` 的 `api.baseUrl` 就是 **`https://zcode.z.ai/api/v1/zcode-plan/anthropic`**，`access.type` 为 `zhipu-account`；桌面端 `accountProviderRequestAuthService.resolveCurrent()` 对 `planKind === "start-plan"` 只返回 `{ apiKey: zcodeJwtToken }`。即**端点与凭据与插件使用的完全一致**，差异不在请求内容 | 官方仓库 `config/provider/zcode-builtin.json`、`packages/services/src/model-provider/accountProviderRequestAuthService.ts` | FNOS-027-04 | 已核实 |
+| 插件无法复现官方发行版的请求验证：桌面端会把 `runtimeProviderHeaders` 经 `allowRequestVerificationHeaders()` 并入请求头，而开源版该函数是**空实现**（`return {}`）、`requiresRequestVerification()` 恒为 false——说明发行版另行提供的身份与签名能力被裁掉。这解释了为什么复刻请求头仍被 `3012` 拦截，也决定了可行路径是让官方 agent 自己发请求 | 官方仓库 `packages/shared/src/request-security-edition/verification-policy.ts`；与 desktop 实测可用、插件实测连发 8 次 3012 对照 | FNOS-027-04 | 已核实（原「差异只在请求验证头、可在插件侧复现」的推断已被推翻） |
 | 官方开源项目（`zai-org/ZCode`，HEAD `3c5b2276`，v0.17.0）包含 Agent CLI 与运行时源码。其中 `official-coding-plan-gateway.ts` 显示客户端把 `https://open.bigmodel.cn/api/anthropic/v1/messages` 改写为 **`https://<endpointOrigin>/api/v1/ultra/anthropic/v1/messages`**——官方模型流量走的是 **`ultra/anthropic`**，不是插件原先假设的 `zcode-plan/anthropic` | 官方仓库 `apps/zcode-cli/packages/adapters/src/model/official-coding-plan-gateway.ts` | FNOS-027-04 | 已核实 |
 | 两条端点对第三方 HTTP 客户端的表现**完全不同**（2026-10-24 同一凭据实测）：`zcode-plan/anthropic` 恒返回 HTTP 405 + `3012`（风控拦截）；`ultra/anthropic` **不被风控拦截**——用家族 MaaS 令牌访问返回 HTTP 429 + 业务码 `1113`「余额不足或无可用资源包」，用 ZCode 账号 JWT 访问返回 HTTP 401「令牌已过期或验证不正确」，两者都是**业务层**响应 | 2026-10-24 真实账号实测（两条端点 × 两种凭据矩阵） | FNOS-027-04 | 已核实 |
-| 由此可判定：`ultra/anthropic` 的 WAF 可通过，当前失败原因是**计费归属与凭据类型**——家族 MaaS 令牌可被该路径接受，但计费落到个人按量余额（该账号余额为 0，故 `1113`）；Start Plan 额度绑定在 `zcode-plan/anthropic`，而那条路径对第三方 HTTP 被风控拦截 | 上述实测矩阵 + 官方网关改写源码 | FNOS-027-04 | 已核实 |
+| 由此可判定：`ultra/anthropic` 的 WAF 可通过，当前失败原因是**计费归属与凭据类型**——家族 MaaS 令牌可被该路径接受，但计费落到个人按量余额（该账号余额为 0，故 `1113`）；Start Plan 额度绑定在 `zcode-plan/anthropic`，该路径不接受插件 HTTP 直连，可用方式是托管官方 agent 运行时 | 上述实测矩阵 + 官方网关改写源码 + 托管通道实测 | FNOS-027-04 | 已核实 |
 | **不存在 API Key 登录路径**：Start Plan 的模型请求只接受账号身份，Key 形态在本插件里没有可用路径 | 上游推理请求的鉴权形态；2026-10-24 对照探测 | FNOS-027-01 | 已核实 |
-| 登录、额度与客户端配置都发往 `zcode.z.ai`，推理端点在 `zcode.z.ai/api/v1/zcode-plan/anthropic` 下；运行环境必须能直连该域名 | 上述各接口地址与推理端点归属 | FNOS-027-01、FNOS-027-02、FNOS-027-04 | 已核实 |
+| 登录、额度与客户端配置都发往 `zcode.z.ai`；Start Plan 回合由本机 ZCode 客户端发行包内的 agent 运行时发起（可用环境变量指定 CLI 路径），Ultra HTTP 通道直接发往该域名。运行环境必须能直连该域名，且 Start Plan 需要本机安装该客户端 | 上述各接口地址与推理端点归属 | FNOS-027-01、FNOS-027-02、FNOS-027-04 | 已核实 |
+| **DSH Web 端到端对话已实测通过**：纯文本回合 18 秒回复「通道可用」；图文 + 思考等级 High 回合 15 秒完成，模型正确读出图中文字「DSH ZCODE」「图文可用 7」，吞吐 256 tok/s、缓存命中 28%；用量胶囊由「剩余 100%」变为「剩余 93% · 6 小时后重置」 | 2026-10-24 真实账号 DSH Web 实测（插件 0.2.1-rc.2.38 + 托管通道） | FNOS-027-04、FNOS-027-05、FNOS-027-06 | 已核实 |
+| 思考等级按 **`off` / `minimal` / `low` → `low`、`medium` / `high` → `high`、`xhigh` / `max` → `max`** 归并为 agent 的 `reasoningLevel`；该端点只有 low / high / max 三档、没有「不思考」档；换模型或换思考等级会在既有会话上重切 `session/setModel` | 桥接实现与 DSH Web 实测（抓包断言请求体） | FNOS-027-03、FNOS-027-04 | 已核实 |
+| 会话标题由插件本地生成：只从 DSH 标题请求携带的 JSON 数组里取第一条人话；取不到时保留默认标题、不产出文本块、不调用模型（曾出现把英文指令当标题的缺陷，已修正） | 桥接实现与 DSH Web 实测 | FNOS-027-04 | 已核实 |
+| **通道架构**：插件在 DSH home 下自建可写数据目录（`zcode-bridge`），provider 配置使用客户端发行包自带的 `Resources/config/provider/zcode-builtin.json`，凭据由插件自己的 OAuth 令牌按客户端同款 AES-256-GCM 格式写入；因此不依赖桌面端登录态，也不读写用户 `~/.zcode` | 桥接实现与 2026-10-24 实账号实测 | FNOS-027-04 | 已核实 |
+| **通道限制**：本通道里工具由 ZCode agent 原生执行，DSH 侧工具不参与该回合；一个 agent 会话同一时刻只允许一个在途回合，插件做了串行化与撞锁自愈；会话标题在本地生成，不烧额度 | 桥接实现与实账号实测 | FNOS-027-04、FNOS-027-06 | 已核实 |
 
 ## 需求目标
 
@@ -78,8 +85,9 @@ ZCode 是智谱 Z.ai 的编码代理产品，它在 `zcode.z.ai` 上提供 **Sta
 - 登录后 DSH 模型选择器出现**唯一一个 `ZCode` 供应商**（路由 `dsh-zcode`）；模型清单以账号权益（每个模型 × 周期的额度条目）为准，按账号动态下发，不在插件里写死。额度接口不可读时回退内置清单，并明确告知当前清单未经账号确认。
 - 每个模型的上下文窗口、最大输出、图片输入与思考等级与上游声明一致；上游未声明时使用保守默认值并说明。
 - 用户能在插件详情页看到**每个模型各自的额度窗口**（已用百分比、剩余量、周期与重置或到期时间）与账号当前生效的套餐，并能在对话输入区用胶囊随时查看；接口读不到时显示未知与原因，不补零。
-- 插件有面向用户的说明页，能从文档站插件总览与左侧菜单进入；插件发布后登记到插件市场索引源列表。
-- **上游风控限制如实呈现**：当模型请求被上游以 `3012` 拦截时，会话显示可读的中文诊断（风控拦截）而不是笼统的失败；插件不声称对话已可用，也不提供绕过上游限制的方式。
+- 插件有面向用户的说明页，能从文档站插件总览与左侧菜单进入，写明执行通道的依赖与限制；插件发布后登记到插件市场索引源列表。
+- 选中 `ZCode` 模型发送消息后，回合由本机 ZCode 客户端自带的 agent 运行时执行并返回真实回复与 token 用量；文本、图片与思考等级在 DSH Web 中均可正常使用，本机缺少客户端、账号未登录、回合超时或进程退出时显示可读中文诊断，不出现空白回复、不静默重试、不伪装成功。
+- **通道依赖与限制如实呈现**：说明页写明 Start Plan 回合依赖本机 ZCode 客户端、工具由 ZCode agent 原生执行、同一会话同时只有一个在途回合，以及插件自己构造的 HTTP 直连会被上游拦截这一事实；不把该通道说成任意环境可用。
 
 ## 功能列表
 
@@ -88,17 +96,17 @@ ZCode 是智谱 Z.ai 的编码代理产品，它在 `zcode.z.ai` 上提供 **Sta
 | FNOS-027-01 | P0 | 用 ZCode 账号登录 | 详情页账号卡片显示登录入口，可选择 BigModel（国内）或 Z.ai（海外）；发起后在页面内给出可在浏览器打开的授权地址与剩余有效期，浏览器完成登录后账号卡片自动变为已登录并显示账号信息；卡片只提供退出登录；**不显示「使用 API Key 登录」入口** | <Badge type="warning" text="待完成" /> |
 | FNOS-027-02 | P0 | 按账号权益动态出现的模型目录 | 登录后模型选择器出现唯一一个 `ZCode` 供应商（路由 `dsh-zcode`），模型清单与账号权益实时对应（本账号当前为 GLM-5.3 与 GLM-5.3-Flash），账号权益变化后刷新即可看到新清单；额度接口不可读时仍显示内置兜底清单，并说明该清单未经账号确认 | <Badge type="warning" text="待完成" /> |
 | FNOS-027-03 | P0 | 模型能力完整适配 | 每个模型的上下文窗口、最大输出、图片输入与可用思考等级与上游客户端配置一致；上游未声明时使用保守默认值并在详情页说明；模型行可查看容量与能力 | <Badge type="warning" text="待完成" /> |
-| FNOS-027-04 | P0 | 选中模型可发起对话并得到可读诊断 | 选中 `ZCode` 供应商下的模型发送文本消息时，请求按上游要求的协议与请求头发出；被上游风控拦截时，会话显示指向风控的中文诊断（业务码 `3012`）与处置建议，不出现空白回复、不静默重试、不伪装成功；模型未授权、额度耗尽、需要人机校验时分别给出对应诊断 | <Badge type="danger" text="受阻（上游风控 3012，端到端未验证）" /> |
+| FNOS-027-04 | P0 | 选中模型可发起对话并得到可读诊断 | 选中 `ZCode` 供应商下的模型发送消息时，回合由本机 ZCode 客户端自带的 agent 运行时执行并返回回复与 token 用量；文本、图片与思考等级均可正常使用；本机缺少客户端、账号未登录、回合超时或进程退出时显示对应的中文诊断，不出现空白回复、不静默重试、不伪装成功 | <Badge type="warning" text="待完成（DSH Web 已实测通过；DSH Desktop 待走查）" /> |
 | FNOS-027-05 | P1 | 按模型展示额度窗口 | 详情页额度卡片显示账号当前生效的套餐，以及每个模型各自的额度窗口（已用百分比、剩余量、周期、重置或到期倒计时）；同一模型的日额度与一次性活动额度分别展示，不合并成一个百分比；可手动刷新；读不到的窗口显示未知而不是 0% | <Badge type="warning" text="待完成" /> |
 | FNOS-027-06 | P1 | 插件详情页与用量胶囊 | 详情页由账号卡片、额度卡片、模型目录卡片与设置区组成，目录支持搜索、逐模型隐藏、刷新与获取时间；对话输入区右侧显示 ZCode 用量胶囊，按 auto / always / off 策略显隐，并显示已用比例与重置时间 | <Badge type="warning" text="待完成" /> |
 | FNOS-027-07 | P1 | 登录态与偏好持久化 | 重启 DSH 后登录态、隐藏模型、胶囊策略与刷新间隔保持；插件未启用或未登录时其它供应商不受影响 | <Badge type="warning" text="待完成" /> |
-| FNOS-027-08 | P1 | 文档站与插件登记 | 文档站插件总览与左侧菜单可进入 ZCode 说明页，页面写明安装、登录、模型、额度与上游风控限制；插件发布后，市场索引源列表包含该包 | <Badge type="warning" text="待完成" /> |
+| FNOS-027-08 | P1 | 文档站与插件登记 | 文档站插件总览与左侧菜单可进入 ZCode 说明页，页面写明安装（含本机 ZCode 客户端要求）、登录、模型、额度、执行通道（工具归属与单在途回合）与直连限制；插件发布后，市场索引源列表包含该包 | <Badge type="warning" text="待完成" /> |
 
 ### 验收环境范围
 
 - FNOS-027-01 至 FNOS-027-08 属于不依赖 fnOS 宿主桥接的 DSH 插件功能，目标环境为 **DSH Web 与 DSH Desktop**（至少两者），不因项目整体部署在 fnOS 而附加真实 NAS 验收门槛。
 - 登录、模型目录与额度依赖真实 ZCode 账号与可直连 `zcode.z.ai` 的网络。缺少账号条件时对应用例按「阻塞」登记，不判定为功能缺陷。
-- **FNOS-027-04 受上游风控限制**：在第三方 harness 中发出的模型请求被上游以 `3012` 拦截，当前无法取得成功的对话证据。该功能的验收按「诊断可读、不绕过上游限制」判定；「对话成功」这一预期在限制解除前登记为阻塞，不作为本需求的完成门槛，也不据此外推为插件缺陷。
+- **FNOS-027-04 已在 DSH Web 实测通过**：纯文本、图文与思考等级三轮端到端对话均完成并消耗套餐额度；**DSH Desktop 尚未走查**，该客户端的结果按待执行登记。执行该通道需要运行环境安装 ZCode 客户端（或用环境变量指定其 CLI）；缺少客户端时用例按「阻塞」登记，不判定为插件缺陷。
 - FNOS-027-08 覆盖**文档站构建环境**；索引条目的生成还依赖插件发布到 npm，发布前只验收源列表与页面。
 
 ## 行为约束
@@ -110,19 +118,25 @@ ZCode 是智谱 Z.ai 的编码代理产品，它在 `zcode.z.ai` 上提供 **Sta
 - **目录与额度失败不清空**：上游不可用时保留上一份可用目录与最近一次额度快照，并显示获取时间与失败原因。
 - **缺失数据不补零**：没有读到的额度窗口显示为「未知」，不显示为 0%；总量为 0 的窗口按 0% 呈现，不产生无效数值。
 - **额度保留上游粒度**：按「模型 × 周期」展示，不把日额度与一次性额度合并成一个百分比，也不把已用比例换算成金额。
-- **上游限制如实呈现**：风控拦截、模型未授权、额度耗尽与需要人机校验分别按上游业务码给出可读诊断；插件不把上游限制伪装成本地可用，也不提供绕过上游限制的方式（包括不内置代理、不模拟官方客户端二进制、不复用他人的转发服务）。
+- **执行通道依赖本机客户端**：Start Plan 回合由 ZCode 客户端发行包内的 agent 运行时执行；未安装客户端或无法定位其 CLI 时，插件给出可读诊断并停止，不退回自行构造的 HTTP 直连。
+- **工具归属明确**：该通道里的工具由 ZCode agent 原生执行，DSH 侧工具与 DSH 的批准流程不参与该回合；说明页与首轮提示都写明这一点，避免用户把「DSH 工具没被调用」当成缺陷。
+- **一个会话一个在途回合**：同一会话在上一回合未结束时串行等待；撞上未释放的回合锁时自动恢复一次，仍失败则给出可读诊断。
+- **会话标题本地生成**：会话标题由插件在本地从用户消息生成，取不到可用文本时保留默认标题，不为起名调用模型、不消耗额度。
+- **数据目录与凭据隔离**：插件在 DSH home 下自建可写数据目录，不读写用户 `~/.zcode`，不复制桌面端登录态；子进程只继承白名单环境变量，不整包透传宿主的其它供应商密钥。
+- **直连限制如实呈现**：插件自己构造的 Start Plan HTTP 请求被上游风控拦截是事实；插件不以复刻签名、伪造客户端身份、内置代理或第三方转发绕过。HTTP 通道（Ultra）按上游业务码给出可读诊断。
 - **数据兼容**：不改变既有会话格式与模型标识；退出登录或卸载插件不删除历史会话。
 - **说明入口唯一**：面向用户的说明只维护 `docs/plugins/` 下的页面，不把插件目录的 README 当作现行入口。
 
 ## 不在本次范围内
 
-- **绕过上游风控**：不实现请求签名伪造、客户端二进制托管、反向代理转发或任何规避 `3012` 的手段；上游限制解除后按新的调研结论重新评估。
+- **复刻或伪造官方请求**：不实现请求签名伪造、客户端身份伪造、内置代理、反向代理转发，也不修改官方客户端发行包；托管只按发行包原样使用其 agent 运行时。
+- **工具互通与批准流程接管**：不把 DSH 工具暴露给 ZCode agent，不接管该通道里 agent 的原生工具权限模型，DSH 的批准流程不作用于该回合。
 - **API Key 登录与自建 Key 导入**：Start Plan 只认账号身份，本插件不提供 Key 形态入口。
 - 账号级人脸或短信二次验证、企业组织身份与管理者审批流程。
 - 套餐购买、升级、额度充值与账单管理。
 - 把额度换算成金额或费用估算；插件只展示上游给出的用量与周期。
 - 多账号并存与自动换号：同一时间只保留一个 ZCode 账号。
-- ZCode 客户端（CLI / TUI / 桌面端）的集成，以及 ZCode 中与模型对话无关的其它能力。
+- ZCode 客户端交互界面（CLI / TUI / 桌面端）、桌面端登录态与 IDE 扩展的集成；插件只托管发行包内的 agent 运行时来执行模型回合，客户端里与模型对话无关的能力（浏览器、官方 MCP 鉴权等）不在范围内。
 - 上游未提供的协议族：本需求的模型请求固定使用 Anthropic Messages，若上游未来开放其它协议按新增需求处理。
 - 图片生成、视频生成等非对话模型。
 - 随 fnOS 应用内置分发与 npm 发布操作：插件发布后另行登记到应用发布清单与插件市场索引。
@@ -188,6 +202,47 @@ flowchart TD
 
 用户可观察结果：登录后选择器只出现一个 `ZCode` 供应商，模型与该账号的权益对应（本账号当前为 GLM-5.3 与 GLM-5.3-Flash）；账号权益变化后刷新即生效；额度接口不可读时模型仍在，详情页说明清单来自内置兜底、未经账号确认。
 
+## 执行通道
+
+选中 `ZCode` 模型后，回合由本机 ZCode 客户端自带的 agent 运行时执行，插件只负责协议、账号注入与事件转写。通道是否可用取决于客户端与登录态：
+
+```mermaid
+stateDiagram-v2
+  [*] --> 不可用
+  不可用 --> 就绪: 已定位客户端 CLI、内置 provider 配置与可写数据目录，且账号已登录
+  就绪 --> 执行中: 提交一轮消息
+  执行中 --> 就绪: 回合正常结束
+  执行中 --> 失败: 回合失败 / 超时 / 子进程退出 / 调用方中止
+  失败 --> 就绪: 下一轮自动重建会话
+  就绪 --> 不可用: 退出登录或凭据失效
+  不可用 --> [*]
+```
+
+一轮对话的参与者与返回路径如下；失败时以可读诊断结束，不伪装成功：
+
+```mermaid
+sequenceDiagram
+  participant User as 用户
+  participant DSH as DSH（会话）
+  participant Host as 插件宿主
+  participant App as ZCode agent 运行时（app-server）
+  participant ZCode as ZCode Start Plan 网关
+  User->>DSH: 在 ZCode 模型下发送消息（可含图片、可选思考等级）
+  DSH->>Host: 请求生成
+  Host->>Host: 准备可写数据目录、写入账号凭据与 provider 配置
+  Host->>App: 启动 / 复用子进程并建立会话、设置模型与思考等级
+  App->>Host: 反向请求运行期偏好与鉴权
+  Host-->>App: 应答偏好与账号凭据
+  Host->>App: 提交本轮正文（含图片的本地路径）
+  App->>ZCode: 由 agent 自行构造并签名请求
+  ZCode-->>App: SSE 流式响应
+  App-->>Host: 流式事件（文本、思考、完成或失败）
+  Host-->>DSH: 文本增量与 token 用量
+  DSH-->>User: 回复与用量
+```
+
+用户可观察结果：收到模型回复与 token 用量；用量胶囊随之更新（实测由「剩余 100%」变为「剩余 93% · 6 小时后重置」）；本机缺少客户端或账号未登录时，会话给出指向具体原因的诊断。该通道的工具由 ZCode agent 原生执行，DSH 侧工具不参与；会话标题在本地生成，不消耗额度。
+
 ## 验收条件与完成状态
 
 ### FNOS-027-01
@@ -215,11 +270,13 @@ flowchart TD
 
 ### FNOS-027-04
 
-- `FNOS-027-04-AC-01`：选中 `ZCode` 供应商下的模型发送文本消息时，请求按上游要求的协议与请求头发出（Anthropic Messages、`/v1/messages`、`authorization` 与 `x-api-key` 同值、`anthropic-version`、`anthropic-beta` 与客户端身份头齐备）。
-- `FNOS-027-04-AC-02`：请求被上游风控拦截（HTTP 405、业务码 `3012`）时，会话显示指向风控的中文诊断（包含上游原文 `request has been blocked due to unusual activity.`）与处置建议，不出现空白回复、不静默重试、不显示为成功。
-- `FNOS-027-04-AC-03`：模型未授权（`3006`）、需要人机校验（`3007`）与额度耗尽（`1113`）时，会话分别显示对应的可读诊断，不合并成同一句「调用失败」。
-- `FNOS-027-04-AC-04`：诊断文案不声称已绕过上游限制，也不引导用户改用非官方转发服务。
-- `FNOS-027-04-AC-05`：`3012` 被拦截期间「模型可正常完成对话」不作为验收预期；限制解除后按本需求的调研规范重新评估并补充验收条件。
+- `FNOS-027-04-AC-01`：选中 `ZCode` 供应商下的模型发送文本消息后，回合由本机 ZCode 客户端自带的 agent 运行时执行并返回回复；回复正文与 token 用量在会话中可见，输入区用量胶囊同步反映本次消耗（DSH Web 实测：「剩余 100%」变为「剩余 93% · 6 小时后重置」）。
+- `FNOS-027-04-AC-02`：消息可携带图片并选择思考等级；模型能正确读出图片内容，思考等级按上游 low / high / max 映射生效（DSH Web 实测：图文 + High 完成，回复内容与图中文字一致）。
+- `FNOS-027-04-AC-03`：本机未安装 ZCode 客户端，或无法定位其 CLI 与内置 provider 配置时，会话显示指向「安装客户端或用环境变量指定 CLI」的中文诊断，不出现空白回复、不静默重试。
+- `FNOS-027-04-AC-04`：账号未登录或凭据失效时，会话提示先在插件详情页登录；回合超时、被调用方中止或子进程退出时显示明确的失败原因，不显示为成功。
+- `FNOS-027-04-AC-05`：该通道的工具由 ZCode agent 原生执行，DSH 侧工具不出现在该回合；会话标题在本地从用户消息生成，取不到可用文本时保留默认标题，不为起名触发模型调用。
+- `FNOS-027-04-AC-06`：同一会话在上一回合未结束时再次发送，两个回合串行执行、不交叉；撞上未释放的回合锁时插件自动恢复一次，仍失败时给出可读诊断。
+- `FNOS-027-04-AC-07`：说明页写明该通道依赖本机客户端、工具归属与单在途回合限制；诊断文案不声称已绕过上游限制，也不引导用户改用非官方转发服务。
 
 ### FNOS-027-05
 
@@ -246,7 +303,7 @@ flowchart TD
 ### FNOS-027-08
 
 - `FNOS-027-08-AC-01`：文档站插件总览列出该插件，左侧菜单可进入 `/plugins/dsh-zcode` 说明页。
-- `FNOS-027-08-AC-02`：说明页包含安装命令、登录步骤（含两个账号家族）、模型与能力说明、按模型额度说明、设置项说明与**上游风控限制**，并明确写出「端到端对话未验证」。
+- `FNOS-027-08-AC-02`：说明页包含安装命令（含本机 ZCode 客户端要求与可选环境变量）、登录步骤（含两个账号家族）、模型与能力说明、按模型额度说明、执行通道说明（工具归属、单在途回合、标题本地生成）、设置项说明与**直连限制**；不出现「端到端对话未验证」这类与事实相反的表述。
 - `FNOS-027-08-AC-03`：插件发布后，插件市场索引的源列表包含 `@tnnevol/dsh-zcode`，且未手工改写生成的索引文件。
 - `FNOS-027-08-AC-04`：文档站构建通过，新增菜单与页面内部链接均可达。
 
@@ -255,3 +312,4 @@ flowchart TD
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-24 | 初始登记 | 建立 FNOS-027，登记 8 项功能（4 项 P0、4 项 P1）与 36 条验收条件；明确登录只提供 OAuth 设备授权、模型清单以账号权益为准、额度按「模型 × 周期」展示；登记 16 条调研结论与验收环境范围（DSH Web 与 DSH Desktop，文档站构建环境）。**FNOS-027-04 因上游风控拦截（HTTP 405、业务码 `3012`）标记为受阻**：未授权模型返回 `3006` 证明鉴权与权益解析已通过，被拦的是请求来源层；官方客户端从未消耗该账号额度，第三方插件作者亦报告同一现象。据此明确插件只保证诊断可读、不提供绕过方式，且「对话成功」不作为当前完成门槛。关联 PLAN-FNOS-027。 |
+| 2026-10-24 | 更正执行通道结论并回填 DSH Web 端到端实测 | 推翻原「`3012` 无解、端到端未验证」的判断：直连 HTTP 被拦是事实，但官方 CLI 的 agent 二进制自建请求可通过；`zcode.cjs app-server` 托管通道的 `turn.completed` 返回真实回复（`response`「通道可用」，`inputTokens 19714` / `outputTokens 31` / `cacheReadTokens 15744`，`baseURL` 为 `https://zcode.z.ai/api/v1/zcode-plan/anthropic`，transport `sse`，`finishReason` `stop`）。随后在 DSH Web 完成三轮端到端对话：纯文本 18 秒；图文 + 思考等级 High 15 秒、吞吐 256 tok/s、缓存命中 28%；用量胶囊由剩余 100% 变为剩余 93%（6 小时后重置）。据此把 FNOS-027-04 改为「托管通道完成回合 + 失败可读」，并登记：思考等级七档归并为 low / high / max、标题本地生成且取不到时回退默认标题、通道依赖本机客户端、工具由 ZCode agent 原生执行、单在途回合。DSH Desktop 仍待走查。 |

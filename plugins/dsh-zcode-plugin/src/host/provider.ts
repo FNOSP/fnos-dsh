@@ -35,7 +35,7 @@ import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messag
 import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import { LlmError, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
-import type { AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
+import type { AdapterRegistrationHandle, LlmAdapter } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { ZCodeModel } from '../contracts/catalog.ts'
@@ -46,6 +46,8 @@ import {
   DEFAULT_ZCODE_ENDPOINT_PLAN,
   type ZCodeEndpointPlan,
 } from '../contracts/identity.ts'
+import { ZCodeBridgeAdapter, type ZCodeBridgeFamily } from './bridge/adapter.ts'
+import { ZCodeCompositeAdapter } from './bridge/composite.ts'
 import { zcodeSourceHeaders } from './console-client.ts'
 
 /** 流空闲上限：思考型模型的长停顿不应被误判断流。 */
@@ -218,6 +220,20 @@ export interface ZCodeProviderRuntimeOptions {
   /** 读取宿主附件服务，供图片输入使用。 */
   readonly resolveAttachments: () => AttachmentStore | undefined
   readonly logger: Pick<Context['logger'], 'warn' | 'info'>
+  /**
+   * Start Plan 桥接通道的依赖；缺省时不启用（只剩 HTTP 通道）。
+   *
+   * 以函数注入而不是快照：登录、数据目录、模型集合都会在运行期变化，
+   * 适配器每次取流时重新读取即可，不需要重建适配器。
+   */
+  readonly bridge?: {
+    readonly dataDir: () => string
+    readonly family: () => ZCodeBridgeFamily | Promise<ZCodeBridgeFamily>
+    readonly accountJwt: () => Promise<string | undefined>
+    readonly cliPath?: () => string | undefined
+    readonly nodePath?: () => string
+    readonly workspacePath?: () => string | undefined
+  }
 }
 
 /** 路由状态，供详情页诊断。 */
@@ -229,6 +245,10 @@ export interface ZCodeRouteStatus {
   readonly modelCount: number
   /** 当前端点策略，便于详情页说明「请求会发到哪里、扣哪种额度」。 */
   readonly endpointPlan?: ZCodeEndpointPlan
+  /** Start Plan 桥接通道是否可用（CLI 是否探测到）。 */
+  readonly bridgeReady?: boolean
+  /** 桥接通道不可用时的原因。 */
+  readonly bridgeError?: string
 }
 
 /**
@@ -239,7 +259,12 @@ export interface ZCodeRouteStatus {
  */
 export class ZCodeProviderRuntime {
   private snapshot: ReadonlyMap<string, ResolvedPiAiProviderProfile> = new Map()
-  private readonly adapter: PiAiAdapter
+  /** HTTP 通道：同时是模型元数据的唯一来源。 */
+  private readonly piAdapter: PiAiAdapter
+  /** Start Plan 桥接通道；未注入依赖时为 undefined。 */
+  private readonly bridge: ZCodeBridgeAdapter | undefined
+  /** 实际注册到 llm 的适配器（有桥接时是组合适配器）。 */
+  private readonly adapter: LlmAdapter
   private registration: AdapterRegistrationHandle | undefined
   private registered = false
   private error: string | undefined
@@ -247,12 +272,33 @@ export class ZCodeProviderRuntime {
   private endpointPlan: ZCodeEndpointPlan = DEFAULT_ZCODE_ENDPOINT_PLAN
 
   constructor(private readonly options: ZCodeProviderRuntimeOptions) {
-    this.adapter = createZCodePiAdapter({
+    this.piAdapter = createZCodePiAdapter({
       profiles: () => this.snapshot,
       // 适配器只关心"当前策略下的凭据"，策略由 runtime 持有。
       resolveToken: () => this.options.resolveToken(this.endpointPlan),
       resolveAttachments: this.options.resolveAttachments,
     })
+    const bridge = options.bridge
+    this.bridge = bridge === undefined
+      ? undefined
+      : new ZCodeBridgeAdapter({
+        dataDir: bridge.dataDir,
+        family: bridge.family,
+        accountJwt: bridge.accountJwt,
+        modelIds: () => this.currentModels.map(model => model.id),
+        attachments: () => this.options.resolveAttachments() as never,
+        logger: this.options.logger,
+        ...(bridge.cliPath === undefined ? {} : { cliPath: bridge.cliPath }),
+        ...(bridge.nodePath === undefined ? {} : { nodePath: bridge.nodePath }),
+        ...(bridge.workspacePath === undefined ? {} : { workspacePath: bridge.workspacePath }),
+      })
+    this.adapter = this.bridge === undefined
+      ? this.piAdapter
+      : new ZCodeCompositeAdapter({
+        plan: () => this.endpointPlan,
+        pi: this.piAdapter,
+        bridge: this.bridge,
+      })
   }
 
   /** 当前目录模型。 */
@@ -269,6 +315,14 @@ export class ZCodeProviderRuntime {
       ...(this.error === undefined ? {} : { error: this.error }),
       modelCount: this.currentModels.length,
       endpointPlan: this.endpointPlan,
+      ...(this.bridge === undefined
+        ? { bridgeReady: false, bridgeError: '未装配 Start Plan 桥接通道' }
+        : (() => {
+          const availability = this.bridge.availability()
+          return availability.reason === undefined
+            ? { bridgeReady: availability.ready }
+            : { bridgeReady: availability.ready, bridgeError: availability.reason }
+        })()),
     }]
   }
 
@@ -288,6 +342,7 @@ export class ZCodeProviderRuntime {
         this.registration?.()
         this.registration = undefined
         this.registered = false
+        this.bridge?.dispose()
       }
     }, 'dsh-zcode: LLM 路由')
   }
@@ -295,6 +350,11 @@ export class ZCodeProviderRuntime {
   /** 当前端点策略。 */
   plan(): ZCodeEndpointPlan {
     return this.endpointPlan
+  }
+
+  /** Start Plan 桥接通道（未装配时为 undefined）。 */
+  bridgeAdapter(): ZCodeBridgeAdapter | undefined {
+    return this.bridge
   }
 
   /**
