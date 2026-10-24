@@ -1,40 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { OPENCODE_GO_PROVIDER, OPENCODE_PROVIDER } from '../../src/contracts/identity.ts'
-import { readSelectedProvider, usageCapsuleVisible } from '../../src/client/services/usage-visibility.ts'
+import { modelKey, OPENCODE_PROVIDER } from '../../src/contracts/identity.ts'
+import { readSelectedModel, readSelectedProvider, usageCapsuleVisible } from '../../src/client/services/usage-visibility.ts'
+
+const goModel = modelKey('go', 'deepseek-v4.1-flash')
+const zenModel = modelKey('zen', 'deepseek-v4.1-flash')
 
 /**
  * 胶囊显隐的真值表。
  *
- * 三个用量插件都挂在 `conversation.input.right`，只按自己的登录态判断会让
- * 别家的图标在选中一家模型时也显示。判断依据是会话投影 `modelSelection` 的
- * `provider`；读不到就不显示，不猜供应商。
- *
- * 套餐额度只属于 Go 组：`dsh-opencode`（Zen 按量）没有套餐窗口，`auto` 下不挂出。
+ * 合并后的供应商只有一个路由，模型用 `go:` / `zen:` 前缀区分；套餐额度只属于
+ * `go:` 模型，`auto` 下选中 `zen:` 模型或别家供应商都不挂出。
  */
 describe('OpenCode 用量胶囊显隐', () => {
-  it('auto：选中 dsh-opencode-go 模型时显示', () => {
-    expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_GO_PROVIDER })).toBe(true)
+  it('auto：选中 go: 模型时显示', () => {
+    expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_PROVIDER, model: goModel })).toBe(true)
   })
 
-  it('auto：选中按量组（dsh-opencode）时不显示套餐额度', () => {
-    expect(OPENCODE_PROVIDER).toBe('dsh-opencode')
-    expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_PROVIDER })).toBe(false)
+  it('auto：选中 zen: 模型时不显示套餐额度', () => {
+    expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_PROVIDER, model: zenModel })).toBe(false)
   })
 
-  it('auto：选中别家供应商时不显示', () => {
-    expect(usageCapsuleVisible({ visibility: 'auto', provider: 'codex' })).toBe(false)
-    expect(usageCapsuleVisible({ visibility: 'auto', provider: 'anthropic' })).toBe(false)
-    expect(usageCapsuleVisible({ visibility: 'auto', provider: 'opencode' })).toBe(false)
-  })
-
-  it('auto：读不到供应商时不显示', () => {
+  it('auto：读不到模型或供应商时不显示', () => {
     expect(usageCapsuleVisible({ visibility: 'auto' })).toBe(false)
-    expect(usageCapsuleVisible({ visibility: 'auto', provider: undefined })).toBe(false)
+    expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_PROVIDER })).toBe(false)
+    expect(usageCapsuleVisible({ visibility: 'auto', provider: 'codex', model: goModel })).toBe(false)
   })
 
   it('auto：已确认未登录时不挂出空胶囊', () => {
-    expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_GO_PROVIDER, signedIn: false })).toBe(false)
-    expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_GO_PROVIDER, signedIn: undefined })).toBe(true)
+    expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_PROVIDER, model: goModel, signedIn: false })).toBe(false)
+    expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_PROVIDER, model: goModel, signedIn: undefined })).toBe(true)
   })
 
   it('always：常驻，不看供应商与登录状态', () => {
@@ -44,17 +38,19 @@ describe('OpenCode 用量胶囊显隐', () => {
   })
 
   it('off：始终隐藏', () => {
-    expect(usageCapsuleVisible({ visibility: 'off', provider: OPENCODE_GO_PROVIDER })).toBe(false)
-    expect(usageCapsuleVisible({ visibility: 'off', provider: OPENCODE_GO_PROVIDER, signedIn: true })).toBe(false)
+    expect(usageCapsuleVisible({ visibility: 'off', provider: OPENCODE_PROVIDER, model: goModel })).toBe(false)
+    expect(usageCapsuleVisible({ visibility: 'off', provider: OPENCODE_PROVIDER, model: goModel, signedIn: true })).toBe(false)
   })
 
-  it('readSelectedProvider 优先 next，其次 lastUsed', () => {
-    expect(readSelectedProvider({ next: { provider: OPENCODE_GO_PROVIDER } })).toBe(OPENCODE_GO_PROVIDER)
-    expect(readSelectedProvider({ next: null, lastUsed: { provider: OPENCODE_GO_PROVIDER } })).toBe(OPENCODE_GO_PROVIDER)
-    // next 有值时不会被 lastUsed 覆盖。
-    expect(readSelectedProvider({ next: { provider: 'codex' }, lastUsed: { provider: OPENCODE_GO_PROVIDER } })).toBe('codex')
+  it('readSelectedProvider / readSelectedModel 优先 pending，其次 lastUsed', () => {
+    expect(readSelectedProvider({ pending: { provider: OPENCODE_PROVIDER, model: goModel } })).toBe(OPENCODE_PROVIDER)
+    expect(readSelectedModel({ pending: { provider: OPENCODE_PROVIDER, model: goModel } })).toBe(goModel)
+    expect(readSelectedProvider({ pending: null, lastUsed: { provider: OPENCODE_PROVIDER, model: zenModel } })).toBe(OPENCODE_PROVIDER)
+    expect(readSelectedModel({ pending: null, lastUsed: { provider: OPENCODE_PROVIDER, model: zenModel } })).toBe(zenModel)
+    expect(readSelectedProvider({ pending: { provider: 'codex', model: 'x' }, lastUsed: { provider: OPENCODE_PROVIDER, model: goModel } })).toBe('codex')
     expect(readSelectedProvider(undefined)).toBeUndefined()
-    expect(readSelectedProvider({ next: { provider: '' } })).toBeUndefined()
-    expect(readSelectedProvider({ next: { provider: null } })).toBeUndefined()
+    expect(readSelectedModel(undefined)).toBeUndefined()
+    expect(readSelectedProvider({ pending: { provider: '' } })).toBeUndefined()
+    expect(readSelectedModel({ pending: { model: '' } })).toBeUndefined()
   })
 })

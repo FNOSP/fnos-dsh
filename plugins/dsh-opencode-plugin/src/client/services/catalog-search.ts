@@ -6,7 +6,6 @@
 
 import { OPENCODE_REASONING_LEVELS } from '../../contracts/catalog.ts'
 import type { OpenCodeApiKind, OpenCodeModel, OpenCodeReasoningLevel } from '../../contracts/catalog.ts'
-import type { OpenCodePlan } from '../../contracts/identity.ts'
 import type { OpenCodeLocaleKey } from '../locales.ts'
 
 /** 协议族 → 展示文案键；`Record` 保证新增协议族时编译期报错。 */
@@ -92,57 +91,18 @@ export function modelMatchesTerms(model: OpenCodeModel, terms: readonly string[]
   return terms.every(term => haystack.includes(term))
 }
 
-/** 目录分组筛选：`all` 表示不分组，其余对应一个 plan。 */
-export type OpenCodeCatalogPlanFilter = 'all' | OpenCodePlan
-
 /**
- * 按搜索词与分组过滤目录；不改动顺序（上游顺序即选择器顺序）。
- *
- * 两个条件是 AND：用户先选分组再看搜索词，缩小的范围应当是两者的交集。
+ * 按搜索词过滤目录；不改动顺序（上游顺序即选择器顺序）。
  * @param models - 目录条目。
  * @param query - 用户输入。
- * @param plan - 分组筛选；缺省为全部。
  * @returns 命中的条目。
  */
 export function filterCatalogModels(
   models: readonly OpenCodeModel[],
   query: string,
-  plan: OpenCodeCatalogPlanFilter = 'all',
 ): readonly OpenCodeModel[] {
   const terms = searchTerms(query)
-  return models.filter(model => matchesPlanFilter(model, plan) && modelMatchesTerms(model, terms))
-}
-
-/**
- * 一个模型是否属于所选分组。
- * @param model - 目录条目。
- * @param filter - 分组筛选。
- * @returns 属于该分组时为 true；`all` 恒为 true。
- */
-export function matchesPlanFilter(model: OpenCodeModel, filter: OpenCodeCatalogPlanFilter): boolean {
-  return filter === 'all' || model.plan === filter
-}
-
-/**
- * 各分组的条目数量，用于筛选按钮上的计数。
- * @param models - 目录条目。
- * @returns `all` / `go` / `zen` 三个计数；输入为空时全为 0。
- */
-export function countCatalogModels(
-  models: readonly OpenCodeModel[],
-): Readonly<Record<OpenCodeCatalogPlanFilter, number>> {
-  const counts: Record<OpenCodeCatalogPlanFilter, number> = { all: models.length, go: 0, zen: 0 }
-  for (const model of models) counts[model.plan] += 1
-  return counts
-}
-
-/**
- * 分组标签的文案键：Go 显示「Go」，Zen 显示「按量」。
- * @param plan - 契约里的分组。
- * @returns 对应的 locale 键。
- */
-export function planLabelKey(plan: OpenCodePlan): OpenCodeLocaleKey {
-  return plan === 'go' ? 'catalogPlanGo' : 'catalogPlanZen'
+  return models.filter(model => modelMatchesTerms(model, terms))
 }
 
 /** 模型能力：条目上用图标表达、气泡里逐项列出的五个特性。 */

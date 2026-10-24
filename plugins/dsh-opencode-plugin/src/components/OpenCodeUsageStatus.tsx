@@ -10,7 +10,7 @@ import { authEpoch, subscribeAuthEpoch } from '../client/services/auth-events.ts
 import { formatTimestamp } from '../client/services/format.ts'
 import type { TimerService } from '../client/services/polling.ts'
 import type { OpenCodePreferencesStore } from '../client/services/preferences-data.ts'
-import { readSelectedProvider, usageCapsuleVisible } from '../client/services/usage-visibility.ts'
+import { readSelectedModel, readSelectedProvider, usageCapsuleVisible } from '../client/services/usage-visibility.ts'
 import type { ModelSelectionProjectionLike } from '../client/services/usage-visibility.ts'
 import {
   OPENCODE_USAGE_WINDOW_KINDS,
@@ -164,7 +164,8 @@ export function OpenCodeUsageStatus({ t, timer, preferences, useProjection }: Op
   // 保证存在，因此这里无条件调用 hook；投影缺失时判定按「读不到」处理。
   const selected = useProjection('modelSelection') as ModelSelectionProjectionLike | undefined
   const provider = readSelectedProvider(selected)
-  const wanted = usageCapsuleVisible({ visibility: preferenceValues.usageVisibility, provider })
+  const model = readSelectedModel(selected)
+  const wanted = usageCapsuleVisible({ visibility: preferenceValues.usageVisibility, provider, model })
   const controller = useOpenCodeUsage({
     timer,
     refreshMinutes: preferenceValues.refreshMinutes,
@@ -176,6 +177,7 @@ export function OpenCodeUsageStatus({ t, timer, preferences, useProjection }: Op
   const visible = usageCapsuleVisible({
     visibility: preferenceValues.usageVisibility,
     provider,
+    model,
     signedIn: snapshot.signedIn,
   })
   const [popoverOpen, setPopoverOpen] = useState(false)

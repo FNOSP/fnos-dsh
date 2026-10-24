@@ -1,10 +1,9 @@
-/** 插件详情页的模型目录卡片：分组筛选、内部滚动列表、能力图标气泡与显隐开关。 */
+/** 插件详情页的模型目录卡片：合并列表、内部滚动、能力图标气泡与显隐开关。 */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   DshButton,
-  DshButtonGroup,
   DshIconAlertCircle,
   DshIconInfoCircle,
   DshIconRefresh,
@@ -21,17 +20,16 @@ import type { OpenCodeCatalogResponse } from '../client/services/catalog-data.ts
 import { readCatalog, refreshCatalog } from '../client/services/catalog-data.ts'
 import {
   apiKindLabelKey,
-  countCatalogModels,
   featureLabelKey,
   filterCatalogModels,
   formatTokenCount,
   modelFeatures,
-  planLabelKey,
   reasoningLevelLabelKey,
   supportedFeatureIds,
   withModelVisibility,
 } from '../client/services/catalog-search.ts'
-import type { OpenCodeCatalogPlanFilter, OpenCodeFeatureId } from '../client/services/catalog-search.ts'
+import type { OpenCodeFeatureId } from '../client/services/catalog-search.ts'
+import { modelKey } from '../contracts/identity.ts'
 import { formatTimestamp } from '../client/services/format.ts'
 import { errorMessage } from '../client/services/http.ts'
 import { autoRefreshIntervalMs, POLL_HEARTBEAT_MS, shouldPoll } from '../client/services/polling.ts'
@@ -43,7 +41,7 @@ export interface OpenCodeCatalogCardProps {
   readonly t: OpenCodeTranslate
   readonly timer: TimerService
   readonly preferences: OpenCodePreferencesStore
-  /** 当前隐藏的模型 id（来自偏好快照）。 */
+  /** 当前隐藏的模型键（`plan:id`，来自偏好快照）。 */
   readonly hiddenModels: readonly string[]
   /** 偏好是否已完成首次读取；未完成时开关保持禁用。 */
   readonly preferencesLoaded: boolean
@@ -52,9 +50,6 @@ export interface OpenCodeCatalogCardProps {
   /** 登录代际；变化后重拉目录。 */
   readonly revision: number
 }
-
-/** 分组筛选项的展示顺序。 */
-const PLAN_FILTERS: readonly OpenCodeCatalogPlanFilter[] = ['all', 'go', 'zen']
 
 /** 图标统一属性：内联 SVG、`currentColor` 描边，亮暗主题随文字色反转。 */
 const GLYPH_PROPS = {
@@ -182,7 +177,6 @@ export function OpenCodeCatalogCard({
   const [message, setMessage] = useState<string>()
   const [refreshing, setRefreshing] = useState(false)
   const [query, setQuery] = useState('')
-  const [planFilter, setPlanFilter] = useState<OpenCodeCatalogPlanFilter>('all')
   const [savingVisibility, setSavingVisibility] = useState(false)
   const [visibilityError, setVisibilityError] = useState<string>()
   const sequenceRef = useRef(0)
@@ -238,9 +232,8 @@ export function OpenCodeCatalogCard({
   const catalog = response?.catalog ?? undefined
   const hiddenSet = new Set(hiddenModels)
   const models = catalog?.models ?? []
-  const filtered = filterCatalogModels(models, query, planFilter)
-  const counts = countCatalogModels(models)
-  const hiddenCount = models.filter(model => hiddenSet.has(model.id)).length
+  const filtered = filterCatalogModels(models, query)
+  const hiddenCount = models.filter(model => hiddenSet.has(modelKey(model.plan, model.id))).length
   const updatedAt = formatTimestamp(catalog?.fetchedAt)
   // 未注册的供应商组不会出现在模型选择器：目录卡顶部给出可读警告。
   const unregisteredRoutes = (response?.routes ?? []).filter(route => !route.registered)
@@ -249,7 +242,9 @@ export function OpenCodeCatalogCard({
     setVisibilityError(undefined)
     setSavingVisibility(true)
     try {
-      await preferences.save({ hiddenModels: withModelVisibility(hiddenModels, model.id, visible) })
+      await preferences.save({
+        hiddenModels: withModelVisibility(hiddenModels, modelKey(model.plan, model.id), visible),
+      })
     } catch (error) {
       setVisibilityError(errorMessage(error, t('catalogSaveFailed')))
     } finally {
@@ -356,30 +351,8 @@ export function OpenCodeCatalogCard({
 
       {catalog === undefined ? null : (
         <>
-          {/* 分组筛选与搜索固定在列表上方，列表内部滚动时它们不跟着走。 */}
+          {/* 搜索与计数固定在列表上方，列表内部滚动时它们不跟着走。 */}
           <div className="dsh-opencode-catalog-controls">
-            <DshButtonGroup
-              size="small"
-              className="dsh-opencode-catalog-filters"
-              aria-label={t('catalogFilterLabel')}
-            >
-              {PLAN_FILTERS.map(filter => {
-                const active = planFilter === filter
-                return (
-                  <DshButton
-                    key={filter}
-                    size="small"
-                    theme={active ? 'solid' : 'borderless'}
-                    type={active ? 'primary' : 'tertiary'}
-                    aria-pressed={active}
-                    onClick={() => { setPlanFilter(filter) }}
-                  >
-                    {filter === 'all' ? t('catalogFilterAll') : t(planLabelKey(filter))}
-                    <span className="dsh-opencode-filter-count">{counts[filter]}</span>
-                  </DshButton>
-                )
-              })}
-            </DshButtonGroup>
             <DshInput
               className="dsh-opencode-search"
               value={query}
@@ -399,15 +372,14 @@ export function OpenCodeCatalogCard({
 
           {filtered.length === 0 ? (
             <p className="dsh-opencode-muted">
-              {query.trim().length > 0
-                ? t('catalogSearchEmpty')
-                : planFilter === 'all' ? t('catalogEmpty') : t('catalogPlanEmpty')}
+              {query.trim().length > 0 ? t('catalogSearchEmpty') : t('catalogEmpty')}
             </p>
           ) : (
             <div className="dsh-opencode-models-scroll">
               <ul className="dsh-opencode-models">
                 {filtered.map(model => {
-                  const hidden = hiddenSet.has(model.id)
+                  const key = modelKey(model.plan, model.id)
+                  const hidden = hiddenSet.has(key)
                   const disabled = model.disabled === true
                   const icons = supportedFeatureIds(model)
                   const featureSummary = icons.map(id => t(featureLabelKey(id))).join(' · ')
@@ -417,13 +389,10 @@ export function OpenCodeCatalogCard({
                     hidden && !disabled ? 'is-hidden' : '',
                   ].filter(Boolean).join(' ')
                   return (
-                    <li className={className} key={model.id}>
+                    <li className={className} key={key}>
                       <div className="dsh-opencode-model-main">
                         <div className="dsh-opencode-model-heading">
-                          <span className="dsh-opencode-model-name">{model.name}</span>
-                          <DshTag size="small" type="light" color={model.plan === 'go' ? 'green' : 'grey'}>
-                            {t(planLabelKey(model.plan))}
-                          </DshTag>
+                          <span className="dsh-opencode-model-name">{`${model.name} · ${model.plan}`}</span>
                           {disabled ? <DshTag size="small" color="red">{t('catalogDisabledTag')}</DshTag> : null}
                           {model.deprecated === true ? <DshTag size="small" color="orange">{t('catalogDeprecatedTag')}</DshTag> : null}
                           {icons.length === 0 ? null : (

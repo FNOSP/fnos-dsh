@@ -4,8 +4,8 @@
  * 装配关系：
  * - `OpenCodeAuthService` 管理 Console 设备码登录与 token 刷新；
  * - `OpenCodeCatalogService` 用 Auth token 读取工作空间模型，合并公开目录；
- * - `OpenCodeProviderRuntime` 把目录投影成 `dsh-opencode`（Zen 按量）与
- *   `dsh-opencode-go`（Go 套餐）两组路由（动态 provider）；
+ * - `OpenCodeProviderRuntime` 把目录投影成唯一的 `dsh-opencode` 路由，
+ *   同名模型用 `zen:` / `go:` 前缀与 `· zen` / `· go` 后缀区分；
  * - `OpenCodeUsageService` 读取 Go 套餐额度；
  * - `registerOpenCodeRoutes` 暴露同源 Web 路由给插件详情页与用量胶囊。
  *
@@ -28,6 +28,7 @@ import { OpenCodeConsoleClient } from './host/console-client.ts'
 import { OpenCodeCredentialStore } from './host/credentials.ts'
 import { OpenCodePreferencesStore } from './host/preferences.ts'
 import { OpenCodeProviderRuntime } from './host/provider.ts'
+import { modelKey } from './contracts/identity.ts'
 import { registerOpenCodeRoutes } from './host/routes.ts'
 import { OpenCodeUsageService } from './host/usage.ts'
 
@@ -97,10 +98,10 @@ export function apply(ctx: Context): void {
     const prefs = await preferences.read()
     const hidden = new Set(prefs.hiddenModels)
     runtime.update(
-      snapshot.models.filter(model => model.disabled !== true && !hidden.has(model.id)),
+      snapshot.models.filter(model => model.disabled !== true && !hidden.has(modelKey(model.plan, model.id))),
       {
-        zen: catalog.requestHeaders('zen') ?? {},
-        go: catalog.requestHeaders('go') ?? {},
+        ...(catalog.requestHeaders('zen') ?? {}),
+        ...(catalog.requestHeaders('go') ?? {}),
       },
     )
   }

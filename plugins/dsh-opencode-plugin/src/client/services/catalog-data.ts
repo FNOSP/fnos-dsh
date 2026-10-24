@@ -2,17 +2,15 @@
 
 import { OPENCODE_ROUTES } from '../../contracts/routes.ts'
 import type { OpenCodeCatalog } from '../../contracts/catalog.ts'
-import type { OpenCodePlan } from '../../contracts/identity.ts'
 import { requestJson } from './http.ts'
 
 /** 一组供应商路由的注册状态；由宿主在目录响应里一并下发。 */
 export interface OpenCodeCatalogRouteStatus {
   readonly id: string
   readonly name: string
-  readonly plan: OpenCodePlan
   readonly registered: boolean
   readonly error?: string
-  /** 该组当前可用的模型数（已排除停用条目）。 */
+  /** 当前可用的模型数（已排除停用条目）。 */
   readonly modelCount: number
 }
 

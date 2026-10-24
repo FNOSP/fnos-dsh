@@ -3,14 +3,11 @@ import { OPENCODE_REASONING_LEVELS } from '../../src/contracts/catalog.ts'
 import type { OpenCodeModel } from '../../src/contracts/catalog.ts'
 import {
   apiKindLabelKey,
-  countCatalogModels,
   featureLabelKey,
   filterCatalogModels,
   formatTokenCount,
-  matchesPlanFilter,
   modelFeatures,
   modelMatchesTerms,
-  planLabelKey,
   reasoningLevelLabelKey,
   reasoningLevels,
   searchTerms,
@@ -110,38 +107,6 @@ describe('容量展示', () => {
     expect(formatTokenCount(0)).toBeUndefined()
     expect(formatTokenCount(-1)).toBeUndefined()
     expect(formatTokenCount(Number.NaN)).toBeUndefined()
-  })
-})
-
-describe('模型分组', () => {
-  it('all 不过滤，go / zen 只保留本组条目', () => {
-    const models = [claude, goModel]
-    expect(matchesPlanFilter(claude, 'all')).toBe(true)
-    expect(matchesPlanFilter(goModel, 'all')).toBe(true)
-    expect(filterCatalogModels(models, '', 'all')).toEqual(models)
-    expect(filterCatalogModels(models, '', 'go')).toEqual([goModel])
-    expect(filterCatalogModels(models, '', 'zen')).toEqual([claude])
-  })
-
-  it('分组与搜索词是 AND 关系', () => {
-    const models = [claude, goModel]
-    expect(filterCatalogModels(models, 'minimax', 'go')).toEqual([goModel])
-    expect(filterCatalogModels(models, 'minimax', 'zen')).toEqual([])
-    expect(filterCatalogModels(models, 'claude', 'go')).toEqual([])
-  })
-
-  it('计数覆盖全部分组', () => {
-    expect(countCatalogModels([])).toEqual({ all: 0, go: 0, zen: 0 })
-    expect(countCatalogModels([claude, gpt, goModel])).toEqual({ all: 3, go: 1, zen: 2 })
-  })
-
-  it('分组标签走 locale：Go / Zen', () => {
-    expect(planLabelKey('go')).toBe('catalogPlanGo')
-    expect(planLabelKey('zen')).toBe('catalogPlanZen')
-    expect(en[planLabelKey('go')]).toBe('Go')
-    expect(zh[planLabelKey('zen')]).toBe('Zen')
-    expect(en[planLabelKey('zen')]).toBeTruthy()
-    expect(zh[planLabelKey('go')]).toBeTruthy()
   })
 })
 

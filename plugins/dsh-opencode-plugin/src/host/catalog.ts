@@ -26,9 +26,7 @@ import {
   OPENCODE_INFERENCE_ORIGIN,
   OPENCODE_MODEL_CATALOG_URL,
   OPENCODE_MODELS_URL,
-  OPENCODE_PROVIDERS,
   OPENCODE_USER_AGENT,
-  providerForPlan,
   type OpenCodePlan,
 } from '../contracts/identity.ts'
 import {
@@ -74,6 +72,15 @@ const API_PATHS: Readonly<Record<OpenCodePlan, Readonly<Record<OpenCodeApiKind, 
     'openai-responses': '/go/openai/v1',
   },
 }
+
+/** 目录分组在警告文案里的显示名。 */
+const PLAN_LABELS: Readonly<Record<OpenCodePlan, string>> = {
+  zen: 'OpenCode Zen',
+  go: 'OpenCode Go',
+}
+
+/** 目录构建时遍历的 plan 顺序。 */
+const PLANS: readonly OpenCodePlan[] = ['zen', 'go']
 
 /** Console provider id 到 plan 的映射。 */
 const CONSOLE_PROVIDER_PLANS: Readonly<Record<string, OpenCodePlan>> = {
@@ -597,9 +604,8 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
     go: builtinModelIndex(input.builtin?.go ?? []),
   }
 
-  for (const provider of OPENCODE_PROVIDERS) {
-    const plan = provider.plan
-    const label = provider.name
+  for (const plan of PLANS) {
+    const label = PLAN_LABELS[plan]
     const scope = consoleScopes.get(plan)
     const primary = catalogSection(input.catalog, plan)
     const fallback = catalogSection(input.catalog, plan === 'zen' ? 'go' : 'zen')
@@ -923,9 +929,4 @@ export class OpenCodeCatalogService {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
-}
-
-/** 某 plan 的供应商描述（供上层装配复用）。 */
-export function providerOfPlan(plan: OpenCodePlan): ReturnType<typeof providerForPlan> {
-  return providerForPlan(plan)
 }

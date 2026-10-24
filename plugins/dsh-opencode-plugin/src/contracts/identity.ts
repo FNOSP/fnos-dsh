@@ -1,15 +1,14 @@
 /**
  * OpenCode 供应商身份与网关地址：host 与 client 共用的契约。
  *
- * 本插件注册**两组**供应商，对应 OpenCode Console 的两类模型来源：
+ * 模型目录同时包含 OpenCode Zen（按量）与 OpenCode Go（套餐）两类来源，
+ * 但**只注册一个** DSH 供应商 `OpenCode`：同名模型在两组里都存在，
+ * 合并成一个列表时用模型 id 的 `zen:` / `go:` 前缀区分，显示名追加
+ * `· zen` / `· go` 小尾巴。发请求前前缀会被剥掉，网关看到的仍是原始 id。
  *
- * - `dsh-opencode`（显示名 OpenCode Zen）：OpenCode Zen 按量模型；
- * - `dsh-opencode-go`（显示名 OpenCode Go）：Go 套餐模型。
- *
- * 路由 id 带 `dsh-` 前缀是刻意的：`opencode` / `opencode-go` 是 pi-ai 内置
- * 目录里的路由名，用户可能已在 `llm-pi-ai` 设置里手工声明（实测会与本插件的
- * `registerAdapter` 冲突，导致登录后模型不出现在选择器）。带前缀的 id 不会
- * 与用户配置撞名。
+ * 路由 id 带 `dsh-` 前缀是刻意的：`opencode` 是 pi-ai 内置目录里的路由名，
+ * 用户可能已在 `llm-pi-ai` 设置里手工声明（实测会与本插件的
+ * `registerAdapter` 冲突）。带前缀的 id 不会与用户配置撞名。
  *
  * @module dsh-opencode/identity
  */
@@ -17,33 +16,39 @@
 /** 两类模型来源：Zen 按量 与 Go 套餐。 */
 export type OpenCodePlan = 'zen' | 'go'
 
-/** 一组供应商路由的完整描述。 */
-export interface OpenCodeProviderDescriptor {
-  /** 注册到 `ctx.llm` 的路由 id。 */
-  readonly id: string
-  /** 模型选择器与设置页显示的供应商名称。 */
-  readonly name: string
-  readonly plan: OpenCodePlan
+/** 本插件注册的唯一供应商路由。 */
+export const OPENCODE_PROVIDER = 'dsh-opencode'
+/** 模型选择器与设置页显示的供应商名称。 */
+export const OPENCODE_PROVIDER_NAME = 'OpenCode'
+
+/** 模型 id 的 plan 前缀：保证合并后同一模型的两组条目 id 唯一。 */
+export const OPENCODE_PLAN_PREFIXES: Readonly<Record<OpenCodePlan, string>> = {
+  zen: 'zen:',
+  go: 'go:',
 }
 
-/** 本插件注册的两组供应商，顺序即选择器里的展示顺序。 */
-export const OPENCODE_PROVIDERS: readonly OpenCodeProviderDescriptor[] = [
-  { id: 'dsh-opencode', name: 'OpenCode Zen', plan: 'zen' },
-  { id: 'dsh-opencode-go', name: 'OpenCode Go', plan: 'go' },
-]
+/** 合并列表里的稳定模型键（`plan:realId`）。 */
+export function modelKey(plan: OpenCodePlan, id: string): string {
+  return `${OPENCODE_PLAN_PREFIXES[plan]}${id}`
+}
 
-/** Zen 按量供应商路由（默认组）。 */
-export const OPENCODE_PROVIDER = 'dsh-opencode'
-/** Zen 按量供应商显示名。 */
-export const OPENCODE_PROVIDER_NAME = 'OpenCode Zen'
-/** Go 套餐供应商路由。 */
-export const OPENCODE_GO_PROVIDER = 'dsh-opencode-go'
-/** Go 套餐供应商显示名。 */
-export const OPENCODE_GO_PROVIDER_NAME = 'OpenCode Go'
+/** 从模型键解析 plan；不是本插件格式时返回 undefined。 */
+export function planOfModelKey(key: string): OpenCodePlan | undefined {
+  for (const plan of ['zen', 'go'] as const) {
+    if (key.startsWith(OPENCODE_PLAN_PREFIXES[plan])) return plan
+  }
+  return undefined
+}
 
-/** 按 plan 取供应商描述；未知 plan 回落到 Zen。 */
-export function providerForPlan(plan: OpenCodePlan): OpenCodeProviderDescriptor {
-  return OPENCODE_PROVIDERS.find(provider => provider.plan === plan) ?? OPENCODE_PROVIDERS[0]!
+/** 剥掉 plan 前缀，得到网关真正接受的模型 id。 */
+export function wireModelId(key: string): string {
+  const plan = planOfModelKey(key)
+  return plan === undefined ? key : key.slice(OPENCODE_PLAN_PREFIXES[plan].length)
+}
+
+/** 合并列表里的显示名：在原名后追加 `· zen` / `· go`。 */
+export function modelDisplayName(name: string, plan: OpenCodePlan): string {
+  return `${name} · ${plan}`
 }
 
 /** OpenCode Console 的账号与 API 根地址。 */

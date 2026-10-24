@@ -1,15 +1,16 @@
 /**
- * 动态 OpenCode provider（Zen 按量与 Go 套餐两组）。
+ * 动态 OpenCode provider（Zen 与 Go 合并为一个供应商）。
+ *
+ * 目录同时包含 OpenCode Zen（按量）与 OpenCode Go（套餐）两类模型，但只注册
+ * 一个 DSH 供应商：同名模型用 `zen:` / `go:` 前缀保证 id 唯一，显示名追加
+ * `· zen` / `· go` 小尾巴。发请求前前缀会被剥掉（{@link wireModelId}），
+ * 网关看到的仍是原始模型 id。
  *
  * 与 `llm-pi-ai` 的静态路由不同，这里每次目录刷新都会重建 pi-ai `Provider`：
  * 模型集合、协议族、思考等级全部来自当前账号的目录快照，因此上游新增模型
  * 不需要升级插件或改设置。重建只替换 `profiles()` 返回的 Map 身份——
  * `PiAiAdapter` 以该身份判断配置是否变化，并在下一次操作时重建内部模型集合，
  * 进行中的请求仍使用它捕获的旧快照。
- *
- * 路由 id 带 `dsh-` 前缀，避免与用户手工配置的 `opencode` / `opencode-go`
- * （llm-pi-ai 内置目录路由）冲突：同名会让 `registerAdapter` 抛
- * `DUPLICATE_ADAPTER`，表现为登录后模型不出现在选择器。
  *
  * 网关要求每个会话带稳定的 `x-opencode-session` 头以复用上下文缓存；
  * pi-ai 的 `withOpenCodeSessionHeader` 会在 `options.sessionId` 存在时注入，
@@ -18,7 +19,14 @@
  * @module dsh-opencode/provider
  */
 
-import type { Api, CreateProviderOptions, Model, Provider, ProviderAuth } from '@earendil-works/pi-ai'
+import type {
+  Api,
+  CreateProviderOptions,
+  Model,
+  Provider,
+  ProviderAuth,
+  ProviderStreams,
+} from '@earendil-works/pi-ai'
 import { createProvider, defaultProviderAuthContext, InMemoryCredentialStore } from '@earendil-works/pi-ai'
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy'
 import { googleGenerativeAIApi } from '@earendil-works/pi-ai/api/google-generative-ai.lazy'
@@ -33,10 +41,12 @@ import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { OpenCodeModel, OpenCodeModelCost } from '../contracts/catalog.ts'
 import {
-  OPENCODE_PROVIDERS,
+  modelDisplayName,
+  modelKey,
+  OPENCODE_PROVIDER,
+  OPENCODE_PROVIDER_NAME,
   OPENCODE_USER_AGENT,
-  type OpenCodePlan,
-  type OpenCodeProviderDescriptor,
+  wireModelId,
 } from '../contracts/identity.ts'
 
 /** 流空闲上限：思考型模型的长停顿不应被误判断流。 */
@@ -60,16 +70,15 @@ function costOf(cost: OpenCodeModelCost | undefined): Model<Api>['cost'] {
 /**
  * 把目录条目投影为 pi-ai 模型。
  *
- * `compat` 与 `inputLimits` 是不透明 JSON：目录层只负责从内置目录继承上游
- * 验证过的 wire 行为，这里原样交给 pi-ai。`Model<Api>` 的 `compat` 是按
- * `api` 分派的联合类型，开放字符串下无法静态收窄，因此集中在此处断言。
+ * `id` 带 plan 前缀以保证合并列表内唯一，`name` 追加 `· zen` / `· go`；
+ * `compat` 与 `inputLimits` 是不透明 JSON，原样交给 pi-ai。
  */
-export function toPiModel(model: OpenCodeModel, routeId: string): Model<Api> {
+export function toPiModel(model: OpenCodeModel): Model<Api> {
   const value = {
-    id: model.id,
-    name: model.name,
+    id: modelKey(model.plan, model.id),
+    name: modelDisplayName(model.name, model.plan),
     api: model.api,
-    provider: routeId,
+    provider: OPENCODE_PROVIDER,
     baseUrl: model.baseURL,
     input: [...model.input],
     cost: costOf(model.cost),
@@ -84,13 +93,30 @@ export function toPiModel(model: OpenCodeModel, routeId: string): Model<Api> {
   return value as unknown as Model<Api>
 }
 
-/** 四个协议族的实现；每个都注入 `x-opencode-session` 头。 */
+/**
+ * 发请求前把合并用的模型 id 还原成网关 id。
+ *
+ * pi-ai 的 API 实现直接读 `model.id` 作为请求里的模型名，因此必须在
+ * `stream` / `streamSimple` 入口改写；其余字段（baseUrl、compat、思考等级）
+ * 保持不变。
+ */
+function withWireModelId(streams: ProviderStreams): ProviderStreams {
+  return {
+    ...streams,
+    stream: (model, context, options) =>
+      streams.stream({ ...model, id: wireModelId(model.id) }, context, options),
+    streamSimple: (model, context, options) =>
+      streams.streamSimple({ ...model, id: wireModelId(model.id) }, context, options),
+  }
+}
+
+/** 四个协议族的实现；每个都注入 `x-opencode-session` 头并还原网关模型 id。 */
 function openCodeApis(): NonNullable<CreateProviderOptions['api']> {
   return {
-    'anthropic-messages': withOpenCodeSessionHeader(anthropicMessagesApi()),
-    'google-generative-ai': withOpenCodeSessionHeader(googleGenerativeAIApi()),
-    'openai-completions': withOpenCodeSessionHeader(openAICompletionsApi()),
-    'openai-responses': withOpenCodeSessionHeader(openAIResponsesApi()),
+    'anthropic-messages': withWireModelId(withOpenCodeSessionHeader(anthropicMessagesApi())),
+    'google-generative-ai': withWireModelId(withOpenCodeSessionHeader(googleGenerativeAIApi())),
+    'openai-completions': withWireModelId(withOpenCodeSessionHeader(openAICompletionsApi())),
+    'openai-responses': withWireModelId(withOpenCodeSessionHeader(openAIResponsesApi())),
   }
 }
 
@@ -107,35 +133,33 @@ function providerAuth(resolveAccessToken: () => Promise<string | undefined>): Pr
   }
 }
 
-/** 构建一组供应商路由的 pi-ai provider。 */
+/** 构建合并供应商的 pi-ai provider。 */
 export function createOpenCodeProvider(
   models: readonly OpenCodeModel[],
-  route: OpenCodeProviderDescriptor,
   resolveAccessToken: () => Promise<string | undefined>,
 ): Provider {
   return createProvider({
-    id: route.id,
-    name: route.name,
+    id: OPENCODE_PROVIDER,
+    name: OPENCODE_PROVIDER_NAME,
     auth: providerAuth(resolveAccessToken),
-    models: models.filter(model => model.disabled !== true).map(model => toPiModel(model, route.id)),
+    models: models.filter(model => model.disabled !== true).map(toPiModel),
     api: openCodeApis(),
   })
 }
 
 /**
- * 构建一组供应商路由的完整 profile。
+ * 构建供应商 profile。
  *
  * 独立导出便于测试直接驱动 `PiAiAdapter`，而不必伪造整个 Cordis 上下文。
  */
 export function createOpenCodeProfile(
-  route: OpenCodeProviderDescriptor,
   models: readonly OpenCodeModel[],
   resolveAccessToken: () => Promise<string | undefined>,
   headers: Readonly<Record<string, string>> = {},
 ): ResolvedPiAiProviderProfile {
   return {
-    provider: route.id,
-    displayName: route.name,
+    provider: OPENCODE_PROVIDER,
+    displayName: OPENCODE_PROVIDER_NAME,
     streamIdleTimeoutMs: OPENCODE_STREAM_IDLE_TIMEOUT_MS,
     maxRequestImageBytes: OPENCODE_MAX_REQUEST_IMAGE_BYTES,
     requestImagePixelBudget: OPENCODE_REQUEST_IMAGE_PIXEL_BUDGET,
@@ -143,7 +167,7 @@ export function createOpenCodeProfile(
     retryPolicy: resolveRetryPolicy(undefined, 'dsh-opencode retryPolicy'),
     configuredMaxTokens: new Map(),
     headers: { 'user-agent': OPENCODE_USER_AGENT, ...headers },
-    piProvider: createOpenCodeProvider(models, route, resolveAccessToken),
+    piProvider: createOpenCodeProvider(models, resolveAccessToken),
     modelErrors: new Map(),
   }
 }
@@ -183,28 +207,27 @@ export interface OpenCodeProviderRuntimeOptions {
   readonly logger: Pick<Context['logger'], 'warn' | 'info'>
 }
 
-/** 一组路由的运行状态，供详情页诊断。 */
+/** 供应商路由的运行状态，供详情页诊断。 */
 export interface OpenCodeRouteStatus {
   readonly id: string
   readonly name: string
-  readonly plan: OpenCodePlan
   readonly registered: boolean
   readonly error?: string
   readonly modelCount: number
 }
 
 /**
- * 注册并持有两组路由（`dsh-opencode` 与 `dsh-opencode-go`）。
+ * 注册并持有唯一的 `dsh-opencode` 路由。
  *
- * 优先一次性注册全部路由；若其中一组已被其他适配器占用，退化为逐组注册，
- * 让可用的那一组照常服务，并把冲突原因暴露给详情页，而不是让整个插件失效。
+ * 路由被其他适配器占用时记录原因并保持未注册状态，由详情页把冲突说明展示
+ * 给用户，而不是让整个插件失效。
  */
 export class OpenCodeProviderRuntime {
   private snapshot: ReadonlyMap<string, ResolvedPiAiProviderProfile> = new Map()
   private readonly adapter: PiAiAdapter
-  private registrations: AdapterRegistrationHandle[] = []
-  private readonly registeredRoutes = new Set<string>()
-  private readonly errors = new Map<string, string>()
+  private registration: AdapterRegistrationHandle | undefined
+  private registered = false
+  private error: string | undefined
   private currentModels: readonly OpenCodeModel[] = []
 
   constructor(private readonly options: OpenCodeProviderRuntimeOptions) {
@@ -220,53 +243,38 @@ export class OpenCodeProviderRuntime {
     return this.currentModels
   }
 
-  /** 路由注册状态；冲突原因只对对应的一组生效。 */
+  /** 路由注册状态；冲突原因只在该路由上生效。 */
   routeStatus(): readonly OpenCodeRouteStatus[] {
-    return OPENCODE_PROVIDERS.map((route) => {
-      const error = this.errors.get(route.id)
-      return {
-        id: route.id,
-        name: route.name,
-        plan: route.plan,
-        registered: this.registeredRoutes.has(route.id),
-        ...(error === undefined ? {} : { error }),
-        modelCount: this.currentModels.filter(model => model.plan === route.plan && model.disabled !== true).length,
-      }
-    })
+    return [{
+      id: OPENCODE_PROVIDER,
+      name: OPENCODE_PROVIDER_NAME,
+      registered: this.registered,
+      ...(this.error === undefined ? {} : { error: this.error }),
+      modelCount: this.currentModels.filter(model => model.disabled !== true).length,
+    }]
   }
 
-  /** 兼容旧调用：返回第一组路由的注册错误。 */
+  /** 兼容旧调用：返回注册错误。 */
   registrationError(): string | undefined {
-    return this.routeStatus().find(status => status.error !== undefined)?.error
+    return this.error
   }
 
   /** 在插件 fiber 上注册路由；返回的清理函数由 `ctx.effect` 管理。 */
   register(ctx: Context): void {
     ctx.effect(() => {
-      const routes = OPENCODE_PROVIDERS.map(route => route.id)
-      this.registeredRoutes.clear()
-      this.errors.clear()
+      this.registered = false
+      this.error = undefined
       try {
-        this.registrations = [ctx.llm.registerAdapter(routes, this.adapter)]
-        for (const route of routes) this.registeredRoutes.add(route)
-      } catch {
-        // 一组被占用时逐组重试，保住另一组。
-        this.registrations = []
-        for (const route of OPENCODE_PROVIDERS) {
-          try {
-            this.registrations.push(ctx.llm.registerAdapter([route.id], this.adapter))
-            this.registeredRoutes.add(route.id)
-          } catch (routeError) {
-            const message = routeError instanceof Error ? routeError.message : String(routeError)
-            this.errors.set(route.id, message)
-            this.options.logger.warn(`dsh-opencode: 无法注册 ${route.id} 路由：${message}`)
-          }
-        }
+        this.registration = ctx.llm.registerAdapter([OPENCODE_PROVIDER], this.adapter)
+        this.registered = true
+      } catch (registerError) {
+        this.error = registerError instanceof Error ? registerError.message : String(registerError)
+        this.options.logger.warn(`dsh-opencode: 无法注册 ${OPENCODE_PROVIDER} 路由：${this.error}`)
       }
       return () => {
-        for (const registration of this.registrations) registration()
-        this.registrations = []
-        this.registeredRoutes.clear()
+        this.registration?.()
+        this.registration = undefined
+        this.registered = false
       }
     }, 'dsh-opencode: LLM 路由')
   }
@@ -274,27 +282,15 @@ export class OpenCodeProviderRuntime {
   /**
    * 用新目录重建 profile；下一次 LLM 操作即可见。
    *
-   * `headers` 是 Console 下发的路由头（工作空间 id 等），按 plan 分别携带；
-   * `user-agent` 固定为本插件自己的标识，不被上游覆盖。
+   * `headers` 是 Console 下发的路由头（工作空间 id 等）；`user-agent` 固定为
+   * 本插件自己的标识，不被上游覆盖。
    */
-  update(
-    models: readonly OpenCodeModel[],
-    headers: Partial<Record<OpenCodePlan, Readonly<Record<string, string>>>> = {},
-  ): void {
+  update(models: readonly OpenCodeModel[], headers: Readonly<Record<string, string>> = {}): void {
     this.currentModels = models
-    const byPlan = new Map<OpenCodePlan, OpenCodeModel[]>()
-    for (const route of OPENCODE_PROVIDERS) byPlan.set(route.plan, [])
-    for (const model of models) byPlan.get(model.plan)?.push(model)
     // 新 Map 身份是 PiAiAdapter 重建模型集合的信号。
-    const next = new Map<string, ResolvedPiAiProviderProfile>()
-    for (const route of OPENCODE_PROVIDERS) {
-      next.set(route.id, createOpenCodeProfile(
-        route,
-        byPlan.get(route.plan) ?? [],
-        this.options.resolveAccessToken,
-        headers[route.plan] ?? {},
-      ))
-    }
-    this.snapshot = next
+    this.snapshot = new Map([[
+      OPENCODE_PROVIDER,
+      createOpenCodeProfile(models, this.options.resolveAccessToken, headers),
+    ]])
   }
 }
