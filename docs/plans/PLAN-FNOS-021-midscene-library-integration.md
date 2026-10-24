@@ -1,11 +1,11 @@
 ---
 id: PLAN-FNOS-021
 title: PLAN-FNOS-021 Midscene 库能力对齐与接入简化
-description: 把插件依赖的 Midscene 库从 1.15.1 升级到 1.16.5，并把「默认跟随会话模型、优先使用插件配置模型」从单职责扩展到四个职责；同时补上模型原生思考透传、家族推断修正、技能同步与说明页纠偏。分三阶段：基线升级与缺陷修复、多职责接入、思考透传与协议可诊断性。
-status: in_progress
+description: 把插件依赖的 Midscene 库从 1.15.1 升级到 1.16.5，并把「默认跟随会话模型、优先使用插件配置模型」从单职责扩展到四个职责；同时补上模型原生思考透传、家族推断修正、技能同步与说明页纠偏。分四阶段实施：基线升级与缺陷修复、多职责接入、思考透传与协议可诊断性、1.16.5 新增契约对齐。
+status: completed
 owner: tnnevol
 targetVersion: 5.9.0
-lastVerified: 2026-10-22
+lastVerified: 2026-10-23
 ---
 
 # PLAN-FNOS-021 Midscene 库能力对齐与接入简化
@@ -15,8 +15,8 @@ lastVerified: 2026-10-22
 | 计划编号 | PLAN-FNOS-021 |
 | 计划日期 | 2026-10-20 |
 | 对应需求 | [FNOS-021 Midscene 库能力对齐与接入简化](/requirements/FNOS-021-midscene-library-integration) |
-| 本轮功能 | FNOS-021-01 至 FNOS-021-07 |
-| 计划状态 | <Badge type="warning" text="开发中（四阶段代码完成，界面与环境验收待补测）" /> |
+| 本轮功能 | FNOS-021-01 至 FNOS-021-08 |
+| 计划状态 | <Badge type="tip" text="已完成（2026-10-23 整体验收通过）" /> |
 
 ## 计划目标
 
@@ -64,7 +64,7 @@ lastVerified: 2026-10-22
 | FNOS-021-06 | `src/contracts/config.ts`（配置生成加协议声明）、`src/host/bridge-server.ts`（协议路径的可读 404） | 无 | `tests/contracts/config.spec.ts`、`tests/host/bridge-server.spec.ts`（含「带 `response_format` 仍成功」） | 说明页「能力边界」小节 | 本地构测 + 实桥逐 provider 冒烟 |
 | FNOS-021-07 | `docs/plugins/dsh-midscene.md` | 无 | 文档构建 + `--sdd` 检查 | 本体 | 文档站构建 |
 
-**跨插件影响**：`packages/dsh-e2e-kit` 的 peer 依赖指向 catalog，catalog 升到 `1.16.0` 后它在 workspace 内自动跟随；`plugins/dsh-failover-search-plugin`、`plugins/dsh-codebuddy-plugin`、`apps/fn-deepseek-harness/tests` 同样通过 catalog 引用，需要一并回归它们的 `typecheck` 与 e2e 配置加载。
+**跨插件影响**：`packages/dsh-e2e-kit` 的 peer 依赖指向 catalog，catalog 升到最终基线 `1.16.5` 后它在 workspace 内自动跟随；`plugins/dsh-failover-search-plugin`、`plugins/dsh-codebuddy-plugin`、`apps/fn-deepseek-harness/tests` 同样通过 catalog 引用，需要一并回归它们的 `typecheck` 与 e2e 配置加载。
 
 ## 架构与数据流
 
@@ -109,12 +109,12 @@ flowchart TD
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
-| PLAN-FNOS-021-T01-01 | FNOS-021-01 / AC-01 | `pnpm-workspace.yaml` 的 catalog 三行与等待期豁免列表中 6 个 `@midscene/*@1.15.1` 改为 `1.16.0`；执行安装更新锁文件 | 上游 `1.16.0` 已发布（已核实） | `pnpm install` 后 `node -e "require('@midscene/test/package.json').version"` 为 `1.16.0` |
+| PLAN-FNOS-021-T01-01 | FNOS-021-01 / AC-01 | `pnpm-workspace.yaml` 的 catalog 三行与等待期豁免列表中 6 个 `@midscene/*@1.15.1` 升至最终基线 `1.16.5`；执行安装更新锁文件 | 上游 `1.16.5` 已发布（已核实） | `pnpm install` 后 `node -e "require('@midscene/test/package.json').version"` 为 `1.16.5` |
 | PLAN-FNOS-021-T01-02 | FNOS-021-01 / AC-02 | 跑插件类型检查、单测与构建；处理升级暴露的类型或行为差异 | T01-01 | `pnpm --filter @tnnevol/dsh-midscene run check` 全绿 |
 | PLAN-FNOS-021-T01-03 | FNOS-021-01 / AC-03 | 跑 `test:bridge` 冒烟与 `tests/e2e`（需 DSH Web 与已装扩展的 Chrome）；确认桥未被要求改动 | T01-02 | 冒烟通过；e2e 通过或失败原因与升级无关（登记） |
 | PLAN-FNOS-021-T01-04 | FNOS-021-01 / 回归 | 回归 `packages/dsh-e2e-kit` 与使用 catalog 的插件/应用的 typecheck 与 e2e 配置加载 | T01-01 | 相关包 typecheck 通过 |
 | PLAN-FNOS-021-T01-05 | FNOS-021-04 / AC-01、AC-03 | 调整 `FAMILY_RULES` 顺序：`auto-glm` 提到 `glm` 之前；`vlm-ui-tars-*` 提到 `doubao-vision` 之前；补单测覆盖 `autoglm-phone`、`auto-glm-multilingual`、`doubao-1.5-ui-tars`、`ui-tars-1.5` | 无 | 新增单测全绿，且既有家族用例不回归 |
-| PLAN-FNOS-021-T01-06 | FNOS-021-04 / AC-02 | `MIDSCENE_FAMILIES` 增加 `jev`；同步更新 `tests/contracts/config.spec.ts` 的长度断言 | T01-01（白名单以上游 1.16.0 为准） | 白名单与上游 `TModelFamily` 逐项一致 |
+| PLAN-FNOS-021-T01-06 | FNOS-021-04 / AC-02 | `MIDSCENE_FAMILIES` 增加 `jev`；同步更新 `tests/contracts/config.spec.ts` 的长度断言 | T01-01（白名单以上游 1.16.5 为准） | 白名单与上游 `TModelFamily` 逐项一致 |
 | PLAN-FNOS-021-T01-07 | FNOS-021-05 / AC-01、AC-02 | 用上游 `tnnevol/skills` 的 `skills/midscenejs`（`b63d3e3`，skill 1.1.0 / Midscene v1.16.0 快照）整目录覆盖；更新 `SOURCE.md` 的上游提交、同步日期与 14 个文件 sha256 | T01-06 | `tests/host/skills.spec.ts` 哈希守卫通过（22 条） |
 
 ### 阶段二：多职责模型接入
@@ -146,7 +146,7 @@ flowchart TD
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
 | PLAN-FNOS-021-T04-01 | FNOS-021-08 / AC-01、AC-02 | **全仓 5 处** e2e 配置把 `maxConcurrency: 1` 换成 `maxConcurrentFiles: 1` + `maxConcurrentProjects: 1`（`dsh-midscene-plugin`、`dsh-codebuddy-plugin`、`dsh-failover-search-plugin`、`dsh-e2e-desktop`、`fn-deepseek-harness/tests`）；每处注释写明这是 `1.16.5` 的**破坏性变更**（旧字段在运行期被显式拒绝）与「两字段默认值均为 1，迁移后语义不变」 | T01-01（已安装 `1.16.5`） | 全仓 `pnpm run typecheck` 通过；全仓 `midscene.config.ts` 内不再出现字段赋值。注意 `dsh-codebuddy-plugin` 目录被 `.gitignore` 忽略，该处改动只留在本机 |
-| PLAN-FNOS-021-T04-02 | FNOS-021-08 / AC-03 | 同一配置显式设 `setupTimeout` / `teardownTimeout`（各 120s）。`1.16.5` 缺省不启用上限，不设则仍是「扩展未连上就无限等待」 | T04-01 | 配置审查；扩展未连接场景实测（登记为待环境补测） |
+| PLAN-FNOS-021-T04-02 | FNOS-021-08 / AC-03 | 同一配置显式设 `setupTimeout` / `teardownTimeout`（各 120s）。`1.16.5` 缺省不启用上限，不设则仍是「扩展未连上就无限等待」 | T04-01 | 配置审查；扩展未连接场景用例保留为未执行非阻塞项，见测试文档 |
 | PLAN-FNOS-021-T04-03 | FNOS-021-08 / AC-04 | 对 `defineFileSetup` / `FileSetupContext` / `TProjectContext` 与 `AUTH_MODE=siwc` 给出「可用但不采用」的结论与理由，写入本计划决策 D6/D7 与需求「不在本次范围内」 | 无 | 决策记录齐全，无悬空选项 |
 | PLAN-FNOS-021-T04-04 | FNOS-021-01 / AC-02 | 在 `1.16.5` 上重跑包级单测、类型检查与构建；逐项复核家族白名单、四职责变量名、`jev` 限制、专用职责不继承、各家族思考字段形态与 `1.16.0` 的差异 | T01-01 | 211 条单测全绿；复核结论回填需求调研结论 |
 
@@ -304,10 +304,10 @@ sequenceDiagram
 
 | 阶段 | 状态 | 说明 |
 | --- | --- | --- |
-| 阶段一 基线升级与准确性缺陷 | <Badge type="tip" text="已完成" /> | 7 个任务；T01-03 的桥冒烟与 e2e 待环境补测 |
-| 阶段二 多职责模型接入 | <Badge type="tip" text="已完成" /> | 6 个任务；T02-05 的设置页需在 DSH Web 与 Desktop 双客户端验收 |
-| 阶段三 思考透传与协议可诊断性 | <Badge type="tip" text="已完成" /> | 6 个任务；TC-042a 的逐 provider 冒烟待真实凭据环境 |
-| 阶段四 1.16.5 新增契约对齐 | <Badge type="tip" text="已完成" /> | 4 个任务；T04-02 的「超时生效」需扩展未连接场景实测 |
+| 阶段一 基线升级与准确性缺陷 | <Badge type="tip" text="已完成" /> | 7 个任务；桥接冒烟与全量 e2e 已通过，详见测试用例记录 |
+| 阶段二 多职责模型接入 | <Badge type="tip" text="已完成" /> | 6 个任务；需求提出人确认整体验收通过，个别未执行用例见测试记录且不阻塞结论 |
+| 阶段三 思考透传与协议可诊断性 | <Badge type="tip" text="已完成" /> | 6 个任务；按已配置 provider 的实测及整体验收结论收敛 |
+| 阶段四 1.16.5 新增契约对齐 | <Badge type="tip" text="已完成" /> | 4 个任务；未执行用例如实保留在测试记录，不作为整体验收阻塞项 |
 
 ## 变更记录
 
@@ -318,3 +318,4 @@ sequenceDiagram
 | 2026-10-22 | 三阶段 19 个任务实现完成（本地构测） | 阶段一：catalog 与等待期豁免升至 `1.16.0`；`FAMILY_RULES` 顺序修正（`auto-glm` 先于 `glm-v`、`vlm-ui-tars-*` 先于 `doubao-*`）；白名单补 `jev`（21 项）；`midscenejs` 同步上游 `b3f7fd6`（22 个文件，零本地补丁）。阶段二：新增 `src/contracts/intents.ts`（四职责常量与 `dsh-model@<职责>` 命名）、`Config` 三字段、`resolveIntentModels()` 按职责决策与推导家族、`renderEnvFile` 按职责扩展、`/v1/midscene-env` 与设置快照按职责返回、设置页改为四职责 Tabs。阶段三：新增 `src/host/reasoning.ts`（意图解析 + 档位匹配 + 降级）、接入配置显式声明协议、`/v1/responses` 与 `/v1/systemone` 可读 404 指引、**保持忽略** `response_format` 并加倒退守卫。验证：包级单测 211 条全绿（新增 `reasoning.spec.ts` 15 条、`intent-models.spec.ts` 7 条），`typecheck`/`build`/全仓 `typecheck`（11/11）通过。执行期修复 `/v1/midscene-env` 的 `variables` 字典丢失专用职责键（`map` 误用，应 `flatMap`）。遗留：桥冒烟、e2e、双客户端界面验收与逐 provider 冒烟待环境补测。 |
 | 2026-10-22 | **基线推进到 `1.16.5`（原定 `1.16.0`）** | 用户确认「同步升级」后把 catalog 三行与等待期豁免 6 行改为 `1.16.5`。实测 pnpm 的 `minimumReleaseAge` 门槛为 **24 小时**：`1.16.1`（30h）免豁免、`1.16.2`（22.2h）与 `1.16.5`（3.2h）被拦，故显式登记豁免。对 `1.16.5` 逐项复核后确认：家族白名单（21 项含 `jev`）、四职责变量名、`jev` 不能作默认、专用职责不继承、各家族思考字段形态**与 `1.16.0` 完全一致**，故阶段一至三的实现无需改动；`AUTH_MODE` 缺省 `api-key`，不影响现有 bearer 接入。 |
 | 2026-10-22 | 新增阶段四（T04-01～T04-04）：补登 1.16.5 新增契约；并发字段影响全仓 5 处配置 | 推进基线时暴露出需求（成文于 `1.16.0`）未覆盖的四项：① `TestOptions.maxConcurrency` 被移除且运行期显式拒绝（本仓库 e2e 正在使用，属破坏性变更）；② 新增 `maxConcurrentFiles`/`maxConcurrentProjects`（默认均为 1）；③ 新增 `setupTimeout`/`teardownTimeout`（缺省不启用）；④ 新增 `defineFileSetup`/`FileSetupContext`/`TProjectContext`。对应交付：T04-01 迁移并发字段、T04-02 设 120s 超时上限（把无限等待变成 `SETUP_TIMEOUT`）、T04-03 登记「可用但不采用」的取舍（决策 D6/D7）、T04-04 在 `1.16.5` 上重跑回归。`AUTH_MODE=siwc` 登记为不采用。 |
+| 2026-10-23 | 计划验收完成 | 需求提出人确认 FNOS-021 整体验收通过，计划状态更新为「已完成」。四阶段实施任务均完成；测试文档仍如实保留未执行用例，且不将其计作通过。 |
