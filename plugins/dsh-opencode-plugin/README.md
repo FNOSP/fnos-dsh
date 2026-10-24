@@ -7,7 +7,7 @@ DSH 的 OpenCode Console 账号登录、OpenCode 模型目录与套餐用量插�
 插件发布在 npm，要求 DSH `0.2.1-rc.2`。安装命令：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-opencode@0.2.1-rc.2.40
+dsh plugin --profile web add @tnnevol/dsh-opencode@0.2.1-rc.2.41
 ```
 
 装完重启 Web profile 即可。
