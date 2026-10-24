@@ -526,6 +526,14 @@ describe('目录排序', () => {
     ])
   })
 
+  it('没有价格元数据的模型排在已知价格的付费模型之后', () => {
+    const models = [
+      model('no-cost', {}),
+      model('priced', { cost: { input: 1, output: 2 } }),
+    ]
+    expect(sortCatalogModels(models).map(m => m.id)).toEqual(['priced', 'no-cost'])
+  })
+
   it('缺少发布时间时排在免费档末尾，且不抛错', () => {
     const models = [
       model('free-no-date', { free: true }),

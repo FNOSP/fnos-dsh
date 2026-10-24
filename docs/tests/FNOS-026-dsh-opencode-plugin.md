@@ -339,7 +339,7 @@ verifiedAt: 2026-10-24
 | TC-047 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web、DSH Desktop | 未执行 | — | 待执行；需无 Go 订阅账号 |
 | TC-048 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 0.2.1-rc.2.29：卡片顶部提示已显示；8 个 Zen 免费模型均带「已停用 + 仅 OpenCode 客户端可用」且开关禁用；`beam-free` 的 zen 条目禁用、go 条目可选且端点分别为 `inference/openai/v1` 与 `inference/go/openai/v1`；选择器搜索 8 个免费模型 id 命中 0 条。DSH Desktop 待执行 |
 | TC-049 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 实测：目录卡片与选择器中 `beam-free` 只保留 `· go` 一条、`deepseek-v4.1-flash` 只保留 `· go` 一条，`big-pickle` 等单一来源模型保留；去重后 101 个。DSH Desktop 待执行 |
-| TC-050 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 部分通过（单元测试） | 2026-10-24 | 排序规则由 `sortCatalogModels` 单测覆盖（三档顺序、缺时间兜底、真实 roster 上禁用条目全部在末尾）；DSH Web 页面观感待新实例验证 |
+| TC-050 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 实测：目录卡片 101 行，顺序为 `Beam Free · go`（免费）→ `Muse Spark 1.2/1.3 Contributor`（0.30）→ `DeepSeek V4 Flash`、`MiMo V2.5`、`MiMo-V2.6-Flash`（0.42），第 94 行起全部为「已停用」条目；目录接口返回同序。另修正「无价格元数据的模型被当成最便宜」的缺陷，改为沉到付费档末尾 |
 
 ## Bug 记录
 

@@ -734,7 +734,9 @@ export function dedupeByPlan(
  */
 export function sortCatalogModels(models: readonly OpenCodeModel[]): readonly OpenCodeModel[] {
   const rank = (model: OpenCodeModel): number => (model.disabled === true || model.clientOnly === true ? 2 : model.free ? 0 : 1)
-  const price = (model: OpenCodeModel): number => (model.cost?.input ?? 0) + (model.cost?.output ?? 0)
+  // 没有价格元数据的模型不能当作「最便宜」排到前面，统一沉到付费档末尾。
+  const price = (model: OpenCodeModel): number =>
+    (model.cost === undefined ? Number.POSITIVE_INFINITY : model.cost.input + model.cost.output)
   const time = (model: OpenCodeModel): string => model.releasedAt ?? ''
   return [...models].sort((left, right) => {
     const byRank = rank(left) - rank(right)
