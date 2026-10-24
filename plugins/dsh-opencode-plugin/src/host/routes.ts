@@ -15,7 +15,7 @@ import type { OpenCodeCatalog } from '../contracts/catalog.ts'
 import type { OpenCodePlan } from '../contracts/identity.ts'
 import { OPENCODE_ROUTES } from '../contracts/routes.ts'
 import type { OpenCodeAuthService } from './auth.ts'
-import { applyEndpointPlan, dedupeByPlan } from './catalog.ts'
+import { applyCatalogView } from './catalog.ts'
 import type { OpenCodeCatalogService } from './catalog.ts'
 import type { OpenCodePreferencesStore } from './preferences.ts'
 import type { OpenCodeRouteStatus } from './provider.ts'
@@ -157,22 +157,17 @@ export interface OpenCodeRoutesOptions {
 export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOptions): void {
   ctx.effect(() => {
     /**
-     * 目录响应只影响展示：先按账号套餐去掉跨来源重复项，再按端点策略改写
-     * `baseURL`，让详情页与选择器、实际请求三者口径一致。
+     * 目录响应只影响展示：与模型选择器走同一条口径（按账号套餐去重 + 端点策略），
+     * 让详情页看到的模型与选择器里能选到的一致。
      */
     const displayCatalog = async (
       snapshot: OpenCodeCatalog | undefined,
     ): Promise<OpenCodeCatalog | undefined> => {
       if (snapshot === undefined) return snapshot
-      const deduped = options.ownedPlan === undefined
-        ? snapshot.models
-        : dedupeByPlan(snapshot.models, await options.ownedPlan())
-      if (options.endpointPlan === undefined) {
-        return deduped === snapshot.models ? snapshot : { ...snapshot, models: deduped }
-      }
-      const plan = await options.endpointPlan()
-      if (plan === 'auto') return deduped === snapshot.models ? snapshot : { ...snapshot, models: deduped }
-      return { ...snapshot, models: applyEndpointPlan(deduped, plan) }
+      const ownedPlan = options.ownedPlan === undefined ? undefined : await options.ownedPlan()
+      const endpointPlan = options.endpointPlan === undefined ? undefined : await options.endpointPlan()
+      const models = applyCatalogView(snapshot.models, { ownedPlan, endpointPlan })
+      return models === snapshot.models ? snapshot : { ...snapshot, models }
     }
     const authorize = (req: IncomingMessage, res: ServerResponse): boolean => {
       if (trustedRequest(req)) return true

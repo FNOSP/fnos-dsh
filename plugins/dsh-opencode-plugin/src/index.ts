@@ -21,7 +21,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-llm'
-import { applyEndpointPlan, buildCatalog, dedupeByPlan, OpenCodeCatalogService } from './host/catalog.ts'
+import { applyCatalogView, buildCatalog, OpenCodeCatalogService } from './host/catalog.ts'
 import { OpenCodeAuthService } from './host/auth.ts'
 import type { OpenCodeCatalog } from './contracts/catalog.ts'
 import { OpenCodeConsoleClient } from './host/console-client.ts'
@@ -122,18 +122,13 @@ export function apply(ctx: Context): void {
     const prefs = await preferences.read()
     const hidden = new Set(prefs.hiddenModels)
     const endpoint = await effectiveEndpointPlan(prefs)
-    // 同一模型在 zen / go 都出现时只保留账号套餐那一份，避免选择器里重复。
+    // 与详情页目录走同一条口径：按账号套餐去掉跨来源重复项，再套端点策略。
     // `clientOnly` 的免费模型只保留在目录卡片里做禁用展示，不进入模型选择器。
-    const models = applyEndpointPlan(
-      dedupeByPlan(
-        snapshot.models.filter(model =>
-          model.disabled !== true
-          && model.clientOnly !== true
-          && !hidden.has(modelKey(model.plan, model.id))),
-        await ownedPlan(),
-      ),
-      endpoint,
-    )
+    const visible = snapshot.models.filter(model =>
+      model.disabled !== true
+      && model.clientOnly !== true
+      && !hidden.has(modelKey(model.plan, model.id)))
+    const models = applyCatalogView(visible, { ownedPlan: await ownedPlan(), endpointPlan: endpoint })
     runtime.update(models, {
       ...(catalog.requestHeaders('zen') ?? {}),
       ...(catalog.requestHeaders('go') ?? {}),

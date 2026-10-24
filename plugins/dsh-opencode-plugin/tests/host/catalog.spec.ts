@@ -9,6 +9,7 @@ import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_MAX_TOKENS,
   apiFromUrl,
+  applyCatalogView,
   applyEndpointPlan,
   baseURLFor,
   buildCatalog,
@@ -448,5 +449,39 @@ describe('跨来源去重', () => {
   it('没有重复项时原样返回同一个数组引用', () => {
     const models = [model('big-pickle', 'zen'), model('deepseek-v4-pro', 'go')]
     expect(dedupeByPlan(models, 'go')).toBe(models)
+  })
+})
+
+describe('目录统一口径 applyCatalogView', () => {
+  const model = (id: string, plan: 'zen' | 'go'): OpenCodeModel => ({
+    id,
+    name: id,
+    api: 'openai-completions',
+    baseURL: baseURLFor(plan, 'openai-completions'),
+    reasoning: false,
+    input: ['text'],
+    contextWindow: 1000,
+    maxTokens: 100,
+    tools: true,
+    free: false,
+    plan,
+  })
+
+  it('同时应用去重与端点策略：共享模型只剩 go 条目且走 go 端点', () => {
+    const models = [model('shared', 'zen'), model('shared', 'go'), model('zen-only', 'zen')]
+    const view = applyCatalogView(models, { ownedPlan: 'go', endpointPlan: 'go' })
+    expect(view.map(m => `${m.plan}:${m.id}`)).toEqual(['go:shared', 'zen:zen-only'])
+    expect(view.find(m => m.id === 'shared')?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
+  })
+
+  it('端点策略为 auto 时只去重，不改端点', () => {
+    const models = [model('shared', 'zen'), model('shared', 'go')]
+    const view = applyCatalogView(models, { ownedPlan: 'go', endpointPlan: 'auto' })
+    expect(view.map(m => `${m.plan}:${m.id}`)).toEqual(['go:shared'])
+  })
+
+  it('缺省两个选项时原样返回入参', () => {
+    const models = [model('shared', 'zen'), model('shared', 'go')]
+    expect(applyCatalogView(models, {})).toBe(models)
   })
 })

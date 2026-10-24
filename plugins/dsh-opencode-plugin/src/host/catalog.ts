@@ -689,6 +689,27 @@ export function dedupeByPlan(
 }
 
 /**
+ * 目录的统一展示口径：先按账号套餐去掉跨来源重复项，再按端点策略改写 `baseURL`。
+ *
+ * 详情页目录卡片与模型选择器都走这一条，避免两处对同一个模型给出不同结论
+ * （一处显示 `· zen` 条目、另一处已经把它去重掉）。
+ *
+ * @param models - 目录里的模型列表。
+ * @param options - 账号套餐来源与当前端点策略；缺省时对应步骤跳过。
+ * @param options.ownedPlan - 账号套餐来源，用于去掉跨来源重复项；缺省时不去重。
+ * @param options.endpointPlan - 当前端点策略；缺省或 `auto` 时不改端点。
+ * @returns 处理后的列表；无变化时返回入参本身。
+ */
+export function applyCatalogView(
+  models: readonly OpenCodeModel[],
+  options: { readonly ownedPlan?: OpenCodePlan | undefined, readonly endpointPlan?: OpenCodePlan | 'auto' | undefined },
+): readonly OpenCodeModel[] {
+  const deduped = options.ownedPlan === undefined ? models : dedupeByPlan(models, options.ownedPlan)
+  if (options.endpointPlan === undefined || options.endpointPlan === 'auto') return deduped
+  return applyEndpointPlan(deduped, options.endpointPlan)
+}
+
+/**
  * 合并来源，生成目录快照。
  *
  * 每个 plan 的模型集合：活 roster 为全集；没有 roster 时回退公开目录的非
