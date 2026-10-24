@@ -4,7 +4,7 @@ import {
   countdownParts,
   countdownUnitKey,
   formatCountdownParts,
-  peakUsageWindow,
+  primaryUsageWindow,
   remainingPercentValue,
   resetCountdown,
   usageWindowLabelKey,
@@ -47,7 +47,7 @@ describe('已用百分比展示', () => {
   })
 })
 
-describe('窗口取出与「最紧张的窗口」', () => {
+describe('窗口取出与「重置周期最短的窗口」', () => {
   it('按类别取出窗口', () => {
     const snapshot = usage(10, 20, 30)
     expect(usageWindowOf(snapshot, 'rolling')).toBe(snapshot.rolling)
@@ -55,18 +55,30 @@ describe('窗口取出与「最紧张的窗口」', () => {
     expect(usageWindowOf(undefined, 'weekly')).toBeUndefined()
   })
 
-  it('胶囊圆环读取已用比例最高的窗口', () => {
-    expect(peakUsageWindow(usage(10, 90, 50))?.kind).toBe('weekly')
-    expect(peakUsageWindow(usage(70, 20, 30))?.kind).toBe('rolling')
-    expect(peakUsageWindow(usage(10, 20, 95))?.kind).toBe('monthly')
+  it('胶囊优先采用重置周期最短的窗口，不看已用比例', () => {
+    // 每周窗口用得最多（90%），仍应展示 5 小时窗口。
+    expect(primaryUsageWindow(usage(10, 90, 50))?.kind).toBe('rolling')
+    expect(primaryUsageWindow(usage(70, 20, 30))?.kind).toBe('rolling')
+    expect(primaryUsageWindow(usage(10, 20, 95))?.kind).toBe('rolling')
   })
 
-  it('平局时按展示顺序取靠前的窗口', () => {
-    expect(peakUsageWindow(usage(50, 50, 50))?.kind).toBe('rolling')
+  it('短周期窗口读不到时才退到次短的窗口', () => {
+    const onlyMonthly: OpenCodeUsage = {
+      rolling: undefined as never,
+      weekly: undefined as never,
+      monthly: { status: 'ok', percent: 40, resetsAt: '2026-11-22T09:00:00.000Z' },
+      fetchedAt: NOW,
+    }
+    expect(primaryUsageWindow(onlyMonthly)?.kind).toBe('monthly')
+    const weeklyAndMonthly: OpenCodeUsage = {
+      ...onlyMonthly,
+      weekly: { status: 'ok', percent: 20, resetsAt: '2026-10-27T09:00:00.000Z' },
+    }
+    expect(primaryUsageWindow(weeklyAndMonthly)?.kind).toBe('weekly')
   })
 
   it('空快照返回 undefined', () => {
-    expect(peakUsageWindow(undefined)).toBeUndefined()
+    expect(primaryUsageWindow(undefined)).toBeUndefined()
   })
 
   it('窗口类别有稳定的文案键', () => {

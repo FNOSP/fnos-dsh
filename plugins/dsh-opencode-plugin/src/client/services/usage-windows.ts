@@ -78,25 +78,21 @@ export function usageWindowLabelKey(kind: OpenCodeUsageWindowKind): 'usageRollin
 }
 
 /**
- * 已用比例最高的窗口，用于输入区胶囊的圆环。
+ * 输入区胶囊采用的窗口：**重置周期最短**的那个（5 小时 → 每周 → 每月）。
  *
- * 三个窗口里越接近耗尽的那个越值得被看见；平局按展示顺序取靠前的窗口。
+ * 短周期窗口最先重置、也最能反映「现在还能用多久」，因此优先展示；只有它读不到
+ * 时才退到次短的窗口。这里不再按已用比例挑「最紧张的窗口」——那会让胶囊长期停
+ * 在每周窗口，与用户关心的即刻额度无关。
+ *
  * @param usage - 用量快照。
- * @returns 最紧张的窗口；没有可用窗口时为 undefined。
+ * @returns 最短可用窗口；三个窗口都读不到时为 undefined。
  */
-export function peakUsageWindow(usage: OpenCodeUsage | undefined): { readonly kind: OpenCodeUsageWindowKind; readonly window: OpenCodeUsageWindow } | undefined {
-  let best: { kind: OpenCodeUsageWindowKind; window: OpenCodeUsageWindow } | undefined
-  let bestPercent = -1
+export function primaryUsageWindow(usage: OpenCodeUsage | undefined): { readonly kind: OpenCodeUsageWindowKind; readonly window: OpenCodeUsageWindow } | undefined {
   for (const kind of OPENCODE_USAGE_WINDOW_KINDS) {
     const window = usageWindowOf(usage, kind)
-    if (window === undefined) continue
-    const percent = usedPercentValue(window)
-    if (percent > bestPercent) {
-      best = { kind, window }
-      bestPercent = percent
-    }
+    if (window !== undefined) return { kind, window }
   }
-  return best
+  return undefined
 }
 
 /** 倒计时单位；界面按 locale 映射成「天/小时/分」。 */

@@ -14,7 +14,7 @@ import { readSelectedProvider, usageCapsuleVisible } from '../client/services/us
 import type { ModelSelectionProjectionLike } from '../client/services/usage-visibility.ts'
 import {
   OPENCODE_USAGE_WINDOW_KINDS,
-  peakUsageWindow,
+  primaryUsageWindow,
   remainingPercentValue,
   resetCountdown,
   usageWindowLabelKey,
@@ -203,7 +203,8 @@ export function OpenCodeUsageStatus({ t, timer, preferences, useProjection }: Op
 
   if (!visible) return null
 
-  const peak = peakUsageWindow(snapshot.usage)
+  // 胶囊跟着「重置周期最短」的窗口走：先 5 小时，读不到再退到每周 / 每月。
+  const peak = primaryUsageWindow(snapshot.usage)
   const summary = peak === undefined
     ? snapshot.state === 'loading'
       ? t('usageLoading')
