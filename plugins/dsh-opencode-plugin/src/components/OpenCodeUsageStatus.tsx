@@ -40,15 +40,20 @@ export interface OpenCodeUsageStatusInjected {
 export type OpenCodeUsageStatusProps = PropsRuntime<'conversation.input.right'> & InjectFace<OpenCodeUsageStatusInjected>
 
 /**
- * OpenCode 标识：终端窗口 + 提示符，沿用品牌语义的 `currentColor`，
- * 亮色/暗色主题都随文字色自动反转。
+ * OpenCode 官方标识：外框 + 内嵌色块（上深下浅）。
+ *
+ * 比例取自官方 512×512 图标：外框 20×25，内部色块位于 25%–75% / 20%–80%，
+ * 并在 40% 处分成深浅两段。用 `currentColor` 与其半透明版本表达两段，
+ * 亮色与暗色主题都随文字色自动反转，不需要额外资源文件。
  */
 function OpenCodeLogo(): ReactNode {
   return (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" aria-hidden="true" focusable="false">
-      <rect x="3.75" y="3.75" width="16.5" height="16.5" rx="3.25" stroke="currentColor" strokeWidth="1.5" />
-      <path d="m8.2 9 2.8 3-2.8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12.8 15h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <svg viewBox="0 0 20 25" width="12" height="15" aria-hidden="true" focusable="false">
+      {/* 外框。 */}
+      <rect x="0.6" y="0.6" width="18.8" height="23.8" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      {/* 内部色块：上段实心，下段浅一档，对应官方图标的两段深浅。 */}
+      <path d="M5 5H15V10H5Z" fill="currentColor" />
+      <path d="M5 10H15V20H5Z" fill="currentColor" opacity="0.45" />
     </svg>
   )
 }
