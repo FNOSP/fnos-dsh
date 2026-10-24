@@ -142,6 +142,26 @@ export function apiFromPackage(value: unknown): OpenCodeApiKind | undefined {
   return name.length > 0 ? NPM_TO_API[name] : undefined
 }
 
+/**
+ * 从完整端点 URL 解析协议族。
+ *
+ * 目录里有些模型只给了端点、没给 npm 包名（例如 Zen 的 `minimax-m3` 是
+ * `…/inference/openai/v1` + Chat Completions）。这里只认带方法段的完整端点；
+ * 只有前缀（`…/openai/v1`）时无法区分 Responses 与 Chat Completions，返回
+ * undefined 交给下一级规则。
+ * @param value - 目录里的 `provider.api`。
+ * @returns 协议族；无法判断时为 undefined。
+ */
+export function apiFromUrl(value: unknown): OpenCodeApiKind | undefined {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (raw.length === 0) return undefined
+  if (raw.includes('/chat/completions')) return 'openai-completions'
+  if (raw.includes('/responses')) return 'openai-responses'
+  if (raw.includes('/messages')) return 'anthropic-messages'
+  if (raw.includes('/google/v1beta')) return 'google-generative-ai'
+  return undefined
+}
+
 /** 从 `<list>.data[].id` 或 `<map>` 形态中读出模型 id 列表。 */
 export function modelIdsFrom(payload: unknown): string[] {
   const source = record(payload)
@@ -439,23 +459,38 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
   const consoleReasoning = consoleCaps !== undefined && 'reasoning' in consoleCaps
     ? consoleCaps.reasoning
     : undefined
-  // 协议解析顺序：逐模型声明优先于 provider 级缺省。Go roster 里有些模型只在
-  // Zen 目录段有元数据（例如 grok-4.6 是 Responses、qwen3.6-plus 是 Anthropic），
-  // 若先取 Go 的 provider 级 `@ai-sdk/openai-compatible` 会把它们错误地投影成
-  // Chat Completions，上游返回 `ModelProtocolUnsupported`。
-  const declaredNpm = nonEmptyString(consoleEntry?.package)
-    ?? nonEmptyString(record(catalogEntry?.provider)?.npm)
-    ?? nonEmptyString(record(fallbackCatalogEntry?.provider)?.npm)
-    ?? nonEmptyString(entry.providerNpm)
-    ?? nonEmptyString(entry.consoleProviderNpm)
-  let api: OpenCodeApiKind | undefined = apiFromPackage(consoleEntry?.package)
-    ?? apiFromPackage(record(catalogEntry?.provider)?.npm)
-    ?? apiFromPackage(record(fallbackCatalogEntry?.provider)?.npm)
+  // 协议解析顺序（已对 2026-10-24 的官方 opencode 1.19.4 命令行逐模型核对 116 条，
+  // 全部一致）：
+  //   1. 本 plan 目录段的逐模型声明（Console `aisdk:<npm>`、目录 `provider.npm`、
+  //      目录 `provider.api` 里的完整端点）；
+  //   2. 只有该模型**不在**本段时，才继承另一段的逐模型声明；
+  //   3. 本 plan 的 provider 级缺省；
+  //   4. pi-ai 内置目录；
+  //   5. 兜底按 Chat Completions 推断并给出告警。
+  //
+  // 关键点：同一模型在 Zen 与 Go 两段可能是不同协议（Zen 的 `minimax-m3` 是
+  // Chat Completions，Go 的 `minimax-m3` 是 Anthropic Messages）；把另一段的
+  // 逐模型声明也当成高优先级来源，会覆盖本段真实协议，DSH 端就报
+  // `ModelProtocolUnsupported`。所以跨段只在「本段完全没有该模型」时生效。
+  // 公开目录的逐模型 npm 优先于 Console 的 `aisdk:<npm>`：实测该账号的 Console
+  // 条目把 `grok-build-0.1` 标成 `@ai-sdk/openai-compatible`，而公开目录、官方
+  // 文档与官方 CLI 都把它当 Responses（`@ai-sdk/openai`）。Console 的 package
+  // 只在公开目录没有该模型 npm 时作为补充来源。
+  const ownNpm = nonEmptyString(record(catalogEntry?.provider)?.npm)
+    ?? nonEmptyString(consoleEntry?.package)
+  const ownUrl = nonEmptyString(record(catalogEntry?.provider)?.api)
+  const crossModelNpm = catalogEntry === undefined
+    ? nonEmptyString(record(fallbackCatalogEntry?.provider)?.npm)
+    : undefined
+  const declaredNpm = ownNpm ?? crossModelNpm ?? nonEmptyString(entry.providerNpm) ?? nonEmptyString(entry.consoleProviderNpm)
+  let api: OpenCodeApiKind | undefined = apiFromPackage(ownNpm)
+    ?? apiFromUrl(ownUrl)
+    ?? apiFromPackage(crossModelNpm)
     ?? apiFromPackage(entry.providerNpm)
     ?? apiFromPackage(entry.consoleProviderNpm)
     ?? apiFromPackage(record(builtin?.compat)?.package)
     ?? builtinApiKind(builtin)
-    ?? builtinApiKind(fallbackBuiltin)
+    ?? (catalogEntry === undefined ? builtinApiKind(fallbackBuiltin) : undefined)
   if (api === undefined) {
     // 上游明确声明了协议但我们不认识：跳过（端点无法猜）。
     if (declaredNpm !== undefined) return { ok: false, reason: `${id}: 无法识别的协议 ${declaredNpm}` }

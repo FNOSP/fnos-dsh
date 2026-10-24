@@ -68,7 +68,28 @@ flowchart TD
 
 每个模型的协议族、推理、工具调用、图片输入、文本输入、免费标记、上下文窗口与最大输出都按上游目录投影到 DSH，不需要手工配置：
 
-- **协议族**按 Console 的 `aisdk:` 包名或公开目录的 npm 包名识别，模型分属 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Google Generative AI 四种上游协议，插件按模型自动选择。
+- **协议族**逐模型独立解析，模型分属 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages、Google Generative AI 四种上游协议，插件自动选择，不需要手工配置。
+
+### 协议与端点
+
+每个模型的协议族与端点**逐个模型**决定，不能按供应商或套餐一刀切：
+
+| 上游声明 | 插件读取来源 | 端点 |
+| --- | --- | --- |
+| AI SDK 包名 | 公开目录的逐模型 `provider.npm`；缺失时用 Console 的 `aisdk:<npm>` | 按协议族固定 |
+| 完整端点 | 公开目录的逐模型 `provider.api`（含 `/chat/completions`、`/responses`、`/messages`、`/google/v1beta` 等） | 由端点反推协议 |
+| 两者都缺 | 本供应商的 provider 级缺省 | 按协议族固定 |
+
+解析优先级是**本来源的逐模型声明 → 另一来源的逐模型声明（仅当本来源完全没有该模型）→ 供应商级缺省**。这条规则很重要，因为同名模型在两个来源可能是不同协议：`minimax-m3` 在 Zen 走 Chat Completions、在 Go 走 Anthropic Messages；`grok-4.6`、`qwen3.6-plus` 在两个来源都是 Responses / Anthropic。若让另一来源覆盖本来源，DSH 会拿到 `ModelProtocolUnsupported`。
+
+端点前缀由来源与协议共同决定：
+
+| 来源 | Chat Completions | Responses | Anthropic Messages | Google Generative AI |
+| --- | --- | --- | --- | --- |
+| `· zen` | `/inference/openai/v1` | `/inference/openai/v1` | `/inference/anthropic` | `/inference/google/v1beta` |
+| `· go` | `/inference/go/openai/v1` | `/inference/go/openai/v1` | `/inference/go/anthropic` | `/inference/go/google/v1beta` |
+
+这套映射已与官方 `opencode` 1.19.4 命令行逐模型核对：两个来源共 110 个可对照模型，协议族与端点全部一致。
 - **能力图标**：目录每行以「推理 / 工具 / 图片 / 文本 / 免费」五个图标表示能力；悬浮时显示气泡，逐项标记勾选或未勾选。
 - **上下文与最大输出**以文本显示在模型行内；上游未声明时使用保守默认值并说明。
 - **图片生成模型不纳入适配**，不会出现在可对话模型列表里。

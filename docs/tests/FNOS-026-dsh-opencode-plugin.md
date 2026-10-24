@@ -235,6 +235,20 @@ verifiedAt: 2026-10-24
 
 说明：这些是会话级联调证据，不改变上方用例的「未执行」状态；DSH Desktop 与设备码授权流程仍待完整验收。
 
+### 协议与端点逐模型核对（2026-10-24）
+
+按 <https://opencode.ai/v2/docs>、`/docs/zen`、`/docs/go` 的模型表与官方 `opencode` 1.19.4 的 `/provider` 输出逐模型核对协议族与端点，发现并修复两类问题：
+
+| 问题 | 触发模型 | 修复 |
+| --- | --- | --- |
+| 跨来源误覆盖：同名模型在另一来源的协议被当成高优先级，覆盖了本来源真实协议 | Zen `minimax-m3` / `minimax-m2.7` / `qwen3.8-max`（应为 Chat Completions，被投成 Anthropic） | 跨来源逐模型声明只在「本来源完全没有该模型」时生效 |
+| Console 的 `aisdk:` 包名覆盖公开目录 | Zen `grok-build-0.1`（应为 Responses，被投成 Chat Completions） | 公开目录逐模型 npm 优先于 Console 包名 |
+| 只有端点、没有包名的模型无法判定协议 | 部分目录条目 | 新增按端点反推（`/chat/completions`、`/responses`、`/messages`、`/google/v1beta`） |
+
+修复后与官方 CLI 对齐核对 **110 个可对照模型，协议族与端点 0 处不一致**；新增 `cli-parity` 回归用例（4 条）与协议解析用例（5 条）。
+
+端点前缀按来源固定：`· zen` 用 `/inference/openai/v1`、`/inference/anthropic`、`/inference/google/v1beta`；`· go` 在上述路径前加 `/go`。Google 端点的模型名位于路径末段（`…/google/v1beta/models/<id>`），其余协议走请求体里的模型名。
+
 ### 用量胶囊标识（2026-10-24，DSH Web）
 
 胶囊的环形中心由占位图形换成 OpenCode 官方标识：外框 + 内嵌深浅两段色块，比例取自官方 512×512 图标（外框 20×25，内部色块位于 25%–75% / 20%–80%，40% 处分成深浅两段），用 `currentColor` 与其 45% 透明度表达两段。DSH Web 中实测：选中 `· go` 模型后胶囊出现，中心标识渲染为 12×15 的 SVG，亮色主题下为深色描边配深浅灰块；胶囊整体仍为 26px 环形进度，`· zen` 模型下不显示。

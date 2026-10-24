@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_MAX_TOKENS,
+  apiFromUrl,
   baseURLFor,
   buildCatalog,
   buildCatalogEntry,
@@ -234,5 +235,69 @@ describe('OpenCode 模型目录归一化', () => {
     })
     expect(thinkingLevelMapFromReasoning({ supported: false })).toBeUndefined()
     expect(thinkingLevelMapFromReasoning({ supported: true, effort: ['low'] })).toMatchObject({ off: null, low: 'low' })
+  })
+})
+
+/**
+ * 协议按 plan 独立解析。
+ *
+ * 官方目录里同一模型在两个 plan 可能是不同协议（Zen 的 `minimax-m3` 走 Chat
+ * Completions，Go 的 `minimax-m3` 走 Anthropic Messages）。跨段声明只在「本段
+ * 完全没有该模型」时才可用于补全，否则会把本段协议覆盖错。
+ */
+describe('协议按 plan 独立解析', () => {
+  it('同段只给端点、没有 npm 时按端点方法判定协议', () => {
+    const result = buildCatalogEntry({
+      id: 'minimax-m3',
+      plan: 'zen',
+      catalogEntry: { provider: { api: 'https://opencode.ai/inference/openai/v1' } },
+      fallbackCatalogEntry: { provider: { npm: '@ai-sdk/anthropic' } },
+      providerNpm: '@ai-sdk/openai-compatible',
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.model.api).toBe('openai-completions')
+  })
+
+  it('同段 npm 优先于跨段 npm', () => {
+    const result = buildCatalogEntry({
+      id: 'claude-haiku-5-5',
+      plan: 'zen',
+      catalogEntry: { provider: { npm: '@ai-sdk/anthropic' } },
+      fallbackCatalogEntry: { provider: { npm: '@ai-sdk/openai-compatible' } },
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.model.api).toBe('anthropic-messages')
+  })
+
+  it('模型不在本段时，才用另一段的逐模型声明', () => {
+    const result = buildCatalogEntry({
+      id: 'qwen3.6-plus',
+      plan: 'go',
+      fallbackCatalogEntry: { provider: { npm: '@ai-sdk/anthropic' } },
+      providerNpm: '@ai-sdk/openai-compatible',
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.model.api).toBe('anthropic-messages')
+  })
+
+  it('本段有该模型且没声明协议时，用本 plan 的 provider 缺省，不跨段取', () => {
+    const result = buildCatalogEntry({
+      id: 'minimax-m3',
+      plan: 'zen',
+      catalogEntry: { name: 'MiniMax-M3' },
+      fallbackCatalogEntry: { provider: { npm: '@ai-sdk/anthropic' } },
+      providerNpm: '@ai-sdk/openai-compatible',
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.model.api).toBe('openai-completions')
+  })
+
+  it('apiFromUrl 只认带方法段的端点', () => {
+    expect(apiFromUrl('https://opencode.ai/inference/openai/v1/chat/completions')).toBe('openai-completions')
+    expect(apiFromUrl('https://opencode.ai/inference/openai/v1/responses')).toBe('openai-responses')
+    expect(apiFromUrl('https://opencode.ai/inference/anthropic/v1/messages')).toBe('anthropic-messages')
+    expect(apiFromUrl('https://opencode.ai/inference/google/v1beta/models/gemini-4-argon')).toBe('google-generative-ai')
+    expect(apiFromUrl('https://opencode.ai/inference/openai/v1')).toBeUndefined()
+    expect(apiFromUrl(undefined)).toBeUndefined()
   })
 })
