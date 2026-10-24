@@ -2,7 +2,7 @@
   "name": "@tnnevol/dsh-plugin-kit",
   "displayName": "DSH Plugin Kit",
   "type": "module",
-  "version": "5.9.0-0.2.1-rc.2.29",
+  "version": "5.9.0-0.2.1-rc.2.30",
   "description": "Shared host-side helpers for DSH plugins in this repository, starting with credential-file permission assessment.",
   "author": "tnnevol",
   "license": "Apache-2.0",
