@@ -14,12 +14,12 @@
 
 | 包名 | 版本 | 适用场景 | 文档 | 源码 |
 | --- | --- | --- | --- | --- |
-| `@tnnevol/dsh-codex-auth` | `0.2.1-rc.2.28` | 使用 ChatGPT 账号登录 Codex，并把模型、用量和图片输入能力接入 DSH | [Codex 身份验证](/plugins/dsh-codex-auth) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-codex-auth-plugin) |
-| `@tnnevol/dsh-opencode` | `0.2.1-rc.2.28` | 使用 OpenCode Console 账号登录，把 OpenCode Zen（按量）与 OpenCode Go（套餐）模型合并成一个 `OpenCode` 供应商接入 DSH；模型名以 `· zen` / `· go` 后缀区分来源与计费，含协议、能力与 Go 套餐额度 | [OpenCode](/plugins/dsh-opencode) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-opencode-plugin) |
-| `@tnnevol/dsh-fnos` | `0.2.1-rc.2.28` | 在 fnOS 中补充主题、授权目录、NAS 文件访问和会话日志导出 | [fnOS](/plugins/dsh-fnos) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-fnos-plugin) |
-| `@tnnevol/dsh-semi-ui-showcase` | `0.2.1-rc.2.28` | 展示 Semi UI 共享组件、主题和交互状态 | [Semi UI 总览](/plugins/dsh-semi-ui-showcase) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-semi-ui-showcase-plugin) |
-| `@tnnevol/dsh-failover-search` | `0.2.1-rc.2.28` | 接入 TinyFish 与 Tavily 搜索并按 TinyFish → Tavily → 官方顺序转移，支持同平台多账号分摊与用量展示 | [Failover Search](/plugins/dsh-failover-search) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-failover-search-plugin) |
-| `@tnnevol/dsh-midscene` | `0.2.1-rc.2.28` | 托管本地 OpenAI 兼容桥接服务，把 Midscene 浏览器自动化接到 DSH 全部已配置模型；随包分发官方全部 6 个平台技能加知识参考（**不随 fnOS 应用内置**，需自行安装） | [Midscene Bridge](/plugins/dsh-midscene) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-midscene-plugin) |
+| `@tnnevol/dsh-codex-auth` | `0.2.1-rc.2.29` | 使用 ChatGPT 账号登录 Codex，并把模型、用量和图片输入能力接入 DSH | [Codex 身份验证](/plugins/dsh-codex-auth) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-codex-auth-plugin) |
+| `@tnnevol/dsh-opencode` | `0.2.1-rc.2.29` | 使用 OpenCode Console 账号登录，把 OpenCode Zen（按量）与 OpenCode Go（套餐）模型合并成一个 `OpenCode` 供应商接入 DSH；模型名以 `· zen` / `· go` 后缀区分来源与计费，含协议、能力与 Go 套餐额度 | [OpenCode](/plugins/dsh-opencode) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-opencode-plugin) |
+| `@tnnevol/dsh-fnos` | `0.2.1-rc.2.29` | 在 fnOS 中补充主题、授权目录、NAS 文件访问和会话日志导出 | [fnOS](/plugins/dsh-fnos) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-fnos-plugin) |
+| `@tnnevol/dsh-semi-ui-showcase` | `0.2.1-rc.2.29` | 展示 Semi UI 共享组件、主题和交互状态 | [Semi UI 总览](/plugins/dsh-semi-ui-showcase) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-semi-ui-showcase-plugin) |
+| `@tnnevol/dsh-failover-search` | `0.2.1-rc.2.29` | 接入 TinyFish 与 Tavily 搜索并按 TinyFish → Tavily → 官方顺序转移，支持同平台多账号分摊与用量展示 | [Failover Search](/plugins/dsh-failover-search) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-failover-search-plugin) |
+| `@tnnevol/dsh-midscene` | `0.2.1-rc.2.29` | 托管本地 OpenAI 兼容桥接服务，把 Midscene 浏览器自动化接到 DSH 全部已配置模型；随包分发官方全部 6 个平台技能加知识参考（**不随 fnOS 应用内置**，需自行安装） | [Midscene Bridge](/plugins/dsh-midscene) | [GitHub](https://github.com/FNOSP/fnos-dsh/tree/main/plugins/dsh-midscene-plugin) |
 
 DSH 运行时和六个运行时插件的发布版本与兼容性基线统一为 `0.2.0-rc.2`。手动安装请使用精确版本，不使用 `latest`、`next` 或范围版本。
 
@@ -41,8 +41,8 @@ DSH 运行时和六个运行时插件的发布版本与兼容性基线统一为 
 在其他 DSH 环境中可以手动安装：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-fnos@0.2.1-rc.2.28
-dsh plugin --profile web add @tnnevol/dsh-failover-search@0.2.1-rc.2.28
+dsh plugin --profile web add @tnnevol/dsh-fnos@0.2.1-rc.2.29
+dsh plugin --profile web add @tnnevol/dsh-failover-search@0.2.1-rc.2.29
 dsh plugin --profile web add dshmarket@1.66.47
 dsh --profile web --dump-config
 ```
