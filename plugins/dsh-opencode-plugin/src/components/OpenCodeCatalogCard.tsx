@@ -28,6 +28,7 @@ import {
   supportedFeatureIds,
   withModelVisibility,
 } from '../client/services/catalog-search.ts'
+import { modelsWithToolLimit } from '../client/services/model-limits.ts'
 import type { OpenCodeFeatureId } from '../client/services/catalog-search.ts'
 import { modelKey } from '../contracts/identity.ts'
 import { formatTimestamp } from '../client/services/format.ts'
@@ -234,6 +235,8 @@ export function OpenCodeCatalogCard({
   const models = catalog?.models ?? []
   const filtered = filterCatalogModels(models, query)
   const hiddenCount = models.filter(model => hiddenSet.has(modelKey(model.plan, model.id))).length
+  // 上游有工具数量上限的模型：不裁剪，只在设置页提示可能的 400 原因。
+  const toolLimited = modelsWithToolLimit(models)
   const updatedAt = formatTimestamp(catalog?.fetchedAt)
   // 未注册的供应商组不会出现在模型选择器：目录卡顶部给出可读警告。
   const unregisteredRoutes = (response?.routes ?? []).filter(route => !route.registered)
@@ -358,6 +361,17 @@ export function OpenCodeCatalogCard({
               <span>{t('catalogClientOnlyNotice')}</span>
             </div>
           ) : null}
+          {/* 有工具数量上限的模型不做裁剪，只在这里说明可能的 400 原因。 */}
+          {toolLimited.length === 0 ? null : (
+            <div className="dsh-opencode-notice" role="status">
+              <DshIconInfoCircle className="dsh-opencode-notice-icon" />
+              <span>
+                {t('catalogToolLimitNotice', {
+                  models: toolLimited.map(hit => `${hit.id}（≤ ${hit.limit}）`).join('、'),
+                })}
+              </span>
+            </div>
+          )}
           {/* 搜索与计数固定在列表上方，列表内部滚动时它们不跟着走。 */}
           <div className="dsh-opencode-catalog-controls">
             <DshInput
