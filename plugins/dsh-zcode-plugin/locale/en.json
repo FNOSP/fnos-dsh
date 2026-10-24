@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "ZCode",
+    "description": "Sign in with a ZCode account (OAuth device authorization) to bring Zhipu Z.ai ZCode Start Plan models into DeepSeek Harness, following account entitlement, with model capabilities and per-model quota."
+  }
+}

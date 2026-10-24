@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "ZCode",
+    "description": "使用 ZCode 账号（OAuth 设备授权）登录，把智谱 Z.ai 的 ZCode Start Plan 模型按账号权益动态接入 DeepSeek Harness，含模型能力与按模型额度。"
+  }
+}

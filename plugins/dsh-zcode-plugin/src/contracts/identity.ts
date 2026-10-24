@@ -1,0 +1,72 @@
+/**
+ * ZCode 供应商身份与网关地址：host 与 client 共用的契约。
+ *
+ * 本插件只注册**一个** DSH 供应商 `ZCode`（路由 `dsh-zcode`），承载 ZCode
+ * Start Plan 的模型。账号体系有两个「家族」（BigModel 国内 / Z.ai 海外），
+ * 两者的登录入口、额度与网关完全相同，仅授权页域名不同；模型清单由账号
+ * 权益动态决定，因此不在这里枚举。
+ *
+ * 路由 id 带 `dsh-` 前缀是刻意的：`zcode` / `zhipu` 可能已被用户在内置目录里
+ * 手工声明，带前缀的 id 不会与用户配置撞名。
+ *
+ * @module dsh-zcode/identity
+ */
+
+/** 账号家族：BigModel（国内）与 Z.ai（海外）。 */
+export type ZCodeFamily = 'bigmodel' | 'zai'
+
+/** 两个家族按固定顺序排列，用于界面与目录的稳定展示。 */
+export const ZCODE_FAMILIES: readonly ZCodeFamily[] = ['bigmodel', 'zai']
+
+/** 本插件注册的唯一供应商路由。 */
+export const ZCODE_PROVIDER = 'dsh-zcode'
+/** 模型选择器与设置页显示的供应商名称。 */
+export const ZCODE_PROVIDER_NAME = 'ZCode'
+
+/** 家族显示名。 */
+export const ZCODE_FAMILY_LABELS: Readonly<Record<ZCodeFamily, string>> = {
+  bigmodel: 'BigModel',
+  zai: 'Z.ai',
+}
+
+/** ZCode 控制面根地址（OAuth、额度、客户端配置都在这个域下）。 */
+export const ZCODE_ORIGIN = 'https://zcode.z.ai'
+
+/** OAuth 设备授权：发起。 */
+export const ZCODE_OAUTH_INIT_URL = `${ZCODE_ORIGIN}/api/v1/oauth/cli/init`
+/** OAuth 设备授权：轮询。 */
+export function zcodeOAuthPollUrl(flowId: string): string {
+  return `${ZCODE_ORIGIN}/api/v1/oauth/cli/poll/${encodeURIComponent(flowId)}`
+}
+
+/** Start Plan 额度与权益接口。 */
+export const ZCODE_BALANCE_URL = `${ZCODE_ORIGIN}/api/v1/zcode-plan/billing/balance`
+/** 客户端运行时配置（验证码开关、Start Plan 预览权益、模型能力）。 */
+export const ZCODE_CLIENT_CONFIGS_URL = `${ZCODE_ORIGIN}/api/v1/client/configs`
+/** Agent 运行时配置（代理端点映射、签名开关）。 */
+export const ZCODE_AGENT_CONFIGS_URL = `${ZCODE_ORIGIN}/api/v1/agent/configs`
+
+/** Start Plan 的 Anthropic 兼容推理端点前缀。 */
+export const ZCODE_ANTHROPIC_BASE_URL = `${ZCODE_ORIGIN}/api/v1/zcode-plan/anthropic`
+
+/**
+ * 请求 user-agent。
+ *
+ * ZCode 网关按客户端身份做来源归因，`ZCode/` 前缀与官方客户端保持同一形态；
+ * 版本号取本插件跟踪的客户端版本（见 {@link ZCODE_CLIENT_VERSION}）。
+ */
+export const ZCODE_CLIENT_VERSION = '3.16.3'
+
+/** 完整 user-agent 串。 */
+export const ZCODE_USER_AGENT = `ZCode/${ZCODE_CLIENT_VERSION} ai-sdk/provider-utils/4.0.27 runtime/node.js/24`
+
+/** Anthropic 协议版本头。 */
+export const ZCODE_ANTHROPIC_VERSION = '2023-06-01'
+
+/**
+ * 中段 system 注入的 beta 标记。
+ *
+ * 官方客户端在允许模型接收「对话中插入 system 消息」时带这个头；缺失时
+ * 网关仍可用，但中段 system 会被静默忽略，因此固定发送。
+ */
+export const ZCODE_ANTHROPIC_BETA = 'mid-conversation-system-2026-04-07'

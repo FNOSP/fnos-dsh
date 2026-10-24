@@ -1,0 +1,12 @@
+# @tnnevol/dsh-zcode 组合包 patch。
+#
+# 本插件不接管既有接缝：它自己向 `ctx.llm` 注册一个 provider 路由
+# （`dsh-zcode`），模型目录由 ZCode 账号权益实时拉取，因此**不在**这里声明
+# `llm-pi-ai.providers`——静态声明会把目录固定在安装时的快照上，正是本插件
+# 要解决的问题。
+#
+# 账号登录、模型目录和 Start Plan 额度都由宿主侧注册到 DSH Web 服务，浏览器
+# 半侧在插件详情页渲染配置区块；两者都随本行激活。
+- insert:
+    - id: dsh-zcode
+      name: '@tnnevol/dsh-zcode'
