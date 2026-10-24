@@ -119,6 +119,7 @@ const pluginItems = [
   { text: 'dsh-fnos', link: '/plugins/dsh-fnos' },
   { text: 'dsh-codex-auth', link: '/plugins/dsh-codex-auth' },
   { text: 'dsh-opencode', link: '/plugins/dsh-opencode' },
+  { text: 'dsh-zcode', link: '/plugins/dsh-zcode' },
   { text: 'dsh-failover-search', link: '/plugins/dsh-failover-search' },
   { text: 'dsh-midscene', link: '/plugins/dsh-midscene' },
   { text: 'DSH 0.2.1 新增能力支持结论', link: '/plugins/dsh-021-capabilities' },
@@ -342,6 +343,10 @@ const requirementsSidebar = [
         text: 'FNOS-026 OpenCode Zen 与 OpenCode Go 模型接入及套餐用量',
         link: '/requirements/FNOS-026-dsh-opencode-plugin'
       },
+      {
+        text: 'FNOS-027 ZCode Start Plan 模型接入与账号额度',
+        link: '/requirements/FNOS-027-dsh-zcode-plugin'
+      },
       ]
   }
 ]
@@ -455,6 +460,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-026 OpenCode Zen 与 OpenCode Go 模型接入及套餐用量',
         link: '/plans/PLAN-FNOS-026-dsh-opencode-plugin'
       },
+      {
+        text: 'PLAN-FNOS-027 ZCode Start Plan 模型接入与账号额度',
+        link: '/plans/PLAN-FNOS-027-dsh-zcode-plugin'
+      },
     ]
   }
 ]
@@ -536,6 +545,10 @@ const testsSidebar = [
       {
         text: 'FNOS-026 OpenCode Zen 与 OpenCode Go 模型接入及套餐用量',
         link: '/tests/FNOS-026-dsh-opencode-plugin'
+      },
+      {
+        text: 'FNOS-027 ZCode Start Plan 模型接入与账号额度',
+        link: '/tests/FNOS-027-dsh-zcode-plugin'
       },
     ]
   }

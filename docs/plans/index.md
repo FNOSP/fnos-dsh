@@ -65,5 +65,6 @@ flowchart TD
 | PLAN-FNOS-022 | [CodeBuddy 模型调用被内容审核拦截修复](/plans/PLAN-FNOS-022-codebuddy-content-block-fix) | 已完成（两阶段 10 个任务，双客户端已验） |
 | PLAN-FNOS-025 | [CodeBuddy 插件下架](/plans/PLAN-FNOS-025-codebuddy-plugin-delisting) | 已完成（三阶段全部完成；真实 NAS 验收不在本轮范围） |
 | PLAN-FNOS-026 | [OpenCode Zen 与 OpenCode Go 模型接入及套餐用量](/plans/PLAN-FNOS-026-dsh-opencode-plugin) | 实施中（单一供应商与合并目录已实现并通过 DSH Web 实测；发布相关任务待 npm 发布） |
+| PLAN-FNOS-027 | [ZCode Start Plan 模型接入与账号额度](/plans/PLAN-FNOS-027-dsh-zcode-plugin) | 实施中（登录、目录、能力与额度读取接口级实测通过；FNOS-027-04 受上游风控 3012 阻塞，发布相关任务待 npm 发布） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。
