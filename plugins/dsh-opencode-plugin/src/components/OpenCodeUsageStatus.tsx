@@ -220,10 +220,11 @@ export function OpenCodeUsageStatus({ t, timer, preferences, useProjection }: Op
   )
   // Tooltip 在 Popover 打开时必须卸载：只关 `visible` 会留下 Semi 的 hover
   // 触发器，稍后可能把旧 tooltip 又弹出来。
+  // 用量胶囊悬浮 850ms 后再展开摘要，避免鼠标扫过时误弹。
   const progress = popoverOpen
     ? progressContent
     : (
-        <DshTooltip content={summary} mouseEnterDelay={0.35} mouseLeaveDelay={0.35}>
+        <DshTooltip content={summary} mouseEnterDelay={0.85} mouseLeaveDelay={0.35}>
           {progressContent}
         </DshTooltip>
       )

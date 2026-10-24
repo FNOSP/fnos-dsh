@@ -432,7 +432,8 @@ export function OpenCodeCatalogCard({
                               content={<ModelFeatureBubble model={model} t={t} />}
                               position="top"
                               showArrow={false}
-                              mouseEnterDelay={0.2}
+                              // 悬浮 700ms 后再弹：目录很长，鼠标扫过时不应连续弹出气泡。
+                              mouseEnterDelay={0.7}
                               mouseLeaveDelay={0.1}
                             >
                               <span

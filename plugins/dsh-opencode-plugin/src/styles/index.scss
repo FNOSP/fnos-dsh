@@ -448,7 +448,7 @@
   padding: 1px 4px;
   border-radius: var(--dsw-radius-xs);
   color: var(--dsw-alias-label-tertiary);
-  cursor: help;
+  cursor: pointer;
   outline: none;
 
   &:hover { color: var(--dsw-alias-label-secondary); }
