@@ -74,6 +74,8 @@ verifiedAt: 2026-10-24
 - 按[账号状态测试顺序](/charter/tests-spec#账号状态测试顺序与-auth-配置备份)执行：**先测登录态**（TC-009 至 TC-034、TC-042 至 TC-047 中的在线用例）→ **再测非登录态**（TC-001、TC-012、TC-024 等）→ **最后测登录流程**（TC-002 至 TC-006）。
 - 移除登录态前，把 `<DSH_HOME>/.dsh-opencode-auth.json` 备份到 `tmp/auth-back/dsh-opencode-<版本>-<日期>/`；恢复时原样复制并 `chmod 600`，再用 `stat -c '%a %n'` 核对。
 - 测试数据清理：退出测试账号或恢复备份、把胶囊策略与隐藏模型恢复默认（隐藏项按 `plan:id` 记录，含 `zen:` / `go:` 前缀）、删除测试产生的临时截图与报告；测试账号、凭据与备份不得进入仓库。
+- DSH Desktop 实例清理：按检出路径结束进程（`pkill -f "fork-pj/deepseek-harness"`），本轮已执行、残留进程 0；开发态 Desktop 与本地 Web 共用 `DSH_HOME=<repo>/.dsh`，测试账号与偏好均未改动。
+- 本轮为 Desktop 验收新增的 profile 配置（保留，便于后续复验）：`.dsh/profiles/desktop/node_modules/@tnnevol/dsh-opencode` 为**实体副本**，其 `package.json` 的 peer 已按下式规范化——`@deepseek-ai/cordis` → `^4.0.5`、`@earendil-works/pi-ai` → `1.1.0`、`react` → `^18.3.1`；同时在 `.dsh/profiles/desktop/package.json` 的 `dependencies`（`link:` 指向仓库插件目录）与 `dsh.profile.bundles` 中加入 `@tnnevol/dsh-opencode`。该 profile 属本地运行状态、已被 `.gitignore` 排除，不进仓库。
 - UI 类用例（账号卡片、额度卡片、目录卡片、用量胶囊）在**亮色与暗色主题**下各执行一遍，并核对[UI 测试](/charter/tests-spec#ui-测试-视觉与样式)要求的对比度、间距与毛玻璃层级。
 
 ## 测试环境
@@ -298,7 +300,7 @@ verifiedAt: 2026-10-24
 | TC-006 | [FNOS-026-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-01) | DSH Web | 未执行 | — | 待执行 |
 | TC-007 | [FNOS-026-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-01) | DSH Web、DSH Desktop | 未执行 | — | 待执行 |
 | TC-008 | [FNOS-026-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-01) | DSH Web | 未执行 | — | 待执行 |
-| TC-009 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web、DSH Desktop | 部分通过（DSH Web） | 2026-10-24 | 已确认单分组、后缀与 122 个模型；Console 覆盖逐项比对与 Desktop 待执行 |
+| TC-009 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web、DSH Desktop | 通过（DSH Web、DSH Desktop） | 2026-10-24 | 已确认单分组、后缀与目录计数；去重后为 101 个。Desktop（开发态 0.2.1-rc.2，CDP 9333）实测：插件详情页显示 `v0.2.1-rc.2.37`、已登录、目录 101 个模型，未出现「不兼容 / 异常」 |
 | TC-010 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 未执行 | — | 待执行；需可构造账号配置失败 |
 | TC-011 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 未执行 | — | 待执行 |
 | TC-012 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web、DSH Desktop | 未执行 | — | 待执行 |
@@ -311,11 +313,11 @@ verifiedAt: 2026-10-24
 | TC-019 | [FNOS-026-04](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-04) | DSH Web、DSH Desktop | 未执行 | — | 待执行 |
 | TC-020 | [FNOS-026-04](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-04) | DSH Web | 未执行 | — | 待执行 |
 | TC-021 | [FNOS-026-04](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-04) | DSH Web | 部分通过（DSH Web） | 2026-10-24 | 已确认 402 与免费模型 403/AUTH 可读；断网与 Desktop 待执行 |
-| TC-022 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web、DSH Desktop | 未执行 | — | 待执行；需 Go 订阅账号 |
+| TC-022 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web、DSH Desktop | 通过（DSH Web、DSH Desktop） | 2026-10-24 | Desktop（开发态 0.2.1-rc.2，CDP 9333）实测：额度卡片显示 5 小时 8% / 每周 89% / 每月 58%，与 `/plugins/dsh-opencode/usage` 返回一致，含重置倒数与获取时间；选中 `· zen` 模型时输入区同样出现胶囊 |
 | TC-023 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web | 未执行 | — | 待执行 |
 | TC-024 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web | 未执行 | — | 待执行；需可构造额度接口失败 |
 | TC-025 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web | 未执行 | — | 待执行 |
-| TC-026 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web、DSH Desktop | 部分通过（DSH Web） | 2026-10-24 | 口径修订：auto 改为按供应商判断，`· zen` 也显示。DSH Web 已验证 `· go` 与 `· zen` 均显示、其它供应商不显示；Desktop 待执行 |
+| TC-026 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web、DSH Desktop | 通过（DSH Web、DSH Desktop） | 2026-10-24 | 口径修订：auto 改为按供应商判断，`· zen` 也显示。DSH Web 已验证 `· go` 与 `· zen` 均显示、其它供应商不显示；Desktop（开发态 0.2.1-rc.2，CDP 9333）实测：选中 `jev-1.13 · zen` 后输入区胶囊出现，`aria-label` 为「每周窗口 · 已用 89% · 1天 14小时后重置」 |
 | TC-027 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web | 未执行 | — | 待执行 |
 | TC-028 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web | 未执行 | — | 待执行 |
 | TC-029 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web、DSH Desktop | 未执行 | — | 待执行 |
@@ -339,7 +341,7 @@ verifiedAt: 2026-10-24
 | TC-047 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web、DSH Desktop | 未执行 | — | 待执行；需无 Go 订阅账号 |
 | TC-048 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 0.2.1-rc.2.29：卡片顶部提示已显示；8 个 Zen 免费模型均带「已停用 + 仅 OpenCode 客户端可用」且开关禁用；`beam-free` 的 zen 条目禁用、go 条目可选且端点分别为 `inference/openai/v1` 与 `inference/go/openai/v1`；选择器搜索 8 个免费模型 id 命中 0 条。DSH Desktop 待执行 |
 | TC-049 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 实测：目录卡片与选择器中 `beam-free` 只保留 `· go` 一条、`deepseek-v4.1-flash` 只保留 `· go` 一条，`big-pickle` 等单一来源模型保留；去重后 101 个。DSH Desktop 待执行 |
-| TC-050 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 实测：目录卡片 101 行，顺序为 `Beam Free · go`（免费）→ `Muse Spark 1.2/1.3 Contributor`（0.30）→ `DeepSeek V4 Flash`、`MiMo V2.5`、`MiMo-V2.6-Flash`（0.42），第 94 行起全部为「已停用」条目；目录接口返回同序。另修正「无价格元数据的模型被当成最便宜」的缺陷，改为沉到付费档末尾 |
+| TC-050 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web、DSH Desktop | 通过（DSH Web、DSH Desktop） | 2026-10-24 | DSH Web 实测：目录卡片 101 行，顺序为 `Beam Free · go`（免费）→ `Muse Spark 1.2/1.3 Contributor`（0.30）→ `DeepSeek V4 Flash`、`MiMo V2.5`、`MiMo-V2.6-Flash`（0.42），第 94 行起全部为「已停用」条目；目录接口返回同序。另修正「无价格元数据的模型被当成最便宜」的缺陷，改为沉到付费档末尾。Desktop（开发态 0.2.1-rc.2，CDP 9333）实测：目录卡片顺序与 Web 完全一致（`Beam Free · go` → 0.30 档 → 0.42 档），第 94 行起为「已停用」；模型选择器搜索 `Beam Free` 与 `DeepSeek V4.1 Flash` 均只剩 `· go` 一条 |
 
 ## Bug 记录
 
