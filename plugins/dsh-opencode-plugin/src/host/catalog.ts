@@ -618,7 +618,48 @@ export interface BuildCatalogInput {
   readonly catalog?: unknown
   /** pi-ai 内置的 OpenCode 模型，按 plan 分组。 */
   readonly builtin?: { readonly zen?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
+  /**
+   * 端点策略：统一使用某一来源的端点（`auto` 或缺省表示保持各模型原生端点）。
+   *
+   * 只在目标来源也存在同名模型时才改写：只存在于单一来源的模型若被强行改到
+   * 另一端点，上游会直接返回 `Model is unavailable.`。
+   */
+  readonly endpointPlan?: OpenCodePlan | 'auto'
   readonly now?: number
+}
+
+/**
+ * 按端点策略改写模型的 `baseURL`。
+ *
+ * 账号可能只有一种付费方式（例如只订阅了 Go），这时把共用模型的请求统一打到
+ * 套餐端点即可消耗套餐额度，而不是去碰需要余额的按量端点。改写的前提是目标
+ * 来源的模型清单里也有这个模型：`baseURLFor` 按「来源 + 协议族」生成端点，
+ * 所以同名且同协议的模型可以直接换前缀。
+ * @param models - 已构建的模型列表。
+ * @param plan - 目标来源；`auto` 表示不改写。
+ * @returns 改写后的列表；没有可改写的条目时返回原列表。
+ */
+export function applyEndpointPlan(
+  models: readonly OpenCodeModel[],
+  plan: OpenCodePlan | 'auto' | undefined,
+): readonly OpenCodeModel[] {
+  // 先归位到各自来源的原生端点，让函数可以重复调用（切回 `auto` 要能还原）。
+  const native = models.map(model => {
+    const baseURL = baseURLFor(model.plan, model.api)
+    return model.baseURL === baseURL ? model : { ...model, baseURL }
+  })
+  if (plan === undefined || plan === 'auto') return native
+  const available = new Set(models
+    .filter(model => model.plan === plan)
+    .map(model => `${model.id}\u0000${model.api}`))
+  let changed = false
+  const next = native.map((model) => {
+    if (model.plan === plan) return model
+    if (!available.has(`${model.id}\u0000${model.api}`)) return model
+    changed = true
+    return { ...model, baseURL: baseURLFor(plan, model.api) }
+  })
+  return changed ? next : native
 }
 
 /**
@@ -696,7 +737,7 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
   return {
     fetchedAt: now,
     source: consoleScopes.size > 0 ? 'console' : 'public',
-    models,
+    models: applyEndpointPlan(models, input.endpointPlan),
     warnings,
   }
 }

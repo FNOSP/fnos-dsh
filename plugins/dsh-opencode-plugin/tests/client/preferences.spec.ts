@@ -18,7 +18,7 @@ describe('偏好归一化（客户端与服务端共用契约）', () => {
       usageVisibility: 'always',
       refreshMinutes: 30,
       hiddenModels: ['a', 'b'],
-    })).toEqual({ usageVisibility: 'always', refreshMinutes: 30, hiddenModels: ['a', 'b'] })
+    })).toEqual({ usageVisibility: 'always', refreshMinutes: 30, hiddenModels: ['a', 'b'], endpointPlan: 'auto' })
   })
 
   it('非法显隐策略回落 auto', () => {
@@ -61,6 +61,7 @@ describe('偏好 store', () => {
       usageVisibility: 'off',
       refreshMinutes: 5,
       hiddenModels: ['x'],
+      endpointPlan: 'auto',
     })
     expect(store.getSnapshot().loaded).toBe(true)
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -95,8 +96,13 @@ describe('偏好 store', () => {
     expect(store.getSnapshot().value.hiddenModels).toEqual(['gpt-5'])
     expect(listener).toHaveBeenCalledTimes(1)
 
-    resolveSave(jsonResponse({ usageVisibility: 'off', refreshMinutes: 15, hiddenModels: ['gpt-5'] }))
-    await expect(saving).resolves.toEqual({ usageVisibility: 'off', refreshMinutes: 15, hiddenModels: ['gpt-5'] })
+    resolveSave(jsonResponse({ usageVisibility: 'off', refreshMinutes: 15, hiddenModels: ['gpt-5'], endpointPlan: 'go' }))
+    await expect(saving).resolves.toEqual({
+      usageVisibility: 'off',
+      refreshMinutes: 15,
+      hiddenModels: ['gpt-5'],
+      endpointPlan: 'go',
+    })
 
     const [path, init] = fetchMock.mock.calls[1] ?? []
     expect(path).toBe(OPENCODE_ROUTES.preferences)

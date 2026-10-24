@@ -86,6 +86,7 @@ function OpenCodeSectionContent({ t, preferences, timer }: OpenCodeSectionInject
         loadError={preferencesError}
         usageVisibility={preferenceValues.usageVisibility}
         refreshMinutes={preferenceValues.refreshMinutes}
+        endpointPlan={preferenceValues.endpointPlan}
       />
     </div>
   )

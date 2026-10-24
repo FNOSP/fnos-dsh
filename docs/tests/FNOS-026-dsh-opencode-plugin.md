@@ -249,6 +249,18 @@ verifiedAt: 2026-10-24
 
 端点前缀按来源固定：`· zen` 用 `/inference/openai/v1`、`/inference/anthropic`、`/inference/google/v1beta`；`· go` 在上述路径前加 `/go`。Google 端点的模型名位于路径末段（`…/google/v1beta/models/<id>`），其余协议走请求体里的模型名。
 
+### 推理端点策略（2026-10-24）
+
+账号只订阅 OpenCode Go、Console 没有余额，同一模型走两组端点的结果完全不同：
+
+| 模型 | Go 端点 | Zen 端点 |
+| --- | --- | --- |
+| `deepseek-v4.1-flash` | 200（正常返回） | 402 `Insufficient account funds` |
+| `mistral-large-4`（仅 Zen） | 400 `Model is unavailable.` | 402 |
+| `big-pickle`（仅 Zen，免费） | 400 `Model is unavailable.` | 403 `FreeTierError` |
+
+因此新增「推理端点」设置：`auto`（默认，读到 Go 套餐额度就把共用模型统一打到 Go 端点）、`go`、`zen`。本账号已订阅 Go，实测 `auto` 与 `go` 行为一致；`zen` 与切回 `auto` 时目录端点随之变化，`auto` 下共用模型落在 Go 端点。改写只作用于**目标端点也存在同协议模型**的条目；跨来源独有模型与跨来源协议不同的模型保持原生端点。用例覆盖：共用模型在 `go` 下改到 Go 端点、Zen 独有模型不动、`zen` 反向改写、`auto` 与重复调用回到原生端点、协议不同不切换。
+
 ### 用量胶囊标识（2026-10-24，DSH Web）
 
 胶囊的环形中心由占位图形换成 OpenCode 官方标识：外框 + 内嵌深浅两段色块，比例取自官方 512×512 图标（外框 20×25，内部色块位于 25%–75% / 20%–80%，40% 处分成深浅两段），用 `currentColor` 与其 45% 透明度表达两段。DSH Web 中实测：选中 `· go` 模型后胶囊出现，中心标识渲染为 12×15 的 SVG，亮色主题下为深色描边配深浅灰块；胶囊整体仍为 26px 环形进度，`· zen` 模型下不显示。

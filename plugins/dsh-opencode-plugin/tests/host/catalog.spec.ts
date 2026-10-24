@@ -3,10 +3,12 @@ import { fileURLToPath } from 'node:url'
 import { opencodeProvider } from '@earendil-works/pi-ai/providers/opencode'
 import { opencodeGoProvider } from '@earendil-works/pi-ai/providers/opencode-go'
 import { describe, expect, it } from 'vitest'
+import type { OpenCodeModel } from '../../src/contracts/catalog.ts'
 import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_MAX_TOKENS,
   apiFromUrl,
+  applyEndpointPlan,
   baseURLFor,
   buildCatalog,
   buildCatalogEntry,
@@ -299,5 +301,77 @@ describe('协议按 plan 独立解析', () => {
     expect(apiFromUrl('https://opencode.ai/inference/google/v1beta/models/gemini-4-argon')).toBe('google-generative-ai')
     expect(apiFromUrl('https://opencode.ai/inference/openai/v1')).toBeUndefined()
     expect(apiFromUrl(undefined)).toBeUndefined()
+  })
+})
+
+/**
+ * 端点策略：把共用模型的请求统一打到账号付费的那一组端点。
+ *
+ * 账号只订阅 Go 时，共用模型走 Go 端点消耗套餐额度，而不是打到需要余额的
+ * 按量端点。只存在于单一来源的模型必须保持原生端点，否则上游会返回
+ * `Model is unavailable.`。
+ */
+describe('端点策略', () => {
+  const models: readonly OpenCodeModel[] = [
+    { id: 'shared', api: 'openai-completions', plan: 'zen' },
+    { id: 'shared', api: 'openai-completions', plan: 'go' },
+    { id: 'zen-only', api: 'openai-completions', plan: 'zen' },
+    { id: 'go-only', api: 'openai-completions', plan: 'go' },
+  ].map(entry => ({
+    ...entry,
+    name: entry.id,
+    baseURL: baseURLFor(entry.plan as 'zen' | 'go', 'openai-completions'),
+    reasoning: false,
+    input: ['text'] as ('text' | 'image')[],
+    contextWindow: 1000,
+    maxTokens: 100,
+    tools: true,
+    free: false,
+    api: entry.api as OpenCodeModel['api'],
+    plan: entry.plan as OpenCodeModel['plan'],
+  }))
+
+  it('go：共用模型改到 Go 端点，Zen 独有模型不动', () => {
+    const next = applyEndpointPlan(models, 'go')
+    const find = (plan: string, id: string) => next.find(model => model.plan === plan && model.id === id)
+    expect(find('zen', 'shared')?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
+    expect(find('go', 'shared')?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
+    expect(find('zen', 'zen-only')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
+  })
+
+  it('zen：共用模型改到按量端点，Go 独有模型不动', () => {
+    const next = applyEndpointPlan(models, 'zen')
+    const find = (plan: string, id: string) => next.find(model => model.plan === plan && model.id === id)
+    expect(find('go', 'shared')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
+    expect(find('go', 'go-only')?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
+  })
+
+  it('auto 与重复调用都会回到原生端点', () => {
+    const go = applyEndpointPlan(models, 'go')
+    const back = applyEndpointPlan(go, 'auto')
+    expect(back.map(model => model.baseURL)).toEqual(models.map(model => model.baseURL))
+    const again = applyEndpointPlan(go, 'go')
+    expect(again.map(model => model.baseURL)).toEqual(go.map(model => model.baseURL))
+  })
+
+  it('协议不同则不切换：端点按协议族固定，换了就是错端点', () => {
+    const mixed: readonly OpenCodeModel[] = [
+      { id: 'dual', api: 'openai-completions', plan: 'zen' },
+      { id: 'dual', api: 'anthropic-messages', plan: 'go' },
+    ].map(entry => ({
+      ...entry,
+      name: entry.id,
+      baseURL: baseURLFor(entry.plan as 'zen' | 'go', entry.api as 'openai-completions' | 'anthropic-messages'),
+      reasoning: false,
+      input: ['text'] as ('text' | 'image')[],
+      contextWindow: 1000,
+      maxTokens: 100,
+      tools: true,
+      free: false,
+      api: entry.api as OpenCodeModel['api'],
+      plan: entry.plan as OpenCodeModel['plan'],
+    }))
+    const next = applyEndpointPlan(mixed, 'go')
+    expect(next[0]?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
   })
 })

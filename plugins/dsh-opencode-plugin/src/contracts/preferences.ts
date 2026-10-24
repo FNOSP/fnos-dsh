@@ -12,6 +12,18 @@
 /** 对话输入区用量胶囊的显隐策略。 */
 export type OpenCodeUsageVisibility = 'auto' | 'always' | 'off'
 
+/**
+ * 推理请求使用哪一组端点的策略。
+ *
+ * - `auto`（默认）：跟随账号套餐——读到 Go 套餐额度就用 Go 端点，否则用按量端点；
+ * - `go`：统一走 Go 端点（消耗套餐额度）；
+ * - `zen`：统一走按量端点（消耗 Console 余额）。
+ *
+ * 只有目标端点的模型清单里也存在该模型时才会改写端点；只存在于单一来源的模型
+ * 保持原生端点，否则会直接把模型打成不可用。
+ */
+export type OpenCodeEndpointPlan = 'auto' | 'zen' | 'go'
+
 /** 持久化的插件偏好。 */
 export interface OpenCodePreferences {
   /** `auto`：仅选中 OpenCode 模型时显示；`always`：常驻；`off`：隐藏并停止轮询。 */
@@ -20,12 +32,15 @@ export interface OpenCodePreferences {
   readonly refreshMinutes: number
   /** 在模型选择器里隐藏的模型 id。 */
   readonly hiddenModels: readonly string[]
+  /** 推理端点策略；`auto` 表示跟随账号套餐。 */
+  readonly endpointPlan: OpenCodeEndpointPlan
 }
 
 export const DEFAULT_OPENCODE_PREFERENCES: OpenCodePreferences = {
   usageVisibility: 'auto',
   refreshMinutes: 15,
   hiddenModels: [],
+  endpointPlan: 'auto',
 }
 
 /** 合法刷新间隔范围（分钟）。 */
@@ -44,8 +59,12 @@ export function normalizePreferences(value: unknown): OpenCodePreferences {
   const refreshMinutes = typeof rawMinutes === 'number' && Number.isFinite(rawMinutes)
     ? Math.max(OPENCODE_REFRESH_MINUTES.min, Math.min(OPENCODE_REFRESH_MINUTES.max, Math.round(rawMinutes)))
     : DEFAULT_OPENCODE_PREFERENCES.refreshMinutes
+  const endpoint = source.endpointPlan
+  const endpointPlan: OpenCodeEndpointPlan = endpoint === 'zen' || endpoint === 'go'
+    ? endpoint
+    : DEFAULT_OPENCODE_PREFERENCES.endpointPlan
   const hiddenModels = Array.isArray(source.hiddenModels)
     ? [...new Set(source.hiddenModels.filter((id): id is string => typeof id === 'string' && id.length > 0 && id.length <= 200))]
     : []
-  return { usageVisibility, refreshMinutes, hiddenModels }
+  return { usageVisibility, refreshMinutes, hiddenModels, endpointPlan }
 }

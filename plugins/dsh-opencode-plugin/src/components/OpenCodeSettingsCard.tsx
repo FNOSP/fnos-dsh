@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { DshButton, DshInputNumber, DshSelect, DshSpin } from '@tnnevol/dsh-semi-ui'
 import { OPENCODE_REFRESH_MINUTES } from '../contracts/preferences.ts'
-import type { OpenCodeUsageVisibility } from '../contracts/preferences.ts'
+import type { OpenCodeEndpointPlan, OpenCodeUsageVisibility } from '../contracts/preferences.ts'
 import type { OpenCodeTranslate } from '../client/locales.ts'
 import { errorMessage } from '../client/services/http.ts'
 import type { OpenCodePreferencesStore } from '../client/services/preferences-data.ts'
@@ -19,6 +19,7 @@ export interface OpenCodeSettingsCardProps {
   readonly loadError?: string | undefined
   readonly usageVisibility: OpenCodeUsageVisibility
   readonly refreshMinutes: number
+  readonly endpointPlan: OpenCodeEndpointPlan
 }
 
 /** 显隐选项 → 文案键。 */
@@ -27,6 +28,20 @@ const VISIBILITY_OPTIONS: readonly { readonly value: OpenCodeUsageVisibility, re
   { value: 'always', key: 'settingsVisibilityAlways' },
   { value: 'off', key: 'settingsVisibilityOff' },
 ]
+
+/** 端点策略选项 → 文案键。 */
+const ENDPOINT_OPTIONS: readonly { readonly value: OpenCodeEndpointPlan, readonly key: 'settingsEndpointAuto' | 'settingsEndpointGo' | 'settingsEndpointZen' }[] = [
+  { value: 'auto', key: 'settingsEndpointAuto' },
+  { value: 'go', key: 'settingsEndpointGo' },
+  { value: 'zen', key: 'settingsEndpointZen' },
+]
+
+/** 把 Select 的原始值收敛到三个合法端点策略；未知值按 `auto` 处理。 */
+function normalizeEndpointPlan(value: unknown): OpenCodeEndpointPlan {
+  if (value === 'go') return 'go'
+  if (value === 'zen') return 'zen'
+  return 'auto'
+}
 
 /** 把 Select 的原始值收敛到三个合法选项；未知值按 `auto` 处理。 */
 function normalizeVisibility(value: unknown): OpenCodeUsageVisibility {
@@ -46,8 +61,10 @@ export function OpenCodeSettingsCard({
   loadError,
   usageVisibility,
   refreshMinutes,
+  endpointPlan,
 }: OpenCodeSettingsCardProps): ReactNode {
   const [draftVisibility, setDraftVisibility] = useState<OpenCodeUsageVisibility>(usageVisibility)
+  const [draftEndpoint, setDraftEndpoint] = useState<OpenCodeEndpointPlan>(endpointPlan)
   const [draftMinutesText, setDraftMinutesText] = useState(String(refreshMinutes))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -57,15 +74,18 @@ export function OpenCodeSettingsCard({
   // 这里的赋值与草稿相同，不会打断输入。
   useEffect(() => {
     setDraftVisibility(usageVisibility)
+    setDraftEndpoint(endpointPlan)
     setDraftMinutesText(String(refreshMinutes))
-  }, [refreshMinutes, usageVisibility])
+  }, [endpointPlan, refreshMinutes, usageVisibility])
 
   const trimmed = draftMinutesText.trim()
   const parsedMinutes = /^\d+$/u.test(trimmed) ? Number(trimmed) : Number.NaN
   const minutesValid = Number.isInteger(parsedMinutes)
     && parsedMinutes >= OPENCODE_REFRESH_MINUTES.min
     && parsedMinutes <= OPENCODE_REFRESH_MINUTES.max
-  const dirty = draftVisibility !== usageVisibility || (minutesValid && parsedMinutes !== refreshMinutes)
+  const dirty = draftVisibility !== usageVisibility
+    || draftEndpoint !== endpointPlan
+    || (minutesValid && parsedMinutes !== refreshMinutes)
   const canSave = loaded && minutesValid && dirty && !saving
 
   const save = async (): Promise<void> => {
@@ -74,7 +94,11 @@ export function OpenCodeSettingsCard({
     setSaved(false)
     setSaveError(undefined)
     try {
-      await preferences.save({ usageVisibility: draftVisibility, refreshMinutes: parsedMinutes })
+      await preferences.save({
+        usageVisibility: draftVisibility,
+        refreshMinutes: parsedMinutes,
+        endpointPlan: draftEndpoint,
+      })
       setSaved(true)
     } catch (error) {
       setSaveError(errorMessage(error, t('settingsSaveFailed')))
@@ -109,6 +133,25 @@ export function OpenCodeSettingsCard({
             optionList={VISIBILITY_OPTIONS.map(option => ({ value: option.value, label: t(option.key) }))}
             onChange={(value: unknown) => {
               setDraftVisibility(normalizeVisibility(value))
+              setSaved(false)
+              setSaveError(undefined)
+            }}
+          />
+        </div>
+
+        <div className="dsh-opencode-setting">
+          <div className="dsh-opencode-setting-main">
+            <span className="dsh-opencode-setting-label">{t('settingsEndpointPlan')}</span>
+            <span className="dsh-opencode-setting-hint">{t('settingsEndpointPlanHint')}</span>
+          </div>
+          <DshSelect
+            className="dsh-opencode-setting-select"
+            value={draftEndpoint}
+            disabled={saving}
+            aria-label={t('settingsEndpointPlan')}
+            optionList={ENDPOINT_OPTIONS.map(option => ({ value: option.value, label: t(option.key) }))}
+            onChange={(value: unknown) => {
+              setDraftEndpoint(normalizeEndpointPlan(value))
               setSaved(false)
               setSaveError(undefined)
             }}

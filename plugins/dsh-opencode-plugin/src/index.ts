@@ -21,14 +21,14 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-llm'
-import { buildCatalog, OpenCodeCatalogService } from './host/catalog.ts'
+import { applyEndpointPlan, buildCatalog, OpenCodeCatalogService } from './host/catalog.ts'
 import { OpenCodeAuthService } from './host/auth.ts'
 import type { OpenCodeCatalog } from './contracts/catalog.ts'
 import { OpenCodeConsoleClient } from './host/console-client.ts'
 import { OpenCodeCredentialStore } from './host/credentials.ts'
 import { OpenCodePreferencesStore } from './host/preferences.ts'
 import { OpenCodeProviderRuntime } from './host/provider.ts'
-import { modelKey } from './contracts/identity.ts'
+import { modelKey, type OpenCodePlan } from './contracts/identity.ts'
 import { registerOpenCodeRoutes } from './host/routes.ts'
 import { OpenCodeUsageService } from './host/usage.ts'
 
@@ -92,18 +92,33 @@ export function apply(ctx: Context): void {
 
   const usage = new OpenCodeUsageService({ resolveToken: () => auth.accessToken() })
 
-  /** 把目录快照投影成两组 provider 模型，并应用「隐藏模型」偏好。 */
+  /**
+   * 当前生效的推理端点来源。
+   *
+   * `auto` 跟随账号套餐：读到 Go 套餐额度就把共用模型统一打到 Go 端点，否则
+   * 保持各模型原生端点。读不到用量（未登录、无订阅或接口失败）时不动端点，
+   * 避免把本来能用的模型改到不可用的端点上。
+   */
+  const effectiveEndpointPlan = async (prefs: { readonly endpointPlan: string }): Promise<OpenCodePlan | 'auto'> => {
+    if (prefs.endpointPlan === 'zen' || prefs.endpointPlan === 'go') return prefs.endpointPlan
+    const snapshot = await usage.read().catch(() => undefined)
+    return snapshot === undefined ? 'auto' : 'go'
+  }
+
+  /** 把目录快照投影成 provider 模型，并应用端点策略与「隐藏模型」偏好。 */
   const applyCatalog = async (snapshot: OpenCodeCatalog | undefined): Promise<void> => {
     if (snapshot === undefined) return
     const prefs = await preferences.read()
     const hidden = new Set(prefs.hiddenModels)
-    runtime.update(
+    const endpoint = await effectiveEndpointPlan(prefs)
+    const models = applyEndpointPlan(
       snapshot.models.filter(model => model.disabled !== true && !hidden.has(modelKey(model.plan, model.id))),
-      {
-        ...(catalog.requestHeaders('zen') ?? {}),
-        ...(catalog.requestHeaders('go') ?? {}),
-      },
+      endpoint,
     )
+    runtime.update(models, {
+      ...(catalog.requestHeaders('zen') ?? {}),
+      ...(catalog.requestHeaders('go') ?? {}),
+    })
   }
 
   refresh = async (force: boolean): Promise<void> => {
@@ -153,6 +168,7 @@ export function apply(ctx: Context): void {
         await schedule()
       },
       routes: () => runtime.routeStatus(),
+      endpointPlan: async () => effectiveEndpointPlan(await preferences.read()),
     })
   })
 }

@@ -40,6 +40,7 @@ export interface OpenCodePreferencesStore {
 function samePreferences(left: OpenCodePreferences, right: OpenCodePreferences): boolean {
   if (left.usageVisibility !== right.usageVisibility) return false
   if (left.refreshMinutes !== right.refreshMinutes) return false
+  if (left.endpointPlan !== right.endpointPlan) return false
   if (left.hiddenModels.length !== right.hiddenModels.length) return false
   return left.hiddenModels.every((id, index) => id === right.hiddenModels[index])
 }

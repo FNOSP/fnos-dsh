@@ -11,8 +11,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
+import type { OpenCodeCatalog } from '../contracts/catalog.ts'
+import type { OpenCodePlan } from '../contracts/identity.ts'
 import { OPENCODE_ROUTES } from '../contracts/routes.ts'
 import type { OpenCodeAuthService } from './auth.ts'
+import { applyEndpointPlan } from './catalog.ts'
 import type { OpenCodeCatalogService } from './catalog.ts'
 import type { OpenCodePreferencesStore } from './preferences.ts'
 import type { OpenCodeRouteStatus } from './provider.ts'
@@ -133,6 +136,13 @@ export interface OpenCodeRoutesOptions {
   readonly preferencesChanged: () => Promise<void>
   /** 两组供应商路由的注册状态，供详情页诊断。 */
   readonly routes: () => readonly OpenCodeRouteStatus[]
+  /**
+   * 当前生效的推理端点策略。
+   *
+   * 目录响应按它改写 `baseURL`，让详情页展示的端点与实际发请求的端点一致；
+   * 不传时保持各模型的原生端点。
+   */
+  readonly endpointPlan?: () => Promise<OpenCodePlan | 'auto'>
 }
 
 /**
@@ -140,6 +150,15 @@ export interface OpenCodeRoutesOptions {
  */
 export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOptions): void {
   ctx.effect(() => {
+    /** 按当前端点策略改写目录里的 `baseURL`，只影响展示，不改快照本身。 */
+    const displayCatalog = async (
+      snapshot: OpenCodeCatalog | undefined,
+    ): Promise<OpenCodeCatalog | undefined> => {
+      if (snapshot === undefined || options.endpointPlan === undefined) return snapshot
+      const plan = await options.endpointPlan()
+      if (plan === 'auto') return snapshot
+      return { ...snapshot, models: applyEndpointPlan(snapshot.models, plan) }
+    }
     const authorize = (req: IncomingMessage, res: ServerResponse): boolean => {
       if (trustedRequest(req)) return true
       json(res, 403, { error: OPENCODE_ORIGIN_NOT_TRUSTED })
@@ -252,7 +271,7 @@ export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOpti
           try {
             const current = options.catalog.current() ?? await options.catalog.refreshIfStale()
             json(res, 200, {
-              catalog: current ?? null,
+              catalog: await displayCatalog(current),
               ...(options.catalog.consoleDiagnostic() === undefined ? {} : { consoleError: options.catalog.consoleDiagnostic() }),
               ...(options.catalog.error() === undefined ? {} : { error: options.catalog.error() }),
               routes: options.routes(),
@@ -276,13 +295,13 @@ export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOpti
             await options.refresh(true)
             const current = options.catalog.current()
             json(res, 200, {
-              catalog: current ?? null,
+              catalog: await displayCatalog(current),
               ...(options.catalog.consoleDiagnostic() === undefined ? {} : { consoleError: options.catalog.consoleDiagnostic() }),
               ...(options.catalog.error() === undefined ? {} : { error: options.catalog.error() }),
               routes: options.routes(),
             })
           } catch (error) {
-            json(res, 200, { catalog: options.catalog.current() ?? null, error: safeMessage(error) || OPENCODE_CATALOG_UNAVAILABLE })
+            json(res, 200, { catalog: await displayCatalog(options.catalog.current()) ?? null, error: safeMessage(error) || OPENCODE_CATALOG_UNAVAILABLE })
           }
         },
       }),
