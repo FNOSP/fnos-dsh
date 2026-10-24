@@ -9,7 +9,7 @@
 **本插件不随 fnOS 应用（FPK）内置分发**——浏览器自动化是用完即走的场景，需要时自行安装。任何 DSH 环境（含 fnOS 上的 DSH）都执行：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.1-rc.2.31
+dsh plugin --profile web add @tnnevol/dsh-midscene@0.2.1-rc.2.32
 ```
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。
