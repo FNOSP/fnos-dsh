@@ -79,6 +79,11 @@ export interface OpenCodeModel {
   /** 是否免费（输入/输出价格均为 0）。 */
   readonly free: boolean
   /**
+   * 上架/发布时间（`YYYY-MM-DD`），来自公开目录的 `release_date`，缺失时退回
+   * 活 roster 的 `created`。目录按它把较新的免费模型排在前面。
+   */
+  readonly releasedAt?: string
+  /**
    * 上游只允许官方 OpenCode 客户端调用的免费模型（Zen 免费额度走客户端身份校验，
    * 第三方客户端调用会得到 `FreeTierError`）。这类模型在目录里保留展示，
    * 但不进入模型选择器；Go 套餐内含的免费模型不受此限制。

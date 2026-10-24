@@ -178,6 +178,31 @@ export function modelIdsFrom(payload: unknown): string[] {
   return ids
 }
 
+/**
+ * 从活 roster 提取「模型 id → 创建时间」。
+ *
+ * 上游 roster 的每条记录带 `created`（epoch 秒），是模型进入该来源清单的时间；
+ * 免费模型的展示顺序按它降序排列，让最近上架的免费模型排在前面。
+ *
+ * @param payload - roster 响应体。
+ * @returns id 到 epoch 秒的映射；缺失或非法的 `created` 不写入。
+ */
+export function modelCreatedAtFrom(payload: unknown): Map<string, number> {
+  const result = new Map<string, number>()
+  const source = record(payload)
+  const entries = Array.isArray(source?.data)
+    ? source.data
+    : Array.isArray(source?.models) ? source.models : []
+  for (const entry of entries) {
+    const row = record(entry)
+    const id = nonEmptyString(row?.id)
+    const created = row?.created
+    if (id === undefined || typeof created !== 'number' || !Number.isFinite(created)) continue
+    result.set(id, created)
+  }
+  return result
+}
+
 /** 只保留 DSH 能发送的输入模态：text 与 image。 */
 export function normalizeInputModalities(value: unknown): ('text' | 'image')[] {
   const entries = Array.isArray(value) ? value : []
@@ -439,6 +464,8 @@ export interface CatalogEntryInput {
   readonly providerNpm?: string
   /** Console 配置的 provider 级 package。 */
   readonly consoleProviderNpm?: string
+  /** 活 roster 里该模型的创建时间（epoch 秒），用于免费模型的排序。 */
+  readonly rosterCreatedAt?: number
 }
 
 /** 构建结果：成功模型（可带降级说明），或跳过原因。 */
@@ -453,7 +480,7 @@ export type CatalogEntryResult =
  * 内置目录保留经过验证的 wire 兼容开关。
  */
 export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult {
-  const { id, plan, consoleEntry, catalogEntry, fallbackCatalogEntry, builtin, fallbackBuiltin } = entry
+  const { id, plan, consoleEntry, catalogEntry, fallbackCatalogEntry, builtin, fallbackBuiltin, rosterCreatedAt } = entry
   const warnings: string[] = []
   const consoleCaps = record(consoleEntry?.capabilities)
   const consoleReasoning = consoleCaps !== undefined && 'reasoning' in consoleCaps
@@ -558,6 +585,12 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
         cache_write: builtin.cost.cacheWrite,
       }))
   const free = cost !== undefined && cost.input === 0 && cost.output === 0
+  // 排序用的时间：优先公开目录的发布日（稳定），其次 roster 的创建时间。
+  const releasedAt = nonEmptyString(catalogEntry?.release_date)
+    ?? nonEmptyString(fallbackCatalogEntry?.release_date)
+    ?? (rosterCreatedAt === undefined
+      ? undefined
+      : new Date(rosterCreatedAt * 1000).toISOString().slice(0, 10))
   // Zen 的免费额度由网关按键客户端身份校验，第三方客户端调用只会得到
   // `FreeTierError`；Go 套餐内含的免费模型（beam-free 等）用订阅凭据正常调用。
   const clientOnly = free && plan === 'zen'
@@ -603,6 +636,7 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
       ...(structuredOutput ? { structuredOutput: true } : {}),
       free,
       ...(clientOnly ? { clientOnly: true } : {}),
+      ...(releasedAt === undefined ? {} : { releasedAt }),
       ...(catalogEntry?.status === 'deprecated' || fallbackCatalogEntry?.status === 'deprecated' ? { deprecated: true } : {}),
       ...(consoleEntry?.disabled === true ? { disabled: true } : {}),
     },
@@ -689,6 +723,38 @@ export function dedupeByPlan(
 }
 
 /**
+ * 目录排序：可用的免费模型在最前（按时间降序），其次是可用的付费模型（按价格
+ * 从低到高），被禁用的条目统一排到最后。
+ *
+ * 排序只影响展示顺序，不改变条目本身；同一档内以模型 id 作稳定的次序兜底，
+ * 避免刷新后顺序抖动。
+ *
+ * @param models - 待排序的模型列表。
+ * @returns 排序后的新列表。
+ */
+export function sortCatalogModels(models: readonly OpenCodeModel[]): readonly OpenCodeModel[] {
+  const rank = (model: OpenCodeModel): number => (model.disabled === true || model.clientOnly === true ? 2 : model.free ? 0 : 1)
+  const price = (model: OpenCodeModel): number => (model.cost?.input ?? 0) + (model.cost?.output ?? 0)
+  const time = (model: OpenCodeModel): string => model.releasedAt ?? ''
+  return [...models].sort((left, right) => {
+    const byRank = rank(left) - rank(right)
+    if (byRank !== 0) return byRank
+    const bucket = rank(left)
+    // 免费模型：新的在前。
+    if (bucket === 0) {
+      const byTime = time(right).localeCompare(time(left))
+      if (byTime !== 0) return byTime
+    }
+    // 付费模型：便宜的在前。
+    if (bucket === 1) {
+      const byPrice = price(left) - price(right)
+      if (byPrice !== 0) return byPrice
+    }
+    return left.id.localeCompare(right.id)
+  })
+}
+
+/**
  * 目录的统一展示口径：先按账号套餐去掉跨来源重复项，再按端点策略改写 `baseURL`。
  *
  * 详情页目录卡片与模型选择器都走这一条，避免两处对同一个模型给出不同结论
@@ -698,15 +764,16 @@ export function dedupeByPlan(
  * @param options - 账号套餐来源与当前端点策略；缺省时对应步骤跳过。
  * @param options.ownedPlan - 账号套餐来源，用于去掉跨来源重复项；缺省时不去重。
  * @param options.endpointPlan - 当前端点策略；缺省或 `auto` 时不改端点。
- * @returns 处理后的列表；无变化时返回入参本身。
+ * @returns 处理并排好序的新列表。
  */
 export function applyCatalogView(
   models: readonly OpenCodeModel[],
   options: { readonly ownedPlan?: OpenCodePlan | undefined, readonly endpointPlan?: OpenCodePlan | 'auto' | undefined },
 ): readonly OpenCodeModel[] {
   const deduped = options.ownedPlan === undefined ? models : dedupeByPlan(models, options.ownedPlan)
-  if (options.endpointPlan === undefined || options.endpointPlan === 'auto') return deduped
-  return applyEndpointPlan(deduped, options.endpointPlan)
+  const ordered = sortCatalogModels(deduped)
+  if (options.endpointPlan === undefined || options.endpointPlan === 'auto') return ordered
+  return applyEndpointPlan(ordered, options.endpointPlan)
 }
 
 /**
@@ -733,6 +800,7 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
     const primary = catalogSection(input.catalog, plan)
     const fallback = catalogSection(input.catalog, plan === 'zen' ? 'go' : 'zen')
     const rosterIds = modelIdsFrom(rosters[plan])
+    const rosterCreated = modelCreatedAtFrom(rosters[plan])
     const consoleEntries = new Map<string, JsonRecord>()
     for (const entry of scope?.models ?? []) consoleEntries.set(entry.id, entry.entry)
 
@@ -771,6 +839,7 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
         ...(fallbackBuiltin === undefined ? {} : { fallbackBuiltin }),
         ...(providerNpm === undefined ? {} : { providerNpm }),
         ...(scope?.packageName === undefined ? {} : { consoleProviderNpm: scope.packageName }),
+        ...(rosterCreated.has(id) ? { rosterCreatedAt: rosterCreated.get(id) as number } : {}),
       })
       if (result.ok) {
         models.push(result.model)

@@ -17,6 +17,7 @@ import {
   buildCatalogEntry,
   consoleScopesFromConsoleConfig,
   safeConsoleHeaders,
+  sortCatalogModels,
   thinkingLevelMapFromReasoning,
 } from '../../src/host/catalog.ts'
 
@@ -480,8 +481,66 @@ describe('目录统一口径 applyCatalogView', () => {
     expect(view.map(m => `${m.plan}:${m.id}`)).toEqual(['go:shared'])
   })
 
-  it('缺省两个选项时原样返回入参', () => {
+  it('缺省两个选项时只排序，不去重也不改端点', () => {
     const models = [model('shared', 'zen'), model('shared', 'go')]
-    expect(applyCatalogView(models, {})).toBe(models)
+    const view = applyCatalogView(models, {})
+    // 同价同 id 时排序稳定，保持入参顺序。
+    expect(view.map(m => `${m.plan}:${m.id}`)).toEqual(['zen:shared', 'go:shared'])
+    expect(view.find(m => m.plan === 'zen')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
+  })
+})
+
+describe('目录排序', () => {
+  const model = (id: string, extra: Partial<OpenCodeModel>): OpenCodeModel => ({
+    id,
+    name: id,
+    api: 'openai-completions',
+    baseURL: baseURLFor('go', 'openai-completions'),
+    reasoning: false,
+    input: ['text'],
+    contextWindow: 1000,
+    maxTokens: 100,
+    tools: true,
+    free: false,
+    plan: 'go',
+    ...extra,
+  })
+
+  it('免费模型在最前（时间降序），付费按价格升序，禁用条目排最后', () => {
+    const models = [
+      model('paid-expensive', { cost: { input: 3, output: 9 } }),
+      model('disabled-paid', { cost: { input: 1, output: 1 }, disabled: true }),
+      model('free-old', { free: true, releasedAt: '2026-01-01' }),
+      model('paid-cheap', { cost: { input: 0.1, output: 0.2 } }),
+      model('free-new', { free: true, releasedAt: '2026-09-10' }),
+      model('client-only', { free: true, clientOnly: true }),
+    ]
+    const order = sortCatalogModels(models).map(m => m.id)
+    expect(order).toEqual([
+      'free-new',
+      'free-old',
+      'paid-cheap',
+      'paid-expensive',
+      'client-only',
+      'disabled-paid',
+    ])
+  })
+
+  it('缺少发布时间时排在免费档末尾，且不抛错', () => {
+    const models = [
+      model('free-no-date', { free: true }),
+      model('free-dated', { free: true, releasedAt: '2026-05-01' }),
+    ]
+    expect(sortCatalogModels(models).map(m => m.id)).toEqual(['free-dated', 'free-no-date'])
+  })
+
+  it('真实 roster 上排序后首个是可用的免费模型，禁用条目全部在末尾', async () => {
+    const catalog = await publicCatalog()
+    const view = applyCatalogView(catalog.models, { ownedPlan: 'go', endpointPlan: 'auto' })
+    const firstDisabled = view.findIndex(m => m.disabled === true || m.clientOnly === true)
+    expect(firstDisabled).toBeGreaterThan(0)
+    expect(view.slice(firstDisabled).every(m => m.disabled === true || m.clientOnly === true)).toBe(true)
+    expect(view[0]?.disabled).not.toBe(true)
+    expect(view[0]?.clientOnly).not.toBe(true)
   })
 })

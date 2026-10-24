@@ -151,6 +151,7 @@ verifiedAt: 2026-10-24
 | TC-047 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 无 Go 订阅时显示未订阅说明 | [AC-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 已登录；账号只有 Zen 按量权限，没有 Go 或 Go Plus 订阅 | 1.打开详情页额度卡片 2.查看三个窗口 3.切到带 `· go` 后缀的模型并打开输入区 | 卡片显示未订阅说明，不显示 0%、不显示按量费用；输入区不出现套餐用量胶囊 | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-048 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 仅官方客户端可用的免费模型按禁用处理并过滤 | [AC-07](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 已登录；账号可读 Zen 与 Go 两组 roster | 1.打开详情页目录卡片，查看顶部提示与 Zen 免费模型条目 2.查看同名 `beam-free` 的 zen 与 go 两条 3.打开会话模型选择器，搜索这些免费模型 | 卡片顶部显示「部分免费模型只能由官方 OpenCode 客户端调用」提示；Zen 免费条目带「已停用」与「仅 OpenCode 客户端可用」，开关不可操作；`beam-free` 在 zen 与 go 各一条且端点不同，go 条目可用；选择器中不出现这些 Zen 免费模型 | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-049 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 跨来源重复模型只保留套餐那一侧 | [AC-08](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 已登录；账号在 Go 订阅内；Zen 与 Go 两组 roster 可读 | 1.打开详情页目录卡片，搜索 `beam-free` 与 `deepseek-v4.1-flash` 2.打开模型选择器，搜索同一批模型 3.核对计数 | 同一个模型 id 只出现一条：账号有 Go 时保留 `· go` 条目，`· zen` 重复项不出现；只存在于单一来源的模型（如 `big-pickle`）照常保留；目录卡片与选择器口径一致，去重后合计 101 个 | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
+| TC-050 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 目录排序：免费在前、付费按价格、禁用最后 | [AC-09](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 已登录；目录已读取 | 1.打开详情页目录卡片，观察前三档顺序 2.切到模型选择器对比同一批模型的相对顺序 3.刷新目录后再看一次 | 可用的免费模型排在最前且按时间降序；其后是可用的付费模型按价格升序；被禁用条目（含仅官方客户端可用的免费模型）全部在末尾；两处顺序一致，刷新后不抖动 | P2 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 
 ### [FNOS-026-06 对话输入区用量胶囊](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06)
 
@@ -338,6 +339,7 @@ verifiedAt: 2026-10-24
 | TC-047 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web、DSH Desktop | 未执行 | — | 待执行；需无 Go 订阅账号 |
 | TC-048 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 0.2.1-rc.2.29：卡片顶部提示已显示；8 个 Zen 免费模型均带「已停用 + 仅 OpenCode 客户端可用」且开关禁用；`beam-free` 的 zen 条目禁用、go 条目可选且端点分别为 `inference/openai/v1` 与 `inference/go/openai/v1`；选择器搜索 8 个免费模型 id 命中 0 条。DSH Desktop 待执行 |
 | TC-049 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 实测：目录卡片与选择器中 `beam-free` 只保留 `· go` 一条、`deepseek-v4.1-flash` 只保留 `· go` 一条，`big-pickle` 等单一来源模型保留；去重后 101 个。DSH Desktop 待执行 |
+| TC-050 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 部分通过（单元测试） | 2026-10-24 | 排序规则由 `sortCatalogModels` 单测覆盖（三档顺序、缺时间兜底、真实 roster 上禁用条目全部在末尾）；DSH Web 页面观感待新实例验证 |
 
 ## Bug 记录
 
