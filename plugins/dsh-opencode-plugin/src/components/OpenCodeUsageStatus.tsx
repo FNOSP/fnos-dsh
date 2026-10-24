@@ -10,7 +10,7 @@ import { authEpoch, subscribeAuthEpoch } from '../client/services/auth-events.ts
 import { formatTimestamp } from '../client/services/format.ts'
 import type { TimerService } from '../client/services/polling.ts'
 import type { OpenCodePreferencesStore } from '../client/services/preferences-data.ts'
-import { readSelectedModel, readSelectedProvider, usageCapsuleVisible } from '../client/services/usage-visibility.ts'
+import { readSelectedProvider, usageCapsuleVisible } from '../client/services/usage-visibility.ts'
 import type { ModelSelectionProjectionLike } from '../client/services/usage-visibility.ts'
 import {
   OPENCODE_USAGE_WINDOW_KINDS,
@@ -42,19 +42,14 @@ export type OpenCodeUsageStatusProps = PropsRuntime<'conversation.input.right'> 
 /**
  * OpenCode 官方标识：外框 + 内嵌色块（上深下浅）。
  *
- * 几何取自官方 512×512 图标实测像素：外框 128–384 × 96–416（比例 4:5），
- * 内孔 192–320 × 160–352，孔内上 1/3 为深色、下 2/3 为浅一档的灰。
- *
- * 两处细节靠内联样式而不是样式表：
- * - 颜色取 `--dsw-alias-label-primary`（浅色主题近黑、深色主题近白，即官方
- *   的黑白观感），不继承父级 `currentColor`——胶囊外层是次要文字色，继承
- *   过去会把图标染成灰色。
- * - `display: block` + `margin: 0 auto`：Semi 把 custom `format` 的内容放进
- *   绝对定位、`translate(-50%,-50%)` 的文本容器里；SVG 作为行内元素会带一段
- *   行距下沉，实测圆心比容器中心高 1.5px。改成块级后与圆环同心。
+ * 比例取自官方 512×512 图标：外框 20×25，内部色块位于 25%–75% / 20%–80%，
+ * 并在 40% 处分成深浅两段。用 `currentColor` 与其半透明版本表达两段，
+ * 亮色与暗色主题都随文字色自动反转，不需要额外资源文件。
  */
 function OpenCodeLogo(): ReactNode {
   return (
+    // Semi 把 custom `format` 的内容放进绝对定位的文本容器；SVG 是行内元素，
+    // 会带一段行距沉底，圆心比容器中心高约 1.5px。块级 + 自动外边距即对齐。
     <svg
       viewBox="0 0 20 25"
       width="12"
@@ -63,12 +58,11 @@ function OpenCodeLogo(): ReactNode {
       focusable="false"
       style={{ display: 'block', margin: '0 auto', color: 'var(--dsw-alias-label-primary)' }}
     >
-      {/* 外框减去内孔，用 evenodd 一处画完。 */}
-      <path d="M5 3H15V22H5Z M7.5 5H12.5V17.5H7.5Z" fill="currentColor" fillRule="evenodd" />
-      {/* 孔内上段：与官方一致的实心深色。 */}
-      <path d="M7.5 5H12.5V9.17H7.5Z" fill="currentColor" />
-      {/* 孔内下段：官方比上段浅一档，用同色低不透明度还原该深浅关系。 */}
-      <path d="M7.5 9.17H12.5V17.5H7.5Z" fill="currentColor" opacity="0.7" />
+      {/* 外框。 */}
+      <rect x="0.6" y="0.6" width="18.8" height="23.8" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      {/* 内部色块：上段实心，下段浅一档，对应官方图标的两段深浅。 */}
+      <path d="M5 5H15V10H5Z" fill="currentColor" />
+      <path d="M5 10H15V20H5Z" fill="currentColor" opacity="0.45" />
     </svg>
   )
 }
@@ -182,10 +176,10 @@ export function OpenCodeUsageStatus({ t, timer, preferences, useProjection }: Op
 
   // 只显示与当前选中模型供应商匹配的图标。会话作用域座位的标准套件由渲染器
   // 保证存在，因此这里无条件调用 hook；投影缺失时判定按「读不到」处理。
+  // zen 与 go 都是本插件的模型，显隐只看供应商，不再按套餐前缀区分。
   const selected = useProjection('modelSelection') as ModelSelectionProjectionLike | undefined
   const provider = readSelectedProvider(selected)
-  const model = readSelectedModel(selected)
-  const wanted = usageCapsuleVisible({ visibility: preferenceValues.usageVisibility, provider, model })
+  const wanted = usageCapsuleVisible({ visibility: preferenceValues.usageVisibility, provider })
   const controller = useOpenCodeUsage({
     timer,
     refreshMinutes: preferenceValues.refreshMinutes,
@@ -197,7 +191,6 @@ export function OpenCodeUsageStatus({ t, timer, preferences, useProjection }: Op
   const visible = usageCapsuleVisible({
     visibility: preferenceValues.usageVisibility,
     provider,
-    model,
     signedIn: snapshot.signedIn,
   })
   const [popoverOpen, setPopoverOpen] = useState(false)
@@ -233,8 +226,7 @@ export function OpenCodeUsageStatus({ t, timer, preferences, useProjection }: Op
         percent={hasUsage ? remainingPercentValue(peak.window) : 0}
         width={26}
         strokeWidth={3}
-        // 进度弧与图标统一用主文字色（浅色主题近黑），余量轨道低一档。
-        stroke="var(--dsw-alias-label-primary)"
+        stroke="var(--dsw-alias-label-tertiary)"
         orbitStroke="var(--dsw-alias-border-l3)"
         showInfo
         format={() => <OpenCodeLogo />}
