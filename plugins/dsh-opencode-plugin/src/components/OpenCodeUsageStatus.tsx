@@ -42,18 +42,33 @@ export type OpenCodeUsageStatusProps = PropsRuntime<'conversation.input.right'> 
 /**
  * OpenCode 官方标识：外框 + 内嵌色块（上深下浅）。
  *
- * 比例取自官方 512×512 图标：外框 20×25，内部色块位于 25%–75% / 20%–80%，
- * 并在 40% 处分成深浅两段。用 `currentColor` 与其半透明版本表达两段，
- * 亮色与暗色主题都随文字色自动反转，不需要额外资源文件。
+ * 几何取自官方 512×512 图标实测像素：外框 128–384 × 96–416（比例 4:5），
+ * 内孔 192–320 × 160–352，孔内上 1/3 为深色、下 2/3 为浅一档的灰。
+ *
+ * 两处细节靠内联样式而不是样式表：
+ * - 颜色取 `--dsw-alias-label-primary`（浅色主题近黑、深色主题近白，即官方
+ *   的黑白观感），不继承父级 `currentColor`——胶囊外层是次要文字色，继承
+ *   过去会把图标染成灰色。
+ * - `display: block` + `margin: 0 auto`：Semi 把 custom `format` 的内容放进
+ *   绝对定位、`translate(-50%,-50%)` 的文本容器里；SVG 作为行内元素会带一段
+ *   行距下沉，实测圆心比容器中心高 1.5px。改成块级后与圆环同心。
  */
 function OpenCodeLogo(): ReactNode {
   return (
-    <svg viewBox="0 0 20 25" width="12" height="15" aria-hidden="true" focusable="false">
-      {/* 外框。 */}
-      <rect x="0.6" y="0.6" width="18.8" height="23.8" fill="none" stroke="currentColor" strokeWidth="1.2" />
-      {/* 内部色块：上段实心，下段浅一档，对应官方图标的两段深浅。 */}
-      <path d="M5 5H15V10H5Z" fill="currentColor" />
-      <path d="M5 10H15V20H5Z" fill="currentColor" opacity="0.45" />
+    <svg
+      viewBox="0 0 20 25"
+      width="12"
+      height="15"
+      aria-hidden="true"
+      focusable="false"
+      style={{ display: 'block', margin: '0 auto', color: 'var(--dsw-alias-label-primary)' }}
+    >
+      {/* 外框减去内孔，用 evenodd 一处画完。 */}
+      <path d="M5 3H15V22H5Z M7.5 5H12.5V17.5H7.5Z" fill="currentColor" fillRule="evenodd" />
+      {/* 孔内上段：与官方一致的实心深色。 */}
+      <path d="M7.5 5H12.5V9.17H7.5Z" fill="currentColor" />
+      {/* 孔内下段：官方比上段浅一档，用同色低不透明度还原该深浅关系。 */}
+      <path d="M7.5 9.17H12.5V17.5H7.5Z" fill="currentColor" opacity="0.7" />
     </svg>
   )
 }
@@ -218,7 +233,8 @@ export function OpenCodeUsageStatus({ t, timer, preferences, useProjection }: Op
         percent={hasUsage ? remainingPercentValue(peak.window) : 0}
         width={26}
         strokeWidth={3}
-        stroke="var(--dsw-alias-label-tertiary)"
+        // 进度弧与图标统一用主文字色（浅色主题近黑），余量轨道低一档。
+        stroke="var(--dsw-alias-label-primary)"
         orbitStroke="var(--dsw-alias-border-l3)"
         showInfo
         format={() => <OpenCodeLogo />}
