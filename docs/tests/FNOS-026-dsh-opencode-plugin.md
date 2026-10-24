@@ -48,7 +48,7 @@ verifiedAt: 2026-10-24
 | Zen 余额不足或免费模型受限被误判为插件缺陷 | 分别制造 402 与 403，断言错误可读且不自动重试（TC-021，见「已知限制」） |
 | 额度数据缺失被补成 0%，用户误以为额度充足 | 制造额度接口失败，断言不显示 0%（TC-024） |
 | 胶囊与额度卡片来自不同快照，两处数字不一致 | 同一次刷新后比对两处比例（TC-029） |
-| 胶囊在选中 `· zen` 模型时仍出现，误导为套餐额度 | 分别选中 `· zen` 与 `· go` 模型查看输入区（TC-026） |
+| 胶囊在选中 `· zen` 模型时显示的是 Go 套餐数据，被误读为该模型的按量额度 | 分别选中 `· zen` 与 `· go` 模型查看输入区与浮层文案（TC-026） |
 | 登录态或偏好没有真正落盘，重启即丢 | 重启 DSH 后逐项核对（TC-035、TC-036） |
 | 插件禁用后仍残留供应商分组或影响其它供应商 | 禁用插件后检查模型选择器（TC-037） |
 | 目录固定高度、合并列表或能力气泡影响可用性 | 滚动、窗口缩放与亮暗主题下核对（TC-043、TC-045、TC-046） |
@@ -144,7 +144,7 @@ verifiedAt: 2026-10-24
 
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TC-022 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | OpenCode Go 三个窗口的已用百分比 | [AC-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 已登录；账号在 Go 或 Go Plus 订阅内 | 1.打开详情页额度卡片 2.与 Console 的用量页比对 3.切到带 `· zen` 后缀的模型，查看输入区与额度卡片 | 5 小时、每周、每月三个窗口均显示已用百分比，数值与 Console 一致；额度卡片按账号展示 Go 额度，不出现按量费用；选中 `· zen` 模型时输入区不出现胶囊（auto） | P0 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
+| TC-022 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | OpenCode Go 三个窗口的已用百分比 | [AC-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 已登录；账号在 Go 或 Go Plus 订阅内 | 1.打开详情页额度卡片 2.与 Console 的用量页比对 3.切到带 `· zen` 后缀的模型，查看输入区与额度卡片 | 5 小时、每周、每月三个窗口均显示已用百分比，数值与 Console 一致；额度卡片按账号展示 Go 额度，不出现按量费用；选中 `· zen` 模型时输入区同样显示胶囊（auto 不区分套餐） | P0 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-023 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 重置倒计时递减 | [AC-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 额度卡片已有数据 | 1.记录某窗口的倒计时 2.等待 60 秒 3.再次查看 | 倒计时相应减少；跨越重置时间后该窗口重新开始计时 | P2 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-024 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 额度不可用时显示未知而不是 0% | [AC-03](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 已登录 | 1.使额度接口返回失败 2.点刷新 3.查看卡片 | 显示失败原因与最近一次获取时间；未读取到的窗口不显示 0% | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-025 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 手动刷新更新数据与获取时间 | [AC-04](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 额度卡片已有数据 | 1.记录获取时间 2.点「刷新」 3.观察按钮状态与结果 | 按钮在刷新期间禁用并显示进行中；成功后获取时间更新、数值重新读取 | P2 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
@@ -155,7 +155,7 @@ verifiedAt: 2026-10-24
 
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TC-026 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | auto 策略只在带 `· go` 后缀的模型下显示 | [AC-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | 已登录；策略为 auto | 1.选中带 `· go` 后缀的 `OpenCode` 模型并查看输入区右侧 2.切到带 `· zen` 后缀的模型再查看 3.切换到其它供应商模型 | 只有带 `· go` 后缀的模型显示用量胶囊；带 `· zen` 后缀的模型与其它供应商模型都不显示，也不触发套餐额度请求 | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
+| TC-026 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | auto 策略在任意 OpenCode 模型下显示 | [AC-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | 已登录；策略为 auto | 1.选中带 `· go` 后缀的 `OpenCode` 模型并查看输入区右侧 2.切到带 `· zen` 后缀的模型再查看 3.切换到其它供应商模型 | 带 `· go` 与 `· zen` 后缀的模型都显示用量胶囊（不按套餐区分）；其它供应商模型不显示，也不触发套餐额度请求 | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-027 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | always 策略常驻显示 | [AC-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | 已登录；策略为 always | 1.分别选中带 `· go` 后缀、带 `· zen` 后缀与其它供应商模型 2.查看输入区右侧 | 三种情况下胶囊都显示；数值随刷新更新；没有 Go 数据时显示未知或未订阅，不补 0% | P2 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-028 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | off 策略隐藏并停止刷新 | [AC-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | 已登录；策略为 off | 1.选中带 `· go` 后缀的模型 2.查看输入区 3.观察一段时间内的额度请求 | 胶囊不显示；不再产生额度自动刷新请求；详情页额度卡片仍可手动刷新 | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-029 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | 胶囊与额度卡片数字一致 | [AC-03](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | 已登录；策略为 auto 或 always；选中带 `· go` 后缀的模型 | 1.记录额度卡片的已用比例 2.在同一时刻查看胶囊 3.查看胶囊的重置时间 | 两处比例一致；胶囊可查看重置时间且与卡片一致 | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
@@ -313,7 +313,7 @@ verifiedAt: 2026-10-24
 | TC-023 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web | 未执行 | — | 待执行 |
 | TC-024 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web | 未执行 | — | 待执行；需可构造额度接口失败 |
 | TC-025 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web | 未执行 | — | 待执行 |
-| TC-026 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web、DSH Desktop | 部分通过（DSH Web） | 2026-10-24 | auto 下 `· go` 显示、`· zen` 消失已验证；其它供应商与 Desktop 待执行 |
+| TC-026 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web、DSH Desktop | 部分通过（DSH Web） | 2026-10-24 | 口径修订：auto 改为按供应商判断，`· zen` 也显示。DSH Web 已验证 `· go` 与 `· zen` 均显示、其它供应商不显示；Desktop 待执行 |
 | TC-027 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web | 未执行 | — | 待执行 |
 | TC-028 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web | 未执行 | — | 待执行 |
 | TC-029 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web、DSH Desktop | 未执行 | — | 待执行 |
