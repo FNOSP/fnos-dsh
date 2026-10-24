@@ -1123,6 +1123,47 @@
         }
       ],
       "icon": "icons/885feeb6a7f66f78.png"
+    },
+    {
+      "name": "@tnnevol/dsh-opencode",
+      "title": {
+        "en": "OpenCode",
+        "zh": "OpenCode"
+      },
+      "description": {
+        "en": "Sign in to an OpenCode Console account and serve every OpenCode model (zen/go) in DeepSeek Harness, with live model capabilities, reasoning levels, and plan usage.",
+        "zh": "使用 OpenCode Console 账号登录，把 OpenCode 的全部 zen/go 模型及其思考等级、套餐用量接入 DeepSeek Harness。"
+      },
+      "icon": "icons/63495f813cb7ea50.png",
+      "author": "tnnevol",
+      "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-opencode",
+      "repository": {
+        "url": "https://github.com/FNOSP/fnos-dsh",
+        "directory": "plugins/dsh-opencode-plugin"
+      },
+      "metadata": {
+        "keywords": [
+          "opencode",
+          "opencode-go",
+          "provider",
+          "oauth",
+          "account",
+          "usage",
+          "models"
+        ]
+      },
+      "versions": [
+        {
+          "version": "0.2.1-rc.2.38",
+          "publishTimestamp": 1792834906,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.2"
+          }
+        }
+      ]
     }
   ]
 }
