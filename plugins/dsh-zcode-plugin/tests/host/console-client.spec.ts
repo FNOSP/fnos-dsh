@@ -94,8 +94,8 @@ describe('ZCode 控制面客户端', () => {
               total_units: 3_000_000,
               used_units: 1000,
               remaining_units: 2_999_000,
-              period: 'daily',
-              period_end: '2026-10-25T00:00:00+08:00',
+              period_start: 1_792_771_200,
+              period_end: 1_792_857_599,
             },
           ],
         },
@@ -110,7 +110,8 @@ describe('ZCode 控制面客户端', () => {
       totalUnits: 3_000_000,
       usedUnits: 1000,
       remainingUnits: 2_999_000,
-      period: 'daily',
+      periodStartSeconds: 1_792_771_200,
+      periodEndSeconds: 1_792_857_599,
     })
   })
 
@@ -139,23 +140,19 @@ describe('ZCode 控制面客户端', () => {
       jsonResponse({
         code: 0,
         data: {
-          providers: [
+          builtinModels: [
             {
-              models: [
-                {
-                  modelId: 'GLM-5.3',
-                  name: 'GLM-5.3',
-                  contextWindow: 1_000_000,
-                  maxCompletionTokens: 128_000,
-                  reasoning: { levels: [{ value: 'low' }, { value: 'high' }, { value: 'max' }] },
-                },
-                { modelId: 'GLM-5.3', name: 'GLM-5.3 duplicate' },
-                {
-                  modelId: 'GLM-5.3-Flash',
-                  name: 'GLM-5.3-Flash',
-                  capabilities: { inputFormat: { supportsImage: true } },
-                },
-              ],
+              modelId: 'GLM-5.3',
+              name: 'GLM-5.3',
+              contextWindow: 1_000_000,
+              maxCompletionTokens: 128_000,
+              reasoning: { levels: { low: {}, high: {}, max: {} } },
+            },
+            { modelId: 'GLM-5.3', name: 'GLM-5.3 duplicate' },
+            {
+              modelId: 'GLM-5.3-Flash',
+              name: 'GLM-5.3-Flash',
+              capabilities: { vision: true },
             },
           ],
           configs: {
@@ -236,5 +233,101 @@ describe('ZCode 控制面客户端', () => {
     expect(client.deviceMid()).toBe('restored')
     client.setDeviceMid('   ')
     expect(client.deviceMid()).toBe('restored')
+  })
+})
+
+describe('客户端配置解析（Web 实测修正）', () => {
+  it('从 builtinModels 读能力：contextWindow / maxCompletionTokens / 思考等级 / vision', async () => {
+    // 真实载荷的结构：能力在 data.builtinModels，reasoning.levels 是**对象映射**，
+    // 图片开关是 capabilities.vision。早前按 providers[].models[] + 数组读
+    // levels + inputFormat.supportsImage，导致 GLM-5.3 退回默认值且丢失思考与视觉。
+    const client = clientWith(async () =>
+      jsonResponse({
+        code: 0,
+        data: {
+          providers: [
+            { providerId: 'bigmodel', models: [{ modelId: 'GLM-5.2', name: 'GLM-5.2' }] },
+          ],
+          builtinModels: [
+            {
+              modelId: 'GLM-5.3',
+              name: 'GLM-5.3',
+              contextWindow: 1_000_000,
+              maxCompletionTokens: 128_000,
+              capabilities: {},
+              reasoning: {
+                levels: { low: { anthropic: { set: [] } }, high: {}, max: {} },
+                defaultLevel: 'max',
+              },
+            },
+            {
+              modelId: 'GLM-5.3-Flash',
+              name: 'GLM-5.3-Flash',
+              contextWindow: 1_000_000,
+              maxCompletionTokens: 128_000,
+              capabilities: { vision: true },
+              reasoning: { levels: { low: {}, high: {}, max: {} } },
+            },
+          ],
+        },
+      }))
+    const snapshot = await client.clientConfigs('jwt')
+    expect(snapshot.models).toHaveLength(2)
+    const [standard, flash] = snapshot.models
+    expect(standard).toMatchObject({
+      modelId: 'GLM-5.3',
+      contextWindow: 1_000_000,
+      maxCompletionTokens: 128_000,
+      defaultReasoningLevel: 'max',
+    })
+    // levels 是对象 → 键名就是等级；顺序按插入序 low/high/max。
+    expect(standard?.reasoningLevels).toEqual(['low', 'high', 'max'])
+    expect(standard?.supportsImage).toBeUndefined()
+    expect(flash?.supportsImage).toBe(true)
+  })
+
+  it('providers 里的旧模型不会顶替 builtinModels 的能力', async () => {
+    const client = clientWith(async () =>
+      jsonResponse({
+        code: 0,
+        data: {
+          providers: [{ models: [{ modelId: 'GLM-5.3', name: 'stale', contextWindow: 1 }] }],
+          builtinModels: [{ modelId: 'GLM-5.3', name: 'GLM-5.3', contextWindow: 1_000_000 }],
+        },
+      }))
+    const snapshot = await client.clientConfigs('jwt')
+    expect(snapshot.models).toHaveLength(1)
+    expect(snapshot.models[0]?.contextWindow).toBe(1_000_000)
+  })
+
+  it('额度时间字段按 Unix 秒读取（不是 ISO 字符串）', async () => {
+    const client = clientWith(async () =>
+      jsonResponse({
+        code: 0,
+        data: {
+          plans: [],
+          balances: [{
+            show_name: 'GLM-5.3',
+            capabilities: ['model:glm-5.3'],
+            total_units: 3_000_000,
+            used_units: 0,
+            remaining_units: 3_000_000,
+            plan_id: 'zcode-v3-start-plan-0817',
+            period_start: 1_792_771_200,
+            period_end: 1_792_857_599,
+            expires_at: 1_792_857_599,
+            available_units: 3_000_000,
+          }],
+        },
+      }))
+    const snapshot = await client.balance('jwt')
+    expect(snapshot.balances[0]).toMatchObject({
+      showName: 'GLM-5.3',
+      planId: 'zcode-v3-start-plan-0817',
+      periodStartSeconds: 1_792_771_200,
+      periodEndSeconds: 1_792_857_599,
+      expiresAtSeconds: 1_792_857_599,
+      availableUnits: 3_000_000,
+    })
   })
 })

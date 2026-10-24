@@ -25,8 +25,8 @@ const snapshot = {
       totalUnits: 3_000_000,
       usedUnits: 750_000,
       remainingUnits: 2_250_000,
-      period: 'daily',
-      periodEnd: '2026-10-25T00:00:00+08:00',
+      periodStartSeconds: 1_792_771_200,
+      periodEndSeconds: 1_792_857_599,
     },
     {
       showName: 'GLM-5.3-Flash',
@@ -34,8 +34,8 @@ const snapshot = {
       totalUnits: 5_000_000,
       usedUnits: 5_000_000,
       remainingUnits: 0,
-      period: 'one_time',
-      expiresAt: '2026-10-25T12:00:00+08:00',
+      // 无 period_end 时退回 expires_at。
+      expiresAtSeconds: 1_792_900_800,
     },
   ],
 }
@@ -91,16 +91,15 @@ describe('额度服务', () => {
       label: 'GLM-5.3',
       percent: 25,
       exhausted: false,
+      // 周期由 86399 秒窗口推导出来。
       period: 'daily',
-      resetsAt: '2026-10-25T00:00:00+08:00',
+      resetsAt: new Date(1_792_857_599_000).toISOString(),
     })
     expect(result.usage.windows[1]).toMatchObject({
       label: 'GLM-5.3-Flash',
       percent: 100,
       exhausted: true,
-      period: 'one_time',
-      // 没有 periodEnd 时退回 expiresAt。
-      resetsAt: '2026-10-25T12:00:00+08:00',
+      resetsAt: new Date(1_792_900_800_000).toISOString(),
     })
     expect(result.usage.plans).toHaveLength(1)
   })

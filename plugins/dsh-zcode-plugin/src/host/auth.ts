@@ -99,6 +99,21 @@ export class ZCodeAuthService {
     return record.zcodeJwt
   }
 
+  /**
+   * 家族侧 MaaS 令牌；`ultra` 端点用这一份凭据。
+   *
+   * 与 {@link zcodeJwt} 分开取，因为两个端点接受的凭据类型不同：`start-plan`
+   * 认 ZCode 域 JWT，`ultra` 认家族 MaaS 令牌。登录时上游是否返回家族令牌
+   * 取决于授权流程，缺失时返回 undefined，由上层给出可读提示。
+   */
+  async accessToken(): Promise<string | undefined> {
+    const record = await this.credential()
+    if (record === undefined) return undefined
+    if (isCredentialExpired(record, this.now)) return undefined
+    const token = record.accessToken
+    return typeof token === 'string' && token.length > 0 ? token : undefined
+  }
+
   /** 浏览器可见的登录状态（不含任何 token）。 */
   async status(): Promise<ZCodeAuthStatus> {
     if (this.flow !== undefined) {

@@ -66,7 +66,8 @@ export function apply(ctx: Context): void {
   })
 
   const runtime = new ZCodeProviderRuntime({
-    resolveToken: () => auth.zcodeJwt(),
+    // 端点策略决定用哪份凭据：Start Plan 认账号 JWT，Ultra 认家族 MaaS 令牌。
+    resolveToken: async plan => (plan === 'ultra' ? auth.accessToken() : auth.zcodeJwt()),
     deviceMid: () => client.deviceMid(),
     resolveAttachments: () => ctx.get('attachments') as AttachmentStore | undefined,
     logger: ctx.logger,
@@ -80,13 +81,16 @@ export function apply(ctx: Context): void {
     logger: ctx.logger,
   })
 
-  /** 把目录快照投影成 provider 模型，并按「隐藏模型」偏好过滤。 */
+  /** 把目录快照投影成 provider 模型，按「隐藏模型」过滤并按端点策略重建。 */
   const applyCatalog = async (): Promise<void> => {
     const snapshot = catalog.snapshot()
     if (snapshot === undefined) return
     const prefs = await preferences.read()
     const hidden = new Set(prefs.hiddenModels)
-    runtime.update(snapshot.models.filter(model => !hidden.has(model.id)))
+    runtime.update(
+      snapshot.models.filter(model => !hidden.has(model.id)),
+      prefs.endpointPlan,
+    )
   }
 
   refresh = async (force: boolean): Promise<void> => {
@@ -116,7 +120,10 @@ export function apply(ctx: Context): void {
         // 先用内置兜底建立一份同步可用的快照：headless/tui 在插件挂载后立即
         // 开始第一轮对话，等网络目录会让首轮直接落到空 provider 上。
         // 真实目录随后台刷新替换它。
-        runtime.update(ZCODE_BUILTIN_MODEL_IDS.map(id => toModel({ id, family: 'bigmodel' })))
+        runtime.update(
+          ZCODE_BUILTIN_MODEL_IDS.map(id => toModel({ id, family: 'bigmodel' })),
+          (await preferences.read()).endpointPlan,
+        )
         await refresh(false)
         await applyCatalog()
         await schedule()
@@ -208,8 +215,11 @@ export type {
 } from './host/usage.ts'
 export { ZCODE_ROUTES, ZCODE_ROUTE_PREFIX } from './contracts/routes.ts'
 export {
+  DEFAULT_ZCODE_ENDPOINT_PLAN,
   ZCODE_ANTHROPIC_BASE_URL,
+  ZCODE_ANTHROPIC_BASE_URLS,
   ZCODE_CLIENT_VERSION,
+  ZCODE_ENDPOINT_PLAN_LABELS,
   ZCODE_FAMILIES,
   ZCODE_FAMILY_LABELS,
   ZCODE_ORIGIN,
@@ -217,7 +227,7 @@ export {
   ZCODE_PROVIDER_NAME,
   ZCODE_USER_AGENT,
 } from './contracts/identity.ts'
-export type { ZCodeFamily } from './contracts/identity.ts'
+export type { ZCodeEndpointPlan, ZCodeFamily } from './contracts/identity.ts'
 export {
   findModel,
   modelIdOfCapability,

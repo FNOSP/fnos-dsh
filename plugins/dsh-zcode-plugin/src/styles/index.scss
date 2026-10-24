@@ -505,90 +505,113 @@
   line-height: 18px;
 }
 
-/* ---------- 输入区胶囊 ---------- */
+/* ---------- 输入区用量图标 ---------- */
 
-.dsh-zcode-capsule {
+/*
+ * 与 Codex 插件的用量图标同一套几何：26px 环形进度 + 环心品牌标记。
+ * 尺寸、描边与颜色都沿用同一组语义变量，两个插件摆在同一排时不会一高一低。
+ */
+
+.dsh-zcode-usage-progress {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--dsw-radius-s);
+}
+
+.dsh-zcode-usage-progress-track {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  cursor: pointer;
+
+  .semi-progress-circle {
+    width: 26px;
+    height: 26px;
+  }
+
+  .semi-progress-circle-text {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dsw-alias-label-primary);
+  }
+}
+
+.dsh-zcode-usage-popover-trigger {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dsh-zcode-usage-popover-progress {
+  height: 8px;
+}
+
+.dsh-zcode-usage-popover {
+  box-sizing: border-box;
+  min-width: 264px;
+  padding: 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
   color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
-  line-height: 18px;
-  white-space: nowrap;
-  cursor: default;
-}
 
-.dsh-zcode-capsule:hover {
-  background: var(--dsw-alias-bg-elevated);
-}
+  &-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 
-.dsh-zcode-capsule--error {
-  color: var(--dsw-alias-state-error);
-}
+  &-empty {
+    color: var(--dsw-alias-label-tertiary);
+    font-size: 12px;
+    line-height: 18px;
+  }
 
-.dsh-zcode-capsule-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 96px;
-}
+  /* 套餐行：放在各额度之上，先回答「这是什么账号」。 */
+  &-plan {
+    color: var(--dsw-alias-label-secondary);
+    font-size: 12px;
+    line-height: 18px;
+  }
 
-.dsh-zcode-capsule-value {
-  color: var(--dsw-alias-label-primary);
-  font-variant-numeric: tabular-nums;
-}
+  &-window {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
 
-.dsh-zcode-capsule-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 240px;
-  max-width: 320px;
-}
+  &-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--dsw-alias-label-primary);
+    font-size: 12px;
+    line-height: 18px;
+  }
 
-.dsh-zcode-capsule-panel-title {
-  margin: 0;
-  color: var(--dsw-alias-label-primary);
-  font-size: 12px;
-  font-weight: 600;
-}
+  &-title {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+  }
 
-.dsh-zcode-capsule-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
+  &-period {
+    color: var(--dsw-alias-label-tertiary);
+    font-size: 10px;
+    line-height: 14px;
+  }
 
-.dsh-zcode-capsule-row {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.dsh-zcode-capsule-row-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--dsw-alias-label-primary);
-  font-size: 11px;
-}
-
-.dsh-zcode-capsule-row-period {
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 10px;
-}
-
-.dsh-zcode-capsule-row-foot {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
+  &-foot {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--dsw-alias-label-tertiary);
+    font-size: 11px;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+  }
 }

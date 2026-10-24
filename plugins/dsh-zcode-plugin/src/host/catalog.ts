@@ -16,6 +16,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import {
+  deriveBalancePeriod,
   normalizeModelId,
   modelIdOfCapability,
   type ZCodeBalanceEntry,
@@ -140,22 +141,75 @@ export function modelIdsFromBalances(balances: readonly ZCodeBalanceEntry[]): st
   return ids
 }
 
-/** 把额度条目投影成带百分比的用量窗口。 */
-export function toBalanceEntries(
-  balances: readonly ZCodeRawBalance[],
+/** Unix 秒 → epoch 毫秒；非法值返回 undefined。 */
+function secondsToMs(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value) || value <= 0) return undefined
+  return value * 1000
+}
+
+/** 把额度条目归一成契约形状（周期由窗口时长推导）。 */
+export function toBalanceEntries(balances: readonly ZCodeRawBalance[]): ZCodeBalanceEntry[] {
+  return balances.map(balance => {
+    const periodStart = secondsToMs(balance.periodStartSeconds)
+    const periodEnd = secondsToMs(balance.periodEndSeconds)
+    return {
+      entitlementId: balance.capability ?? balance.showName,
+      showName: balance.showName,
+      ...(balance.capability === undefined ? {} : { capability: balance.capability }),
+      totalUnits: balance.totalUnits,
+      usedUnits: balance.usedUnits,
+      remainingUnits: balance.remainingUnits,
+      period: deriveBalancePeriod(balance.periodStartSeconds, balance.periodEndSeconds),
+      ...(periodStart === undefined ? {} : { periodStart }),
+      ...(periodEnd === undefined ? {} : { periodEnd }),
+      ...(secondsToMs(balance.expiresAtSeconds) === undefined
+        ? {}
+        : { expiresAt: secondsToMs(balance.expiresAtSeconds) }),
+      ...(balance.planId === undefined ? {} : { planId: balance.planId }),
+    }
+  })
+}
+
+/**
+ * 同一模型在多份套餐下会有多条额度，逐条展示会让界面出现重复行。
+ *
+ * 这里按「模型 + 周期」合并：保留额度最大的那条作为主额度，把其余总量累加。
+ * 累加是有意义的——两份套餐的同一模型日额度确实可以叠加使用；但**不合并
+ * 不同周期**，否则会掩盖"日额度用完但活动额度还有"。
+ */
+export function mergeBalanceEntries(
+  entries: readonly ZCodeBalanceEntry[],
 ): ZCodeBalanceEntry[] {
-  return balances.map(balance => ({
-    entitlementId: balance.capability ?? balance.showName,
-    showName: balance.showName,
-    ...(balance.capability === undefined ? {} : { capability: balance.capability }),
-    totalUnits: balance.totalUnits,
-    usedUnits: balance.usedUnits,
-    remainingUnits: balance.remainingUnits,
-    ...(balance.period === undefined ? {} : { period: balance.period }),
-    ...(balance.periodStart === undefined ? {} : { periodStart: balance.periodStart }),
-    ...(balance.periodEnd === undefined ? {} : { periodEnd: balance.periodEnd }),
-    ...(balance.expiresAt === undefined ? {} : { expiresAt: balance.expiresAt }),
-  }))
+  const merged = new Map<string, ZCodeBalanceEntry>()
+  for (const entry of entries) {
+    const key = `${entry.capability ?? entry.showName}::${entry.period}`
+    const existing = merged.get(key)
+    if (existing === undefined) {
+      merged.set(key, entry)
+      continue
+    }
+    const totalUnits = existing.totalUnits + entry.totalUnits
+    const usedUnits = existing.usedUnits + entry.usedUnits
+    const remainingUnits = existing.remainingUnits + entry.remainingUnits
+    merged.set(key, {
+      ...existing,
+      totalUnits,
+      usedUnits,
+      remainingUnits,
+      // 取更早的到期时间：先到期的额度先生效，提醒用户不要错过。
+      ...(earliest(existing.periodEnd, entry.periodEnd) === undefined
+        ? {}
+        : { periodEnd: earliest(existing.periodEnd, entry.periodEnd) }),
+    })
+  }
+  return [...merged.values()]
+}
+
+/** 两个时间戳中较早且存在的那个。 */
+function earliest(left: number | undefined, right: number | undefined): number | undefined {
+  if (left === undefined) return right
+  if (right === undefined) return left
+  return Math.min(left, right)
 }
 
 /** 目录服务依赖。 */
@@ -238,7 +292,7 @@ export class ZCodeCatalogService {
 
     try {
       const snapshot = await this.options.client.balance(token)
-      balances = toBalanceEntries(snapshot.balances)
+      balances = mergeBalanceEntries(toBalanceEntries(snapshot.balances))
       plans = snapshot.plans.map(plan => ({
         planId: plan.planId,
         ...(plan.name === undefined ? {} : { name: plan.name }),

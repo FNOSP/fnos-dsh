@@ -40,8 +40,11 @@ import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { ZCodeModel } from '../contracts/catalog.ts'
 import {
+  ZCODE_ANTHROPIC_BASE_URLS,
   ZCODE_PROVIDER,
   ZCODE_PROVIDER_NAME,
+  DEFAULT_ZCODE_ENDPOINT_PLAN,
+  type ZCodeEndpointPlan,
 } from '../contracts/identity.ts'
 import { zcodeSourceHeaders } from './console-client.ts'
 
@@ -54,20 +57,34 @@ export const ZCODE_REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
 /** 每张请求图片的编码后字节目标。 */
 export const ZCODE_REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
-/** 把目录条目投影为 pi-ai 模型。 */
-export function toPiModel(model: ZCodeModel): Model<Api> {
+/**
+ * 把目录条目投影为 pi-ai 模型。
+ *
+ * @param model - 目录条目。
+ * @param baseURL - 覆盖端点（端点策略决定，见 `ZCodeEndpointPlan`）。
+ */
+export function toPiModel(model: ZCodeModel, baseURL?: string): Model<Api> {
   const value = {
     id: model.id,
     name: model.name,
     api: model.api,
     provider: ZCODE_PROVIDER,
-    baseUrl: model.baseURL,
+    baseUrl: baseURL ?? model.baseURL,
     input: [...model.input],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     reasoning: model.reasoning,
     contextWindow: model.contextWindow,
     maxTokens: model.maxTokens,
     type: 'chat' as const,
+    /*
+     * ZCode 的思考等级用 `output_config.effort` 表达（上游客户端配置里
+     * `reasoning.levels.<level>.anthropic.set` 就是往这个路径写 low/high/max）。
+     *
+     * 只有 `forceAdaptiveThinking` 才会让 pi-ai 走 effort 分支；不设它，pi-ai
+     * 会退回 `thinking: { type: 'enabled', budget_tokens }`，网关拿不到 effort，
+     * 用户在 DSH 里选的思考等级就等于没生效。
+     */
+    ...(model.reasoning ? { compat: { forceAdaptiveThinking: true } } : {}),
     ...(model.thinkingLevelMap === undefined
       ? {}
       : { thinkingLevelMap: { ...model.thinkingLevelMap } }),
@@ -123,12 +140,13 @@ function providerAuth(resolveToken: () => Promise<string | undefined>): Provider
 export function createZCodeProvider(
   models: readonly ZCodeModel[],
   resolveToken: () => Promise<string | undefined>,
+  baseURL?: string,
 ): Provider {
   return createProvider({
     id: ZCODE_PROVIDER,
     name: ZCODE_PROVIDER_NAME,
     auth: providerAuth(resolveToken),
-    models: models.map(toPiModel),
+    models: models.map(model => toPiModel(model, baseURL)),
     api: zcodeApis(),
   })
 }
@@ -138,6 +156,7 @@ export function createZCodeProfile(
   models: readonly ZCodeModel[],
   resolveToken: () => Promise<string | undefined>,
   headers: Readonly<Record<string, string>> = {},
+  baseURL?: string,
 ): ResolvedPiAiProviderProfile {
   return {
     provider: ZCODE_PROVIDER,
@@ -149,7 +168,7 @@ export function createZCodeProfile(
     retryPolicy: resolveRetryPolicy(undefined, 'dsh-zcode retryPolicy'),
     configuredMaxTokens: new Map(),
     headers: { ...headers },
-    piProvider: createZCodeProvider(models, resolveToken),
+    piProvider: createZCodeProvider(models, resolveToken, baseURL),
     modelErrors: new Map(),
   }
 }
@@ -166,7 +185,8 @@ export function createZCodePiAdapter(options: {
       const token = await options.resolveToken()
       if (token === undefined || token.length === 0) {
         throw new LlmError(
-          'ZCode 尚未登录：请在插件详情页登录 ZCode 账号',
+          'ZCode 凭据不可用：请在插件详情页登录 ZCode 账号。若已选 Ultra 端点，'
+          + '还需要该账号具备家族 OAuth 令牌（重新登录一次即可补齐）',
           'MISSING_CREDENTIAL',
         )
       }
@@ -186,8 +206,13 @@ export function createZCodePiAdapter(options: {
 
 /** 运行时依赖。 */
 export interface ZCodeProviderRuntimeOptions {
-  /** 返回当前可用账号 JWT；未登录返回 undefined。 */
-  readonly resolveToken: () => Promise<string | undefined>
+  /**
+   * 按端点策略返回可用凭据；未登录/缺凭据返回 undefined。
+   *
+   * `start-plan` 用账号 JWT（ZCode 域凭证）；`ultra` 用家族 MaaS 令牌。
+   * 两种凭据由同一份登录记录提供，但被不同端点接受。
+   */
+  readonly resolveToken: (plan: ZCodeEndpointPlan) => Promise<string | undefined>
   /** 提供稳定的设备标识，用于构造路由头。 */
   readonly deviceMid: () => string
   /** 读取宿主附件服务，供图片输入使用。 */
@@ -202,6 +227,8 @@ export interface ZCodeRouteStatus {
   readonly registered: boolean
   readonly error?: string
   readonly modelCount: number
+  /** 当前端点策略，便于详情页说明「请求会发到哪里、扣哪种额度」。 */
+  readonly endpointPlan?: ZCodeEndpointPlan
 }
 
 /**
@@ -217,11 +244,13 @@ export class ZCodeProviderRuntime {
   private registered = false
   private error: string | undefined
   private currentModels: readonly ZCodeModel[] = []
+  private endpointPlan: ZCodeEndpointPlan = DEFAULT_ZCODE_ENDPOINT_PLAN
 
   constructor(private readonly options: ZCodeProviderRuntimeOptions) {
     this.adapter = createZCodePiAdapter({
       profiles: () => this.snapshot,
-      resolveToken: this.options.resolveToken,
+      // 适配器只关心"当前策略下的凭据"，策略由 runtime 持有。
+      resolveToken: () => this.options.resolveToken(this.endpointPlan),
       resolveAttachments: this.options.resolveAttachments,
     })
   }
@@ -239,6 +268,7 @@ export class ZCodeProviderRuntime {
       registered: this.registered,
       ...(this.error === undefined ? {} : { error: this.error }),
       modelCount: this.currentModels.length,
+      endpointPlan: this.endpointPlan,
     }]
   }
 
@@ -262,13 +292,30 @@ export class ZCodeProviderRuntime {
     }, 'dsh-zcode: LLM 路由')
   }
 
-  /** 用新目录重建 profile；下一次 LLM 操作即可见。 */
-  update(models: readonly ZCodeModel[]): void {
+  /** 当前端点策略。 */
+  plan(): ZCodeEndpointPlan {
+    return this.endpointPlan
+  }
+
+  /**
+   * 用新目录与端点策略重建 profile；下一次 LLM 操作即可见。
+   *
+   * 端点策略决定 baseURL 与凭据类型，两者必须一起换：只换端点不换凭据会直接
+   * 401（`ultra` 不接受账号 JWT）。
+   */
+  update(models: readonly ZCodeModel[], plan: ZCodeEndpointPlan = this.endpointPlan): void {
     this.currentModels = models
+    this.endpointPlan = plan
+    const baseURL = ZCODE_ANTHROPIC_BASE_URLS[plan]
     // 新 Map 身份是 PiAiAdapter 重建模型集合的信号。
     this.snapshot = new Map([[
       ZCODE_PROVIDER,
-      createZCodeProfile(models, this.options.resolveToken, zcodeSourceHeaders(this.options.deviceMid())),
+      createZCodeProfile(
+        models,
+        () => this.options.resolveToken(this.endpointPlan),
+        zcodeSourceHeaders(this.options.deviceMid()),
+        baseURL,
+      ),
     ]])
   }
 }

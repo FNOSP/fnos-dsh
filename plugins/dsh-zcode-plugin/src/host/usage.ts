@@ -16,6 +16,7 @@ import {
   type ZCodeUsage,
   type ZCodeUsageWindow,
 } from '../contracts/usage.ts'
+import { mergeBalanceEntries, toBalanceEntries } from './catalog.ts'
 import type { ZCodeConsoleClient } from './console-client.ts'
 
 /** 失败原因。 */
@@ -86,7 +87,8 @@ export class ZCodeUsageService {
     }
     try {
       const snapshot = await this.options.client.balance(token)
-      const windows: ZCodeUsageWindow[] = snapshot.balances.map(entry => {
+      // 同一模型在多份套餐下的额度按「模型 + 周期」合并，避免界面出现重复行。
+      const windows: ZCodeUsageWindow[] = mergeBalanceEntries(toBalanceEntries(snapshot.balances)).map(entry => {
         const percent = usagePercent(entry.usedUnits, entry.totalUnits)
         return {
           label: entry.showName,
@@ -96,11 +98,12 @@ export class ZCodeUsageService {
           remainingUnits: entry.remainingUnits,
           percent,
           ...(entry.period === undefined ? {} : { period: entry.period }),
+          // periodEnd / expiresAt 已经是 epoch 毫秒，转成 ISO 供界面格式化。
           ...(entry.periodEnd === undefined
             ? entry.expiresAt === undefined
               ? {}
-              : { resetsAt: entry.expiresAt }
-            : { resetsAt: entry.periodEnd }),
+              : { resetsAt: new Date(entry.expiresAt).toISOString() }
+            : { resetsAt: new Date(entry.periodEnd).toISOString() }),
           exhausted: entry.remainingUnits <= 0,
         }
       })

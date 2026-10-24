@@ -1,22 +1,34 @@
 /**
- * 对话输入区右侧的 ZCode 额度胶囊。
+ * 对话输入区的 ZCode 额度图标。
  *
- * 显隐由偏好决定：`auto` 只在当前会话选中 ZCode 模型时出现，`always` 常驻，
- * `off` 完全隐藏并停止轮询。`auto` 的判定读会话的模型选择——胶囊出现在
- * 用户正在用 ZCode 对话的时候，而不是任何对话都挂着。
+ * 结构与 Codex 插件的用量图标保持一致（同一座位、同一交互约定）：
+ * - 环形进度（26px，环心放品牌标记）表达额度剩余比例；
+ * - 悬停出 tooltip 摘要（模型 · 剩余 · 重置）；
+ * - 点击出 popover 列出每一份额度（模型 × 周期）；
+ * - 未登录、或选中模型不属于本供应商时整体不挂出。
+ *
+ * 与 Codex 的唯一差别是额度粒度：Codex 是固定的五小时 / 每周 / 每月三个窗口，
+ * ZCode 是「每个模型 × 周期」。所以环形取**当前选中模型**那一份，popover 再列
+ * 全部——否则用户看不出环上那个百分比属于哪一份额度。
  *
  * @module dsh-zcode/components/UsageStatus
  */
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import type { ReactNode } from 'react'
-import { DshPopover, DshProgress, DshSpin } from '@tnnevol/dsh-semi-ui'
-import { shouldShowCapsule } from '../client/services/capsule-visibility.ts'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
+import { DshPopover, DshProgress, DshTooltip } from '@tnnevol/dsh-semi-ui'
+import { ZCODE_PROVIDER_NAME } from '../contracts/identity.ts'
 import type { ZCodeUsage, ZCodeUsageWindow } from '../contracts/usage.ts'
 import type { ZCodeTranslate } from '../client/locales.ts'
 import { authEpoch, subscribeAuthEpoch } from '../client/services/auth-events.ts'
+import {
+  readSelectedModel,
+  readSelectedProvider,
+  shouldShowCapsule,
+  type ModelSelectionProjectionLike,
+} from '../client/services/capsule-visibility.ts'
 import { describeDuration, formatTokens } from '../client/services/format.ts'
-import { errorMessage } from '../client/services/http.ts'
+import { primaryWindow, remainingOf } from '../client/services/usage-window-select.ts'
 import type { TimerService } from '../client/services/polling.ts'
 import type { ZCodePreferencesStore } from '../client/services/preferences-data.ts'
 import { readUsage } from '../client/services/usage-data.ts'
@@ -28,11 +40,19 @@ export interface ZCodeUsageStatusInjected {
   readonly preferences: ZCodePreferencesStore
 }
 
-/** 座位标准套件里本组件用到的字段。 */
+/**
+ * 座位标准套件里本组件用到的字段。
+ *
+ * `useProjection` 由渲染器的会话作用域座位提供，**不能**通过 `inject` 传：
+ * `inject` 在 React 之外执行，传不了 hook。投影形状是 `{ next, lastUsed }`，
+ * 取 `next ?? lastUsed`。
+ */
 interface UsageStatusSlotProps {
-  /** 当前会话的模型选择；未选中时为 undefined。 */
-  readonly modelSelection?: { readonly providerId?: string } | undefined
+  readonly useProjection: <T>(name: 'modelSelection') => T | undefined
 }
+
+/** 轮询间隔（毫秒）：额度是低频变化数据。 */
+const REFRESH_MS = 5 * 60_000
 
 /** 周期标签。 */
 function periodLabel(period: string | undefined, t: ZCodeTranslate): string {
@@ -40,14 +60,15 @@ function periodLabel(period: string | undefined, t: ZCodeTranslate): string {
   if (period === 'weekly') return t('usagePeriodWeekly')
   if (period === 'monthly') return t('usagePeriodMonthly')
   if (period === 'one_time') return t('usagePeriodOneTime')
+  if (period === 'custom') return t('usagePeriodCustom')
   return t('usagePeriodUnknown')
 }
 
-/** 重置倒计时。 */
-function resetText(window: ZCodeUsageWindow, t: ZCodeTranslate, now: number): string {
-  if (window.resetsAt === undefined) return t('usageNoReset')
+/** 重置时间文字。 */
+function resetLabel(window: ZCodeUsageWindow, t: ZCodeTranslate, now: number): string | undefined {
+  if (window.resetsAt === undefined) return undefined
   const at = Date.parse(window.resetsAt)
-  if (!Number.isFinite(at) || at <= now) return t('usageNoReset')
+  if (!Number.isFinite(at) || at <= now) return undefined
   const { value, unit } = describeDuration(at - now)
   const when = unit === 'minutes'
     ? t('timeMinutes', { count: value })
@@ -58,9 +79,104 @@ function resetText(window: ZCodeUsageWindow, t: ZCodeTranslate, now: number): st
 }
 
 /**
- * 用量胶囊。
+ * ZCode 官方标记：白色几何 Z。
+ *
+ * 环心只有 12px，所以只取「Z」本身、用 `currentColor` 上色，与外环描边同一
+ * 色阶；不画底板，避免小尺寸下糊成一块。
+ */
+function ZCodeLogo(): ReactNode {
+  return (
+    <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M4 4h16v3.6H10.4zM4 16.4h16V20H9.2zM14.2 4H20L9.8 20H4z"
+      />
+    </svg>
+  )
+}
+
+/** popover 里的单份额度。 */
+function WindowDetails({
+  window,
+  t,
+  now,
+}: {
+  window: ZCodeUsageWindow
+  t: ZCodeTranslate
+  now: number
+}): ReactNode {
+  const remainingPercent = Math.round(remainingOf(window))
+  const reset = resetLabel(window, t, now)
+  return (
+    <div className="dsh-zcode-usage-popover-window">
+      <div className="dsh-zcode-usage-popover-heading">
+        <span className="dsh-zcode-usage-popover-title">
+          {window.label}
+          <span className="dsh-zcode-usage-popover-period">{periodLabel(window.period, t)}</span>
+        </span>
+        <span>{t('usageRemainingPercent', { percent: remainingPercent })}</span>
+      </div>
+      <DshProgress
+        percent={remainingPercent}
+        showInfo={false}
+        stroke="var(--dsw-alias-label-tertiary)"
+        orbitStroke="var(--dsw-alias-border-l3)"
+        className="dsh-zcode-usage-popover-progress"
+      />
+      <div className="dsh-zcode-usage-popover-foot">
+        <span>
+          {t('usageUnitsRemaining', {
+            remaining: formatTokens(window.remainingUnits),
+            total: formatTokens(window.totalUnits),
+          })}
+        </span>
+        <span>{window.exhausted ? t('usageExhausted') : reset ?? t('usageNoReset')}</span>
+      </div>
+    </div>
+  )
+}
+
+/** 全部额度的 popover 内容。 */
+function UsagePopover({
+  usage,
+  t,
+  now,
+  fallback,
+}: {
+  usage: ZCodeUsage | undefined
+  t: ZCodeTranslate
+  now: number
+  fallback: string
+}): ReactNode {
+  const windows = usage?.windows ?? []
+  const plans = usage?.plans ?? []
+  return (
+    <div className="dsh-zcode-usage-popover-content">
+      {plans.length === 0
+        ? null
+        : (
+            <span className="dsh-zcode-usage-popover-plan">
+              {`${t('usagePlans')}: ${plans.map(plan => plan.name ?? plan.planId).join(' / ')}`}
+            </span>
+          )}
+      {windows.length === 0
+        ? <span className="dsh-zcode-usage-popover-empty">{fallback}</span>
+        : windows.map(window => (
+            <WindowDetails
+              key={`${window.capability ?? window.label}:${window.period ?? 'unknown'}`}
+              window={window}
+              t={t}
+              now={now}
+            />
+          ))}
+    </div>
+  )
+}
+
+/**
+ * 用量图标。
  * @param props - 座位注入面 + 座位标准套件。
- * @returns 胶囊元素；不该显示时返回 `null`。
+ * @returns 图标元素；不该显示时返回 `null`。
  */
 export function ZCodeUsageStatus(
   props: ZCodeUsageStatusInjected & UsageStatusSlotProps,
@@ -72,130 +188,156 @@ export function ZCodeUsageStatus(
     preferences.getSnapshot,
   )
   const revision = useSyncExternalStore(subscribeAuthEpoch, authEpoch, authEpoch)
+  // 会话作用域座位的标准套件由渲染器保证存在，因此无条件调用 hook。
+  const selection = props.useProjection<ModelSelectionProjectionLike>('modelSelection')
+  const provider = readSelectedProvider(selection)
+  const selectedModel = readSelectedModel(selection)
+
   const [usage, setUsage] = useState<ZCodeUsage>()
-  const [error, setError] = useState<string>()
-  // 是否完成过至少一次读取；只有「读过了且既没数据也没错误」才当作空。
-  const [settled, setSettled] = useState(false)
+  const [signedIn, setSignedIn] = useState<boolean>()
+  const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading')
+  const [popoverOpen, setPopoverOpen] = useState(false)
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     void preferences.ensureLoaded().catch(() => undefined)
   }, [preferences])
 
-  const visible = loaded && shouldShowCapsule(prefs.usageVisibility, props.modelSelection)
+  /*
+   * 未登录或选中别的供应商时整体不挂出。
+   *
+   * 偏好在这里只作为额外开关：`always` 允许跨供应商常驻，`off` 一律隐藏，
+   * 其余按 Codex 的规则只看供应商是否匹配——这样两个插件在同一个位置上
+   * 的显隐行为一致。
+   */
+  const visible = loaded && shouldShowCapsule(prefs.usageVisibility, provider, signedIn !== false)
 
   useEffect(() => {
+    // 图标不挂出时不建立轮询，否则看不见也会继续打接口。
     if (!visible) return
-    // 用局部标记代替在 effect 里同步 setLoading(true)：同步 set 会造成一次
-    // 多余渲染，而这里真正关心的是「首次读取完成前显示占位」。
-    let live = true
-    void (async () => {
+    let active = true
+    let sequence = 0
+    const refresh = async (): Promise<void> => {
+      const current = ++sequence
       try {
         const response = await readUsage()
-        if (!live) return
-        if (response.signedIn && 'usage' in response) {
+        if (!active || current !== sequence) return
+        setNow(Date.now())
+        if (response.signedIn !== true) {
+          setSignedIn(false)
+          setUsage(undefined)
+          setState('unavailable')
+          return
+        }
+        setSignedIn(true)
+        if ('usage' in response) {
           setUsage(response.usage)
-          setError(undefined)
-        } else if (response.signedIn && 'error' in response) {
-          setError(response.error)
+          setState('ready')
         } else {
           setUsage(undefined)
-          setError(undefined)
+          setState('unavailable')
         }
-      } catch (loadError) {
-        if (live) setError(errorMessage(loadError, t('usageRequestFailed')))
-      } finally {
-        if (live) {
-          setSettled(true)
-          setNow(Date.now())
-        }
+      } catch {
+        if (!active || current !== sequence) return
+        setUsage(undefined)
+        setState('unavailable')
       }
-    })()
-    return () => { live = false }
-  }, [revision, t, visible])
+    }
+    void refresh()
+    const dispose = timer.interval(() => { void refresh() }, REFRESH_MS)
+    return () => {
+      active = false
+      sequence += 1
+      dispose()
+    }
+  }, [revision, timer, visible])
 
-  // 胶囊跟着偏好间隔轮询；关闭自动刷新时不建定时器。
-  useEffect(() => {
-    if (!visible || prefs.refreshMinutes <= 0) return
-    const ms = Math.max(60_000, prefs.refreshMinutes * 60_000)
-    return timer.interval(() => { void readUsage().then(response => {
-      if (response.signedIn && 'usage' in response) setUsage(response.usage)
-    }).catch(() => undefined) }, ms)
-  }, [prefs.refreshMinutes, timer, visible])
-
+  // 重置倒计时每 30 秒重算，只改本地时间戳，不重新请求。
   useEffect(() => {
     if (!visible) return
     return timer.interval(() => { setNow(Date.now()) }, 30_000)
   }, [timer, visible])
 
-  const headline = useMemo(() => usage?.windows[0], [usage])
+  const primary = usage === undefined ? undefined : primaryWindow(usage.windows, selectedModel)
+  useEffect(() => {
+    // 图标隐藏后浮层状态不该残留，否则重新显示时会自己弹开。
+    if ((primary === undefined || !visible) && popoverOpen) setPopoverOpen(false)
+  }, [popoverOpen, primary, visible])
 
   if (!visible) return null
+  // 未登录时挂一个空图标没有信息量；与 Codex 一致，直接不挂出。
+  if (signedIn === false) return null
 
-  if (error !== undefined) {
-    return (
-      <span className="dsh-zcode-capsule dsh-zcode-capsule--error" title={error}>
-        {t('capsuleTitle')}
-      </span>
-    )
+  const hasUsage = primary !== undefined
+  const currentSummary = hasUsage
+    ? [
+        primary.label,
+        t('usageRemainingPercent', { percent: Math.round(remainingOf(primary)) }),
+        resetLabel(primary, t, now),
+      ].filter((part): part is string => part !== undefined).join(' · ')
+    : state === 'loading'
+      ? t('capsuleLoading')
+      : t('capsuleUnavailable')
+
+  const togglePopover = (): void => { setPopoverOpen(open => !open) }
+  const onKeyDown = (event: KeyboardEvent<HTMLSpanElement>): void => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    togglePopover()
   }
 
-  if (!settled && usage === undefined && error === undefined) {
-    return (
-      <span className="dsh-zcode-capsule" title={t('capsuleTitle')}>
-        <DshSpin size="small" />
-      </span>
-    )
-  }
-
-  if (usage === undefined || headline === undefined) {
-    return (
-      <span className="dsh-zcode-capsule" title={t('capsuleEmpty')}>
-        {t('capsuleTitle')}
-      </span>
-    )
-  }
-
-  const percent = Math.max(0, Math.min(100, headline.percent))
-  const remaining = Math.max(0, 100 - percent)
+  const progressContent = (
+    <span className="dsh-zcode-usage-progress-track" aria-label={currentSummary}>
+      <DshProgress
+        type="circle"
+        percent={hasUsage ? remainingOf(primary) : 0}
+        width={26}
+        strokeWidth={3}
+        stroke="var(--dsw-alias-label-tertiary)"
+        orbitStroke="var(--dsw-alias-border-l3)"
+        showInfo
+        format={() => <ZCodeLogo />}
+      />
+    </span>
+  )
+  // Tooltip 必须在 Popover 打开时卸载：只控制 `visible` 会留下 Semi 的 hover
+  // 触发器，导致已经关掉的 tooltip 又弹回来。
+  const progress = popoverOpen
+    ? progressContent
+    : (
+        <DshTooltip content={currentSummary} mouseEnterDelay={0.35} mouseLeaveDelay={0.35}>
+          {progressContent}
+        </DshTooltip>
+      )
 
   return (
-    <DshPopover
-      trigger="hover"
-      position="topRight"
-      content={(
-        <div className="dsh-zcode-capsule-panel">
-          <p className="dsh-zcode-capsule-panel-title">{t('capsuleTitle')}</p>
-          <ul className="dsh-zcode-capsule-list">
-            {usage.windows.map(window => (
-              <li key={`${window.capability ?? window.label}:${window.period ?? 'unknown'}`} className="dsh-zcode-capsule-row">
-                <div className="dsh-zcode-capsule-row-head">
-                  <span>{window.label}</span>
-                  <span className="dsh-zcode-capsule-row-period">{periodLabel(window.period, t)}</span>
-                </div>
-                <DshProgress percent={Math.max(0, Math.min(100, window.percent))} showInfo={false} />
-                <div className="dsh-zcode-capsule-row-foot">
-                  <span>{formatTokens(window.remainingUnits)} / {formatTokens(window.totalUnits)}</span>
-                  <span>{resetText(window, t, now)}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+    <span
+      className="dsh-zcode-usage-progress"
+      aria-label={`${ZCODE_PROVIDER_NAME} ${currentSummary}`}
+      aria-busy={state === 'loading'}
     >
-      <span
-        className="dsh-zcode-capsule"
-        title={t('usageRemaining', {
-          remaining: formatTokens(headline.remainingUnits),
-          total: formatTokens(headline.totalUnits),
-        })}
+      <DshPopover
+        trigger="custom"
+        position="topRight"
+        content={<UsagePopover usage={usage} t={t} now={now} fallback={currentSummary} />}
+        contentClassName="dsh-zcode-usage-popover"
+        visible={popoverOpen}
+        onVisibleChange={setPopoverOpen}
+        onClickOutSide={() => { setPopoverOpen(false) }}
+        showArrow={false}
       >
-        <span className="dsh-zcode-capsule-label">{headline.label}</span>
-        <span className="dsh-zcode-capsule-value">{Math.round(remaining)}%</span>
-      </span>
-    </DshPopover>
+        <span
+          className="dsh-zcode-usage-popover-trigger"
+          role="button"
+          tabIndex={0}
+          onClick={togglePopover}
+          onKeyDown={onKeyDown}
+        >
+          {progress}
+        </span>
+      </DshPopover>
+    </span>
   )
 }
 
-export { shouldShowCapsule } from '../client/services/capsule-visibility.ts'
+export { primaryWindow, remainingOf } from '../client/services/usage-window-select.ts'

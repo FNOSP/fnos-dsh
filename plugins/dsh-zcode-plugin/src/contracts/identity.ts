@@ -46,8 +46,41 @@ export const ZCODE_CLIENT_CONFIGS_URL = `${ZCODE_ORIGIN}/api/v1/client/configs`
 /** Agent 运行时配置（代理端点映射、签名开关）。 */
 export const ZCODE_AGENT_CONFIGS_URL = `${ZCODE_ORIGIN}/api/v1/agent/configs`
 
-/** Start Plan 的 Anthropic 兼容推理端点前缀。 */
-export const ZCODE_ANTHROPIC_BASE_URL = `${ZCODE_ORIGIN}/api/v1/zcode-plan/anthropic`
+/**
+ * 推理端点的两种策略。
+ *
+ * 官方开源项目（`zai-org/ZCode` 的 `official-coding-plan-gateway.ts`）把
+ * `open.bigmodel.cn/api/anthropic/v1/messages` 改写成
+ * `<origin>/api/v1/ultra/anthropic/v1/messages`——官方模型流量走 `ultra`。
+ *
+ * 两条端点对第三方 HTTP 客户端的表现完全不同（2026-10-24 同一凭据实测）：
+ * - `start-plan`（`zcode-plan/anthropic`）：消耗 Start Plan 额度，用账号 JWT；
+ *   但该路径对第三方请求恒被风控拦截（HTTP 405 + 业务码 3012）。
+ * - `ultra`（`ultra/anthropic`）：**不被风控拦截**，用家族 MaaS 令牌；
+ *   计费落到个人按量余额，余额为 0 时返回 HTTP 429 + 业务码 1113。
+ *
+ * 因此两条都要支持：只订了 Start Plan 的账号只能用前者（并接受上游拦截），
+ * 有按量余额的账号可以切到后者真正跑通对话。
+ */
+export type ZCodeEndpointPlan = 'start-plan' | 'ultra'
+
+/** 两种策略对应的端点前缀。 */
+export const ZCODE_ANTHROPIC_BASE_URLS: Readonly<Record<ZCodeEndpointPlan, string>> = {
+  'start-plan': `${ZCODE_ORIGIN}/api/v1/zcode-plan/anthropic`,
+  ultra: `${ZCODE_ORIGIN}/api/v1/ultra/anthropic`,
+}
+
+/** 默认策略：Start Plan（账号若只有套餐额度，这是唯一有意义的选择）。 */
+export const DEFAULT_ZCODE_ENDPOINT_PLAN: ZCodeEndpointPlan = 'start-plan'
+
+/** Start Plan 的 Anthropic 兼容推理端点前缀（默认策略，保留旧名便于引用）。 */
+export const ZCODE_ANTHROPIC_BASE_URL = ZCODE_ANTHROPIC_BASE_URLS['start-plan']
+
+/** 端点策略的展示名。 */
+export const ZCODE_ENDPOINT_PLAN_LABELS: Readonly<Record<ZCodeEndpointPlan, string>> = {
+  'start-plan': 'Start Plan（套餐额度）',
+  ultra: 'Ultra（按量余额）',
+}
 
 /**
  * 请求 user-agent。

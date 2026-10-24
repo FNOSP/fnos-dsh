@@ -88,6 +88,7 @@ function ZCodeSectionContent({ t, preferences, timer }: ZCodeSectionInjected): R
         loadError={preferencesError}
         usageVisibility={preferenceValues.usageVisibility}
         refreshMinutes={preferenceValues.refreshMinutes}
+        endpointPlan={preferenceValues.endpointPlan}
       />
     </div>
   )

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   isUnauthorized,
+  mergeBalanceEntries,
   modelIdsFromBalances,
   thinkingLevelMapOf,
   toBalanceEntries,
@@ -10,7 +11,11 @@ import {
   ZCODE_FALLBACK_MAX_TOKENS,
   ZCodeCatalogService,
 } from '../../src/host/catalog.ts'
-import { normalizeModelId, modelIdOfCapability } from '../../src/contracts/catalog.ts'
+import {
+  deriveBalancePeriod,
+  normalizeModelId,
+  modelIdOfCapability,
+} from '../../src/contracts/catalog.ts'
 import type { ZCodeBalanceEntry } from '../../src/contracts/catalog.ts'
 import { ZCodeConsoleError, type ZCodeConsoleClient } from '../../src/host/console-client.ts'
 
@@ -22,6 +27,7 @@ function balance(capability: string | undefined, showName = 'GLM-5.3'): ZCodeBal
     totalUnits: 100,
     usedUnits: 10,
     remainingUnits: 90,
+    period: 'daily' as const,
   }
 }
 
@@ -67,6 +73,7 @@ describe('capability 与模型 id 归一', () => {
   })
 
   it('额度条目保留周期与重置时间', () => {
+    // 上游给的是 Unix 秒，没有 period 字段；周期由窗口时长推导。
     const entries = toBalanceEntries([
       {
         showName: 'GLM-5.3',
@@ -74,14 +81,15 @@ describe('capability 与模型 id 归一', () => {
         totalUnits: 3_000_000,
         usedUnits: 1_500_000,
         remainingUnits: 1_500_000,
-        period: 'daily',
-        periodEnd: '2026-10-25T00:00:00+08:00',
+        periodStartSeconds: 1_792_771_200,
+        periodEndSeconds: 1_792_857_599,
       },
     ])
     expect(entries[0]).toMatchObject({
       entitlementId: 'model:glm-5.3',
       period: 'daily',
-      periodEnd: '2026-10-25T00:00:00+08:00',
+      periodStart: 1_792_771_200_000,
+      periodEnd: 1_792_857_599_000,
     })
   })
 })
@@ -252,5 +260,80 @@ describe('目录服务', () => {
     expect(isUnauthorized(new ZCodeConsoleError('x', undefined, 500))).toBe(false)
     expect(isUnauthorized(new ZCodeConsoleError('x', 3012, 405))).toBe(false)
     expect(isUnauthorized(new Error('boom'))).toBe(false)
+  })
+})
+
+describe('额度周期与去重（Web 实测修正）', () => {
+  it('周期按带宽推导：日窗口 86399 秒仍算 daily', () => {
+    // 上游日额度是 period_end - period_start = 86399（起止都含整点），
+    // 不是整 86400；按等值判断会漏判。
+    expect(deriveBalancePeriod(1_792_771_200, 1_792_857_599)).toBe('daily')
+    expect(deriveBalancePeriod(0, 604_800)).toBe('weekly')
+    expect(deriveBalancePeriod(0, 2_592_000)).toBe('monthly')
+    expect(deriveBalancePeriod(0, 31_536_000)).toBe('one_time')
+  })
+
+  it('落不进标准带宽的窗口标为 custom，不硬塞成「每周」', () => {
+    // 实测：某套餐的额度窗口是「激活到套餐结束」，168557 秒约 1.95 天。
+    // 按上界判定会标成 weekly，而那是一条两天后就要重置的额度。
+    expect(deriveBalancePeriod(1_792_807_843, 1_792_976_400)).toBe('custom')
+  })
+
+  it('缺时间戳时周期为 unknown，不臆测', () => {
+    expect(deriveBalancePeriod(undefined, 1)).toBe('unknown')
+    expect(deriveBalancePeriod(1, undefined)).toBe('unknown')
+    expect(deriveBalancePeriod(10, 5)).toBe('unknown')
+  })
+
+  it('Unix 秒转毫秒，非法值丢弃', () => {
+    const [entry] = toBalanceEntries([{
+      showName: 'GLM-5.3',
+      capability: 'model:glm-5.3',
+      totalUnits: 1,
+      usedUnits: 0,
+      remainingUnits: 1,
+      periodStartSeconds: 1_792_771_200,
+      periodEndSeconds: 1_792_857_599,
+      expiresAtSeconds: 1_792_857_599,
+    }])
+    expect(entry?.periodStart).toBe(1_792_771_200_000)
+    expect(entry?.periodEnd).toBe(1_792_857_599_000)
+    expect(entry?.expiresAt).toBe(1_792_857_599_000)
+
+    const [noTimes] = toBalanceEntries([{
+      showName: 'GLM-5.3',
+      totalUnits: 1,
+      usedUnits: 0,
+      remainingUnits: 1,
+      periodStartSeconds: 0,
+    }])
+    expect(noTimes?.periodStart).toBeUndefined()
+    expect(noTimes?.period).toBe('unknown')
+  })
+
+  it('同一模型跨套餐的多条额度按「模型 + 周期」合并，不出现重复行', () => {
+    // Web 实测：4 条额度其实只有 2 个模型，逐条展示会出现 4 行。
+    const merged = mergeBalanceEntries([
+      { entitlementId: 'a', showName: 'GLM-5.3', capability: 'model:glm-5.3', totalUnits: 3_000_000, usedUnits: 0, remainingUnits: 3_000_000, period: 'daily', periodEnd: 1_792_857_599_000 },
+      { entitlementId: 'b', showName: 'GLM-5.3', capability: 'model:glm-5.3', totalUnits: 200_000_000, usedUnits: 0, remainingUnits: 200_000_000, period: 'weekly', periodEnd: 1_792_976_400_000 },
+      { entitlementId: 'c', showName: 'GLM-5.3', capability: 'model:glm-5.3', totalUnits: 1_000, usedUnits: 100, remainingUnits: 900, period: 'daily', periodEnd: 1_792_900_000_000 },
+    ])
+    // daily 两条合并（3000000+1000），weekly 单独一条。
+    expect(merged).toHaveLength(2)
+    const daily = merged.find(e => e.period === 'daily')
+    expect(daily?.totalUnits).toBe(3_001_000)
+    expect(daily?.usedUnits).toBe(100)
+    expect(daily?.remainingUnits).toBe(3_000_900)
+    // 合并后保留更早的到期时间。
+    expect(daily?.periodEnd).toBe(1_792_857_599_000)
+  })
+
+  it('不同周期不合并：日额度用完与活动额度并存时都要能看出来', () => {
+    const merged = mergeBalanceEntries([
+      { entitlementId: 'd', showName: 'GLM-5.3', capability: 'model:glm-5.3', totalUnits: 100, usedUnits: 100, remainingUnits: 0, period: 'daily' },
+      { entitlementId: 'o', showName: 'GLM-5.3', capability: 'model:glm-5.3', totalUnits: 5_000, usedUnits: 0, remainingUnits: 5_000, period: 'one_time' },
+    ])
+    expect(merged).toHaveLength(2)
+    expect(merged.map(e => e.period).sort()).toEqual(['daily', 'one_time'])
   })
 })

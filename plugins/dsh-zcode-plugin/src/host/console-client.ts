@@ -77,10 +77,14 @@ export interface ZCodeRawBalance {
   readonly totalUnits: number
   readonly usedUnits: number
   readonly remainingUnits: number
-  readonly period?: string | undefined
-  readonly periodStart?: string | undefined
-  readonly periodEnd?: string | undefined
-  readonly expiresAt?: string | undefined
+  /** 上游没有 period 字段；周期由窗口时长推导（见宽松度推导）。 */
+  readonly periodStartSeconds?: number | undefined
+  readonly periodEndSeconds?: number | undefined
+  readonly expiresAtSeconds?: number | undefined
+  /** 已用尽额度里也可能是 0，用它区分「未发放」与「已用完」。 */
+  readonly availableUnits?: number | undefined
+  /** 该额度条目所属套餐 id。 */
+  readonly planId?: string | undefined
 }
 
 /** 额度接口的原始套餐条目。 */
@@ -397,16 +401,28 @@ export class ZCodeConsoleClient {
       if (showName === undefined) continue
       const capabilities = Array.isArray(entry.capabilities) ? entry.capabilities : []
       const capability = capabilities.find((value): value is string => typeof value === 'string')
+      // 周期与过期时间都是 **Unix 秒**（不是 ISO 字符串）：用 pickNumber 读，
+      // 用 pickString 会永远得到 undefined，界面就会显示成"无重置时间"。
+      const planId = pickString(entry, 'plan_id')
       balances.push({
         showName,
         totalUnits: pickNumber(entry, 'total_units') ?? 0,
         usedUnits: pickNumber(entry, 'used_units') ?? 0,
         remainingUnits: pickNumber(entry, 'remaining_units') ?? 0,
         ...(capability === undefined ? {} : { capability }),
-        ...(pickString(entry, 'period') === undefined ? {} : { period: pickString(entry, 'period') }),
-        ...(pickString(entry, 'period_start') === undefined ? {} : { periodStart: pickString(entry, 'period_start') }),
-        ...(pickString(entry, 'period_end') === undefined ? {} : { periodEnd: pickString(entry, 'period_end') }),
-        ...(pickString(entry, 'expires_at') === undefined ? {} : { expiresAt: pickString(entry, 'expires_at') }),
+        ...(planId === undefined ? {} : { planId }),
+        ...(pickNumber(entry, 'period_start') === undefined
+          ? {}
+          : { periodStartSeconds: pickNumber(entry, 'period_start') }),
+        ...(pickNumber(entry, 'period_end') === undefined
+          ? {}
+          : { periodEndSeconds: pickNumber(entry, 'period_end') }),
+        ...(pickNumber(entry, 'expires_at') === undefined
+          ? {}
+          : { expiresAtSeconds: pickNumber(entry, 'expires_at') }),
+        ...(pickNumber(entry, 'available_units') === undefined
+          ? {}
+          : { availableUnits: pickNumber(entry, 'available_units') }),
       })
     }
     return { plans, balances }
@@ -423,36 +439,50 @@ export class ZCodeConsoleClient {
     const data = unwrapEnvelope(json, status, url)
     if (!isRecord(data)) throw new ZCodeConsoleError('客户端配置缺少 data', undefined, status)
     const configs = isRecord(data.configs) ? data.configs as Record<string, unknown> : {}
-    const providers = Array.isArray(data.providers) ? data.providers : []
 
+    /*
+     * 模型能力的真源是 `data.builtinModels`，不是 `data.providers[].models[]`。
+     *
+     * 这两处字段形态完全不同，早期按 providers 解析的结果是：能力表里只出现
+     * GLM-5.2 与 GLM-5-Turbo（providers 里只列这两个），而账号真正拥有的
+     * GLM-5.3 / GLM-5.3-Flash 因为查不到描述而退回了保守默认值。能力读错的
+     * 后果是上下文与最大输出被显示成猜出来的数字，而不是上游真实值。
+     */
     const models: ZCodeClientModel[] = []
-    for (const provider of providers) {
-      if (!isRecord(provider)) continue
-      const entries = Array.isArray(provider.models) ? provider.models : []
-      for (const entry of entries) {
-        if (!isRecord(entry)) continue
-        const modelId = pickString(entry, 'modelId')
-        if (modelId === undefined) continue
-        if (models.some(model => model.modelId === modelId)) continue
-        const capabilities = isRecord(entry.capabilities) ? entry.capabilities : {}
-        const reasoning = isRecord(entry.reasoning) ? entry.reasoning : {}
-        const levels = Array.isArray(reasoning.levels)
-          ? reasoning.levels
-              .map(level => (isRecord(level) ? pickString(level, 'value') : undefined))
-              .filter((level): level is string => level !== undefined)
-          : undefined
-        const inputFormat = isRecord(capabilities.inputFormat) ? capabilities.inputFormat : {}
-        models.push({
-          modelId,
-          name: pickString(entry, 'name') ?? modelId,
-          ...(pickNumber(entry, 'contextWindow') === undefined ? {} : { contextWindow: pickNumber(entry, 'contextWindow') }),
-          ...(pickNumber(entry, 'maxCompletionTokens') === undefined ? {} : { maxCompletionTokens: pickNumber(entry, 'maxCompletionTokens') }),
-          ...(levels === undefined || levels.length === 0 ? {} : { reasoningLevels: levels }),
-          ...(pickString(reasoning, 'defaultLevel') === undefined ? {} : { defaultReasoningLevel: pickString(reasoning, 'defaultLevel') }),
-          ...(inputFormat.supportsImage === true ? { supportsImage: true } : {}),
-          ...(pickString(entry, 'description') === undefined ? {} : { description: pickString(entry, 'description') }),
-        })
-      }
+    const builtin = Array.isArray(data.builtinModels) ? data.builtinModels : []
+    for (const entry of builtin) {
+      if (!isRecord(entry)) continue
+      const modelId = pickString(entry, 'modelId')
+      if (modelId === undefined) continue
+      if (models.some(model => model.modelId === modelId)) continue
+
+      // `reasoning.levels` 是**对象映射**（{ low: {...}, high: {...} }），
+      // 不是数组；按数组读会得到 undefined，思考等级就会被误判成不支持。
+      const reasoning = isRecord(entry.reasoning) ? entry.reasoning : {}
+      const levelsNode = isRecord(reasoning.levels) ? reasoning.levels : {}
+      const levels = Object.keys(levelsNode)
+      // `capabilities.vision` 是图片输入的开关；早期读的是
+      // `capabilities.inputFormat.supportsImage`，那个路径并不存在。
+      const capabilities = isRecord(entry.capabilities) ? entry.capabilities : {}
+
+      models.push({
+        modelId,
+        name: pickString(entry, 'name') ?? modelId,
+        ...(pickNumber(entry, 'contextWindow') === undefined
+          ? {}
+          : { contextWindow: pickNumber(entry, 'contextWindow') }),
+        ...(pickNumber(entry, 'maxCompletionTokens') === undefined
+          ? {}
+          : { maxCompletionTokens: pickNumber(entry, 'maxCompletionTokens') }),
+        ...(levels.length === 0 ? {} : { reasoningLevels: levels }),
+        ...(pickString(reasoning, 'defaultLevel') === undefined
+          ? {}
+          : { defaultReasoningLevel: pickString(reasoning, 'defaultLevel') }),
+        ...(capabilities.vision === true ? { supportsImage: true } : {}),
+        ...(pickString(entry, 'description') === undefined
+          ? {}
+          : { description: pickString(entry, 'description') }),
+      })
     }
 
     const captchaNode = isRecord(configs.captcha) ? configs.captcha as Record<string, unknown> : undefined

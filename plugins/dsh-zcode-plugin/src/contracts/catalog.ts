@@ -61,6 +61,16 @@ export interface ZCodeModel {
   readonly capability?: string
 }
 
+/** 额度周期：由窗口时长推导，上游没有这个字段。 */
+export type ZCodeBalancePeriod =
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'one_time'
+  /** 窗口不对应任何标准周期（例如「激活到套餐结束」的剩余时段）。 */
+  | 'custom'
+  | 'unknown'
+
 /** 额度条目：某个模型在某个周期内的用量。 */
 export interface ZCodeBalanceEntry {
   /** 上游额度 id。 */
@@ -72,11 +82,47 @@ export interface ZCodeBalanceEntry {
   readonly totalUnits: number
   readonly usedUnits: number
   readonly remainingUnits: number
-  /** 周期：`daily` / `weekly` / `monthly` / `one_time` 等，上游原样。 */
-  readonly period?: string
-  readonly periodStart?: string
-  readonly periodEnd?: string
-  readonly expiresAt?: string
+  /** 周期，由 {@link deriveBalancePeriod} 从窗口时长推导。 */
+  readonly period: ZCodeBalancePeriod
+  /** 周期与过期时间的 epoch 毫秒；上游返回的是 Unix 秒。 */
+  readonly periodStart?: number | undefined
+  readonly periodEnd?: number | undefined
+  readonly expiresAt?: number | undefined
+  /** 该额度所属套餐 id；同一模型在多份套餐下会有多条额度。 */
+  readonly planId?: string | undefined
+}
+
+/** 一天的秒数，用于推导额度周期。 */
+const DAY_SECONDS = 86_400
+
+/**
+ * 从窗口时长推导额度周期。
+ *
+ * 上游的额度条目**没有** `period` 字段，只有 `period_start` / `period_end`
+ * 两个 Unix 秒。早期实现读 `period` 得到 undefined，界面上所有额度都显示成
+ * "其它"，用户看不出"这条是每日额度、那条是活动额度"——而这正是他判断还能
+ * 不能继续用的关键。
+ *
+ * 判定按"接近某个标准周期"而不是"不超过某个上界"：日额度窗口实测是
+ * 86,399 秒（起止都取整点边界，差 1 秒），而某些套餐的额度窗口是"激活时刻
+ * 到套餐结束"，实测 168,557 秒（约 1.95 天）。用上界判定会把后者误标成
+ * "每周"——那是一条两天后就要重置的额度，标成每周等于给了错误预期。
+ * 因此每个周期给一个带宽，落不进任何带宽的标为 `custom`。
+ */
+export function deriveBalancePeriod(
+  periodStart: number | undefined,
+  periodEnd: number | undefined,
+): ZCodeBalancePeriod {
+  if (periodStart === undefined || periodEnd === undefined) return 'unknown'
+  const seconds = periodEnd - periodStart
+  if (!Number.isFinite(seconds) || seconds <= 0) return 'unknown'
+  const days = seconds / DAY_SECONDS
+  if (days >= 0.9 && days <= 1.1) return 'daily'
+  if (days >= 6.5 && days <= 7.5) return 'weekly'
+  if (days >= 27 && days <= 32) return 'monthly'
+  // 超过半年的窗口按一次性活动额度处理（如年度赠送）。
+  if (days >= 180) return 'one_time'
+  return 'custom'
 }
 
 /** 套餐记录。 */

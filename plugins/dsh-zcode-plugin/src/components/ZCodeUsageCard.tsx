@@ -35,6 +35,7 @@ function periodLabel(period: string | undefined, t: ZCodeTranslate): string {
   if (period === 'weekly') return t('usagePeriodWeekly')
   if (period === 'monthly') return t('usagePeriodMonthly')
   if (period === 'one_time') return t('usagePeriodOneTime')
+  if (period === 'custom') return t('usagePeriodCustom')
   return t('usagePeriodUnknown')
 }
 

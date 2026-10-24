@@ -16,6 +16,7 @@ import {
   type ZCodePreferences,
   type ZCodeUsageVisibility,
 } from '../contracts/preferences.ts'
+import type { ZCodeEndpointPlan } from '../contracts/identity.ts'
 import type { ZCodeTranslate } from '../client/locales.ts'
 import { errorMessage } from '../client/services/http.ts'
 import type { ZCodePreferencesStore } from '../client/services/preferences-data.ts'
@@ -28,6 +29,7 @@ export interface ZCodeSettingsCardProps {
   readonly loadError?: string | undefined
   readonly usageVisibility: ZCodeUsageVisibility
   readonly refreshMinutes: number
+  readonly endpointPlan: ZCodeEndpointPlan
 }
 
 /**
@@ -41,14 +43,18 @@ export function ZCodeSettingsCard({
   loadError,
   usageVisibility,
   refreshMinutes,
+  endpointPlan,
 }: ZCodeSettingsCardProps): ReactNode {
   const [draftVisibility, setDraftVisibility] = useState<ZCodeUsageVisibility>(usageVisibility)
   const [draftMinutes, setDraftMinutes] = useState<number>(refreshMinutes)
+  const [draftEndpoint, setDraftEndpoint] = useState<ZCodeEndpointPlan>(endpointPlan)
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string>()
 
-  const dirty = draftVisibility !== usageVisibility || draftMinutes !== refreshMinutes
+  const dirty = draftVisibility !== usageVisibility
+    || draftMinutes !== refreshMinutes
+    || draftEndpoint !== endpointPlan
 
   const save = async (): Promise<void> => {
     setBusy(true)
@@ -58,6 +64,7 @@ export function ZCodeSettingsCard({
       const patch: Partial<ZCodePreferences> = {
         usageVisibility: draftVisibility,
         refreshMinutes: draftMinutes,
+        endpointPlan: draftEndpoint,
       }
       await preferences.save(patch)
       setSaved(true)
@@ -67,6 +74,11 @@ export function ZCodeSettingsCard({
       setBusy(false)
     }
   }
+
+  const endpointOptions: readonly { value: ZCodeEndpointPlan; label: string }[] = [
+    { value: 'start-plan', label: t('settingsEndpointStartPlan') },
+    { value: 'ultra', label: t('settingsEndpointUltra') },
+  ]
 
   const visibilityOptions: readonly { value: ZCodeUsageVisibility; label: string }[] = [
     { value: 'auto', label: t('settingsUsageAuto') },
@@ -102,6 +114,15 @@ export function ZCodeSettingsCard({
 
       <div className="dsh-zcode-settings-grid">
         <label className="dsh-zcode-field">
+          <span className="dsh-zcode-field-label">{t('settingsEndpoint')}</span>
+          <DshSelect
+            value={draftEndpoint}
+            disabled={!loaded || busy}
+            optionList={[...endpointOptions]}
+            onChange={(value: unknown) => { setDraftEndpoint(value as ZCodeEndpointPlan) }}
+          />
+        </label>
+        <label className="dsh-zcode-field">
           <span className="dsh-zcode-field-label">{t('settingsUsageVisibility')}</span>
           <DshSelect
             value={draftVisibility}
@@ -124,6 +145,7 @@ export function ZCodeSettingsCard({
           />
         </label>
       </div>
+      <p className="dsh-zcode-hint">{t('settingsEndpointHint')}</p>
     </section>
   )
 }

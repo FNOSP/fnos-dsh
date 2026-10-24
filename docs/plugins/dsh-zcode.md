@@ -46,6 +46,10 @@ flowchart TD
 | --- | --- | --- | --- |
 | `ZCode` | `dsh-zcode` | 账号权益：`GET /api/v1/zcode-plan/billing/balance` 的额度条目中 `capabilities`（形如 `model:glm-5.3`）决定可用模型；2026-10-24 该账号为 GLM-5.3 与 GLM-5.3-Flash | 受 Start Plan 套餐额度约束；模型请求走 Anthropic Messages 协议 |
 
+思考等级用上游的 `output_config.effort` 表达（low / high / max）。DSH 的选择器会给出七档（Default / Minimal / … / Max），插件把它们映射到上游这三档——例如 Minimal 与 Low 都发 `low`，Xhigh 与 Max 都发 `max`。图片输入按上游 `capabilities.vision` 声明：GLM-5.3-Flash 支持，GLM-5.3 不支持，目录行的 `V` 标记即此项。
+
+输入区右侧的用量图标与 Codex 插件一致：环形进度显示**当前选中模型**的额度剩余比例，环心是 ZCode 标记；悬停看摘要，点击展开每一份额度的剩余与重置时间。选中别的供应商的模型时该图标不显示。
+
 模型清单**不在插件里写死**，而是跟着账号权益走：新增套餐、活动赠送或到期都会改变清单，刷新目录即可看到变化，不需要升级插件。额度接口不可读时，插件回退到内置清单（`GLM-5.3-Flash`、`GLM-5.2`、`GLM-5-Turbo`），并在详情页说明「当前清单未经账号确认」。
 
 ### 模型能力
@@ -115,6 +119,17 @@ Start Plan 的额度按 **「每个模型 × 周期」** 表达：同一个模�
 | 用量胶囊 | 输入区右侧胶囊的显隐策略 | `auto` / `always` / `off` | `auto` |
 | 自动刷新间隔 | 目录与额度的后台刷新周期（分钟）；`0` 表示关闭自动刷新 | 0–240 | 15 |
 | 隐藏的模型 | 在模型选择器中隐藏的模型 | 逐模型开关 | 空 |
+
+## 推理端点
+
+ZCode 有两个推理端点，插件用[设置](#设置)里的「推理端点」切换：
+
+| 端点 | 路径 | 凭据 | 计费 | 第三方可达性 |
+| --- | --- | --- | --- | --- |
+| `Start Plan`（默认） | `/api/v1/zcode-plan/anthropic` | ZCode 账号 JWT | 消耗 Start Plan 套餐额度 | **被上游风控拦截**（HTTP 405 + 业务码 `3012`） |
+| `Ultra` | `/api/v1/ultra/anthropic` | 家族 MaaS 令牌 | 消耗个人按量余额 | 不被风控拦截；余额为 0 时返回 HTTP 429 + 业务码 `1113` |
+
+`Ultra` 是官方客户端实际使用的路径（官方把 `open.bigmodel.cn/api/anthropic` 改写成 `…/ultra/anthropic`）。只订了 Start Plan、没有按量余额的账号切到 `Ultra` 会得到 `1113`；反过来有余额的账号切到 `Ultra` 即可正常对话。
 
 ## 已知限制
 

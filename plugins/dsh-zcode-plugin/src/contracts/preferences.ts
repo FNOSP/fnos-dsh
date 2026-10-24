@@ -8,8 +8,12 @@
  * @module dsh-zcode/preferences-contract
  */
 
+import { DEFAULT_ZCODE_ENDPOINT_PLAN, type ZCodeEndpointPlan } from './identity.ts'
+
 /** 对话输入区用量胶囊的显隐策略。 */
 export type ZCodeUsageVisibility = 'auto' | 'always' | 'off'
+
+export type { ZCodeEndpointPlan } from './identity.ts'
 
 /** 持久化的插件偏好。 */
 export interface ZCodePreferences {
@@ -19,12 +23,18 @@ export interface ZCodePreferences {
   readonly refreshMinutes: number
   /** 在模型选择器里隐藏的模型 id。 */
   readonly hiddenModels: readonly string[]
+  /**
+   * 推理端点策略：`start-plan` 用账号 JWT 消耗套餐额度，`ultra` 用家族
+   * MaaS 令牌消耗按量余额。二者对第三方客户端的可达性不同，故由用户选择。
+   */
+  readonly endpointPlan: ZCodeEndpointPlan
 }
 
 export const DEFAULT_ZCODE_PREFERENCES: ZCodePreferences = {
   usageVisibility: 'auto',
   refreshMinutes: 15,
   hiddenModels: [],
+  endpointPlan: DEFAULT_ZCODE_ENDPOINT_PLAN,
 }
 
 /** 合法刷新间隔范围（分钟）；下限 1 避免把额度接口打成轮询。 */
@@ -54,5 +64,10 @@ export function normalizePreferences(value: unknown): ZCodePreferences {
         ),
       )]
     : []
-  return { usageVisibility, refreshMinutes, hiddenModels }
+  const rawPlan = source.endpointPlan
+  const endpointPlan: ZCodeEndpointPlan =
+    rawPlan === 'ultra' || rawPlan === 'start-plan'
+      ? rawPlan
+      : DEFAULT_ZCODE_PREFERENCES.endpointPlan
+  return { usageVisibility, refreshMinutes, hiddenModels, endpointPlan }
 }
