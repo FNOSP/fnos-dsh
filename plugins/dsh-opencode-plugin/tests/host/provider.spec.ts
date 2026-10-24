@@ -7,6 +7,7 @@ import {
   createOpenCodePiAdapter,
   createOpenCodeProfile,
   createOpenCodeProvider,
+  OpenCodeProviderRuntime,
   toPiModel,
 } from '../../src/host/provider.ts'
 
@@ -165,5 +166,78 @@ describe('pi-ai 适配器集成', () => {
     expect((await adapter.listModels(OPENCODE_PROVIDER)).map(entry => entry.id)).toEqual(['zen:a'])
     mode = 'b'
     expect((await adapter.listModels(OPENCODE_PROVIDER)).map(entry => entry.id)).toEqual(['zen:b'])
+  })
+})
+
+describe('目录变化广播', () => {
+  /** 最小可用的模型条目。 */
+  const model = (id: string, plan: 'zen' | 'go'): OpenCodeModel => ({
+    id,
+    name: id,
+    api: 'openai-completions',
+    baseURL: 'https://opencode.ai/inference/go/openai/v1',
+    reasoning: false,
+    input: ['text'],
+    contextWindow: 1000,
+    maxTokens: 100,
+    tools: true,
+    free: false,
+    plan,
+  })
+
+  /** 造一个只记录 llm 调用的 ctx。 */
+  const makeCtx = () => {
+    const calls = { register: 0, replace: [] as string[][] }
+    const llm = {
+      registerAdapter: () => {
+        calls.register += 1
+        const handle = (() => {}) as (() => void) & { replace: (providers: string[]) => void }
+        handle.replace = (providers: string[]) => { calls.replace.push(providers) }
+        return handle
+      },
+    }
+    const ctx = {
+      llm,
+      logger: { warn: () => {}, info: () => {} },
+      effect: (fn: () => () => void) => { fn() },
+    }
+    return { ctx, calls }
+  }
+
+  const runtime = (): OpenCodeProviderRuntime => new OpenCodeProviderRuntime({
+    resolveAccessToken: async () => 'token',
+    resolveAttachments: () => undefined,
+    logger: { warn: () => {}, info: () => {} },
+  })
+
+  it('注册后目录变化会通过 replace 广播一次', () => {
+    const { ctx, calls } = makeCtx()
+    const instance = runtime()
+    instance.register(ctx as never)
+    expect(calls.register).toBe(1)
+
+    instance.update([model('a', 'go')])
+    expect(calls.replace).toEqual([[OPENCODE_PROVIDER]])
+  })
+
+  it('目录未变化时不重复广播，顺序变化会广播', () => {
+    const { ctx, calls } = makeCtx()
+    const instance = runtime()
+    instance.register(ctx as never)
+    const models = [model('a', 'go'), model('b', 'zen')]
+    instance.update(models)
+    instance.update(models)
+    expect(calls.replace.length).toBe(1)
+
+    instance.update([model('b', 'zen'), model('a', 'go')])
+    expect(calls.replace.length).toBe(2)
+  })
+
+  it('未注册时更新只换快照，不广播', () => {
+    const { calls } = makeCtx()
+    const instance = runtime()
+    instance.update([model('a', 'go')])
+    expect(calls.register).toBe(0)
+    expect(calls.replace).toEqual([])
   })
 })

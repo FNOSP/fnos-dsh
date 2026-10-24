@@ -229,6 +229,8 @@ export class OpenCodeProviderRuntime {
   private registered = false
   private error: string | undefined
   private currentModels: readonly OpenCodeModel[] = []
+  /** 上一次投影到 provider 的模型签名（`plan:id` 顺序敏感），用于判断是否需要广播。 */
+  private signature = ''
 
   constructor(private readonly options: OpenCodeProviderRuntimeOptions) {
     this.adapter = createOpenCodePiAdapter({
@@ -280,17 +282,36 @@ export class OpenCodeProviderRuntime {
   }
 
   /**
-   * 用新目录重建 profile；下一次 LLM 操作即可见。
+   * 用新目录重建 profile，并让 `llm` 重新广播拓扑。
    *
    * `headers` 是 Console 下发的路由头（工作空间 id 等）；`user-agent` 固定为
    * 本插件自己的标识，不被上游覆盖。
+   *
+   * 只换内部快照是不够的：客户端把 `llm/adapters-updated` 当作重新拉取模型目录
+   * 的信号，不发这个事件就得重启插件（甚至重启客户端）才能看到新模型。`replace`
+   * 与首次注册共用 `commitRoutes`，因此会照常发事件，且是一次同步换路由、不存在
+   * 路由空窗。
+   *
+   * 目录没变化（id 与顺序都一样）时不发事件，避免每轮定时刷新都让所有客户端
+   * 重新拉一遍目录。
    */
   update(models: readonly OpenCodeModel[], headers: Readonly<Record<string, string>> = {}): void {
+    const signature = models.map(model => `${model.plan}:${model.id}`).join(',')
+    const changed = signature !== this.signature
+    this.signature = signature
     this.currentModels = models
     // 新 Map 身份是 PiAiAdapter 重建模型集合的信号。
     this.snapshot = new Map([[
       OPENCODE_PROVIDER,
       createOpenCodeProfile(models, this.options.resolveAccessToken, headers),
     ]])
+    if (!changed || !this.registered || this.registration === undefined) return
+    try {
+      this.registration.replace([OPENCODE_PROVIDER])
+    } catch {
+      // 注册已被释放（插件正在卸载）时 `replace` 会抛 REGISTRATION_DISPOSED；
+      // 这属于正常收尾，不该把刷新链路当成失败。
+      this.options.logger.info('dsh-opencode: 目录变化未能广播（注册已释放）')
+    }
   }
 }

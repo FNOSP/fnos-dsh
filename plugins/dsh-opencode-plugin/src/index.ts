@@ -71,7 +71,9 @@ export function apply(ctx: Context): void {
   // 先用 pi-ai 内置目录建立一份同步可用的快照：headless/tui 在插件挂载后
   // 立即开始第一轮对话，等网络目录会让首轮直接落到一个空 provider 上。
   // 真实目录随后台刷新替换它。
-  runtime.update(buildCatalog({ builtin: builtinModels }).models)
+  // 初始快照只做排序：跨来源去重要看账号套餐，只能等真实目录。排序是纯函数，
+  // 先排好可以让首屏就不是「被禁用的免费模型挤在最前」。
+  runtime.update(applyCatalogView(buildCatalog({ builtin: builtinModels }).models, {}))
   runtime.register(ctx)
 
   const catalog = new OpenCodeCatalogService({
