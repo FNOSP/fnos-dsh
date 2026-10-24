@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "OpenCode",
-    "description": "使用 OpenCode Console 账号登录，把 OpenCode（按量）与 OpenCode Go 两组模型及其思考等级、套餐用量接入 DeepSeek Harness。"
+    "description": "使用 OpenCode Console 账号登录，把 OpenCode Zen（按量）与 OpenCode Go 两组模型及其思考等级、套餐用量接入 DeepSeek Harness。"
   }
 }

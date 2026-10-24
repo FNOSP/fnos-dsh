@@ -135,11 +135,11 @@ describe('模型分组', () => {
     expect(countCatalogModels([claude, gpt, goModel])).toEqual({ all: 3, go: 1, zen: 2 })
   })
 
-  it('分组标签走 locale：Go / 按量', () => {
+  it('分组标签走 locale：Go / Zen', () => {
     expect(planLabelKey('go')).toBe('catalogPlanGo')
     expect(planLabelKey('zen')).toBe('catalogPlanZen')
     expect(en[planLabelKey('go')]).toBe('Go')
-    expect(zh[planLabelKey('zen')]).toBe('按量')
+    expect(zh[planLabelKey('zen')]).toBe('Zen')
     expect(en[planLabelKey('zen')]).toBeTruthy()
     expect(zh[planLabelKey('go')]).toBeTruthy()
   })

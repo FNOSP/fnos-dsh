@@ -1,6 +1,6 @@
 # OpenCode
 
-`@tnnevol/dsh-opencode` 把 **OpenCode Zen（按量）** 与 **OpenCode Go（套餐）** 两组模型接入 DSH：用 OpenCode Console 账号登录后，模型选择器出现 `OpenCode` 与 `OpenCode Go` 两个供应商，模型清单分别来自两组实时目录，并叠加 Console 账号下发的增补、停用、能力与容量覆盖以及推理路由头；Go 套餐额度也随账号实时读取。
+`@tnnevol/dsh-opencode` 把 **OpenCode Zen（按量）** 与 **OpenCode Go（套餐）** 两组模型接入 DSH：用 OpenCode Console 账号登录后，模型选择器出现 `OpenCode Zen` 与 `OpenCode Go` 两个供应商，模型清单分别来自两组实时目录，并叠加 Console 账号下发的增补、停用、能力与容量覆盖以及推理路由头；Go 套餐额度也随账号实时读取。
 
 > 该插件暂未随 fnOS 应用内置分发，请在目标 DSH 环境中按下面的命令安装。
 
@@ -37,14 +37,14 @@ flowchart TD
 
 | 供应商 | 路由 | 模型来源 | 计费与限制 |
 | --- | --- | --- | --- |
-| `OpenCode` | `dsh-opencode` | OpenCode Zen 按量模型，目录来自 `https://opencode.ai/inference/v1/models` 与公开目录 `opencode` 段，约 85 个 | 按 token 计费，需要 Console 余额；部分免费模型只允许在 OpenCode 客户端使用 |
+| `OpenCode Zen` | `dsh-opencode` | OpenCode Zen 按量模型，目录来自 `https://opencode.ai/inference/v1/models` 与公开目录 `opencode` 段，约 85 个 | 按 token 计费，需要 Console 余额；部分免费模型只允许在 OpenCode 客户端使用 |
 | `OpenCode Go` | `dsh-opencode-go` | OpenCode Go 套餐模型，目录来自 `https://opencode.ai/inference/go/v1/models` 与公开目录 `opencode-go` 段，约 36 个 | 受 Go 或 Go Plus 套餐额度约束；OAuth 与 API Key 均可调用 |
 
 两组分别以各自的**实时模型清单（活 roster）**为全集；清单不可用时回退公开目录对应段，再失败时使用内置目录或保留上一份可用目录。详情页会说明当前目录来源。
 
 ### 两组供应商与路由
 
-- `OpenCode` 对应 OpenCode Zen 按量模型，`OpenCode Go` 对应 Go 套餐模型；同名模型可能同时出现在两组，选择时以分组和 plan 标签区分。
+- `OpenCode Zen` 对应按量模型，`OpenCode Go` 对应 Go 套餐模型；同名模型可能同时出现在两组，选择时以分组和 plan 标签区分。
 - 路由 id 使用 `dsh-opencode` / `dsh-opencode-go`，而不是 pi-ai 内置的 `opencode` / `opencode-go`。`dsh-` 前缀是为了避免与用户手工配置的同名路由冲突。
 - 如果此前已在模型设置里手工配置过 `opencode-go`，它和插件的 `dsh-opencode-go` 可以并存，插件不会覆盖它；此前的同名冲突曾导致**登录后模型完全不出现在选择器**，改用前缀后已消除。
 - 若用户手工配置了 `dsh-opencode` 或 `dsh-opencode-go` 同名路由，插件只对该组给出可诊断提示，另一组不受影响。
@@ -69,7 +69,7 @@ flowchart TD
 详情页的模型目录卡片提供：
 
 - **固定高度、内部滚动**：只有模型列表区滚动，搜索框、分组筛选与计数固定在工具栏，长目录不会把整页撑高。
-- **分组筛选**：「全部 / Go / 按量」三个选项；每行显示所属 plan 标签。
+- **分组筛选**：「全部 / Go / Zen」三个选项；每行显示所属 plan 标签。
 - **搜索**：按模型名称或标识过滤，可与分组筛选组合使用。
 - **隐藏**：逐个模型开关，隐藏后该模型不再出现在模型选择器；重新打开后恢复。
 - **刷新**：立即重新读取两组目录，并显示获取时间。
@@ -92,11 +92,11 @@ flowchart TD
 
 | 策略 | 表现 |
 | --- | --- |
-| `auto`（默认） | 仅在选中 `OpenCode Go` 模型时显示；选中 `OpenCode`（按量）或其它供应商模型时不显示 |
+| `auto`（默认） | 仅在选中 `OpenCode Go` 模型时显示；选中 `OpenCode Zen`（按量）或其它供应商模型时不显示 |
 | `always` | 插件已登录时常驻显示；没有 Go 数据时显示未知或未订阅，不补 0% |
 | `off` | 隐藏，并停止额度自动刷新（详情页仍可手动刷新） |
 
-`OpenCode`（按量）不显示套餐额度；插件也不提供按量余额、费用或账单展示。策略在详情页设置区修改，下一次进入会话或下一次对话即生效，无需重启 DSH。
+`OpenCode Zen`（按量）不显示套餐额度；插件也不提供按量余额、费用或账单展示。策略在详情页设置区修改，下一次进入会话或下一次对话即生效，无需重启 DSH。
 
 ## 设置项说明
 
@@ -123,7 +123,7 @@ flowchart TD
 
 ### 登录后为什么出现两组 OpenCode 供应商
 
-`OpenCode` 是 OpenCode Zen 按量模型，`OpenCode Go` 是套餐模型。两组目录与计费口径不同，因此分别展示；套餐额度只对 `OpenCode Go` 生效。
+`OpenCode Zen` 是按量模型，`OpenCode Go` 是套餐模型。两组目录与计费口径不同，因此分别展示；套餐额度只对 `OpenCode Go` 生效。
 
 ### 登录后看不到模型
 
@@ -133,9 +133,9 @@ flowchart TD
 
 目录以两组的实时模型清单为准，Console 配置只做增补、停用与能力/容量覆盖。上游新增模型需要等下一次刷新（默认 15 分钟）或在详情页手动刷新后出现。若详情页提示未应用账号覆盖，说明账号配置暂时不可读，恢复后刷新即可。
 
-### 选择 OpenCode（按量）模型后没有用量胶囊或套餐额度
+### 选择 OpenCode Zen（按量）模型后没有用量胶囊或套餐额度
 
-这是预期行为。套餐额度与胶囊只对 `OpenCode Go` 生效；`OpenCode`（按量）模型不占用套餐额度，插件也不展示按量余额或费用。
+这是预期行为。套餐额度与胶囊只对 `OpenCode Go` 生效；`OpenCode Zen`（按量）模型不占用套餐额度，插件也不展示按量余额或费用。
 
 ### 调用 Zen 模型报 402 或 403
 
@@ -146,7 +146,7 @@ flowchart TD
 
 ### 用量胶囊不显示
 
-检查胶囊策略：`auto` 只在选中 `OpenCode Go` 模型时显示，`off` 则完全不显示。`OpenCode`（按量）与其它供应商模型不会显示套餐胶囊。
+检查胶囊策略：`auto` 只在选中 `OpenCode Go` 模型时显示，`off` 则完全不显示。`OpenCode Zen`（按量）与其它供应商模型不会显示套餐胶囊。
 
 ### 额度卡片显示读取失败或未订阅
 

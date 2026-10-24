@@ -3,7 +3,7 @@
  *
  * 本插件注册**两组**供应商，对应 OpenCode Console 的两类模型来源：
  *
- * - `dsh-opencode`（显示名 OpenCode）：OpenCode Zen 按量模型；
+ * - `dsh-opencode`（显示名 OpenCode Zen）：OpenCode Zen 按量模型；
  * - `dsh-opencode-go`（显示名 OpenCode Go）：Go 套餐模型。
  *
  * 路由 id 带 `dsh-` 前缀是刻意的：`opencode` / `opencode-go` 是 pi-ai 内置
@@ -28,14 +28,14 @@ export interface OpenCodeProviderDescriptor {
 
 /** 本插件注册的两组供应商，顺序即选择器里的展示顺序。 */
 export const OPENCODE_PROVIDERS: readonly OpenCodeProviderDescriptor[] = [
-  { id: 'dsh-opencode', name: 'OpenCode', plan: 'zen' },
+  { id: 'dsh-opencode', name: 'OpenCode Zen', plan: 'zen' },
   { id: 'dsh-opencode-go', name: 'OpenCode Go', plan: 'go' },
 ]
 
 /** Zen 按量供应商路由（默认组）。 */
 export const OPENCODE_PROVIDER = 'dsh-opencode'
 /** Zen 按量供应商显示名。 */
-export const OPENCODE_PROVIDER_NAME = 'OpenCode'
+export const OPENCODE_PROVIDER_NAME = 'OpenCode Zen'
 /** Go 套餐供应商路由。 */
 export const OPENCODE_GO_PROVIDER = 'dsh-opencode-go'
 /** Go 套餐供应商显示名。 */

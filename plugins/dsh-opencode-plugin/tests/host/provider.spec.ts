@@ -57,7 +57,7 @@ describe('动态 provider 投影', () => {
       async () => 'token',
     )
     expect(provider.id).toBe(OPENCODE_PROVIDER)
-    expect(provider.name).toBe('OpenCode')
+    expect(provider.name).toBe('OpenCode Zen')
     expect(provider.getModels().map(entry => entry.id)).toEqual(['on'])
   })
 
@@ -140,7 +140,7 @@ describe('pi-ai 适配器集成', () => {
     })
     expect((await adapter.listModels(OPENCODE_PROVIDER)).map(entry => entry.id)).toEqual(['zen-model'])
     expect((await adapter.listModels(OPENCODE_GO_PROVIDER)).map(entry => entry.id)).toEqual(['go-model'])
-    expect(adapter.providerInfo(OPENCODE_PROVIDER).name).toBe('OpenCode')
+    expect(adapter.providerInfo(OPENCODE_PROVIDER).name).toBe('OpenCode Zen')
     expect(adapter.providerInfo(OPENCODE_GO_PROVIDER).name).toBe('OpenCode Go')
   })
 
