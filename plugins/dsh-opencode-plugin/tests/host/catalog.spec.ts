@@ -4,6 +4,7 @@ import { opencodeProvider } from '@earendil-works/pi-ai/providers/opencode'
 import { opencodeGoProvider } from '@earendil-works/pi-ai/providers/opencode-go'
 import { describe, expect, it } from 'vitest'
 import type { OpenCodeModel } from '../../src/contracts/catalog.ts'
+import { selectableModels } from '../../src/contracts/catalog.ts'
 import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_MAX_TOKENS,
@@ -112,6 +113,29 @@ describe('OpenCode 模型目录归一化', () => {
     const catalog = await publicCatalog()
     expect(catalog.models.find(model => model.id === 'big-pickle' && model.plan === 'zen')?.free).toBe(true)
     expect(catalog.models.find(model => model.id === 'deepseek-v4.1-flash' && model.plan === 'go')?.free).toBe(false)
+  })
+
+  it('Zen 免费模型标为仅官方客户端可用，Go 免费模型不受限', async () => {
+    const catalog = await publicCatalog()
+    const zenFree = catalog.models.filter(model => model.plan === 'zen' && model.free)
+    expect(zenFree.length).toBeGreaterThan(0)
+    for (const model of zenFree) expect(model.clientOnly).toBe(true)
+    // 同一个 beam-free 在两段都出现：zen 段禁用，go 段可用，各走自身端点。
+    const beamZen = catalog.models.find(model => model.id === 'beam-free' && model.plan === 'zen')
+    const beamGo = catalog.models.find(model => model.id === 'beam-free' && model.plan === 'go')
+    expect(beamZen?.clientOnly).toBe(true)
+    expect(beamGo?.free).toBe(true)
+    expect(beamGo?.clientOnly).toBeUndefined()
+    expect(beamZen?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
+    expect(beamGo?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
+  })
+
+  it('selectableModels 剔除仅官方客户端可用的免费模型', async () => {
+    const catalog = await publicCatalog()
+    const selectable = selectableModels(catalog)
+    expect(selectable.some(model => model.clientOnly === true)).toBe(false)
+    expect(selectable.some(model => model.id === 'beam-free' && model.plan === 'go')).toBe(true)
+    expect(selectable.length).toBeLessThan(catalog.models.length)
   })
 
   it('Console 配置按 plan 增补条目、应用禁用标记与工作空间头', () => {

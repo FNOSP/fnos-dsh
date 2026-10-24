@@ -558,6 +558,9 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
         cache_write: builtin.cost.cacheWrite,
       }))
   const free = cost !== undefined && cost.input === 0 && cost.output === 0
+  // Zen 的免费额度由网关按键客户端身份校验，第三方客户端调用只会得到
+  // `FreeTierError`；Go 套餐内含的免费模型（beam-free 等）用订阅凭据正常调用。
+  const clientOnly = free && plan === 'zen'
 
   const name = nonEmptyString(consoleEntry?.name)
     ?? nonEmptyString(catalogEntry?.name)
@@ -599,6 +602,7 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
       tools,
       ...(structuredOutput ? { structuredOutput: true } : {}),
       free,
+      ...(clientOnly ? { clientOnly: true } : {}),
       ...(catalogEntry?.status === 'deprecated' || fallbackCatalogEntry?.status === 'deprecated' ? { deprecated: true } : {}),
       ...(consoleEntry?.disabled === true ? { disabled: true } : {}),
     },

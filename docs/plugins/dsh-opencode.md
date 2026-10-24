@@ -37,7 +37,7 @@ flowchart TD
 
 | 供应商 | 路由 | 模型来源 | 计费与限制 |
 | --- | --- | --- | --- |
-| `OpenCode` | `dsh-opencode` | OpenCode Zen（按量）与 OpenCode Go（套餐）合并列表：Zen 来自 `https://opencode.ai/inference/v1/models` 与公开目录 `opencode` 段，Go 来自 `https://opencode.ai/inference/go/v1/models` 与公开目录 `opencode-go` 段；2026-10-24 合计 122 个（zen 85 / go 37） | `· zen` 模型按 token 计费，需要 Console 余额，部分免费模型只允许在 OpenCode 客户端使用；`· go` 模型受 Go 或 Go Plus 套餐额度约束，OAuth 与 API Key 均可调用 |
+| `OpenCode` | `dsh-opencode` | OpenCode Zen（按量）与 OpenCode Go（套餐）合并列表：Zen 来自 `https://opencode.ai/inference/v1/models` 与公开目录 `opencode` 段，Go 来自 `https://opencode.ai/inference/go/v1/models` 与公开目录 `opencode-go` 段；2026-10-24 合计 122 个（zen 85 / go 37） | `· zen` 模型按 token 计费，需要 Console 余额，免费模型只允许在 OpenCode 客户端使用（已按停用展示并从选择器过滤）；`· go` 模型受 Go 或 Go Plus 套餐额度约束，OAuth 与 API Key 均可调用，套餐内含的免费模型可正常使用 |
 
 两类来源分别以自己的**实时模型清单（活 roster）**为全集；清单不可用时回退公开目录对应段，再失败时使用内置目录或保留上一份可用目录。详情页会说明当前目录来源。
 
@@ -119,6 +119,8 @@ flowchart TD
 - **搜索**：按模型名称、标识、家族、描述或协议族过滤，结果即时更新。
 - **计数**：显示当前搜索结果数；已隐藏的模型数量单独标注。
 - **隐藏**：逐个模型开关，按 `plan:id` 记录，隐藏后该模型不再出现在模型选择器；同名 zen/go 条目可分别隐藏，重新打开后恢复。
+- **仅官方客户端可用的免费模型按停用展示**：Zen 的免费模型（`big-pickle`、`*-free` 等）只能由官方 OpenCode 客户端调用，插件在目录里保留条目并标记「已停用 + 仅 OpenCode 客户端可用」，开关不可操作，也**不进入模型选择器**；卡片顶部有统一提示说明原因。Go 套餐内含的免费模型（`beam-free · go`）不受影响，正常可选。
+- **地区受限模型不禁用**：如 `beam-free`、`cat-jam-free` 在部分地区不可用，插件照常列出，选中后按上游返回的地区错误提示。
 - **刷新**：立即重新读取两类来源的目录，并显示获取时间。
 
 目录刷新失败时保留上一份可用目录，不把已经能用的模型清空；某类来源失败不影响另一类。
@@ -160,7 +162,8 @@ flowchart TD
 
 - **需要能直连 `opencode.ai`**：登录、模型目录、套餐额度与模型调用都发往该域名（公开目录在 `models.opencode.ai`）。运行环境无法访问时，登录与目录会给出连接失败提示。
 - **OpenCode Zen 按量模型需要 Console 余额**：余额不足时上游返回 402 `Insufficient account funds`，模型目录仍可读取，但对话无法完成；插件不自动重试，充值后重试即可。
-- **OpenCode Zen 免费模型只允许在 OpenCode 客户端使用**：`big-pickle`、`*-free` 等模型的上游调用返回 403 `FreeTierError`；DSH 可能把该上游 403 显示为「API 密钥无效 AUTH」，这不是插件凭据错误，而是上游限制。插件不提供绕过方式。
+- **OpenCode Zen 免费模型只允许在 OpenCode 客户端使用**：`big-pickle`、`*-free` 等 Zen 免费模型的上游调用返回 403 `FreeTierError`，因此插件在目录卡片中把它们按「已停用 + 仅 OpenCode 客户端可用」展示，并**不放进模型选择器**；卡片顶部有统一提示说明原因。Go 套餐内含的免费模型不受此限制（`beam-free · go` 可正常选择），同一模型在 Zen 与 Go 两段会分别列出并各用自身端点。
+- **地区受限模型按上游限制处理**：如 `beam-free`、`cat-jam-free` 在部分地区返回 403 `RegionError`。插件不在后台禁用这类模型，选中后按上游返回的错误提示用户。
 - **OpenCode Go 套餐按模型月度上限计算额度**：额度由 OpenCode 按套餐与模型的月度上限计算，插件只做展示，不参与计费或换算金额；OAuth 与 Console 服务账号 API Key 均可调用 Go 模型。
 - **路由使用 `dsh-` 前缀**：插件只注册 `dsh-opencode`，与手工配置的 `opencode` / `opencode-go` 并存；不要为同一用途再手工创建同名 `dsh-opencode` 路由。
 - **图片生成、视频生成模型不参与对话**：它们与 DSH 对话所需的文本输入协议不同，不在本插件范围内。
@@ -185,12 +188,13 @@ flowchart TD
 
 这是预期行为。套餐额度与胶囊只对 `· go` 后缀的模型生效；`· zen` 按量模型不占用套餐额度，插件也不展示按量余额或费用。胶囊策略为 `always` 时会常驻显示，但展示的仍是账号的 Go 套餐数据。
 
-### 调用 Zen 模型报 402 或 403，免费模型显示 AUTH
+### 调用 Zen 模型报 402、403 或地区错误
 
 - **402 `Insufficient account funds`**：Console 余额不足，需要在 OpenCode Console 充值后重试。
-- **403 `FreeTierError`**：该模型是免费模型，只允许在 OpenCode 客户端内使用，DSH 无法调用；DSH 可能把该上游 403 显示为「API 密钥无效 AUTH」，这不是凭据失效。请改用付费 Zen 模型或 `· go` 模型。
+- **403 `FreeTierError`**：只出现在 Zen 免费模型上，只允许在 OpenCode 客户端内使用，DSH 无法调用。这类模型已在目录卡片中按「已停用」展示且不进入选择器，正常流程下不会触发；若通过历史会话残留选择到它，改用付费 Zen 模型或 `· go` 模型即可。
+- **403 `RegionError`**：该模型不在当前地区可用（如 `beam-free`、`cat-jam-free`），换用其它模型即可。
 
-两类都是上游策略，不是插件缺陷；插件不会自动重试或绕过限制。
+这些都是上游策略，不是插件缺陷；插件不会自动重试或绕过限制。
 
 ### 用量胶囊不显示
 

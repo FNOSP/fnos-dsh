@@ -111,8 +111,12 @@ export function apply(ctx: Context): void {
     const prefs = await preferences.read()
     const hidden = new Set(prefs.hiddenModels)
     const endpoint = await effectiveEndpointPlan(prefs)
+    // `clientOnly` 的免费模型只保留在目录卡片里做禁用展示，不进入模型选择器。
     const models = applyEndpointPlan(
-      snapshot.models.filter(model => model.disabled !== true && !hidden.has(modelKey(model.plan, model.id))),
+      snapshot.models.filter(model =>
+        model.disabled !== true
+        && model.clientOnly !== true
+        && !hidden.has(modelKey(model.plan, model.id))),
       endpoint,
     )
     runtime.update(models, {

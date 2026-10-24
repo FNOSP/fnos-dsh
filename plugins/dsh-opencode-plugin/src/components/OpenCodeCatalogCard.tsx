@@ -351,6 +351,13 @@ export function OpenCodeCatalogCard({
 
       {catalog === undefined ? null : (
         <>
+          {/* 免费模型里有一部分只能由官方 OpenCode 客户端调用，这里统一说明禁用原因。 */}
+          {catalog.models.some(model => model.clientOnly === true) ? (
+            <div className="dsh-opencode-notice" role="status">
+              <DshIconInfoCircle className="dsh-opencode-notice-icon" />
+              <span>{t('catalogClientOnlyNotice')}</span>
+            </div>
+          ) : null}
           {/* 搜索与计数固定在列表上方，列表内部滚动时它们不跟着走。 */}
           <div className="dsh-opencode-catalog-controls">
             <DshInput
@@ -380,7 +387,8 @@ export function OpenCodeCatalogCard({
                 {filtered.map(model => {
                   const key = modelKey(model.plan, model.id)
                   const hidden = hiddenSet.has(key)
-                  const disabled = model.disabled === true
+                  // 仅官方客户端可用的免费模型与上游停用条目一样按禁用展示。
+                  const disabled = model.disabled === true || model.clientOnly === true
                   const icons = supportedFeatureIds(model)
                   const featureSummary = icons.map(id => t(featureLabelKey(id))).join(' · ')
                   const className = [
@@ -395,6 +403,7 @@ export function OpenCodeCatalogCard({
                           <span className="dsh-opencode-model-name">{`${model.name} · ${model.plan}`}</span>
                           {disabled ? <DshTag size="small" color="red">{t('catalogDisabledTag')}</DshTag> : null}
                           {model.deprecated === true ? <DshTag size="small" color="orange">{t('catalogDeprecatedTag')}</DshTag> : null}
+                          {model.clientOnly === true ? <DshTag size="small" color="grey">{t('catalogFreeClientOnly')}</DshTag> : null}
                           {icons.length === 0 ? null : (
                             <DshTooltip
                               className="dsh-opencode-model-tip"

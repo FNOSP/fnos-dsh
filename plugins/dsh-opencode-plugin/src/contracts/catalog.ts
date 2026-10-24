@@ -78,6 +78,12 @@ export interface OpenCodeModel {
   readonly structuredOutput?: boolean
   /** 是否免费（输入/输出价格均为 0）。 */
   readonly free: boolean
+  /**
+   * 上游只允许官方 OpenCode 客户端调用的免费模型（Zen 免费额度走客户端身份校验，
+   * 第三方客户端调用会得到 `FreeTierError`）。这类模型在目录里保留展示，
+   * 但不进入模型选择器；Go 套餐内含的免费模型不受此限制。
+   */
+  readonly clientOnly?: boolean
   /** 上游目录标为 deprecated；仍可用时保留，只做展示提示。 */
   readonly deprecated?: boolean
   /** Console 明确标记为未启用；仅当 Console 配置可读时出现。 */
@@ -101,7 +107,7 @@ export interface OpenCodeCatalog {
   readonly warnings: readonly string[]
 }
 
-/** 目录中可用于生成对话的模型；过滤掉图片生成与显式关闭的条目。 */
+/** 目录中可用于生成对话的模型；过滤掉图片生成、显式关闭与仅官方客户端可用的条目。 */
 export function selectableModels(catalog: OpenCodeCatalog): readonly OpenCodeModel[] {
-  return catalog.models.filter(model => model.disabled !== true)
+  return catalog.models.filter(model => model.disabled !== true && model.clientOnly !== true)
 }

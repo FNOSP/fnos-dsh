@@ -56,7 +56,7 @@ verifiedAt: 2026-10-24
 
 ### 待确认项
 
-- ❓ OpenCode Zen 免费模型在目录中的默认可见性尚未形成产品结论。本轮按「保留 roster 条目、调用失败时显示上游错误」登记；若后续改为默认隐藏，需要同步更新需求 FNOS-026-02/03 与 TC-009、TC-017。
+- ~~❓ OpenCode Zen 免费模型在目录中的默认可见性尚未形成产品结论。~~ 已确认（2026-10-24）：Zen 免费模型保留在目录卡片中按「已停用」展示并给出统一提示，但不进入模型选择器；Go 套餐内含的免费模型（如 `beam-free · go`）正常可选。见需求 `FNOS-026-02-AC-07` 与 TC-046。
 
 ### 已知限制（上游）
 
@@ -65,7 +65,7 @@ verifiedAt: 2026-10-24
 | 限制 | 实测表现 | 对用例的影响 |
 | --- | --- | --- |
 | OpenCode Zen 按量模型需要 Console 余额 | 余额不足时调用返回 402 `Insufficient account funds`；模型目录与选择器仍正常（2026-10-24 `zen:glm-5` 实测） | TC-018 的 `· zen` 付费模型部分在无余额账号上登记为「阻塞」；TC-021 以 402 作为预期错误，可正常执行并记录上游原文 |
-| OpenCode Zen 免费模型只允许在 OpenCode 客户端内使用 | 调用返回 403 `FreeTierError`；在 DSH 中可能显示为 `API 密钥无效 AUTH`（上游 403 被 DSH 归类为 AUTH，2026-10-24 `zen:big-pickle` 实测）；目录条目仍按 roster 展示 | TC-018 改用付费 Zen 模型或 Go 模型执行；TC-021 用免费模型验证错误可读，不要求调用成功 |
+| OpenCode Zen 免费模型只允许在 OpenCode 客户端内使用 | 调用返回 403 `FreeTierError`；目录条目保留在卡片中按「已停用 + 仅 OpenCode 客户端可用」展示，选择器已过滤 | TC-018 改用付费 Zen 模型或 Go 模型执行；TC-021 用 Go 免费模型验证地区错误可读；TC-046 验证禁用与过滤行为 |
 | 两类模型来源计费口径不同 | Go 套餐模型用 OAuth 或 API Key 均可调用；Zen 按量模型受余额约束；合并为单一供应商后计费仍按来源区分 | TC-002、TC-005、TC-018 分别在两种登录方式下执行；额度相关用例只对 `· go` 后缀断言 |
 | 上游 roster 与目录条目会变化 | 模型数量与名称随上游增删；2026-10-24 为 122 个（zen 85 / go 37），文档只写约数与实测日期 | TC-009、TC-014 以执行时的活 roster 为基准，不硬编码完整清单 |
 
@@ -149,6 +149,7 @@ verifiedAt: 2026-10-24
 | TC-024 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 额度不可用时显示未知而不是 0% | [AC-03](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 已登录 | 1.使额度接口返回失败 2.点刷新 3.查看卡片 | 显示失败原因与最近一次获取时间；未读取到的窗口不显示 0% | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-025 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 手动刷新更新数据与获取时间 | [AC-04](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 额度卡片已有数据 | 1.记录获取时间 2.点「刷新」 3.观察按钮状态与结果 | 按钮在刷新期间禁用并显示进行中；成功后获取时间更新、数值重新读取 | P2 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-047 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 无 Go 订阅时显示未订阅说明 | [AC-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | 已登录；账号只有 Zen 按量权限，没有 Go 或 Go Plus 订阅 | 1.打开详情页额度卡片 2.查看三个窗口 3.切到带 `· go` 后缀的模型并打开输入区 | 卡片显示未订阅说明，不显示 0%、不显示按量费用；输入区不出现套餐用量胶囊 | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
+| TC-048 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 仅官方客户端可用的免费模型按禁用处理并过滤 | [AC-07](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 已登录；账号可读 Zen 与 Go 两组 roster | 1.打开详情页目录卡片，查看顶部提示与 Zen 免费模型条目 2.查看同名 `beam-free` 的 zen 与 go 两条 3.打开会话模型选择器，搜索这些免费模型 | 卡片顶部显示「部分免费模型只能由官方 OpenCode 客户端调用」提示；Zen 免费条目带「已停用」与「仅 OpenCode 客户端可用」，开关不可操作；`beam-free` 在 zen 与 go 各一条且端点不同，go 条目可用；选择器中不出现这些 Zen 免费模型 | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 
 ### [FNOS-026-06 对话输入区用量胶囊](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06)
 
@@ -334,6 +335,7 @@ verifiedAt: 2026-10-24
 | TC-045 | [FNOS-026-03](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-03) | DSH Web、DSH Desktop | 未执行 | — | 待执行；能力图标与悬浮气泡 |
 | TC-046 | [FNOS-026-07](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-07) | DSH Web、DSH Desktop | 未执行 | — | 待执行；固定高度、内部滚动与固定工具栏 |
 | TC-047 | [FNOS-026-05](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-05) | DSH Web、DSH Desktop | 未执行 | — | 待执行；需无 Go 订阅账号 |
+| TC-048 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 0.2.1-rc.2.29：卡片顶部提示已显示；8 个 Zen 免费模型均带「已停用 + 仅 OpenCode 客户端可用」且开关禁用；`beam-free` 的 zen 条目禁用、go 条目可选且端点分别为 `inference/openai/v1` 与 `inference/go/openai/v1`；选择器搜索 8 个免费模型 id 命中 0 条。DSH Desktop 待执行 |
 
 ## Bug 记录
 
