@@ -12,6 +12,7 @@ import {
   applyEndpointPlan,
   baseURLFor,
   buildCatalog,
+  dedupeByPlan,
   buildCatalogEntry,
   consoleScopesFromConsoleConfig,
   safeConsoleHeaders,
@@ -397,5 +398,55 @@ describe('端点策略', () => {
     }))
     const next = applyEndpointPlan(mixed, 'go')
     expect(next[0]?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
+  })
+})
+
+describe('跨来源去重', () => {
+  const model = (id: string, plan: 'zen' | 'go'): OpenCodeModel => ({
+    id,
+    name: id,
+    api: 'openai-completions',
+    baseURL: baseURLFor(plan, 'openai-completions'),
+    reasoning: false,
+    input: ['text'],
+    contextWindow: 1000,
+    maxTokens: 100,
+    tools: true,
+    free: false,
+    plan,
+  })
+
+  it('账号有 Go 时同一模型只保留 go 条目，zen 重复项被去掉', () => {
+    const models = [model('beam-free', 'zen'), model('beam-free', 'go'), model('big-pickle', 'zen')]
+    const next = dedupeByPlan(models, 'go')
+    expect(next.map(m => `${m.plan}:${m.id}`)).toEqual(['go:beam-free', 'zen:big-pickle'])
+  })
+
+  it('账号只有 Zen 时保留 zen 条目，去掉 go 重复项', () => {
+    const models = [model('beam-free', 'zen'), model('beam-free', 'go'), model('deepseek-v4-pro', 'go')]
+    const next = dedupeByPlan(models, 'zen')
+    expect(next.map(m => `${m.plan}:${m.id}`)).toEqual(['zen:beam-free', 'go:deepseek-v4-pro'])
+  })
+
+  it('真实 roster 上按 Go 去重后只去掉两段共享的模型', async () => {
+    const catalog = await publicCatalog()
+    const zenIds = new Set(catalog.models.filter(m => m.plan === 'zen').map(m => m.id))
+    const shared = new Set(catalog.models.filter(m => m.plan === 'go' && zenIds.has(m.id)).map(m => m.id))
+    expect(shared.size).toBeGreaterThan(0)
+    const deduped = dedupeByPlan(catalog.models, 'go')
+    expect(deduped.length).toBe(catalog.models.length - shared.size)
+    const keys = deduped.map(m => `${m.plan}:${m.id}`)
+    for (const id of shared) {
+      expect(keys).toContain(`go:${id}`)
+      expect(keys).not.toContain(`zen:${id}`)
+    }
+    // 单一来源模型照常保留。
+    expect(keys).toContain('zen:big-pickle')
+    expect(keys).toContain('go:deepseek-v4-pro')
+  })
+
+  it('没有重复项时原样返回同一个数组引用', () => {
+    const models = [model('big-pickle', 'zen'), model('deepseek-v4-pro', 'go')]
+    expect(dedupeByPlan(models, 'go')).toBe(models)
   })
 })

@@ -21,7 +21,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-llm'
-import { applyEndpointPlan, buildCatalog, OpenCodeCatalogService } from './host/catalog.ts'
+import { applyEndpointPlan, buildCatalog, dedupeByPlan, OpenCodeCatalogService } from './host/catalog.ts'
 import { OpenCodeAuthService } from './host/auth.ts'
 import type { OpenCodeCatalog } from './contracts/catalog.ts'
 import { OpenCodeConsoleClient } from './host/console-client.ts'
@@ -105,18 +105,33 @@ export function apply(ctx: Context): void {
     return snapshot === undefined ? 'auto' : 'go'
   }
 
+  /**
+   * 账号实际拥有的套餐来源：读到 Go 套餐额度就是 `go`，否则按 `zen` 处理。
+   *
+   * 与端点策略无关——端点策略是「请求打到哪一组端点」，这里是「哪一侧的条目
+   * 才是账号真正计费的那一份」，跨来源去重按它取舍。
+   */
+  const ownedPlan = async (): Promise<OpenCodePlan> => {
+    const snapshot = await usage.read().catch(() => undefined)
+    return snapshot === undefined ? 'zen' : 'go'
+  }
+
   /** 把目录快照投影成 provider 模型，并应用端点策略与「隐藏模型」偏好。 */
   const applyCatalog = async (snapshot: OpenCodeCatalog | undefined): Promise<void> => {
     if (snapshot === undefined) return
     const prefs = await preferences.read()
     const hidden = new Set(prefs.hiddenModels)
     const endpoint = await effectiveEndpointPlan(prefs)
+    // 同一模型在 zen / go 都出现时只保留账号套餐那一份，避免选择器里重复。
     // `clientOnly` 的免费模型只保留在目录卡片里做禁用展示，不进入模型选择器。
     const models = applyEndpointPlan(
-      snapshot.models.filter(model =>
-        model.disabled !== true
-        && model.clientOnly !== true
-        && !hidden.has(modelKey(model.plan, model.id))),
+      dedupeByPlan(
+        snapshot.models.filter(model =>
+          model.disabled !== true
+          && model.clientOnly !== true
+          && !hidden.has(modelKey(model.plan, model.id))),
+        await ownedPlan(),
+      ),
       endpoint,
     )
     runtime.update(models, {
@@ -172,6 +187,7 @@ export function apply(ctx: Context): void {
         await schedule()
       },
       routes: () => runtime.routeStatus(),
+      ownedPlan,
       endpointPlan: async () => effectiveEndpointPlan(await preferences.read()),
     })
   })

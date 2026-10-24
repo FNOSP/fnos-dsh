@@ -15,7 +15,7 @@ import type { OpenCodeCatalog } from '../contracts/catalog.ts'
 import type { OpenCodePlan } from '../contracts/identity.ts'
 import { OPENCODE_ROUTES } from '../contracts/routes.ts'
 import type { OpenCodeAuthService } from './auth.ts'
-import { applyEndpointPlan } from './catalog.ts'
+import { applyEndpointPlan, dedupeByPlan } from './catalog.ts'
 import type { OpenCodeCatalogService } from './catalog.ts'
 import type { OpenCodePreferencesStore } from './preferences.ts'
 import type { OpenCodeRouteStatus } from './provider.ts'
@@ -137,6 +137,12 @@ export interface OpenCodeRoutesOptions {
   /** 两组供应商路由的注册状态，供详情页诊断。 */
   readonly routes: () => readonly OpenCodeRouteStatus[]
   /**
+   * 账号套餐来源，用于去掉跨来源重复的模型条目。
+   *
+   * 同一模型在 zen 与 go 都出现时目录里只保留这一侧的条目；不传时保留全部。
+   */
+  readonly ownedPlan?: () => Promise<OpenCodePlan>
+  /**
    * 当前生效的推理端点策略。
    *
    * 目录响应按它改写 `baseURL`，让详情页展示的端点与实际发请求的端点一致；
@@ -150,14 +156,23 @@ export interface OpenCodeRoutesOptions {
  */
 export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOptions): void {
   ctx.effect(() => {
-    /** 按当前端点策略改写目录里的 `baseURL`，只影响展示，不改快照本身。 */
+    /**
+     * 目录响应只影响展示：先按账号套餐去掉跨来源重复项，再按端点策略改写
+     * `baseURL`，让详情页与选择器、实际请求三者口径一致。
+     */
     const displayCatalog = async (
       snapshot: OpenCodeCatalog | undefined,
     ): Promise<OpenCodeCatalog | undefined> => {
-      if (snapshot === undefined || options.endpointPlan === undefined) return snapshot
+      if (snapshot === undefined) return snapshot
+      const deduped = options.ownedPlan === undefined
+        ? snapshot.models
+        : dedupeByPlan(snapshot.models, await options.ownedPlan())
+      if (options.endpointPlan === undefined) {
+        return deduped === snapshot.models ? snapshot : { ...snapshot, models: deduped }
+      }
       const plan = await options.endpointPlan()
-      if (plan === 'auto') return snapshot
-      return { ...snapshot, models: applyEndpointPlan(snapshot.models, plan) }
+      if (plan === 'auto') return deduped === snapshot.models ? snapshot : { ...snapshot, models: deduped }
+      return { ...snapshot, models: applyEndpointPlan(deduped, plan) }
     }
     const authorize = (req: IncomingMessage, res: ServerResponse): boolean => {
       if (trustedRequest(req)) return true

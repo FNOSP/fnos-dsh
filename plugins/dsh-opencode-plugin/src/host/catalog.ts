@@ -667,6 +667,28 @@ export function applyEndpointPlan(
 }
 
 /**
+ * 跨来源去重：同一模型 id 在 zen 与 go 都出现时，只保留账号套餐对应的一份。
+ *
+ * 合并供应商把两组来源放在同一个列表里，同一个模型因此会出现两条（如
+ * `beam-free` 的 zen 与 go 条目）。账号实际能计费的是自己套餐那一侧，重复的
+ * 另一侧既占位又容易误选，所以按 `plan` 收掉：`plan` 侧的条目始终保留，另一侧
+ * 只删除 id 在 `plan` 侧也存在的重复项；只存在于另一侧的模型（如 `big-pickle`
+ * 仅在 zen）不属于重复，照常保留。
+ *
+ * @param models - 合并后的模型列表。
+ * @param plan - 账号套餐来源，保留该侧条目。
+ * @returns 去掉跨来源重复项后的列表；顺序保持原样。
+ */
+export function dedupeByPlan(
+  models: readonly OpenCodeModel[],
+  plan: OpenCodePlan,
+): readonly OpenCodeModel[] {
+  const owned = new Set(models.filter(model => model.plan === plan).map(model => model.id))
+  const next = models.filter(model => model.plan === plan || !owned.has(model.id))
+  return next.length === models.length ? models : next
+}
+
+/**
  * 合并来源，生成目录快照。
  *
  * 每个 plan 的模型集合：活 roster 为全集；没有 roster 时回退公开目录的非
