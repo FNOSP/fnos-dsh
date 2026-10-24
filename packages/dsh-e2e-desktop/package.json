@@ -1,7 +1,7 @@
 {
   "name": "@tnnevol/dsh-e2e-desktop",
   "type": "module",
-  "version": "5.9.0-0.2.1-rc.2.27",
+  "version": "5.9.0-0.2.1-rc.2.28",
   "private": true,
   "description": "DSH Desktop 的 Midscene Test 交互验收（跨插件的 Desktop 一致性用例）",
   "scripts": {
