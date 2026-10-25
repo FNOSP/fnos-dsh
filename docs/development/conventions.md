@@ -50,13 +50,13 @@ const srcPath = (...segments: string[]) => join(here, '..', 'src', ...segments)
 **推荐：`catalog:dsh` + 显式 `engines.dsh`。** manifest 同时声明运行时基线：
 
 ```json
-"engines": { "node": "^22.19.0 || >=24.0.0", "dsh": "0.2.1-rc.2" },
+"engines": { "node": "^22.19.0 || >=24.0.0", "dsh": "0.2.1-rc.3" },
 "peerDependencies": { "@deepseek-ai/dsh-llm": "catalog:dsh" }
 ```
 
 DSH 的兼容性规则是「声明了 `engines.dsh` 时只由该范围决定，忽略 `peerDependencies`」（见 `@deepseek-ai/dsh-app-boot` 的插件兼容性检查），因此本地软链加载也能通过校验；各 peer 继续由 catalog 维护。`engines.dsh` 必须等于 `pnpm-workspace.yaml` 中 `dsh` catalog 的基线，由基线测试守卫。
 
-**兼容：DSH peer 写具体版本**（`"@deepseek-ai/dsh-llm": "0.2.1-rc.2"`）。未声明 `engines.dsh` 时，DSH 会对每个 DSH peer 做 **semver 范围校验**（`satisfies(runtimeVersion, range)`），`catalog:dsh` 不是合法 range，一律判为不满足 → 插件被**整体跳过**。本地联调时 DSH 经安装锚点解析到仓库源码软链，读到的是仓库里的 manifest，所以这条约束对本地同样生效。
+**兼容：DSH peer 写具体版本**（`"@deepseek-ai/dsh-llm": "0.2.1-rc.3"`）。未声明 `engines.dsh` 时，DSH 会对每个 DSH peer 做 **semver 范围校验**（`satisfies(runtimeVersion, range)`），`catalog:dsh` 不是合法 range，一律判为不满足 → 插件被**整体跳过**。本地联调时 DSH 经安装锚点解析到仓库源码软链，读到的是仓库里的 manifest，所以这条约束对本地同样生效。
 
 两种写法下，已发布的 npm 产物都不受影响：pnpm 在 pack 时会把 `catalog:` 重写成 catalog 里的真实版本。
 

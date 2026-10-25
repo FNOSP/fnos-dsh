@@ -351,6 +351,10 @@ const requirementsSidebar = [
         text: 'FNOS-028 项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注',
         link: '/requirements/FNOS-028-unified-project-version-bumpp'
       },
+      {
+        text: 'FNOS-030 DSH 0.2.1-rc.3 插件适配与基线迁移',
+        link: '/requirements/FNOS-030-dsh-021-rc3-adaptation'
+      },
       ]
   }
 ]
@@ -472,6 +476,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-028 项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注',
         link: '/plans/PLAN-FNOS-028-unified-project-version-bumpp'
       },
+      {
+        text: 'PLAN-FNOS-030 DSH 0.2.1-rc.3 插件适配与基线迁移',
+        link: '/plans/PLAN-FNOS-030-dsh-021-rc3-adaptation'
+      },
     ]
   }
 ]
@@ -561,6 +569,10 @@ const testsSidebar = [
       {
         text: 'FNOS-028 项目与插件版本统一及发布链路 dsh 基线标注',
         link: '/tests/FNOS-028-unified-project-version-bumpp'
+      },
+      {
+        text: 'FNOS-030 DSH 0.2.1-rc.3 插件适配与基线迁移',
+        link: '/tests/FNOS-030-dsh-021-rc3-adaptation'
       },
     ]
   }

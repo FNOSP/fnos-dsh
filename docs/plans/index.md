@@ -67,5 +67,6 @@ flowchart TD
 | PLAN-FNOS-026 | [OpenCode Zen 与 OpenCode Go 模型接入及套餐用量](/plans/PLAN-FNOS-026-dsh-opencode-plugin) | 已完成（插件已发布到 npm，任务全部完成并通过验收） |
 | PLAN-FNOS-027 | [ZCode Start Plan 模型接入与账号额度](/plans/PLAN-FNOS-027-dsh-zcode-plugin) | 已完成（自研 HTTP 通道在 DSH Web 与 DSH Desktop 均验证通过；发布相关任务按插件未发布单列） |
 | PLAN-FNOS-028 | [项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注](/plans/PLAN-FNOS-028-unified-project-version-bumpp) | 已完成（四阶段收尾；测试证据见 /tests/FNOS-028-unified-project-version-bumpp） |
+| PLAN-FNOS-030 | [DSH 0.2.1-rc.3 插件适配与基线迁移](/plans/PLAN-FNOS-030-dsh-021-rc3-adaptation) | 规划中（四阶段：基线改写 → 包级验证 → 双客户端回归 → 文档与版本） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

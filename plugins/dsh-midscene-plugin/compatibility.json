@@ -4,7 +4,7 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "dshPluginApi": {
-    "version": "0.2.1-rc.2",
+    "version": "0.2.1-rc.3",
     "packages": [
       "@deepseek-ai/dsh-attachment",
       "@deepseek-ai/dsh-client-locale",
