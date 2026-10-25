@@ -17,6 +17,27 @@
 
 import type { TokenUsage } from '@deepseek-ai/dsh-llm'
 
+/** 限流退避：与官方客户端同一曲线（2s 起、上限 60s、带抖动）。 */
+const RATE_LIMIT_BASE_MS = 2_000
+const RATE_LIMIT_MAX_MS = 60_000
+
+/** 单次请求最多尝试几轮（含首次）。 */
+const RATE_LIMIT_MAX_ATTEMPTS = 5
+
+/**
+ * 官方限流/繁忙类业务码。
+ *
+ * 依据上游 `docs/start-plan-provider-business-errors.md`：
+ * - `3008`/`3009`/`3010` 是**并发上限**（系统繁忙），不是配额问题；
+ * - `1005` 是配额耗尽，模型层**不可重试**；
+ * - `3007` 是安全校验拒绝，重试没有意义。
+ * 把这些混成一个「429 就重试」会让配额耗尽的用户白等，也会掩盖安全校验失败。
+ */
+const CONCURRENCY_LIMIT_CODES = ['3008', '3009', '3010']
+const QUOTA_EXHAUSTED_CODES = ['1005']
+const SECURITY_REJECT_CODES = ['3007']
+const RETRYABLE_RATE_LIMIT_CODES = ['rate_limit_reached_error', 'rate_limit_error', 'overloaded_error']
+
 /** 官方 agent 的两段 system 前缀在发出前的固定形态。 */
 export interface SystemPrefix {
   readonly head: string
@@ -46,6 +67,13 @@ export interface MessagesRequest {
   readonly sessionId?: string
   /** 请求头（客户端身份）。 */
   readonly extraHeaders?: Record<string, string>
+  /** 发生限流重试时的观察回调（用于日志与诊断）。 */
+  readonly onRateLimit?: (info: {
+    readonly attempt: number
+    readonly status: number
+    readonly businessCode: string | undefined
+    readonly delayMs: number
+  }) => void
 }
 
 /** 解析后的流事件。 */
@@ -122,6 +150,105 @@ export function buildMessagesBody(
     // 官方客户端始终带 output_config.effort；缺失会扩大被风控的面。
     ...(thinkingEnabled ? { output_config: { effort: request.effort ?? 'max' } } : {}),
     ...(request.temperature === undefined ? {} : { temperature: request.temperature }),
+  }
+}
+
+/**
+ * 计算第 `attempt` 次限流重试的等待时间。
+ *
+ * 上游给了 `Retry-After` 就听它的（这是唯一能真正避开限流的信号）；没给则按
+ * 2s→4s→8s… 指数退避并加抖动——多个请求同时重试仍会撞车，抖动用来错开。
+ */
+export function rateLimitDelayMs(attempt: number, retryAfterSeconds?: number): number {
+  if (retryAfterSeconds !== undefined && Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+    return Math.min(RATE_LIMIT_MAX_MS, Math.round(retryAfterSeconds * 1_000))
+  }
+  const raw = Math.min(RATE_LIMIT_MAX_MS, RATE_LIMIT_BASE_MS * 2 ** (attempt - 1))
+  return Math.round(raw * (0.5 + 0.5 * Math.random()))
+}
+
+/**
+ * 这次限流是否值得重试。
+ *
+ * 官方把限流分两类：瞬时的（`rate_limit_reached_error` / `overloaded_error`）可以退避
+ * 重试；额度耗尽类的（`organization_spend_limit_exceeded` 等）重试多少次都没用，
+ * 必须直接失败让用户处理。混为一谈会让额度用尽的用户白等五轮。
+ */
+export function isRetryableRateLimit(
+  status: number,
+  businessCode: string | undefined,
+): boolean {
+  // 配额耗尽与安全拒绝：无论状态码是什么都不重试。
+  if (businessCode !== undefined
+    && (QUOTA_EXHAUSTED_CODES.includes(businessCode)
+      || SECURITY_REJECT_CODES.includes(businessCode))) {
+    return false
+  }
+  if (businessCode !== undefined && CONCURRENCY_LIMIT_CODES.includes(businessCode)) {
+    // 官方在「新会话首轮」不自动重试（避免把用户的首次请求拖成长等待）；
+    // 这里统一短退避重试：并发上限通常是别处请求占着，等一两秒就能进，
+    // 比让用户手动重发体验更好。次数与延迟都受上限约束，不会无限等。
+    return true
+  }
+  if (status !== 429 && status !== 503) return false
+  if (businessCode === undefined) return true
+  if (RETRYABLE_RATE_LIMIT_CODES.includes(businessCode)) return true
+  // 其它明确带业务码的限流按终止型处理：宁可让用户看到真实原因，也不要空转重试。
+  return false
+}
+
+/** 可被 signal 打断的等待。 */
+async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    const onAbort = (): void => {
+      clearTimeout(timer)
+      reject(new Error('ZCode: 请求已取消'))
+    }
+    if (signal?.aborted === true) {
+      clearTimeout(timer)
+      reject(new Error('ZCode: 请求已取消'))
+      return
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+/** 把失败翻译成用户能据以行动的一句话。 */
+function describeFailure(status: number, text: string, businessCode: string | undefined): string {
+  if (businessCode !== undefined && QUOTA_EXHAUSTED_CODES.includes(businessCode)) {
+    return 'ZCode 额度已用尽（1005）：请等待额度重置或升级账户，重试不会恢复。'
+  }
+  if (businessCode !== undefined && SECURITY_REJECT_CODES.includes(businessCode)) {
+    return 'ZCode 拒绝了本次请求（3007，安全校验）：请检查账号状态后重试。'
+  }
+  if (status === 429 || status === 503
+    || (businessCode !== undefined && CONCURRENCY_LIMIT_CODES.includes(businessCode))) {
+    return '当前系统繁忙（ZCode 并发上限）：已自动重试仍未通过，请稍后再试或升级账户。'
+  }
+  return `ZCode 请求失败（HTTP ${String(status)}）：${text.slice(0, 300)}`
+}
+
+/** 从响应体里尽力取出业务码（上游各端点字段名不统一）。 */
+function businessCodeOf(text: string): string | undefined {
+  try {
+    const parsed: unknown = JSON.parse(text)
+    if (typeof parsed !== 'object' || parsed === null) return undefined
+    const record = parsed as Record<string, unknown>
+    const inner = typeof record.error === 'object' && record.error !== null
+      ? record.error as Record<string, unknown>
+      : record
+    for (const key of ['code', 'type', 'error_code', 'provider_error_code']) {
+      const value = inner[key]
+      if (typeof value === 'string' && value !== '') return value
+      if (typeof value === 'number') return String(value)
+    }
+    return undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -228,14 +355,17 @@ export async function* streamMessages(
     ...request.extraHeaders,
   }
 
-  const response = await fetchImpl(`${request.baseUrl.replace(/\/+$/u, '')}/v1/messages`, {
-    method: 'POST',
-    headers,
-    body,
-    ...(request.signal === undefined ? {} : { signal: request.signal }),
-  })
+  const url = `${request.baseUrl.replace(/\/+$/u, '')}/v1/messages`
+  let response: Response | undefined
+  for (let attempt = 1; ; attempt += 1) {
+    response = await fetchImpl(url, {
+      method: 'POST',
+      headers,
+      body,
+      ...(request.signal === undefined ? {} : { signal: request.signal }),
+    })
+    if (response.ok) break
 
-  if (!response.ok) {
     const text = await response.text().catch(() => '')
     // 3012 是网关的内容校验拒绝，给出可操作的说明而不是裸业务码。
     if (text.includes('3012')) {
@@ -244,7 +374,22 @@ export async function* streamMessages(
         + '当前前缀可能已与上游版本不一致，需要重新采集官方提示词。',
       )
     }
-    throw new Error(`ZCode 请求失败（HTTP ${String(response.status)}）：${text.slice(0, 300)}`)
+
+    const businessCode = businessCodeOf(text)
+    // 限流是可恢复的：官方客户端也是退避后重试，而不是直接把失败抛给用户。
+    // 额度耗尽属终止型，重试只会让用户白等，直接失败。
+    const mayRetry = attempt < RATE_LIMIT_MAX_ATTEMPTS
+      && isRetryableRateLimit(response.status, businessCode)
+    if (!mayRetry) {
+      throw new Error(describeFailure(response.status, text, businessCode))
+    }
+    const retryAfter = Number(response.headers.get('retry-after') ?? Number.NaN)
+    const delayMs = rateLimitDelayMs(
+      attempt,
+      Number.isFinite(retryAfter) ? retryAfter : undefined,
+    )
+    request.onRateLimit?.({ attempt, status: response.status, businessCode, delayMs })
+    await sleep(delayMs, request.signal)
   }
   if (response.body === null) throw new Error('ZCode 响应缺少可读流')
 

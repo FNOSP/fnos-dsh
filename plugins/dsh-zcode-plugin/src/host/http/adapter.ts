@@ -156,6 +156,14 @@ export class ZCodeHttpAdapter extends LlmAdapter {
       ...(options.temperature === undefined ? {} : { temperature: options.temperature }),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
       ...(this.options.headers === undefined ? {} : { extraHeaders: this.options.headers() }),
+      // 限流重试要可观察：用户看到「卡住」时必须能从日志判断是在等上游。
+      onRateLimit: (info) => {
+        this.options.logger?.warn(
+          `dsh-zcode: 触发限流（HTTP ${String(info.status)}`
+          + `${info.businessCode === undefined ? '' : `, ${info.businessCode}`}），`
+          + `第 ${String(info.attempt)} 次重试前等待 ${String(Math.round(info.delayMs / 1000))} 秒`,
+        )
+      },
     }
 
     // ultra 端点不做内容校验；只有 start-plan 需要官方两段前缀。
