@@ -6,6 +6,7 @@ import { DshButton, DshIconCheckCircle, DshInput, DshTypography } from '@tnnevol
 import type { OpenCodeAuthStatus, OpenCodeLoginChallenge } from '../contracts/auth.ts'
 import type { OpenCodeTranslate } from '../client/locales.ts'
 import { cancelDeviceLogin, readAuthStatus, signInWithApiKey, signOutAccount, startDeviceLogin } from '../client/services/account-data.ts'
+import { apiKeyEntryVisible } from '../client/services/account-entry.ts'
 import { bumpAuthEpoch } from '../client/services/auth-events.ts'
 import { formatTimestamp } from '../client/services/format.ts'
 import { errorMessage, isOriginNotTrusted } from '../client/services/http.ts'
@@ -87,8 +88,9 @@ export function OpenCodeAccountCard({ t, timer }: OpenCodeAccountCardProps): Rea
     if (knownStatusRef.current && wasSignedInRef.current !== signedIn) bumpAuthEpoch()
     knownStatusRef.current = true
     wasSignedInRef.current = signedIn
-    // 已登录时收起并清空 API Key 输入：登录入口只在未登录时出现。
-    if (signedIn) {
+    // 已登录、或正在走设备码授权时收起并清空 API Key 输入：这条兜底入口在这两种
+    // 状态下都不显示，留着展开状态会在下次未登录时突然弹出来。
+    if (signedIn || next.status === 'signing-in') {
       setKeyOpen(false)
       setApiKey('')
       setKeyError(undefined)
@@ -283,8 +285,9 @@ export function OpenCodeAccountCard({ t, timer }: OpenCodeAccountCardProps): Rea
         </div>
       ) : null}
 
-      {/* API Key 登录只作为未登录时的兜底入口；已登录（或状态未知）时不显示。 */}
-      {state.status === 'signed-in' || state.status === 'loading' ? null : (
+      {/* API Key 登录只在「未登录且不在授权中」时作为兜底入口：授权进行中再摆一条
+          别的登录路径，会让人以为设备码流程卡住了，也会分散对设备码的注意力。 */}
+      {apiKeyEntryVisible(state.status) ? (
         <div className="dsh-opencode-key">
           <DshButton
             htmlType="button"
@@ -323,7 +326,7 @@ export function OpenCodeAccountCard({ t, timer }: OpenCodeAccountCardProps): Rea
           ) : null}
           {keyError === undefined ? null : <p className="dsh-opencode-error" role="alert">{keyError}</p>}
         </div>
-      )}
+      ) : null}
     </section>
   )
 }

@@ -157,6 +157,7 @@ verifiedAt: 2026-10-24
 | TC-051 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 登录或目录变化后选择器即时更新 | [AC-10](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 已登录；插件处于运行中，不重启插件与客户端 | 1.登录后直接打开会话的模型选择器 2.在详情页隐藏某个模型（等价于目录变化） 3.不刷新页面再次打开选择器 | 登录后即可在会话中选择 OpenCode 模型，无需禁用/启用插件；目录变化后选择器在不刷新页面的情况下反映新集合，且去重与排序正确 | P1 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-052 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | 胶囊按重置周期最短的窗口展示 | [AC-04](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | 已登录；账号有 Go 套餐额度；三个窗口都有数据 | 1.选中任意 OpenCode 模型打开会话 2.悬浮输入区胶囊看摘要 3.与详情页额度卡片三个窗口比对 | 摘要显示「5 小时窗口」的已用比例与重置倒计时（不是已用最多的每周窗口）；5 小时窗口读不到时才显示每周、再退到每月 | P2 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 | TC-053 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 工具数量上限只提示不裁剪 | [AC-11](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | 已登录；目录含 `beam-free`（可用状态） | 1.打开详情页目录卡片 2.查看顶部提示 3.核对模型行未被裁剪工具或标注为不可用 | 卡片顶部提示「`beam-free（≤ 128）`，启用较多插件或 MCP 时可能超出并返回 HTTP 400，插件不裁剪工具」；模型本身仍可正常选择；若目录里没有这类可用模型则不出现该提示 | P2 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
+| TC-054 | [FNOS-026-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-01) | API Key 入口只在未登录且非授权中显示 | [AC-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-01) | 已登录测试账号 | 1.已登录状态查看账号卡片 2.退出登录后再看 3.点「登录 OpenCode」进入设备码授权中再看 | 已登录不显示「使用 API Key 登录」；未登录显示；授权进行中（已出现设备码）不显示 | P2 | [新增行为，无回归基线](/plans/PLAN-FNOS-026-dsh-opencode-plugin) |
 
 ### [FNOS-026-06 对话输入区用量胶囊](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06)
 
@@ -348,6 +349,7 @@ verifiedAt: 2026-10-24
 | TC-051 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 实测（页面不刷新）：通过偏好接口隐藏 `go:glm-5.3-flash` 后，选择器里 `GLM-5.3-Flash · go` 立即消失，说明目录变化已广播到客户端；还原偏好后刷新页面，选择器只剩 `GLM-5.3-Flash · go`（去重正确）。遗留：广播前客户端已缓存的被移除条目可能残留到下次刷新页面，属 DSH 客户端目录缓存行为，已在插件说明登记。DSH Desktop 待执行 |
 | TC-052 | [FNOS-026-06](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-06) | DSH Web | 部分通过（单元测试） | 2026-10-24 | `primaryUsageWindow` 单测覆盖：每周窗口已用 90% 时仍取 5 小时窗口；5 小时读不到时退到每周、再退到每月；空快照返回 undefined。DSH Web 页面观感待实例复验 |
 | TC-053 | [FNOS-026-02](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-02) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 0.2.1-rc.2.40 实测：详情页目录卡片顶部出现提示「以下模型限制单次请求可携带的工具数量（beam-free（≤ 128））。启用较多插件或 MCP 后可能超出上限并返回 HTTP 400；插件不对工具做裁剪。」，`Beam Free · go` 仍正常可选；单测同时覆盖前缀匹配、停用/仅客户端条目不提示、无命中返回空数组 |
+| TC-054 | [FNOS-026-01](/requirements/FNOS-026-dsh-opencode-plugin#fnos-026-01) | DSH Web | 通过（DSH Web） | 2026-10-24 | DSH Web 实测三种状态：已登录 → 无「使用 API Key 登录」；退出登录 → 出现；点「登录 OpenCode」进入授权中（设备码已生成）→ 入口消失。测试后已取消授权并恢复账号凭据（signed-in） |
 
 ## Bug 记录
 
