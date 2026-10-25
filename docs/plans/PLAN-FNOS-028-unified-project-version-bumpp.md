@@ -37,7 +37,7 @@ lastVerified: 2026-10-25
 | 版本计算 | `src/core/project-version.ts`：解析 `<基础>-<基线>.<迭代号>`、消歧、`nextProjectVersion` 迭代号 +1 / 基线切换重置；插件版本 = 项目版本去基础段 | 删除整个模块；bumpp 原生档位（`patch`/`minor`/`major`/显式版本串）计算项目版本；插件直接沿用同一目标版本（同号） | `version.ts` 重写主流程；`project-version.spec.ts` 删除并重写为新行为用例 |
 | 版本文件替换 | CLI 先对齐历史文件（`alignProjectVersionPackageFiles` 等）再调 `versionBump` 以显式版本串替换 | 保留「先对齐、后 bump」结构：对齐仍负责把各文件拉回当前版本，bump 改传**档位**而非显式串 | `projectVersionFiles` 清单不变；`docs/apps/fn-deepseek-harness.md` 版本行正则不变 |
 | 插件版本同步 | `pluginVersionOf(parts)` 派生小尾巴，逐包 `updatePackageVersion` 直写 | 逐包直写目标版本（= bumpp 算出的项目版本）；`published-dsh-plugins.json` 副本、总览表格、安装命令替换逻辑保留，仅版本值来源变化 | `version.spec.ts` 中小尾巴 fixture（`5.9.0-0.2.1-rc.2.4` 等）全部换为纯净 semver fixture |
-| 提交与 tag | bumpp `commit:false`，CLI 自己 `git add -- <paths>` + `git commit` + 本地 tag（规避无关改动卷入，local-only 插件路径过滤） | **保留**（见设计决策 D1）；仅提交消息中的版本串变为纯净形态 | 无结构变化；`runGit` 与 local-only 过滤逻辑不动 |
+| 提交与 tag | bumpp `commit:false`，CLI 自己 `git add -- <paths>` + `git commit` + 本地 tag（规避无关改动卷入，local-only 插件路径过滤） | **透传 bumpp**：默认提交消息与 tag 名（`chore: release v{version}` / `v{version}`），CLI 同步产物预暂存 + bumpp `all` 模式收口为单条提交；入口新增工作区干净硬守卫（见设计决策 D1 重写） | 自研 `runGit` 编排收敛为「status 守卫 + add 暂存」两步；local-only 过滤保留在暂存侧 |
 | 档位语义 | 仅 `patch`/`prerelease`/显式版本串合法，`minor`/`major` 明确拒绝 | 三档位固定语义（[FNOS-028-02](/requirements/FNOS-028-unified-project-version-bumpp) 目标 7）：`patch`=无新功能修复、`minor`=新功能且基线不变、`major`=DSH 基线变更或重大不可回退调整；每次发布对应段 +1（进位段归零，bumpp 原生行为）；**拒绝带 `-` 预发布段的目标版本**（旧小尾巴误用直接报错并指引） | `parseVersionOptions` 后新增守卫；`version.spec.ts` 覆盖三档各自增量 |
 | 基线切换 | `--baseline` 改 catalog + 基线段切换 + 迭代号重置；交互询问发布类型 | `--baseline` 保留但收敛为 **major 档位专属**：`major --baseline <新基线>` 一步完成 major +1 与 catalog 改写（确认后才写 catalog 的既有顺序保留）；与其他档位搭配或基线未变时携带均报错；「基线未变的重大调整」走纯 `major`；交互询问删除（档位即语义，无需再问） | `version.ts` 参数校验重写；`ui/prompts.ts` 的 `askVersionReleaseKind`/`askTargetBaseline` 删除；versioning.md 重写为「major --baseline = 基线切换唯一入口」+ 纯 major = 重大调整 |
 
@@ -148,7 +148,7 @@ stateDiagram-v2
 
 | # | 决策 | 被否决方案 | 理由与备用方案 |
 | --- | --- | --- | --- |
-| D1 | 保留「CLI 编排 + bumpp `commit:false` + 自己 `git add -- <清单>` 提交」结构，只把**版本计算与文件替换**交给 bumpp 原生档位 | 完全交 bumpp 原生 commit（开 `all` 或依赖其 files 提交） | bumpp 原生提交只覆盖其 `files` 清单内文件；插件包、`published-dsh-plugins.json`、安装命令等同步产物不在清单内，开 `all` 会卷入调用者无关改动（versioning.md 已记录该事故类型）。当前结构已解决此问题且行为稳定。若坚持 bumpp commit，需把全部同步文件塞入 files 并放弃 local-only 过滤，复杂度更高 |
+| D1 | 版本计算与 release 提交/tag **透传 bumpp**（`versionBump` 单次调用：档位计算、files 清单替换、默认 `chore: release v{version}` 提交与 `v{version}` 本地 tag、push 恒关）；CLI 同步产物先 `git add` 暂存，bumpp 提交以 `all` 模式把暂存与替换收进**同一条**提交；发版前新增「工作区干净」硬守卫 | ① 保留 CLI 自管 `git add+commit+tag`（首轮实现）；② 同步文件全塞 bumpp `files` 清单靠其文本替换 | 方案①自研编排与「透传」目标相悖且重复实现 bumpp 已有能力；方案②不可行——bumpp 对文本文件是全量版本串替换，插件 `package.json`（`updateManifestFile` 只认顶层 version，但插件版本串与项目当前版本不同名不命中）、安装命令里的 `@包名@版本` 都不会被替换，且 manifest 的 changelog 文案中版本字样会被误替换。`all` 模式「卷无关改动」的风险由干净守卫在命令入口硬性排除（点名脏文件拒绝发版），实测 v6.0.1 发布 32 文件单条提交、local-only 插件正确排除 |
 | D2 | 插件版本仍由 CLI 直写（值 = 项目目标版本），不交给 bumpp 逐包 bump | 对每个插件分别调 bumpp | 8 个插件逐包调 bumpp 引入 8 次确认/8 次 tag 风险；直写同号更简单，且保留「不同号报错点名」守卫 |
 | D3 | 拒绝带 `-` 的目标版本串（守卫放 CLI 层） | 允许 semver 预发布（如 `6.1.0-rc.1`） | 本仓库不发布预发布版本；旧习惯传小尾巴串时（如 `6.0.1-0.2.1-rc.2.1`）需要明确报错指引而不是被 bumpp 静默当作 prerelease 处理。未来确需预发布时再放开并补规范 |
 | D3b | `--baseline` 收敛为 major 专属参数：`major --baseline <新基线>` 合法（major +1 与 catalog 改写一步完成），`patch --baseline`/`minor --baseline` 报错，纯 `major`（基线未变的重大调整）合法；交互询问（发布类型/目标基线）删除 | 完全删除 `--baseline`（基线变更回归全手工） | 档位语义规范化后「基线变更 = major」成为硬规则，参数必须与档位一致以防基线变更被小档位掩盖；保留参数则沿用既有「确认后才写 catalog」顺序，避免取消后留下不一致状态（versioning.md 已记录的实测坑）。手工方案的问题：catalog 先改会导致 `pnpm run` 依赖校验失败，正是原 `--baseline` 要解决的 |
@@ -255,6 +255,7 @@ stateDiagram-v2
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-10-25 | 版本命令改为透传 bumpp（D1 重写） | 按提出人要求把版本计算与 release 提交/tag 全部透传 bumpp：`versionBump` 单次调用（默认提交消息与 tag 名与仓库惯例一致，push 恒关），CLI 只留守卫（新增「工作区干净」硬守卫）、前置同步与暂存收口（`all` 模式）。实施中实证两条关键事实并否决「同步文件塞 files 清单」方案：bumpp 文本替换是全量版本串替换（会误改 manifest changelog 文案），插件版本串与项目当前版本不同名不会被替换。以真实发布 v6.0.1 完成 32 文件单条提交端到端验证（含 local-only 插件排除、工作区干净守卫）。 |
 | 2026-10-25 | 阶段一至三完成，阶段二/四部分完成 | 版本命令重写（bumpp 档位、`--baseline` major 专属、desc 与应用文档页基线同步、同版本幂等返回）、`project-version.ts` 删除、98 用例全绿；全部版本文件统一 6.0.0 并生成 `chore: release v6.0.0` 提交与本地 tag；workflow 基线派生落地；7 处规范文档更新；FPK 构建解包核对通过。剩余：插件 npm 发布与 dist-tag 处置（T02-03）、真机升级验收（T04-02）、CI 双发布回归（T04-03）。实施中发现并修复一处边界：显式传与当前相同的版本号时空提交被 git 拒绝，改为幂等返回并补用例。 |
 | 2026-10-25 | 档位语义规范化 | 依据提出人补充的版本维护规范，固定三档语义（`patch`=无新功能修复 / `minor`=新功能且基线不变 / `major`=DSH 基线变更或重大不可回退调整，每次发布对应段 +1）。同步调整：内核表「档位语义/基线切换」两行、T01-01 任务与验证（三档演练 + baseline 搭配拒绝）、交互设计章节、新增设计决策 D3b（`--baseline` 收敛为 major 专属而非删除）、风险表「档位语义执行」、验证矩阵补三档用例。对应需求 FNOS-028 目标 7 与 AC-03～05。 |
 | 2026-10-25 | 建立 PLAN-FNOS-028 | 依据 FNOS-028 拆出四个阶段：版本命令 bumpp 化、一次性版本统一（含 npm dist-tag 处置）、发布链路改造（FPK 组合命名 + desc 基线同步）、文档重写与整体验证。登记七项设计决策（D1 保留 CLI 编排+bumpp 计算、D4 基线构建期派生、D6 代际逻辑保留等）与真机升级路径风险。 |

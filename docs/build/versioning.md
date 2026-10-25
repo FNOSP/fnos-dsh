@@ -1,6 +1,6 @@
 # 版本管理
 
-版本命令由根目录 `fnos-dsh-cli` CLI 暴露，实现在 `tooling/fnos-dsh-cli` workspace。**一条命令统一管理项目与全部插件版本**：两者共用同一个版本号（同号），一次执行全部推进，结果落在**同一条提交**里。版本计算与文件替换由 [`bumpp`](https://github.com/antfu-collective/bumpp) 原生档位完成。
+版本命令由根目录 `fnos-dsh-cli` CLI 暴露，实现在 `tooling/fnos-dsh-cli` workspace。**一条命令统一管理项目与全部插件版本**：两者共用同一个版本号（同号），一次执行全部推进，结果落在**同一条提交**里。版本计算、文件替换、release 提交与本地 tag 由 [`bumpp`](https://github.com/antfu-collective/bumpp) 原生完成（`chore: release v<版本>` 提交、`v<版本>` tag、永不 push）；命令入口有**工作区干净**硬守卫——脏工作区的无关改动会被 release 提交卷入，因此发版前必须先提交或贮藏全部改动。
 
 不再有「先选区域」这一步：`project` / `plugin` 两个历史子命令**已被合并**，仍作为参数被接受但语义相同，写成 `pnpm run version -- patch` 即可。
 
@@ -139,7 +139,7 @@ pnpm run version -- patch --no-commit --no-tag
 
 ## 发布检查
 
-1. 确认工作区没有需要保留的未提交改动。
+1. 确认工作区没有需要保留的未提交改动（版本命令入口也有硬守卫：脏工作区直接拒绝发版）。
 2. 确认功能改动已完成 `pnpm run version` 版本更新（见[版本更新时机](#版本更新时机强制)）。
 3. 按本轮变更性质核对档位（修复=patch、新功能=minor、基线变更/重大调整=major）后执行 `pnpm run version -- <档位>`。
 4. 检查版本文件和提交。
