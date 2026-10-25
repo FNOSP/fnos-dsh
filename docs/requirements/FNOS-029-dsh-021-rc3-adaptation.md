@@ -157,6 +157,7 @@ sequenceDiagram
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-25 | 实现与双客户端验收完成 | 基线迁移、八插件锚定改写（统一 `catalog:dsh` + `engines.dsh`）、构建门禁与基线常量改造完成；DSH Web 与开发态 Desktop 双客户端验收通过，需求状态转「待完成」（FPK 真机安装与升级按发布流程另行验证）。测试证据见[测试用例文档](/tests/FNOS-029-dsh-021-rc3-adaptation)。 |
+| 2026-10-25 | npm 发布与 CI 发布完成 | 八个插件（七个入库 + CodeBuddy）以 6.0.0 发布到 npm，`next` 标签全部指向 6.0.0（纯净三段式新代际，`latest` 按代际规则保持旧代际末版）；市场索引随发布重新生成。`v6.0.0` tag 重指到包含构建门禁修复的提交（原 tag 上的 `build.ts` 基线常量未随 catalog 升级，CI 构建会失败），推送后 `Build FPK & Release` 工作流全绿，Release 产物 `fn-deepseek-harness-v6.0.0-dsh-0.2.1-rc.3.fpk` 已发布，文档站同步部署。日常 Desktop/Web profile 的插件已升级到 6.0.0。 |
 | 2026-10-25 | 编号更正 | 初稿误用 FNOS-030，`FNOS-029` 在文档、git 历史与全部分支均无占用，按「编号连续」规范改回 FNOS-029（三份文档、索引、侧栏与提交引用同步）。 |
 | 2026-10-25 | 范围补充 FNOS-029-07 | 用户要求插件依赖统一由 pnpm catalog 管理：DSH peer 全部改为 `catalog:dsh` + `engines.dsh`，构建门禁取消对 DSH peer 的字面版本豁免，守卫断言改为「一律 catalog」。 |
 | 2026-10-25 | 初始登记 | 建立 FNOS-029，范围覆盖基线迁移（catalog/构建常量/安装回调）、七个入库插件与 CodeBuddy 本地副本的锚定迁移、联调检出更新与双客户端验收。rc.2→rc.3 契约差异已核实为无破坏点（7 条调研结论），关联 PLAN-FNOS-029。 |
