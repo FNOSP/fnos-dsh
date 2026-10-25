@@ -149,7 +149,7 @@ export class ZCodeHttpAdapter extends LlmAdapter {
       system: options.system ?? leadingSystem(options.messages),
       messages: await toAnthropicMessages(options.messages, this.options.readImage),
       tools: toAnthropicTools(options.tools),
-      effort: toEffort(options.reasoningEffort, model.thinkingLevelMap),
+      effort: toEffort(resolveEffort(options.reasoningEffort, model), model.thinkingLevelMap),
       thinking: model.reasoning,
       deviceId: this.options.deviceId(),
       ...(options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) }),
@@ -315,6 +315,25 @@ export class ZCodeHttpAdapter extends LlmAdapter {
   planOf(baseUrl: string): ZCodeEndpointPlan {
     return baseUrl.includes('/ultra/') ? 'ultra' : 'start-plan'
   }
+}
+
+/**
+ * 把调用方传入的思考等级收敛到该模型真正可用的档位。
+ *
+ * 历史会话可能保存了上一版目录里存在、现在被过滤掉的等级（例如上游只支持
+ * low/high/max 时，旧值 `xhigh` 已不在候选里）。此时直接透传会让请求带上
+ * 一个语义不明的档位，界面也会把它当作显示名原样展示，因此回退到默认档。
+ */
+export function resolveEffort(
+  requested: string | undefined,
+  model: ZCodeHttpModel,
+): string | undefined {
+  if (requested === undefined) return undefined
+  const efforts = model.efforts
+  if (efforts === undefined || efforts.length === 0) return requested
+  const available = efforts.map(effort => String(effort.id))
+  if (available.includes(requested)) return requested
+  return available[available.length - 1]
 }
 
 /** 合并两次 usage：上游在 message_start 与 message_delta 各报一部分。 */

@@ -334,8 +334,13 @@ export class ZCodeProviderRuntime {
  * 之所以不能只重写 `stream()`：设置了 `prepared` 的调用路径不会经过它。
  */
 
-/** 思考等级 id 的固定顺序与显示名；顺序即选择器里从弱到强的排列。 */
-const REASONING_EFFORT_ORDER = [
+/**
+ * 选择器里的档位顺序（从弱到强）与显示名。
+ *
+ * 这是 DSH 的通用档位词表，不是上游词表：一个上游等级可能对应多个档位
+ * （例如上游 `low` 同时承接 `minimal` 与 `low`）。
+ */
+const REASONING_EFFORT_LADDER = [
   { id: 'minimal', name: 'Minimal' },
   { id: 'low', name: 'Low' },
   { id: 'medium', name: 'Medium' },
@@ -347,16 +352,33 @@ const REASONING_EFFORT_ORDER = [
 /**
  * 把目录的思考等级映射转成选择器可用的档位。
  *
- * `thinkingLevelMap` 里值为 `null` 表示该等级上游不支持，必须剔除；否则选择器
- * 会给出选中后请求被拒的档位。`off` 不是强度档，另由模型的 reasoning 开关表达。
+ * 两条规则都是必需的：
+ * 1. 映射为 `null` 的等级上游不支持，剔除；否则选中即被拒。
+ * 2. **多个档位映射到同一上游值时只保留最强的一档**。DSH 的通用档位词表比
+ *    上游更细（`minimal`/`low`、`medium`/`high`、`xhigh`/`max` 常落在同一个上游
+ *    值上），把它们全列出来会让用户以为选到了不同强度，实际发出去的请求字节
+ *    完全相同——这是「看着能调、其实没调」的假象。
+ *
+ * 代价：若宿主配置里存着被合并掉的旧值（如 `xhigh`），它会找不到对应项而原样
+ * 显示内部 id。请求侧由 `resolveEffort` 兜底到合法档位，不会发错。
  */
 export function reasoningEffortsOf(
   map: ZCodeThinkingLevelMap,
 ): { id: ReturnType<typeof ReasoningEffortId>; name: string }[] {
-  return REASONING_EFFORT_ORDER
-    .filter(level => {
-      const mapped = map[level.id as keyof ZCodeThinkingLevelMap]
-      return typeof mapped === 'string'
-    })
+  const supported = REASONING_EFFORT_LADDER.filter(level => {
+    const mapped = map[level.id as keyof ZCodeThinkingLevelMap]
+    return typeof mapped === 'string'
+  })
+  // 从强到弱收敛：同一上游值只保留最强档，保证留下的是语义最贴近上游行为的那个。
+  const claimed = new Set<string>()
+  const kept = new Set<string>()
+  for (const level of [...supported].reverse()) {
+    const upstream = map[level.id as keyof ZCodeThinkingLevelMap]
+    if (typeof upstream !== 'string' || claimed.has(upstream)) continue
+    claimed.add(upstream)
+    kept.add(level.id)
+  }
+  return supported
+    .filter(level => kept.has(level.id))
     .map(level => reasoningEffort(level.id, level.name))
 }
