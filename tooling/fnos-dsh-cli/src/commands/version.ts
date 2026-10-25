@@ -396,6 +396,14 @@ export async function runVersion(args: string[]): Promise<void> {
       + '请使用 patch/minor/major 或完整三段式版本（如 6.0.1）。',
     )
   }
+  if (nextProject === project.version) {
+    // 显式传「与当前相同」的版本号（如统一后重复执行 version 6.0.0）：没有文件
+    // 变化可提交，空提交会被 git 拒绝。这里明确说明后直接返回，而不是报错——
+    // 版本已就位本身就是期望状态。
+    outro(`项目 ${project.version} 已是目标版本，无需变更`)
+    for (const item of targets) outro(`${item.name}: ${project.version}（同号）`)
+    return
+  }
 
   const plan = targets.map((target, index) => {
     const pkg = packages[index]!

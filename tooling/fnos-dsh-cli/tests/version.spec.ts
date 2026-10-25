@@ -308,6 +308,19 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
     expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 
+  it('显式传与当前相同的版本号时幂等返回，不产生空提交', async () => {
+    mocks.versionBump.mockImplementation(async () => ({
+      currentVersion: PROJECT_START,
+      newVersion: PROJECT_START,
+    }))
+
+    await runVersion(['6.0.0', '--yes'])
+
+    // 没有文件要写、没有 git 调用（空提交会被 git 拒绝）。
+    expect(mocks.writeFile).not.toHaveBeenCalled()
+    expect(mocks.spawnSync).not.toHaveBeenCalled()
+  })
+
   it('不再弹出「选择要维护版本的区域」', async () => {
     // 区域选择已移除；命令不带位置参数即可跑完，不该调用任何选择/文本输入提示。
     await runVersion(['--yes'])
