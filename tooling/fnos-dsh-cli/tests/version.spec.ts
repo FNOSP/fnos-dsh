@@ -121,7 +121,7 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
       }
       return JSON.stringify({ name: 'package', version: PROJECT_START })
     })
-    mocks.spawnSync.mockReturnValue({ status: 0, error: undefined, stderr: '', stdout: '' })
+    mocks.spawnSync.mockImplementation(() => ({ status: 0, error: undefined, stderr: '', stdout: '' }))
   })
 
   it('patch 档位把项目与全部插件同号推进到 6.0.1', async () => {
@@ -131,12 +131,15 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
     const dryRun = mocks.versionBump.mock.calls[0]?.[0] as { files?: string[], release?: string }
     expect(dryRun?.files).toEqual([])
     expect(dryRun?.release).toBe('patch')
-    // 第二次写文件：以算好的具体版本串替换，且不让 bumpp 抢先提交。
+    // 第二次透传 bumpp 完成替换、提交与 tag：release 仍传档位（版本计算归
+    // bumpp），commit/tag 开启且 all 收口（同步文件与 bumpp 替换落同一条提交）。
     expect(mocks.versionBump).toHaveBeenLastCalledWith(expect.objectContaining({
       currentVersion: PROJECT_START,
-      release: '6.0.1',
-      commit: false,
-      tag: false,
+      release: 'patch',
+      commit: true,
+      tag: true,
+      push: false,
+      all: true,
     }))
 
     const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
@@ -238,11 +241,27 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
     expect(String(appDocWrite?.[1])).not.toContain('0.2.0-rc.2')
   })
 
+  it('工作区不干净时拒绝发版（bumpp 提交以 all 模式收口，脏改动会被卷入）', async () => {
+    mocks.spawnSync.mockImplementation((_: string, args: string[]) => ({
+      status: 0,
+      error: undefined,
+      stderr: '',
+      stdout: args?.[0] === 'status' ? ' M some-dirty-file.ts\n' : '',
+    }))
+
+    await expect(runVersion(['--yes'])).rejects.toThrow(/工作区不干净/u)
+    expect(mocks.versionBump).not.toHaveBeenCalled()
+  })
+
   it('--no-commit 时只写文件不提交', async () => {
     await runVersion(['--no-commit', '--yes'])
 
     expect(mocks.writeFile).toHaveBeenCalled()
-    expect(mocks.spawnSync).not.toHaveBeenCalled()
+    // 守卫的 `git status` 仍会执行，但不得出现 add/commit/tag。
+    const gitArgs = mocks.spawnSync.mock.calls.map(call => (call[1] as string[] | undefined)?.[0])
+    expect(gitArgs).not.toContain('add')
+    expect(gitArgs).not.toContain('commit')
+    expect(gitArgs).not.toContain('tag')
   })
 
   it('catalog 未声明 DSH 基线时报错，不猜测', async () => {
@@ -316,9 +335,10 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
 
     await runVersion(['6.0.0', '--yes'])
 
-    // 没有文件要写、没有 git 调用（空提交会被 git 拒绝）。
+    // 没有文件要写；git 只有守卫的 status，没有 add/commit/tag（空提交会被 git 拒绝）。
     expect(mocks.writeFile).not.toHaveBeenCalled()
-    expect(mocks.spawnSync).not.toHaveBeenCalled()
+    const gitArgs = mocks.spawnSync.mock.calls.map(call => (call[1] as string[] | undefined)?.[0])
+    expect(gitArgs).toEqual(['status'])
   })
 
   it('不再弹出「选择要维护版本的区域」', async () => {

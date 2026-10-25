@@ -1,11 +1,10 @@
-import { confirm, intro, isCancel, outro } from '@clack/prompts'
+import { intro, outro } from '@clack/prompts'
 import { type OptionValues } from 'commander'
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { dirname } from 'node:path'
-import { versionBump, type VersionBumpRelease } from 'bumpp'
+import { versionBump } from 'bumpp'
 import { program } from '../program.js'
 import { addBooleanArgs, addNegatedArgs } from '../core/command-args.js'
 import { projectVersionFiles, repositoryRoot } from '../config/paths.js'
@@ -79,11 +78,9 @@ async function alignProjectVersionTextFiles(version: string): Promise<void> {
 /**
  * 在 bumpp 之前把应用文档页的版本行对齐到当前版本。
  *
- * 必须在 versionBump 之前执行：release 提交由本命令在 bump 之后统一创建，bump
- * 之后的文件改动进不了提交，会遗留在工作区。先对齐到当前版本，bumpp 的
- * 文本替换（当前版本串 → 新版本）才能命中该行，并把它纳入 release 提交
- * 与 tag。路径必须同时出现在 projectVersionFiles 清单里，否则 bumpp 不会
- * 处理它。
+ * 必须在 versionBump 之前执行：bumpp 的文本替换是「当前版本串 → 新版本」，先对齐
+ * 到当前版本该行才能被命中并纳入 release 提交。路径必须同时在 projectVersionFiles
+ * 清单里，否则 bumpp 不会处理它。
  */
 async function syncAppDocVersion(version: string): Promise<void> {
   const absolutePath = join(repositoryRoot, appDocPath)
@@ -96,9 +93,9 @@ async function syncAppDocVersion(version: string): Promise<void> {
 /**
  * 把应用文档页的「DSH 基线」行同步为 catalog 当前基线。
  *
- * 与 `syncAppDocVersion` 同理：先对齐旧值，bumpp 不处理该行（不含版本串），
- * 因此这里直接写目标基线；路径已在 projectVersionFiles 中，进 release 提交。
- * 之前该行纯人工维护，曾停留在过期基线（0.2.0-rc.2）——这是把同步交给命令的根因。
+ * 该行不含版本串（bumpp 不会处理），因此直接写目标基线；路径已在
+ * projectVersionFiles 中，进 release 提交。之前该行纯人工维护，曾停留在过期
+ * 基线（0.2.0-rc.2）——这是把同步交给命令的根因。
  */
 async function syncAppDocBaseline(baseline: string): Promise<void> {
   const absolutePath = join(repositoryRoot, appDocPath)
@@ -185,7 +182,12 @@ export function pluginDocPageOf(pluginName: string): string | undefined {
 function localOnlyPrefixes(targets: readonly PluginTarget[]): string[] {
   return targets
     .filter(target => target.localOnly)
-    .map(target => `${dirname(target.path)}/`)
+    .map(target => `${join(repositoryRoot, dirnameOf(target.path))}/`)
+}
+
+/** `node:path.dirname` 的薄封装，避免在多个 import 行里重复路径工具。 */
+function dirnameOf(relativePath: string): string {
+  return relativePath.split('/').slice(0, -1).join('/')
 }
 
 /** 把某个插件安装命令里的版本号替换为目标版本。 */
@@ -243,85 +245,54 @@ async function syncPluginIndexDocVersion(pluginName: string, version: string): P
   return true
 }
 
-function runGit(args: string[]): void {
+function runGit(args: string[]): string {
   const result = spawnSync('git', args, { cwd: repositoryRoot, encoding: 'utf8' })
   if (result.error !== undefined) throw result.error
   if (result.status !== 0) {
     const details = typeof result.stderr === 'string' ? result.stderr.trim() : ''
     throw new Error(`git ${args.join(' ')} failed${details === '' ? '' : `: ${details}`}`)
   }
+  return typeof result.stdout === 'string' ? result.stdout : ''
 }
 
 /**
- * 统一发布确认：一张提示里列出项目版本与每个插件的目标版本。
+ * 校验仓库侧守卫：档位语义与版本形态。
  *
- * 两套版本会落在同一条提交里，所以必须在执行前让调用者一次看清全部变更——
- * 分成两次确认会出现「项目已改、插件未改」的中间态。
- *
- * @param projectFrom 项目当前版本。
- * @param projectTo 项目目标版本。
- * @param plan 每个插件的目标版本。
- * @returns 是否继续；取消返回 `false`。
+ * bumpp 自己接受 `prerelease`/`next` 等档位与任意 semver 串；本仓库的约束
+ * （FNOS-028）在其之前收紧——守卫只认 patch/minor/major 与纯净三段式版本。
  */
-async function confirmUnifiedRelease(
-  projectFrom: string,
-  projectTo: string,
-  plan: readonly { name: string, from: string, to: string }[],
-  baselineChange?: { from: string, to: string },
-): Promise<boolean> {
-  const detail = plan.map(item => `  ${item.name}: ${item.from} -> ${item.to}`).join('\n')
-  // 基线切换与普通 +1 产出的版本号形态完全不同，所以单独一行点明；没换基线时不显示，
-  // 避免每次发布都被无关信息干扰。
-  const baselineLine = baselineChange === undefined
-    ? ''
-    : `\nDSH 基线 ${baselineChange.from} -> ${baselineChange.to}（major 发布）\n`
-  const result = await confirm({
-    message: `${baselineLine}项目 ${projectFrom} -> ${projectTo}\n插件（${plan.length} 个）：\n${detail}\n\n继续吗？`,
-    initialValue: true,
-  })
-  return isCancel(result) ? false : result
-}
-
-/** 项目版本的 tag 名。 */
-function formatTag(version: string): string {
-  return `v${version}`
+function assertRepositoryReleasePolicy(release: string, baseline: string | undefined): void {
+  const isExplicitVersion = /^v?\d+\.\d+\.\d+$/u.test(release)
+  if (!isExplicitVersion && release !== 'patch' && release !== 'minor' && release !== 'major') {
+    throw new Error(
+      `不支持版本档位 "${release}"。`
+      + '本仓库使用纯净 semver：patch（修复）/ minor（新功能且基线不变）/ major（基线变更或重大调整），'
+      + '或传完整三段式版本号（如 6.0.1）。',
+    )
+  }
+  if (baseline !== undefined && release !== 'major' && !isExplicitVersion) {
+    throw new Error(`基线变更必须走 major 档位（当前档位 "${release}"）：请使用 pnpm run version -- major --baseline <新基线>`)
+  }
 }
 
 /**
- * 用 bumpp 原生档位计算目标版本（不写文件），供流程在「先对齐、后 bump」之间复用。
+ * 版本维护的唯一入口：版本计算与 release 提交/tag **透传 bumpp**（FNOS-028）。
  *
- * @param currentVersion 当前项目版本。
- * @param release 档位（patch/minor/major/显式版本串）。
- * @returns 目标版本串。
- */
-async function resolveNextVersion(currentVersion: string, release: VersionBumpRelease): Promise<string> {
-  const result = await versionBump({
-    cwd: repositoryRoot,
-    files: [],
-    currentVersion,
-    release,
-    commit: false,
-    tag: false,
-    push: false,
-    ignoreScripts: true,
-    confirm: false,
-  })
-  return result.newVersion ?? currentVersion
-}
-
-/**
- * 版本维护的唯一入口。
+ * bumpp 一次调用完成版本计算、projectVersionFiles 清单内文件的替换、
+ * `chore: release v<版本>` 提交与本地 `v<版本>` tag（push 恒关，tag 推送由
+ * 发布者手动执行）。CLI 只做 bumpp 不知道的仓库侧工作：
  *
- * **版本号是纯净 semver（6.0.0 起），档位语义固定**（FNOS-028）：
- * - `patch`：无新功能的修复；
- * - `minor`：新功能且 DSH 基线不变；
- * - `major`：DSH 基线变更（携带 `--baseline <新基线>`）或导致用户无法回退的重大调整。
- * 每次发布对应段 +1，由 bumpp 原生计算；插件与项目**同号**，直接沿用项目目标版本。
- * DSH 基线不再进入版本号，由 FPK 产物命名与 manifest 描述承载。
- *
- * `--baseline` 是 major 档位专属参数：DSH 基线变更必须走 major，防止被小档位
- * 静默掩盖。catalog 在**确认之后**才改写——否则用户取消后会留下「catalog 已换、
- * 版本号没动」的不一致状态，且 `pnpm run` 的依赖校验看到的就是变化前的状态。
+ * 1. **守卫**：档位语义（patch=修复 / minor=新功能且基线不变 / major=基线变更
+ *    或重大不可回退调整）、`--baseline` 仅与 major 搭配、插件与项目同号核对、
+ *    发版前工作区必须干净（bumpp 提交用 `--all`，脏工作区的无关改动会被卷进
+ *    release 提交——「干净才发版」由这里硬性保证，而不是靠人记住）；
+ * 2. **前置同步**（全部在 bumpp 写文件之前）：把各版本文件对齐到当前版本（让
+ *    bumpp 的「当前→新」文本替换命中全部副本）、插件版本与副本/总览/安装命令
+ *    直写目标版本、基线字样（manifest desc、应用文档页）对齐 catalog；
+ * 3. **提交收口**：同步产生的文件改动先 `git add`（local-only 插件路径除外，
+ *    它们被 gitignore），bumpp 提交时以 `all` 模式把暂存区与自己的替换一并落进
+ *    **同一条** release 提交——插件 package.json 不进 bumpp 的 files 清单（其
+ *    版本串与项目不同名，bumpp 替换不命中，进了清单也只会被跳过）。
  */
 export async function runVersion(args: string[]): Promise<void> {
   intro('fn-os-apps 版本维护')
@@ -333,14 +304,16 @@ export async function runVersion(args: string[]): Promise<void> {
     return !(positionalIndex === 0 && (arg === 'project' || arg === 'plugin'))
   })
   const options = parseVersionOptions(filtered)
-
   const release = String(options.release)
-  const isExplicitVersion = /^v?\d+\.\d+\.\d+$/u.test(release)
-  if (!isExplicitVersion && release !== 'patch' && release !== 'minor' && release !== 'major') {
+
+  // 发版前工作区必须干净：bumpp 的 release 提交以 all 模式收口，脏工作区里的
+  // 无关改动会被一并卷进版本提交。这里直接拒绝并点名，把「干净才发版」从
+  // 发布检查清单升级为命令硬约束。
+  const status = runGit(['status', '--porcelain'])
+  if (status.trim() !== '') {
     throw new Error(
-      `不支持版本档位 "${release}"。`
-      + '本仓库使用纯净 semver：patch（修复）/ minor（新功能且基线不变）/ major（基线变更或重大调整），'
-      + '或传完整三段式版本号（如 6.0.1）。',
+      `工作区不干净，拒绝发版：\n${status.trim()}\n`
+      + '请先提交或贮藏以上改动（bumpp 的 release 提交会包含工作区全部改动）。',
     )
   }
 
@@ -350,11 +323,9 @@ export async function runVersion(args: string[]): Promise<void> {
     throw new Error("pnpm-workspace.yaml 的 catalog 未声明 '@deepseek-ai/dsh'，无法确定 DSH 基线")
   }
 
-  // `--baseline` 只能搭配 major：基线变更 = major 发布（FNOS-028 档位语义）。
+  // 仓库守卫：档位语义、版本形态、baseline 与 major 的绑定。
+  assertRepositoryReleasePolicy(release, options.baseline)
   if (options.baseline !== undefined) {
-    if (release !== 'major' && !isExplicitVersion) {
-      throw new Error(`基线变更必须走 major 档位（当前档位 "${release}"）：请使用 pnpm run version -- major --baseline <新基线>`)
-    }
     if (!BASELINE_PATTERN.test(options.baseline)) {
       throw new Error(`--baseline 的值 "${options.baseline}" 形态应为 MAJOR.MINOR.PATCH，可带预发布段（如 0.2.1-rc.5）`)
     }
@@ -374,12 +345,10 @@ export async function runVersion(args: string[]): Promise<void> {
     )
   }
 
+  // 同号核对：若有插件与项目不同号，说明版本文件被绕过本命令改过。
+  // 此时**报错而不是默默拉平**——静默改写会让「谁在何时改了版本」无从追溯。
   const targets = pluginTargets
   const packages = await Promise.all(targets.map(target => readPackageInfo(target.path)))
-
-  // 插件与项目同号：目标版本就是项目目标版本本身，不再做字符串派生。
-  // 发布前核对现状：若有插件与项目不同号，说明版本文件被绕过本命令改过。
-  // 此时**报错而不是默默拉平**——静默改写会让「谁在何时改了版本」无从追溯。
   const drifted = packages.filter(pkg => pkg.version !== project.version)
   if (drifted.length > 0) {
     const detail = drifted.map(pkg => `${pkg.name}@${pkg.version}`).join('、')
@@ -389,14 +358,27 @@ export async function runVersion(args: string[]): Promise<void> {
     )
   }
 
-  const nextProject = await resolveNextVersion(project.version, options.release)
-  if (!CLEAN_VERSION_PATTERN.test(nextProject)) {
+  // 先干跑一次 bumpp（files 为空、不写不提交）求目标版本：同步写入与幂等返回
+  // 都需要它。版本计算完全归 bumpp，CLI 不自己算。
+  const dryRun = await versionBump({
+    cwd: repositoryRoot,
+    files: [],
+    currentVersion: project.version,
+    release: options.release,
+    commit: false,
+    tag: false,
+    push: false,
+    ignoreScripts: true,
+    confirm: false,
+  })
+  const nextVersion = dryRun.newVersion ?? project.version
+  if (!CLEAN_VERSION_PATTERN.test(nextVersion)) {
     throw new Error(
-      `目标版本 "${nextProject}" 含预发布段或后缀。本仓库不使用预发布版本号；`
+      `目标版本 "${nextVersion}" 含预发布段或后缀。本仓库不使用预发布版本号；`
       + '请使用 patch/minor/major 或完整三段式版本（如 6.0.1）。',
     )
   }
-  if (nextProject === project.version) {
+  if (nextVersion === project.version) {
     // 显式传「与当前相同」的版本号（如统一后重复执行 version 6.0.0）：没有文件
     // 变化可提交，空提交会被 git 拒绝。这里明确说明后直接返回，而不是报错——
     // 版本已就位本身就是期望状态。
@@ -405,74 +387,66 @@ export async function runVersion(args: string[]): Promise<void> {
     return
   }
 
-  const plan = targets.map((target, index) => {
-    const pkg = packages[index]!
-    return { target, name: pkg.name, from: pkg.version, to: nextProject }
-  })
-
-  if (options.confirm && !await confirmUnifiedRelease(
-    project.version,
-    nextProject,
-    plan,
-    options.baseline === undefined ? undefined : { from: currentBaseline, to: options.baseline },
-  )) return
-
-  // 确认之后才改 catalog：取消时不留下「catalog 已换基线、版本号没动」的状态。
+  // 确认之后才改 catalog：取消时不留下「catalog 已换基线、版本号没动」的状态，
+  // 且 `pnpm run` 的启动前依赖校验看到的仍是变化前的状态。
   if (options.baseline !== undefined) {
     await writeDshBaselineToCatalog(workspaceYaml, options.baseline)
   }
   const targetBaseline = options.baseline ?? currentBaseline
 
-  // 项目侧：先对齐历史遗留的版本文件与基线字样，再交给 bumpp 完成替换。
-  // 提交与 tag 都由本函数统一处理（两套版本必须落在同一条提交里）。
+  // 前置同步（全部在 bumpp 写文件之前完成）：
+  // - 对齐历史遗留的版本文件到当前版本，让 bumpp 的「当前→新」文本替换命中全部副本；
+  // - 插件版本直写目标版本（同号），并同步副本、总览与安装命令；
+  // - 基线字样（manifest desc、应用文档页 DSH 基线行）对齐 catalog 目标值。
   await alignProjectVersionPackageFiles(project.version)
   await alignProjectVersionTextFiles(project.version)
   await syncAppDocVersion(project.version)
   await syncAppDocBaseline(targetBaseline)
   await syncManifestBaseline(targetBaseline)
-  const result = await versionBump({
-    cwd: repositoryRoot,
-    files: projectVersionFiles,
-    currentVersion: project.version,
-    release: nextProject as VersionBumpRelease,
-    commit: false,
-    tag: false,
-    push: false,
-    ignoreScripts: true,
-    confirm: false,
-  })
-
-  // 插件侧：逐个写入，并收集被改动的文档路径。
-  const changedPaths = new Set<string>(projectVersionFiles)
   const localOnly = localOnlyPrefixes(targets)
   const isLocalOnlyPath = (path: string) => localOnly.some(prefix => path.startsWith(prefix))
-  for (const item of plan) {
-    await updatePackageVersion(item.target.path, item.to)
+  const changedPaths = new Set<string>()
+  for (const [index, target] of targets.entries()) {
+    await updatePackageVersion(target.path, nextVersion)
+    const pkg = packages[index]!
     // 只在本机维护的插件照常升版本号，但它的路径不进暂存列表（源码被 git 忽略）。
-    if (!item.target.localOnly) changedPaths.add(item.target.path)
-    if (await syncPublishedPluginVersion(item.name, item.to)) changedPaths.add(publishedDshPluginsPath)
-    if (await syncPluginIndexDocVersion(item.name, item.to)) changedPaths.add(pluginIndexDocPath)
-    const pluginDirectory = item.target.path.split('/')[1] ?? ''
-    for (const path of await syncPluginInstallVersions(item.name, pluginDirectory, item.to)) {
+    if (!target.localOnly) changedPaths.add(target.path)
+    if (await syncPublishedPluginVersion(pkg.name, nextVersion)) changedPaths.add(publishedDshPluginsPath)
+    if (await syncPluginIndexDocVersion(pkg.name, nextVersion)) changedPaths.add(pluginIndexDocPath)
+    const pluginDirectory = target.path.split('/')[1] ?? ''
+    for (const path of await syncPluginInstallVersions(pkg.name, pluginDirectory, nextVersion)) {
       if (!isLocalOnlyPath(path)) changedPaths.add(path)
     }
   }
 
-  if (!options.noCommit) {
-    // 只暂存本命令写过的路径（`projectVersionFiles` 里的 glob 由 git 自己展开）。
-    // 不用 `git add -A`——那会把调用者工作区里的无关改动一并卷进 release 提交，
-    // 属于最难排查的一类事故。
-    //
-    // 只在本机维护的插件路径额外过滤掉：它们被 `.gitignore` 忽略，`git add` 碰到
-    // 被忽略的路径会以退出码 1 失败，把整个版本命令打断。
+  // 同步改动先暂存：bumpp 的 release 提交以 all 模式收口（git add --all + git
+  // commit --all），暂存区内容与 bumpp 自己替换的文件落进同一条提交。工作区
+  // 干净守卫已在上游把「卷入无关改动」的风险排除。
+  if (!options.noCommit && changedPaths.size > 0) {
     const stagedPaths = [...changedPaths].filter(path => !isLocalOnlyPath(path))
     runGit(['add', '--', ...stagedPaths])
-    runGit(['commit', '-m', `chore: release v${nextProject}`])
-    if (!options.noTag) runGit(['tag', formatTag(nextProject)])
   }
 
-  outro(`项目 ${result.currentVersion} -> ${nextProject}`)
-  for (const item of plan) outro(`${item.name}: ${item.from} -> ${item.to}`)
+  // 透传 bumpp：版本计算、projectVersionFiles 替换、release 提交与本地 tag 一次
+  // 完成。提交消息与 tag 名用 bumpp 默认（`chore: release v{version}` /
+  // `v{version}`），与仓库惯例一致；push 恒关（tag 只留本地）。
+  const result = await versionBump({
+    cwd: repositoryRoot,
+    files: projectVersionFiles,
+    currentVersion: project.version,
+    release: options.release,
+    commit: !options.noCommit,
+    tag: !options.noCommit && !options.noTag,
+    push: false,
+    ignoreScripts: true,
+    confirm: false,
+    all: !options.noCommit,
+  })
+
+  outro(`项目 ${result.currentVersion} -> ${nextVersion}`)
+  for (const pkg of packages) {
+    outro(`${pkg.name}: ${pkg.version} -> ${nextVersion}`)
+  }
 }
 
 /**
@@ -497,7 +471,7 @@ async function writeDshBaselineToCatalog(workspaceYaml: string, baseline: string
 
 program
   .command('version [args...]')
-  .description('Bump the project and every plugin in lockstep using bumpp release levels (patch/minor/major)')
+  .description('Bump the project and every plugin in lockstep; release args are passed through to bumpp')
   .option('--no-commit', 'only update version files')
   .option('--no-tag', 'do not create a version tag')
   .option('--no-push', 'do not push tags')
