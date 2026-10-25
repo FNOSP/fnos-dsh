@@ -19,10 +19,10 @@
 
 | 项目 | 值 |
 | --- | --- |
-| 应用版本 | `5.10.0` |
+| 应用版本 | `6.0.0` |
 | 目标平台 | x86 |
 | 运行依赖 | `nodejs_v24` |
-| DSH 基线 | `0.2.1-rc.2` |
+| DSH 基线 | `0.2.1-rc.3` |
 | 入口形态 | iframe / `/app/fn-deepseek-harness` |
 | 分发 | [GitHub Releases](https://github.com/FNOSP/fnos-dsh/releases) |
 
