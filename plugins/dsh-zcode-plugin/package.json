@@ -2,7 +2,7 @@
   "name": "@tnnevol/dsh-zcode",
   "displayName": "ZCode",
   "type": "module",
-  "version": "0.2.1-rc.2.46",
+  "version": "0.2.1-rc.2.47",
   "description": "ZCode Start Plan account login (OAuth) with a live entitlement-driven model catalog and per-model quota for DeepSeek Harness.",
   "author": "tnnevol",
   "license": "Apache-2.0",
