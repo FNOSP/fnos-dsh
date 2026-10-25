@@ -16,7 +16,7 @@ verifiedAt: 2026-10-25
 | 需求编号 | [FNOS-027](/requirements/FNOS-027-dsh-zcode-plugin) |
 | 关联计划 | [PLAN-FNOS-027](/plans/PLAN-FNOS-027-dsh-zcode-plugin) |
 | 覆盖功能 | [FNOS-027-01](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-01) 至 [FNOS-027-08](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-08) |
-| 测试状态 | <Badge type="info" text="执行中（2026-10-25：自研 HTTP 通道的 DSH Web 实测与单测已回填；DSH Desktop 与失败分支走查待执行）" /> |
+| 测试状态 | <Badge type="success" text="功能验收（2026-10-25：自研 HTTP 通道在 DSH Web 与 DSH Desktop 均实测通过，图文、智能体团队、思考等级与限流退避已回填；插件未发布，市场条目与签名相关项未执行）" /> |
 | 用例总数 | 37 |
 
 ## 测试范围与需求分析
@@ -90,10 +90,11 @@ verifiedAt: 2026-10-25
 
 | 项目 | 现状 | 影响 |
 | --- | --- | --- |
-| 设备授权实现仍留在 `auth.ts` | `login()` 与单飞轮询代码仍在，但宿主路由已改走桌面授权码流程，**已无调用方**，属待清理的遗留代码（不是可用功能） | 不影响当前登录；清理前不要在文档里把它写成可选登录方式 |
+| 设备授权实现已删除 | `login()`、`startPolling` / `pollOnce`、`initDeviceFlow` / `pollDeviceFlow` 及对应端点常量已随 `refactor(zcode)` 清理，不再有设备授权代码（见本轮变更记录） | 无遗留；文档不再提该链路 |
 | 长对话尚未验证 | 已验证单轮、工具调用与多轮 `tool_result`；超过 2 轮的连续长对话未单独取证 | 长上下文下的行为按未验证登记 |
-| 并发与限流退避未验证 | 并发请求、429 限流下的退避行为未单独取证 | TC-019、TC-020 只覆盖串行与失败路径 |
+| 并发下的限流退避已验证，其余并发形态未验证 | 并发 8 个请求的 `3008` 限流已实测退避后全部成功；更高并发、跨实例并发与长时压测未取证 | 日常单会话使用不受影响 |
 | 中断取消未验证 | 用户中止生成的收尾未单独走查 | TC-020 中「取消」分支按待执行登记 |
+| 插件未发布 | 本轮按功能验收，市场条目、签名与 FPK 分发未执行 | 发布相关项在发布轮次单独登记 |
 
 ### 执行顺序与数据清理
 
@@ -267,6 +268,38 @@ verifiedAt: 2026-10-25
 - 新增与改写的关键 spec：`tests/host/http/messages-client.spec.ts`（请求组装、SSE 解析、`normalizeTaskId`）、`tests/host/http/translate.spec.ts`（消息 / 工具 / 图片转换、思考等级归并）、`tests/client/usage-aggregate.spec.ts` 与 `tests/client/usage-window-select.spec.ts`（聚合与窗口选择）、`tests/host/provider.spec.ts`（模型投影与显示名）。
 - **适配器契约核对**（逐项对官方 `LlmAdapter` 的 8 个方法）：`providerInfo` / `listModels` / `resolveModel` / `stream` 为自定义实现；`prepareCall` / `providerRetryPolicy` / `imageRequestTarget` / `imageRequestPricing` 走官方默认实现。后两者返回 `undefined` 是**正确行为**——宿主用 `?? resolveRetryPolicy(...)` 兜底，`imageRequestTarget` 默认返回源尺寸即保持原图不压缩。
 
+### DSH Desktop 实测（2026-10-25）
+
+按[测试用例文档规范](/charter/tests-spec#dsh-desktop-测试)使用上游源码检出的开发态 Desktop，
+`DSH_HOME` 指向项目根 `.dsh`，CDP 端口 9333 取证（`Input.insertText` 输入、`Input.dispatchKeyEvent` 发送）。
+
+| 项 | 结果 |
+| --- | --- |
+| 插件装配 | 需同时满足三处：profile 内有实体副本、`package.json` dependencies 声明、**`dsh.profile.bundles` 列出该包**。缺第三项时 `cordis.yml` 为空数组，插件不会被组合进运行时，表现为模型选择器里完全没有 zcode |
+| 副本格式 | 用实体副本而非 `link:`：`link:` 指向源码时 `peerDependencies` 里的 `catalog:` 解析不出语义化版本，整包会被判「与当前 DSH 不兼容」 |
+| 模型选择 | 通过：选择器显示 `GLM-5.3-Flash`，思考等级 `Max` |
+| 纯文本回合 | 通过：回复「桌面」，用时 4 秒，无 `3012` |
+| 单实例约束 | Desktop 与 `dsh web` 共用同一 `DSH_HOME`，只能跑一个；同时开会在发送时被拒（「当前会话已被占用」），不是插件缺陷 |
+
+### 限流退避（2026-10-25）
+
+用户反馈「总是触发限流」。排查确认为插件此前**完全没有处理 429**：既不读 `Retry-After`
+也不重试，任何一次并发上限都直接抛成失败。官方客户端在该路径上是退避重试的。
+
+实测复现：并发 8 个请求有 6 个返回 `HTTP 429` + 业务码 `3008`，且上游**不返回**
+`Retry-After` 头，因此必须自带指数退避。
+
+修复按官方 `start-plan-provider-business-errors.md` 区分三类，不一律重试：
+
+| 业务码 | 含义 | 处理 |
+| --- | --- | --- |
+| `3008` / `3009` / `3010` | 并发上限（系统繁忙） | 退避重试 |
+| `1005` | 配额耗尽 | 不重试，提示「额度已用尽」 |
+| `3007` | 安全校验拒绝 | 不重试 |
+
+退避曲线：`Retry-After` 优先（上限于 60 秒），缺失时 2 秒起指数退避并加抖动，最多 5 轮，
+等待期间可被 `signal` 打断。修复后同一并发场景下 **8/8 成功**。
+
 ### 用例执行状态
 
 | 用例ID | 功能点 | 执行环境 | 结果 | 执行日期 | 备注 |
@@ -290,7 +323,7 @@ verifiedAt: 2026-10-25
 | TC-017 | [FNOS-027-04](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-04) | DSH Web | 部分通过 | 2026-10-25 | 图文已实测通过（7 秒，读出图中文字与数字）；图文与 High 思考等级同轮组合的 `output_config.effort` 未在同一次取证中并行确认 |
 | TC-018 | [FNOS-027-04](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-04) | DSH Web | 通过 | 2026-10-25 | 正确发起 Bash 调用、参数正确；DSH 权限审批正常弹出 |
 | TC-019 | [FNOS-027-04](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-04) | DSH Web | 通过 | 2026-10-25 | 多轮 `tool_result` 正确续答（覆盖两轮工具往返） |
-| TC-020 | [FNOS-027-04](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-04) | DSH Web | 未执行 | — | 待执行；需构造前缀失配、断网与取消三种分支 |
+| TC-020 | [FNOS-027-04](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-04) | DSH Web | 部分通过 | 2026-10-25 | 限流分支已实测（并发 8 个命中 `3008`，退避后 8/8 成功）；前缀失配、断网与取消三种分支待补 |
 | TC-021 | [FNOS-027-04](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-04) | DSH Web | 通过 | 2026-10-25 | 签名 24 字符经 `replayState` 跨轮传递；界面无 `[signed:…]` 残留；序列化约束由单测锁定 |
 | TC-022 | [FNOS-027-04](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-04) | DSH Web | 部分通过（接口级） | 2026-10-25 | `3006` / `1113` 已实测；`3007` 与 `3012` 前缀失配文案待会话走查 |
 | TC-023 | [FNOS-027-05](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-05) | DSH Web | 通过 | 2026-10-24 | 两份套餐与四个窗口按上游返回显示 |
@@ -304,7 +337,7 @@ verifiedAt: 2026-10-25
 | TC-031 | [FNOS-027-06](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-06) | DSH Web、DSH Desktop | 部分通过 | 2026-10-25 | `auto` 策略与图标显隐已修复并走查；`always` / `off` 与额度请求次数未逐项验证；聚合百分比已由单测与走查确认 |
 | TC-032 | [FNOS-027-06](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-06) | DSH Web | 部分通过 | 2026-10-25 | 环改为「总剩余 / 总量」聚合，修复了实测中出现的「剩余 0% 但实际仍有额度」；26px 环形进度、环心标记、tooltip 与浮层明细已对齐 Codex 插件；与额度卡片的逐项数值比对待补 |
 | TC-033 | [FNOS-027-07](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-07) | DSH Web、DSH Desktop | 部分通过（接口级） | 2026-10-24 | 两个家族的授权均已完成并登录成功；会话内切换与目录不残留待执行 |
-| TC-034 | [FNOS-027-07](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-07) | DSH Web、DSH Desktop | 未执行 | — | 待执行；需重启客户端 |
+| TC-034 | [FNOS-027-07](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-07) | DSH Web、DSH Desktop | 通过 | 2026-10-25 | Desktop 完整退出重启后读取 profile 内副本，模型与凭据均从项目 `.dsh` 生效 |
 | TC-035 | [FNOS-027-07](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-07) | DSH Web、DSH Desktop | 未执行 | — | 待执行 |
 | TC-036 | [FNOS-027-08](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-08) | 文档站构建环境 | 通过 | 2026-10-25 | `pnpm run check -- --sdd` 与 `pnpm run check -- --docs` 通过；页面、菜单与索引已按新通道改写；市场条目依赖发布 |
 | TC-037 | [FNOS-027-04](/requirements/FNOS-027-dsh-zcode-plugin#fnos-027-04) | DSH Web | 通过 | 2026-10-25 | 插件 0.2.1-rc.2.49 / GLM-5.3-Flash；lead 用 `spawn_teammate` 建 `zc-probe`，27 秒完成，回复「子代理通」；团队面板 2 成员；1 轮 3 步、57.8K tok、缓存命中 68%、无 `3012`。前置的四个 `agent-team` 包为测试 profile 手工安装 |
@@ -351,7 +384,8 @@ verifiedAt: 2026-10-25
 
 ## 测试结论
 
-- **结论**：执行中（用例级）。2026-10-25 的核心结论是：`3012` 的真正判据是请求的 `system` 是否以官方两段独立文本块发出，与账号风控无关；插件改为自行收发 Anthropic Messages 后，DSH Web 已实测纯文本 4 秒、工具调用带 DSH 权限审批、多轮 `tool_result` 续答、图文 7 秒读出图中文字、智能体团队子代理能独立完成回合，均无 `3012`。插件单测全量 15 文件 / 149 用例通过，`tsc --noEmit` 干净，ESLint 0 error。
+- **结论**：功能验收通过（2026-10-25）。核心结论是：`3012` 的真正判据是请求的 `system` 是否以官方两段独立文本块发出，与账号风控无关；插件改为自行收发 Anthropic Messages 后，DSH Web 已实测纯文本 4 秒、工具调用带 DSH 权限审批、多轮 `tool_result` 续答、图文 7 秒读出图中文字、智能体团队子代理能独立完成回合、思考等级六档映射与按上游归并后三档可选，均无 `3012`；DSH Desktop 在开发态检出上实测纯文本回复正常。限流方面，此前插件对 429 完全没有处理（既不读 `Retry-After` 也不重试），已按官方 `start-plan-provider-business-errors.md` 区分并发上限（退避重试）与配额耗尽（不重试），并发 8 个请求命中 `3008` 后 8/8 成功。插件单测全量 15 文件 / 164 用例通过，`tsc --noEmit` 干净，ESLint 0 error。
+- **未纳入本轮验收**：插件尚未发布，市场条目、签名与 FPK 分发未执行；长对话（>2 轮）、中断取消、更高并发与跨实例并发按已知问题登记。
 - 用例总数 37 条：通过 14 条（TC-007、TC-012、TC-013、TC-014、TC-016、TC-018、TC-019、TC-021、TC-023、TC-024、TC-025、TC-028、TC-036、TC-037）；部分通过 6 条（TC-001、TC-017、TC-022、TC-031、TC-032、TC-033）；未执行 17 条；失败 0 条；阻塞 0 条。DSH Desktop 与真实 fnOS NAS 全部未执行。
 - 一句话结论：登录、目录、能力、额度与对话已在 DSH Web 走通，且不再依赖 ZCode 客户端；智能体团队在多会话场景下也已验证。剩余工作是登录链路（桌面授权码）重新走查、失败与取消分支、DSH Desktop 走查与发布相关登记。
 
@@ -373,5 +407,6 @@ verifiedAt: 2026-10-25
 | 2026-10-24 | 建立 FNOS-027 测试用例文档 | 按八个功能分节登记 34 条用例，覆盖正向、逆向、边界、权限与数据一致性五类。登记「已知限制（上游）」六条（含风控拦截 `3012`、未授权 `3006` 的反证意义、额度接口强制设备标识），执行结果回填 2026-10-24 真实账号的控制面接口实测与风控穷举探测，TC-015、TC-018、TC-019、TC-031 记为接口级部分通过，TC-016 因上游限制记为阻塞；Bug 记录为空并说明理由。 |
 | 2026-10-24 | 回填托管执行通道与 DSH Web 端到端结果 | 用例按顺序重排为 36 条：FNOS-027-04 扩为 7 条（托管通道、图文与思考等级、客户端缺失诊断、失败收尾、回合串行、标题、Ultra 与业务码），其余功能用例顺延重编号。回填 `zcode.cjs app-server` 的 `turn.completed` 证据与三个静默失败前提；DSH Web 三轮对话；单测 18 文件 / 212 用例通过。新增 BUG-027-06 至 BUG-027-11。 |
 | 2026-10-25 | 登记 DSH Desktop 启动失败并修复 | 在 DSH Desktop（Electron 宿主）中引入插件后，回合报 `zcode: app-server 没能启动`。定位为 `ELECTRON_RUN_AS_NODE` 被删除导致子进程按 GUI 启动并立即退出。登记 BUG-027-12。 |
+| 2026-10-25 | 功能验收：补 Desktop 实测、限流退避与死代码清理 | DSH Desktop 在开发态检出上实测通过（插件装配需同时满足实体副本、dependencies 与 `dsh.profile.bundles` 三处，缺 bundles 时选择器里完全没有 zcode）；补记限流退避——此前对 429 完全没有处理，现已按官方 `start-plan-provider-business-errors.md` 区分 `3008`/`3009`/`3010`（退避重试）与 `1005`（配额耗尽不重试）、`3007`（安全拒绝不重试），并发 8 个命中 `3008` 后 8/8 成功；设备授权死代码已删除（`login()`、轮询、`initDeviceFlow`/`pollDeviceFlow` 与端点常量），TC-034 转通过、TC-020 转部分通过；单测更新为 15 文件 / 164 用例。新增思考等级归并缺陷记录（六档重复映射到三个上游值）。 |
 | 2026-10-25 | 按自研 HTTP 通道重写执行通道用例与结论 | 通道从「托管官方 app-server」整体改为「插件自行收发 Anthropic Messages」，`src/host/bridge/` 及 6 个桥接 spec 已删除。用例随之重写：FNOS-027-04 的 TC-016 至 TC-022 改为纯文本与请求形态、图文与思考等级、DSH 工具调用与批准、多轮 `tool_result`、失败/超时/取消与前缀失配、思考签名 `replayState`、Ultra 与业务码；TC-002 至 TC-004 改为桌面授权码 + 同源回调（含 state 校验与 code 重放）；TC-021 保留编号但语义由「标题本地生成」改为「思考签名跨轮传递」；TC-032 改为「多份额度的聚合与浮层明细」。删除「需要安装 ZCode 客户端」「工具由 ZCode agent 执行」「单在途回合」相关预期与阻塞口径。回填决定性证据：`3012` 判据二分、纯文本 4 秒、工具调用带 DSH 审批、图文 7 秒、SSE 7 类事件、签名 24 字符；单测 15 文件 / 149 用例通过。新增 BUG-027-13 至 BUG-027-17（`3012` 判据错误、签名泄漏、`undefined` 拒绝整条流、单份额度聚合、图片未接线）。原「端到端受上游风控阻塞」与「通道依赖客户端」两条结论作废；BUG-027-06 至 BUG-027-12 的修复随托管实现移除而失效，记录保留。 |
 | 2026-10-25 | 新增智能体团队用例（TC-037） | 实测子代理在 ZCode 模型下可用：lead 用 `spawn_teammate` 创建 `zc-probe`，子代理独立完成一次模型回合并回传「子代理通」，团队面板显示 2 个成员；27 秒、1 轮 3 步、57.8K tok、缓存命中 68%、无 `3012`。用例总数由 36 改为 37，通过数由 13 改为 14。前置条件登记为「测试 profile 需安装 4 个 `agent-team` 包」（仓库 lock 已有但 profile 默认不装，属前置条件而非插件缺陷）。该用例的意义：子代理是独立模型会话，复用同一条取流与工具调用路径，因此同时验证了适配器在多会话场景下完备。 |

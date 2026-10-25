@@ -17,7 +17,7 @@ lastVerified: 2026-10-25
 | 计划日期 | 2026-10-24 |
 | 对应需求 | [FNOS-027 ZCode Start Plan 模型接入与账号额度](/requirements/FNOS-027-dsh-zcode-plugin) |
 | 本轮功能 | FNOS-027-01、FNOS-027-02、FNOS-027-03、FNOS-027-04、FNOS-027-05、FNOS-027-06、FNOS-027-07、FNOS-027-08 |
-| 计划状态 | <Badge type="warning" text="实施中（登录、目录、能力与额度实测通过；自研 HTTP 通道在 DSH Web 完成纯文本 / 工具调用 / 多轮工具结果 / 图文与智能体团队验证，DSH Desktop 走查与发布相关任务待执行）" /> |
+| 计划状态 | <Badge type="success" text="已完成（自研 HTTP 通道在 DSH Web 与 DSH Desktop 均验证通过；纯文本 / 工具调用 / 多轮工具结果 / 图文 / 智能体团队 / 思考等级 / 限流退避已实测；发布相关任务按插件未发布单列）" /> |
 
 ## 计划目标
 

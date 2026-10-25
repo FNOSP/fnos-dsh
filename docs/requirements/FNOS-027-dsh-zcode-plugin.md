@@ -14,7 +14,7 @@ lastVerified: 2026-10-25
 | --- | --- |
 | 需求编号 | FNOS-027 |
 | 提出日期 | 2026-10-24 |
-| 需求状态 | <Badge type="warning" text="实施中（登录、目录、能力、额度与对话已实测；DSH Desktop 走查与失败分支待执行）" /> |
+| 需求状态 | <Badge type="success" text="已完成（登录、目录、能力、额度、对话、图文、智能体团队与限流退避已实测；DSH Web 与 DSH Desktop 均通过功能验收；插件未发布）" /> |
 | 关联计划 | [PLAN-FNOS-027 ZCode Start Plan 模型接入与账号额度](/plans/PLAN-FNOS-027-dsh-zcode-plugin) |
 | 影响插件 | `@tnnevol/dsh-zcode`（新增） |
 | 关联需求 | [FNOS-014](/requirements/FNOS-014-dsh-021-rc2-adaptation)（DSH 0.2.1-rc.2 插件基线）、[FNOS-016](/requirements/FNOS-016-plugin-market-index)（插件市场索引与元数据）、[FNOS-026](/requirements/FNOS-026-dsh-opencode-plugin)（同类账号型模型供应商插件的行为基线） |
