@@ -135,7 +135,15 @@ export function toAnthropicTools(tools: readonly ToolSchema[] | undefined): read
 }
 
 /** DSH 思考等级 → Anthropic `output_config.effort`。 */
-export function toEffort(level: string | undefined): string {
+export function toEffort(
+  level: string | undefined,
+  map?: Readonly<Record<string, string | null>>,
+): string {
+  // 目录映射是权威来源：它以同一份上游元数据生成，优先级高于下面的兜底表。
+  if (level !== undefined && map !== undefined) {
+    const mapped = map[level]
+    if (typeof mapped === 'string') return mapped
+  }
   switch (level) {
     case 'off':
     case 'minimal':

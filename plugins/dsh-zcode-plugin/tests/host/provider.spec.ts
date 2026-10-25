@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ZCodeHttpAdapter } from '../../src/host/http/adapter.ts'
+import { reasoningEffortsOf } from '../../src/host/provider.ts'
 import { toModel } from '../../src/host/catalog.ts'
 import { ZCODE_PROVIDER, ZCODE_PROVIDER_NAME } from '../../src/contracts/identity.ts'
 
@@ -13,6 +14,13 @@ function adapterOf(models: ReturnType<typeof toModel>[]): ZCodeHttpAdapter {
       maxTokens: model.maxTokens,
       reasoning: model.reasoning,
       inputModalities: model.input,
+      // 与 provider.ts 的真实投影保持一致，否则测不到思考等级链路。
+      ...(model.thinkingLevelMap === undefined
+        ? {}
+        : {
+          efforts: reasoningEffortsOf(model.thinkingLevelMap),
+          thinkingLevelMap: model.thinkingLevelMap,
+        }),
     })),
     baseUrl: () => 'https://zcode.z.ai/api/v1/zcode-plan/anthropic',
     apiKey: async () => 'test-key',
@@ -62,5 +70,48 @@ describe('供应商显示名', () => {
     const info = adapterOf([]).providerInfo(ZCODE_PROVIDER)
     expect(info).toEqual({ id: ZCODE_PROVIDER, name: ZCODE_PROVIDER_NAME })
     expect(info.name).toBe('zcode')
+  })
+})
+
+/**
+ * 会话选择器能否切换思考等级，取决于 `resolveModel` 是否透出 efforts。
+ * 曾经完全不透出（选择器里只有默认档），这里逐项锁定。
+ */
+describe('思考等级透出', () => {
+  it('目录支持的等级按从弱到强透出，且带 defaultEffort', async () => {
+    const model = toModel({
+      id: 'GLM-5.3',
+      family: 'bigmodel',
+      clientModel: {
+        modelId: 'GLM-5.3',
+        name: 'GLM-5.3',
+        reasoningLevels: ['low', 'high', 'max'],
+      },
+    })
+    const resolved = await adapterOf([model]).resolveModel(ZCODE_PROVIDER, 'GLM-5.3')
+
+    const efforts = resolved.reasoning?.efforts ?? []
+    expect(efforts.map(effort => String(effort.id))).toEqual(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+    expect(resolved.reasoning?.defaultEffort).toBe(String(efforts.at(-1)?.id))
+  })
+
+  it('上游只支持部分等级时只透出支持的档位', async () => {
+    const model = toModel({
+      id: 'GLM-5.2',
+      family: 'bigmodel',
+      clientModel: { modelId: 'GLM-5.2', name: 'GLM-5.2', reasoningLevels: ['high'] },
+    })
+    const resolved = await adapterOf([model]).resolveModel(ZCODE_PROVIDER, 'GLM-5.2')
+
+    const ids = (resolved.reasoning?.efforts ?? []).map(effort => String(effort.id))
+    expect(ids).toEqual(['medium', 'high'])
+    // 不支持的档位不能出现，否则选中后会被上游拒绝。
+    expect(ids).not.toContain('max')
+  })
+
+  it('不支持思考的模型不透出 reasoning', async () => {
+    const resolved = await adapterOf([toModel({ id: 'GLM-5.2', family: 'bigmodel' })])
+      .resolveModel(ZCODE_PROVIDER, 'GLM-5.2')
+    expect(resolved.reasoning).toBeUndefined()
   })
 })

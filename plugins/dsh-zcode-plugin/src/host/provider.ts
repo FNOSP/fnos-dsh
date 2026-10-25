@@ -35,7 +35,7 @@ import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import { resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import type { AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
-import type { ZCodeModel } from '../contracts/catalog.ts'
+import type { ZCodeModel, ZCodeThinkingLevelMap } from '../contracts/catalog.ts'
 import {
   ZCODE_ANTHROPIC_BASE_URLS,
   ZCODE_PROVIDER,
@@ -43,7 +43,8 @@ import {
   DEFAULT_ZCODE_ENDPOINT_PLAN,
   type ZCodeEndpointPlan,
 } from '../contracts/identity.ts'
-import { ZCodeHttpAdapter } from './http/adapter.ts'
+import type { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
+import { reasoningEffort, ZCodeHttpAdapter } from './http/adapter.ts'
 import { zcodeSourceHeaders } from './console-client.ts'
 
 /** 流空闲上限：思考型模型的长停顿不应被误判断流。 */
@@ -233,6 +234,14 @@ export class ZCodeProviderRuntime {
         maxTokens: model.maxTokens,
         reasoning: model.reasoning,
         inputModalities: model.input,
+        // 等级来自目录的 thinkingLevelMap：键是 DSH 的等级 id，值为上游字符串
+        // （null 表示该等级不可用）。只透出可用的档位，选择器才不会给出空档。
+        ...(model.thinkingLevelMap === undefined
+          ? {}
+          : {
+            efforts: reasoningEffortsOf(model.thinkingLevelMap),
+            thinkingLevelMap: model.thinkingLevelMap,
+          }),
       })),
       baseUrl: () => ZCODE_ANTHROPIC_BASE_URLS[this.endpointPlan],
       apiKey: () => this.options.resolveToken(this.endpointPlan),
@@ -324,3 +333,30 @@ export class ZCodeProviderRuntime {
  *
  * 之所以不能只重写 `stream()`：设置了 `prepared` 的调用路径不会经过它。
  */
+
+/** 思考等级 id 的固定顺序与显示名；顺序即选择器里从弱到强的排列。 */
+const REASONING_EFFORT_ORDER = [
+  { id: 'minimal', name: 'Minimal' },
+  { id: 'low', name: 'Low' },
+  { id: 'medium', name: 'Medium' },
+  { id: 'high', name: 'High' },
+  { id: 'xhigh', name: 'Extra High' },
+  { id: 'max', name: 'Max' },
+] as const
+
+/**
+ * 把目录的思考等级映射转成选择器可用的档位。
+ *
+ * `thinkingLevelMap` 里值为 `null` 表示该等级上游不支持，必须剔除；否则选择器
+ * 会给出选中后请求被拒的档位。`off` 不是强度档，另由模型的 reasoning 开关表达。
+ */
+export function reasoningEffortsOf(
+  map: ZCodeThinkingLevelMap,
+): { id: ReturnType<typeof ReasoningEffortId>; name: string }[] {
+  return REASONING_EFFORT_ORDER
+    .filter(level => {
+      const mapped = map[level.id as keyof ZCodeThinkingLevelMap]
+      return typeof mapped === 'string'
+    })
+    .map(level => reasoningEffort(level.id, level.name))
+}

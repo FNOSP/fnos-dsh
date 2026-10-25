@@ -11,13 +11,12 @@
  * @module dsh-zcode/http/adapter
  */
 
-import { LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
+import { LlmAdapter, LlmError, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type {
   ContentBlock,
   GenerateOptions,
   LlmModelInfo,
   LlmResolvedModelInfo,
-  ReasoningEffortId,
   StreamChunk,
   TokenUsage,
 } from '@deepseek-ai/dsh-llm'
@@ -41,7 +40,9 @@ export interface ZCodeHttpModel {
   readonly contextWindow: number
   readonly maxTokens: number
   readonly reasoning: boolean
-  readonly efforts?: readonly { readonly id: ReasoningEffortId; readonly name: string }[]
+  readonly efforts?: readonly { readonly id: ReturnType<typeof ReasoningEffortId>; readonly name: string }[]
+  /** 等级 → 上游字符串；与 efforts 同源，用于把所选等级翻译成请求字段。 */
+  readonly thinkingLevelMap?: Readonly<Record<string, string | null>>
   readonly inputModalities?: readonly ('text' | 'image')[]
 }
 
@@ -115,7 +116,15 @@ export class ZCodeHttpAdapter extends LlmAdapter {
       defaultMaxTokens: found.maxTokens,
       ...(found.inputModalities === undefined ? {} : { inputModalities: [...found.inputModalities] }),
       ...(found.reasoning && found.efforts !== undefined
-        ? { reasoning: { efforts: found.efforts.map(effort => ({ ...effort })) } }
+        ? {
+          reasoning: {
+            efforts: found.efforts.map(effort => ({ ...effort })),
+            // 调用方未指定时用最高档：与官方客户端默认一致。
+            ...(found.efforts.length === 0
+              ? {}
+              : { defaultEffort: found.efforts[found.efforts.length - 1]!.id }),
+          },
+        }
         : {}),
     }
   }
@@ -140,7 +149,7 @@ export class ZCodeHttpAdapter extends LlmAdapter {
       system: options.system ?? leadingSystem(options.messages),
       messages: await toAnthropicMessages(options.messages, this.options.readImage),
       tools: toAnthropicTools(options.tools),
-      effort: toEffort(options.reasoningEffort),
+      effort: toEffort(options.reasoningEffort, model.thinkingLevelMap),
       thinking: model.reasoning,
       deviceId: this.options.deviceId(),
       ...(options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) }),
@@ -324,3 +333,12 @@ function mergeUsage(base: TokenUsage, next: TokenUsage): TokenUsage {
 
 /** 供转换层复用：从消息里取文本。 */
 export { messageText }
+
+/**
+ * 把一个 DSH 思考等级 id 与显示名组成适配器可用的选项。
+ *
+ * 用官方的品牌构造函数而不是断言，避免手写 `as` 绕过类型约束。
+ */
+export function reasoningEffort(id: string, name: string): { id: ReturnType<typeof ReasoningEffortId>; name: string } {
+  return { id: ReasoningEffortId(id), name }
+}
