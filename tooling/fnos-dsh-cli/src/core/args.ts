@@ -36,9 +36,10 @@ export function parseVersionOptions(args: string[]): VersionOptions {
   const unknown = rest.filter(arg => arg.startsWith('-') && !versionFlags.has(arg))
   if (unknown.length > 0) throw new Error(`Unknown version option: ${unknown.join(', ')}`)
   return {
-    // 缺省用 `patch`：统一版本命令已不再弹「选择区域/发布版本」的交互，无位置参数时
-    // 必须有一个确定的默认，否则会退化成交互取值并在非 TTY 下卡住。
-    release: (values[0] ?? 'patch') as VersionBumpRelease,
+    // 缺省用 `prompt`：无位置参数时进入 bumpp 原生 release 菜单（各档位预览、
+    // commits 摘要与 custom 输入由 bumpp 提供）。非交互场景必须显式传档位或
+    // 版本串，否则会在菜单处等待输入。
+    release: (values[0] ?? 'prompt') as VersionBumpRelease,
     ...(baseline === undefined ? {} : { baseline }),
     noCommit: rest.includes('--no-commit'),
     noTag: rest.includes('--no-tag'),

@@ -10,6 +10,7 @@ import './commands/publish.js'
 import './commands/release-notes.js'
 import './commands/start.js'
 import './commands/version.js'
+import './commands/version-sync.js'
 
 const rawArgs = process.argv.slice(2)
 const argv = normalizeArgs(rawArgs.length === 0 ? ['build'] : rawArgs)
