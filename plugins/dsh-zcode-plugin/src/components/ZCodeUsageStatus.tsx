@@ -28,6 +28,7 @@ import {
   type ModelSelectionProjectionLike,
 } from '../client/services/capsule-visibility.ts'
 import { describeDuration, formatTokens } from '../client/services/format.ts'
+import { aggregateUsage, windowsForModel } from '../client/services/usage-window-select.ts'
 import { primaryWindow, remainingOf } from '../client/services/usage-window-select.ts'
 import type { TimerService } from '../client/services/polling.ts'
 import type { ZCodePreferencesStore } from '../client/services/preferences-data.ts'
@@ -259,6 +260,13 @@ export function ZCodeUsageStatus(
   }, [timer, visible])
 
   const primary = usage === undefined ? undefined : primaryWindow(usage.windows, selectedModel)
+  /**
+   * 环与百分比用**聚合值**：同一模型在上游会有多份额度（日额度、活动额度、
+   * 不同套餐各一份），只取其中一份会把实际可用量显示错。
+   */
+  const aggregate = usage === undefined
+    ? undefined
+    : aggregateUsage(windowsForModel(usage.windows, selectedModel))
   useEffect(() => {
     // 图标隐藏后浮层状态不该残留，否则重新显示时会自己弹开。
     if ((primary === undefined || !visible) && popoverOpen) setPopoverOpen(false)
@@ -268,12 +276,15 @@ export function ZCodeUsageStatus(
   // 未登录时挂一个空图标没有信息量；与 Codex 一致，直接不挂出。
   if (signedIn === false) return null
 
-  const hasUsage = primary !== undefined
+  const hasUsage = primary !== undefined && aggregate !== undefined
+  const aggregateReset = aggregate?.resetsAt === undefined
+    ? undefined
+    : resetLabel({ resetsAt: aggregate.resetsAt } as ZCodeUsageWindow, t, now)
   const currentSummary = hasUsage
     ? [
         primary.label,
-        t('usageRemainingPercent', { percent: Math.round(remainingOf(primary)) }),
-        resetLabel(primary, t, now),
+        t('usageRemainingPercent', { percent: Math.round(aggregate.remainingPercent) }),
+        aggregateReset,
       ].filter((part): part is string => part !== undefined).join(' · ')
     : state === 'loading'
       ? t('capsuleLoading')
@@ -290,7 +301,7 @@ export function ZCodeUsageStatus(
     <span className="dsh-zcode-usage-progress-track" aria-label={currentSummary}>
       <DshProgress
         type="circle"
-        percent={hasUsage ? remainingOf(primary) : 0}
+        percent={hasUsage ? aggregate.remainingPercent : 0}
         width={26}
         strokeWidth={3}
         stroke="var(--dsw-alias-label-tertiary)"

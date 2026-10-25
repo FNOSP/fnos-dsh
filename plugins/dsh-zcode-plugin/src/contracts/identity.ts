@@ -39,6 +39,19 @@ export function zcodeOAuthPollUrl(flowId: string): string {
   return `${ZCODE_ORIGIN}/api/v1/oauth/cli/poll/${encodeURIComponent(flowId)}`
 }
 
+/**
+ * 桌面端登录用的「授权码换令牌」端点。
+ *
+ * 桌面端（Electron）走 `zcode://oauth/callback` 自定义协议接收授权码，再用本端点
+ * 换取两份凭据：`data.token`（Start Plan 用）与 `data.<family>.access_token`
+ * （家族业务令牌）。它与 CLI 的 `/oauth/cli/*` 设备授权是**两条不同的链路**，
+ * 换来的凭据用途也不同。
+ */
+export const ZCODE_OAUTH_TOKEN_URL = `${ZCODE_ORIGIN}/api/v1/oauth/token`
+
+/** 桌面端注册的回调协议前缀。 */
+export const ZCODE_DESKTOP_REDIRECT_URI = 'zcode://oauth/callback'
+
 /** Start Plan 额度与权益接口。 */
 export const ZCODE_BALANCE_URL = `${ZCODE_ORIGIN}/api/v1/zcode-plan/billing/balance`
 /** 客户端运行时配置（验证码开关、Start Plan 预览权益、模型能力）。 */
@@ -53,14 +66,14 @@ export const ZCODE_AGENT_CONFIGS_URL = `${ZCODE_ORIGIN}/api/v1/agent/configs`
  * `open.bigmodel.cn/api/anthropic/v1/messages` 改写成
  * `<origin>/api/v1/ultra/anthropic/v1/messages`——官方模型流量走 `ultra`。
  *
- * 两条端点对第三方 HTTP 客户端的表现完全不同（2026-10-24 同一凭据实测）：
- * - `start-plan`（`zcode-plan/anthropic`）：消耗 Start Plan 额度，用账号 JWT；
- *   但该路径对第三方请求恒被风控拦截（HTTP 405 + 业务码 3012）。
- * - `ultra`（`ultra/anthropic`）：**不被风控拦截**，用家族 MaaS 令牌；
- *   计费落到个人按量余额，余额为 0 时返回 HTTP 429 + 业务码 1113。
+ * 两条端点的差异（2026-10-25 实测）：
+ * - `start-plan`（`zcode-plan/anthropic`）：消耗 Start Plan 套餐额度，用账号 JWT。
+ *   网关会校验请求的 `system` 是否为官方 agent 原文，未注入前缀时返回
+ *   HTTP 405 + 业务码 `3012`；按 `start-plan-prefix.ts` 注入后正常放行。
+ * - `ultra`（`ultra/anthropic`）：用家族 MaaS 令牌，按量计费；
+ *   余额为 0 时返回 HTTP 429 + 业务码 `1113`。
  *
- * 因此两条都要支持：只订了 Start Plan 的账号只能用前者（并接受上游拦截），
- * 有按量余额的账号可以切到后者真正跑通对话。
+ * 默认走 `start-plan`：只订套餐、没有按量余额的账号只有这条路可用。
  */
 export type ZCodeEndpointPlan = 'start-plan' | 'ultra'
 

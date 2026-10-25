@@ -4,8 +4,8 @@
  * 装配关系：
  * - `ZCodeAuthService` 管理 OAuth 设备授权登录与凭据生命周期；
  * - `ZCodeCatalogService` 用账号 JWT 读额度，把 `capabilities` 投影成模型清单；
- * - `ZCodeProviderRuntime` 把清单投影成唯一的 `dsh-zcode` 路由；执行通道按端点
- *   策略分流：Start Plan 走托管的官方 app-server（可用），Ultra 走 HTTP 直连；
+ * - `ZCodeProviderRuntime` 把清单投影成唯一的 `dsh-zcode` 路由；两个端点都由
+ *   HTTP 直连执行（Start Plan 需要注入官方提示词前缀才能通过网关校验）；
  * - `ZCodeUsageService` 读取 Start Plan 额度；
  * - `registerZCodeRoutes` 暴露同源 Web 路由给插件详情页与用量胶囊。
  *
@@ -19,9 +19,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-llm'
-import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
-import { defaultBridgeDataDir } from './host/bridge/runtime-paths.ts'
 import { ZCodeAuthService } from './host/auth.ts'
+
 import {
   toModel,
   ZCODE_BUILTIN_MODEL_IDS,
@@ -54,11 +53,24 @@ export function apply(ctx: Context): void {
   const client = new ZCodeConsoleClient()
 
   let refresh: (force: boolean) => Promise<void> = async () => {}
+  /**
+   * 桌面授权码流程的回调地址。
+   *
+   * 桌面端用 `zcode://oauth/callback` 自定义协议接回调；插件在浏览器里注册不了
+   * 自定义协议，因此回调到插件自己的同源路由，由宿主侧拿 code 换取凭据。
+   * 地址在装配时才能确定（依赖实际监听端口与代理头），所以按需解析。
+   */
+  const callbackBaseUrl = (): string | undefined => {
+    const configured = process.env.DSH_ZCODE_CALLBACK_URL?.trim() ?? ''
+    return configured === '' ? undefined : configured
+  }
+
   const auth = new ZCodeAuthService({
     store: credentials,
     client,
     onCredentialChange: () => { void refresh(true) },
     logger: ctx.logger,
+    callbackBaseUrl,
   })
 
   const catalog = new ZCodeCatalogService({
@@ -68,30 +80,12 @@ export function apply(ctx: Context): void {
     logger: ctx.logger,
   })
 
-  /** Start Plan 桥接通道的数据目录：DSH home 下、插件专属且可写。 */
-  const bridgeDataDir = (): string => {
-    const configured = process.env.DSH_ZCODE_DATA_DIR?.trim() ?? ''
-    return configured !== '' ? configured : defaultBridgeDataDir(resolveDshHome())
-  }
-  /** Start Plan 桥接通道的客户端 CLI：允许用环境变量显式指定。 */
-  const bridgeCliPath = (): string | undefined => {
-    const configured = process.env.DSH_ZCODE_CLI?.trim() ?? ''
-    return configured === '' ? undefined : configured
-  }
-
   const runtime = new ZCodeProviderRuntime({
     // 端点策略决定用哪份凭据：Start Plan 认账号 JWT，Ultra 认家族 MaaS 令牌。
     resolveToken: async plan => (plan === 'ultra' ? auth.accessToken() : auth.zcodeJwt()),
     deviceMid: () => client.deviceMid(),
     resolveAttachments: () => ctx.get('attachments') as AttachmentStore | undefined,
     logger: ctx.logger,
-    // 模型真正跑起来靠这条通道：托管官方 app-server，由它自己发签名请求。
-    bridge: {
-      dataDir: bridgeDataDir,
-      family: async () => (await auth.credential())?.family ?? 'bigmodel',
-      accountJwt: () => auth.zcodeJwt(),
-      cliPath: bridgeCliPath,
-    },
   })
   runtime.register(ctx)
 
@@ -175,56 +169,27 @@ export function apply(ctx: Context): void {
 }
 
 export {
-  bridgeProviderId,
-  ZCODE_BRIDGE_REQUEST_TIMEOUT_MS,
-  ZCODE_BRIDGE_TURN_TIMEOUT_MS,
-  ZCodeBridgeAdapter,
-} from './host/bridge/adapter.ts'
-export type {
-  ZCodeBridgeAdapterOptions,
-  ZCodeBridgeFamily,
-  ZCodeImageLocator,
-} from './host/bridge/adapter.ts'
-export { ZCodeCompositeAdapter } from './host/bridge/composite.ts'
-export type { ZCodeCompositeAdapterOptions } from './host/bridge/composite.ts'
+  START_PLAN_PREFIX_BODY,
+  START_PLAN_PREFIX_HEAD,
+  startPlanSystemPrefix,
+} from './host/start-plan-prefix.ts'
+export { ZCodeHttpAdapter } from './host/http/adapter.ts'
+export type { ZCodeHttpAdapterOptions, ZCodeHttpModel } from './host/http/adapter.ts'
 export {
-  buildAppServerEnv,
-  ZCODE_RUNTIME_PREFERENCES,
-  ZCodeProtocolClient,
-} from './host/bridge/protocol.ts'
-export type {
-  ZCodeBridgeLogger,
-  ZCodeNotification,
-  ZCodeProtocolClientOptions,
-  ZCodeReverseRequestHandlers,
-} from './host/bridge/protocol.ts'
+  buildMessagesBody,
+  parseEvent,
+  streamMessages,
+  toUsage,
+} from './host/http/messages-client.ts'
+export type { MessagesEvent, MessagesRequest, SystemPrefix } from './host/http/messages-client.ts'
 export {
-  credentialSecret,
-  defaultBridgeDataDir,
-  deriveCredentialKey,
-  encryptCredential,
-  isWritableDirectory,
-  prepareBridgeDataDir,
-  readBuiltinRevision,
-  resolveBuiltinConfigPath,
-  resolveZCodeCliPath,
-  ZCODE_BRIDGE_DIRNAME,
-  ZCODE_CLI_CANDIDATES,
-  ZCODE_FALLBACK_APP_VERSION,
-  zcodeDataDir,
-} from './host/bridge/runtime-paths.ts'
-export {
-  agentModelId,
-  BRIDGE_TOOL_NOTE,
-  BRIDGE_TOOL_RULE,
-  extractMessage,
-  flattenConversation,
-  lastUserText,
-  looksLikeLeakedCall,
-  normalizeModelKey,
-  sanitizeLeakedCalls,
-  ZCODE_AGENT_MODEL_IDS,
-} from './host/bridge/transcript.ts'
+  leadingSystem,
+  messageText,
+  toAnthropicMessages,
+  toAnthropicTools,
+  toEffort,
+} from './host/http/translate.ts'
+
 
 export { ZCodeAuthService } from './host/auth.ts'
 export type { ZCodeAuthServiceOptions } from './host/auth.ts'
@@ -266,7 +231,6 @@ export {
   zcodePreferencesPath,
 } from './host/preferences.ts'
 export {
-  createZCodePiAdapter,
   createZCodeProfile,
   createZCodeProvider,
   toPiModel,

@@ -15,6 +15,8 @@ export const ZCODE_ROUTES = {
   status: `${ZCODE_ROUTE_PREFIX}/auth/status`,
   /** 开始设备授权；响应带授权地址。 */
   login: `${ZCODE_ROUTE_PREFIX}/auth/login`,
+  /** 桌面授权码流程的回调地址：浏览器登录后回跳到这里完成换取。 */
+  callback: `${ZCODE_ROUTE_PREFIX}/auth/callback`,
   /** 取消进行中的登录，不删除已保存凭据。 */
   cancel: `${ZCODE_ROUTE_PREFIX}/auth/cancel`,
   /** 退出登录并删除凭据。 */

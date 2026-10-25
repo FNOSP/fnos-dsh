@@ -22,6 +22,7 @@ import {
   ZCODE_CLIENT_VERSION,
   ZCODE_FAMILY_LABELS,
   ZCODE_OAUTH_INIT_URL,
+  ZCODE_OAUTH_TOKEN_URL,
   ZCODE_USER_AGENT,
   zcodeOAuthPollUrl,
   type ZCodeFamily,
@@ -357,6 +358,54 @@ export class ZCodeConsoleClient {
       ...(accessToken === undefined ? {} : { accessToken }),
       ...(refreshToken === undefined ? {} : { refreshToken }),
       ...(expiresAtSeconds === undefined ? {} : { expiresAt: expiresAtSeconds * 1000 }),
+      user: {
+        userId: pickString(userNode, 'user_id'),
+        email: pickString(userNode, 'email'),
+        name: pickString(userNode, 'name'),
+        avatar: pickString(userNode, 'avatar'),
+      },
+    }
+  }
+
+  /**
+   * 用桌面端授权码换取凭据。
+   *
+   * 与设备授权并列存在：桌面端（Electron）通过 `zcode://oauth/callback` 拿授权码，
+   * 再由这里换取 `data.token` 与 `data.<family>.access_token`。上游对两条链路签发
+   * 的凭据用途不同，因此两条都要支持，由调用方选择用哪条。
+   */
+  async exchangeDesktopCode(
+    family: ZCodeFamily,
+    code: string,
+    redirectUri: string,
+    state: string,
+  ): Promise<ZCodeOAuthPoll> {
+    const { status, json } = await this.request(
+      ZCODE_OAUTH_TOKEN_URL,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ provider: family, code, redirect_uri: redirectUri, state }),
+      },
+      `${ZCODE_FAMILY_LABELS[family]} 授权码换取`,
+    )
+    const data = unwrapEnvelope(json, status, ZCODE_OAUTH_TOKEN_URL)
+    if (!isRecord(data)) {
+      throw new ZCodeConsoleError('授权码换取响应缺少 data', undefined, status)
+    }
+    const zcodeJwt = pickString(data, 'token')
+    if (zcodeJwt === undefined || zcodeJwt.trim().length === 0) {
+      throw new ZCodeConsoleError('授权码换取响应缺少 token', undefined, status)
+    }
+    const familyNode = isRecord(data[family]) ? data[family] as Record<string, unknown> : {}
+    const accessToken = pickString(familyNode, 'access_token')
+    const refreshToken = pickString(familyNode, 'refresh_token')
+    const userNode = isRecord(data.user) ? data.user as Record<string, unknown> : {}
+    return {
+      status: 'ready',
+      zcodeJwt,
+      ...(accessToken === undefined ? {} : { accessToken }),
+      ...(refreshToken === undefined ? {} : { refreshToken }),
       user: {
         userId: pickString(userNode, 'user_id'),
         email: pickString(userNode, 'email'),

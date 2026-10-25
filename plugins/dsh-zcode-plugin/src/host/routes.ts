@@ -75,6 +75,32 @@ export function trustedRequest(req: IncomingMessage): boolean {
   return localPeer(req)
 }
 
+/** 浏览器整页跳转用的极简结果页（回调路径不在 SPA 内，需要自渲染）。 */
+function html(res: ServerResponse, status: number, body: string): void {
+  res.writeHead(status, {
+    'content-type': 'text/html; charset=utf-8',
+    // 结果页只需静态渲染，禁止脚本执行，避免回调参数被注入成可执行内容。
+    'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'",
+  })
+  res.end(body)
+}
+
+/** 回调结果页：一句话结论 + 关闭提示，不引用任何外部资源。 */
+function callbackPage(message: string, ok: boolean): string {
+  const title = ok ? 'ZCode 登录成功' : 'ZCode 登录失败'
+  const accent = ok ? '#12b886' : '#e03131'
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">`
+    + `<meta name="viewport" content="width=device-width,initial-scale=1">`
+    + `<title>${title}</title></head>`
+    + `<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;`
+    + `font:14px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f9fa">`
+    + `<div style="padding:32px 40px;border-radius:12px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.08);`
+    + `max-width:420px;text-align:center">`
+    + `<h1 style="margin:0 0 12px;font-size:16px;color:${accent}">${title}</h1>`
+    + `<p style="margin:0;color:#495057">${message}</p>`
+    + `</div></body></html>`
+}
+
 function json(res: ServerResponse, status: number, value: unknown): void {
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
@@ -192,10 +218,33 @@ export function registerZCodeRoutes(ctx: Context, options: ZCodeRoutesOptions): 
           if (!authorize(req, res)) return
           try {
             const family = parseFamily(await readJsonBody(req)) ?? 'bigmodel'
-            const challenge = await options.auth.login(family)
+            // 走桌面端的授权码流程：与设备授权相比，上游签发的凭据用途不同。
+            // 回调地址取本次请求的 origin，代理与局域网访问都能落到正确地址。
+            const challenge = await options.auth.loginDesktop(family, requestOrigin(req))
             json(res, 200, { status: 'signing-in', challenge })
           } catch (error) {
             json(res, 500, { error: safeMessage(error) })
+          }
+        },
+      }),
+      ctx.webServer.register({
+        kind: 'exact',
+        path: ZCODE_ROUTES.callback,
+        handler: async (req, res) => {
+          // 这是浏览器整页跳转（不是 fetch），因此不放行 CSRF 头校验，
+          // 改成校验 state —— state 由本服务生成，只有发起登录的浏览器才知道。
+          const url = new URL(req.url ?? '/', requestOrigin(req) ?? 'http://127.0.0.1')
+          const code = url.searchParams.get('code') ?? url.searchParams.get('authCode')
+          const state = url.searchParams.get('state')
+          const family = parseFamily(url.searchParams.get('family')) ?? 'bigmodel'
+          if (code === null || state === null) {
+            return html(res, 400, callbackPage('授权回调缺少 code 或 state，请回到 DSH 重新登录。', false))
+          }
+          try {
+            await options.auth.completeDesktopLogin({ code, state, family })
+            return html(res, 200, callbackPage('登录成功，可以关闭此页并回到 DSH。', true))
+          } catch (error) {
+            return html(res, 400, callbackPage(safeMessage(error), false))
           }
         },
       }),

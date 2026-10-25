@@ -28,15 +28,12 @@ import type {
 } from '@earendil-works/pi-ai'
 import {
   createProvider,
-  defaultProviderAuthContext,
-  InMemoryCredentialStore,
 } from '@earendil-works/pi-ai'
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy'
 import type { Context } from '@deepseek-ai/cordis'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
-import { LlmError, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
-import type { AdapterRegistrationHandle, LlmAdapter } from '@deepseek-ai/dsh-llm'
-import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
+import { resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
+import type { AdapterRegistrationHandle } from '@deepseek-ai/dsh-llm'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import type { ZCodeModel } from '../contracts/catalog.ts'
 import {
@@ -46,8 +43,7 @@ import {
   DEFAULT_ZCODE_ENDPOINT_PLAN,
   type ZCodeEndpointPlan,
 } from '../contracts/identity.ts'
-import { ZCodeBridgeAdapter, type ZCodeBridgeFamily } from './bridge/adapter.ts'
-import { ZCodeCompositeAdapter } from './bridge/composite.ts'
+import { ZCodeHttpAdapter } from './http/adapter.ts'
 import { zcodeSourceHeaders } from './console-client.ts'
 
 /** 流空闲上限：思考型模型的长停顿不应被误判断流。 */
@@ -183,42 +179,6 @@ export function createZCodeProfile(
  * 首次刷新才有内容——默认实现那一刻会回落成 provider id，模型选择器的分组名
  * 从此固定成 `dsh-zcode`。这里直接返回契约常量，不依赖任何运行期状态。
  */
-class ZCodePiDisplayAdapter extends PiAiAdapter {
-  override providerInfo(provider: string): { readonly id: string; readonly name: string } {
-    return { id: provider, name: ZCODE_PROVIDER_NAME }
-  }
-}
-
-/** 用当前 profile 构造 pi-ai 适配器；`profiles` 每次操作都会被重新读取。 */
-export function createZCodePiAdapter(options: {
-  readonly profiles: () => ReadonlyMap<string, ResolvedPiAiProviderProfile>
-  readonly resolveToken: () => Promise<string | undefined>
-  readonly resolveAttachments?: () => AttachmentStore | undefined
-}): PiAiAdapter {
-  return new ZCodePiDisplayAdapter({
-    profiles: options.profiles,
-    resolveApiKey: async () => {
-      const token = await options.resolveToken()
-      if (token === undefined || token.length === 0) {
-        throw new LlmError(
-          'ZCode 凭据不可用：请在插件详情页登录 ZCode 账号。若已选 Ultra 端点，'
-          + '还需要该账号具备家族 OAuth 令牌（重新登录一次即可补齐）',
-          'MISSING_CREDENTIAL',
-        )
-      }
-      return token
-    },
-    // 凭据由本插件自己持有，pi-ai 侧的凭据库不参与鉴权；注入空存储是为了
-    // 满足适配器契约，并让后续 provider 原生登录保持可用。
-    auth: {
-      credentials: new InMemoryCredentialStore(),
-      authContext: defaultProviderAuthContext(),
-    },
-    ...(options.resolveAttachments === undefined
-      ? {}
-      : { resolveAttachments: options.resolveAttachments }),
-  })
-}
 
 /** 运行时依赖。 */
 export interface ZCodeProviderRuntimeOptions {
@@ -234,20 +194,6 @@ export interface ZCodeProviderRuntimeOptions {
   /** 读取宿主附件服务，供图片输入使用。 */
   readonly resolveAttachments: () => AttachmentStore | undefined
   readonly logger: Pick<Context['logger'], 'warn' | 'info'>
-  /**
-   * Start Plan 桥接通道的依赖；缺省时不启用（只剩 HTTP 通道）。
-   *
-   * 以函数注入而不是快照：登录、数据目录、模型集合都会在运行期变化，
-   * 适配器每次取流时重新读取即可，不需要重建适配器。
-   */
-  readonly bridge?: {
-    readonly dataDir: () => string
-    readonly family: () => ZCodeBridgeFamily | Promise<ZCodeBridgeFamily>
-    readonly accountJwt: () => Promise<string | undefined>
-    readonly cliPath?: () => string | undefined
-    readonly nodePath?: () => string
-    readonly workspacePath?: () => string | undefined
-  }
 }
 
 /** 路由状态，供详情页诊断。 */
@@ -259,10 +205,6 @@ export interface ZCodeRouteStatus {
   readonly modelCount: number
   /** 当前端点策略，便于详情页说明「请求会发到哪里、扣哪种额度」。 */
   readonly endpointPlan?: ZCodeEndpointPlan
-  /** Start Plan 桥接通道是否可用（CLI 是否探测到）。 */
-  readonly bridgeReady?: boolean
-  /** 桥接通道不可用时的原因。 */
-  readonly bridgeError?: string
 }
 
 /**
@@ -274,11 +216,8 @@ export interface ZCodeRouteStatus {
 export class ZCodeProviderRuntime {
   private snapshot: ReadonlyMap<string, ResolvedPiAiProviderProfile> = new Map()
   /** HTTP 通道：同时是模型元数据的唯一来源。 */
-  private readonly piAdapter: PiAiAdapter
-  /** Start Plan 桥接通道；未注入依赖时为 undefined。 */
-  private readonly bridge: ZCodeBridgeAdapter | undefined
-  /** 实际注册到 llm 的适配器（有桥接时是组合适配器）。 */
-  private readonly adapter: LlmAdapter
+  /** 执行通道：自行收发 Anthropic Messages（满足网关对 system 分块的要求）。 */
+  private readonly adapter: ZCodeHttpAdapter
   private registration: AdapterRegistrationHandle | undefined
   private registered = false
   private error: string | undefined
@@ -286,33 +225,21 @@ export class ZCodeProviderRuntime {
   private endpointPlan: ZCodeEndpointPlan = DEFAULT_ZCODE_ENDPOINT_PLAN
 
   constructor(private readonly options: ZCodeProviderRuntimeOptions) {
-    this.piAdapter = createZCodePiAdapter({
-      profiles: () => this.snapshot,
-      // 适配器只关心"当前策略下的凭据"，策略由 runtime 持有。
-      resolveToken: () => this.options.resolveToken(this.endpointPlan),
-      resolveAttachments: this.options.resolveAttachments,
+    this.adapter = new ZCodeHttpAdapter({
+      models: () => this.currentModels.map(model => ({
+        id: model.id,
+        name: model.name,
+        contextWindow: model.contextWindow,
+        maxTokens: model.maxTokens,
+        reasoning: model.reasoning,
+        inputModalities: model.input,
+      })),
+      baseUrl: () => ZCODE_ANTHROPIC_BASE_URLS[this.endpointPlan],
+      apiKey: () => this.options.resolveToken(this.endpointPlan),
+      deviceId: () => this.options.deviceMid(),
+      headers: () => zcodeSourceHeaders(this.options.deviceMid()),
+      logger: this.options.logger,
     })
-    const bridge = options.bridge
-    this.bridge = bridge === undefined
-      ? undefined
-      : new ZCodeBridgeAdapter({
-        dataDir: bridge.dataDir,
-        family: bridge.family,
-        accountJwt: bridge.accountJwt,
-        modelIds: () => this.currentModels.map(model => model.id),
-        attachments: () => this.options.resolveAttachments() as never,
-        logger: this.options.logger,
-        ...(bridge.cliPath === undefined ? {} : { cliPath: bridge.cliPath }),
-        ...(bridge.nodePath === undefined ? {} : { nodePath: bridge.nodePath }),
-        ...(bridge.workspacePath === undefined ? {} : { workspacePath: bridge.workspacePath }),
-      })
-    this.adapter = this.bridge === undefined
-      ? this.piAdapter
-      : new ZCodeCompositeAdapter({
-        plan: () => this.endpointPlan,
-        pi: this.piAdapter,
-        bridge: this.bridge,
-      })
   }
 
   /** 当前目录模型。 */
@@ -329,14 +256,6 @@ export class ZCodeProviderRuntime {
       ...(this.error === undefined ? {} : { error: this.error }),
       modelCount: this.currentModels.length,
       endpointPlan: this.endpointPlan,
-      ...(this.bridge === undefined
-        ? { bridgeReady: false, bridgeError: '未装配 Start Plan 桥接通道' }
-        : (() => {
-          const availability = this.bridge.availability()
-          return availability.reason === undefined
-            ? { bridgeReady: availability.ready }
-            : { bridgeReady: availability.ready, bridgeError: availability.reason }
-        })()),
     }]
   }
 
@@ -356,19 +275,14 @@ export class ZCodeProviderRuntime {
         this.registration?.()
         this.registration = undefined
         this.registered = false
-        this.bridge?.dispose()
       }
     }, 'dsh-zcode: LLM 路由')
+
   }
 
   /** 当前端点策略。 */
   plan(): ZCodeEndpointPlan {
     return this.endpointPlan
-  }
-
-  /** Start Plan 桥接通道（未装配时为 undefined）。 */
-  bridgeAdapter(): ZCodeBridgeAdapter | undefined {
-    return this.bridge
   }
 
   /**
@@ -380,16 +294,15 @@ export class ZCodeProviderRuntime {
   update(models: readonly ZCodeModel[], plan: ZCodeEndpointPlan = this.endpointPlan): void {
     this.currentModels = models
     this.endpointPlan = plan
-    const baseURL = ZCODE_ANTHROPIC_BASE_URLS[plan]
-    // 新 Map 身份是 PiAiAdapter 重建模型集合的信号。
-    this.snapshot = new Map([[
-      ZCODE_PROVIDER,
-      createZCodeProfile(
-        models,
-        () => this.options.resolveToken(this.endpointPlan),
-        zcodeSourceHeaders(this.options.deviceMid()),
-        baseURL,
-      ),
-    ]])
   }
 }
+/**
+ * 需要把 Start Plan 的官方提示词前缀注入到请求里。
+ *
+ * 落点说明：宿主在 `adapterStream` 里做的是
+ *   `const call = await adapter.prepareCall(...); dispatch = (o) => call.stream(o)`
+ * 也就是说 `prepareCall` 返回的 `stream` 就是最终取流入口。因此包装它即可
+ * 影响真正的请求，不需要改上游包、也不需要自己发 HTTP。
+ *
+ * 之所以不能只重写 `stream()`：设置了 `prepared` 的调用路径不会经过它。
+ */
