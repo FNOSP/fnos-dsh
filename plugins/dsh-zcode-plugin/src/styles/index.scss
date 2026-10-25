@@ -258,29 +258,10 @@
 .dsh-zcode-signin-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  /* 两个动作按钮之间的距离（产品要求 15px） */
+  gap: 15px;
   flex-wrap: wrap;
   min-width: 0;
-}
-
-.dsh-zcode-link {
-  color: var(--dsw-alias-brand-primary);
-  font-size: 12px;
-  text-decoration: none;
-  flex: none;
-}
-
-.dsh-zcode-link:hover {
-  text-decoration: underline;
-}
-
-.dsh-zcode-authorize-url {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 11px;
 }
 
 /* ---------- 目录卡片 ---------- */

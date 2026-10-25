@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { DshButton, DshIconCheckCircle, DshTypography } from '@tnnevol/dsh-semi-ui'
+import { DshButton } from '@tnnevol/dsh-semi-ui'
 import type { ZCodeAuthStatus, ZCodeLoginChallenge } from '../contracts/auth.ts'
 import { ZCODE_FAMILY_LABELS, ZCODE_FAMILIES } from '../contracts/identity.ts'
 import type { ZCodeFamily } from '../contracts/identity.ts'
@@ -27,6 +27,38 @@ import { errorMessage, isOriginNotTrusted } from '../client/services/http.ts'
 import type { TimerService } from '../client/services/polling.ts'
 
 type SignedInStatus = Extract<ZCodeAuthStatus, { status: 'signed-in' }>
+
+/**
+ * 复制文本到剪贴板。
+ *
+ * `navigator.clipboard` 在非安全上下文或受限 iframe 里不可用，因此保留
+ * `execCommand` 回落——这条登录链路本身就在 iframe 里跑，不能只赌一种实现。
+ */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard !== undefined) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    // 继续走回落方案。
+  }
+  try {
+    const area = document.createElement('textarea')
+    area.value = text
+    area.setAttribute('readonly', '')
+    area.style.position = 'fixed'
+    area.style.opacity = '0'
+    document.body.append(area)
+    area.select()
+    const ok = document.execCommand('copy')
+    area.remove()
+    return ok
+  } catch {
+    return false
+  }
+}
+
 
 /** 账号卡片的内部状态机。 */
 type AccountState =
@@ -98,6 +130,8 @@ export function ZCodeAccountCard({ t, timer }: ZCodeAccountCardProps): ReactNode
   const [copyFailed, setCopyFailed] = useState(false)
   /** 浏览器拦截了自动打开的标签页时给一条可读提示。 */
   const [popupBlocked, setPopupBlocked] = useState(false)
+  /** 复制成功后的短反馈。 */
+  const [copied, setCopied] = useState(false)
   const [family, setFamily] = useState<ZCodeFamily>('bigmodel')
   const sequenceRef = useRef(0)
   // 只在登录状态真正翻转时推进代际，避免页面首次加载就多触发一次额度/目录请求。
@@ -143,6 +177,15 @@ export function ZCodeAccountCard({ t, timer }: ZCodeAccountCardProps): ReactNode
     if (!signingIn || delayMs <= 0) return
     return timer.interval(() => { void refresh() }, delayMs)
   }, [delayMs, refresh, signingIn, timer])
+
+  const copyAuthorizeUrl = async (url: string): Promise<void> => {
+    setCopyFailed(false)
+    const ok = await copyText(url)
+    setCopyFailed(!ok)
+    if (!ok) return
+    setCopied(true)
+    window.setTimeout(() => { setCopied(false) }, 2000)
+  }
 
   const signIn = async (): Promise<void> => {
     setBusy(true)
@@ -302,33 +345,31 @@ export function ZCodeAccountCard({ t, timer }: ZCodeAccountCardProps): ReactNode
             : null}
           {challenge === undefined ? null : (
             <>
+              {/* 两个动作同一行：按钮之间的间距由 `.dsh-zcode-signin-actions` 的 gap 控制。 */}
               <div className="dsh-zcode-signin-actions">
-                <a
-                  className="dsh-zcode-link"
-                  href={challenge.authorizeUrl}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  {t('accountOpenAuthorize')}
-                </a>
-                <DshTypography.Text
-                  className="dsh-zcode-authorize-url"
-                  copyable={{
-                    content: challenge.authorizeUrl,
-                    copyTip: t('accountCopyUrl'),
-                    successTip: <DshIconCheckCircle aria-label={t('accountCodeCopied')} />,
-                    onCopy: (_event: unknown, _content: unknown, result: boolean) => {
-                      setCopyFailed(!result)
-                    },
+                <DshButton
+                  htmlType="button"
+                  theme="solid"
+                  type="primary"
+                  onClick={() => {
+                    window.open(challenge.authorizeUrl, '_blank', 'noopener,noreferrer')
                   }}
                 >
-                  {challenge.authorizeUrl}
-                </DshTypography.Text>
+                  {t('accountOpenAuthorize')}
+                </DshButton>
+                <DshButton
+                  htmlType="button"
+                  theme="outline"
+                  type="secondary"
+                  onClick={() => { void copyAuthorizeUrl(challenge.authorizeUrl) }}
+                >
+                  {copied ? t('accountCodeCopied') : t('accountCopyUrl')}
+                </DshButton>
               </div>
               <p className="dsh-zcode-hint">
                 {t('accountAuthorizeExpires', { minutes: Math.max(1, Math.round(challenge.expiresInSeconds / 60)) })}
               </p>
-              {copyFailed ? <p className="dsh-zcode-error">{t('accountCodeCopied')}</p> : null}
+              {copyFailed ? <p className="dsh-zcode-error">{t('accountCopyFailed')}</p> : null}
             </>
           )}
         </div>
