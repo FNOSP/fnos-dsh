@@ -2,7 +2,7 @@
 id: FNOS-029
 title: FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移
 description: 将仓库全部 DSH 插件与运行基线从 0.2.1-rc.2 迁移到 0.2.1-rc.3，保持既有功能不变，并在 DSH Web 与 DSH Desktop 双客户端验收。
-status: in-progress
+status: in-review
 owner: tnnevol
 targetVersion: 6.0.0
 lastVerified: 2026-10-25
@@ -14,7 +14,7 @@ lastVerified: 2026-10-25
 | --- | --- |
 | 需求编号 | FNOS-029 |
 | 提出日期 | 2026-10-25 |
-| 需求状态 | 规划中 |
+| 需求状态 | 待完成（双客户端已验；FPK 真机验证列为后续） |
 | 关联计划 | [PLAN-FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移](/plans/PLAN-FNOS-029-dsh-021-rc3-adaptation) |
 | 适用范围 | 仓库全部 DSH 插件（codex-auth、fnos、failover-search、midscene、opencode、semi-ui-showcase、zcode，以及不入库的 codebuddy 本地副本）、仓库运行与构建基线、本地联调检出（`fork-pj/deepseek-harness`） |
 
@@ -50,13 +50,13 @@ DSH 官方已发布 `0.2.1-rc.3`（npm `next` 标签指向它，`latest` 仍在 
 
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-029-07 | P1 | 插件依赖版本单一事实来源 | 更新 DSH 基线时只需改 `pnpm-workspace.yaml` 一处；插件 manifest 不再出现 DSH 版本字面量，构建门禁拒绝字面版本 | 待验证 |
-| FNOS-029-01 | P0 | 七个入库插件在新运行时正常加载 | 七个插件新版本在 DSH `0.2.1-rc.3` 上安装后，插件管理页无「异常」或行挂起，各插件既有功能可用且行为与 rc.2 基线一致 | 待验证 |
-| FNOS-029-02 | P0 | 插件界面契约保持 | 插件在详情页、会话区、输入区、设置区与侧栏注册的界面区块在新运行时上位置与信息展示不变 | 待验证 |
-| FNOS-029-03 | P0 | CodeBuddy 本地副本随基线可用 | 不入库的 CodeBuddy 插件副本锚定新基线后，在本地开发态运行时上可正常加载，登录、账号与统计入口可见（不发布、不入库） | 待验证 |
-| FNOS-029-04 | P0 | 仓库运行与构建基线同步 | 本地 DSH Web 报告的运行时版本、FPK 安装回调安装的运行时版本与插件兼容声明三方一致；三方插件 `dshmarket` 安装不被兼容门禁拒绝 | 待验证 |
-| FNOS-029-05 | P0 | 用户数据兼容 | 基线迁移（本地 profile 升级运行时与插件）后，既有凭据、账号、偏好、模型配置继续生效，无需手动迁移 | 待验证 |
-| FNOS-029-06 | P1 | Desktop 联调检出更新 | `fork-pj/deepseek-harness` 检出处于官方 `dsh-v0.2.1-rc.3`，开发态 Desktop 以该版本运行并加载新基线插件 | 待验证 |
+| FNOS-029-07 | P1 | 插件依赖版本单一事实来源 | 更新 DSH 基线时只需改 `pnpm-workspace.yaml` 一处；插件 manifest 不再出现 DSH 版本字面量，构建门禁拒绝字面版本 | <Badge type="tip" text="已验（门禁变异测试 + 守卫用例）" /> |
+| FNOS-029-01 | P0 | 七个入库插件在新运行时正常加载 | 七个插件新版本在 DSH `0.2.1-rc.3` 上安装后，插件管理页无「异常」或行挂起，各插件既有功能可用且行为与 rc.2 基线一致 | <Badge type="tip" text="本地双客户端已验（2026-10-25）" /> |
+| FNOS-029-02 | P0 | 插件界面契约保持 | 插件在详情页、会话区、输入区、设置区与侧栏注册的界面区块在新运行时上位置与信息展示不变 | <Badge type="tip" text="本地双客户端已验（2026-10-25）" /> |
+| FNOS-029-03 | P0 | CodeBuddy 本地副本随基线可用 | 不入库的 CodeBuddy 插件副本锚定新基线后，在本地开发态运行时上可正常加载，登录、账号与统计入口可见（不发布、不入库） | <Badge type="tip" text="本地双客户端已验（2026-10-25）" /> |
+| FNOS-029-04 | P0 | 仓库运行与构建基线同步 | 本地 DSH Web 报告的运行时版本、FPK 安装回调安装的运行时版本与插件兼容声明三方一致；三方插件 `dshmarket` 安装不被兼容门禁拒绝 | <Badge type="tip" text="本地已验（FPK 真机待发布流程）" /> |
+| FNOS-029-05 | P0 | 用户数据兼容 | 基线迁移（本地 profile 升级运行时与插件）后，既有凭据、账号、偏好、模型配置继续生效，无需手动迁移 | <Badge type="tip" text="本地双客户端已验（2026-10-25）" /> |
+| FNOS-029-06 | P1 | Desktop 联调检出更新 | `fork-pj/deepseek-harness` 检出处于官方 `dsh-v0.2.1-rc.3`，开发态 Desktop 以该版本运行并加载新基线插件 | <Badge type="tip" text="已验证（检出 rc.3 + Desktop 报告 rc.3）" /> |
 
 ### 验收环境范围
 
@@ -156,6 +156,7 @@ sequenceDiagram
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-10-25 | 实现与双客户端验收完成 | 基线迁移、八插件锚定改写（统一 `catalog:dsh` + `engines.dsh`）、构建门禁与基线常量改造完成；DSH Web 与开发态 Desktop 双客户端验收通过，需求状态转「待完成」（FPK 真机安装与升级按发布流程另行验证）。测试证据见[测试用例文档](/tests/FNOS-029-dsh-021-rc3-adaptation)。 |
 | 2026-10-25 | 编号更正 | 初稿误用 FNOS-030，`FNOS-029` 在文档、git 历史与全部分支均无占用，按「编号连续」规范改回 FNOS-029（三份文档、索引、侧栏与提交引用同步）。 |
 | 2026-10-25 | 范围补充 FNOS-029-07 | 用户要求插件依赖统一由 pnpm catalog 管理：DSH peer 全部改为 `catalog:dsh` + `engines.dsh`，构建门禁取消对 DSH peer 的字面版本豁免，守卫断言改为「一律 catalog」。 |
 | 2026-10-25 | 初始登记 | 建立 FNOS-029，范围覆盖基线迁移（catalog/构建常量/安装回调）、七个入库插件与 CodeBuddy 本地副本的锚定迁移、联调检出更新与双客户端验收。rc.2→rc.3 契约差异已核实为无破坏点（7 条调研结论），关联 PLAN-FNOS-029。 |

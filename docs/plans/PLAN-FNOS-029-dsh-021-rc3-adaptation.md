@@ -2,7 +2,7 @@
 id: PLAN-FNOS-029
 title: PLAN-FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移
 description: DSH 0.2.1-rc.3 基线迁移的锚定改写、契约复核、构建验证与双客户端回归实施计划。
-status: in-progress
+status: in-review
 owner: tnnevol
 planDate: 2026-10-25
 targetVersion: 6.0.0
@@ -16,7 +16,7 @@ lastVerified: 2026-10-25
 | 计划编号 | PLAN-FNOS-029 |
 | 计划日期 | 2026-10-25 |
 | 对应需求 | [FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移](/requirements/FNOS-029-dsh-021-rc3-adaptation) |
-| 计划状态 | 规划中 |
+| 计划状态 | 待完成（T01～T04 已执行；FPK 真机验证列为后续） |
 
 ## 计划目标
 
@@ -177,14 +177,15 @@ flowchart LR
 
 | 阶段 | 状态 | 说明 |
 | --- | --- | --- |
-| T01 基线与锚定改写 | 待执行 | |
-| T02 包级验证 | 待执行 | |
-| T03 双客户端回归 | 待执行 | |
-| T04 文档与版本 | 待执行 | |
+| T01 基线与锚定改写 | 已完成 | 检出切 `dsh-v0.2.1-rc.3`；八插件 DSH 依赖统一 `catalog:dsh` + `engines.dsh`；catalog 347 处同步；`install_callback` 与 CLI 基线常量随 catalog |
+| T02 包级验证 | 已完成 | CLI 94 条、八插件 2245 条单测、FPK 构建、门禁变异测试全部通过 |
+| T03 双客户端回归 | 已完成 | DSH Web 与开发态 Desktop 各验一遍：版本、七插件 + CodeBuddy 副本加载、界面区块、亮暗主题、数据保持 |
+| T04 文档与版本 | 已完成 | 三份文档与索引/侧栏登记、`check --sdd` 通过、`version -- major --baseline` 推进到 v6.0.0；FPK 真机验证登记为后续 |
 
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-10-25 | 实施与验收完成 | 四阶段任务全部执行完毕，双客户端验收通过，计划状态转「待完成」。实施中修正两处缺陷：基线常量未随 catalog 升级（BUG-02）、Desktop profile 的 ZCode 为旧实体副本（BUG-01）。FPK 真机安装与升级仍列为后续验证。 |
 | 2026-10-25 | 编号更正与 catalog 统一 | 计划编号由 PLAN-FNOS-030 更正为 PLAN-FNOS-029。新增 T01-05：构建门禁取消 DSH peer 字面版本豁免、守卫改为断言 `catalog:dsh`，并把 `build.ts` / `local-profile.ts` 的基线常量改为从 catalog 读取。 |
 | 2026-10-25 | 初始登记 | 建立 PLAN-FNOS-029：四阶段任务（基线改写 → 包级验证 → 双客户端回归 → 文档与版本），基线切换走 `major --baseline`，FPK 真机验证列为后续。 |

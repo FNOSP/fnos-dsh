@@ -4,7 +4,7 @@ title: FNOS-029 测试用例
 description: FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-029-dsh-021-rc3-adaptation
 plan: /plans/PLAN-FNOS-029-dsh-021-rc3-adaptation
-status: 执行中
+status: 部分通过
 lastVerified: 2026-10-25
 verifiedAt: 2026-10-25
 ---
@@ -107,6 +107,22 @@ verifiedAt: 2026-10-25
 | TC-017 | FNOS-029-04 | 本地构建链路 | 通过 | 2026-10-25 | 八插件 `check` 全通过（codex-auth 137、fnos 240、failover-search 232、midscene 211、opencode 200、semi-ui 39、zcode 164、codebuddy 1022，合计 2245 条）；CLI 94 条；FPK 构建成功 |
 | TC-014 | FNOS-029-04 | 本地构建链路 | 通过 | 2026-10-25 | catalog 347 处全为 `0.2.1-rc.3`、`install_callback` 与 `engines.dsh`/compatibility 一致；构建门禁的 `DSH_VERSION` 与 `local-profile` 基线常量已改为读 catalog，消除单向漂移 |
 | TC-015 | FNOS-029-04 | DSH Web | 通过 | 2026-10-25 | 仓库实际安装的 `@deepseek-ai/dsh` 与 `dsh-llm-pi-ai` 均为 `0.2.1-rc.3`（pnpm-lock 解析确认） |
+| TC-001 | FNOS-029-01 | DSH Web | 通过 | 2026-10-25 | 运行时 `0.2.1-rc.3`（设置页底部「当前版本」）；插件管理页七插件 + CodeBuddy 副本全部列出，无「异常 / 不兼容」 |
+| TC-002 | FNOS-029-01 | DSH Web | 通过 | 2026-10-25 | 启动日志中仓库插件无禁用记录；被禁用的是 profile 内官方实验性插件（`dsh-experimental-agent-team`、`dsh-experimental-tool-agent-team` 仍为 rc.2），与本需求插件无关 |
+| TC-003 | FNOS-029-01 | DSH Web | 通过 | 2026-10-25 | Codex Auth v6.0.0 运行中，已登录状态与全局模型设置区正常 |
+| TC-004 | FNOS-029-01 | DSH Web | 通过 | 2026-10-25 | Failover Search v6.0.0 运行中；平台账号、转移顺序（TinyFish → Tavily → 官方搜索）区块正常 |
+| TC-005 | FNOS-029-01 | DSH Web | 通过 | 2026-10-25 | Midscene 桥接健康检查 `{"status":"ok","port":8787}`，8 提供方 / 165 模型 / vision 可用 |
+| TC-006 | FNOS-029-01 | DSH Web | 通过 | 2026-10-25 | OpenCode v6.0.0：账号已登录、三窗口额度（1%/95%/61%）、101 模型带 `· zen` / `· go` 后缀、设置区正常 |
+| TC-007 | FNOS-029-01 | DSH Web | 通过 | 2026-10-25 | ZCode v6.0.0 运行中，已登录、Start Plan 额度区正常 |
+| TC-008 | FNOS-029-01 | DSH Web | 通过 | 2026-10-25 | Semi UI v6.0.0 运行中，详情页无异常 |
+| TC-010 | FNOS-029-02 | DSH Web | 通过 | 2026-10-25 | 会话头部工具（智能体团队、用访达打开、更多打开方式、更多操作、打开 Semi UI 组件总览、右侧边栏）与输入区（智能搜索开关、Semi UI 按钮、模型选择、用量胶囊）位置与基线一致 |
+| TC-011 | FNOS-029-02 | DSH Web | 通过 | 2026-10-25 | 设置 → 通用设置 → 外观切「深色」后 `data-ds-theme-source=dark`、`theme-mode=dark`、`data-dsh-semi-theme-refcount=7`；切回浅色恢复，插件区块跟随 |
+| TC-013 | FNOS-029-03 | DSH Web | 通过 | 2026-10-25 | CodeBuddy 副本 v6.0.0 运行中，账号管理 6 个账号、统计区渲染正常，既有状态保留 |
+| TC-018 | FNOS-029-05 | DSH Web | 通过 | 2026-10-25 | 迁移后既有会话列表、Codex/OpenCode/ZCode 登录态、CodeBuddy 账号、模型配置与偏好全部保留，无需重新登录 |
+| TC-019 | FNOS-029-05 | DSH Web | 通过 | 2026-10-25 | 迁移过程只改 catalog/profile 装配与插件锚定；`.dsh` 内用户数据文件未被改写 |
+| TC-021 | FNOS-029-06 | DSH Desktop | 通过 | 2026-10-25 | 开发态 Desktop（检出 `dsh-v0.2.1-rc.3`）报告 `0.2.1-rc.3-1f81c04`；插件管理页七插件 + CodeBuddy 副本全部加载、无异常 |
+| TC-022 | FNOS-029-06 | DSH Desktop | 通过 | 2026-10-25 | ZCode 详情 v6.0.0 运行中且登录态保持；会话页智能搜索开关与模型选择器存在；主题 `light`、Semi 主题引用计数 7 |
+| TC-009 | FNOS-029-01 | DSH Web | 通过 | 2026-10-25 | fnos 插件包在 Web 上正常加载（fnOS 专属能力按 NAS 口径不在本轮范围） |
 
 其余用例待执行，随执行回填。
 
@@ -114,15 +130,25 @@ verifiedAt: 2026-10-25
 
 | Bug ID | 关联用例 | 标题 | 严重级别 | 状态 | 修复说明 |
 | --- | --- | --- | --- | --- | --- |
-| — | — | 暂无 | — | — | — |
+| BUG-01 | TC-021 | Desktop profile 中 ZCode 为旧发布版（`0.2.1-rc.2.53`，`engines.dsh 0.2.1-rc.2`）导致插件行显示「异常」 | P1 | 已修复 | 根因是本地 profile 装配偏差而非仓库代码缺陷：该插件以实体副本安装（其余插件均为 `link:` 源码）。改为链接仓库源码后重启，v6.0.0 正常运行。同批核对 `dshmarket@1.66.47` 的 peer 范围含 rc.3，无需调整 |
+| BUG-02 | TC-010 | 仓库 `build.ts` 与 `local-profile.ts` 的 DSH 基线常量未随 catalog 升级，构建报「install_callback 未对齐」 | P1 | 已修复 | 两处常量改为从 catalog 读取（新增 `core/dsh-baseline.ts`），消除单向漂移；同时把 catalog 余下 346 处与 `minimumReleaseAgeExclude` 同步到 rc.3 |
 
 ## 测试结论
 
-尚未执行。全部用例执行后给出最终结论（通过 / 部分通过 / 未通过）与遗留风险。
+**部分通过（遗留风险已列出）**：24 条用例中 21 条通过、3 条未执行（FPK 真机安装与升级类，按计划列为后续验证），0 失败、0 阻塞。
+
+- **执行统计**：执行 21 / 通过 21 / 失败 0 / 阻塞 0 / 未执行 3；遗留 Bug 0 个（BUG-01、BUG-02 均已修复并复验）。
+- **一句话结论**：DSH 基线已从 `0.2.1-rc.2` 迁移到 `0.2.1-rc.3`，八个插件副本（七个入库 + 不入库的 CodeBuddy）在 DSH Web 与开发态 Desktop 双客户端均正常加载、既有功能与用户数据保持，插件依赖已统一由 pnpm catalog 管理。
+- **遗留风险**：
+  1. **FPK 真机安装与升级未执行**（TC 未覆盖部分）：安装回调的 `DSH_VERSION` 已同步并与 catalog 一致、FPK 本地构建通过，但真实 fnOS NAS 上的安装/升级与 `dshmarket` 实装门禁需按发布流程验证。
+  2. **本地 profile 内的官方实验性插件仍为 rc.2**（`dsh-experimental-agent-team`、`dsh-experimental-tool-agent-team`），启动时被运行时禁用；属 profile 本地状态，需单独升级，不影响本需求插件。
+  3. **Desktop profile 的 ZCode 曾为旧发布版**（BUG-01 已修复）：若其他开发者 profile 有同样的实体副本装配，会复现「不兼容」，需按 `link:` 源码方式重装。
+  4. **外部账号依赖**：Codex / OpenCode / ZCode 的登录态与额度显示依赖真实账号，本轮沿用既有凭据，未重新走登录流程。
 
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-10-25 | 双客户端执行完成并回填结论 | 回填 21 条通过结果（DSH Web 与开发态 Desktop），结论为部分通过；登记并修复 BUG-01（Desktop profile ZCode 旧实体副本）与 BUG-02（基线常量未随 catalog 升级）。 |
 | 2026-10-25 | 补充 FNOS-029-07 用例 | 新增 TC-023、TC-024（catalog 单一事实来源与门禁拒绝字面版本），并回填本批已验证结果（TC-014/015/016/017/023/024）。 |
 | 2026-10-25 | 初始登记 | 建立 FNOS-029 测试用例文档：22 条用例，覆盖六项功能；双客户端（DSH Web + 开发态 Desktop）执行；TC-020/TC-016 随调研先行通过。 |
