@@ -31,5 +31,10 @@ export default defineConfig({
   tag: true,
   push: false,
   all: true,
+  // 根 package.json 的 `version` script 就是本入口（fnos-dsh-cli version）；bumpp
+  // 的 npm 钩子链（preversion/version/postversion）会执行它，而此时 files 已被
+  // 替换、工作区变脏，递归入口被干净守卫拒绝，形成死循环式失败。必须禁用钩子——
+  // 仓库侧同步由下方 execute 承担，不依赖 npm script。
+  ignoreScripts: true,
   execute: 'pnpm exec fnos-dsh-cli version-sync',
 })
