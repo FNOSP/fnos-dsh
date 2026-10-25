@@ -65,7 +65,7 @@ describe('version 转发器（直接调用 bumpp CLI）', () => {
   it('无位置参数时透传 bumpp 原生菜单（prompt），stdio inherit', async () => {
     await runVersion(['--yes'])
 
-    expect(mocks.spawnSync).toHaveBeenCalledWith('pnpm', ['exec', 'bumpp', 'prompt', '-y'], expect.objectContaining({
+    expect(mocks.spawnSync).toHaveBeenCalledWith('node', [expect.any(String), 'prompt', '-y'], expect.objectContaining({
       cwd: expect.any(String),
       stdio: 'inherit',
     }))
@@ -73,14 +73,14 @@ describe('version 转发器（直接调用 bumpp CLI）', () => {
 
   it('档位与提交开关翻译为 bumpp 参数', async () => {
     await runVersion(['patch', '--yes'])
-    expect(mocks.spawnSync).toHaveBeenLastCalledWith('pnpm', ['exec', 'bumpp', 'patch', '-y'], expect.objectContaining({ stdio: 'inherit' }))
+    expect(mocks.spawnSync).toHaveBeenLastCalledWith('node', [expect.any(String), 'patch', '-y'], expect.objectContaining({ stdio: 'inherit' }))
 
     await runVersion(['minor', '--no-commit', '--yes'])
-    expect(mocks.spawnSync).toHaveBeenLastCalledWith('pnpm', ['exec', 'bumpp', 'minor', '-y', '--no-commit'], expect.anything())
+    expect(mocks.spawnSync).toHaveBeenLastCalledWith('node', [expect.any(String), 'minor', '-y', '--no-commit'], expect.anything())
 
     // 交互模式（无 --yes）：不带 -y，bumpp 会弹原生 Bump? 确认。
     await runVersion(['major'])
-    expect(mocks.spawnSync).toHaveBeenLastCalledWith('pnpm', ['exec', 'bumpp', 'major'], expect.anything())
+    expect(mocks.spawnSync).toHaveBeenLastCalledWith('node', [expect.any(String), 'major'], expect.anything())
   })
 
   it('工作区不干净时拒绝发版（bumpp 提交以 all 模式收口，脏改动会被卷入）', async () => {
@@ -92,7 +92,7 @@ describe('version 转发器（直接调用 bumpp CLI）', () => {
     }))
 
     await expect(runVersion(['--yes'])).rejects.toThrow(/工作区不干净/u)
-    const bumppCall = mocks.spawnSync.mock.calls.find(call => call[0] === 'pnpm')
+    const bumppCall = mocks.spawnSync.mock.calls.find(call => call[0] === 'node')
     expect(bumppCall).toBeUndefined()
   })
 
@@ -119,7 +119,7 @@ describe('version 转发器（直接调用 bumpp CLI）', () => {
 
     const yamlWrite = mocks.writeFile.mock.calls.find(call => String(call[0]).endsWith('pnpm-workspace.yaml'))
     expect(String(yamlWrite?.[1])).toContain("'@deepseek-ai/dsh': 0.2.2-rc.1")
-    expect(mocks.spawnSync).toHaveBeenLastCalledWith('pnpm', ['exec', 'bumpp', 'major', '-y'], expect.anything())
+    expect(mocks.spawnSync).toHaveBeenLastCalledWith('node', [expect.any(String), 'major', '-y'], expect.anything())
   })
 
   it('--baseline 搭配非 major 档位或与当前基线相同时被拒绝', async () => {
