@@ -180,6 +180,16 @@ describe('version-sync（bumpp execute 钩子）', () => {
     mocks.spawnSync.mockReturnValue({ status: 0, error: undefined, stderr: '', stdout: '' })
   })
 
+  it('目标版本含预发布段时拒绝（菜单 pre-* 档位的拦截点）', async () => {
+    mocks.readPackageInfo.mockImplementation(async (path: string) => {
+      if (path === 'package.json') return { name: 'fn-os-apps', version: '5.11.0-beta.1' }
+      return { name: '@tnnevol/dsh-fnos', version: '5.10.0' }
+    })
+
+    await expect(runVersionSync()).rejects.toThrow(/预发布/u)
+    expect(mocks.writeFile).not.toHaveBeenCalled()
+  })
+
   it('把全部插件、副本、安装命令与基线字样同步到目标版本', async () => {
     await runVersionSync()
 

@@ -181,6 +181,9 @@ function runGit(args: string[]): void {
   }
 }
 
+/** 纯净项目版本形态：`MAJOR.MINOR.PATCH`，不带预发布段与 build metadata。 */
+const CLEAN_VERSION_PATTERN = /^\d+\.\d+\.\d+$/u
+
 /**
  * bumpp 的 `execute` 钩子（见根 `bump.config.ts`）：在 bumpp 替换完 files、
  * 提交之前执行。此时根 `package.json` 已是**目标版本**，直接读它作为同步源。
@@ -192,12 +195,20 @@ function runGit(args: string[]): void {
  * 4. 同步产物 `git add` 进暂存区——bumpp 随后的 commit 以 all 模式把暂存与
  *    其替换收进同一条 release 提交。
  *
- * 校验：目标版本与插件当前版本差异说明同号已被破坏时**报错**（bumpp 的提交
- * 不会发生——execute 失败即中止），点名漂移插件，不静默拉平。
+ * **入口守卫**：目标版本含预发布段（`-beta.1` 等，来自 bumpp 菜单的 pre-*
+ * 档位或 conventional-prerelease）时直接报错——execute 失败即中止整个发布，
+ * bumpp 不会走到 commit。这是菜单后唯一能拦住预发布版本的位置。
  */
 export async function runVersionSync(): Promise<void> {
   const project = await readPackageInfo('package.json')
   const targetVersion = project.version
+  if (!CLEAN_VERSION_PATTERN.test(targetVersion.replace(/^v/u, ''))) {
+    throw new Error(
+      `目标版本 "${targetVersion}" 含预发布段或后缀。本仓库不使用预发布版本号`
+      + '（FNOS-028：patch/minor/major 与纯净三段式）；请在菜单中选择 patch/minor/major'
+      + ' 或输入纯净三段式版本（如 5.10.1）。',
+    )
+  }
 
   const targets = pluginTargets
   const packages = await Promise.all(targets.map(target => readPackageInfo(target.path)))
