@@ -175,13 +175,27 @@ export function createZCodeProfile(
   }
 }
 
+/**
+ * 固定显示名的 pi-ai 适配器。
+ *
+ * registry 在 `registerAdapter` 时立即调用 `providerInfo` 并**永久缓存**结果
+ * （`listProviders()` 之后只返回这份快照），而本插件的 profile 快照要等目录
+ * 首次刷新才有内容——默认实现那一刻会回落成 provider id，模型选择器的分组名
+ * 从此固定成 `dsh-zcode`。这里直接返回契约常量，不依赖任何运行期状态。
+ */
+class ZCodePiDisplayAdapter extends PiAiAdapter {
+  override providerInfo(provider: string): { readonly id: string; readonly name: string } {
+    return { id: provider, name: ZCODE_PROVIDER_NAME }
+  }
+}
+
 /** 用当前 profile 构造 pi-ai 适配器；`profiles` 每次操作都会被重新读取。 */
 export function createZCodePiAdapter(options: {
   readonly profiles: () => ReadonlyMap<string, ResolvedPiAiProviderProfile>
   readonly resolveToken: () => Promise<string | undefined>
   readonly resolveAttachments?: () => AttachmentStore | undefined
 }): PiAiAdapter {
-  return new PiAiAdapter({
+  return new ZCodePiDisplayAdapter({
     profiles: options.profiles,
     resolveApiKey: async () => {
       const token = await options.resolveToken()

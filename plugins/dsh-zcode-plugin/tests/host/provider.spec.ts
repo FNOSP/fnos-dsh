@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { toPiModel } from '../../src/host/provider.ts'
+import { createZCodePiAdapter, toPiModel } from '../../src/host/provider.ts'
 import { toModel } from '../../src/host/catalog.ts'
+import { ZCODE_PROVIDER, ZCODE_PROVIDER_NAME } from '../../src/contracts/identity.ts'
 
 describe('pi-ai 模型投影', () => {
   it('思考等级映射与端点随目录下发', () => {
@@ -55,5 +56,19 @@ describe('端点策略', () => {
     expect(withOverride.baseUrl).toBe('https://zcode.z.ai/api/v1/ultra/anthropic')
     const plain = toPiModel(model) as unknown as { baseUrl: string }
     expect(plain.baseUrl).toBe('https://zcode.z.ai/api/v1/zcode-plan/anthropic')
+  })
+})
+
+describe('供应商显示名', () => {
+  it('注册时（profile 还为空）providerInfo 也返回显示名，而不是 provider id', () => {
+    // registry 在 registerAdapter 时立即捕获 providerInfo 并永久缓存；这是
+    // 「模型选择器分组显示成 dsh-zcode」的根因，回归锁在这里。
+    const adapter = createZCodePiAdapter({
+      profiles: () => new Map(),
+      resolveToken: async () => undefined,
+    })
+    const info = adapter.providerInfo(ZCODE_PROVIDER)
+    expect(info).toEqual({ id: ZCODE_PROVIDER, name: ZCODE_PROVIDER_NAME })
+    expect(info.name).toBe('zcode')
   })
 })

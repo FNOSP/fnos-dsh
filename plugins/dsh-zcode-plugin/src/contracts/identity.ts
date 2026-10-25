@@ -20,8 +20,8 @@ export const ZCODE_FAMILIES: readonly ZCodeFamily[] = ['bigmodel', 'zai']
 
 /** 本插件注册的唯一供应商路由。 */
 export const ZCODE_PROVIDER = 'dsh-zcode'
-/** 模型选择器与设置页显示的供应商名称。 */
-export const ZCODE_PROVIDER_NAME = 'ZCode'
+/** 模型选择器分组与设置页显示的供应商名称。 */
+export const ZCODE_PROVIDER_NAME = 'zcode'
 
 /** 家族显示名。 */
 export const ZCODE_FAMILY_LABELS: Readonly<Record<ZCodeFamily, string>> = {
