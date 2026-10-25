@@ -270,7 +270,7 @@ function assertRepositoryReleasePolicy(release: string, baseline: string | undef
     throw new Error(
       `不支持版本档位 "${release}"。`
       + '本仓库使用纯净 semver：patch（修复）/ minor（新功能且基线不变）/ major（基线变更或重大调整），'
-      + '或传完整三段式版本号（如 6.0.1）。',
+      + '或传完整三段式版本号（如 5.10.1）。',
     )
   }
   if (baseline !== undefined && release !== 'major' && !isExplicitVersion) {
@@ -343,7 +343,7 @@ export async function runVersion(args: string[]): Promise<void> {
   if (!CLEAN_VERSION_PATTERN.test(project.version.replace(/^v/u, ''))) {
     throw new Error(
       `当前项目版本 "${project.version}" 不是纯净三段式（MAJOR.MINOR.PATCH）。`
-      + 'FNOS-028 起项目版本为纯净 semver（如 6.0.0）；若仍为旧小尾巴形态（如 5.9.0-0.2.1-rc.2.52），'
+      + 'FNOS-028 起项目版本为纯净 semver（如 5.10.0）；若仍为旧小尾巴形态（如 5.9.0-0.2.1-rc.2.52），'
       + '请先按 FNOS-028 完成版本统一。',
     )
   }
@@ -378,11 +378,11 @@ export async function runVersion(args: string[]): Promise<void> {
   if (!CLEAN_VERSION_PATTERN.test(nextVersion)) {
     throw new Error(
       `目标版本 "${nextVersion}" 含预发布段或后缀。本仓库不使用预发布版本号；`
-      + '请使用 patch/minor/major 或完整三段式版本（如 6.0.1）。',
+      + '请使用 patch/minor/major 或完整三段式版本（如 5.10.1）。',
     )
   }
   if (nextVersion === project.version) {
-    // 显式传「与当前相同」的版本号（如统一后重复执行 version 6.0.0）：没有文件
+    // 显式传「与当前相同」的版本号（如统一后重复执行 version 5.10.0）：没有文件
     // 变化可提交，空提交会被 git 拒绝。这里明确说明后直接返回，而不是报错——
     // 版本已就位本身就是期望状态。
     outro(`项目 ${project.version} 已是目标版本，无需变更`)

@@ -348,7 +348,7 @@ const requirementsSidebar = [
         link: '/requirements/FNOS-027-dsh-zcode-plugin'
       },
       {
-        text: 'FNOS-028 项目与插件版本统一 6.0.0 及发布链路 dsh 基线标注',
+        text: 'FNOS-028 项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注',
         link: '/requirements/FNOS-028-unified-project-version-bumpp'
       },
       ]
@@ -469,7 +469,7 @@ const plansSidebar = [
         link: '/plans/PLAN-FNOS-027-dsh-zcode-plugin'
       },
       {
-        text: 'PLAN-FNOS-028 项目与插件版本统一 6.0.0 及发布链路 dsh 基线标注',
+        text: 'PLAN-FNOS-028 项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注',
         link: '/plans/PLAN-FNOS-028-unified-project-version-bumpp'
       },
     ]

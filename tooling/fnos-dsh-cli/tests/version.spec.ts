@@ -70,7 +70,7 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
    * 固定起点：**项目与全部插件同号**（FNOS-028：插件直接沿用项目版本，
    * 不再有「去基础段前缀」的小尾巴派生）。
    */
-  const PROJECT_START = '6.0.0'
+  const PROJECT_START = '5.10.0'
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -81,7 +81,7 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
     })
     mocks.versionBump.mockImplementation(async () => ({
       currentVersion: PROJECT_START,
-      newVersion: '6.0.1',
+      newVersion: '5.10.1',
     }))
     mocks.confirm.mockResolvedValue(true)
     mocks.readFile.mockImplementation(async (path: string) => {
@@ -124,7 +124,7 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
     mocks.spawnSync.mockImplementation(() => ({ status: 0, error: undefined, stderr: '', stdout: '' }))
   })
 
-  it('patch 档位把项目与全部插件同号推进到 6.0.1', async () => {
+  it('patch 档位把项目与全部插件同号推进到 5.10.1', async () => {
     await runVersion(['--yes'])
 
     // 第一次调用是 dry-run 求目标版本：files 为空、传档位而非具体版本串。
@@ -145,15 +145,15 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
     const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
     const codebuddy = written.find(([p2]) => p2.includes('dsh-codebuddy') && p2.endsWith('package.json'))
     const fnos = written.find(([p2]) => p2.includes('dsh-fnos') && p2.endsWith('package.json'))
-    // 插件与项目同号：都直接写 6.0.1。
-    expect(codebuddy?.[1]).toContain('"version": "6.0.1"')
-    expect(fnos?.[1]).toContain('"version": "6.0.1"')
+    // 插件与项目同号：都直接写 5.10.1。
+    expect(codebuddy?.[1]).toContain('"version": "5.10.1"')
+    expect(fnos?.[1]).toContain('"version": "5.10.1"')
   })
 
   it('minor / major 档位直接传给 bumpp 原生计算', async () => {
     mocks.versionBump.mockImplementation(async (options: { files?: string[], release?: string }) => ({
       currentVersion: PROJECT_START,
-      newVersion: options.release === 'minor' ? '6.1.0' : '7.0.0',
+      newVersion: options.release === 'minor' ? '5.11.0' : '6.0.0',
     }))
 
     await runVersion(['minor', '--yes'])
@@ -172,7 +172,7 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
     // 版本号照常推进到本机文件——它还要靠这个版本号发布到 npm。
     const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
     const codebuddy = written.find(([path]) => path.includes('dsh-codebuddy') && path.endsWith('package.json'))
-    expect(codebuddy?.[1]).toContain('"version": "6.0.1"')
+    expect(codebuddy?.[1]).toContain('"version": "5.10.1"')
 
     // 但它的路径不能进 `git add`：源码被 gitignore，git add 碰到被忽略的路径会以
     // 退出码 1 失败，把整个版本命令打断。
@@ -187,19 +187,19 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
     // 所以这里必须报错并点名。
     mocks.readPackageInfo.mockImplementation(async (path: string) => {
       if (path === 'package.json') return { name: 'fn-os-apps', version: PROJECT_START }
-      if (path.includes('dsh-fnos')) return { name: '@tnnevol/dsh-fnos', version: '6.0.1' }
+      if (path.includes('dsh-fnos')) return { name: '@tnnevol/dsh-fnos', version: '5.10.1' }
       return { name: '@tnnevol/dsh-codebuddy', version: PROJECT_START }
     })
 
     await expect(runVersion(['--yes'])).rejects.toThrow(/不同号/u)
-    await expect(runVersion(['--yes'])).rejects.toThrow(/dsh-fnos@6\.0\.1/u)
+    await expect(runVersion(['--yes'])).rejects.toThrow(/dsh-fnos@5\.10\.1/u)
     expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 
   it('拒绝不支持的档位与旧小尾巴形态版本串', async () => {
     await expect(runVersion(['prerelease', '--yes'])).rejects.toThrow(/不支持版本档位/u)
     // 旧 FNOS-019 小尾巴习惯：传带预发布段的完整版本串必须被拒绝并指引。
-    await expect(runVersion(['6.0.1-0.2.1-rc.2.1', '--yes'])).rejects.toThrow(/不支持版本档位/u)
+    await expect(runVersion(['5.10.1-0.2.1-rc.2.1', '--yes'])).rejects.toThrow(/不支持版本档位/u)
     expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 
@@ -222,10 +222,10 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
     expect(writtenMarkdown.map(call => String(call[0]).replace(/^.*?(?=docs\/|plugins\/)/u, '')))
       .toEqual(['docs/plugins/index.md', 'plugins/dsh-fnos-plugin/README.md', 'docs/plugins/dsh-fnos.md'])
     for (const [, content] of writtenMarkdown) {
-      expect(String(content)).toContain('add @tnnevol/dsh-fnos@6.0.1')
-      expect(String(content)).not.toContain('add @tnnevol/dsh-fnos@6.0.0')
+      expect(String(content)).toContain('add @tnnevol/dsh-fnos@5.10.1')
+      expect(String(content)).not.toContain('add @tnnevol/dsh-fnos@5.10.0')
     }
-    expect(String(writtenMarkdown[0]?.[1])).toContain('| `@tnnevol/dsh-fnos` | `6.0.1` |')
+    expect(String(writtenMarkdown[0]?.[1])).toContain('| `@tnnevol/dsh-fnos` | `5.10.1` |')
   })
 
   it('同步 manifest 描述与应用文档页的 DSH 基线字样', async () => {
@@ -277,7 +277,7 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
   it('major --baseline 切换 DSH 基线：确认后改 catalog，版本走 major', async () => {
     mocks.versionBump.mockImplementation(async () => ({
       currentVersion: PROJECT_START,
-      newVersion: '7.0.0',
+      newVersion: '6.0.0',
     }))
 
     await runVersion(['major', '--baseline', '0.2.2-rc.1', '--no-commit', '--yes'])
@@ -299,13 +299,13 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
     // 插件与项目同号推进到 major 版本。
     const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
     const fnos = written.find(([p2]) => p2.includes('dsh-fnos') && p2.endsWith('package.json'))
-    expect(fnos?.[1]).toContain('"version": "7.0.0"')
+    expect(fnos?.[1]).toContain('"version": "6.0.0"')
   })
 
   it('--baseline 不触碰插件里的 DSH 依赖声明', async () => {
     mocks.versionBump.mockImplementation(async () => ({
       currentVersion: PROJECT_START,
-      newVersion: '7.0.0',
+      newVersion: '6.0.0',
     }))
     // 依赖升级由 pnpm install 单独完成，版本命令只改版本号。
     await runVersion(['major', '--baseline', '0.2.2-rc.1', '--no-commit', '--yes'])
@@ -333,7 +333,7 @@ describe('统一版本命令（纯净 semver，项目与插件同号）', () => 
       newVersion: PROJECT_START,
     }))
 
-    await runVersion(['6.0.0', '--yes'])
+    await runVersion(['5.10.0', '--yes'])
 
     // 没有文件要写；git 只有守卫的 status，没有 add/commit/tag（空提交会被 git 拒绝）。
     expect(mocks.writeFile).not.toHaveBeenCalled()

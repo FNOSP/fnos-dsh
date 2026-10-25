@@ -50,9 +50,9 @@ pnpm run build -- --fpk --app fn-deepseek-harness
 
 fnOS 的比较逻辑：**三段式** `x.y.z`，`x.y.z-m` 里的 `m` **只有数字**才有版本对比逻辑，非数字后缀一律「视为同一版本」。
 
-本项目的版本是纯净三段式（如 `6.0.0`，见[版本管理](/build/versioning)），fnOS 可正常按三段比较判定升级：`6.0.0 → 6.0.1` 是**更高版本**，能触发升级路径。
+本项目的版本是纯净三段式（如 `5.10.0`，见[版本管理](/build/versioning)），fnOS 可正常按三段比较判定升级：`5.10.0 → 5.10.1` 是**更高版本**，能触发升级路径。
 
-历史注记：`6.0.0` 之前的版本号带非数字小尾巴（如 `5.9.0-0.2.1-rc.2.12`），对 fnOS 等价于 `5.9.0`——同基线内递增小尾巴不触发升级。该形态已被 FNOS-028 取代；若设备上还装着小尾巴版本，升级到 `6.0.0` 属于正常的大版本升级。
+历史注记：`5.10.0` 之前的版本号带非数字小尾巴（如 `5.9.0-0.2.1-rc.2.12`），对 fnOS 等价于 `5.9.0`——同基线内递增小尾巴不触发升级。该形态已被 FNOS-028 取代；若设备上还装着小尾巴版本，升级到 `5.10.0` 属于正常的大版本升级。
 
 实践做法：**每次装机验证前先 `pnpm run version` 升版本**，这是最省事的避坑方式。
 
@@ -113,14 +113,14 @@ fnOS 桌面
 
 | 组件 | 默认位置 | 说明 |
 | --- | --- | --- |
-| DSH midscene 插件桥 | `127.0.0.1:8787` | 提供模型接入配置：`GET /v1/midscene-env` 返回四行 `MIDSCENE_MODEL_*` |
-| Midscene CLI 桥 | `127.0.0.1:3766` | Chrome 扩展连到这里；**同一时刻只能有一个进程占用** |
+| DSH midscene 插件桥 | `126.0.0.1:8787` | 提供模型接入配置：`GET /v1/midscene-env` 返回四行 `MIDSCENE_MODEL_*` |
+| Midscene CLI 桥 | `126.0.0.1:3766` | Chrome 扩展连到这里；**同一时刻只能有一个进程占用** |
 | Chrome 扩展 | Bridge 模式 | 扩展 ID `gbldofcpkknbggpkmbdaefngejllnief` |
 
 取接入配置：
 
 ```bash
-curl -s http://127.0.0.1:8787/v1/midscene-env
+curl -s http://126.0.0.1:8787/v1/midscene-env
 ```
 
 设成环境变量后即可用 `@midscene/web` 的 `AgentOverChromeBridge` 或 `midscene-test`。
@@ -209,7 +209,7 @@ await agent.aiAct('在「从电脑上传」区域点击「添加本地文件」'
 | 点了「手动安装」没反应 | DSH 应用窗口盖住了桌面图标 | 先关掉应用窗口 |
 | 模型报 `502` / `Connection error` | 上游模型瞬时故障 | 重试；flash 模型做长规划容易翻车，换更强的模型 |
 | 上传后 `fileChooser` 报错 | 路径不是绝对路径，或注册与点击不在同一次 `aiAct` | 绝对路径 + 合并到一次调用 |
-| 桥端口 `EADDRINUSE 127.0.0.1:3766` | 另一个会话/进程占着桥 | 先确认是谁的再决定是否接管；不要直接杀 |
+| 桥端口 `EADDRINUSE 126.0.0.1:3766` | 另一个会话/进程占着桥 | 先确认是谁的再决定是否接管；不要直接杀 |
 
 ### 6.1 孤儿插件与悬空引用
 
@@ -244,7 +244,7 @@ gh release download v<版本号> --pattern "*.fpk" --dir tmp/fpk-upload
 tar -xzOf tmp/fpk-upload/*.fpk manifest | grep '^version'
 
 # 桥与模型
-curl -s http://127.0.0.1:8787/v1/midscene-env
+curl -s http://126.0.0.1:8787/v1/midscene-env
 lsof -iTCP:3766 -sTCP:LISTEN        # 只能有一个占用者
 
 # 装完核对

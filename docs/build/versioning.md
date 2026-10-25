@@ -6,10 +6,10 @@
 
 ## 版本形态（FNOS-028）
 
-项目、全部插件与 FPK 的版本号是**纯净三段式 semver**（如 `6.0.0`）：
+项目、全部插件与 FPK 的版本号是**纯净三段式 semver**（如 `5.10.0`）：
 
 ```text
-6.0.0
+5.10.0
 └─┬─┘
   └── 项目与全部插件同号；每次发布按档位递增对应段，不使用预发布段
 ```
@@ -25,16 +25,16 @@ DSH 运行时基线（当前 `0.2.1-rc.2`）**不进入版本号**，由两处�
 
 | 档位 | 含义 | 示例 |
 | --- | --- | --- |
-| `patch` | 无新功能的修复 | `6.0.0 → 6.0.1` |
-| `minor` | 新功能，DSH 基线不变 | `6.0.1 → 6.1.0` |
-| `major` | DSH 基线变更（携带 `--baseline`），或导致用户无法回退的重大调整 | `6.1.0 → 7.0.0` |
+| `patch` | 无新功能的修复 | `5.10.0 → 5.10.1` |
+| `minor` | 新功能，DSH 基线不变 | `5.10.1 → 5.11.0` |
+| `major` | DSH 基线变更（携带 `--baseline`），或导致用户无法回退的重大调整 | `5.11.0 → 6.0.0` |
 
 规则：
 
 - 每次发布对应段自增 +1（进位段归零，bumpp 原生行为），不跳号。
 - 新功能与基线变更同时发生时按 `major` 处理。
 - **基线变更必须走 major**：`--baseline` 是 major 档位专属参数，与 `patch`/`minor` 搭配被拒绝——防止基线变更被小档位静默掩盖。
-- 传完整版本号时必须是纯净三段式（如 `6.0.1`）；带 `-` 预发布段（含旧 FNOS-019 小尾巴形态如 `6.0.1-0.2.1-rc.2.1`）被拒绝并指引。
+- 传完整版本号时必须是纯净三段式（如 `5.10.1`）；带 `-` 预发布段（含旧 FNOS-019 小尾巴形态如 `5.10.1-0.2.1-rc.2.1`）被拒绝并指引。
 
 ## 版本更新时机（强制）
 
@@ -65,7 +65,7 @@ pnpm run version -- major --baseline 0.2.2-rc.1
 ```
 
 ```text
-项目与全部插件：6.1.0 → 7.0.0
+项目与全部插件：5.11.0 → 6.0.0
 DSH 基线：0.2.1-rc.2 → 0.2.2-rc.1（catalog 改写；manifest desc 与应用文档页基线字样同步）
 ```
 
@@ -99,15 +99,15 @@ DSH 基线：0.2.1-rc.2 → 0.2.2-rc.1（catalog 改写；manifest desc 与应�
 项目版本命令更新根 `package.json`、文档包 `docs/package.json`、`packages/*/package.json`、`tooling/fnos-dsh-cli/package.json`、应用 `manifest` 和 README 版本引用，并创建项目 Tag。CLI workspace 包与项目版本保持一致，避免版本命令升级项目后工具包仍停留在旧版本。文档站点的版本徽标从文档包自身的 `package.json` 读取：
 
 ```bash
-pnpm run version -- patch                         # 修复：6.0.0 → 6.0.1
-pnpm run version -- minor                         # 新功能：6.0.1 → 6.1.0
-pnpm run version -- major --baseline 0.2.2-rc.1    # 基线变更：6.1.0 → 7.0.0
-pnpm run version -- 6.0.1                         # 显式指定（纯净三段式）
+pnpm run version -- patch                         # 修复：5.10.0 → 5.10.1
+pnpm run version -- minor                         # 新功能：5.10.1 → 5.11.0
+pnpm run version -- major --baseline 0.2.2-rc.1    # 基线变更：5.11.0 → 6.0.0
+pnpm run version -- 5.10.1                         # 显式指定（纯净三段式）
 ```
 
 默认生成 `chore: release v<版本号>` 提交和 `v<版本号>` Tag。Harness Manifest、文档 Manifest 示例和文档包版本会先与根项目对齐，再由版本流程统一更新。
 
-历史注记：`6.0.0` 之前项目版本采用 FNOS-019 的「`<基础段>-<DSH 基线>.<迭代号>`」小尾巴形态（如 `5.9.0-0.2.1-rc.2.52`）；该方案已被 [FNOS-028](/requirements/FNOS-028-unified-project-version-bumpp) 取代，版本命令遇到小尾巴形态会报错并指引先完成统一。
+历史注记：`5.10.0` 之前项目版本采用 FNOS-019 的「`<基础段>-<DSH 基线>.<迭代号>`」小尾巴形态（如 `5.9.0-0.2.1-rc.2.52`）；该方案已被 [FNOS-028](/requirements/FNOS-028-unified-project-version-bumpp) 取代，版本命令遇到小尾巴形态会报错并指引先完成统一。
 
 仅修改文件时使用：
 
@@ -133,7 +133,7 @@ pnpm run version -- patch --no-commit --no-tag
 
 每个插件的版本只写在 `plugins/<插件目录>/package.json` 的 `version` 字段。`apps/fn-deepseek-harness/app/published-dsh-plugins.json` 是**副本**，由统一版本命令同步；`tooling/fnos-dsh-cli` 的构建校验只读取源码里的版本，用来证明这份副本没有和它的来源漂移，不在校验代码里重复书写版本号。
 
-插件版本与 DSH 基线是两套独立的值：`0.2.1-rc.2` 是 DSH 运行时基线（同时锁定在 `cmd/install_callback` 与 catalog），插件在该基线上独立发布为 `6.0.0` 这样的纯净版本。因此**不要**把插件版本绑定到 `DSH_VERSION`，也不要为插件版本在校验代码里新增常量：一旦插件单独发版，被重复写下的那份值就会过期，构建会在一个本可以自动推导的字段上失败（v5.5.0 发布即为此类事故——插件已单独发版，脚本里仍写着旧基线值）。
+插件版本与 DSH 基线是两套独立的值：`0.2.1-rc.2` 是 DSH 运行时基线（同时锁定在 `cmd/install_callback` 与 catalog），插件在该基线上独立发布为 `5.10.0` 这样的纯净版本。因此**不要**把插件版本绑定到 `DSH_VERSION`，也不要为插件版本在校验代码里新增常量：一旦插件单独发版，被重复写下的那份值就会过期，构建会在一个本可以自动推导的字段上失败（v5.5.0 发布即为此类事故——插件已单独发版，脚本里仍写着旧基线值）。
 
 只有无法从本仓库推导的值才作为常量维护：`dshmarket` 是第三方包，注册表版本就是契约本身；`DSH_VERSION` 与 `PNPM_VERSION` 属于 DSH 基线，判断依据是它们与 `cmd/install_callback`、catalog 之间的**一致性**。
 
