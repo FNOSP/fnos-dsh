@@ -83,6 +83,32 @@ export function readBuiltinRevision(builtinPath: string): string {
   return `zcode-builtin:${revision}:${hash}`
 }
 
+/**
+ * 判定宿主是否运行在 Electron 里。
+ *
+ * DSH Desktop 的宿主进程就是 Electron 二进制（用 `ELECTRON_RUN_AS_NODE=1` 当 node 用），
+ * 因此 `process.execPath` 指向的是 Electron 而不是 node。这种情况下拉起子进程必须
+ * 继续带上该变量，否则子进程会当成 GUI 应用启动、立刻退出。
+ */
+export function isElectronHost(): boolean {
+  return typeof process.versions.electron === 'string' && process.versions.electron !== ''
+}
+
+/**
+ * 解析运行客户端 CLI 的 node 可执行文件。
+ *
+ * 优先级：`DSH_ZCODE_NODE` → 插件配置 → `process.execPath`。Electron 宿主下
+ * `process.execPath` 也可用（配合 `ELECTRON_RUN_AS_NODE=1`），与 DSH Desktop 自带的
+ * node 壳同一做法。
+ */
+export function resolveZCodeNodePath(override?: string): string {
+  const fromEnv = process.env.DSH_ZCODE_NODE?.trim() ?? ''
+  if (fromEnv !== '') return fromEnv
+  const configured = override?.trim() ?? ''
+  if (configured !== '') return configured
+  return process.execPath
+}
+
 /** 判断目录（或其最近已存在祖先）是否可写。 */
 export function isWritableDirectory(target: string): boolean {
   let current = resolve(target)

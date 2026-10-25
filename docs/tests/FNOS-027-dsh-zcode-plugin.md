@@ -305,6 +305,7 @@ verifiedAt: 2026-10-24
 | BUG-027-09 | TC-021 | 会话标题把英文指令当标题（实测标题变成 `Generate the session tit`） | 一般 | 已修复 | 从标题请求的 JSON 数组取第一条人话；取不到时保留默认标题，不产出文本块 |
 | BUG-027-10 | TC-017 | 图片路径缺扩展名，模型 `Read` 先失败再自行复制副本 | 一般 | 已修复 | 在工作区准备带正确扩展名（`.png` / `.jpg` / `.webp` / `.gif`）的副本，回合结束删除 |
 | BUG-027-11 | TC-017 | `AttachmentStore.imageHostPath` 被解构后调用，抛 `Cannot read properties of undefined (reading 'root')` | 严重 | 已修复 | 改为带 `this` 调用 |
+| BUG-027-12 | TC-016、TC-022 | DSH Desktop（Electron 宿主）里回合直接失败，报 `zcode: app-server 没能启动`：宿主 `process.execPath` 是 Electron 二进制（DSH Desktop 用 `ELECTRON_RUN_AS_NODE=1` 当 node 用），而插件拉起子进程时把该变量删掉了，子进程被当成 GUI 应用启动并立即退出 | 严重 | 已修复 | Electron 宿主下显式给子进程带 `ELECTRON_RUN_AS_NODE=1`（与 DSH Desktop 自带的 node 壳同一做法）；启动失败时把子进程 stderr 尾部与退出码带进错误，不再只报「没能启动」。用 Electron 二进制当 node 跑桥接通道实测完成回合（`response`「通道可用」，11.3 秒） |
 
 ## 测试结论
 
@@ -328,4 +329,5 @@ verifiedAt: 2026-10-24
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-24 | 建立 FNOS-027 测试用例文档 | 按八个功能分节登记 34 条用例，覆盖正向、逆向、边界、权限与数据一致性五类。登记「已知限制（上游）」六条（含风控拦截 `3012`、未授权 `3006` 的反证意义、额度接口强制设备标识），执行结果回填 2026-10-24 真实账号的控制面接口实测与风控穷举探测，TC-015、TC-018、TC-019、TC-031 记为接口级部分通过，TC-016 因上游限制记为阻塞；Bug 记录为空并说明理由。 |
+| 2026-10-25 | 登记 DSH Desktop 启动失败并修复 | 在 DSH Desktop（Electron 宿主）中引入插件后，回合报 `zcode: app-server 没能启动`。定位：DSH Desktop 的宿主进程即 Electron 二进制，靠 `ELECTRON_RUN_AS_NODE=1` 当 node 用，插件拉起子进程时删掉了该变量，子进程按 GUI 应用启动并立即退出。修复为 Electron 宿主下显式携带该变量，并把子进程 stderr 与退出码并入启动错误。以 Electron 二进制当 node 运行桥接通道实测完成回合（11.3 秒、`response`「通道可用」）；单测 19 文件 / 220 用例通过。登记 BUG-027-12。 |
 | 2026-10-24 | 回填托管执行通道与 DSH Web 端到端结果 | 用例按顺序重排为 36 条：FNOS-027-04 扩为 7 条（托管通道、图文与思考等级、客户端缺失诊断、失败收尾、回合串行、标题、Ultra 与业务码），其余功能用例顺延重编号。回填决定性证据：`zcode.cjs app-server` 的 `turn.completed` 返回真实回复与 usage，三个静默失败前提逐项实测；DSH Web 三轮对话（纯文本 18 秒；图文 + High 15 秒、256 tok/s、缓存命中 28%；胶囊 100% → 93%）；单测 18 文件 / 212 用例通过、`tsc --noEmit` 干净。新增 BUG-027-06 至 BUG-027-11（数据目录只读、revision、垫时、标题误取指令、图片扩展名、`imageHostPath` 的 `this`）。原「端到端受上游风控阻塞」的结论作废，`3012` 仅保留为兜底诊断。DSH Desktop 与真实 fnOS NAS 标记为待执行。 |

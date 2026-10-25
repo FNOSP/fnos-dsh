@@ -33,10 +33,12 @@ import {
   type ZCodeNotification,
 } from './protocol.ts'
 import {
+  isElectronHost,
   prepareBridgeDataDir,
   readBuiltinRevision,
   resolveBuiltinConfigPath,
   resolveZCodeCliPath,
+  resolveZCodeNodePath,
   ZCODE_FALLBACK_APP_VERSION,
 } from './runtime-paths.ts'
 import {
@@ -309,7 +311,7 @@ export class ZCodeBridgeAdapter extends LlmAdapter {
     }
 
     const client = new ZCodeProtocolClient({
-      nodePath: this.options.nodePath?.() ?? process.execPath,
+      nodePath: resolveZCodeNodePath(this.options.nodePath?.()),
       cliPath,
       cwd: dataDir,
       env: this.childEnv(dataDir, builtinPath),
@@ -359,6 +361,9 @@ export class ZCodeBridgeAdapter extends LlmAdapter {
    */
   private childEnv(dataDir: string, builtinPath: string): NodeJS.ProcessEnv {
     return buildAppServerEnv({
+      // Electron 宿主（DSH Desktop）下 `process.execPath` 是 Electron 二进制，
+      // 必须让它以 node 身份运行，否则子进程会当成 GUI 应用启动并立即退出。
+      ...(isElectronHost() ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
       ZCODE_SERVICE_AUTHORITY_MODE: 'desktop-local',
       ZCODE_APP_VERSION: ZCODE_FALLBACK_APP_VERSION,
       ZCODE_BUILTIN_PROVIDER_CONFIG_FILE: builtinPath,

@@ -73,14 +73,15 @@ describe('buildAppServerEnv', () => {
     expect(env).toEqual({})
   })
 
-  it('ELECTRON_RUN_AS_NODE 一律删除（即使写在覆盖项里）', () => {
-    const env = buildAppServerEnv(
-      { ELECTRON_RUN_AS_NODE: '1' },
-      { ELECTRON_RUN_AS_NODE: '1', Electron_Run_As_Node: '1' },
-    )
+  it('继承来的 ELECTRON_RUN_AS_NODE 会被清掉，但显式覆盖可以保留', () => {
+    // 继承下来不能让 Electron 子进程误入 node 模式；但 Electron 宿主（DSH Desktop）
+    // 必须显式带上它，否则子进程会当成 GUI 应用启动并立即退出。
+    const inherited = buildAppServerEnv({}, { ELECTRON_RUN_AS_NODE: '1' })
+    expect(inherited.ELECTRON_RUN_AS_NODE).toBeUndefined()
+    expect(Object.hasOwn(inherited, 'ELECTRON_RUN_AS_NODE')).toBe(false)
 
-    expect(env.ELECTRON_RUN_AS_NODE).toBeUndefined()
-    expect(Object.hasOwn(env, 'ELECTRON_RUN_AS_NODE')).toBe(false)
+    const explicit = buildAppServerEnv({ ELECTRON_RUN_AS_NODE: '1' }, {})
+    expect(explicit.ELECTRON_RUN_AS_NODE).toBe('1')
   })
 
   it('不修改调用方传入的 env 对象', () => {

@@ -53,9 +53,12 @@ export function buildAppServerEnv(
     const lower = key.toLowerCase()
     if (CHILD_ENV_BASE.has(lower) || lower.startsWith('zcode_')) env[key] = value
   }
-  Object.assign(env, overrides)
-  // Electron 会把子进程当成自身入口启动；这里必须清掉。
+  // 先删再覆盖：Electron 宿主下 `process.execPath` 就是 Electron 二进制，子进程要
+  // 继续当 node 用就必须保留这个变量（DSH Desktop 自带的 node 壳也是这么做的：
+  // `export ELECTRON_RUN_AS_NODE=1; exec <electron> ...`）。而普通 Node 宿主下它若
+  // 被继承下去，会让 Electron 子进程误入 node 模式，所以默认删掉。
   delete env.ELECTRON_RUN_AS_NODE
+  Object.assign(env, overrides)
   return env
 }
 
@@ -97,6 +100,10 @@ export class ZCodeProtocolClient {
   private disposed = false
   private ready = false
   private releaseStartup: (() => void) | undefined
+  /** 子进程 stderr 尾部：启动失败时用它给出真实原因，而不是一句"没能启动"。 */
+  private stderrTail: string[] = []
+  /** spawn 阶段的具体错误（ENOENT / EACCES / 退出码等）。 */
+  private spawnFailure: string | undefined
 
   /** 进程退出回调：适配器用它丢弃悬空会话。 */
   onExit: (() => void) | undefined
@@ -136,14 +143,22 @@ export class ZCodeProtocolClient {
     child.stderr.setEncoding('utf8')
     child.stdout.on('data', (chunk: string) => this.onData(chunk))
     child.stderr.on('data', (chunk: string) => {
-      const line = String(chunk).trim()
-      if (line !== '') logger.info(`zcode app-server stderr: ${line.slice(0, 200)}`)
+      const text = String(chunk)
+      for (const line of text.split('\n')) {
+        const trimmed = line.trim()
+        if (trimmed === '') continue
+        this.stderrTail.push(trimmed.slice(0, 300))
+        if (this.stderrTail.length > 20) this.stderrTail.shift()
+        logger.info(`zcode app-server stderr: ${trimmed.slice(0, 200)}`)
+      }
     })
     child.on('exit', (code) => {
+      this.spawnFailure = `app-server 进程退出（code=${String(code)}）`
       logger.warn(`zcode: app-server 退出（code=${String(code)}），下次调用会重启`)
       this.failAll(new Error('zcode: app-server 已退出'))
     })
     child.on('error', (error: Error) => {
+      this.spawnFailure = `app-server 启动失败：${error.message}`
       logger.warn(`zcode: app-server 启动失败：${error.message}`)
       this.failAll(new Error(`zcode: app-server 启动失败：${error.message}`))
     })
@@ -161,7 +176,18 @@ export class ZCodeProtocolClient {
       const timer = setTimeout(finish, STARTUP_FALLBACK_MS)
       timer.unref?.()
     })
-    if (this.child === undefined) throw new Error('zcode: app-server 没能启动')
+    if (this.child === undefined) {
+      // 把 stderr 尾部与退出码带出去：只报"没能启动"会让这类问题无法定位。
+      const detail = [
+        this.spawnFailure,
+        this.stderrTail.length === 0 ? undefined : `stderr: ${this.stderrTail.slice(-3).join(' / ')}`,
+      ].filter((part): part is string => part !== undefined && part !== '')
+      throw new Error(
+        detail.length === 0
+          ? 'zcode: app-server 没能启动（子进程没有任何输出）'
+          : `zcode: ${detail.join('；')}`,
+      )
+    }
     // 就绪后仍有一段稳定期（实测约 2.5s）；不等就开始 create/send，回合会被静默丢弃。
     await delay(2_500)
     this.ready = true
