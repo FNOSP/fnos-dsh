@@ -13,7 +13,7 @@ Start Plan 通道已在 **DSH Web** 实测可用：纯文本、图文与思考�
 ## 安装
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-zcode@0.2.1-rc.2.48
+dsh plugin --profile web add @tnnevol/dsh-zcode@0.2.1-rc.2.49
 ```
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。
