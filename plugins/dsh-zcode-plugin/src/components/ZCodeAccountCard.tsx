@@ -96,6 +96,8 @@ export function ZCodeAccountCard({ t, timer }: ZCodeAccountCardProps): ReactNode
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string>()
   const [copyFailed, setCopyFailed] = useState(false)
+  /** 浏览器拦截了自动打开的标签页时给一条可读提示。 */
+  const [popupBlocked, setPopupBlocked] = useState(false)
   const [family, setFamily] = useState<ZCodeFamily>('bigmodel')
   const sequenceRef = useRef(0)
   // 只在登录状态真正翻转时推进代际，避免页面首次加载就多触发一次额度/目录请求。
@@ -146,10 +148,28 @@ export function ZCodeAccountCard({ t, timer }: ZCodeAccountCardProps): ReactNode
     setBusy(true)
     setActionError(undefined)
     setCopyFailed(false)
+    setPopupBlocked(false)
+    /*
+     * 先同步开一个占位标签页，等接口返回后再把地址写进去。
+     * 不能在 await 之后才 window.open：那时已经脱离用户手势，会被弹窗拦截。
+     * 不传 'noopener'（那样拿不到窗口句柄），改为事后手工清空 opener。
+     */
+    const pendingTab = typeof window === 'undefined' ? null : window.open('about:blank', '_blank')
+    if (pendingTab === null) setPopupBlocked(true)
+    else pendingTab.opener = null
     try {
       const result = await startDeviceLogin(family)
       setState({ status: 'signing-in', challenge: result.challenge })
+      if (pendingTab !== null && !pendingTab.closed) {
+        pendingTab.location.href = result.challenge.authorizeUrl
+      }
     } catch (error) {
+      // 登录没发起成功就把占位页关掉，别留一个空白标签。
+      try {
+        pendingTab?.close()
+      } catch {
+        // 关闭失败不影响报错。
+      }
       setActionError(failureText(error))
     } finally {
       setBusy(false)
@@ -277,6 +297,9 @@ export function ZCodeAccountCard({ t, timer }: ZCodeAccountCardProps): ReactNode
       {state.status === 'signing-in' ? (
         <div className="dsh-zcode-signin">
           <p className="dsh-zcode-body">{t('accountAuthorizeHelp')}</p>
+          {popupBlocked
+            ? <p className="dsh-zcode-hint">{t('accountAuthorizePopupBlocked')}</p>
+            : null}
           {challenge === undefined ? null : (
             <>
               <div className="dsh-zcode-signin-actions">
