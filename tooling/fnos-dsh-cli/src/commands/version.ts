@@ -7,27 +7,14 @@ import { program } from '../program.js'
 import { addBooleanArgs, addNegatedArgs } from '../core/command-args.js'
 import { repositoryRoot } from '../config/paths.js'
 import { parseVersionOptions } from '../core/args.js'
+import { BASELINE_PATTERN, readDshBaselineFromCatalog } from '../core/dsh-baseline.js'
 import { readPackageInfo } from '../core/package.js'
 
-/** 基线形态：`MAJOR.MINOR.PATCH`，可带预发布段（`0.2.1-rc.2`），不允许 build metadata。 */
-const BASELINE_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
+export { readDshBaselineFromCatalog }
+
 
 /** 纯净项目版本形态：`MAJOR.MINOR.PATCH`，不带预发布段与 build metadata。 */
 const CLEAN_VERSION_PATTERN = /^\d+\.\d+\.\d+$/u
-
-/**
- * 从 catalog 文本中读出 DSH 运行时基线。
- *
- * 权威来源是 `pnpm-workspace.yaml` 里的 `'@deepseek-ai/dsh'` 条目——它与各插件
- * `peerDependencies` 用的 `catalog:dsh` 是同一份事实。
- */
-export function readDshBaselineFromCatalog(workspaceYaml: string): string | undefined {
-  const match = /^\s{2}'@deepseek-ai\/dsh':\s*(\S+)\s*$/mu.exec(workspaceYaml)
-  const value = match?.[1]
-  if (value === undefined) return undefined
-  const normalized = value.replace(/^['"]|['"]$/gu, '')
-  return BASELINE_PATTERN.test(normalized) ? normalized : undefined
-}
 
 /**
  * 校验仓库侧守卫：档位语义与版本形态（FNOS-028）。

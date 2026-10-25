@@ -46,7 +46,10 @@ vi.mock('node:fs/promises', async importOriginal => ({
   writeFile: mocks.writeFile,
 }))
 
-const { ensureLocalProfilePlugins, localProfilePlugins, LOCAL_DSH_VERSION } = await import('../src/core/local-profile.js')
+const { ensureLocalProfilePlugins, localProfilePlugins, localDshVersion } = await import('../src/core/local-profile.js')
+
+/** 归一化目标是运行时基线本身：从 catalog 读，而不是在测试里重述版本字面量。 */
+const LOCAL_DSH_VERSION = localDshVersion()
 
 /** The profile records absolute `link:` specs, so the fixture must match the resolved directory. */
 const codexDirectory = dirname(join(repositoryRoot, 'plugins/dsh-codex-auth-plugin/package.json'))

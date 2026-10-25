@@ -52,7 +52,8 @@
     "skills"
   ],
   "engines": {
-    "node": "^22.19.0 || >=24.0.0"
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": "0.2.1-rc.3"
   },
   "scripts": {
     "build": "tsdown",
@@ -81,17 +82,17 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:",
-    "@deepseek-ai/dsh-attachment": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-client-locale": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-client-ui-plugin-manager": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-client-ui-settings": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-client-ui-slots": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-host-webserver": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-llm": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-session": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-settings": "0.2.1-rc.3",
-    "@deepseek-ai/dsh-skill": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-attachment": "catalog:dsh",
+    "@deepseek-ai/dsh-client-locale": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-renderer": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-settings": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-slots": "catalog:dsh",
+    "@deepseek-ai/dsh-host-webserver": "catalog:dsh",
+    "@deepseek-ai/dsh-llm": "catalog:dsh",
+    "@deepseek-ai/dsh-session": "catalog:dsh",
+    "@deepseek-ai/dsh-settings": "catalog:dsh",
+    "@deepseek-ai/dsh-skill": "catalog:dsh",
     "@deepseek-ai/schemastery": "catalog:",
     "react": "catalog:"
   },

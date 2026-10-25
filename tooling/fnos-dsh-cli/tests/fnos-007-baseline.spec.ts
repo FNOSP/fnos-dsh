@@ -58,18 +58,24 @@ describe('FNOS-007 DSH baseline', () => {
     expect(workspace).toMatch(new RegExp(`'@deepseek-ai/dsh-llm-pi-ai':\\s*${targetVersion.replaceAll('.', '\\.')}`, 'u'))
   })
 
-  it('keeps published DSH plugin peer ranges on the exact runtime baseline', async () => {
-    for (const directory of pluginDirectories.filter(value => value !== 'dsh-fnos-plugin')) {
+  it('keeps every plugin DSH dependency on the catalog and its engines.dsh on the runtime baseline', async () => {
+    // DSH 运行时版本只有 catalog 一处事实来源（FNOS-029）：插件 manifest 里的
+    // peer 与开发依赖一律写 `catalog:dsh`，不写字面版本；兼容判定由
+    // `engines.dsh` 承担，它必须等于 catalog 基线，否则本地联调会把插件整体跳过。
+    for (const directory of pluginDirectories) {
       const manifest = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as {
-        peerDependencies: Record<string, string>
+        dependencies?: Record<string, string>
+        devDependencies?: Record<string, string>
+        peerDependencies?: Record<string, string>
+        optionalDependencies?: Record<string, string>
         engines?: { dsh?: string }
       }
-      // 声明了 engines.dsh 时 DSH 只按它判兼容性（peerDependencies 被忽略），
-      // 因此这个字段必须与 catalog 基线一致，否则本地联调会把插件整体跳过。
-      const enginesDsh = manifest.engines?.dsh
-      if (enginesDsh !== undefined) expect(enginesDsh, `${directory}:engines.dsh`).toBe(targetVersion)
-      for (const [name, range] of Object.entries(manifest.peerDependencies)) {
-        if (name.startsWith('@deepseek-ai/dsh-')) expect(range, `${directory}:${name}`).toBe(targetVersion)
+      expect(manifest.engines?.dsh, `${directory}:engines.dsh`).toBe(targetVersion)
+      for (const field of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'] as const) {
+        for (const [name, range] of Object.entries(manifest[field] ?? {})) {
+          if (!name.startsWith('@deepseek-ai/dsh')) continue
+          expect(range, `${directory}:${field}.${name}`).toBe('catalog:dsh')
+        }
       }
     }
   })
@@ -158,39 +164,6 @@ describe('FNOS-007 DSH baseline', () => {
     expect(callback).not.toContain('DSH_NATIVE_BUNDLE')
     expect(callback).not.toContain('has_bundled_node_pty')
     expect(callback).not.toContain('node-pty-versions')
-  })
-
-  it('keeps every DSH peer and declared engines.dsh on the target runtime baseline', async () => {
-    const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
-    const catalog = new Map<string, string>()
-    let inDshCatalog = false
-    for (const line of workspace.split(/\r?\n/u)) {
-      if (line === '  dsh:') {
-        inDshCatalog = true
-        continue
-      }
-      if (inDshCatalog && /^ {2}[A-Za-z0-9_-]+:/u.test(line)) break
-      if (inDshCatalog) {
-        const match = /^ {4}(['"]?@[^:]+['"]?):\s*(\S+)$/u.exec(line)
-        if (match !== null) catalog.set(match[1]!.replace(/^['"]|['"]$/gu, ''), match[2]!)
-      }
-    }
-
-    for (const directory of pluginDirectories) {
-      const manifest = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as {
-        peerDependencies: Record<string, string>
-        engines?: { dsh?: string }
-      }
-      // 声明了 engines.dsh 时 DSH 只按它判兼容性（peerDependencies 被忽略），
-      // 因此这个字段必须与 catalog 基线一致，否则本地联调会把插件整体跳过。
-      const enginesDsh = manifest.engines?.dsh
-      if (enginesDsh !== undefined) expect(enginesDsh, `${directory}:engines.dsh`).toBe(targetVersion)
-      for (const [name, range] of Object.entries(manifest.peerDependencies)) {
-        if (!name.startsWith('@deepseek-ai/dsh')) continue
-        const resolved = range === 'catalog:dsh' ? catalog.get(name) : range
-        expect(resolved, `${directory}:${name}`).toBe(targetVersion)
-      }
-    }
   })
 
   it('aligns shared upstream support packages with the target checkout', async () => {

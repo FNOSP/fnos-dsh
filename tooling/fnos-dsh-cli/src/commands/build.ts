@@ -8,6 +8,7 @@ import { findPluginTarget } from '../config/targets.js'
 import { readFpkApps, readGatewayName, type FpkApp } from '../config/workspace.js'
 import { runDocsBuild } from './docs.js'
 import { optionValue } from '../core/args.js'
+import { requireDshBaseline } from '../core/dsh-baseline.js'
 import { addBooleanArgs, addOptionalValueArg } from '../core/command-args.js'
 import { runCommand } from '../core/process.js'
 import { runTurbo } from '../core/turbo.js'
@@ -15,7 +16,6 @@ import { askBuildSelection, askBundleDshPlugins, askFpkApps, askPlugins } from '
 
 const DSH_PUBLISHED_PLUGIN_MANIFEST = 'app/published-dsh-plugins.json'
 const DSH_BUNDLED_PLUGIN_DIRECTORY = 'app/bundled-dsh-plugins'
-const DSH_VERSION = '0.2.1-rc.2'
 const PNPM_VERSION = '11.7.0'
 /** 三方插件在清单里的固定标识；版本本身由清单持有，不在校验代码里重复书写。 */
 const DSHMARKET_NAME = 'dshmarket'
@@ -206,8 +206,9 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
     throw new Error(`The published DSH plugin manifest must pin third-party ${DSHMARKET_NAME} in plugins`)
   }
   const callback = await readFile(join(repositoryRoot, 'apps', app.name, 'cmd/install_callback'), 'utf8')
-  if (!callback.includes(`DSH_VERSION="${DSH_VERSION}"`) || !callback.includes(`PNPM_VERSION="${PNPM_VERSION}"`)) {
-    throw new Error(`install_callback is not aligned with DSH ${DSH_VERSION} and pnpm ${PNPM_VERSION}`)
+  const dshVersion = requireDshBaseline()
+  if (!callback.includes(`DSH_VERSION="${dshVersion}"`) || !callback.includes(`PNPM_VERSION="${PNPM_VERSION}"`)) {
+    throw new Error(`install_callback is not aligned with DSH ${dshVersion} and pnpm ${PNPM_VERSION}`)
   }
   const shellVariable = (name: string) => '$' + '{' + name + '}'
   const main = await readFile(join(repositoryRoot, 'apps', app.name, 'cmd/main'), 'utf8')
@@ -275,12 +276,10 @@ async function validateCatalogVersionedDependencies(): Promise<void> {
       if (typeof block !== 'object' || block === null) continue
       for (const [name, range] of Object.entries(block as Record<string, unknown>)) {
         if (!catalogPackages.has(name)) continue
-        // Published DSH plugins intentionally expose the target runtime as an
-        // exact peer range. pnpm resolves `catalog:dsh` in peerDependencies to
-        // that exact value, and FNOS-007's compatibility gate relies on it;
-        // keep this existing release contract while enforcing catalogs for
-        // every other catalog-managed dependency (including pi-ai).
-        if (field === 'peerDependencies' && name.startsWith('@deepseek-ai/dsh-')) continue
+        // DSH 运行时版本只有 catalog 一个事实来源：插件的 peer 与开发依赖一律写
+        // `catalog:dsh`，兼容判定改由 manifest 的 `engines.dsh` 承担（声明了
+        // engines.dsh 时 DSH 只按它判定、忽略 peerDependencies）。pnpm 在 pack
+        // 时会把 `catalog:dsh` 解析成当时的真实版本，发布产物仍是精确范围。
         if (typeof range === 'string' && range.startsWith('catalog:')) continue
         throw new Error(
           `${manifestPath} must declare ${name} through the pnpm catalog (catalog: or catalog:<name>), not ${String(range)}`,

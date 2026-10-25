@@ -352,8 +352,8 @@ const requirementsSidebar = [
         link: '/requirements/FNOS-028-unified-project-version-bumpp'
       },
       {
-        text: 'FNOS-030 DSH 0.2.1-rc.3 插件适配与基线迁移',
-        link: '/requirements/FNOS-030-dsh-021-rc3-adaptation'
+        text: 'FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移',
+        link: '/requirements/FNOS-029-dsh-021-rc3-adaptation'
       },
       ]
   }
@@ -477,8 +477,8 @@ const plansSidebar = [
         link: '/plans/PLAN-FNOS-028-unified-project-version-bumpp'
       },
       {
-        text: 'PLAN-FNOS-030 DSH 0.2.1-rc.3 插件适配与基线迁移',
-        link: '/plans/PLAN-FNOS-030-dsh-021-rc3-adaptation'
+        text: 'PLAN-FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移',
+        link: '/plans/PLAN-FNOS-029-dsh-021-rc3-adaptation'
       },
     ]
   }
@@ -571,8 +571,8 @@ const testsSidebar = [
         link: '/tests/FNOS-028-unified-project-version-bumpp'
       },
       {
-        text: 'FNOS-030 DSH 0.2.1-rc.3 插件适配与基线迁移',
-        link: '/tests/FNOS-030-dsh-021-rc3-adaptation'
+        text: 'FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移',
+        link: '/tests/FNOS-029-dsh-021-rc3-adaptation'
       },
     ]
   }

@@ -2,11 +2,20 @@ import { readdir, readFile, realpath, unlink, writeFile } from 'node:fs/promises
 import { dirname, join } from 'node:path'
 import { dshHomeDirectory, repositoryRoot } from '../config/paths.js'
 import { pluginTargets, type PluginTarget } from '../config/targets.js'
+import { requireDshBaseline } from './dsh-baseline.js'
 import { runRepoDsh, runTurbo } from './turbo.js'
 
 /** Profile the local development instance boots; matches `dsh web`. */
 const DEV_PROFILE = 'web'
-export const LOCAL_DSH_VERSION = '0.2.1-rc.2'
+/**
+ * 本地 profile 规范化写入的运行时版本。
+ *
+ * 惰性求值：模块顶层读取会在单测里立刻命中被 mock 的文件系统而抛错，
+ * 而该常量只在真正改写 profile 副本时才会用到。
+ */
+export function localDshVersion(): string {
+  return requireDshBaseline()
+}
 
 /**
  * Plugins that live in this repository but are not linked into the local
@@ -119,7 +128,7 @@ async function normalizeLinkedPluginManifest(directory: string, target: PluginTa
   let changed = false
   for (const [name, range] of Object.entries(peerDependencies)) {
     if (name.startsWith('@deepseek-ai/dsh') && range === 'catalog:dsh') {
-      peerDependencies[name] = LOCAL_DSH_VERSION
+      peerDependencies[name] = localDshVersion()
       changed = true
     }
   }

@@ -1,6 +1,6 @@
 ---
-id: PLAN-FNOS-030
-title: PLAN-FNOS-030 DSH 0.2.1-rc.3 插件适配与基线迁移
+id: PLAN-FNOS-029
+title: PLAN-FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移
 description: DSH 0.2.1-rc.3 基线迁移的锚定改写、契约复核、构建验证与双客户端回归实施计划。
 status: in-progress
 owner: tnnevol
@@ -9,18 +9,18 @@ targetVersion: 6.0.0
 lastVerified: 2026-10-25
 ---
 
-# PLAN-FNOS-030 DSH 0.2.1-rc.3 插件适配与基线迁移
+# PLAN-FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移
 
 | 项目 | 内容 |
 | --- | --- |
-| 计划编号 | PLAN-FNOS-030 |
+| 计划编号 | PLAN-FNOS-029 |
 | 计划日期 | 2026-10-25 |
-| 对应需求 | [FNOS-030 DSH 0.2.1-rc.3 插件适配与基线迁移](/requirements/FNOS-030-dsh-021-rc3-adaptation) |
+| 对应需求 | [FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移](/requirements/FNOS-029-dsh-021-rc3-adaptation) |
 | 计划状态 | 规划中 |
 
 ## 计划目标
 
-按 [FNOS-030](/requirements/FNOS-030-dsh-021-rc3-adaptation) 的功能编号完成基线迁移：仓库运行/构建基线与联调检出统一到 `0.2.1-rc.3`，八个插件副本（七个入库 + CodeBuddy 本地副本）的依赖锚定与兼容声明改写，全部包级验证通过，并在 DSH Web 与 DSH Desktop 双客户端完成回归。
+按 [FNOS-029](/requirements/FNOS-029-dsh-021-rc3-adaptation) 的功能编号完成基线迁移：仓库运行/构建基线与联调检出统一到 `0.2.1-rc.3`，八个插件副本（七个入库 + CodeBuddy 本地副本）的依赖锚定与兼容声明改写，全部包级验证通过，并在 DSH Web 与 DSH Desktop 双客户端完成回归。
 
 技术边界：只改依赖锚定、兼容声明、基线常量与文档基线字样；不改插件功能代码（除非类型检查暴露接缝差异）；不发布插件；不做 FPK 真机安装（登记为后续验证）。
 
@@ -46,7 +46,7 @@ stateDiagram-v2
     Gate --> Peers: 未声明 → 按 DSH peer 逐项 semver 判定
     Engine --> OldReject: 原约定：锚定 0.2.1-rc.2，rc.3 运行时不满足
     Peers --> OldReject
-    OldReject --> NewPass: 变更点：锚定与 engines 改写为 0.2.1-rc.3（FNOS-030-01）
+    OldReject --> NewPass: 变更点：锚定与 engines 改写为 0.2.1-rc.3（FNOS-029-01）
     Engine --> NewPass
     Peers --> NewPass
     NewPass --> [*]: 安装与加载放行
@@ -56,12 +56,12 @@ stateDiagram-v2
 
 | 需求功能 | 代码模块 | 配置/数据 | 测试 | 文档 | 目标环境 |
 | --- | --- | --- | --- | --- | --- |
-| FNOS-030-01 | `plugins/*-plugin/package.json`（peerDependencies）、`plugins/*-plugin/compatibility.json` | 无用户数据变化 | 各插件 `check`（typecheck+单测+build）、`tooling/fnos-dsh-cli` 基线用例 | 插件文档版本表随版本命令同步 | DSH Web、DSH Desktop |
-| FNOS-030-02 | 无代码改动（契约复核确认零破坏） | 无 | 双客户端界面走查（7 类插座位置 + 亮暗主题） | 无 | DSH Web、DSH Desktop |
-| FNOS-030-03 | `plugins/dsh-codebuddy-plugin/package.json`、`compatibility.json`（不入库） | 无 | 本地 `check` + 开发态运行时加载走查 | 无（FNOS-025 已下架，无文档页） | 本地开发态运行时 |
-| FNOS-030-04 | `pnpm-workspace.yaml`（catalog，由版本命令改写）、`apps/fn-deepseek-harness/cmd/install_callback`（`DSH_VERSION`） | `pnpm-lock.yaml` 重锁 | `pnpm run check`（含基线一致性用例）、启动 DSH Web 核对版本 | `docs/development/environment.md`、`docs/development/conventions.md` 基线字样 | 本地构建链路、DSH Web |
-| FNOS-030-05 | 无代码改动 | 既有 `.dsh` profile 数据保持 | 迁移后启动核对登录态、偏好、模型配置 | 无 | DSH Web、DSH Desktop |
-| FNOS-030-06 | 联调检出（`fork-pj/deepseek-harness`，不在本仓库内） | 检出内 `node_modules` 重装 | `git describe` 核对 tag；Desktop 启动日志核对版本 | 无 | DSH Desktop |
+| FNOS-029-01 | `plugins/*-plugin/package.json`（peerDependencies）、`plugins/*-plugin/compatibility.json` | 无用户数据变化 | 各插件 `check`（typecheck+单测+build）、`tooling/fnos-dsh-cli` 基线用例 | 插件文档版本表随版本命令同步 | DSH Web、DSH Desktop |
+| FNOS-029-02 | 无代码改动（契约复核确认零破坏） | 无 | 双客户端界面走查（7 类插座位置 + 亮暗主题） | 无 | DSH Web、DSH Desktop |
+| FNOS-029-03 | `plugins/dsh-codebuddy-plugin/package.json`、`compatibility.json`（不入库） | 无 | 本地 `check` + 开发态运行时加载走查 | 无（FNOS-025 已下架，无文档页） | 本地开发态运行时 |
+| FNOS-029-04 | `pnpm-workspace.yaml`（catalog，由版本命令改写）、`apps/fn-deepseek-harness/cmd/install_callback`（`DSH_VERSION`） | `pnpm-lock.yaml` 重锁 | `pnpm run check`（含基线一致性用例）、启动 DSH Web 核对版本 | `docs/development/environment.md`、`docs/development/conventions.md` 基线字样 | 本地构建链路、DSH Web |
+| FNOS-029-05 | 无代码改动 | 既有 `.dsh` profile 数据保持 | 迁移后启动核对登录态、偏好、模型配置 | 无 | DSH Web、DSH Desktop |
+| FNOS-029-06 | 联调检出（`fork-pj/deepseek-harness`，不在本仓库内） | 检出内 `node_modules` 重装 | `git describe` 核对 tag；Desktop 启动日志核对版本 | 无 | DSH Desktop |
 
 ## 架构与数据流
 
@@ -95,18 +95,19 @@ flowchart LR
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
-| PLAN-FNOS-030-T01-01 | FNOS-030-04 / AC-01 | 联调检出 `git fetch --tags` 后 checkout `dsh-v0.2.1-rc.3`，按需 `pnpm install` | 官方 tag 已发布（已核实） | `git describe --tags` 输出 `dsh-v0.2.1-rc.3` |
-| PLAN-FNOS-030-T01-02 | FNOS-030-01、FNOS-030-03 / AC-01 | 改写七个入库插件与 CodeBuddy 副本的 `peerDependencies`（DSH 包精确锚定）与 `compatibility.json`（`dshPluginApi.version`）到 `0.2.1-rc.3`；fnos 插件 `catalog:dsh` peer 形态保持 | T01-01 无依赖，可与 catalog 改写并行 | 逐文件 grep 无残留 `0.2.1-rc.2` 锚定；`tooling/fnos-dsh-cli` 基线用例通过 |
-| PLAN-FNOS-030-T01-03 | FNOS-030-04 / AC-01 | catalog 基线改写到 `0.2.1-rc.3`（走 `pnpm run version -- major --baseline 0.2.1-rc.3`，在功能提交后执行）并 `pnpm install` 重锁；同步 `install_callback` 的 `DSH_VERSION` | T01-02 完成并提交 | `pnpm run check` 全绿；`grep` 校验 `DSH_VERSION` 与 catalog 一致 |
-| PLAN-FNOS-030-T01-04 | FNOS-030-04 / AC-01 | 更新 `docs/development/environment.md` 版本表与 `docs/development/conventions.md` 等文档基线字样 | T01-03 | 文档构建通过、站内链接有效 |
-| PLAN-FNOS-030-T02-01 | FNOS-030-01 / AC-01、AC-02 | 全部入库插件 `pnpm --filter <pkg> run check`（typecheck、单测、build） | T01-02、T01-03 | 命令退出码 0；单测全绿 |
-| PLAN-FNOS-030-T02-02 | FNOS-030-03 / AC-01 | CodeBuddy 副本本地 `check`（同一基线依赖下构建） | T01-02、T01-03 | 命令退出码 0 |
-| PLAN-FNOS-030-T02-03 | FNOS-030-04 / AC-02、AC-03 | `pnpm run start -- --web` 启动本地 DSH Web，核对运行时版本、七插件加载状态与 `dshmarket` 安装判定 | T02-01 | 启动日志版本行；插件管理页无异常（CDP 或人工走查） |
-| PLAN-FNOS-030-T03-01 | FNOS-030-01、02、05 / AC-01～AC-02 | DSH Web 双客户端回归：插件管理页、各插件代表功能、界面区块位置、亮暗主题、既有数据（登录态/偏好/模型配置） | T02-03 | 按测试用例文档执行并回填 |
-| PLAN-FNOS-030-T03-02 | FNOS-030-01、02、06 / AC-01～AC-02 | 开发态 Desktop 回归（项目 `.dsh` 作 `DSH_HOME`，渲染调试端口取证）：版本核对、插件加载、界面区块与主题 | T01-01、T02-01；与 Web 测试不同时持有同一会话 | 按测试用例文档执行并回填；结论写明检出与版本 |
-| PLAN-FNOS-030-T04-01 | 全部 | 需求/计划/测试用例三文档登记与索引、侧栏更新；`pnpm run check -- --sdd` 与文档构建 | 无 | 命令通过 |
-| PLAN-FNOS-030-T04-02 | 全部 | 功能提交后执行 `pnpm run version -- major --baseline 0.2.1-rc.3`（manifest desc 基线字样自动对齐；插件/项目统一升 major，版本提交独立） | T02、T03 完成且工作区干净 | 版本命令产物核对（catalog、manifest、文档三处同值） |
-| PLAN-FNOS-030-T04-03 | FNOS-030-04 / AC-01 | 登记后续验证项：FPK 打包与真机安装升级（含 `dshmarket` 实装门禁复核）留待发布流程 | T04-02 | 在需求变更记录登记状态，不阻塞双客户端结论 |
+| PLAN-FNOS-029-T01-01 | FNOS-029-04 / AC-01 | 联调检出 `git fetch --tags` 后 checkout `dsh-v0.2.1-rc.3`，按需 `pnpm install` | 官方 tag 已发布（已核实） | `git describe --tags` 输出 `dsh-v0.2.1-rc.3` |
+| PLAN-FNOS-029-T01-02 | FNOS-029-01、FNOS-029-03、FNOS-029-07 / AC-01 | 把八个插件副本 `package.json` 的 DSH 依赖（peer/dev/deps）统一改为 `catalog:dsh`，并补 `engines.dsh` = catalog 基线；`compatibility.json` 的 `dshPluginApi.version` 同步到新基线 | 无 | 逐文件 grep 无版本字面量；`tooling/fnos-dsh-cli` 基线用例通过 |
+| PLAN-FNOS-029-T01-05 | FNOS-029-07 / AC-01、AC-02 | 构建门禁 `build.ts` 取消对 DSH peer 的字面版本豁免，改为要求 catalog；基线守卫断言改为「DSH 依赖一律 `catalog:dsh` 且 `engines.dsh` 等于基线」；`build.ts` 与 `local-profile.ts` 的基线常量改从 catalog 读取，消除单向漂移 | T01-03 | 注入字面版本时构建报错；`pnpm --filter @tnnevol/fnos-dsh-cli test` 全绿 |
+| PLAN-FNOS-029-T01-03 | FNOS-029-04 / AC-01 | catalog 基线改写到 `0.2.1-rc.3`（走 `pnpm run version -- major --baseline 0.2.1-rc.3`，在功能提交后执行）并 `pnpm install` 重锁；同步 `install_callback` 的 `DSH_VERSION` | T01-02 完成并提交 | `pnpm run check` 全绿；`grep` 校验 `DSH_VERSION` 与 catalog 一致 |
+| PLAN-FNOS-029-T01-04 | FNOS-029-04 / AC-01 | 更新 `docs/development/environment.md` 版本表与 `docs/development/conventions.md` 等文档基线字样 | T01-03 | 文档构建通过、站内链接有效 |
+| PLAN-FNOS-029-T02-01 | FNOS-029-01 / AC-01、AC-02 | 全部入库插件 `pnpm --filter <pkg> run check`（typecheck、单测、build） | T01-02、T01-03 | 命令退出码 0；单测全绿 |
+| PLAN-FNOS-029-T02-02 | FNOS-029-03 / AC-01 | CodeBuddy 副本本地 `check`（同一基线依赖下构建） | T01-02、T01-03 | 命令退出码 0 |
+| PLAN-FNOS-029-T02-03 | FNOS-029-04 / AC-02、AC-03 | `pnpm run start -- --web` 启动本地 DSH Web，核对运行时版本、七插件加载状态与 `dshmarket` 安装判定 | T02-01 | 启动日志版本行；插件管理页无异常（CDP 或人工走查） |
+| PLAN-FNOS-029-T03-01 | FNOS-029-01、02、05 / AC-01～AC-02 | DSH Web 双客户端回归：插件管理页、各插件代表功能、界面区块位置、亮暗主题、既有数据（登录态/偏好/模型配置） | T02-03 | 按测试用例文档执行并回填 |
+| PLAN-FNOS-029-T03-02 | FNOS-029-01、02、06 / AC-01～AC-02 | 开发态 Desktop 回归（项目 `.dsh` 作 `DSH_HOME`，渲染调试端口取证）：版本核对、插件加载、界面区块与主题 | T01-01、T02-01；与 Web 测试不同时持有同一会话 | 按测试用例文档执行并回填；结论写明检出与版本 |
+| PLAN-FNOS-029-T04-01 | 全部 | 需求/计划/测试用例三文档登记与索引、侧栏更新；`pnpm run check -- --sdd` 与文档构建 | 无 | 命令通过 |
+| PLAN-FNOS-029-T04-02 | 全部 | 功能提交后执行 `pnpm run version -- major --baseline 0.2.1-rc.3`（manifest desc 基线字样自动对齐；插件/项目统一升 major，版本提交独立） | T02、T03 完成且工作区干净 | 版本命令产物核对（catalog、manifest、文档三处同值） |
+| PLAN-FNOS-029-T04-03 | FNOS-029-04 / AC-01 | 登记后续验证项：FPK 打包与真机安装升级（含 `dshmarket` 实装门禁复核）留待发布流程 | T04-02 | 在需求变更记录登记状态，不阻塞双客户端结论 |
 
 任务依赖顺序：T01 → T02 → T03 → T04；T01-01 与 T01-02 可并行。
 
@@ -146,6 +147,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | 基线切换载体 | `pnpm run version -- major --baseline 0.2.1-rc.3` | 手工改 catalog | 版本管理规范强制：catalog 由命令在确认后改写，避免 `pnpm run` 前置校验失败；同时统一推进版本与 manifest 基线字样 |
 | CodeBuddy 副本处理 | 同步改写锚定，保持 git 忽略 | 恢复入库或不动 | 用户明确要求副本随基线可用；FNOS-025 的下架决定针对发布与追踪，不针对本地保留 |
+| 插件依赖来源 | 全部 DSH 依赖写 `catalog:dsh`，版本只在 catalog 维护 | 插件内写精确版本 | 用户要求「版本统一由 catalog 管理」。字面量会造成两处事实来源：本次实测已踩到 catalog 与 CLI 常量单向漂移（构建报 install_callback 未对齐）。DSH 在 `engines.dsh` 存在时忽略 peer，故兼容性不受影响 |
 | dshmarket 版本 | 保持 `1.66.47` | 升到 `1.70.2` | 两者 peer 范围相同（`^0.2.1-rc.1`），均含 rc.3；无必要时不动三方依赖 |
 | FPK 真机验证 | 列为后续验证，不阻塞本需求 | 本轮做真机升级 | 用户指定的验收口径是 dsh web 与 desktop 双客户端；真机按发布流程另行安排 |
 
@@ -158,7 +160,7 @@ flowchart LR
 - **打包发布**：本轮不发布插件、不打 FPK；版本推进由 `pnpm run version -- major --baseline 0.2.1-rc.3` 完成（版本提交独立于功能提交）。
 - **回滚**：catalog/锚定/回调常量回退 `0.2.1-rc.2` 并重装；联调检出 checkout 回 rc.2 tag；版本回退按版本管理规范用 `git revert` 回退整条版本提交。禁止删除 `.dsh` 用户数据。
 
-用例设计与执行结果回填到 [FNOS-030 测试用例文档](/tests/FNOS-030-dsh-021-rc3-adaptation)，本计划不展开用例表。
+用例设计与执行结果回填到 [FNOS-029 测试用例文档](/tests/FNOS-029-dsh-021-rc3-adaptation)，本计划不展开用例表。
 
 ## 参考资料
 
@@ -184,4 +186,5 @@ flowchart LR
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
-| 2026-10-25 | 初始登记 | 建立 PLAN-FNOS-030：四阶段任务（基线改写 → 包级验证 → 双客户端回归 → 文档与版本），基线切换走 `major --baseline`，FPK 真机验证列为后续。 |
+| 2026-10-25 | 编号更正与 catalog 统一 | 计划编号由 PLAN-FNOS-030 更正为 PLAN-FNOS-029。新增 T01-05：构建门禁取消 DSH peer 字面版本豁免、守卫改为断言 `catalog:dsh`，并把 `build.ts` / `local-profile.ts` 的基线常量改为从 catalog 读取。 |
+| 2026-10-25 | 初始登记 | 建立 PLAN-FNOS-029：四阶段任务（基线改写 → 包级验证 → 双客户端回归 → 文档与版本），基线切换走 `major --baseline`，FPK 真机验证列为后续。 |

@@ -51,7 +51,8 @@
     "locale"
   ],
   "engines": {
-    "node": "^22.19.0 || >=24.0.0"
+    "node": "^22.19.0 || >=24.0.0",
+    "dsh": "0.2.1-rc.3"
   },
   "scripts": {
     "build": "tsdown",
@@ -69,7 +70,7 @@
     "@deepseek-ai/dsh-client-ui-commands": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-conversation": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-input-trigger": "catalog:dsh",
-    "@deepseek-ai/dsh-client-ui-plugin-manager": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-primitives": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-renderer": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-session": "catalog:dsh",

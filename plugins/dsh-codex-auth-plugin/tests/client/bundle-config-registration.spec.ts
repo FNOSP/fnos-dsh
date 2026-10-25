@@ -80,11 +80,9 @@ describe('Codex Auth 配置注册在插件详情页', () => {
     // 上游 ui-settings-shell 同样以 devDependencies 持有该包；运行时通过 slot
     // 名注册，不 import 该包，避免客户端模块表缺项。
     expect(manifest.dsh.client.inject).toContain(pkg)
-    // 与 catalog 同源：只断言「peer 精确等于运行时基线」，不再重述版本号。
-    const workspace = await readFile(new URL('../../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
-    const baseline = workspace.match(/'@deepseek-ai\/dsh':\s*(\d[0-9A-Za-z.+-]*)/u)?.[1]
-    expect(baseline).toBeDefined()
-    expect(manifest.peerDependencies[pkg]).toBe(baseline)
+    // 与 catalog 同源：DSH 依赖一律用 `catalog:dsh` 引用，不在 manifest 里重述版本号
+    // （FNOS-029 起版本只由 pnpm-workspace.yaml 维护，兼容判定走 engines.dsh）。
+    expect(manifest.peerDependencies[pkg]).toBe('catalog:dsh')
     expect(manifest.devDependencies[pkg]).toBe('catalog:dsh')
   })
 
