@@ -9,7 +9,7 @@
 在 fnOS 上使用 DSH 时，插件随应用安装或升级自动安装。其他 DSH 环境可执行：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-failover-search@0.2.1-rc.2.44
+dsh plugin --profile web add @tnnevol/dsh-failover-search@0.2.1-rc.2.45
 ```
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。
