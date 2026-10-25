@@ -80,6 +80,7 @@ flowchart TD
 | FNOS-025 | [CodeBuddy 插件下架](/requirements/FNOS-025-codebuddy-plugin-delisting) | 已完成（上游收紧非官方客户端通道风控，插件停止维护并下架；源码保留在本机但不再由仓库追踪；15 条用例全部通过） |
 | FNOS-026 | [OpenCode Zen 与 OpenCode Go 模型接入及套餐用量](/requirements/FNOS-026-dsh-opencode-plugin) | 已完成验证（插件已发布到 npm，DSH Web 与 DSH Desktop 验收通过） |
 | FNOS-027 | [ZCode Start Plan 模型接入与账号额度](/requirements/FNOS-027-dsh-zcode-plugin) | 已完成（登录、目录、能力、额度、对话、图文、智能体团队与限流退避已实测；DSH Web 与 DSH Desktop 均通过功能验收；插件未发布） |
-| FNOS-028 | [项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注](/requirements/FNOS-028-unified-project-version-bumpp) | 待完成（版本命令 bumpp 化与版本统一已落地并打 v5.10.0 本地 tag；插件 npm 发布、真机升级验收与 CI 双发布回归待执行） |
+| FNOS-028 | [项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注](/requirements/FNOS-028-unified-project-version-bumpp) | 已完成（2026-10-25 提出人验收通过；版本命令直接调用 bumpp，版本统一 5.10.0；npm 发布与真机升级为发布后动作） |
+| FNOS-030 | [DSH 0.2.1-rc.3 插件适配与基线迁移](/requirements/FNOS-030-dsh-021-rc3-adaptation) | 规划中（锚定迁移 + 契约复核 + 双客户端回归；FPK 真机验证列为后续） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

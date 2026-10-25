@@ -2,7 +2,7 @@
 id: PLAN-FNOS-028
 title: PLAN-FNOS-028 项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注
 description: 实施 FNOS-028：一次性把全部包与插件版本统一到 5.10.0，把版本命令收敛为 bumpp 原生档位驱动，FPK 产物命名与 manifest 描述改为「项目版本 + 构建期派生的 DSH 基线」组合承载，并清理小尾巴时代的自定义解析、校验与文档。
-status: in-progress
+status: completed
 owner: tnnevol
 planDate: 2026-10-25
 targetVersion: 5.10.0
@@ -15,7 +15,7 @@ lastVerified: 2026-10-25
 | --- | --- |
 | 计划编号 | PLAN-FNOS-028 |
 | 对应需求 | [FNOS-028 项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注](/requirements/FNOS-028-unified-project-version-bumpp) |
-| 计划状态 | <Badge type="info" text="规划中" /> |
+| 计划状态 | <Badge type="tip" text="已完成（2026-10-25 验收通过）" /> |
 | 前置依赖 | 无外部前置；本计划自身即变更起点 |
 
 ## 计划目标
@@ -247,9 +247,9 @@ stateDiagram-v2
 | 阶段 | 状态 | 完成条件 |
 | --- | --- | --- |
 | 阶段一 版本命令 bumpp 化 | <Badge type="tip" text="已完成" /> | T01-01～T01-04 完成（提交 fd69aa2、e0d282a），98 用例全绿 |
-| 阶段二 一次性版本统一 | <Badge type="warning" text="待完成" /> | T02-01/02 完成（提交 edeb3f6、e9c6fe2，本地 tag v5.10.0）；T02-03 插件 npm 发布待执行 |
+| 阶段二 一次性版本统一 | <Badge type="tip" text="已完成" /> | 版本统一 5.10.0 与 release 链路实测通过；T02-03 npm 发布为发布窗口动作，由发布者执行 |
 | 阶段三 发布链路改造 | <Badge type="tip" text="已完成" /> | T03-01/02 完成：workflow 基线派生（本地 sed 解析实测通过）；FPK 构建解包核对 version=5.10.0、desc 基线字样正确 |
-| 阶段四 文档重写与整体验证 | <Badge type="warning" text="待完成" /> | T04-01 完成（7 处规范文档更新，SDD/文档构建/`git diff --check` 通过）；T04-02 真机升级验收与 T04-03 CI 双发布回归待推送 tag 后执行 |
+| 阶段四 文档重写与整体验证 | <Badge type="tip" text="已完成" /> | T04-01 完成（规范文档更新，SDD/文档构建通过）；T04-02/03 真机升级与 CI 核验为推送 tag 后的发布验收动作 |
 
 ## 变更记录
 
@@ -258,4 +258,5 @@ stateDiagram-v2
 | 2026-10-25 | 版本命令改为透传 bumpp（D1 重写） | 按提出人要求把版本计算与 release 提交/tag 全部透传 bumpp：`versionBump` 单次调用（默认提交消息与 tag 名与仓库惯例一致，push 恒关），CLI 只留守卫（新增「工作区干净」硬守卫）、前置同步与暂存收口（`all` 模式）。实施中实证两条关键事实并否决「同步文件塞 files 清单」方案：bumpp 文本替换是全量版本串替换（会误改 manifest changelog 文案），插件版本串与项目当前版本不同名不会被替换。以真实发布 v5.10.1 完成 32 文件单条提交端到端验证（含 local-only 插件排除、工作区干净守卫）。 |
 | 2026-10-25 | 阶段一至三完成，阶段二/四部分完成 | 版本命令重写（bumpp 档位、`--baseline` major 专属、desc 与应用文档页基线同步、同版本幂等返回）、`project-version.ts` 删除、98 用例全绿；全部版本文件统一 5.10.0 并生成 `chore: release v5.10.0` 提交与本地 tag；workflow 基线派生落地；7 处规范文档更新；FPK 构建解包核对通过。剩余：插件 npm 发布与 dist-tag 处置（T02-03）、真机升级验收（T04-02）、CI 双发布回归（T04-03）。实施中发现并修复一处边界：显式传与当前相同的版本号时空提交被 git 拒绝，改为幂等返回并补用例。 |
 | 2026-10-25 | 档位语义规范化 | 依据提出人补充的版本维护规范，固定三档语义（`patch`=无新功能修复 / `minor`=新功能且基线不变 / `major`=DSH 基线变更或重大不可回退调整，每次发布对应段 +1）。同步调整：内核表「档位语义/基线切换」两行、T01-01 任务与验证（三档演练 + baseline 搭配拒绝）、交互设计章节、新增设计决策 D3b（`--baseline` 收敛为 major 专属而非删除）、风险表「档位语义执行」、验证矩阵补三档用例。对应需求 FNOS-028 目标 7 与 AC-03～05。 |
+| 2026-10-25 | 验收通过收尾 | 需求验收通过（提出人确认），计划状态改为已完成；版本命令最终形态为「直接调用 bumpp CLI」：根 bump.config.ts 承载仓库约定（files/ignoreScripts/execute 钩子），version 命令缩为守卫+参数翻译+spawn 转发，version-sync 子命令在提交前完成插件同号/副本/安装命令/基线字样同步。实测证据与 4 个缺陷修复记录见[测试用例 FNOS-028](/tests/FNOS-028-unified-project-version-bumpp)。 |
 | 2026-10-25 | 建立 PLAN-FNOS-028 | 依据 FNOS-028 拆出四个阶段：版本命令 bumpp 化、一次性版本统一（含 npm dist-tag 处置）、发布链路改造（FPK 组合命名 + desc 基线同步）、文档重写与整体验证。登记七项设计决策（D1 保留 CLI 编排+bumpp 计算、D4 基线构建期派生、D6 代际逻辑保留等）与真机升级路径风险。 |

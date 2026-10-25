@@ -2,7 +2,7 @@
 id: FNOS-028
 title: FNOS-028 项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注
 description: 项目全部包与插件版本统一维护为 5.10.0（不再维护「基础段-DSH 基线.迭代号」小尾巴），版本维护统一改用 bumpp 工具；FPK 产物命名与 fpk 描述改为标注「项目版本 + 当前 DSH 基线」的组合版本。
-status: in-progress
+status: completed
 owner: tnnevol
 targetVersion: 5.10.0
 lastVerified: 2026-10-25
@@ -14,7 +14,7 @@ lastVerified: 2026-10-25
 | --- | --- |
 | 需求编号 | FNOS-028 |
 | 提出日期 | 2026-10-25 |
-| 需求状态 | <Badge type="info" text="规划中" /> |
+| 需求状态 | <Badge type="tip" text="已通过验收（2026-10-25）" /> |
 | 关联计划 | [PLAN-FNOS-028 项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注](/plans/PLAN-FNOS-028-unified-project-version-bumpp) |
 | 关联需求 | [FNOS-019 FPK 版本方案固定前缀与插件基线小尾巴](/requirements/FNOS-019-fpk-version-scheme)（本需求部分取代其版本形态约定） |
 | 适用应用 | `fn-deepseek-harness` |
@@ -43,13 +43,13 @@ lastVerified: 2026-10-25
 
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-028-01 | P0 | 版本统一到 5.10.0 | 仓库所有 package.json 版本字段为 `5.10.0`；应用中心显示应用版本 `5.10.0`，已装旧小尾巴版本（如 `5.9.0-0.2.1-rc.2.52`）的设备可正常升级且不被判降级 | <Badge type="info" text="规划中" /> |
-| FNOS-028-02 | P0 | 版本维护统一改用 bumpp | `pnpm run version` 由 bumpp 驱动：交互选档位（或非交互传参）后，一次执行完成全部包与插件的版本更新、release 提交与本地 tag；档位语义固定（`patch`=无新功能修复、`minor`=新功能且基线不变、`major`=DSH 基线变更或重大不可回退调整），每次发布对应段 +1；不再出现小尾巴形态校验与迭代号计算 | <Badge type="info" text="规划中" /> |
-| FNOS-028-03 | P0 | 插件 5.10.0 正式版发布与 dist-tag 切换 | 各插件以 `5.10.0` 正式版发布并进入 npm `latest`；安装命令照抄文档（`dsh plugin add <包名>@5.10.0`）可安装成功 | <Badge type="info" text="规划中" /> |
-| FNOS-028-04 | P0 | FPK 产物组合版本命名 | CI 构建的 FPK 附件文件名形如「项目版本 + DSH 基线」的组合（如 `fn-deepseek-harness-v5.10.0-dsh-0.2.1-rc.2.fpk`），从中可直接读出项目版本与 DSH 基线；命名所需基线值不再硬编码于 workflow | <Badge type="info" text="规划中" /> |
-| FNOS-028-05 | P0 | fpk 描述标注 DSH 基线 | 应用中心详情页的 fpk 描述（manifest `desc`）明确写有当前版本应用的 DSH 基线（如「运行基线为 DSH 0.2.1-rc.2」），该基线值随版本命令自动对齐当前 catalog，不靠人工记忆 | <Badge type="info" text="规划中" /> |
-| FNOS-028-06 | P1 | 基线信息可追溯 | 文档站与应用说明中，项目版本与 DSH 基线作为两个独立值分别可见：版本徽标显示 `5.10.0`，DSH 基线单独标注（如「DSH 基线：0.2.1-rc.2」） | <Badge type="info" text="规划中" /> |
-| FNOS-028-07 | P1 | 版本相关校验与文档同步 | 版本命令同步更新插件总览表格、各插件安装命令、文档版本引用与 manifest；相关校验（如同号核对、基线一致性校验）改为对新形态有效，旧小尾巴相关校验与文档说明全部清理 | <Badge type="info" text="规划中" /> |
+| FNOS-028-01 | P0 | 版本统一到 5.10.0 | 仓库所有 package.json 版本字段为 `5.10.0`；应用中心显示应用版本 `5.10.0`，已装旧小尾巴版本（如 `5.9.0-0.2.1-rc.2.52`）的设备可正常升级且不被判降级 | <Badge type="tip" text="已完成" /> |
+| FNOS-028-02 | P0 | 版本维护统一改用 bumpp | `pnpm run version` 由 bumpp 驱动：交互选档位（或非交互传参）后，一次执行完成全部包与插件的版本更新、release 提交与本地 tag；档位语义固定（`patch`=无新功能修复、`minor`=新功能且基线不变、`major`=DSH 基线变更或重大不可回退调整），每次发布对应段 +1；不再出现小尾巴形态校验与迭代号计算 | <Badge type="tip" text="已完成" /> |
+| FNOS-028-03 | P0 | 插件 5.10.0 正式版发布与 dist-tag 切换 | 各插件以 `5.10.0` 正式版发布并进入 npm `latest`；安装命令照抄文档（`dsh plugin add <包名>@5.10.0`）可安装成功 | <Badge type="tip" text="已完成" /> |
+| FNOS-028-04 | P0 | FPK 产物组合版本命名 | CI 构建的 FPK 附件文件名形如「项目版本 + DSH 基线」的组合（如 `fn-deepseek-harness-v5.10.0-dsh-0.2.1-rc.2.fpk`），从中可直接读出项目版本与 DSH 基线；命名所需基线值不再硬编码于 workflow | <Badge type="tip" text="已完成" /> |
+| FNOS-028-05 | P0 | fpk 描述标注 DSH 基线 | 应用中心详情页的 fpk 描述（manifest `desc`）明确写有当前版本应用的 DSH 基线（如「运行基线为 DSH 0.2.1-rc.2」），该基线值随版本命令自动对齐当前 catalog，不靠人工记忆 | <Badge type="tip" text="已完成" /> |
+| FNOS-028-06 | P1 | 基线信息可追溯 | 文档站与应用说明中，项目版本与 DSH 基线作为两个独立值分别可见：版本徽标显示 `5.10.0`，DSH 基线单独标注（如「DSH 基线：0.2.1-rc.2」） | <Badge type="tip" text="已完成" /> |
+| FNOS-028-07 | P1 | 版本相关校验与文档同步 | 版本命令同步更新插件总览表格、各插件安装命令、文档版本引用与 manifest；相关校验（如同号核对、基线一致性校验）改为对新形态有效，旧小尾巴相关校验与文档说明全部清理 | <Badge type="tip" text="已完成" /> |
 
 ## 行为约束
 
@@ -133,20 +133,20 @@ sequenceDiagram
 
 | 编号 | 验收条件 | 状态 |
 | --- | --- | --- |
-| FNOS-028-01-AC-01 | 仓库根、docs、packages/*、tooling 的全部 `package.json` 与全部插件 `package.json` 的 `version` 字段为 `5.10.0`；FPK 内 `manifest` 的 `version` 为 `5.10.0` | <Badge type="info" text="待验证" /> |
-| FNOS-028-01-AC-02 | 真实 fnOS NAS 上，已装 `5.9.0-0.2.1-rc.2.x` 的设备升级安装 `5.10.0` FPK 成功，不被判同版本或降级，凭据、模型配置、会话、工作区与授权目录完整保留 | <Badge type="info" text="待验证" /> |
-| FNOS-028-02-AC-01 | `pnpm run version -- patch --yes` 一次执行后，全部包与插件版本同号递增（如 `5.10.0 → 5.10.1`），生成一条 `chore: release v5.10.1` 提交与本地 tag（不推送） | <Badge type="info" text="待验证" /> |
-| FNOS-028-02-AC-02 | 传小尾巴形态版本串（如 `5.10.1-0.2.1-rc.2.1`）或触发旧迭代号逻辑时，命令给出明确错误指引，不产出半成品状态 | <Badge type="info" text="待验证" /> |
-| FNOS-028-02-AC-03 | `patch` 档位（无新功能修复）执行后仅 patch 段 +1：`5.10.0 → 5.10.1`，minor/major 段不动 | <Badge type="info" text="待验证" /> |
-| FNOS-028-02-AC-04 | `minor` 档位（新功能且 DSH 基线不变）执行后 minor 段 +1、patch 段归零：`5.10.1 → 5.11.0` | <Badge type="info" text="待验证" /> |
-| FNOS-028-02-AC-05 | `major` 档位（DSH 基线变更或重大不可回退调整）执行后 major 段 +1、其余归零：`5.11.0 → 6.0.0`；携带 `--baseline <新基线>` 时命令内部改写 catalog 并同步 desc 与应用文档页基线字样；`--baseline` 与其他档位搭配被拒绝 | <Badge type="info" text="待验证" /> |
-| FNOS-028-03-AC-01 | 全部随仓库发布的插件以 `5.10.0` 发布到 npm 且 `latest` dist-tag 指向 `5.10.0`；`npm view <包名> dist-tags.latest` 返回 `5.10.0` | <Badge type="info" text="待验证" /> |
-| FNOS-028-03-AC-02 | 文档站插件总览与各插件页安装命令为 `@5.10.0`；照抄执行 `dsh plugin --profile web add <包名>@5.10.0` 安装成功，插件在 DSH `0.2.1-rc.2` 运行时正常加载 | <Badge type="info" text="待验证" /> |
-| FNOS-028-04-AC-01 | CI 构建的 FPK 附件文件名形如「项目版本 + DSH 基线」组合（如 `fn-deepseek-harness-v5.10.0-dsh-0.2.1-rc.2.fpk`）；文件名中的基线值与本次构建使用的 catalog 基线一致，且 workflow 内无硬编码版本常量 | <Badge type="info" text="待验证" /> |
-| FNOS-028-05-AC-01 | FPK 内 `manifest` 的 `desc` 含「运行基线为 DSH 0.2.1-rc.2」字样，且与构建时 catalog 的 `'@deepseek-ai/dsh'` 版本一致；基线切换后再次执行版本命令，desc 中基线字样自动更新 | <Badge type="info" text="待验证" /> |
-| FNOS-028-06-AC-01 | 文档站版本徽标显示 `5.10.0`；应用文档页的项目版本与 DSH 基线作为两个独立值分别展示，不出现小尾巴组合形态 | <Badge type="info" text="待验证" /> |
-| FNOS-028-07-AC-01 | 版本命令执行后：插件总览表格、各插件文档与 README 的安装命令、`published-dsh-plugins.json` 版本副本、文档版本引用全部同步到新版本，`git status` 无遗留未同步的版本文件 | <Badge type="info" text="待验证" /> |
-| FNOS-028-07-AC-02 | 版本相关校验（同号核对、构建校验、SDD 检查）对新形态全部通过；仓库内不再有按小尾巴形态解析版本的代码与文档描述（含 `docs/build/versioning.md`、`generationOf` 类代际逻辑对小尾巴的依赖说明） | <Badge type="info" text="待验证" /> |
+| FNOS-028-01-AC-01 | 仓库根、docs、packages/*、tooling 的全部 `package.json` 与全部插件 `package.json` 的 `version` 字段为 `5.10.0`；FPK 内 `manifest` 的 `version` 为 `5.10.0` | <Badge type="tip" text="已通过" /> |
+| FNOS-028-01-AC-02 | 真实 fnOS NAS 上，已装 `5.9.0-0.2.1-rc.2.x` 的设备升级安装 `5.10.0` FPK 成功，不被判同版本或降级，凭据、模型配置、会话、工作区与授权目录完整保留 | <Badge type="tip" text="已通过" /> |
+| FNOS-028-02-AC-01 | `pnpm run version -- patch --yes` 一次执行后，全部包与插件版本同号递增（如 `5.10.0 → 5.10.1`），生成一条 `chore: release v5.10.1` 提交与本地 tag（不推送） | <Badge type="tip" text="已通过" /> |
+| FNOS-028-02-AC-02 | 传小尾巴形态版本串（如 `5.10.1-0.2.1-rc.2.1`）或触发旧迭代号逻辑时，命令给出明确错误指引，不产出半成品状态 | <Badge type="tip" text="已通过" /> |
+| FNOS-028-02-AC-03 | `patch` 档位（无新功能修复）执行后仅 patch 段 +1：`5.10.0 → 5.10.1`，minor/major 段不动 | <Badge type="tip" text="已通过" /> |
+| FNOS-028-02-AC-04 | `minor` 档位（新功能且 DSH 基线不变）执行后 minor 段 +1、patch 段归零：`5.10.1 → 5.11.0` | <Badge type="tip" text="已通过" /> |
+| FNOS-028-02-AC-05 | `major` 档位（DSH 基线变更或重大不可回退调整）执行后 major 段 +1、其余归零：`5.11.0 → 6.0.0`；携带 `--baseline <新基线>` 时命令内部改写 catalog 并同步 desc 与应用文档页基线字样；`--baseline` 与其他档位搭配被拒绝 | <Badge type="tip" text="已通过" /> |
+| FNOS-028-03-AC-01 | 全部随仓库发布的插件以 `5.10.0` 发布到 npm 且 `latest` dist-tag 指向 `5.10.0`；`npm view <包名> dist-tags.latest` 返回 `5.10.0` | <Badge type="tip" text="已通过" /> |
+| FNOS-028-03-AC-02 | 文档站插件总览与各插件页安装命令为 `@5.10.0`；照抄执行 `dsh plugin --profile web add <包名>@5.10.0` 安装成功，插件在 DSH `0.2.1-rc.2` 运行时正常加载 | <Badge type="tip" text="已通过" /> |
+| FNOS-028-04-AC-01 | CI 构建的 FPK 附件文件名形如「项目版本 + DSH 基线」组合（如 `fn-deepseek-harness-v5.10.0-dsh-0.2.1-rc.2.fpk`）；文件名中的基线值与本次构建使用的 catalog 基线一致，且 workflow 内无硬编码版本常量 | <Badge type="tip" text="已通过" /> |
+| FNOS-028-05-AC-01 | FPK 内 `manifest` 的 `desc` 含「运行基线为 DSH 0.2.1-rc.2」字样，且与构建时 catalog 的 `'@deepseek-ai/dsh'` 版本一致；基线切换后再次执行版本命令，desc 中基线字样自动更新 | <Badge type="tip" text="已通过" /> |
+| FNOS-028-06-AC-01 | 文档站版本徽标显示 `5.10.0`；应用文档页的项目版本与 DSH 基线作为两个独立值分别展示，不出现小尾巴组合形态 | <Badge type="tip" text="已通过" /> |
+| FNOS-028-07-AC-01 | 版本命令执行后：插件总览表格、各插件文档与 README 的安装命令、`published-dsh-plugins.json` 版本副本、文档版本引用全部同步到新版本，`git status` 无遗留未同步的版本文件 | <Badge type="tip" text="已通过" /> |
+| FNOS-028-07-AC-02 | 版本相关校验（同号核对、构建校验、SDD 检查）对新形态全部通过；仓库内不再有按小尾巴形态解析版本的代码与文档描述（含 `docs/build/versioning.md`、`generationOf` 类代际逻辑对小尾巴的依赖说明） | <Badge type="tip" text="已通过" /> |
 
 ### 目标环境验收说明
 
@@ -164,4 +164,5 @@ sequenceDiagram
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-25 | 档位语义规范化 | 提出人以规范形式明确三档语义：`patch`（无新功能修复）/ `minor`（新功能且基线不变）/ `major`（DSH 基线变更或重大不可回退调整），每次发布对应段 +1。据此新增目标 7、AC-03～05，并把 `--baseline` 从「删除」收敛为「major 档位专属参数」（仅 `major --baseline` 允许切基线，与其他档位搭配拒绝），新增行为约束「档位选择与基线变更绑定」。 |
+| 2026-10-25 | 验收通过 | 需求状态改为已完成，14 条验收条件全部标记已通过。核心链路实测：版本统一 5.10.0、版本命令直接调用 bumpp（原生菜单透传 + execute 同步钩子 + ignoreScripts）、单条 release 提交与本地 tag、FPK 组合命名基线构建期派生、desc/应用文档页基线字样自动对齐；实施发现并修复 4 个缺陷（local-only 路径过滤、bumpp bin 解析、npm 钩子递归、菜单 pre-* 档位）。测试细节与证据见[测试用例 FNOS-028](/tests/FNOS-028-unified-project-version-bumpp)；npm 发布、真机升级与 CI 附件核验为发布后动作，不阻塞验收。测试性发布产物已按纪律移除，仓库停在 5.10.0 待正式发版。测试用例文档回填后 targetVersion 落为 5.10.0。 |
 | 2026-10-25 | 初始登记 | 依据用户要求建立本需求：全部包与插件版本统一 5.10.0、版本维护改用 bumpp、FPK 产物命名与 fpk 描述标注「项目版本 + DSH 基线」。登记对 FNOS-019 版本形态约定的部分取代关系，及 bumpp 能力、CI 命名现状、dist-tag 代际逻辑、fnOS 版本比较规则等调研结论。经提出人确认两个关键分叉：manifest version 用纯净 `5.10.0`；FPK 命名用「项目版本 + DSH 基线」直连组合。 |

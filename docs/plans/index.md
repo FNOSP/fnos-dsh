@@ -66,6 +66,6 @@ flowchart TD
 | PLAN-FNOS-025 | [CodeBuddy 插件下架](/plans/PLAN-FNOS-025-codebuddy-plugin-delisting) | 已完成（三阶段全部完成；真实 NAS 验收不在本轮范围） |
 | PLAN-FNOS-026 | [OpenCode Zen 与 OpenCode Go 模型接入及套餐用量](/plans/PLAN-FNOS-026-dsh-opencode-plugin) | 已完成（插件已发布到 npm，任务全部完成并通过验收） |
 | PLAN-FNOS-027 | [ZCode Start Plan 模型接入与账号额度](/plans/PLAN-FNOS-027-dsh-zcode-plugin) | 已完成（自研 HTTP 通道在 DSH Web 与 DSH Desktop 均验证通过；发布相关任务按插件未发布单列） |
-| PLAN-FNOS-028 | [项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注](/plans/PLAN-FNOS-028-unified-project-version-bumpp) | 待完成（阶段一/三已完成；插件 npm 发布、真机升级验收与 CI 双发布回归待执行） |
+| PLAN-FNOS-028 | [项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注](/plans/PLAN-FNOS-028-unified-project-version-bumpp) | 已完成（四阶段收尾；测试证据见 /tests/FNOS-028-unified-project-version-bumpp） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

@@ -36,5 +36,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-025 | [CodeBuddy 插件下架](/tests/FNOS-025-codebuddy-plugin-delisting) | [PLAN-FNOS-025](/plans/PLAN-FNOS-025-codebuddy-plugin-delisting) | 通过 | 15 条全部通过；覆盖应用分发、文档站、仓库追踪与发布工具链四条链路 |
 | FNOS-026 | [OpenCode Zen 与 OpenCode Go 模型接入及套餐用量](/tests/FNOS-026-dsh-opencode-plugin) | [PLAN-FNOS-026](/plans/PLAN-FNOS-026-dsh-opencode-plugin) | 实施中 | 47 条用例；2026-10-24 合并供应商口径实测已回填（5 条部分通过），完整用例待执行 |
 | FNOS-027 | [ZCode Start Plan 模型接入与账号额度](/tests/FNOS-027-dsh-zcode-plugin) | [PLAN-FNOS-027](/plans/PLAN-FNOS-027-dsh-zcode-plugin) | 功能验收 | 37 条用例；2026-10-25 自研 HTTP 通道在 DSH Web 与 DSH Desktop 均实测通过（纯文本 4 秒、工具调用带审批、多轮工具结果、图文、智能体团队、思考等级、限流退避），15 条通过 / 7 条部分通过 / 15 条未执行；插件未发布，市场条目与发布相关项未执行 |
+| FNOS-028 | [项目与插件版本统一及发布链路 dsh 基线标注](/tests/FNOS-028-unified-project-version-bumpp) | [PLAN-FNOS-028](/plans/PLAN-FNOS-028-unified-project-version-bumpp) | 验收通过 | 24 条用例（22 通过 / 2 未执行为发布后动作）；2026-10-25 提出人验收通过：版本统一 5.10.0、版本命令直接调用 bumpp（原生菜单+execute 同步钩子）、单条 release 提交实测；4 个实施缺陷已修复回归 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

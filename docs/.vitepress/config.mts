@@ -558,6 +558,10 @@ const testsSidebar = [
         text: 'FNOS-027 ZCode Start Plan 模型接入与账号额度',
         link: '/tests/FNOS-027-dsh-zcode-plugin'
       },
+      {
+        text: 'FNOS-028 项目与插件版本统一及发布链路 dsh 基线标注',
+        link: '/tests/FNOS-028-unified-project-version-bumpp'
+      },
     ]
   }
 ]
