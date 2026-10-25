@@ -180,9 +180,12 @@ export function pluginDocPageOf(pluginName: string): string | undefined {
  * 只是改动不落进仓库。
  */
 function localOnlyPrefixes(targets: readonly PluginTarget[]): string[] {
+  // 返回**仓库相对路径**前缀：changedPaths 里存的是相对路径（与 projectVersionFiles
+  // 一致），用 join(repositoryRoot, …) 拼绝对路径会让 startsWith 过滤完全失效，
+  // local-only 路径混进 `git add` 后以「路径被忽略」失败（退出码 1）。
   return targets
     .filter(target => target.localOnly)
-    .map(target => `${join(repositoryRoot, dirnameOf(target.path))}/`)
+    .map(target => `${dirnameOf(target.path)}/`)
 }
 
 /** `node:path.dirname` 的薄封装，避免在多个 import 行里重复路径工具。 */
