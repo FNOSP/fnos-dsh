@@ -27,20 +27,15 @@ function memoryStore(initial?: ZCodeCredentialRecord): ZCodeCredentialStore & {
   }
 }
 
-function clientWith(poll: () => Promise<ZCodeOAuthPoll>): ZCodeConsoleClient {
+function clientWith(exchange: () => Promise<ZCodeOAuthPoll>): ZCodeConsoleClient {
   return {
-    initDeviceFlow: async (family: 'bigmodel' | 'zai') => ({
-      flowId: `flow-${family}`,
-      authorizeUrl: `https://example.test/${family}`,
-      expiresAt: Date.now() + 600_000,
-      intervalSeconds: 1,
-    }),
-    pollDeviceFlow: poll,
+    exchangeDesktopCode: exchange,
   } as unknown as ZCodeConsoleClient
 }
 
-async function settle(ms = 300): Promise<void> {
-  await new Promise(resolve => { setTimeout(resolve, ms) })
+/** 从授权地址里取出 state，模拟上游回调时原样带回。 */
+function stateOf(authorizeUrl: string): string {
+  return new URL(authorizeUrl).searchParams.get('state') ?? ''
 }
 
 describe('ZCode 登录服务', () => {
@@ -54,18 +49,21 @@ describe('ZCode 登录服务', () => {
     const auth = new ZCodeAuthService({
       store: memoryStore(),
       client: clientWith(async () => ({ status: 'pending' })),
-      generatePollToken: () => 'poll-token',
+      callbackBaseUrl: () => 'https://host.test/plugins/dsh-zcode/auth/callback',
     })
-    const challenge = await auth.login('zai')
+    const challenge = await auth.loginDesktop('zai')
     expect(challenge.family).toBe('zai')
-    expect(challenge.authorizeUrl).toBe('https://example.test/zai')
-    expect(challenge.intervalSeconds).toBe(1)
+    // 授权地址指向上游登录页，并带上 appId / redirect / state 三个必要参数。
+    const url = new URL(challenge.authorizeUrl)
+    expect(url.searchParams.get('appId')).toBe('zcode')
+    expect(url.searchParams.get('redirect')).toContain('/plugins/dsh-zcode/auth/callback')
+    expect(stateOf(challenge.authorizeUrl)).not.toBe('')
     const status = await auth.status()
     expect(status.status).toBe('signing-in')
     auth.dispose()
   })
 
-  it('授权 ready 后写入凭据并通知监听者', async () => {
+  it('回调换码成功后写入凭据并通知监听者', async () => {
     const store = memoryStore()
     const changed = vi.fn()
     const auth = new ZCodeAuthService({
@@ -77,10 +75,15 @@ describe('ZCode 登录服务', () => {
         refreshToken: 'refresh',
         user: { userId: '409', email: 'a@b.c', name: 'Tester' },
       })),
+      callbackBaseUrl: () => 'https://host.test/plugins/dsh-zcode/auth/callback',
       onCredentialChange: changed,
     })
-    await auth.login('bigmodel')
-    await settle()
+    const challenge = await auth.loginDesktop('bigmodel')
+    await auth.completeDesktopLogin({
+      code: 'auth-code',
+      state: stateOf(challenge.authorizeUrl),
+      family: 'bigmodel',
+    })
     const saved = store.current()
     expect(saved).toMatchObject({
       version: 1,
@@ -97,33 +100,60 @@ describe('ZCode 登录服务', () => {
     auth.dispose()
   })
 
-  it('授权失败时把原因留在状态里', async () => {
+  it('换码被上游拒绝时把原因留在状态里', async () => {
     const auth = new ZCodeAuthService({
       store: memoryStore(),
       client: clientWith(async () => ({ status: 'failed', message: '用户拒绝授权' })),
+      callbackBaseUrl: () => 'https://host.test/plugins/dsh-zcode/auth/callback',
     })
-    await auth.login('bigmodel')
-    await settle()
-    const status = await auth.status()
-    expect(status).toEqual({ status: 'error', message: '用户拒绝授权' })
+    const challenge = await auth.loginDesktop('bigmodel')
+    await expect(auth.completeDesktopLogin({
+      code: 'auth-code',
+      state: stateOf(challenge.authorizeUrl),
+      family: 'bigmodel',
+    })).rejects.toThrow(/未返回凭据/)
     auth.dispose()
   })
 
-  it('重复 login 复用同一个进行中的 flow，不换掉用户已打开的链接', async () => {
-    const init = vi.fn(async () => ({
-      flowId: 'flow-1',
-      authorizeUrl: 'https://example.test/one',
-      expiresAt: Date.now() + 600_000,
-      intervalSeconds: 1,
-    }))
+  it('state 不匹配时拒绝换码，防止别人塞入授权码', async () => {
+    const exchange = vi.fn(async () => ({ status: 'ready' as const, zcodeJwt: 'x' }))
     const auth = new ZCodeAuthService({
       store: memoryStore(),
-      client: { initDeviceFlow: init, pollDeviceFlow: async () => ({ status: 'pending' }) } as unknown as ZCodeConsoleClient,
+      client: { exchangeDesktopCode: exchange } as unknown as ZCodeConsoleClient,
+      callbackBaseUrl: () => 'https://host.test/plugins/dsh-zcode/auth/callback',
     })
-    const first = await auth.login('bigmodel')
-    const second = await auth.login('bigmodel')
-    expect(init).toHaveBeenCalledTimes(1)
-    expect(second.authorizeUrl).toBe(first.authorizeUrl)
+    await auth.loginDesktop('bigmodel')
+    await expect(auth.completeDesktopLogin({
+      code: 'auth-code',
+      state: 'wrong-state',
+      family: 'bigmodel',
+    })).rejects.toThrow(/state/)
+    // state 不匹配时绝不能去上游兑换。
+    expect(exchange).not.toHaveBeenCalled()
+    auth.dispose()
+  })
+
+  it('没有进行中的授权时拒绝回调', async () => {
+    const auth = new ZCodeAuthService({
+      store: memoryStore(),
+      client: clientWith(async () => ({ status: 'ready', zcodeJwt: 'x' })),
+    })
+    await expect(auth.completeDesktopLogin({
+      code: 'code', state: 's', family: 'bigmodel',
+    })).rejects.toThrow(/没有进行中的/)
+    auth.dispose()
+  })
+
+  it('重复发起授权会换新 state，旧授权码随之失效', async () => {
+    const auth = new ZCodeAuthService({
+      store: memoryStore(),
+      client: clientWith(async () => ({ status: 'pending' })),
+      callbackBaseUrl: () => 'https://host.test/plugins/dsh-zcode/auth/callback',
+    })
+    const first = await auth.loginDesktop('bigmodel')
+    const second = await auth.loginDesktop('bigmodel')
+    // 每次授权都必须用新 state：复用会让已泄漏的旧授权码仍可兑换。
+    expect(stateOf(second.authorizeUrl)).not.toBe(stateOf(first.authorizeUrl))
     auth.dispose()
   })
 
@@ -133,8 +163,9 @@ describe('ZCode 登录服务', () => {
     const auth = new ZCodeAuthService({
       store,
       client: clientWith(async () => ({ status: 'pending' })),
+      callbackBaseUrl: () => 'https://host.test/plugins/dsh-zcode/auth/callback',
     })
-    await auth.login('bigmodel')
+    await auth.loginDesktop('bigmodel')
     auth.cancel()
     await expect(auth.status()).resolves.toMatchObject({ status: 'signed-in' })
     expect(store.current()?.zcodeJwt).toBe('keep-me')
@@ -171,14 +202,19 @@ describe('ZCode 登录服务', () => {
     auth.dispose()
   })
 
-  it('轮询失败不会把凭据写成半成品', async () => {
+  it('上游返回空 token 时拒绝写盘，避免落一份用不了的凭据', async () => {
     const store = memoryStore()
     const auth = new ZCodeAuthService({
       store,
-      client: clientWith(async () => ({ status: 'ready', zcodeJwt: '' })),
+      client: clientWith(async () => ({ status: 'ready', zcodeJwt: '   ' })),
+      callbackBaseUrl: () => 'https://host.test/plugins/dsh-zcode/auth/callback',
     })
-    await auth.login('bigmodel')
-    await settle()
+    const challenge = await auth.loginDesktop('bigmodel')
+    await expect(auth.completeDesktopLogin({
+      code: 'auth-code',
+      state: stateOf(challenge.authorizeUrl),
+      family: 'bigmodel',
+    })).rejects.toThrow(/空凭据/)
     expect(store.current()).toBeUndefined()
     auth.dispose()
   })

@@ -2,7 +2,7 @@
  * ZCode Start Plan 账号、模型目录与额度插件（宿主入口）。
  *
  * 装配关系：
- * - `ZCodeAuthService` 管理 OAuth 设备授权登录与凭据生命周期；
+ * - `ZCodeAuthService` 管理 OAuth 授权码登录与凭据生命周期；
  * - `ZCodeCatalogService` 用账号 JWT 读额度，把 `capabilities` 投影成模型清单；
  * - `ZCodeProviderRuntime` 把清单投影成唯一的 `dsh-zcode` 路由；两个端点都由
  *   HTTP 直连执行（Start Plan 需要注入官方提示词前缀才能通过网关校验）；

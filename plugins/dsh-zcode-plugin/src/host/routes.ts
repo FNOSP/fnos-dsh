@@ -218,7 +218,7 @@ export function registerZCodeRoutes(ctx: Context, options: ZCodeRoutesOptions): 
           if (!authorize(req, res)) return
           try {
             const family = parseFamily(await readJsonBody(req)) ?? 'bigmodel'
-            // 走桌面端的授权码流程：与设备授权相比，上游签发的凭据用途不同。
+            // 走授权码流程：上游对授权码与其它链路签发的凭据用途不同。
             // 回调地址取本次请求的 origin，代理与局域网访问都能落到正确地址。
             const challenge = await options.auth.loginDesktop(family, requestOrigin(req))
             json(res, 200, { status: 'signing-in', challenge })

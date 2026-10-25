@@ -1,7 +1,7 @@
 /**
  * 账号登录状态与凭据记录。
  *
- * 登录走 ZCode 的 OAuth **设备授权**（浏览器授权 + 一次性 flow），不提供
+ * 登录走 ZCode 的 OAuth **授权码流程**（浏览器授权 + 同源回调换取），不提供
  * API Key 登录：Start Plan 的模型请求只认账号身份，Key 形态在本插件里没有
  * 可用路径，给出入口只会让用户走进死胡同。
  *
@@ -13,7 +13,7 @@
 
 import type { ZCodeFamily } from './identity.ts'
 
-/** 设备授权的授权页信息，交给浏览器打开。 */
+/** 授权页信息，交给浏览器打开。 */
 export interface ZCodeLoginChallenge {
   /** 本次授权的家族。 */
   readonly family: ZCodeFamily
@@ -21,8 +21,6 @@ export interface ZCodeLoginChallenge {
   readonly authorizeUrl: string
   /** 授权链接有效期（秒）。 */
   readonly expiresInSeconds: number
-  /** 建议轮询间隔（秒）。 */
-  readonly intervalSeconds: number
 }
 
 /** 账号信息；全部来自 ZCode，缺字段时保持缺省。 */

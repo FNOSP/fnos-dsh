@@ -26,46 +26,32 @@ function clientWith(
 }
 
 describe('ZCode 控制面客户端', () => {
-  it('设备授权按官方信封解析 flow_id 与授权地址', async () => {
+  it('授权码兑换按官方信封解析 JWT 与家族令牌', async () => {
     const client = clientWith(async (url, init) => {
-      expect(url).toBe('https://zcode.z.ai/api/v1/oauth/cli/init')
+      expect(url).toBe('https://zcode.z.ai/api/v1/oauth/token')
       expect(init?.method).toBe('POST')
-      expect((init?.headers as Record<string, string>).authorization).toBe('Bearer poll-token')
-      expect(JSON.parse(String(init?.body))).toEqual({ provider: 'bigmodel' })
-      return jsonResponse({
-        code: 0,
-        data: {
-          flow_id: 'flow-1',
-          authorize_url: 'https://bigmodel.cn/login?state=abc',
-          expires_at: 1_800_000_000,
-          poll_interval_sec: 3,
-        },
+      // 四个字段缺一不可：redirect_uri 与 state 必须与授权时逐字一致。
+      expect(JSON.parse(String(init?.body))).toEqual({
+        provider: 'bigmodel',
+        code: 'auth-code',
+        redirect_uri: 'https://host.test/plugins/dsh-zcode/auth/callback',
+        state: 'st-1',
       })
-    })
-    const init = await client.initDeviceFlow('bigmodel', 'poll-token')
-    expect(init.flowId).toBe('flow-1')
-    expect(init.authorizeUrl).toBe('https://bigmodel.cn/login?state=abc')
-    expect(init.intervalSeconds).toBe(3)
-    expect(init.expiresAt).toBe(1_800_000_000_000)
-  })
-
-  it('轮询把 pending 与 ready 分开，ready 提取 JWT 与家族令牌', async () => {
-    const pending = clientWith(async () => jsonResponse({ code: 0, data: { status: 'pending' } }))
-    await expect(pending.pollDeviceFlow('zai', 'flow-1', 't')).resolves.toEqual({ status: 'pending' })
-
-    const ready = clientWith(async url => {
-      expect(url).toBe('https://zcode.z.ai/api/v1/oauth/cli/poll/flow-1')
       return jsonResponse({
         code: 0,
         data: {
-          status: 'ready',
           token: 'zcode-jwt',
-          zai: { access_token: 'maas-token', refresh_token: 'refresh-1' },
+          bigmodel: { access_token: 'maas-token', refresh_token: 'refresh-1' },
           user: { user_id: '409', email: 'a@b.c', name: 'Tester' },
         },
       })
     })
-    const result = await ready.pollDeviceFlow('zai', 'flow-1', 't')
+    const result = await client.exchangeDesktopCode(
+      'bigmodel',
+      'auth-code',
+      'https://host.test/plugins/dsh-zcode/auth/callback',
+      'st-1',
+    )
     expect(result).toMatchObject({
       status: 'ready',
       zcodeJwt: 'zcode-jwt',
@@ -74,6 +60,13 @@ describe('ZCode 控制面客户端', () => {
       user: { userId: '409', email: 'a@b.c', name: 'Tester' },
     })
   })
+
+  it('兑换响应缺少 token 时明确报错，不返回空凭据', async () => {
+    const client = clientWith(async () => jsonResponse({ code: 0, data: {} }))
+    await expect(client.exchangeDesktopCode('zai', 'c', 'https://h/cb', 's'))
+      .rejects.toThrow(/token/)
+  })
+
 
   it('额度接口必须带设备标识与裸 JWT，并把 capabilities 解析出来', async () => {
     const client = clientWith(async (url, init) => {

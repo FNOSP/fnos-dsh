@@ -1,5 +1,5 @@
 /**
- * ZCode 控制面客户端：OAuth 设备授权、额度、客户端配置。
+ * ZCode 控制面客户端：OAuth 授权码换取、额度、客户端配置。
  *
  * 三个接口共享一套「ZCode 客户端身份头」（{@link zcodeSourceHeaders}）。
  * 这不是可选装饰：额度接口在没有 `X-Device-Mid` 时直接返回
@@ -21,10 +21,8 @@ import {
   ZCODE_CLIENT_CONFIGS_URL,
   ZCODE_CLIENT_VERSION,
   ZCODE_FAMILY_LABELS,
-  ZCODE_OAUTH_INIT_URL,
   ZCODE_OAUTH_TOKEN_URL,
   ZCODE_USER_AGENT,
-  zcodeOAuthPollUrl,
   type ZCodeFamily,
 } from '../contracts/identity.ts'
 
@@ -44,7 +42,7 @@ export class ZCodeConsoleError extends Error {
   }
 }
 
-/** 设备授权发起结果。 */
+/** 授权码换取结果。 */
 export interface ZCodeOAuthInit {
   readonly flowId: string
   readonly authorizeUrl: string
@@ -53,7 +51,7 @@ export interface ZCodeOAuthInit {
   readonly intervalSeconds: number
 }
 
-/** 设备授权轮询结果。 */
+/** 授权码换取的凭据载体。 */
 export type ZCodeOAuthPoll =
   | { readonly status: 'pending' }
   | {
@@ -287,92 +285,12 @@ export class ZCodeConsoleClient {
     return { status: response.status, json }
   }
 
-  /**
-   * 发起设备授权。
-   *
-   * `pollToken` 是客户端自生成的随机值，服务端把它与 flow 绑定：轮询必须带同一
-   * 个值，否则拿不到结果。它不落盘也不进日志。
-   */
-  async initDeviceFlow(family: ZCodeFamily, pollToken: string): Promise<ZCodeOAuthInit> {
-    const url = `${ZCODE_OAUTH_INIT_URL}`
-    const { status, json } = await this.request(
-      url,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${pollToken}` },
-        body: JSON.stringify({ provider: family }),
-      },
-      `${ZCODE_FAMILY_LABELS[family]} 设备授权`,
-    )
-    const data = unwrapEnvelope(json, status, url)
-    if (!isRecord(data)) {
-      throw new ZCodeConsoleError('设备授权响应缺少 data', undefined, status)
-    }
-    const flowId = pickString(data, 'flow_id')
-    const authorizeUrl = pickString(data, 'authorize_url')
-    if (flowId === undefined || authorizeUrl === undefined) {
-      throw new ZCodeConsoleError('设备授权响应缺少 flow_id 或 authorize_url', undefined, status)
-    }
-    const expiresAtSeconds = pickNumber(data, 'expires_at')
-    return {
-      flowId,
-      authorizeUrl,
-      expiresAt: expiresAtSeconds === undefined ? Date.now() + 300_000 : expiresAtSeconds * 1000,
-      intervalSeconds: Math.max(1, pickNumber(data, 'poll_interval_sec') ?? 2),
-    }
-  }
-
-  /** 轮询设备授权。 */
-  async pollDeviceFlow(
-    family: ZCodeFamily,
-    flowId: string,
-    pollToken: string,
-  ): Promise<ZCodeOAuthPoll> {
-    const url = zcodeOAuthPollUrl(flowId)
-    const { status, json } = await this.request(
-      url,
-      { method: 'GET', headers: { authorization: `Bearer ${pollToken}` } },
-      `${ZCODE_FAMILY_LABELS[family]} 授权轮询`,
-    )
-    const data = unwrapEnvelope(json, status, url)
-    if (!isRecord(data)) return { status: 'pending' }
-    const state = pickString(data, 'status')
-    if (state === 'pending') return { status: 'pending' }
-    if (state === 'failed') {
-      return { status: 'failed', message: pickString(data, 'message') ?? '授权被拒绝' }
-    }
-    if (state !== 'ready') return { status: 'pending' }
-    const zcodeJwt = pickString(data, 'token')
-    if (zcodeJwt === undefined) {
-      return { status: 'failed', message: '授权成功但响应缺少 token' }
-    }
-    // 家族凭证嵌在 <family>.access_token 下；上游有时直接给字符串。
-    const familyNode = isRecord(data[family]) ? data[family] as Record<string, unknown> : {}
-    const accessToken = pickString(familyNode, 'access_token')
-    const refreshToken = pickString(familyNode, 'refresh_token')
-    const userNode = isRecord(data.user) ? data.user as Record<string, unknown> : {}
-    const expiresAtSeconds = pickNumber(data, 'expires_at')
-    return {
-      status: 'ready',
-      zcodeJwt,
-      ...(accessToken === undefined ? {} : { accessToken }),
-      ...(refreshToken === undefined ? {} : { refreshToken }),
-      ...(expiresAtSeconds === undefined ? {} : { expiresAt: expiresAtSeconds * 1000 }),
-      user: {
-        userId: pickString(userNode, 'user_id'),
-        email: pickString(userNode, 'email'),
-        name: pickString(userNode, 'name'),
-        avatar: pickString(userNode, 'avatar'),
-      },
-    }
-  }
 
   /**
    * 用桌面端授权码换取凭据。
    *
-   * 与设备授权并列存在：桌面端（Electron）通过 `zcode://oauth/callback` 拿授权码，
-   * 再由这里换取 `data.token` 与 `data.<family>.access_token`。上游对两条链路签发
-   * 的凭据用途不同，因此两条都要支持，由调用方选择用哪条。
+   * 浏览器授权完成后由上游回跳带授权码，这里用 code 换取 `data.token` 与
+   * `data.<family>.access_token`。`redirect_uri` 与 `state` 必须与授权时逐字一致。
    */
   async exchangeDesktopCode(
     family: ZCodeFamily,

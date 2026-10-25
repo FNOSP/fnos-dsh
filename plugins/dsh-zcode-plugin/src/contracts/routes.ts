@@ -13,7 +13,7 @@ export const ZCODE_ROUTE_PREFIX = '/plugins/dsh-zcode'
 export const ZCODE_ROUTES = {
   /** 账号状态（含进行中的登录挑战）。 */
   status: `${ZCODE_ROUTE_PREFIX}/auth/status`,
-  /** 开始设备授权；响应带授权地址。 */
+  /** 开始授权；响应带授权地址。 */
   login: `${ZCODE_ROUTE_PREFIX}/auth/login`,
   /** 桌面授权码流程的回调地址：浏览器登录后回跳到这里完成换取。 */
   callback: `${ZCODE_ROUTE_PREFIX}/auth/callback`,

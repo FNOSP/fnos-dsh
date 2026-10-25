@@ -1,11 +1,11 @@
 /**
- * ZCode 账号登录（OAuth 设备授权）与凭据生命周期。
+ * ZCode 账号登录与凭据生命周期。
  *
- * 流程与官方 CLI 一致：客户端生成 pollToken → 发起 flow → 浏览器授权 → 轮询
- * 拿 token。轮询是单飞的：设备授权期间浏览器可能多次刷新详情页，每次刷新
- * 都新建一个轮询会把上游打成重复请求，并且可能在拿到结果后互相覆盖。
+ * 采用授权码流程：插件生成 state → 浏览器打开上游授权页 → 上游回跳到插件自己的
+ * 同源回调路由 → 用 code 换取令牌。state 与 redirect_uri 都必须在换取时原样带回，
+ * 前者防别人把授权码塞进来，后者是上游的校验要求。
  *
- * 只提供 OAuth，不提供 API Key 登录：Start Plan 的模型请求只认账号身份。
+ * 不支持 API Key 登录：Start Plan 的模型请求只认账号身份。
  *
  * @module dsh-zcode/auth
  */
@@ -22,8 +22,8 @@ import { ZCODE_FAMILY_LABELS, type ZCodeFamily } from '../contracts/identity.ts'
 import type { ZCodeConsoleClient } from './console-client.ts'
 import type { ZCodeCredentialStore } from './credentials.ts'
 
-/** 单次设备授权的有效期上限（毫秒）；上游 expiration 更大时以本值为准。 */
-const MAX_FLOW_TTL_MS = 15 * 60_000
+/** 单次授权流程的有效期上限（毫秒）。 */
+const AUTH_FLOW_TTL_MS = 15 * 60_000
 
 /** 授权服务依赖。 */
 export interface ZCodeAuthServiceOptions {
@@ -32,8 +32,7 @@ export interface ZCodeAuthServiceOptions {
   /** 凭据变化回调：登录成功或退出时触发目录/额度刷新。 */
   readonly onCredentialChange?: () => void
   readonly logger?: Pick<Context['logger'], 'warn' | 'info'>
-  /** 便于测试注入稳定的 pollToken 与时钟。 */
-  readonly generatePollToken?: () => string
+  /** 便于测试注入稳定时钟。 */
   readonly now?: () => number
   /**
    * 桌面授权码流程的回调地址。
@@ -45,19 +44,13 @@ export interface ZCodeAuthServiceOptions {
 }
 
 interface ActiveFlow {
-  /** `device`：CLI 设备授权轮询；`desktop`：授权码回调换取。 */
-  readonly mode: 'device' | 'desktop'
   readonly family: ZCodeFamily
-  readonly flowId: string
-  readonly pollToken: string
   readonly authorizeUrl: string
   readonly expiresAt: number
-  readonly intervalSeconds: number
-  /** 桌面授权码流程的 state；回调时校验，防 CSRF。 */
-  readonly state?: string
-  /** 桌面授权码流程的回调地址：换取 token 时必须原样带回。 */
-  readonly redirectUri?: string
-  timer?: ReturnType<typeof setInterval>
+  /** 回调时校验，防止别人把授权码塞进来。 */
+  readonly state: string
+  /** 换取 token 时必须与授权时逐字一致。 */
+  readonly redirectUri: string
 }
 
 /** 登录服务。 */
@@ -155,47 +148,14 @@ export class ZCodeAuthService {
       family: flow.family,
       authorizeUrl: flow.authorizeUrl,
       expiresInSeconds: Math.max(0, Math.round((flow.expiresAt - this.now) / 1000)),
-      intervalSeconds: flow.intervalSeconds,
     }
-  }
-
-  /**
-   * 开始设备授权。
-   *
-   * 已有进行中的 flow 时直接返回它——浏览器刷新页面不该把用户已打开授权页
-   * 的链接换成新的（旧链接会失效）。
-   */
-  async login(family: ZCodeFamily): Promise<ZCodeLoginChallenge> {
-    if (this.flow !== undefined && this.flow.family === family && this.flow.expiresAt > this.now) {
-      return this.challengeOf(this.flow)
-    }
-    if (this.flow !== undefined) this.clearFlow()
-
-    this.lastError = undefined
-    const pollToken = this.options.generatePollToken?.() ?? randomBytes(32).toString('hex')
-    const init = await this.options.client.initDeviceFlow(family, pollToken)
-    const expiresAt = Math.min(init.expiresAt, this.now + MAX_FLOW_TTL_MS)
-    const flow: ActiveFlow = {
-      mode: 'device',
-      family,
-      flowId: init.flowId,
-      pollToken,
-      authorizeUrl: init.authorizeUrl,
-      expiresAt,
-      intervalSeconds: init.intervalSeconds,
-    }
-    this.flow = flow
-    this.startPolling(flow)
-    this.emit()
-    return this.challengeOf(flow)
   }
 
   /**
    * 发起桌面授权码登录。
    *
-   * 与设备授权的区别只在「授权码怎么回来」：桌面端由 Electron 的
-   * `zcode://oauth/callback` 接住，插件改为回调到自己的同源路由。state 由本服务
-   * 生成并在回调时比对，防止别人把授权码塞进来。
+   * 授权码由上游回跳到插件自己的同源路由。state 由本服务生成并在回调时比对，
+   * 防止别人把授权码塞进来。
    */
   async loginDesktop(family: ZCodeFamily, origin?: string): Promise<ZCodeLoginChallenge> {
     // 优先用本次请求的 origin（代理/局域网访问都正确），再退回配置值。
@@ -215,13 +175,10 @@ export class ZCodeAuthService {
       state,
     }).toString()}`
     const flow: ActiveFlow = {
-      mode: 'desktop',
       family,
-      flowId: state,
-      pollToken: '',
       authorizeUrl,
-      expiresAt: this.now + MAX_FLOW_TTL_MS,
-      intervalSeconds: 0,
+      // 授权码流程的有效期：上游授权页通常 15 分钟内有效，超时让用户重来。
+      expiresAt: this.now + AUTH_FLOW_TTL_MS,
       state,
       redirectUri: callbackUrl.toString(),
     }
@@ -241,7 +198,7 @@ export class ZCodeAuthService {
     readonly family: ZCodeFamily
   }): Promise<void> {
     const flow = this.flow
-    if (flow === undefined || flow.mode !== 'desktop') {
+    if (flow === undefined) {
       throw new Error('zcode: 没有进行中的桌面授权，请重新发起登录')
     }
     if (flow.state !== input.state) {
@@ -287,66 +244,7 @@ export class ZCodeAuthService {
     this.options.onCredentialChange?.()
   }
 
-  private startPolling(flow: ActiveFlow): void {
-    const intervalMs = Math.max(1, flow.intervalSeconds) * 1000
-    flow.timer = setInterval(() => {
-      void this.pollOnce(flow).catch(error => {
-        this.options.logger?.warn('dsh-zcode: 授权轮询失败', error)
-      })
-    }, intervalMs)
-    // 轮询定时器不应单独撑住宿主进程退出。
-    flow.timer.unref?.()
-    // 先立即试一次：上游 flow 可能已经被其它标签页完成。
-    void this.pollOnce(flow).catch(() => undefined)
-  }
-
-  private async pollOnce(flow: ActiveFlow): Promise<void> {
-    if (this.flow !== flow) return
-    if (flow.expiresAt <= this.now) {
-      this.lastError = `${ZCODE_FAMILY_LABELS[flow.family]} 授权已超时，请重新发起`
-      this.clearFlow()
-      this.emit()
-      return
-    }
-    const result = await this.options.client.pollDeviceFlow(flow.family, flow.flowId, flow.pollToken)
-    if (this.flow !== flow) return
-    if (result.status === 'pending') return
-    if (result.status === 'failed') {
-      this.lastError = result.message
-      this.clearFlow()
-      this.emit()
-      return
-    }
-    // 上游偶尔在 ready 里给出空 token；落盘会写出一份无法使用的凭据，让之后
-    // 每次请求都带着空 key 打到网关。宁可报错让用户重试。
-    if (result.zcodeJwt.trim().length === 0) {
-      this.lastError = `${ZCODE_FAMILY_LABELS[flow.family]} 授权成功但未返回有效凭据，请重试`
-      this.clearFlow()
-      this.emit()
-      return
-    }
-    const credential: ZCodeCredentialRecord = {
-      version: 1,
-      family: flow.family,
-      zcodeJwt: result.zcodeJwt,
-      ...(result.accessToken === undefined ? {} : { accessToken: result.accessToken }),
-      ...(result.refreshToken === undefined ? {} : { refreshToken: result.refreshToken }),
-      ...(result.expiresAt === undefined ? {} : { expiresAt: result.expiresAt }),
-      ...(result.user?.userId === undefined ? {} : { userId: result.user.userId }),
-      ...(result.user?.email === undefined ? {} : { email: result.user.email }),
-      ...(result.user?.name === undefined ? {} : { name: result.user.name }),
-      ...(result.user?.avatar === undefined ? {} : { avatar: result.user.avatar }),
-    }
-    this.cached = await this.options.store.write(credential)
-    this.loaded = true
-    this.clearFlow()
-    this.options.logger?.info(`dsh-zcode: ${ZCODE_FAMILY_LABELS[flow.family]} 账号登录成功`)
-    this.emit()
-    this.options.onCredentialChange?.()
-  }
-
   private clearFlow(): void {
-    if (this.flow?.timer !== undefined) clearInterval(this.flow.timer)
     this.flow = undefined
   }
 

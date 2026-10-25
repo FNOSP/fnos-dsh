@@ -32,20 +32,11 @@ export const ZCODE_FAMILY_LABELS: Readonly<Record<ZCodeFamily, string>> = {
 /** ZCode 控制面根地址（OAuth、额度、客户端配置都在这个域下）。 */
 export const ZCODE_ORIGIN = 'https://zcode.z.ai'
 
-/** OAuth 设备授权：发起。 */
-export const ZCODE_OAUTH_INIT_URL = `${ZCODE_ORIGIN}/api/v1/oauth/cli/init`
-/** OAuth 设备授权：轮询。 */
-export function zcodeOAuthPollUrl(flowId: string): string {
-  return `${ZCODE_ORIGIN}/api/v1/oauth/cli/poll/${encodeURIComponent(flowId)}`
-}
-
 /**
  * 桌面端登录用的「授权码换令牌」端点。
  *
- * 桌面端（Electron）走 `zcode://oauth/callback` 自定义协议接收授权码，再用本端点
- * 换取两份凭据：`data.token`（Start Plan 用）与 `data.<family>.access_token`
- * （家族业务令牌）。它与 CLI 的 `/oauth/cli/*` 设备授权是**两条不同的链路**，
- * 换来的凭据用途也不同。
+ * 浏览器授权完成后回跳到插件同源路由，再用本端点换取两份凭据：
+ * `data.token`（Start Plan 用）与 `data.<family>.access_token`（家族业务令牌）。
  */
 export const ZCODE_OAUTH_TOKEN_URL = `${ZCODE_ORIGIN}/api/v1/oauth/token`
 

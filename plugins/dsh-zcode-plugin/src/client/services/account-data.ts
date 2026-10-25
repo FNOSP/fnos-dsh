@@ -1,7 +1,7 @@
 /**
  * 账号状态与登录流程的同源路由调用。
  *
- * 登录只走 OAuth 设备授权：宿主没有「API Key 登录」路由，因此客户端也不提供
+ * 登录只走 OAuth 授权码流程：宿主没有「API Key 登录」路由，因此客户端也不提供
  * 该入口。家族（BigModel / Z.ai）由调用方选择，默认 BigModel。
  *
  * @module dsh-zcode/client/account-data
@@ -17,7 +17,7 @@ export function readAuthStatus(): Promise<ZCodeAuthStatus> {
   return requestJson<ZCodeAuthStatus>(ZCODE_ROUTES.status)
 }
 
-/** 开始设备授权；返回授权地址与有效期。 */
+/** 开始授权；返回授权地址与有效期。 */
 export function startDeviceLogin(family: ZCodeFamily): Promise<{
   readonly status: 'signing-in'
   readonly challenge: ZCodeLoginChallenge
@@ -25,7 +25,7 @@ export function startDeviceLogin(family: ZCodeFamily): Promise<{
   return requestJson(ZCODE_ROUTES.login, 'POST', { family })
 }
 
-/** 取消进行中的设备授权（不删除已保存凭据）。 */
+/** 取消进行中的授权（不删除已保存凭据）。 */
 export function cancelDeviceLogin(): Promise<ZCodeAuthStatus> {
   return requestJson<ZCodeAuthStatus>(ZCODE_ROUTES.cancel, 'POST')
 }

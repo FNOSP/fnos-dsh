@@ -95,12 +95,13 @@ function statusLabel(state: AccountState, t: ZCodeTranslate): string {
   return t('accountSignedOut')
 }
 
-/** 授权状态轮询间隔：服务端建议值，夹在 1~10 秒之间。 */
-function pollDelayMs(challenge: ZCodeLoginChallenge | undefined): number {
-  const seconds = challenge?.intervalSeconds ?? 2
-  if (!Number.isFinite(seconds) || seconds <= 0) return 2_000
-  return Math.max(1_000, Math.min(10_000, Math.round(seconds * 1_000)))
-}
+/**
+ * 等待授权完成时的状态刷新间隔。
+ *
+ * 授权码流程没有服务端轮询间隔可参考（授权在浏览器里完成，插件只等回调
+ * 落库），用固定 2 秒刷新即可：太密没必要，太慢会让用户以为没反应。
+ */
+const AUTH_POLL_INTERVAL_MS = 2_000
 
 /** 家族显示名。 */
 function familyLabel(family: ZCodeFamily | undefined, t: ZCodeTranslate): string {
@@ -172,7 +173,7 @@ export function ZCodeAccountCard({ t, timer }: ZCodeAccountCardProps): ReactNode
   }, [refresh])
 
   const signingIn = state.status === 'signing-in'
-  const delayMs = signingIn ? pollDelayMs(state.challenge) : 0
+  const delayMs = signingIn ? AUTH_POLL_INTERVAL_MS : 0
   useEffect(() => {
     if (!signingIn || delayMs <= 0) return
     return timer.interval(() => { void refresh() }, delayMs)
