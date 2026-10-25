@@ -3,8 +3,9 @@ import type { VersionBumpRelease } from 'bumpp'
 export type VersionOptions = {
   release: VersionBumpRelease
   /**
-   * 目标 DSH 基线。给定时先把 catalog 的 `@deepseek-ai/dsh` 改成它，再把版本号里的
-   * 基线段换过去（迭代号随之重置为 0）。
+   * 目标 DSH 基线。**仅与 major 档位搭配**（基线变更 = major 发布，FNOS-028）：
+   * 确认后把 catalog 的 `@deepseek-ai/dsh` 改成它。版本号本身是纯净 semver，
+   * 基线不进入版本号，由 FPK 产物命名与 manifest 描述承载。
    *
    * 为什么在命令内部改 catalog：`pnpm run` 会在脚本执行**之前**做依赖校验，catalog
    * 若已指向尚未安装的版本，连脚本都跑不起来。让 catalog 到命令内部才变化，校验看到

@@ -8,31 +8,50 @@ import { dirname } from 'node:path'
 import { versionBump, type VersionBumpRelease } from 'bumpp'
 import { program } from '../program.js'
 import { addBooleanArgs, addNegatedArgs } from '../core/command-args.js'
-import { askTargetBaseline, askVersionReleaseKind } from '../ui/prompts.js'
 import { projectVersionFiles, repositoryRoot } from '../config/paths.js'
 import { pluginTargets, type PluginTarget } from '../config/targets.js'
 import { parseVersionOptions } from '../core/args.js'
-import {
-  assertProjectVersionShape,
-  nextProjectVersion,
-  parseProjectVersion,
-  pluginVersionOf,
-  readDshBaselineFromCatalog,
-} from '../core/project-version.js'
 import { readPackageInfo } from '../core/package.js'
 
 const publishedDshPluginsPath = 'apps/fn-deepseek-harness/app/published-dsh-plugins.json'
 const pluginIndexDocPath = 'docs/plugins/index.md'
+const manifestPath = 'apps/fn-deepseek-harness/manifest'
+const appDocPath = 'docs/apps/fn-deepseek-harness.md'
 const projectVersionPackageFiles = [
   'docs/package.json',
   'tooling/fnos-dsh-cli/package.json',
 ]
 const projectVersionTextFiles = [
-  'apps/fn-deepseek-harness/manifest',
+  manifestPath,
   'docs/development/manifest.md',
 ]
 
 type JsonObject = Record<string, unknown>
+
+/** 基线形态：`MAJOR.MINOR.PATCH`，可带预发布段（`0.2.1-rc.2`），不允许 build metadata。 */
+const BASELINE_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/
+
+/** 纯净项目版本形态：`MAJOR.MINOR.PATCH`，不带预发布段与 build metadata。 */
+const CLEAN_VERSION_PATTERN = /^\d+\.\d+\.\d+$/u
+
+/**
+ * 从 catalog 文本中读出 DSH 运行时基线。
+ *
+ * 权威来源是 `pnpm-workspace.yaml` 里的 `'@deepseek-ai/dsh'` 条目——它与各插件
+ * `peerDependencies` 用的 `catalog:dsh` 是同一份事实，避免在版本命令里再维护一个常量。
+ *
+ * @param workspaceYaml `pnpm-workspace.yaml` 文本。
+ * @returns 基线版本号；未声明时返回 `undefined`。
+ */
+export function readDshBaselineFromCatalog(workspaceYaml: string): string | undefined {
+  // 只认顶层 catalog 下的直系条目：`  '@deepseek-ai/dsh': 0.2.1-rc.2`。
+  // 缩进更深的是 catalog 分组（如 `dsh:`），那些条目的键是子包名，不能当作基线。
+  const match = /^\s{2}'@deepseek-ai\/dsh':\s*(\S+)\s*$/mu.exec(workspaceYaml)
+  const value = match?.[1]
+  if (value === undefined) return undefined
+  const normalized = value.replace(/^['"]|['"]$/gu, '')
+  return BASELINE_PATTERN.test(normalized) ? normalized : undefined
+}
 
 async function readJson(relativePath: string): Promise<JsonObject> {
   const value: unknown = JSON.parse(await readFile(join(repositoryRoot, relativePath), 'utf8'))
@@ -60,17 +79,45 @@ async function alignProjectVersionTextFiles(version: string): Promise<void> {
 /**
  * 在 bumpp 之前把应用文档页的版本行对齐到当前版本。
  *
- * 必须在 versionBump 之前执行：release 提交由 bumpp 在其内部创建，bump
+ * 必须在 versionBump 之前执行：release 提交由本命令在 bump 之后统一创建，bump
  * 之后的文件改动进不了提交，会遗留在工作区。先对齐到当前版本，bumpp 的
  * 文本替换（当前版本串 → 新版本）才能命中该行，并把它纳入 release 提交
  * 与 tag。路径必须同时出现在 projectVersionFiles 清单里，否则 bumpp 不会
  * 处理它。
  */
 async function syncAppDocVersion(version: string): Promise<void> {
-  const absolutePath = join(repositoryRoot, 'docs/apps/fn-deepseek-harness.md')
+  const absolutePath = join(repositoryRoot, appDocPath)
   if (!existsSync(absolutePath)) return
   const content = await readFile(absolutePath, 'utf8')
   const updated = content.replace(/^(\| 应用版本 \| `)[^`]+(` \|)$/m, `$1${version}$2`)
+  if (updated !== content) await writeFile(absolutePath, updated)
+}
+
+/**
+ * 把应用文档页的「DSH 基线」行同步为 catalog 当前基线。
+ *
+ * 与 `syncAppDocVersion` 同理：先对齐旧值，bumpp 不处理该行（不含版本串），
+ * 因此这里直接写目标基线；路径已在 projectVersionFiles 中，进 release 提交。
+ * 之前该行纯人工维护，曾停留在过期基线（0.2.0-rc.2）——这是把同步交给命令的根因。
+ */
+async function syncAppDocBaseline(baseline: string): Promise<void> {
+  const absolutePath = join(repositoryRoot, appDocPath)
+  if (!existsSync(absolutePath)) return
+  const content = await readFile(absolutePath, 'utf8')
+  const updated = content.replace(/^(\| DSH 基线 \| `)[^`]+(` \|)$/m, `$1${baseline}$2`)
+  if (updated !== content) await writeFile(absolutePath, updated)
+}
+
+/**
+ * 把 `manifest` 描述里「运行基线为 DSH <版本>」字样对齐到当前 catalog 基线。
+ *
+ * 只替换该字样，不动 desc 其余富文本：desc/changelog 是人工内容，命令只负责
+ * 基线这一处「机器可推导」的值，避免与实际构建基线漂移。
+ */
+async function syncManifestBaseline(baseline: string): Promise<void> {
+  const absolutePath = join(repositoryRoot, manifestPath)
+  const content = await readFile(absolutePath, 'utf8')
+  const updated = content.replace(/运行基线为 DSH [0-9A-Za-z.-]+/gu, `运行基线为 DSH ${baseline}`)
   if (updated !== content) await writeFile(absolutePath, updated)
 }
 
@@ -227,7 +274,7 @@ async function confirmUnifiedRelease(
   // 避免每次发布都被无关信息干扰。
   const baselineLine = baselineChange === undefined
     ? ''
-    : `\nDSH 基线 ${baselineChange.from} -> ${baselineChange.to}（迭代号重置为 0）\n`
+    : `\nDSH 基线 ${baselineChange.from} -> ${baselineChange.to}（major 发布）\n`
   const result = await confirm({
     message: `${baselineLine}项目 ${projectFrom} -> ${projectTo}\n插件（${plan.length} 个）：\n${detail}\n\n继续吗？`,
     initialValue: true,
@@ -241,18 +288,40 @@ function formatTag(version: string): string {
 }
 
 /**
+ * 用 bumpp 原生档位计算目标版本（不写文件），供流程在「先对齐、后 bump」之间复用。
+ *
+ * @param currentVersion 当前项目版本。
+ * @param release 档位（patch/minor/major/显式版本串）。
+ * @returns 目标版本串。
+ */
+async function resolveNextVersion(currentVersion: string, release: VersionBumpRelease): Promise<string> {
+  const result = await versionBump({
+    cwd: repositoryRoot,
+    files: [],
+    currentVersion,
+    release,
+    commit: false,
+    tag: false,
+    push: false,
+    ignoreScripts: true,
+    confirm: false,
+  })
+  return result.newVersion ?? currentVersion
+}
+
+/**
  * 版本维护的唯一入口。
  *
- * **不再区分「项目」与「插件」两个区域**：一次执行同时推进两套版本——
- * 项目版本的迭代号 +1，并让**每个插件**在自身版本上递增，结果落在同一条提交里。
- * 原先的「选择要维护版本的区域」菜单已移除，避免同一件事有两种入口。
+ * **版本号是纯净 semver（6.0.0 起），档位语义固定**（FNOS-028）：
+ * - `patch`：无新功能的修复；
+ * - `minor`：新功能且 DSH 基线不变；
+ * - `major`：DSH 基线变更（携带 `--baseline <新基线>`）或导致用户无法回退的重大调整。
+ * 每次发布对应段 +1，由 bumpp 原生计算；插件与项目**同号**，直接沿用项目目标版本。
+ * DSH 基线不再进入版本号，由 FPK 产物命名与 manifest 描述承载。
  *
- * **统一管理：项目与全部插件共用同一个迭代号。** 插件版本就是项目版本去掉基础段
- * 前缀（`5.9.0-0.2.1-rc.2.5` ↔ `0.2.1-rc.2.5`），因此迭代号只算一次，插件直接沿用。
- * 发出前还会核对现状：若有插件与项目不同号就报错，而不是默默拉平——静默改写会让
- * 「谁在何时改了版本」无从追溯。
- *
- * `project` / `plugin` 作为历史参数仍被接受，但语义已合并为同一条流程。
+ * `--baseline` 是 major 档位专属参数：DSH 基线变更必须走 major，防止被小档位
+ * 静默掩盖。catalog 在**确认之后**才改写——否则用户取消后会留下「catalog 已换、
+ * 版本号没动」的不一致状态，且 `pnpm run` 的依赖校验看到的就是变化前的状态。
  */
 export async function runVersion(args: string[]): Promise<void> {
   intro('fn-os-apps 版本维护')
@@ -265,154 +334,94 @@ export async function runVersion(args: string[]): Promise<void> {
   })
   const options = parseVersionOptions(filtered)
 
+  const release = String(options.release)
+  const isExplicitVersion = /^v?\d+\.\d+\.\d+$/u.test(release)
+  if (!isExplicitVersion && release !== 'patch' && release !== 'minor' && release !== 'major') {
+    throw new Error(
+      `不支持版本档位 "${release}"。`
+      + '本仓库使用纯净 semver：patch（修复）/ minor（新功能且基线不变）/ major（基线变更或重大调整），'
+      + '或传完整三段式版本号（如 6.0.1）。',
+    )
+  }
+
   const workspaceYaml = await readFile(join(repositoryRoot, 'pnpm-workspace.yaml'), 'utf8')
   const currentBaseline = readDshBaselineFromCatalog(workspaceYaml)
   if (currentBaseline === undefined) {
     throw new Error("pnpm-workspace.yaml 的 catalog 未声明 '@deepseek-ai/dsh'，无法确定 DSH 基线")
   }
 
-  // `--baseline <版本>`：DSH 发了新基线时用它一步到位——把 catalog 改成新基线，
-  // 版本号的基线段随之切换、迭代号重置为 0。
-  //
-  // 这一步必须在**命令内部**做：`pnpm run` 在脚本执行前就做依赖校验，若先手工把
-  // catalog 改成新基线（那时新版本通常还没 `pnpm install`），连本命令都进不来。
-  //
-  // 没给 `--baseline` 且处于交互模式时，主动问一次发布类型——两种选择产出的版本号
-  // 完全不同（`…rc.2.5 → …rc.2.6` 对 `…rc.2.5 → …rc.5.0`），不该靠记住某个 flag。
-  const interactive = options.confirm && options.baseline === undefined
-  const targetBaseline = interactive
-    ? await resolveBaselineInteractively(currentBaseline, options.release)
-    : options.baseline ?? currentBaseline
-
-  if (targetBaseline === undefined) return
-  // catalog 不在这里改：必须等确认之后再写。否则用户取消后 catalog 已被改成新基线，
-  // 而版本号没动，留下一个连 `pnpm run` 都进不去的不一致状态（实测踩到过）。
-  await releaseAll(options, targetBaseline, currentBaseline, async () => {
-    if (targetBaseline !== currentBaseline) {
-      await writeDshBaselineToCatalog(workspaceYaml, targetBaseline)
+  // `--baseline` 只能搭配 major：基线变更 = major 发布（FNOS-028 档位语义）。
+  if (options.baseline !== undefined) {
+    if (release !== 'major' && !isExplicitVersion) {
+      throw new Error(`基线变更必须走 major 档位（当前档位 "${release}"）：请使用 pnpm run version -- major --baseline <新基线>`)
     }
-  })
-}
-
-/**
- * 交互式确定目标基线。
- *
- * 提供给调用者的判断依据是「本次发布要不要换 DSH 版本」，而不是「要不要传某个 flag」。
- *
- * @param currentBaseline catalog 中的当前基线。
- * @param release 位置参数解析出的档位；显式给了完整版本号时不再询问。
- * @returns 目标基线；取消时返回 `undefined`。
- */
-async function resolveBaselineInteractively(
-  currentBaseline: string,
-  release: VersionBumpRelease,
-): Promise<string | undefined> {
-  // 显式传了完整版本号（自带基线段）时不打扰：那种写法已经表达了基线。
-  if (/^v?\d+\.\d+\.\d+-\d+\.\d+\.\d+/u.test(String(release))) return currentBaseline
-
-  const kind = await askVersionReleaseKind(currentBaseline)
-  if (kind === undefined) return undefined
-  if (kind === 'patch') return currentBaseline
-  return await askTargetBaseline(currentBaseline)
-}
-
-/**
- * 把 catalog 中的 `@deepseek-ai/dsh` 条目改成新基线。
- *
- * 只改这一行；不碰其它 catalog 条目，也不改动任何插件里对 DSH 的依赖声明——
- * 依赖升级由 `pnpm install` 单独完成，与本命令职责分离。
- *
- * @param workspaceYaml 当前 `pnpm-workspace.yaml` 文本。
- * @param baseline 新基线版本号。
- */
-async function writeDshBaselineToCatalog(workspaceYaml: string, baseline: string): Promise<void> {
-  const updated = workspaceYaml.replace(
-    /^(\s{2}'@deepseek-ai\/dsh':\s*)\S+(\s*)$/mu,
-    `$1${baseline}$2`,
-  )
-  if (updated === workspaceYaml) {
-    throw new Error("未能改写 pnpm-workspace.yaml 中的 '@deepseek-ai/dsh' 条目；请检查该行格式")
-  }
-  await writeFile(join(repositoryRoot, 'pnpm-workspace.yaml'), updated)
-}
-
-/**
- * 同时推进项目版本与全部插件版本。
- *
- * @param options 解析后的版本选项（含 release 与提交/tag 开关）。
- * @param baseline 当前 DSH 运行时基线。
- */
-async function releaseAll(
-  options: ReturnType<typeof parseVersionOptions>,
-  baseline: string,
-  previousBaseline: string = baseline,
-  writeBaseline: (() => Promise<void>) | undefined = undefined,
-): Promise<void> {
-  // 本方案下所有版本共用一个迭代号，只能「+1」，没有 minor/major 的语义空间：
-  // 前三段由基础段与 DSH 基线决定，都不归发布流程管。与其静默忽略，不如明确拒绝——
-  // 否则调用者以为 `minor` 生效了，实际只是迭代号 +1。
-  const release = String(options.release)
-  // 完整版本号是允许的（用于切换 DSH 基线）：它自带基线与迭代号，不走 +1 逻辑。
-  const isExplicitVersion = /^v?\d+\.\d+\.\d+-\d+\.\d+\.\d+/u.test(release)
-  if (!isExplicitVersion && release !== 'patch' && release !== 'prerelease') {
-    throw new Error(
-      `不支持版本档位 "${release}"：项目与插件共用同一个迭代号，发布时只递增它。`
-      + '请使用 `pnpm run version -- patch`，或传完整版本号（如 5.9.0-0.2.2-rc.1.0）以切换 DSH 基线。',
-    )
+    if (!BASELINE_PATTERN.test(options.baseline)) {
+      throw new Error(`--baseline 的值 "${options.baseline}" 形态应为 MAJOR.MINOR.PATCH，可带预发布段（如 0.2.1-rc.5）`)
+    }
+    if (options.baseline === currentBaseline) {
+      throw new Error(`--baseline 与当前基线相同（${currentBaseline}）：基线未变时请使用 patch/minor 或纯 major`)
+    }
   }
 
   const project = await readPackageInfo('package.json')
-  // 校验项目版本形态（不认字面量）：裸 MAJOR.MINOR.PATCH 会被拒绝。
-  const projectParts = assertProjectVersionShape(project.version, baseline)
+  // 项目版本必须是纯净三段式：旧「基础段-基线.迭代号」小尾巴是 FNOS-019 方案，
+  // 已被 FNOS-028 取代；发现小尾巴说明版本文件尚未统一，直接指引而不是误算。
+  if (!CLEAN_VERSION_PATTERN.test(project.version.replace(/^v/u, ''))) {
+    throw new Error(
+      `当前项目版本 "${project.version}" 不是纯净三段式（MAJOR.MINOR.PATCH）。`
+      + 'FNOS-028 起项目版本为纯净 semver（如 6.0.0）；若仍为旧小尾巴形态（如 5.9.0-0.2.1-rc.2.52），'
+      + '请先按 FNOS-028 完成版本统一。',
+    )
+  }
 
   const targets = pluginTargets
   const packages = await Promise.all(targets.map(target => readPackageInfo(target.path)))
 
-  // 统一管理：**项目与全部插件共用同一个迭代号**。
-  //
-  // 插件版本就是项目版本去掉基础段前缀（`5.9.0-0.2.1-rc.2.5` ↔ `0.2.1-rc.2.5`），
-  // 所以迭代号只从项目版本算一次，插件直接沿用。原先让插件「各自递增」的做法虽然
-  // 起点相同时能保持同步，但只要有人手工改过其中之一就会**永久错位**，那时统一管理
-  // 名存实亡。
-  const nextProject = nextProjectVersion(project.version, baseline)
-  const nextProjectParts = parseProjectVersion(nextProject, baseline)
-  if (nextProjectParts === undefined) {
-    throw new Error(`无法从项目版本 "${nextProject}" 推导插件版本`)
-  }
-  const currentPluginVersion = pluginVersionOf(projectParts)
-  const nextPluginVersion = pluginVersionOf(nextProjectParts)
-
+  // 插件与项目同号：目标版本就是项目目标版本本身，不再做字符串派生。
   // 发布前核对现状：若有插件与项目不同号，说明版本文件被绕过本命令改过。
   // 此时**报错而不是默默拉平**——静默改写会让「谁在何时改了版本」无从追溯。
-  const drifted = packages.filter(pkg => pkg.version !== currentPluginVersion)
+  const drifted = packages.filter(pkg => pkg.version !== project.version)
   if (drifted.length > 0) {
     const detail = drifted.map(pkg => `${pkg.name}@${pkg.version}`).join('、')
     throw new Error(
       `插件版本与项目版本不同号，拒绝发布：${detail}。`
-      + `项目当前对应插件版本 ${currentPluginVersion}，请先把上述插件统一到该值。`,
+      + `项目当前版本 ${project.version}，请先把上述插件统一到该值。`,
+    )
+  }
+
+  const nextProject = await resolveNextVersion(project.version, options.release)
+  if (!CLEAN_VERSION_PATTERN.test(nextProject)) {
+    throw new Error(
+      `目标版本 "${nextProject}" 含预发布段或后缀。本仓库不使用预发布版本号；`
+      + '请使用 patch/minor/major 或完整三段式版本（如 6.0.1）。',
     )
   }
 
   const plan = targets.map((target, index) => {
     const pkg = packages[index]!
-    return { target, name: pkg.name, from: pkg.version, to: nextPluginVersion }
+    return { target, name: pkg.name, from: pkg.version, to: nextProject }
   })
 
   if (options.confirm && !await confirmUnifiedRelease(
     project.version,
     nextProject,
     plan,
-    previousBaseline === baseline ? undefined : { from: previousBaseline, to: baseline },
+    options.baseline === undefined ? undefined : { from: currentBaseline, to: options.baseline },
   )) return
 
   // 确认之后才改 catalog：取消时不留下「catalog 已换基线、版本号没动」的状态。
-  if (writeBaseline !== undefined) await writeBaseline()
+  if (options.baseline !== undefined) {
+    await writeDshBaselineToCatalog(workspaceYaml, options.baseline)
+  }
+  const targetBaseline = options.baseline ?? currentBaseline
 
-  // 项目侧：先对齐历史遗留的版本文件，再交给 bumpp 完成替换。
+  // 项目侧：先对齐历史遗留的版本文件与基线字样，再交给 bumpp 完成替换。
   // 提交与 tag 都由本函数统一处理（两套版本必须落在同一条提交里）。
   await alignProjectVersionPackageFiles(project.version)
   await alignProjectVersionTextFiles(project.version)
   await syncAppDocVersion(project.version)
+  await syncAppDocBaseline(targetBaseline)
+  await syncManifestBaseline(targetBaseline)
   const result = await versionBump({
     cwd: repositoryRoot,
     files: projectVersionFiles,
@@ -458,16 +467,33 @@ async function releaseAll(
   for (const item of plan) outro(`${item.name}: ${item.from} -> ${item.to}`)
 }
 
-
-
+/**
+ * 把 catalog 中的 `@deepseek-ai/dsh` 条目改成新基线。
+ *
+ * 只改这一行；不碰其它 catalog 条目，也不改动任何插件里对 DSH 的依赖声明——
+ * 依赖升级由 `pnpm install` 单独完成，与本命令职责分离。
+ *
+ * @param workspaceYaml 当前 `pnpm-workspace.yaml` 文本。
+ * @param baseline 新基线版本号。
+ */
+async function writeDshBaselineToCatalog(workspaceYaml: string, baseline: string): Promise<void> {
+  const updated = workspaceYaml.replace(
+    /^(\s{2}'@deepseek-ai\/dsh':\s*)\S+(\s*)$/mu,
+    `$1${baseline}$2`,
+  )
+  if (updated === workspaceYaml) {
+    throw new Error("未能改写 pnpm-workspace.yaml 中的 '@deepseek-ai/dsh' 条目；请检查该行格式")
+  }
+  await writeFile(join(repositoryRoot, 'pnpm-workspace.yaml'), updated)
+}
 
 program
   .command('version [args...]')
-  .description('Bump the project, every plugin, and optionally switch the DSH baseline')
+  .description('Bump the project and every plugin in lockstep using bumpp release levels (patch/minor/major)')
   .option('--no-commit', 'only update version files')
   .option('--no-tag', 'do not create a version tag')
   .option('--no-push', 'do not push tags')
-  .option('--baseline <version>', 'switch the catalog DSH baseline and reset the iteration to 0')
+  .option('--baseline <version>', 'switch the catalog DSH baseline; only valid with the major release')
   .option('--yes', 'skip the version confirmation')
   .action(async (args: string[], options: OptionValues) => {
     addNegatedArgs(args, options, [

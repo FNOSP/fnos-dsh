@@ -63,25 +63,26 @@ vi.mock('../src/config/targets.js', () => ({
   ],
 }))
 
-const { runVersion } = await import('../src/commands/version.js')
+const { runVersion, readDshBaselineFromCatalog } = await import('../src/commands/version.js')
 
-
-describe('统一版本命令（项目 + 全部插件共用同一个迭代号）', () => {
+describe('统一版本命令（纯净 semver，项目与插件同号）', () => {
   /**
-   * 固定起点：**项目与全部插件同号**。统一管理的前提就是这一点——插件版本等于
-   * 项目版本去掉基础段前缀（`5.9.0-0.2.1-rc.2.4` ↔ `0.2.1-rc.2.4`）。
+   * 固定起点：**项目与全部插件同号**（FNOS-028：插件直接沿用项目版本，
+   * 不再有「去基础段前缀」的小尾巴派生）。
    */
-  const PROJECT_START = '5.9.0-0.2.1-rc.2.4'
-  const PLUGIN_START = '0.2.1-rc.2.4'
+  const PROJECT_START = '6.0.0'
 
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.readPackageInfo.mockImplementation(async (path: string) => {
       if (path === 'package.json') return { name: 'fn-os-apps', version: PROJECT_START }
-      if (path.includes('dsh-fnos')) return { name: '@tnnevol/dsh-fnos', version: PLUGIN_START }
-      return { name: '@tnnevol/dsh-codebuddy', version: PLUGIN_START }
+      if (path.includes('dsh-fnos')) return { name: '@tnnevol/dsh-fnos', version: PROJECT_START }
+      return { name: '@tnnevol/dsh-codebuddy', version: PROJECT_START }
     })
-    mocks.versionBump.mockResolvedValue({ currentVersion: PROJECT_START, newVersion: '5.9.0-0.2.1-rc.2.5' })
+    mocks.versionBump.mockImplementation(async () => ({
+      currentVersion: PROJECT_START,
+      newVersion: '6.0.1',
+    }))
     mocks.confirm.mockResolvedValue(true)
     mocks.readFile.mockImplementation(async (path: string) => {
       if (path.endsWith('pnpm-workspace.yaml')) return "catalog:\n  '@deepseek-ai/dsh': 0.2.1-rc.2\n"
@@ -89,9 +90,22 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
         return JSON.stringify({
           version: 1,
           plugins: [
-            { name: '@tnnevol/dsh-fnos', version: PLUGIN_START },
+            { name: '@tnnevol/dsh-fnos', version: PROJECT_START },
           ],
         })
+      }
+      if (path.endsWith('manifest')) {
+        // fixture 里 desc 的基线字样故意是过期值，验证同步会把它改成 catalog 当前值。
+        return `version = ${PROJECT_START}\ndesc = 插件化智能代理工具，运行基线为 DSH 0.2.0-rc.1。<br />主要功能\n`
+      }
+      if (path.endsWith('fn-deepseek-harness.md')) {
+        return [
+          '# DeepSeek Harness 应用',
+          '',
+          `| 应用版本 | \`${PROJECT_START}\` |`,
+          '| DSH 基线 | `0.2.0-rc.2` |',
+          '',
+        ].join('\n')
       }
       if (path.endsWith('.md')) {
         // 安装命令必须跟随发版版本，否则用户照抄会装到旧包。
@@ -99,10 +113,10 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
           '# plugin',
           '',
           '```sh',
-          `dsh plugin --profile web add @tnnevol/dsh-fnos@${PLUGIN_START}`,
+          `dsh plugin --profile web add @tnnevol/dsh-fnos@${PROJECT_START}`,
           '```',
           '',
-          `| \`@tnnevol/dsh-fnos\` | \`${PLUGIN_START}\` | x |`,
+          `| \`@tnnevol/dsh-fnos\` | \`${PROJECT_START}\` | x |`,
         ].join('\n')
       }
       return JSON.stringify({ name: 'package', version: PROJECT_START })
@@ -110,13 +124,17 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
     mocks.spawnSync.mockReturnValue({ status: 0, error: undefined, stderr: '', stdout: '' })
   })
 
-  it('一次发布把项目与全部插件推进到同一个迭代号', async () => {
+  it('patch 档位把项目与全部插件同号推进到 6.0.1', async () => {
     await runVersion(['--yes'])
 
-    // 项目侧交给 bumpp 的是算好的具体版本串（不是档位关键字），且不让它抢先提交。
-    expect(mocks.versionBump).toHaveBeenCalledWith(expect.objectContaining({
+    // 第一次调用是 dry-run 求目标版本：files 为空、传档位而非具体版本串。
+    const dryRun = mocks.versionBump.mock.calls[0]?.[0] as { files?: string[], release?: string }
+    expect(dryRun?.files).toEqual([])
+    expect(dryRun?.release).toBe('patch')
+    // 第二次写文件：以算好的具体版本串替换，且不让 bumpp 抢先提交。
+    expect(mocks.versionBump).toHaveBeenLastCalledWith(expect.objectContaining({
       currentVersion: PROJECT_START,
-      release: '5.9.0-0.2.1-rc.2.5',
+      release: '6.0.1',
       commit: false,
       tag: false,
     }))
@@ -124,9 +142,25 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
     const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
     const codebuddy = written.find(([p2]) => p2.includes('dsh-codebuddy') && p2.endsWith('package.json'))
     const fnos = written.find(([p2]) => p2.includes('dsh-fnos') && p2.endsWith('package.json'))
-    // 两者都落到 0.2.1-rc.2.5 —— 与项目 5.9.0-0.2.1-rc.2.5 的迭代号一致。
-    expect(codebuddy?.[1]).toContain('"version": "0.2.1-rc.2.5"')
-    expect(fnos?.[1]).toContain('"version": "0.2.1-rc.2.5"')
+    // 插件与项目同号：都直接写 6.0.1。
+    expect(codebuddy?.[1]).toContain('"version": "6.0.1"')
+    expect(fnos?.[1]).toContain('"version": "6.0.1"')
+  })
+
+  it('minor / major 档位直接传给 bumpp 原生计算', async () => {
+    mocks.versionBump.mockImplementation(async (options: { files?: string[], release?: string }) => ({
+      currentVersion: PROJECT_START,
+      newVersion: options.release === 'minor' ? '6.1.0' : '7.0.0',
+    }))
+
+    await runVersion(['minor', '--yes'])
+    const minorDryRun = mocks.versionBump.mock.calls[0]?.[0] as { files?: string[], release?: string }
+    expect(minorDryRun?.release).toBe('minor')
+
+    mocks.versionBump.mockClear()
+    await runVersion(['major', '--yes'])
+    const majorDryRun = mocks.versionBump.mock.calls[0]?.[0] as { files?: string[], release?: string }
+    expect(majorDryRun?.release).toBe('major')
   })
 
   it('只在本机维护的插件照常升版本，但路径不进暂存列表', async () => {
@@ -135,7 +169,7 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
     // 版本号照常推进到本机文件——它还要靠这个版本号发布到 npm。
     const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
     const codebuddy = written.find(([path]) => path.includes('dsh-codebuddy') && path.endsWith('package.json'))
-    expect(codebuddy?.[1]).toContain('"version": "0.2.1-rc.2.5"')
+    expect(codebuddy?.[1]).toContain('"version": "6.0.1"')
 
     // 但它的路径不能进 `git add`：源码被 gitignore，git add 碰到被忽略的路径会以
     // 退出码 1 失败，把整个版本命令打断。
@@ -150,34 +184,58 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
     // 所以这里必须报错并点名。
     mocks.readPackageInfo.mockImplementation(async (path: string) => {
       if (path === 'package.json') return { name: 'fn-os-apps', version: PROJECT_START }
-      if (path.includes('dsh-fnos')) return { name: '@tnnevol/dsh-fnos', version: '0.2.1-rc.2.2' }
-      return { name: '@tnnevol/dsh-codebuddy', version: PLUGIN_START }
+      if (path.includes('dsh-fnos')) return { name: '@tnnevol/dsh-fnos', version: '6.0.1' }
+      return { name: '@tnnevol/dsh-codebuddy', version: PROJECT_START }
     })
 
     await expect(runVersion(['--yes'])).rejects.toThrow(/不同号/u)
-    await expect(runVersion(['--yes'])).rejects.toThrow(/dsh-fnos@0\.2\.1-rc\.2\.2/u)
+    await expect(runVersion(['--yes'])).rejects.toThrow(/dsh-fnos@6\.0\.1/u)
     expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 
-  it('拒绝 minor/major 档位，而不是静默当成 +1', async () => {
-    // 本方案只有迭代号能递增，minor/major 没有语义空间。静默接受会让调用者以为生效了。
-    await expect(runVersion(['minor', '--yes'])).rejects.toThrow(/不支持版本档位/u)
-    await expect(runVersion(['major', '--yes'])).rejects.toThrow(/不支持版本档位/u)
+  it('拒绝不支持的档位与旧小尾巴形态版本串', async () => {
+    await expect(runVersion(['prerelease', '--yes'])).rejects.toThrow(/不支持版本档位/u)
+    // 旧 FNOS-019 小尾巴习惯：传带预发布段的完整版本串必须被拒绝并指引。
+    await expect(runVersion(['6.0.1-0.2.1-rc.2.1', '--yes'])).rejects.toThrow(/不支持版本档位/u)
+    expect(mocks.versionBump).not.toHaveBeenCalled()
+  })
+
+  it('项目版本仍是旧小尾巴形态时拒绝并指引按 FNOS-028 统一', async () => {
+    mocks.readPackageInfo.mockImplementation(async (path: string) => {
+      if (path === 'package.json') return { name: 'fn-os-apps', version: '5.9.0-0.2.1-rc.2.52' }
+      return { name: '@tnnevol/dsh-fnos', version: '0.2.1-rc.2.52' }
+    })
+
+    await expect(runVersion(['--yes'])).rejects.toThrow(/FNOS-028/u)
     expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 
   it('重写安装命令与清单版本，避免用户照抄装到旧包', async () => {
     await runVersion(['--no-commit', '--yes'])
 
-    const writtenMarkdown = mocks.writeFile.mock.calls.filter(call => String(call[0]).endsWith('.md'))
+    const writtenMarkdown = mocks.writeFile.mock.calls
+      .filter(call => String(call[0]).endsWith('.md') && !String(call[0]).endsWith('fn-deepseek-harness.md'))
     // 用后缀比对：`repositoryRoot` 相对导入模块解析，打包版与源码版前缀不同。
     expect(writtenMarkdown.map(call => String(call[0]).replace(/^.*?(?=docs\/|plugins\/)/u, '')))
       .toEqual(['docs/plugins/index.md', 'plugins/dsh-fnos-plugin/README.md', 'docs/plugins/dsh-fnos.md'])
     for (const [, content] of writtenMarkdown) {
-      expect(String(content)).toContain('add @tnnevol/dsh-fnos@0.2.1-rc.2.5')
-      expect(String(content)).not.toContain('add @tnnevol/dsh-fnos@0.2.1-rc.2.4')
+      expect(String(content)).toContain('add @tnnevol/dsh-fnos@6.0.1')
+      expect(String(content)).not.toContain('add @tnnevol/dsh-fnos@6.0.0')
     }
-    expect(String(writtenMarkdown[0]?.[1])).toContain('| `@tnnevol/dsh-fnos` | `0.2.1-rc.2.5` |')
+    expect(String(writtenMarkdown[0]?.[1])).toContain('| `@tnnevol/dsh-fnos` | `6.0.1` |')
+  })
+
+  it('同步 manifest 描述与应用文档页的 DSH 基线字样', async () => {
+    await runVersion(['--no-commit', '--yes'])
+
+    const manifestWrite = mocks.writeFile.mock.calls.find(call => String(call[0]).endsWith('/manifest'))
+    // desc 中的基线字样对齐到 catalog 当前值（fixture 里 manifest 为过期的 0.2.0-rc.1，
+    // 应用文档页为过期的 0.2.0-rc.2——两者都必须被同步）。
+    expect(String(manifestWrite?.[1])).toContain('运行基线为 DSH 0.2.1-rc.2')
+
+    const appDocWrite = mocks.writeFile.mock.calls.find(call => String(call[0]).endsWith('fn-deepseek-harness.md'))
+    expect(String(appDocWrite?.[1])).toContain('| DSH 基线 | `0.2.1-rc.2` |')
+    expect(String(appDocWrite?.[1])).not.toContain('0.2.0-rc.2')
   })
 
   it('--no-commit 时只写文件不提交', async () => {
@@ -185,16 +243,6 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
 
     expect(mocks.writeFile).toHaveBeenCalled()
     expect(mocks.spawnSync).not.toHaveBeenCalled()
-  })
-
-  it('拒绝裸 MAJOR.MINOR.PATCH 的项目版本（形态校验）', async () => {
-    mocks.readPackageInfo.mockImplementation(async (path: string) => {
-      if (path === 'package.json') return { name: 'fn-os-apps', version: '5.9.0' }
-      return { name: '@tnnevol/dsh-fnos', version: PLUGIN_START }
-    })
-
-    await expect(runVersion(['--yes'])).rejects.toThrow(/FNOS-019/u)
-    expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 
   it('catalog 未声明 DSH 基线时报错，不猜测', async () => {
@@ -207,40 +255,57 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
     expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 
-  it('--baseline 切换 DSH 基线：改 catalog 并把迭代号重置为 0', async () => {
-    // 这是基线变更的唯一入口：catalog 在命令内部才改写，所以 pnpm run 的依赖校验
-    // （发生在命令启动前）看到的是变化前的状态，不会拦下命令。
-    await runVersion(['--baseline', '0.2.1-rc.5', '--no-commit', '--yes'])
+  it('major --baseline 切换 DSH 基线：确认后改 catalog，版本走 major', async () => {
+    mocks.versionBump.mockImplementation(async () => ({
+      currentVersion: PROJECT_START,
+      newVersion: '7.0.0',
+    }))
+
+    await runVersion(['major', '--baseline', '0.2.2-rc.1', '--no-commit', '--yes'])
 
     // catalog 被改写为新基线
     const yamlWrite = mocks.writeFile.mock.calls.find(call => String(call[0]).endsWith('pnpm-workspace.yaml'))
-    expect(String(yamlWrite?.[1])).toContain("'@deepseek-ai/dsh': 0.2.1-rc.5")
+    expect(String(yamlWrite?.[1])).toContain("'@deepseek-ai/dsh': 0.2.2-rc.1")
 
-    // 项目版本：基线段换新、迭代号重置为 0
-    expect(mocks.versionBump).toHaveBeenCalledWith(expect.objectContaining({
-      release: '5.9.0-0.2.1-rc.5.0',
-    }))
+    // 版本按 major 计算，与基线值无关（基线不进版本号）。
+    const dryRun = mocks.versionBump.mock.calls[0]?.[0] as { release?: string }
+    expect(dryRun?.release).toBe('major')
 
-    // 插件同步到同一个新号
+    // manifest 与应用文档页的基线字样同步到新基线。
+    const manifestWrite = mocks.writeFile.mock.calls.find(call => String(call[0]).endsWith('/manifest'))
+    expect(String(manifestWrite?.[1])).toContain('运行基线为 DSH 0.2.2-rc.1')
+    const appDocWrite = mocks.writeFile.mock.calls.find(call => String(call[0]).endsWith('fn-deepseek-harness.md'))
+    expect(String(appDocWrite?.[1])).toContain('| DSH 基线 | `0.2.2-rc.1` |')
+
+    // 插件与项目同号推进到 major 版本。
     const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
     const fnos = written.find(([p2]) => p2.includes('dsh-fnos') && p2.endsWith('package.json'))
-    expect(fnos?.[1]).toContain('"version": "0.2.1-rc.5.0"')
+    expect(fnos?.[1]).toContain('"version": "7.0.0"')
   })
 
   it('--baseline 不触碰插件里的 DSH 依赖声明', async () => {
+    mocks.versionBump.mockImplementation(async () => ({
+      currentVersion: PROJECT_START,
+      newVersion: '7.0.0',
+    }))
     // 依赖升级由 pnpm install 单独完成，版本命令只改版本号。
-    await runVersion(['--baseline', '0.2.1-rc.5', '--no-commit', '--yes'])
+    await runVersion(['major', '--baseline', '0.2.2-rc.1', '--no-commit', '--yes'])
 
     const written: [string, string][] = mocks.writeFile.mock.calls.map(call => [String(call[0]), String(call[1])])
     for (const [path, content] of written) {
       if (!path.endsWith('package.json')) continue
       // 只允许 version 字段变化；这里断言没把依赖写成新基线。
-      expect(content).not.toMatch(/"@deepseek-ai\/dsh-[a-z-]+":\s*"0\.2\.1-rc\.5"/u)
+      expect(content).not.toMatch(/"@deepseek-ai\/dsh-[a-z-]+":\s*"0\.2\.2-rc\.1"/u)
     }
   })
 
-  it('--baseline 缺少版本号时明确报错', async () => {
+  it('--baseline 搭配非 major 档位或与当前基线相同时被拒绝', async () => {
+    await expect(runVersion(['patch', '--baseline', '0.2.2-rc.1', '--yes'])).rejects.toThrow(/major/u)
+    await expect(runVersion(['minor', '--baseline', '0.2.2-rc.1', '--yes'])).rejects.toThrow(/major/u)
+    // 与当前基线相同：走 major 档位时才会到达同值校验（档位校验在前）。
+    await expect(runVersion(['major', '--baseline', '0.2.1-rc.2', '--yes'])).rejects.toThrow(/相同/u)
     await expect(runVersion(['--baseline', '--yes'])).rejects.toThrow(/--baseline/u)
+    expect(mocks.versionBump).not.toHaveBeenCalled()
   })
 
   it('不再弹出「选择要维护版本的区域」', async () => {
@@ -249,6 +314,23 @@ describe('统一版本命令（项目 + 全部插件共用同一个迭代号）'
 
     expect(mocks.select).not.toHaveBeenCalled()
     expect(mocks.text).not.toHaveBeenCalled()
+  })
+})
+
+describe('readDshBaselineFromCatalog：catalog 基线读取', () => {
+  it('读取顶层 catalog 直系条目，忽略分组子包', () => {
+    const yaml = [
+      'catalog:',
+      "  '@deepseek-ai/dsh': 0.2.1-rc.2",
+      '  dsh:',
+      "    '@deepseek-ai/dsh-agent': 0.2.1-rc.2",
+    ].join('\n')
+    expect(readDshBaselineFromCatalog(yaml)).toBe('0.2.1-rc.2')
+  })
+
+  it('未声明或形态非法时返回 undefined', () => {
+    expect(readDshBaselineFromCatalog('catalog:\n  foo: 1.0.0\n')).toBeUndefined()
+    expect(readDshBaselineFromCatalog("catalog:\n  '@deepseek-ai/dsh': not-a-version\n")).toBeUndefined()
   })
 })
 
