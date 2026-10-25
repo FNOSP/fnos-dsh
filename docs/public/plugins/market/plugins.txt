@@ -2,7 +2,7 @@
 #
 # 每行一个来源：npm 包名，或 https 的 Git 仓库 URL；空行与 # 开头的行为注释。
 # 生成器只收录「已发布版本的 package.json 声明了 dsh.bundle」的包，因此本文件
-# 里只列本仓库已发布到 npm 的五个运行时插件。CodeBuddy 已于 2026-10-22 下架
+# 里只列本仓库已发布到 npm 的运行时插件。CodeBuddy 已于 2026-10-22 下架
 # （见 FNOS-025），不再列入市场索引。
 #
 # 重新生成（在仓库根执行）：
@@ -22,3 +22,4 @@
 @tnnevol/dsh-midscene
 @tnnevol/dsh-semi-ui-showcase
 @tnnevol/dsh-opencode
+@tnnevol/dsh-zcode

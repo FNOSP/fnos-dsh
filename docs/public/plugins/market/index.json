@@ -1234,6 +1234,49 @@
           }
         }
       ]
+    },
+    {
+      "name": "@tnnevol/dsh-zcode",
+      "title": {
+        "en": "ZCode",
+        "zh": "ZCode"
+      },
+      "description": {
+        "en": "Sign in with a ZCode account (OAuth device authorization) to bring Zhipu Z.ai ZCode Start Plan models into DeepSeek Harness, following account entitlement, with model capabilities and per-model quota.",
+        "zh": "使用 ZCode 账号（OAuth 设备授权）登录，把智谱 Z.ai 的 ZCode Start Plan 模型按账号权益动态接入 DeepSeek Harness，含模型能力与按模型额度。"
+      },
+      "icon": "icons/6f4da835e323251c.png",
+      "author": "tnnevol",
+      "homepage": "https://fndsh-doc.tnnevol.cn/plugins/dsh-zcode",
+      "repository": {
+        "url": "https://github.com/FNOSP/fnos-dsh",
+        "directory": "plugins/dsh-zcode-plugin"
+      },
+      "metadata": {
+        "keywords": [
+          "zcode",
+          "z-ai",
+          "glm",
+          "start-plan",
+          "provider",
+          "oauth",
+          "account",
+          "usage",
+          "models"
+        ]
+      },
+      "versions": [
+        {
+          "version": "6.0.0",
+          "publishTimestamp": 1792937331,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.3"
+          }
+        }
+      ]
     }
   ]
 }

@@ -50,6 +50,7 @@ https://fndsh-doc.tnnevol.cn/plugins/market/index.json
 | `@tnnevol/dsh-codex-auth` | 无（未取到可确认归属的官方素材，省略） |
 | `@tnnevol/dsh-failover-search` | 无（同上） |
 | `@tnnevol/dsh-semi-ui-showcase` | 无（同上） |
+| `@tnnevol/dsh-zcode` | 本插件自有图标 |
 
 省略是有意的：用通用图形或自制图标冒充品牌标识会让用户误认来源。缺少图标只影响识别度，不影响安装与使用。
 
