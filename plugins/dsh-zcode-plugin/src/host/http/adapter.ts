@@ -57,7 +57,15 @@ export interface ZCodeHttpAdapterOptions {
   /** 客户端身份头。 */
   readonly headers?: () => Record<string, string>
   /** 读取图片附件为 base64；不支持图片时返回 undefined。 */
-  readonly readImage?: (block: Extract<ContentBlock, { type: 'image' }>) => { mediaType: string; data: string } | undefined
+  /**
+   * 把图片附件读成 base64。
+   *
+   * 必须是异步：附件字节由宿主的附件服务异步读取并按路由上限压缩。
+   * 返回 undefined 表示该图跳过（例如读取失败），不影响整条请求。
+   */
+  readonly readImage?: (
+    block: Extract<ContentBlock, { type: 'image' }>,
+  ) => Promise<{ mediaType: string; data: string } | undefined>
   readonly logger?: { warn(message: string): void }
   /** 便于测试注入。 */
   readonly fetchImpl?: typeof fetch
@@ -130,7 +138,7 @@ export class ZCodeHttpAdapter extends LlmAdapter {
       maxTokens: options.maxTokens ?? model.maxTokens,
       // 循环构造的请求把系统提示词放在首条 system 消息里；手工调用走 options.system。
       system: options.system ?? leadingSystem(options.messages),
-      messages: toAnthropicMessages(options.messages, this.options.readImage),
+      messages: await toAnthropicMessages(options.messages, this.options.readImage),
       tools: toAnthropicTools(options.tools),
       effort: toEffort(options.reasoningEffort),
       thinking: model.reasoning,

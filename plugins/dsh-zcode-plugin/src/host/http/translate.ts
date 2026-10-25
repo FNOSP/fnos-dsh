@@ -40,10 +40,10 @@ export function leadingSystem(messages: readonly RequestMessage[]): string | und
  * - 工具结果消息转成带 `tool_result` 块的 user 消息（Anthropic 要求如此）；
  * - 图片块转成 base64 image 块（由调用方提供读取字节的能力）。
  */
-export function toAnthropicMessages(
+export async function toAnthropicMessages(
   messages: readonly RequestMessage[],
-  readImage?: (block: Extract<ContentBlock, { type: 'image' }>) => { mediaType: string; data: string } | undefined,
-): AnthropicMessage[] {
+  readImage?: (block: Extract<ContentBlock, { type: 'image' }>) => Promise<{ mediaType: string; data: string } | undefined>,
+): Promise<AnthropicMessage[]> {
   const result: AnthropicMessage[] = []
   for (const message of messages) {
     if (message.role === 'system' || message.role === 'developer') continue
@@ -86,7 +86,7 @@ export function toAnthropicMessages(
           })
           break
         case 'image': {
-          const image = readImage?.(item)
+          const image = readImage === undefined ? undefined : await readImage(item)
           if (image !== undefined) {
             blocks.push({
               type: 'image',

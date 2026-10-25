@@ -238,6 +238,24 @@ export class ZCodeProviderRuntime {
       apiKey: () => this.options.resolveToken(this.endpointPlan),
       deviceId: () => this.options.deviceMid(),
       headers: () => zcodeSourceHeaders(this.options.deviceMid()),
+      // 图片输入：把附件读成 base64 发给模型。宿主负责按路由上限压缩，
+      // 这里只做 base64 编码；读取失败时跳过该图而不是让整条请求失败。
+      readImage: async (block) => {
+        const attachments = this.options.resolveAttachments()
+        if (attachments === undefined) return undefined
+        try {
+          const stored = await attachments.readImage(block.attachment)
+          return {
+            mediaType: block.attachment.mediaType,
+            data: Buffer.from(stored.data).toString('base64'),
+          }
+        } catch (error) {
+          this.options.logger.warn(
+            `dsh-zcode: 读取图片附件失败，已跳过：${error instanceof Error ? error.message : String(error)}`,
+          )
+          return undefined
+        }
+      },
       logger: this.options.logger,
     })
   }
