@@ -144,15 +144,15 @@ export async function runVersion(args: string[]): Promise<void> {
   // bumpp；`--yes` → `-y`（跳过 Bump? 确认，非交互场景必须携带）；提交开关 →
   // bumpp 对应 flag。stdio inherit：原生菜单/摘要/确认完整呈现给调用者。
   //
-  // bumpp 是本 CLI（tooling/fnos-dsh-cli）的依赖而非根 devDependency，从其
-  // node_modules/.bin 直接解析 bin；cwd 保持仓库根——bumpp 由此发现根目录的
-  // bump.config.ts。
+  // bumpp 是本 CLI（tooling/fnos-dsh-cli）的依赖而非根 devDependency；其 bin
+  // 由 package.json 的 `bin` 字段指向 mjs 入口（.bin 里是 shell 包装脚本，不能
+  // 用 node 直接执行）。cwd 保持仓库根——bumpp 由此发现根目录的 bump.config.ts。
   const bumppArgs: string[] = [release]
   if (!options.confirm) bumppArgs.push('-y')
   if (options.noCommit) bumppArgs.push('--no-commit')
   if (options.noTag) bumppArgs.push('--no-tag')
 
-  const bumppBin = join(repositoryRoot, 'tooling/fnos-dsh-cli/node_modules/.bin/bumpp')
+  const bumppBin = join(repositoryRoot, 'tooling/fnos-dsh-cli/node_modules/bumpp/bin/bumpp.mjs')
   const result = spawnSync('node', [bumppBin, ...bumppArgs], {
     cwd: repositoryRoot,
     stdio: 'inherit',
