@@ -13,7 +13,7 @@
 ## 安装
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-zcode@0.2.1-rc.2.50
+dsh plugin --profile web add @tnnevol/dsh-zcode@0.2.1-rc.2.51
 ```
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。
