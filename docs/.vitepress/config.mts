@@ -347,6 +347,10 @@ const requirementsSidebar = [
         text: 'FNOS-027 ZCode Start Plan 模型接入与账号额度',
         link: '/requirements/FNOS-027-dsh-zcode-plugin'
       },
+      {
+        text: 'FNOS-028 项目与插件版本统一 6.0.0 及发布链路 dsh 基线标注',
+        link: '/requirements/FNOS-028-unified-project-version-bumpp'
+      },
       ]
   }
 ]
@@ -463,6 +467,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-027 ZCode Start Plan 模型接入与账号额度',
         link: '/plans/PLAN-FNOS-027-dsh-zcode-plugin'
+      },
+      {
+        text: 'PLAN-FNOS-028 项目与插件版本统一 6.0.0 及发布链路 dsh 基线标注',
+        link: '/plans/PLAN-FNOS-028-unified-project-version-bumpp'
       },
     ]
   }
