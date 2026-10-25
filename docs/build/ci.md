@@ -7,13 +7,13 @@ GitHub Actions 配置位于 `.github/workflows/build-release.yml`，由版本 Ta
 1. `prepare-release` 创建或重置草稿 Release。
 2. 下载并验证 `fnpack`。
 3. 通过根 `build` 任务的 FPK 模式构建应用：`pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins`（node-pty 使用上游 npm 包自带的平台预编译产物，构建不需要编译器，也不内置原生产物）。
-4. 将产物重命名为 `fn-deepseek-harness-<tag>.fpk`。
+4. 将产物重命名为 `fn-deepseek-harness-<Tag>-dsh-<DSH 基线>.fpk`：Tag 段为项目版本（如 `v6.0.0`），DSH 基线段在构建期从 `pnpm-workspace.yaml` catalog 派生，不在 workflow 中硬编码。
 5. 上传构建产物并由根 `release:notes` 任务调用 `changelogithub` 生成 GitHub Release。
 
 ## 触发方式
 
 ```bash
-pnpm run version -- project patch
+pnpm run version -- patch
 git push origin main
 git push origin v<版本号>
 ```

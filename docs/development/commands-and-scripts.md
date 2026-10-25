@@ -15,7 +15,7 @@
 | `pnpm run start` | 启动 harness 插件 watch、文档服务和/或本地 DSH Web | 可选 |
 | `pnpm run build` | 构建 harness 插件、FPK 应用和文档 | 可选 |
 | `pnpm run check` | 检查 SDD、文档、共享包、harness 插件和构建工具 | 可选 |
-| `pnpm run version` | 维护项目/FPK 或单个 harness 插件版本 | 可选 |
+| `pnpm run version` | 统一维护项目与全部插件版本（同号，bumpp 档位 patch/minor/major） | 可选 |
 | `pnpm run publish` | 发布 DSH 插件到 npm（`next` dist-tag）：不带参数进入交互多选，`--plugin <名字>` 发单个，`--all` 发全部（非交互场景用）；发布收尾自动重新生成插件市场索引，`--skip-market-index` 可跳过 | 可选 |
 | `pnpm exec fnos-dsh-cli market:index` | 单独重新生成插件市场索引（发布时生成器不可用，或改了已发布版本元数据后刷新） | 可选 |
 | `pnpm run release:notes` | 使用 `changelogithub` 生成 Release 说明 | 否 |

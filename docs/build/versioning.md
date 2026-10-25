@@ -1,57 +1,81 @@
 # 版本管理
 
-版本命令由根目录 `fnos-dsh-cli` CLI 暴露，实现在 `tooling/fnos-dsh-cli` workspace。**一条命令统一管理项目与全部插件版本**：所有版本共用同一个迭代号，一次执行全部 +1，结果落在**同一条提交**里。项目版本的文件替换仍由 [`bumpp`](https://github.com/antfu-collective/bumpp) 完成，插件版本由 CLI 直接写入。
+版本命令由根目录 `fnos-dsh-cli` CLI 暴露，实现在 `tooling/fnos-dsh-cli` workspace。**一条命令统一管理项目与全部插件版本**：两者共用同一个版本号（同号），一次执行全部推进，结果落在**同一条提交**里。版本计算与文件替换由 [`bumpp`](https://github.com/antfu-collective/bumpp) 原生档位完成。
 
 不再有「先选区域」这一步：`project` / `plugin` 两个历史子命令**已被合并**，仍作为参数被接受但语义相同，写成 `pnpm run version -- patch` 即可。
+
+## 版本形态（FNOS-028）
+
+项目、全部插件与 FPK 的版本号是**纯净三段式 semver**（如 `6.0.0`）：
+
+```text
+6.0.0
+└─┬─┘
+  └── 项目与全部插件同号；每次发布按档位递增对应段，不使用预发布段
+```
+
+DSH 运行时基线（当前 `0.2.1-rc.2`）**不进入版本号**，由两处产物承载：
+
+| 承载处 | 形态 | 维护方式 |
+| --- | --- | --- |
+| FPK 附件命名 | `fn-deepseek-harness-v<项目版本>-dsh-<DSH 基线>.fpk` | CI 构建期从 `pnpm-workspace.yaml` catalog 派生 |
+| FPK `manifest` 描述 | 「运行基线为 DSH `<基线>`」字样 | 版本命令执行时对齐 catalog 当前值 |
+
+## 版本档位语义
+
+| 档位 | 含义 | 示例 |
+| --- | --- | --- |
+| `patch` | 无新功能的修复 | `6.0.0 → 6.0.1` |
+| `minor` | 新功能，DSH 基线不变 | `6.0.1 → 6.1.0` |
+| `major` | DSH 基线变更（携带 `--baseline`），或导致用户无法回退的重大调整 | `6.1.0 → 7.0.0` |
+
+规则：
+
+- 每次发布对应段自增 +1（进位段归零，bumpp 原生行为），不跳号。
+- 新功能与基线变更同时发生时按 `major` 处理。
+- **基线变更必须走 major**：`--baseline` 是 major 档位专属参数，与 `patch`/`minor` 搭配被拒绝——防止基线变更被小档位静默掩盖。
+- 传完整版本号时必须是纯净三段式（如 `6.0.1`）；带 `-` 预发布段（含旧 FNOS-019 小尾巴形态如 `6.0.1-0.2.1-rc.2.1`）被拒绝并指引。
 
 ## 版本更新时机（强制）
 
 **修改插件或项目的功能结束后，必须用 `pnpm run version` 更新对应版本**，不允许改动落库后版本保持不动：
 
 ```bash
-pnpm run version -- patch    # 项目与全部插件统一到同一个新迭代号
+pnpm run version -- patch    # 按本轮变更性质选 patch / minor / major
 ```
 
 一次执行会同时更新：
 
 | 对象 | 更新内容 |
 | --- | --- |
-| 项目/FPK | 迭代号 +1（基础段与 DSH 基线不动）；同步 `manifest`、各 `package.json` 与版本文档；打本地 Tag |
-| 全部插件 | 统一到**与项目相同的迭代号**；同步发布清单、插件总览表格与全部安装命令 |
+| 项目/FPK | 版本按档位递增；同步 `manifest`（version 与 desc 基线字样）、各 `package.json`、文档版本引用；打本地 Tag |
+| 全部插件 | 统一到**与项目相同的目标版本**；同步发布清单、插件总览表格与全部安装命令 |
 
-项目与插件的版本是同一个号：插件版本 = 项目版本去掉基础段前缀。
-
-```text
-5.9.0-0.2.1-rc.2.5        项目/FPK
- └──────────┘
-      0.2.1-rc.2.5        每个插件（迭代号一致）
-```
-
-- 档位只有 `patch`（缺省）有意义，等价于「迭代号 +1」。`minor` / `major` 会被**明确拒绝**：本方案里前三段由基础段与 DSH 基线决定，不归发布流程管，静默当成 +1 会让人误以为生效。需要切换 DSH 基线时传完整版本号（如 `5.9.0-0.2.2-rc.1.0`）。
-- **插件与项目永远同号**：迭代号只从项目版本算一次，插件直接沿用。这条由命令校验——若某个插件与项目不同号，命令**报错并点名**，而不是默默拉平（静默改写会让「谁在何时改了版本」无从追溯）。
-- 对带预发布段的插件版本（如 `0.2.1-rc.2.5`），`patch` 会**丢掉**预发布段得到 `0.2.1`，等于降级；因此命令内部在插件侧把默认档位换成 `prerelease`，结果是 `0.2.1-rc.2.6`。
+- **插件与项目永远同号**：插件直接沿用项目目标版本。这条由命令校验——若某个插件与项目不同号，命令**报错并点名**，而不是默默拉平（静默改写会让「谁在何时改了版本」无从追溯）。
 - 版本提交与功能改动是**两条独立提交**：先提交功能改动，再执行 `pnpm run version` 生成版本提交，不把两者混在一条里。
 - 仅文档、章程与测试用例文档的纯文档改动不需要触发版本更新。
 - 该要求与 [发布检查](#发布检查) 衔接：功能结束 → `version` 更新版本 → 发布时按 [发布流程](./release.md) 走 `publish` 与 dist-tag 维护。
 
-### 切换 DSH 基线（`--baseline`）
+### 切换 DSH 基线（`major --baseline`）
 
-DSH 升级到新基线时用 `--baseline <版本>`，一条命令完成三件事：
+DSH 升级到新基线时用 `major --baseline <版本>`，一条命令完成两件事：
 
 ```bash
-pnpm run version -- --baseline 0.2.1-rc.5
+pnpm run version -- major --baseline 0.2.2-rc.1
 ```
 
+```text
+项目与全部插件：6.1.0 → 7.0.0
+DSH 基线：0.2.1-rc.2 → 0.2.2-rc.1（catalog 改写；manifest desc 与应用文档页基线字样同步）
 ```
-5.9.0-0.2.1-rc.2.5  →  5.9.0-0.2.1-rc.5.0
-0.2.1-rc.2.5        →  0.2.1-rc.5.0        （五个插件）
-```
 
-它依次做：改写 `pnpm-workspace.yaml` 里的 `@deepseek-ai/dsh` 条目 → 版本号基线段切到新值、迭代号重置为 0 → 项目与全部插件同步。
+它依次做：确认发布计划 → 改写 `pnpm-workspace.yaml` 里的 `@deepseek-ai/dsh` 条目 → 版本按 major +1 → 项目与全部插件同步 → manifest 描述与应用文档页的基线字样对齐新值。
 
-**为什么必须由命令改 catalog**：`pnpm run` 会在脚本执行**之前**做一次依赖校验。如果先手工把 catalog 改成新基线（那时新版本通常还没 `pnpm install`，甚至 npm 上尚未发布），这一步就会直接失败，连命令都进不来。让 catalog 在命令内部才变化，校验看到的就是变化前的状态。
+**为什么必须由命令改 catalog**：`pnpm run` 会在脚本执行**之前**做一次依赖校验。如果先手工把 catalog 改成新基线（那时新版本通常还没 `pnpm install`，甚至 npm 上尚未发布），这一步就会直接失败，连命令都进不来。让 catalog 在命令内部（且在确认之后）才变化，校验看到的就是变化前的状态。
 
-**它只改版本号，不碰依赖**：插件 `package.json` 里对 DSH 的依赖声明保持原样。依赖升级由单独的 `pnpm install` 完成，两者职责分离——版本号要立刻跟上新基线，依赖则要等真正安装。
+**它只改版本号与 catalog 基线行，不碰依赖**：插件 `package.json` 里对 DSH 的依赖声明保持原样。依赖升级由单独的 `pnpm install` 完成，两者职责分离——版本号要立刻跟上新基线，依赖则要等真正安装。
+
+基线切换的完整清单还包括两件命令不做的事：同步 `apps/fn-deepseek-harness/cmd/install_callback` 的 `DSH_VERSION`（构建校验会拦截不一致），以及按[发布流程](./release.md)核对三方插件（如 `dshmarket`）的 peer 兼容版本。
 
 ### tag 不推送与非交互参数
 
@@ -60,65 +84,30 @@ pnpm run version -- --baseline 0.2.1-rc.5
 | 参数 | 作用 |
 | --- | --- |
 | `--yes` | 跳过版本确认提示，**非交互执行**；脚本、Agent 与 CI 场景必须携带 |
-| `--no-tag` | 不创建项目 Tag（`project` 命令） |
+| `--no-tag` | 不创建项目 Tag |
 | `--no-commit` | 只更新版本文件，不创建提交 |
 | `--no-push` | 兼容参数；命令内部本就硬编码 `push: false`，**任何情况下都不会推送 Tag** |
+| `--baseline <版本>` | 切换 catalog DSH 基线；**仅与 major 档位搭配合法** |
 
 规则：
 
 - **产生的 Tag 只留在本地，不推送**。Tag 的推送由发布者按 [发布流程](./release.md) 确认后手动执行（`git push origin <tag>`），版本命令不做这件事。
 - 非交互场景（脚本、Agent、CI）使用 `--yes`：`pnpm run version -- patch --yes`。不带 `--yes` 时命令会在确认提示处等待输入。
-- 插件版本命令不创建 Tag，因此没有推送 Tag 的问题；它同样支持 `--yes` 跳过确认。
 
 ## 项目与 FPK 版本
-
-项目/FPK 版本采用**固定前缀 + 迭代号**方案（[FNOS-019](/requirements/FNOS-019-fpk-version-scheme)）：
-
-```text
-5.9.0-0.2.1-rc.2.5
-└─┬─┘ └───┬───┘ └┬┘
-  │       │      └─ 应用迭代号：每次发布 +1，其余两段不动
-  │       └──────── DSH 运行时基线：取自 pnpm-workspace.yaml 的 catalog
-  └──────────────── 基础段：发布时原样继承，不主动改写
-```
-
-| 段 | 含义 | 由谁维护 |
-| --- | --- | --- |
-| `5.9.0` | 基础段 | 发布时**原样继承**当前值；代码只校验形态（`MAJOR.MINOR.PATCH`），不认具体字面量 |
-| `0.2.1-rc.2` | DSH 运行时基线 | 自动跟随 `pnpm-workspace.yaml` 中 `'@deepseek-ai/dsh'` 的版本 |
-| 末尾整数 | 应用迭代号 | 每次发布 +1 |
 
 项目版本命令更新根 `package.json`、文档包 `docs/package.json`、`packages/*/package.json`、`tooling/fnos-dsh-cli/package.json`、应用 `manifest` 和 README 版本引用，并创建项目 Tag。CLI workspace 包与项目版本保持一致，避免版本命令升级项目后工具包仍停留在旧版本。文档站点的版本徽标从文档包自身的 `package.json` 读取：
 
 ```bash
-pnpm run version -- patch                          # 项目与插件统一 +1
-pnpm run version -- 5.9.0-0.2.2-rc.1.0             # 显式指定（如 DSH 基线升级时的首版）
+pnpm run version -- patch                         # 修复：6.0.0 → 6.0.1
+pnpm run version -- minor                         # 新功能：6.0.1 → 6.1.0
+pnpm run version -- major --baseline 0.2.2-rc.1    # 基线变更：6.1.0 → 7.0.0
+pnpm run version -- 6.0.1                         # 显式指定（纯净三段式）
 ```
 
 默认生成 `chore: release v<版本号>` 提交和 `v<版本号>` Tag。Harness Manifest、文档 Manifest 示例和文档包版本会先与根项目对齐，再由版本流程统一更新。
 
-两条与直觉不同的规则：
-
-- **档位关键字只影响迭代号**。`patch`、`minor`、`major` 在此方案下语义相同，都是「迭代号 +1」——因为前三段必须固定，档位无法再作用于它们。
-- **基线切换只改版本号与 catalog 那一行**：插件的 DSH 依赖声明不动，依赖升级交给 `pnpm install`。
-- **基础段不由代码决定**。版本命令从当前版本串里读它、原样写回；调整基础段只需改版本文件，不必改代码，也就不会出现「代码常量与实际版本号不一致」。
-- **基线变化时迭代号重置为 0**。DSH 升级到新基线后，迭代号从 0 重新开始：
-
-  ```text
-  5.9.0-0.2.1-rc.2.5 → 5.9.0-0.2.1-rc.5.0    DSH 发 0.2.1-rc.5
-  5.9.0-0.2.1-rc.5.0 → 5.9.0-0.2.1-rc.5.1    同基线内修 bug
-  5.9.0-0.2.1-rc.5.1 → 5.9.0-0.2.2-rc.1.0    DSH 发 0.2.2-rc.1
-  ```
-
-  重置不会造成排序倒退：迭代号只在同一基线内才有比较意义，基线变了由基线本身决定先后
-  ——`…-0.2.1-rc.5.0` 必然大于 `…-0.2.1-rc.2.5`。反过来说，**同一基线内**把迭代号改小
-  才会被判降级，所以那种情况必须继续 +1。
-
-版本命令校验的是**形态**而不是某个具体值：`<基础段>-<DSH 基线>.<迭代号>`。裸的 `MAJOR.MINOR.PATCH` 会被拒绝并提示形态要求。
-
-串内的基线可能与 catalog 当前基线不同（DSH 刚升级、版本文件还停在旧基线），这是**合法过渡态**：解析按串内基线进行，发布时换成新基线并把迭代号重置为 0。
-
-整串在 semver 中是**预发布版本**（`-` 之后为 prerelease），按语义化版本排序时小于同号正式版 `5.9.0`。本方案不发布 `5.9.0` 正式版，比较只发生在两个预发布版本之间，此时末尾迭代号能正确分出先后。
+历史注记：`6.0.0` 之前项目版本采用 FNOS-019 的「`<基础段>-<DSH 基线>.<迭代号>`」小尾巴形态（如 `5.9.0-0.2.1-rc.2.52`）；该方案已被 [FNOS-028](/requirements/FNOS-028-unified-project-version-bumpp) 取代，版本命令遇到小尾巴形态会报错并指引先完成统一。
 
 仅修改文件时使用：
 
@@ -128,7 +117,7 @@ pnpm run version -- patch --no-commit --no-tag
 
 ## 插件版本
 
-插件版本**随同一条统一命令一起递增**，不再有「单独升某个插件」的入口。每个插件在**自身当前版本**上递增，随后同步以下三处**副本**，让用户看到和照抄的都是实际发版版本：
+插件版本**随同一条统一命令一起递增**，不再有「单独升某个插件」的入口。插件直接沿用项目目标版本（同号），随后同步以下三处**副本**，让用户看到和照抄的都是实际发版版本：
 
 1. `apps/fn-deepseek-harness/app/published-dsh-plugins.json` 中同名插件的 `version`；
 2. `docs/plugins/index.md` 总览表格的版本列；
@@ -140,29 +129,23 @@ pnpm run version -- patch --no-commit --no-tag
 
 插件列表由 CLI 动态扫描 `plugins/` 目录发现，新增插件无需改动 CLI，会自动纳入每次发布。
 
-### 两个容易踩的点
+### 插件版本只有一份事实来源
 
-**插件与项目必须同号**。插件的版本号不是独立递增的，而是直接取自项目版本——所以永远一致。若发现某个插件与项目不同号（通常是有人手工改了版本文件），命令会**报错并点名**，不会默默拉平：静默改写会让「谁在何时改了版本」无从追溯。
+每个插件的版本只写在 `plugins/<插件目录>/package.json` 的 `version` 字段。`apps/fn-deepseek-harness/app/published-dsh-plugins.json` 是**副本**，由统一版本命令同步；`tooling/fnos-dsh-cli` 的构建校验只读取源码里的版本，用来证明这份副本没有和它的来源漂移，不在校验代码里重复书写版本号。
 
-**`minor`/`major` 会被拒绝**。本方案只有迭代号能递增，这两个档位没有语义空间。静默当成 +1 会让人误以为版本结构变了，实际没有。
+插件版本与 DSH 基线是两套独立的值：`0.2.1-rc.2` 是 DSH 运行时基线（同时锁定在 `cmd/install_callback` 与 catalog），插件在该基线上独立发布为 `6.0.0` 这样的纯净版本。因此**不要**把插件版本绑定到 `DSH_VERSION`，也不要为插件版本在校验代码里新增常量：一旦插件单独发版，被重复写下的那份值就会过期，构建会在一个本可以自动推导的字段上失败（v5.5.0 发布即为此类事故——插件已单独发版，脚本里仍写着旧基线值）。
+
+只有无法从本仓库推导的值才作为常量维护：`dshmarket` 是第三方包，注册表版本就是契约本身；`DSH_VERSION` 与 `PNPM_VERSION` 属于 DSH 基线，判断依据是它们与 `cmd/install_callback`、catalog 之间的**一致性**。
 
 ## 发布检查
 
 1. 确认工作区没有需要保留的未提交改动。
 2. 确认功能改动已完成 `pnpm run version` 版本更新（见[版本更新时机](#版本更新时机强制)）。
-3. 执行 `pnpm run version -- <档位>`：项目迭代号与全部插件版本一次更新。
+3. 按本轮变更性质核对档位（修复=patch、新功能=minor、基线变更/重大调整=major）后执行 `pnpm run version -- <档位>`。
 4. 检查版本文件和提交。
 5. 推送提交，触发对应的 CI/发布流程。
-6. 插件发布前运行对应插件的 `check`，再使用 `pnpm run publish` 发布当前 `next` dist-tag。
+6. 插件发布前运行对应插件的 `check`，再使用 `pnpm run publish` 发布。
 7. 插件发布前在本地用 `pnpm pack` 核对产物文件清单，确认本轮改动项确实进入 tarball（见[发布前必须在本地验证产物](./release.md#发布前必须在本地验证产物-不要靠发布后回看-强制性)）。该步骤在 `publish` **之前**完成：一旦版本进入公开 registry，缺内容只能靠补发新版本修正，补发的中间版本无法撤回。
-
-### 插件版本只有一份事实来源
-
-每个插件的版本只写在 `plugins/<插件目录>/package.json` 的 `version` 字段。`apps/fn-deepseek-harness/app/published-dsh-plugins.json` 是**副本**，由统一版本命令同步；`tooling/fnos-dsh-cli` 的构建校验只读取源码里的版本，用来证明这份副本没有和它的来源漂移，不在校验代码里重复书写版本号。
-
-插件版本与 DSH 基线是两套独立的值：`0.1.7-rc.2` 是 DSH 运行时基线（同时锁定在 `.github/config/dsh-native-0.1.7-rc.2.env` 与 `cmd/install_callback`），插件可以在该基线上独立发布为 `0.1.7-rc.2.1` 这样的版本。因此**不要**把插件版本绑定到 `DSH_VERSION`，也不要为插件版本在校验代码里新增常量：一旦插件单独发版，被重复写下的那份值就会过期，构建会在一个本可以自动推导的字段上失败（v5.5.0 发布即为此类事故——插件已到 `0.1.7-rc.2.1`，脚本里仍写着 `0.1.7-rc.2`）。
-
-只有无法从本仓库推导的值才作为常量维护：`dshmarket` 是第三方包，注册表版本就是契约本身；`DSH_VERSION` 与 `PNPM_VERSION` 属于 DSH 基线，判断依据是它们与 `cmd/install_callback`、native 配置之间的**一致性**。
 
 ### 版本发布后要维护什么
 
@@ -171,11 +154,12 @@ pnpm run version -- patch --no-commit --no-tag
 | 类别 | 自动同步的内容 |
 | --- | --- |
 | 版本字段 | 根 `package.json`、`docs/package.json`、`packages/*`、`tooling/fnos-dsh-cli`、`apps/fn-deepseek-harness/manifest` |
+| 基线字样 | `manifest` desc 的「运行基线为 DSH `<基线>`」、`docs/apps/fn-deepseek-harness.md` 的「DSH 基线」行 |
 | 插件副本 | `apps/fn-deepseek-harness/app/published-dsh-plugins.json` 的版本字段 |
 | 文档版本 | `docs/development/manifest.md` 的当前版本引用、各插件文档与总览页的安装命令 |
 | Git | 一条 `chore: release v<版本>` 提交 + 本地 Tag（不推送） |
 
-**它不会改 `manifest` 的 `desc` 与 `changelog`**——这两项是给用户看的**内容**，机器推不出该写什么，必须人工维护。
+**它不会改 `manifest` 的 `desc` 与 `changelog` 的其余内容**——这两项是给用户看的**内容**，机器推不出该写什么，必须人工维护（基线字样除外，见上表）。
 
 #### `manifest` 的 `desc` 与 `changelog`
 
@@ -183,7 +167,7 @@ pnpm run version -- patch --no-commit --no-tag
 
 | 字段 | 写什么 | 更新时机 |
 | --- | --- | --- |
-| `desc` | 应用简介，支持 HTML 富文本；描述**当前功能**，不是本轮改动 | 功能或定位变化时 |
+| `desc` | 应用简介，支持 HTML 富文本；描述**当前功能**，不是本轮改动；其中「运行基线为 DSH `<基线>`」字样由版本命令自动对齐 catalog | 功能或定位变化时 |
 | `changelog` | **本轮**变更摘要：新功能、修复、行为变化 | 每次功能完成时 |
 
 `changelog` 的口径要求（与文档站保持一致，读者在应用中心和文档站看到同一件事）：
@@ -196,7 +180,7 @@ pnpm run version -- patch --no-commit --no-tag
 维护节奏（两处各管一段，不重复劳动）：
 
 1. **功能完成时**：更新 `changelog` 与 `desc`，与需求文档的变更记录一起写；此时不改版本号。
-2. **发版时**：跑 `pnpm run version`，它只改版本字段，**不覆盖**第 1 步写好的内容；提交前用 `git diff` 确认 `changelog` 仍是本轮要发布的那段。
+2. **发版时**：跑 `pnpm run version`，它只改版本字段与基线字样，**不覆盖**第 1 步写好的内容；提交前用 `git diff` 确认 `changelog` 仍是本轮要发布的那段。
 
 所以正常顺序是「先写内容、再推版本」，两条提交分开（功能提交 + 版本提交），见[版本更新时机](#版本更新时机强制)。
 
@@ -205,7 +189,7 @@ pnpm run version -- patch --no-commit --no-tag
 在真实 fnOS 设备上验证安装或升级时，**用统一版本命令**推进一个迭代号，不要手工只改 `manifest`：
 
 ```bash
-pnpm run version -- patch      # 项目与全部插件一起 +1，并生成版本提交
+pnpm run version -- patch      # 项目与全部插件一起推进，并生成版本提交
 pnpm run build -- --fpk --app fn-deepseek-harness --bundle-dsh-plugins
 ```
 

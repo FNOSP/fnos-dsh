@@ -97,7 +97,7 @@ flowchart TD
   gateway["fnos-dsh-cli build:gateway"]
   fnpack["安装 fnpack 1.2.1"]
   build["fnos-dsh-cli build --fpk --app fn-deepseek-harness"]
-  rename["重命名并附加 DSH_VERSION"]
+  rename["重命名：Tag(项目版本) + catalog 派生 DSH 基线"]
   upload["上传 Harness FPK 到 Release"]
   status{"上传成功？"}
   done["是：构建完成"]

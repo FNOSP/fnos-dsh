@@ -57,7 +57,7 @@ git push origin v<版本号>
 | Job | 作用 |
 | --- | --- |
 | `prepare-release` | 创建**草稿** Release；Tag 含 `-rc`/`-beta`/`-alpha` 时自动标记为预发布 |
-| `build-dsh` | 构建 FPK 并上传到该草稿，产物重命名为 `fn-deepseek-harness-<Tag>-dsh-<DSH 基线>.fpk` |
+| `build-dsh` | 构建 FPK 并上传到该草稿，产物重命名为 `fn-deepseek-harness-<Tag>-dsh-<DSH 基线>.fpk`（基线段构建期从 catalog 派生） |
 | `publish-release` | 用 `changelogithub` 生成说明并发布 Release（`draft=false`） |
 
 > 需要**把 FPK 装到真实 NAS 上验证**时，按[从电脑上传 FPK 到 NAS 并安装](/guide/nas-fpk-install)操作；该册同时记录了版本号比较规则、瘦包与升级路径的坑。

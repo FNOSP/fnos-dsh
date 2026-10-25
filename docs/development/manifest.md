@@ -19,7 +19,7 @@ apps/<appname>/
 
 ```ini
 appname               = fn-deepseek-harness
-version               = 5.9.0-0.2.1-rc.2.53
+version               = 6.0.0
 display_name          = DeepSeek Harness
 desc                  = DeepSeek AI 开源的插件化智能代理工具，通过 Web UI 提供 dsh 操作界面。
 platform              = x86
@@ -67,7 +67,7 @@ install_dep_apps      = nodejs_v24
 
 ### 版本发布时不会自动改 desc 与 changelog
 
-`pnpm run version` 只改**版本字段**（`manifest` 的 `version`、根 `package.json`、`packages/*`、插件版本与文档里的安装命令），**不碰** `desc` 与 `changelog`——这两项是给用户看的内容，机器推不出该写什么。
+`pnpm run version` 只改**版本字段**（`manifest` 的 `version`、根 `package.json`、`packages/*`、插件版本与文档里的安装命令）以及 `desc` 中「运行基线为 DSH `<基线>`」这一处基线字样（对齐 catalog 当前值），**不碰** `desc` 与 `changelog` 的其余内容——这两项是给用户看的内容，机器推不出该写什么。
 
 因此发版时的检查项是「确认它们已经是本轮要发布的内容」，而不是「现在补写」：
 

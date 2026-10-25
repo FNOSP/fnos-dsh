@@ -6,43 +6,34 @@
 
 ## `version`
 
-版本维护分两个区域，交互选择后再进入具体分支。项目版本走 `bumpp`，插件版本直接更新 `package.json`。
+版本维护的统一入口：项目与全部插件同号推进，版本计算与文件替换由 bumpp 原生档位完成（`patch`/`minor`/`major`，语义见[版本管理](../build/versioning)）。
 
 ```mermaid
 flowchart TD
-  command["pnpm run version"]
+  command["pnpm run version -- <档位>"]
   cli["fnos-dsh-cli version"]
-  area{"维护区域？"}
-  project["项目 / FPK"]
-  plugin["harness 插件"]
-  pluginSelect["选择具体 harness 插件"]
-  release["选择版本号与发布选项"]
-  files["更新项目版本文件"]
-  pluginFile["更新 harness 插件 package.json"]
-  published["同步 published-dsh-plugins.json"]
-  commit["git commit"]
-  bumpp["bumpp：提交与创建 Tag"]
+  guard{"档位与版本形态校验<br/>（拒绝预发布段 / baseline 仅限 major）"}
+  dry["bumpp 干跑求目标版本"]
+  syncCheck{"插件与项目同号？"}
+  confirm["确认发布计划"]
+  align["对齐版本文件与基线字样"]
+  bump["bumpp 替换项目版本文件"]
+  plugins["插件同号写入 + 副本/文档/安装命令同步"]
+  commit["git commit + 本地 Tag"]
   status{"版本维护成功？"}
   result["是：返回成功"]
   fail["否：返回非零状态"]
 
-  command --> cli --> area
-  area -->|项目| project
-  area -->|harness 插件| plugin
-  project --> release --> files --> bumpp
-  plugin --> pluginSelect --> release
-  release --> pluginFile
-  release --> published
-  pluginFile --> commit
-  published --> commit
-  bumpp --> status
+  command --> cli --> guard --> dry --> syncCheck
+  syncCheck -->|否| fail
+  syncCheck -->|是| confirm --> align --> bump --> plugins --> commit --> status
   status -->|是| result
   status -->|否| fail
 ```
 
-项目/FPK 版本更新根 `package.json`、`docs/package.json`、`packages/**/package.json`、`tooling/fnos-dsh-cli/package.json`、应用 `manifest` 和文档中的版本示例，默认创建提交和 `v<版本号>` Tag。插件版本只更新指定插件的 `package.json`，若插件在发布清单中则同步清单版本，默认只创建提交、不创建 Tag。
+项目/FPK 版本更新根 `package.json`、`docs/package.json`、`packages/**/package.json`、`tooling/fnos-dsh-cli/package.json`、应用 `manifest`（version 与 desc 基线字样）和文档中的版本示例；插件直接沿用项目目标版本，并同步发布清单、插件总览与安装命令。默认创建提交和 `v<版本号>` Tag。
 
-两者都不会自动 push。完整流程见[版本管理](../build/versioning)。
+不会自动 push。完整流程见[版本管理](../build/versioning)。
 
 ## `release:notes`
 
