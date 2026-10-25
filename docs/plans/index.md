@@ -64,7 +64,7 @@ flowchart TD
 | PLAN-FNOS-023 | [CodeBuddy 受限账号触发自动切换](/plans/PLAN-FNOS-023-codebuddy-restricted-account-failover) | 已完成（阶段一完成；阶段二 Web 已验、Desktop 待补） |
 | PLAN-FNOS-022 | [CodeBuddy 模型调用被内容审核拦截修复](/plans/PLAN-FNOS-022-codebuddy-content-block-fix) | 已完成（两阶段 10 个任务，双客户端已验） |
 | PLAN-FNOS-025 | [CodeBuddy 插件下架](/plans/PLAN-FNOS-025-codebuddy-plugin-delisting) | 已完成（三阶段全部完成；真实 NAS 验收不在本轮范围） |
-| PLAN-FNOS-026 | [OpenCode Zen 与 OpenCode Go 模型接入及套餐用量](/plans/PLAN-FNOS-026-dsh-opencode-plugin) | 实施中（单一供应商与合并目录已实现并通过 DSH Web 实测；发布相关任务待 npm 发布） |
+| PLAN-FNOS-026 | [OpenCode Zen 与 OpenCode Go 模型接入及套餐用量](/plans/PLAN-FNOS-026-dsh-opencode-plugin) | 已完成（插件已发布到 npm，任务全部完成并通过验收） |
 | PLAN-FNOS-027 | [ZCode Start Plan 模型接入与账号额度](/plans/PLAN-FNOS-027-dsh-zcode-plugin) | 已完成（自研 HTTP 通道在 DSH Web 与 DSH Desktop 均验证通过；发布相关任务按插件未发布单列） |
 | PLAN-FNOS-028 | [项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注](/plans/PLAN-FNOS-028-unified-project-version-bumpp) | 待完成（阶段一/三已完成；插件 npm 发布、真机升级验收与 CI 双发布回归待执行） |
 
