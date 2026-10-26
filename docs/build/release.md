@@ -152,7 +152,73 @@ tarball，不是本地源码。元数据有缺时生成器**不会报错**，只
 同类误差还包括「本地看起来已经加了，但没进 `files` 白名单」：此时工作区正常、
 tarball 里却没有，只有线上消费者会受影响。**以 tarball 为准，不以工作区为准。**
 
+## 发布前必须确认清单里的插件版本已发布到 npm（强制性）
+
+**推 Tag 之前，`published-dsh-plugins.json` 里每一个插件版本都必须在目标 registry 上存在；
+缺一个就中止本次发布（打回），不得推 Tag、不得发 Release、不得提交上架申请。**
+
+### 为什么这条是硬门禁
+
+FPK 是**瘦包**——CI 用 `--skip-bundle-dsh-plugins` 构建（见
+[`.github/workflows/build-app.yml`](https://github.com/FNOSP/fnos-dsh/blob/main/.github/workflows/build-app.yml)
+的 FPK 构建步骤），插件不随包内置。安装回调按 `published-dsh-plugins.json` 里的**精确版本**
+从 registry 拉取，因此「版本没发到 npm」不是降级、不是回退，而是**整次安装直接失败**：
+
+```text
+Running dsh plugin --profile web add @tnnevol/dsh-codex-auth@<版本>
+[ERR_PNPM_NO_MATCHING_VERSION] No matching version found for @tnnevol/dsh-codex-auth@<版本>
+[ERROR] Unable to install @tnnevol/dsh-codex-auth@<版本> with the dsh CLI
+```
+
+用户侧的后果比发布失败更糟：DSH 本体与 trim-cli 已经装好，插件缺失，应用解不开——而他装的是
+一个「官方发布的稳定版」。换镜像、清缓存都无效，因为该版本在任何源上都不存在。
+
+### 校验命令（发布前必跑）
+
+```bash
+node -e '
+const { readFileSync } = require("node:fs");
+const { plugins } = JSON.parse(readFileSync("apps/fn-deepseek-harness/app/published-dsh-plugins.json", "utf8"));
+(async () => {
+  const missing = [];
+  for (const p of plugins) {
+    const res = await fetch("https://registry.npmjs.org/" + p.name.replace("/", "%2F") + "/" + p.version);
+    console.log((res.ok ? "OK   " : "MISS ") + p.name + "@" + p.version + " (HTTP " + res.status + ")");
+    if (!res.ok) missing.push(p.name + "@" + p.version);
+  }
+  if (missing.length > 0) { console.error("\n缺失 " + missing.length + " 个：" + missing.join(", ")); process.exit(1); }
+  console.log("\n全部已发布，可以继续发布流程");
+})();
+'
+```
+
+判据是**退出码**，不是输出好看：
+
+| 结果 | 含义 | 处置 |
+| --- | --- | --- |
+| 退出码 `0`，每行 `OK` | 清单里每个版本都能在 registry 取到 | 继续发布流程 |
+| 退出码 `1`，出现 `MISS` | 至少一个版本不存在 | **打回**：先修清单或先发插件，再重新校验 |
+
+第三方包（`dshmarket`）同样在校验范围内：它的注册表版本就是契约本身，缺了同样装不上。
+
+### 打回后怎么修（二选一）
+
+1. **先把插件发到 npm**：`pnpm run publish -- --all`（或在只改了部分插件时按需发），然后重跑校验；
+2. **把清单回退到已发布版本**：`pnpm run version` 会把清单同步成当前源码里的插件版本，
+   因此正确做法是先把插件版本发出去，而不是手改清单——手改会被下一次版本命令覆盖。
+
+两种路径都要求**先校验通过再推 Tag**：Tag 一旦推出去，CI 会为该 Tag 建 Release 并挂上 FPK，
+删 Release 要让 `Latest` 回落，已经下载过的用户也无法追回。
+
+### 事故记录（v6.0.2）
+
+2026-10-26 发布的 v6.0.2 就是这么坏的：清单把三个插件锚到 `6.0.2`，而 registry 上只有 `6.0.0`
+（`6.0.1`~`6.0.5` 一个都没发）。安装回调在插件步骤必然失败，报 `ERR_PNPM_NO_MATCHING_VERSION`。
+处置是把 v6.0.2 下架并删除该 Release。若发布前跑一次上面的校验命令，这次发布不会发生。
+
 ## 推送并触发构建
+
+推 Tag 之前先过[插件版本校验](#发布前必须确认清单里的插件版本已发布到-npm-强制性)：校验不通过就不要推。
 
 ```bash
 git push origin main
@@ -175,9 +241,11 @@ Release 发布成功并取得 FPK 后，按[应用上架规范](../charter/app-l
 
 ## 手动发布前检查
 
+- **`published-dsh-plugins.json` 里每个插件版本都已在 registry 存在**（跑[校验命令](#校验命令-发布前必跑)，
+  退出码必须为 `0`）；缺失即打回，不推 Tag。
 - 本地 `git diff --check` 通过。
 - 目标应用可以通过 `fnpack build` 构建。
 - 项目/FPK 版本命令涉及的 Manifest 与目标项目版本一致；独立维护版本的应用和插件不要求与根 `package.json` 相同。
 - 应用 README、安装向导和文档没有遗留旧版本或旧路径。
 - Manifest 的 `desc` 与 `changelog` 已随本轮功能完成及时更新：`desc` 富文本（HTML）内容与当前功能一致，`changelog` 概括本轮变更；发布前不再临时补写。
-- 待发布插件的产物已在本地用 `pnpm pack` 验证过文件清单，改动项按[发布前必须在本地验证产物](#发布前必须在本地验证产物不要靠发布后回看强制性)逐项核对；涉及插件市场元数据时，生成索引后的条目内容也已确认。
+- 待发布插件的产物已在本地用 `pnpm pack` 验证过文件清单，改动项按[发布前必须在本地验证产物](#发布前必须在本地验证产物-不要靠发布后回看-强制性)逐项核对；涉及插件市场元数据时，生成索引后的条目内容也已确认。

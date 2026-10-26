@@ -153,9 +153,12 @@ pnpm run version -- patch --no-commit --no-tag
 3. 按本轮变更性质核对档位（修复=patch、新功能=minor、基线变更/重大调整=major）后执行 `pnpm run version -- <档位>`。
 4. 检查版本文件和提交。
 5. 推送提交，触发对应的 CI/发布流程。
-6. **推送 Tag 前确认远端已有列表，一次只推一个**（`git push origin v<版本>`）；推送后核对 `gh release list` 的 `Latest` 是否落在最高版本上——多个 Tag 同时推会让 CI 并行建 Release 并按发布时间错标 `Latest`。
-7. 插件发布前运行对应插件的 `check`，再使用 `pnpm run publish` 发布。
-8. 插件发布前在本地用 `pnpm pack` 核对产物文件清单，确认本轮改动项确实进入 tarball（见[发布前必须在本地验证产物](./release.md#发布前必须在本地验证产物-不要靠发布后回看-强制性)）。该步骤在 `publish` **之前**完成：一旦版本进入公开 registry，缺内容只能靠补发新版本修正，补发的中间版本无法撤回。
+6. **推 Tag 前校验 `apps/fn-deepseek-harness/app/published-dsh-plugins.json` 里每个插件版本都已在
+   registry 存在**（命令与判据见[发布前必须确认清单里的插件版本已发布到 npm](./release.md#发布前必须确认清单里的插件版本已发布到-npm-强制性)）：
+   FPK 是瘦包，版本没发到 npm 会让安装回调在插件步骤直接失败。缺失即**打回发布**，不推 Tag。
+7. **推送 Tag 前确认远端已有列表，一次只推一个**（`git push origin v<版本>`）；推送后核对 `gh release list` 的 `Latest` 是否落在最高版本上——多个 Tag 同时推会让 CI 并行建 Release 并按发布时间错标 `Latest`。
+8. 插件发布前运行对应插件的 `check`，再使用 `pnpm run publish` 发布。
+9. 插件发布前在本地用 `pnpm pack` 核对产物文件清单，确认本轮改动项确实进入 tarball（见[发布前必须在本地验证产物](./release.md#发布前必须在本地验证产物-不要靠发布后回看-强制性)）。该步骤在 `publish` **之前**完成：一旦版本进入公开 registry，缺内容只能靠补发新版本修正，补发的中间版本无法撤回。
 
 ### 版本发布后要维护什么
 
