@@ -33,6 +33,16 @@
       },
       "versions": [
         {
+          "version": "6.0.6",
+          "publishTimestamp": 1793010690,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.3"
+          }
+        },
+        {
           "version": "6.0.0",
           "publishTimestamp": 1792937350,
           "source": {
@@ -303,6 +313,16 @@
         ]
       },
       "versions": [
+        {
+          "version": "6.0.6",
+          "publishTimestamp": 1793010676,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.3"
+          }
+        },
         {
           "version": "6.0.0",
           "publishTimestamp": 1792937264,
@@ -655,6 +675,16 @@
       },
       "versions": [
         {
+          "version": "6.0.6",
+          "publishTimestamp": 1793010686,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.3"
+          }
+        },
+        {
           "version": "6.0.0",
           "publishTimestamp": 1792937272,
           "source": {
@@ -825,6 +855,16 @@
       },
       "versions": [
         {
+          "version": "6.0.6",
+          "publishTimestamp": 1793010736,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.3"
+          }
+        },
+        {
           "version": "6.0.0",
           "publishTimestamp": 1792937388,
           "source": {
@@ -973,6 +1013,16 @@
         ]
       },
       "versions": [
+        {
+          "version": "6.0.6",
+          "publishTimestamp": 1793010654,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.3"
+          }
+        },
         {
           "version": "6.0.0",
           "publishTimestamp": 1792937303,
@@ -1205,6 +1255,16 @@
       },
       "versions": [
         {
+          "version": "6.0.6",
+          "publishTimestamp": 1793010641,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.3"
+          }
+        },
+        {
           "version": "6.0.0",
           "publishTimestamp": 1792937426,
           "source": {
@@ -1267,6 +1327,16 @@
         ]
       },
       "versions": [
+        {
+          "version": "6.0.6",
+          "publishTimestamp": 1793010697,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.1-rc.3"
+          }
+        },
         {
           "version": "6.0.0",
           "publishTimestamp": 1792937331,
