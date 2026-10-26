@@ -29,6 +29,8 @@ const STATE_DIR = resolve(process.env.DUTY_STATE_DIR ?? join(WORKSPACE, 'tmp', '
 const STATE_FILE = join(STATE_DIR, 'state.json')
 const OUTBOX_DIR = join(STATE_DIR, 'outbox')
 const MAX_ATTEMPTS = Math.max(3, Math.min(5, Number(process.env.DUTY_MAX_ATTEMPTS ?? 5)))
+/** 值班回复使用的 GitHub 账号（gh 中需已登录该账号）。 */
+const DUTY_GH_USER = process.env.DUTY_GH_USER ?? 'dsh-agent-bot'
 const API_BASE = (process.env.DUTY_API_BASE ?? 'https://api.github.com').replace(/\/$/, '')
 const BACKOFF_MS = [1000, 3000, 9000, 27000]
 
@@ -85,6 +87,10 @@ function parseArgs(argv) {
 
 let cachedToken
 
+/**
+ * 取令牌：环境变量优先，其次固定取值班专用账号（默认 dsh-agent-bot）的 gh 令牌，
+ * 最后才回退到 gh 活跃账号——避免活跃账号被切换后，回复身份静默漂移。
+ */
 function resolveToken() {
   if (cachedToken !== undefined) return cachedToken
   for (const name of ['DUTY_GITHUB_TOKEN', 'GITHUB_TOKEN', 'GH_TOKEN']) {
@@ -94,15 +100,25 @@ function resolveToken() {
       return cachedToken
     }
   }
-  try {
-    const output = execFileSync('gh', ['auth', 'token'], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-    cachedToken = output || null
-  } catch {
-    cachedToken = null
+  const candidates = [
+    ['auth', 'token', '--user', DUTY_GH_USER],
+    ['auth', 'token'],
+  ]
+  for (const args of candidates) {
+    try {
+      const output = execFileSync('gh', args, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim()
+      if (output) {
+        cachedToken = output
+        return cachedToken
+      }
+    } catch {
+      // 该账号不存在或未登录时继续尝试下一个来源
+    }
   }
+  cachedToken = null
   return cachedToken
 }
 
@@ -616,6 +632,28 @@ async function cmdRateLimit() {
   }, null, 2)}\n`)
 }
 
+/** 自检：确认当前令牌身份、仓库权限与限流额度，不发任何写操作。 */
+async function cmdWhoami() {
+  const user = await api('GET', '/user')
+  let permissions = null
+  try {
+    const repo = await api('GET', `/repos/${REPO}`)
+    permissions = repo?.permissions ?? null
+  } catch {
+    permissions = null
+  }
+  process.stdout.write(`${JSON.stringify({
+    expectedUser: DUTY_GH_USER,
+    authenticatedUser: user?.login ?? null,
+    matchesExpected: user?.login === DUTY_GH_USER,
+    tokenSource: process.env.DUTY_GITHUB_TOKEN !== undefined || process.env.GITHUB_TOKEN !== undefined || process.env.GH_TOKEN !== undefined
+      ? '环境变量'
+      : `gh auth token --user ${DUTY_GH_USER}（回退活跃账号）`,
+    permissions,
+    rateLimit: { ...rateLimit },
+  }, null, 2)}\n`)
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2))
   const command = args._[0]
@@ -635,13 +673,17 @@ async function main() {
     case 'rate-limit':
       await cmdRateLimit()
       break
+    case 'whoami':
+      await cmdWhoami()
+      break
     default:
-      fail('用法：community-duty.mjs <scan|reply|mark|state|rate-limit> [选项]\n'
+      fail('用法：community-duty.mjs <scan|reply|mark|state|rate-limit|whoami> [选项]\n'
         + '  scan                     列出本轮待处理事项（JSON）\n'
         + '  reply --key issue#12 --body-file <文件> [--dry-run]\n'
         + '  mark --key issue#12 --status replied|manual|ignored [--card <卡片ID>]\n'
         + '  state                    打印本地状态摘要\n'
-        + '  rate-limit               打印 API 剩余额度')
+        + '  rate-limit               打印 API 剩余额度\n'
+        + '  whoami                   自检回复身份、仓库权限与限流额度')
   }
 }
 

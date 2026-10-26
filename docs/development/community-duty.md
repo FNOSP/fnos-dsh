@@ -62,8 +62,17 @@
 | `node scripts/community-duty.mjs mark --key <issue#16> --status replied\|manual\|ignored [--card <卡片ID>]` | 登记处理结果，供下一轮去重 |
 | `node scripts/community-duty.mjs state` | 打印本地台账摘要 |
 | `node scripts/community-duty.mjs rate-limit` | 打印 API 剩余额度 |
+| `node scripts/community-duty.mjs whoami` | 自检当前回复身份、仓库权限与限流额度（只读，不发写操作） |
 
-环境变量：`DUTY_REPO`（默认 `FNOSP/fnos-dsh`）、`DUTY_WORKSPACE`（默认当前目录）、`DUTY_STATE_DIR`（默认 `tmp/community-duty`）、`DUTY_GITHUB_TOKEN` / `GITHUB_TOKEN` / `GH_TOKEN`（未设置时回退到 `gh auth token`）、`DUTY_MAX_ATTEMPTS`（3~5）。
+环境变量：`DUTY_REPO`（默认 `FNOSP/fnos-dsh`）、`DUTY_WORKSPACE`（默认当前目录）、`DUTY_STATE_DIR`（默认 `tmp/community-duty`）、`DUTY_GITHUB_TOKEN` / `GITHUB_TOKEN` / `GH_TOKEN`（未设置时回退到 gh 令牌）、`DUTY_GH_USER`（默认 `dsh-agent-bot`）、`DUTY_MAX_ATTEMPTS`（3~5）。
+
+## 回复身份
+
+值班回复统一使用 **`dsh-agent-bot`** 账号，不使用维护者个人账号：
+
+- 取令牌顺序为「环境变量 → `gh auth token --user dsh-agent-bot` → gh 活跃账号」。显式指定账号，是为了避免 gh 活跃账号被切换后回复身份静默漂移。
+- 该账号需已在 `gh` 登录（`gh auth login`），并对本仓库有评论权限（`push` 或 `triage` 即可）。
+- 换身份、或怀疑身份不对时，先跑 `node scripts/community-duty.mjs whoami`，确认 `matchesExpected` 为 `true`。
 
 ## 本地台账
 
