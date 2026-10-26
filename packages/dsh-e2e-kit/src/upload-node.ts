@@ -174,26 +174,50 @@ export const uploadFile = defineNode<
 
     // 先开「手动安装」对话框（Node 侧分步做：页面脚本里的长等待会撞上
     // Bridge 的 30 秒单次调用上限）。
-    const openDialog = await context.agent.evaluateJavaScript(wrapPageScript(`(async () => {
+    //
+    // 这里必须**容忍页面还没渲染完**：项目 setup 会先把复用页导航回目标地址，SPA 起来
+    // 需要时间——实测导航后立刻执行时「既无『手动安装』也无『应用中心』」，属于时序而非
+    // 元素缺失。因此脚本内部短等 + Node 侧重试。
+    const openDialogScript = `(async () => {
       const sleep = (ms) => new Promise(r => setTimeout(r, ms));
       const byText = (label) => [...document.querySelectorAll('*')]
         .find(el => el.children.length === 0 && (el.textContent || '').trim() === label);
-      const manual = byText('手动安装');
+      const waitFor = async (label, timeoutMs) => {
+        const deadline = Date.now() + timeoutMs;
+        for (;;) {
+          const found = byText(label);
+          if (found) return found;
+          if (Date.now() > deadline) return null;
+          await sleep(300);
+        }
+      };
+      // 已经在应用中心里（左侧有「手动安装」）
+      const manual = await waitFor('手动安装', 8000);
       if (manual) { manual.click(); return { pass: true, detail: '已点击「手动安装」' }; }
       // 桌面上没有入口：点「应用中心」图标打开应用中心窗口。
       // 实测要点：目标取 [desktopItemId] 那个图标容器（文本节点容器上派发事件无效），
       // 且**单击**即可打开（不需要双击）。
-      const icon = byText('应用中心');
-      if (!icon) return { pass: false, detail: '页面上既无「手动安装」也无「应用中心」入口' };
+      const icon = await waitFor('应用中心', 8000);
+      if (icon === null) return { pass: false, detail: '页面上既无「手动安装」也无「应用中心」入口' };
       (icon.closest('[desktopItemId]') || icon).click();
-      await sleep(2000);
-      const manual2 = byText('手动安装');
-      if (!manual2) return { pass: false, detail: '打开应用中心后仍未找到「手动安装」入口' };
+      const manual2 = await waitFor('手动安装', 10000);
+      if (manual2 === null) return { pass: false, detail: '打开应用中心后仍未找到「手动安装」入口' };
       manual2.click();
       return { pass: true, detail: '已点「应用中心」并点击「手动安装」' };
-    })()`))
-    if (!readPageVerdict(openDialog, input.label).pass) {
-      throw new Error(`[${input.label}] 无法打开「手动安装」对话框：${readPageVerdict(openDialog, input.label).detail ?? ''}`)
+    })()`
+    let openVerdict = readPageVerdict(
+      await context.agent.evaluateJavaScript(wrapPageScript(openDialogScript)),
+      input.label,
+    )
+    for (let attempt = 1; attempt <= 2 && !openVerdict.pass; attempt += 1) {
+      await sleep(2500)
+      openVerdict = readPageVerdict(
+        await context.agent.evaluateJavaScript(wrapPageScript(openDialogScript)),
+        input.label,
+      )
+    }
+    if (!openVerdict.pass) {
+      throw new Error(`[${input.label}] 无法打开「手动安装」对话框：${openVerdict.detail ?? ''}`)
     }
     // 等对话框渲染完（fnOS 挂载 file input 有延迟）
     await sleep(1500)
