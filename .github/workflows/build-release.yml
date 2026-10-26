@@ -148,13 +148,45 @@ jobs:
             *-rc*|*-beta*|*-alpha*) PRERELEASE=true ;;
           esac
 
+          # `Latest` 归属按 semver 判定，不能交给「发布时间」。
+          #
+          # 背景（2026-10-26 实测）：GitHub 的 `make_latest` 默认是 `true`，多 Release 并发
+          # 发布时按**发布时间**取最后一个——连续推送 v6.0.1、v6.0.2 两个 tag 触发了两个
+          # workflow 并行跑，v6.0.1 反而比 v6.0.2 晚 3 秒发布，Latest 因此错标到低版本。
+          # 这里改为：只有当前 tag 是已发布的非预发布 Release 中 semver 最高的那个才置
+          # true，其余显式置 false。
+          HIGHEST_TAG="$(
+            gh api --paginate "repos/${REPOSITORY}/releases?per_page=100" \
+              --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
+              | { grep -E '^v?[0-9]' || true; } \
+              | sed 's/^v//' \
+              | sort -V \
+              | tail -n 1
+          )"
+          CURRENT_TAG="${TAG#v}"
+
+          if [ "$PRERELEASE" = "true" ]; then
+            MAKE_LATEST=false
+          elif [ -z "$HIGHEST_TAG" ]; then
+            MAKE_LATEST=true
+          elif [ "$CURRENT_TAG" = "$HIGHEST_TAG" ]; then
+            MAKE_LATEST=true
+          elif printf '%s\n%s\n' "$HIGHEST_TAG" "$CURRENT_TAG" | sort -V | tail -n 1 | grep -qx "$CURRENT_TAG"; then
+            MAKE_LATEST=true
+          else
+            MAKE_LATEST=false
+          fi
+
+          echo "Latest decision: tag=${TAG} highestPublished=${HIGHEST_TAG:-none} make_latest=${MAKE_LATEST}"
+
           gh api --method PATCH "repos/${REPOSITORY}/releases/${RELEASE_ID}" \
             -F name="$TAG" \
             -F body="$(cat "$RUNNER_TEMP/release-notes.md")" \
             -F draft=false \
             -F prerelease="$PRERELEASE" \
+            -F make_latest="$MAKE_LATEST" \
             >/dev/null
-          echo "Published release ${TAG} using existing release ${RELEASE_ID}."
+          echo "Published release ${TAG} using existing release ${RELEASE_ID} (make_latest=${MAKE_LATEST})."
 
   report-failure:
     name: Report failed release

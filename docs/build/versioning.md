@@ -92,6 +92,15 @@ DSH 基线：0.2.1-rc.2 → 0.2.2-rc.1（catalog 改写；manifest desc 与应�
 规则：
 
 - **产生的 Tag 只留在本地，不推送**。Tag 的推送由发布者按 [发布流程](./release.md) 确认后手动执行（`git push origin <tag>`），版本命令不做这件事。
+- **一次只推一个 Tag，且必须显式写出 tag 名**。禁止 `git push --tags`，也禁止 `git push origin v6.0.1 v6.0.2` 这类批量推送：
+
+  | 风险 | 后果 |
+  | --- | --- |
+  | 只推本次该推的那一个 | 本地可能积压多个未推 Tag（历次发布未推送），批量推会把它们一并公开 |
+  | 多个 `v*` Tag 同时推 | `build-release.yml` 按 Tag 并行触发，多个 Release 几乎同时发布；GitHub 按**发布时间**决定 `Latest`，可能把低版本标成 Latest（2026-10-26 实测：v6.0.1 比 v6.0.2 晚 3 秒发布，Latest 错标到 v6.0.1） |
+
+  推送前先看远端已有哪些：`git ls-remote --tags origin | tail`；只推本次发布的那一个：`git push origin v<版本>`。
+- **推错后可纠正**：`gh api --method PATCH repos/<owner>/<repo>/releases/<id> -F make_latest=true` 把 `Latest` 重新指到正确版本（`<id>` 用 `gh api repos/<owner>/<repo>/releases/tags/<tag> --jq .id` 取）。多出来的 Release 可以保留、标为 pre-release，或连同 Tag 一并删除——删除已推送的 Tag 会影响已拉取者，需在发布记录里说明。
 - 非交互场景（脚本、Agent、CI）使用 `--yes`：`pnpm run version -- patch --yes`。不带 `--yes` 时命令会在确认提示处等待输入。
 
 ## 项目与 FPK 版本
@@ -144,8 +153,9 @@ pnpm run version -- patch --no-commit --no-tag
 3. 按本轮变更性质核对档位（修复=patch、新功能=minor、基线变更/重大调整=major）后执行 `pnpm run version -- <档位>`。
 4. 检查版本文件和提交。
 5. 推送提交，触发对应的 CI/发布流程。
-6. 插件发布前运行对应插件的 `check`，再使用 `pnpm run publish` 发布。
-7. 插件发布前在本地用 `pnpm pack` 核对产物文件清单，确认本轮改动项确实进入 tarball（见[发布前必须在本地验证产物](./release.md#发布前必须在本地验证产物-不要靠发布后回看-强制性)）。该步骤在 `publish` **之前**完成：一旦版本进入公开 registry，缺内容只能靠补发新版本修正，补发的中间版本无法撤回。
+6. **推送 Tag 前确认远端已有列表，一次只推一个**（`git push origin v<版本>`）；推送后核对 `gh release list` 的 `Latest` 是否落在最高版本上——多个 Tag 同时推会让 CI 并行建 Release 并按发布时间错标 `Latest`。
+7. 插件发布前运行对应插件的 `check`，再使用 `pnpm run publish` 发布。
+8. 插件发布前在本地用 `pnpm pack` 核对产物文件清单，确认本轮改动项确实进入 tarball（见[发布前必须在本地验证产物](./release.md#发布前必须在本地验证产物-不要靠发布后回看-强制性)）。该步骤在 `publish` **之前**完成：一旦版本进入公开 registry，缺内容只能靠补发新版本修正，补发的中间版本无法撤回。
 
 ### 版本发布后要维护什么
 
