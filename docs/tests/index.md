@@ -39,5 +39,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-028 | [项目与插件版本统一及发布链路 dsh 基线标注](/tests/FNOS-028-unified-project-version-bumpp) | [PLAN-FNOS-028](/plans/PLAN-FNOS-028-unified-project-version-bumpp) | 验收通过 | 24 条用例（22 通过 / 2 未执行为发布后动作）；2026-10-25 提出人验收通过：版本统一 5.10.0、版本命令直接调用 bumpp（原生菜单+execute 同步钩子）、单条 release 提交实测；4 个实施缺陷已修复回归 |
 | FNOS-029 | [DSH 0.2.1-rc.3 插件适配与基线迁移](/tests/FNOS-029-dsh-021-rc3-adaptation) | [PLAN-FNOS-029](/plans/PLAN-FNOS-029-dsh-021-rc3-adaptation) | 执行中 | 22 条用例；覆盖基线迁移、八插件副本、双客户端回归；TC-020/TC-016 已先行通过 |
 | FNOS-030 | [飞牛 iOS App 打开 DSH 空白修复](/tests/FNOS-030-app-shell-blank-page) | [PLAN-FNOS-030](/plans/PLAN-FNOS-030-app-shell-blank-page) | 通过 | 15 条用例：包级 10 条全过；真实 NAS 4 通过 / 1 未执行（TC-014 未登录拒绝未单独取证）。2026-10-26 真机装成 v6.0.1，网关产物含 UpstreamSession 且旧 Token 注入为 0，首页 1 次请求即 200、无 token=、浏览器无 dsh-auth-*；**iOS App 实机由提出人验证正常访问** |
+| FNOS-031 | [升级迁移 cwd 提示词变量引用](/tests/FNOS-031-cwd-prompt-variable-migration) | [PLAN-FNOS-031](/plans/PLAN-FNOS-031-cwd-prompt-variable-migration) | 部分通过 | 13 条用例：包级 10 条全过（147 条包级测试全绿，本需求新增 15 条）；真机 3 条待执行（TC-006 受 SSH 禁令限制无法凭空构造命中场景，改由包级覆盖） |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。
