@@ -193,5 +193,5 @@ flowchart TD
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-26 | 建立计划 | 依据 FNOS-030 与评估结论建立四阶段 12 任务；采纳 fork `9b0b27e` 网关会话部分，剥离 i18n；登记换取超时补充与 WS 重连备用方案两项本仓库实施差异 |
-| 2026-10-26 | 阶段三、四完成 | 构建并安装 v6.0.1 到真实 NAS：应用中心详情页 6.0.1 / 手动安装；网关产物含 `UpstreamSession`/`withSessionCookie`/`warmSession`，旧 `needsLaunchToken` 为 0；页面首页 1 次请求即 200、无 `token=`；浏览器无 `dsh-auth-*`；日志 `upgrade_callback completed` 后正常启动。版本提交 `chore: release v6.0.1`；安装自动化经验沉淀为 `dsh.uploadFile` 节点与 `FNOS-013-nas-install-from-computer.yaml` 用例 |
+| 2026-10-26 | 阶段三、四完成 | iOS App 实机由需求提出人验证正常访问（issue #21 的空白症状不再复现）。构建并安装 v6.0.1 到真实 NAS：应用中心详情页 6.0.1 / 手动安装；网关产物含 `UpstreamSession`/`withSessionCookie`/`warmSession`，旧 `needsLaunchToken` 为 0；页面首页 1 次请求即 200、无 `token=`；浏览器无 `dsh-auth-*`；日志 `upgrade_callback completed` 后正常启动。版本提交 `chore: release v6.0.1`；安装自动化经验沉淀为 `dsh.uploadFile` 节点与 `FNOS-013-nas-install-from-computer.yaml` 用例 |
 | 2026-10-26 | 阶段一、二完成 | 新增 `upstream-session.ts`（含 10 秒换取超时）、改造代理与网关装配、移植并改造 4 个测试文件；包级 23 个测试文件 132 条用例全绿，build 与 lint 通过。fork 的 `upstream-session.spec.ts` 8 条用例按本仓库实现核对后采纳（编号改为 FNOS-030），`server.spec.ts` 与 `websocket-upgrade.spec.ts` 的旧 Token 注入断言按新语义改写，`recovery-page.spec.ts` 与 i18n 相关文件未取用 |
