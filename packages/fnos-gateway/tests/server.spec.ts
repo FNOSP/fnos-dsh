@@ -25,14 +25,23 @@ describe('gateway server', () => {
     while (resources.length > 0) await resources.pop()?.()
   })
 
-  it('bootstraps the launch token once and then stops injecting it for cookie-bearing requests', async () => {
+  it('exchanges the launch token once on its own and never forwards it with browser requests', async () => {
     const upstreamPaths: string[] = []
+    const upstreamCookies: Array<string | undefined> = []
+    let browserCookieName = ''
     const upstream = createServer((req, res) => {
       upstreamPaths.push(req.url ?? '')
+      upstreamCookies.push(req.headers.cookie)
+      if ((req.url ?? '').includes('token=')) {
+        res.writeHead(303, { location: './', 'set-cookie': `${browserCookieName}=gateway; Path=/; HttpOnly; SameSite=Strict` })
+        res.end()
+        return
+      }
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
       res.end('<!doctype html>')
     })
     const upstreamPort = await listen(upstream)
+    browserCookieName = `dsh-auth-${createHash('sha256').update(`127.0.0.1:${String(upstreamPort)}`).digest('base64url')}`
     resources.push(async () => new Promise<void>(resolve => upstream.close(() => resolve())))
 
     const directory = await mkdtemp(join(tmpdir(), 'fnos-gateway-'))
@@ -65,17 +74,11 @@ describe('gateway server', () => {
       request.end()
     })
 
-    // The first visit has no DSH browser-session cookie, so the gateway seeds
-    // one by asking DSH for the tokenized index.
+    // 首次访问：网关自己换取会话，浏览器的首页请求不带 Token，直接 200
     await expect(get()).resolves.toEqual({ statusCode: 200, location: undefined })
-    expect(upstreamPaths[0]).toBe('/?token=launch-token')
-
-    const browserCookieName = `dsh-auth-${createHash('sha256').update(`127.0.0.1:${String(upstreamPort)}`).digest('base64url')}`
-    // DSH answers *any* tokenized index request with a 303 to the clean URL,
-    // even when the request already carries a valid cookie. Re-injecting the
-    // token here is what produced the "too many redirects" loop.
-    await expect(get({ cookie: `${browserCookieName}=valid` })).resolves.toEqual({ statusCode: 200, location: undefined })
-    expect(upstreamPaths[1]).toBe('/')
+    await expect(get()).resolves.toEqual({ statusCode: 200, location: undefined })
+    expect(upstreamPaths).toEqual(['/?token=launch-token', '/', '/'])
+    expect(upstreamCookies.slice(1)).toEqual([`${browserCookieName}=gateway`, `${browserCookieName}=gateway`])
   })
 
   it('waits for a startup token before forwarding the first Web root request', async () => {
@@ -117,12 +120,17 @@ describe('gateway server', () => {
     await expect(responsePromise).resolves.toEqual({ statusCode: 502, location: undefined })
   })
 
-  it('replaces an invalid browser cookie with the current launch token upstream', async () => {
+  it('ignores an invalid browser cookie and authenticates with the gateway session', async () => {
     const upstreamPaths: string[] = []
+    let browserCookieName = ''
     const upstream = createServer((req, res) => {
       upstreamPaths.push(req.url ?? '')
-      const requestUrl = new URL(req.url ?? '/', 'http://upstream.invalid')
-      if (requestUrl.pathname === '/' && !requestUrl.searchParams.has('token')) {
+      if ((req.url ?? '').includes('token=current-launch-token')) {
+        res.writeHead(303, { location: './', 'set-cookie': `${browserCookieName}=fresh; Path=/; HttpOnly; SameSite=Strict` })
+        res.end()
+        return
+      }
+      if (!String(req.headers.cookie ?? '').includes(`${browserCookieName}=fresh`)) {
         res.writeHead(401, { 'content-type': 'text/plain; charset=utf-8' })
         res.end('dsh web authentication required')
         return
@@ -131,6 +139,7 @@ describe('gateway server', () => {
       res.end()
     })
     const upstreamPort = await listen(upstream)
+    browserCookieName = `dsh-auth-${createHash('sha256').update(`127.0.0.1:${String(upstreamPort)}`).digest('base64url')}`
     resources.push(async () => new Promise<void>(resolve => upstream.close(() => resolve())))
 
     const directory = await mkdtemp(join(tmpdir(), 'fnos-gateway-'))
@@ -158,7 +167,7 @@ describe('gateway server', () => {
         socketPath: gatewaySocket,
         path: `${GATEWAY_PREFIX}/`,
         method: 'GET',
-        headers: { cookie: 'dsh-auth-stale=invalid' },
+        headers: { cookie: `${browserCookieName}=invalid` },
       }, res => {
         res.resume()
         res.on('end', () => resolve({ statusCode: res.statusCode, location: res.headers.location }))
@@ -169,10 +178,10 @@ describe('gateway server', () => {
     })
 
     expect(response).toEqual({ statusCode: 200, location: undefined })
-    expect(upstreamPaths[0]).toContain('token=current-launch-token')
+    expect(upstreamPaths).toEqual(['/?token=current-launch-token', '/'])
   })
 
-  it('expires a legacy mount-scoped cookie while recovering a stale current-name cookie', async () => {
+  it('expires legacy browser session cookies at the root and the old mount path', async () => {
     let browserCookieName = ''
     const upstream = createServer((req, res) => {
       const requestUrl = new URL(req.url ?? '/', 'http://upstream.invalid')
@@ -184,7 +193,7 @@ describe('gateway server', () => {
         res.end()
         return
       }
-      res.writeHead(401)
+      res.writeHead(String(req.headers.cookie ?? '').includes(`${browserCookieName}=fresh`) ? 200 : 401)
       res.end()
     })
     const upstreamPort = await listen(upstream)
@@ -215,7 +224,7 @@ describe('gateway server', () => {
         socketPath: gatewaySocket,
         path: `${GATEWAY_PREFIX}/`,
         method: 'GET',
-        // A browser sends the old app-scoped cookie before the new root cookie.
+        // 旧版本网关留在浏览器里的会话 Cookie
         headers: { cookie: `${browserCookieName}=legacy-invalid` },
       }, res => {
         res.resume()
@@ -229,10 +238,14 @@ describe('gateway server', () => {
       request.end()
     })
 
-    expect(response.statusCode).toBe(303)
-    expect(response.setCookie.some(cookie => cookie.startsWith(`${browserCookieName}=;`)
-      && cookie.includes(`Path=${GATEWAY_PREFIX}/`)
-      && /Max-Age=0/iu.test(cookie))).toBe(true)
+    expect(response.statusCode).toBe(200)
+    for (const path of ['/', `${GATEWAY_PREFIX}/`]) {
+      expect(response.setCookie.some(cookie => cookie.startsWith(`${browserCookieName}=;`)
+        && cookie.includes(`Path=${path};`)
+        && /Max-Age=0/iu.test(cookie))).toBe(true)
+    }
+    // 网关换来的会话不下发浏览器
+    expect(response.setCookie.some(cookie => cookie.startsWith(`${browserCookieName}=fresh`))).toBe(false)
   })
 
   it('does not loop when the upstream answers a tokenized index with 303 to the clean URL', async () => {

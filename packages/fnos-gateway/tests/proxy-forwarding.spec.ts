@@ -29,6 +29,7 @@ interface UpstreamRequest {
   body: string
   contentType: string | undefined
   contentLength: string | undefined
+  cookie: string | undefined
 }
 
 function captureUpstream(status = 200): { server: Server, requests: UpstreamRequest[] } {
@@ -43,6 +44,7 @@ function captureUpstream(status = 200): { server: Server, requests: UpstreamRequ
         body: Buffer.concat(chunks).toString('utf8'),
         contentType: req.headers['content-type'],
         contentLength: req.headers['content-length'],
+        cookie: req.headers.cookie,
       })
       res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' })
       res.end(JSON.stringify({ ok: status < 400 }))
@@ -169,5 +171,19 @@ describe('gateway proxy request forwarding', () => {
     // The request still reached DSH: the gateway is not the one refusing it.
     expect(requests).toHaveLength(1)
     expect(requests[0]?.url).toBe(ROUTE)
+  })
+
+  it('FNOS-030-02-AC-01: 未托管 DSH 时浏览器 Cookie 原样透传，不做会话改写', async () => {
+    // 非托管模式（没有 webProcess，即 DSH 由外部启动）下网关不持有会话，
+    // 浏览器 Cookie 必须原样上送，否则这类部署会整体失去登录态。
+    const { send, requests } = await connected()
+    await send({
+      method: 'GET',
+      path: `${GATEWAY_PREFIX}${ROUTE}`,
+      headers: { cookie: 'dsh-auth-legacy=session; theme=dark' },
+    })
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.cookie).toBe('dsh-auth-legacy=session; theme=dark')
   })
 })

@@ -1,7 +1,7 @@
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import { createHash } from 'node:crypto'
 import type { RequestHandler } from 'http-proxy-middleware'
-import { request as httpRequest, type ServerResponse, type IncomingMessage } from 'node:http'
+import { request as httpRequest, type ClientRequest, type ServerResponse, type IncomingMessage } from 'node:http'
 import type { GatewayOptions } from '../types/gateway.js'
 import { applyProxyRequestHeaders, copyRequestHeaders } from '../middleware/request-headers.js'
 import { copyResponseHeaders } from '../middleware/response-headers.js'
@@ -10,6 +10,13 @@ import { gatewayBridgeScript } from './bridge-script.js'
 import { attachSseKeepalive } from '../middleware/sse-keepalive.js'
 import { BAD_GATEWAY_MESSAGE } from '../constants/index.js'
 import { recoveryPage } from './recovery-page.js'
+import {
+  DSH_SESSION_COOKIE_PREFIX,
+  browserSessionCookieNames,
+  withSessionCookie,
+  withoutSessionCookies,
+  type UpstreamSession,
+} from './upstream-session.js'
 
 function sendBadGateway(res: ServerResponse, error: unknown, options?: GatewayOptions, req?: IncomingMessage): void {
   if (res.headersSent || res.writableEnded || res.destroyed) {
@@ -48,33 +55,16 @@ export function browserSessionCookieName(upstreamHost: string, upstreamPort: num
   return `dsh-auth-${createHash('sha256').update(`${upstreamHost}:${String(upstreamPort)}`).digest('base64url')}`
 }
 
-/** Whether the browser returns the cookie for this gateway's current DSH authority. */
-function hasBrowserSessionCookie(req: IncomingMessage, cookieName: string): boolean {
-  return String(req.headers.cookie ?? '').split(';').some(pair => pair.trim().startsWith(`${cookieName}=`))
-}
-
 /** Path used by gateway releases that incorrectly scoped DSH cookies to the app mount. */
 function legacyCookieMountPath(gatewayPrefix: string): string | undefined {
   const prefix = gatewayPrefix.replace(/^\/+|\/+$/gu, '')
   return prefix === '' ? undefined : `/${prefix}/`
 }
 
-function expireLegacyBrowserSessionCookie(cookieName: string, gatewayPrefix: string): string | undefined {
-  const path = legacyCookieMountPath(gatewayPrefix)
-  if (path === undefined) return undefined
-  return `${cookieName}=; Max-Age=0; Path=${path}; HttpOnly; SameSite=Strict`
-}
-
-function withLaunchToken(path: string | undefined, token: string | undefined): string | undefined {
-  if (path === undefined || token === undefined || token === '') return path
-  try {
-    const url = new URL(path, 'http://fnos-gateway.invalid')
-    url.searchParams.delete('token')
-    url.searchParams.set('token', token)
-    return `${url.pathname || '/'}${url.search}`
-  } catch {
-    return path
-  }
+/** 清除浏览器里旧版本网关留下的会话 Cookie：根路径与旧版挂载路径各一条过期指令。 */
+function expireBrowserSessionCookies(names: string[], gatewayPrefix: string): string[] {
+  const paths = ['/', legacyCookieMountPath(gatewayPrefix)].filter((path): path is string => path !== undefined)
+  return names.flatMap(name => paths.map(path => `${name}=; Max-Age=0; Path=${path}; HttpOnly; SameSite=Strict`))
 }
 
 function stripLaunchTokenFromLocation(value: string): string {
@@ -88,49 +78,32 @@ function stripLaunchTokenFromLocation(value: string): string {
   }
 }
 
-/**
- * Decide whether this upstream request must carry the launch token.
- *
- * DSH mints its browser-session cookie from a tokenized index request, but it
- * answers *every* tokenized index request with a 303 to the clean `/` — even
- * one that already carried a valid cookie. Injecting the token into every
- * request therefore turns the clean-URL redirect into an infinite loop
- * ("too many redirects"). Only the cookie-less index request bootstraps with a
- * token; every other request authenticates with the cookie the browser now
- * holds.
- */
-function needsLaunchToken(req: IncomingMessage, cookieName: string): boolean {
-  return isIndexRequest(req) && !hasBrowserSessionCookie(req, cookieName)
-}
-
-/**
- * Whether a **WebSocket upgrade** must carry the launch token.
- *
- * The index-only rule above cannot cover upgrades, for two independent reasons:
- *
- *  1. An upgrade is never an index request (`isIndexRequest` requires pathname
- *     `/`), so `needsLaunchToken` is always false for `/api/...mux` — the token
- *     injection in `proxyReqWs` was dead code.
- *  2. A 303 redirect has no meaning for an upgrade, so the redirect loop that
- *     forces the index rule does not apply here.
- *
- * Why it matters: the browser opens `/api/remote.mux` as soon as the document
- * loads, often **before** the tokenized index exchange has stored the
- * `dsh-auth-*` cookie. A token-less upgrade is rejected with 401, so the mux
- * drops and the client reconnects — the user-visible symptom is exactly one
- * disconnect right after the page loads, with the second attempt succeeding
- * because the cookie now exists.
- *
- * A cookie-less upgrade therefore bootstraps with the token, same as the
- * cookie-less index request.
- */
-function needsUpgradeLaunchToken(req: IncomingMessage, cookieName: string): boolean {
-  return !hasBrowserSessionCookie(req, cookieName)
-}
-
-export function createProxyHandler(options: GatewayOptions): RequestHandler {
+export function createProxyHandler(options: GatewayOptions, session: UpstreamSession): RequestHandler {
   const { upstreamHost, upstreamPort, gatewayPrefix, sseKeepaliveInterval = 15_000 } = options
-  const cookieName = browserSessionCookieName(upstreamHost, upstreamPort)
+  // 网关托管 DSH Web 时会话由网关持有（FNOS-030）；未托管时（外部启动的 DSH）浏览器 Cookie 原样透传。
+  const managed = options.webProcess !== undefined
+  // 每个上游请求实际附带的会话，用于 401 时只丢弃那一枚。
+  const sessionUsed = new WeakMap<IncomingMessage, string>()
+
+  /** 上游请求的 Cookie：去掉浏览器的 `dsh-auth-*`，附上网关会话。 */
+  const applySessionCookie = (proxyReq: ClientRequest, req: IncomingMessage): void => {
+    if (!managed) return
+    const held = session.current()
+    const cookie = held === undefined ? withoutSessionCookies(req.headers.cookie) : withSessionCookie(req.headers.cookie, held)
+    if (held !== undefined) sessionUsed.set(req, held)
+    if (cookie === '') proxyReq.removeHeader('cookie')
+    else proxyReq.setHeader('cookie', cookie)
+  }
+
+  /** 下游响应：会话 Cookie 不下发浏览器；浏览器带来的旧会话 Cookie 一并清除。 */
+  const applyBrowserCookieHeaders = (headers: Record<string, string | string[]>, req: IncomingMessage): void => {
+    const upstream = headers['set-cookie']
+    const kept = (upstream === undefined ? [] : Array.isArray(upstream) ? upstream : [upstream])
+      .filter(cookie => !cookie.trimStart().startsWith(DSH_SESSION_COOKIE_PREFIX))
+    const cookies = [...kept, ...expireBrowserSessionCookies(browserSessionCookieNames(req.headers.cookie), gatewayPrefix)]
+    if (cookies.length === 0) delete headers['set-cookie']
+    else headers['set-cookie'] = cookies
+  }
 
   const writeUpstreamResponse = (proxyRes: IncomingMessage, req: IncomingMessage, res: ServerResponse): void => {
     const contentType = String(proxyRes.headers['content-type'] || '').toLowerCase()
@@ -152,6 +125,7 @@ export function createProxyHandler(options: GatewayOptions): RequestHandler {
       gatewayPrefix,
     })
     if (typeof headers.location === 'string') headers.location = stripLaunchTokenFromLocation(headers.location)
+    if (managed) applyBrowserCookieHeaders(headers, req)
 
     if (!rewriteBody) {
       res.writeHead(proxyRes.statusCode || 502, proxyRes.statusMessage, headers)
@@ -189,26 +163,14 @@ export function createProxyHandler(options: GatewayOptions): RequestHandler {
   }
 
   /**
-   * Re-request the index with the current launch token after DSH rejected a
-   * stale browser cookie. DSH answers that request with a fresh cookie and a
-   * 303 to the clean URL, so the browser recovers without reopening the app.
+   * DSH 拒绝了网关会话后重放首页一次：换取新会话后按原地址再请求。
+   * 只重放一次，仍被拒时把这次响应原样交给浏览器，不会循环。
    */
-  const replayIndexWithLaunchToken = (req: IncomingMessage, res: ServerResponse, token: string): void => {
+  const replayIndexWithFreshSession = (req: IncomingMessage, res: ServerResponse, fresh: string): void => {
     const headers = copyRequestHeaders(req, { host: upstreamHost, port: upstreamPort })
-    const request = httpRequest({
-      host: upstreamHost,
-      port: upstreamPort,
-      method: 'GET',
-      path: withLaunchToken('/', token),
-      headers,
-    }, upstreamResponse => {
-      const expiredCookie = expireLegacyBrowserSessionCookie(cookieName, gatewayPrefix)
-      if (expiredCookie !== undefined) {
-        const setCookie = upstreamResponse.headers['set-cookie']
-        upstreamResponse.headers['set-cookie'] = setCookie === undefined
-          ? [expiredCookie]
-          : [...(Array.isArray(setCookie) ? setCookie : [setCookie]), expiredCookie]
-      }
+    headers.cookie = withSessionCookie(req.headers.cookie, fresh)
+    const request = httpRequest({ host: upstreamHost, port: upstreamPort, method: 'GET', path: req.url ?? '/', headers }, upstreamResponse => {
+      if (upstreamResponse.statusCode === 401) session.invalidate(fresh)
       writeUpstreamResponse(upstreamResponse, req, res)
     })
     request.on('error', error => sendBadGateway(res, error, options, req))
@@ -223,20 +185,25 @@ export function createProxyHandler(options: GatewayOptions): RequestHandler {
     on: {
       proxyReq: (proxyReq, req) => {
         applyProxyRequestHeaders(proxyReq, req, { host: upstreamHost, port: upstreamPort })
-        if (!needsLaunchToken(req, cookieName)) return
-        proxyReq.path = withLaunchToken(proxyReq.path, options.webProcess?.getLaunchToken?.()) ?? proxyReq.path
+        applySessionCookie(proxyReq, req)
       },
+      // 升级走同步代理路径，不能在这里等待换取；会话由启动后的预热和先行的 HTTP 请求备好。
       proxyReqWs: (proxyReq, req) => {
         applyProxyRequestHeaders(proxyReq, req, { host: upstreamHost, port: upstreamPort })
-        if (!needsUpgradeLaunchToken(req, cookieName)) return
-        proxyReq.path = withLaunchToken(proxyReq.path, options.webProcess?.getLaunchToken?.()) ?? proxyReq.path
+        applySessionCookie(proxyReq, req)
       },
       proxyRes: (proxyRes, req, res) => {
-        if (proxyRes.statusCode === 401 && isIndexRequest(req)) {
-          const token = options.webProcess?.getLaunchToken?.()
-          if (token !== undefined && token !== '') {
-            proxyRes.resume()
-            replayIndexWithLaunchToken(req, res, token)
+        if (managed && proxyRes.statusCode === 401) {
+          session.invalidate(sessionUsed.get(req))
+          if (isIndexRequest(req)) {
+            void session.ensure().catch(() => undefined).then(fresh => {
+              if (fresh === undefined) {
+                writeUpstreamResponse(proxyRes, req, res)
+                return
+              }
+              proxyRes.resume()
+              replayIndexWithFreshSession(req, res, fresh)
+            })
             return
           }
         }

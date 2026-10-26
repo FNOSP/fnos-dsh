@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createGateway } from '../src/server/gateway-server.ts'
+import { browserSessionCookieName } from '../src/server/proxy.ts'
 
 /**
  * WebSocket 升级（`/api/remote.mux`）在网关上的两个缺陷。
@@ -38,18 +39,32 @@ interface Harness {
   sock: string
   gateway: ReturnType<typeof createGateway>
   upgrades: string[]
+  /** 上游在每次升级上收到的 Cookie。 */
+  upgradeCookies: Array<string | undefined>
   /** 上游权威：cookie 名按它派生。 */
   upstreamHost: string
   upstreamPort: number
 }
 
-async function harness(opts: { requireToken?: boolean } = {}): Promise<Harness> {
+async function harness(opts: { requireSession?: boolean } = {}): Promise<Harness> {
   const upgrades: string[] = []
-  const upstream = createServer((_q, s) => { s.writeHead(200); s.end('ok') })
+  const upgradeCookies: Array<string | undefined> = []
+  let sessionCookie = ''
+  // 模拟 DSH：带 Token 的首页换取会话（303 + Set-Cookie），其它请求照常应答。
+  const upstream = createServer((q, s) => {
+    if (/token=/u.test(q.url ?? '')) {
+      s.writeHead(303, { location: './', 'set-cookie': `${sessionCookie}; Path=/; HttpOnly; SameSite=Strict` })
+      s.end()
+      return
+    }
+    s.writeHead(200)
+    s.end('ok')
+  })
   upstream.on('upgrade', (req, socket) => {
     upgrades.push(req.url ?? '')
-    // 模拟 DSH 的准入：无凭据的升级被 401 拒绝。
-    if (opts.requireToken === true && !/token=/u.test(req.url ?? '')) {
+    upgradeCookies.push(req.headers.cookie)
+    // 模拟 DSH 的准入：升级只认会话 Cookie，不认 Token。
+    if (opts.requireSession === true && !String(req.headers.cookie ?? '').includes(sessionCookie)) {
       socket.write('HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n')
       socket.end()
       return
@@ -58,6 +73,7 @@ async function harness(opts: { requireToken?: boolean } = {}): Promise<Harness> 
     socket.on('error', () => {})
   })
   const port = await new Promise<number>(r => upstream.listen(0, '127.0.0.1', () => r((upstream.address() as { port: number }).port)))
+  sessionCookie = `${browserSessionCookieName('127.0.0.1', port)}=gateway-session`
   const dir = await mkdtemp(join(tmpdir(), 'ws-upgrade-'))
   const sock = join(dir, 'g.sock')
   const gateway = createGateway({
@@ -75,7 +91,7 @@ async function harness(opts: { requireToken?: boolean } = {}): Promise<Harness> 
     await new Promise<void>(r => upstream.close(() => r()))
   })
   cleanups.push(async () => rm(dir, { recursive: true, force: true }))
-  return { sock, gateway, upgrades, upstreamHost: '127.0.0.1', upstreamPort: port }
+  return { sock, gateway, upgrades, upgradeCookies, upstreamHost: '127.0.0.1', upstreamPort: port }
 }
 
 /** 发一次普通 HTTP 请求：这会让 HPM 订阅它自己的 upgrade handler。 */
@@ -113,36 +129,34 @@ async function oneUpgrade(sock: string, path = `${P}/api/remote.mux`): Promise<{
 }
 
 describe('WS 升级的凭据', () => {
-  it('无 cookie 时带上 launch token，升级得到 101 而不是 401', async () => {
-    const h = await harness({ requireToken: true })
+  it('浏览器不带 Cookie 时附带网关会话：预热后首个升级即得到 101', async () => {
+    const h = await harness({ requireSession: true })
+    await h.gateway.warmSession()
     const { text } = await oneUpgrade(h.sock)
 
-    console.log('  上游收到的路径:', JSON.stringify(h.upgrades))
-    console.log('  客户端收到:', JSON.stringify(text.slice(0, 40)))
-
-    expect(h.upgrades[0]).toContain('token=launch-token')
+    expect(h.upgrades[0]).not.toContain('token=')
+    expect(h.upgradeCookies[0]).toContain('gateway-session')
     expect(text).toContain('101 Switching Protocols')
     expect(text).not.toContain('401')
   })
 
-  it('已有 cookie 时不注入 token（凭据不进 URL）', async () => {
-    const h = await harness()
-    const { browserSessionCookieName } = await import('../src/server/proxy.ts')
-    // cookie 名派生自 upstream 权威；升级里带上它即表示浏览器已持会话。
+  it('浏览器带来的会话 Cookie 不上送，凭据也不进 URL', async () => {
+    const h = await harness({ requireSession: true })
+    await h.gateway.warmSession()
     const name = browserSessionCookieName(h.upstreamHost, h.upstreamPort)
     const client = createConnection(h.sock)
     await once(client, 'connect')
     client.write([
       `GET ${P}/api/remote.mux HTTP/1.1`, 'Host: h', 'Connection: Upgrade', 'Upgrade: websocket',
-      `Cookie: ${name}=1`,
+      `Cookie: ${name}=from-browser; theme=dark`,
       'Sec-WebSocket-Version: 13', 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==', '', '',
     ].join('\r\n'))
     let text = ''
     client.on('data', d => { text += d.toString('utf8') }); client.on('error', () => {})
     await new Promise(r => setTimeout(r, 300))
     client.destroy()
-    console.log('  带 cookie 的上游路径:', JSON.stringify(h.upgrades))
     expect(h.upgrades[0]).not.toContain('token=')
+    expect(h.upgradeCookies[0]).toBe(`theme=dark; ${name}=gateway-session`)
     expect(text).toContain('101')
   })
 })

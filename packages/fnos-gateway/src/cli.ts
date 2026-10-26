@@ -41,7 +41,7 @@ if (!Number.isInteger(UPSTREAM_PORT) || UPSTREAM_PORT < 1 || UPSTREAM_PORT > 655
   process.exit(1)
 }
 
-const { close, server } = createGateway({
+const { close, server, warmSession } = createGateway({
   socketPath: SOCKET_PATH,
   gatewayPrefix: GATEWAY_PREFIX,
   upstreamHost: UPSTREAM_HOST,
@@ -51,9 +51,10 @@ const { close, server } = createGateway({
 })
 
 if (webProcess !== undefined) server.once('listening', () => {
-  void webProcess.start().then(snapshot => console.log(
-    `[fnos-gateway] DSH Web state: ${snapshot.state}${snapshot.error === undefined ? '' : `: ${snapshot.error}`}`,
-  ))
+  void webProcess.start().then(snapshot => {
+    console.log(`[fnos-gateway] DSH Web state: ${snapshot.state}${snapshot.error === undefined ? '' : `: ${snapshot.error}`}`)
+    if (snapshot.state === 'running') void warmSession()
+  })
 })
 
 let shuttingDown = false

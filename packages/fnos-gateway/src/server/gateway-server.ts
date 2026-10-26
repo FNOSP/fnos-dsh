@@ -5,12 +5,13 @@ import { unlinkSync } from 'node:fs'
 import connect from 'connect'
 import type { GatewayOptions, GatewayServer } from '../types/gateway.js'
 import { pathRewriteMiddleware, rewritePath } from '../middleware/path-rewrite.js'
-import { createProxyHandler } from './proxy.js'
+import { createProxyHandler, browserSessionCookieName } from './proxy.js'
+import { UpstreamSession } from './upstream-session.js'
 import { PATH_ALLOWLIST_EVENTS_PATH } from './path-allowlist.js'
 import { WEB_CONTROL_RESTART_PATH, WEB_CONTROL_START_PATH, WEB_CONTROL_STATUS_PATH } from './web-process.js'
 import { attachSseKeepalive } from '../middleware/sse-keepalive.js'
 
-function webControl(options: GatewayOptions): connect.NextHandleFunction {
+function webControl(options: GatewayOptions, session: UpstreamSession): connect.NextHandleFunction {
   return (req, res, next) => {
     const path = req.url?.split('?', 1)[0]
     if (path !== WEB_CONTROL_STATUS_PATH && path !== WEB_CONTROL_START_PATH && path !== WEB_CONTROL_RESTART_PATH) return next()
@@ -28,7 +29,12 @@ function webControl(options: GatewayOptions): connect.NextHandleFunction {
       const administrator = req.headers['x-requested-with'] === 'fetch' && String(req.headers['x-trim-isadmin'] ?? '').toLowerCase() === 'true'
       if (!administrator) { res.statusCode = 403; res.end(JSON.stringify({ error: 'administrator-required' })); return }
       const operation = path === WEB_CONTROL_RESTART_PATH ? options.webProcess.restart() : options.webProcess.start()
-      void operation.then(value => { res.statusCode = value.state === 'error' ? 503 : 200; res.end(JSON.stringify(value)) }).catch(() => {
+      void operation.then(value => {
+        // 启动或重启后预热会话，页面的首个 WebSocket 升级才能带上它
+        if (value.state === 'running') void session.ensure().catch(() => undefined)
+        res.statusCode = value.state === 'error' ? 503 : 200
+        res.end(JSON.stringify(value))
+      }).catch(() => {
         if (res.writableEnded) return
         res.statusCode = 503
         res.end(JSON.stringify({ error: 'web-control-failed' }))
@@ -66,19 +72,11 @@ function pathAllowlistEvents(options: GatewayOptions): connect.NextHandleFunctio
   }
 }
 
-function webIndexAuthentication(options: GatewayOptions): connect.NextHandleFunction {
-  return (req, res, next) => {
-    if (req.method !== 'GET' || req.url?.split('?', 1)[0] !== '/') return next()
-
-    void (async () => {
-      const webProcess = options.webProcess
-      let token = webProcess?.getLaunchToken?.()
-      if (token === undefined) token = await webProcess?.waitForLaunchToken?.()
-      // Keep the browser URL token-free. The proxy appends the current token
-      // only to the loopback request sent to DSH Web.
-      if (token === undefined || res.destroyed || res.writableEnded) { next(); return }
-      next()
-    })().catch(next)
+/** 代理前先备好网关持有的 DSH 会话（FNOS-030）；换取失败时照常转发，由上游的 401 或连接错误给出可恢复响应。 */
+function upstreamSessionReady(options: GatewayOptions, session: UpstreamSession): connect.NextHandleFunction {
+  return (_req, _res, next) => {
+    if (options.webProcess === undefined || session.current() !== undefined) { next(); return }
+    void session.ensure().catch(() => undefined).then(() => next())
   }
 }
 
@@ -93,12 +91,19 @@ function removeSocket(socketPath: string): void {
 export function createGateway(options: GatewayOptions): GatewayServer {
   const { socketPath, gatewayPrefix } = options
 
+  const session = new UpstreamSession({
+    upstreamHost: options.upstreamHost,
+    upstreamPort: options.upstreamPort,
+    cookieName: browserSessionCookieName(options.upstreamHost, options.upstreamPort),
+    ...(options.webProcess === undefined ? {} : { webProcess: options.webProcess }),
+  })
+
   const app = connect()
   app.use(pathRewriteMiddleware(gatewayPrefix))
-  app.use(webControl(options))
+  app.use(webControl(options, session))
   app.use(pathAllowlistEvents(options))
-  app.use(webIndexAuthentication(options))
-  const proxy = createProxyHandler(options)
+  app.use(upstreamSessionReady(options, session))
+  const proxy = createProxyHandler(options, session)
   app.use(proxy)
 
   const openSockets = new Set<import('node:net').Socket>()
@@ -174,5 +179,9 @@ export function createGateway(options: GatewayOptions): GatewayServer {
     server.emit('error', error)
   })
 
-  return { server, close }
+  const warmSession = async (): Promise<void> => {
+    await session.ensure().catch(() => undefined)
+  }
+
+  return { server, close, warmSession }
 }

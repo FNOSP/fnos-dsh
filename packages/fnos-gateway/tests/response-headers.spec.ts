@@ -46,7 +46,8 @@ describe('gateway response headers', () => {
     })
   })
 
-  it('keeps DSH browser-session cookies at root so API and WebSocket routes receive them', () => {
+  // 这一层不改写 Set-Cookie；会话 Cookie 是否下发浏览器由代理按托管模式决定（FNOS-030）
+  it('passes Set-Cookie headers through unchanged', () => {
     const headers = copyResponseHeaders({
       'set-cookie': [
         'dsh-auth-loopback=session; Path=/; HttpOnly; SameSite=Strict',

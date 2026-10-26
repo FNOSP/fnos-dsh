@@ -15,4 +15,6 @@ export interface GatewayOptions {
 export interface GatewayServer {
   server: Server
   close: () => Promise<void>
+  /** 预热网关持有的 DSH 会话；DSH Web 启动后调用。 */
+  warmSession: () => Promise<void>
 }
