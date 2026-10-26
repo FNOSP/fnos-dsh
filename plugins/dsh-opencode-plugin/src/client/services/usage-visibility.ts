@@ -28,10 +28,15 @@ export interface ModelSelectionLike {
  *
  * 只声明用到的一层，真实投影对象可以直接传进来；不 import session-controller
  * 的具体类型，是为了让这个判断不随上游类型的迁移而失效。
+ *
+ * 注意字段名是 wire view 的 `next`：宿主状态里的 `pending` **不会**下发给客户端
+ * （`next = pending ?? lastUsed`）。读 `pending` 永远拿不到值，只会退回
+ * `lastUsed`，而 `lastUsed` 要等下一次请求才更新——表现为切走模型后胶囊仍显示，
+ * 直到发送消息才隐藏。
  */
 export interface ModelSelectionProjectionLike {
   lastUsed?: ModelSelectionLike | null
-  pending?: ModelSelectionLike | null
+  next?: ModelSelectionLike | null
 }
 
 /**
@@ -40,7 +45,7 @@ export interface ModelSelectionProjectionLike {
  * @returns 供应商 id；投影缺失或两侧都为空时返回 undefined。
  */
 export function readSelectedProvider(projection: ModelSelectionProjectionLike | undefined): string | undefined {
-  const selection = projection?.pending ?? projection?.lastUsed
+  const selection = projection?.next ?? projection?.lastUsed
   const provider = selection?.provider
   return typeof provider === 'string' && provider.length > 0 ? provider : undefined
 }
@@ -51,7 +56,7 @@ export function readSelectedProvider(projection: ModelSelectionProjectionLike | 
  * @returns 模型键；投影缺失或没有模型时返回 undefined。
  */
 export function readSelectedModel(projection: ModelSelectionProjectionLike | undefined): string | undefined {
-  const selection = projection?.pending ?? projection?.lastUsed
+  const selection = projection?.next ?? projection?.lastUsed
   const model = selection?.model
   return typeof model === 'string' && model.length > 0 ? model : undefined
 }

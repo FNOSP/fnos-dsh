@@ -367,6 +367,10 @@ const requirementsSidebar = [
         text: 'FNOS-032 OpenCode 辅助调用补齐会话头',
         link: '/requirements/FNOS-032-opencode-aux-session-header'
       },
+      {
+        text: 'FNOS-033 用量胶囊按当前选择即时显隐',
+        link: '/requirements/FNOS-033-usage-capsule-selection'
+      },
       ]
   }
 ]
@@ -504,6 +508,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-032 OpenCode 辅助调用补齐会话头',
         link: '/plans/PLAN-FNOS-032-opencode-aux-session-header'
       },
+      {
+        text: 'PLAN-FNOS-033 用量胶囊按当前选择即时显隐',
+        link: '/plans/PLAN-FNOS-033-usage-capsule-selection'
+      },
     ]
   }
 ]
@@ -609,6 +617,10 @@ const testsSidebar = [
       {
         text: 'FNOS-032 OpenCode 辅助调用补齐会话头',
         link: '/tests/FNOS-032-opencode-aux-session-header'
+      },
+      {
+        text: 'FNOS-033 用量胶囊按当前选择即时显隐',
+        link: '/tests/FNOS-033-usage-capsule-selection'
       },
     ]
   }

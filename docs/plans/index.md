@@ -71,5 +71,6 @@ flowchart TD
 | PLAN-FNOS-030 | [飞牛 iOS App 打开 DSH 空白修复](/plans/PLAN-FNOS-030-app-shell-blank-page) | 已完成（四阶段；132 条包级测试全绿；v6.0.1 真机装成并验证网关会话行为） |
 | PLAN-FNOS-031 | [升级迁移 cwd 提示词变量引用](/plans/PLAN-FNOS-031-cwd-prompt-variable-migration) | 已完成（四阶段：迁移实现 → 包级验证 → 真机验收 → 文档与版本） |
 | PLAN-FNOS-032 | [OpenCode 辅助调用补齐会话头](/plans/PLAN-FNOS-032-opencode-aux-session-header) | 实施中（四阶段：兜底实现 → 包级验证 → 真实会话验证 → 文档与版本） |
+| PLAN-FNOS-033 | [用量胶囊按当前选择即时显隐](/plans/PLAN-FNOS-033-usage-capsule-selection) | 已完成（三阶段；包级 opencode 208 条 / zcode 169 条全绿） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

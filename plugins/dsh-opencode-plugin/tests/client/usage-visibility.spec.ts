@@ -41,15 +41,21 @@ describe('OpenCode 用量胶囊显隐', () => {
     expect(usageCapsuleVisible({ visibility: 'off', provider: OPENCODE_PROVIDER, signedIn: true })).toBe(false)
   })
 
-  it('readSelectedProvider / readSelectedModel 优先 pending，其次 lastUsed', () => {
-    expect(readSelectedProvider({ pending: { provider: OPENCODE_PROVIDER, model: goModel } })).toBe(OPENCODE_PROVIDER)
-    expect(readSelectedModel({ pending: { provider: OPENCODE_PROVIDER, model: goModel } })).toBe(goModel)
-    expect(readSelectedProvider({ pending: null, lastUsed: { provider: OPENCODE_PROVIDER, model: zenModel } })).toBe(OPENCODE_PROVIDER)
-    expect(readSelectedModel({ pending: null, lastUsed: { provider: OPENCODE_PROVIDER, model: zenModel } })).toBe(zenModel)
-    expect(readSelectedProvider({ pending: { provider: 'codex', model: 'x' }, lastUsed: { provider: OPENCODE_PROVIDER, model: goModel } })).toBe('codex')
+  it('切到其它供应商时立即不显示（next 优先于 lastUsed）', () => {
+    const projection = { next: { provider: 'codex', model: 'x' }, lastUsed: { provider: OPENCODE_PROVIDER, model: goModel } }
+    expect(readSelectedProvider(projection)).toBe('codex')
+    expect(usageCapsuleVisible({ visibility: 'auto', provider: readSelectedProvider(projection) })).toBe(false)
+  })
+
+  it('readSelectedProvider / readSelectedModel 优先 next，其次 lastUsed', () => {
+    expect(readSelectedProvider({ next: { provider: OPENCODE_PROVIDER, model: goModel } })).toBe(OPENCODE_PROVIDER)
+    expect(readSelectedModel({ next: { provider: OPENCODE_PROVIDER, model: goModel } })).toBe(goModel)
+    expect(readSelectedProvider({ next: null, lastUsed: { provider: OPENCODE_PROVIDER, model: zenModel } })).toBe(OPENCODE_PROVIDER)
+    expect(readSelectedModel({ next: null, lastUsed: { provider: OPENCODE_PROVIDER, model: zenModel } })).toBe(zenModel)
+    expect(readSelectedProvider({ next: { provider: 'codex', model: 'x' }, lastUsed: { provider: OPENCODE_PROVIDER, model: goModel } })).toBe('codex')
     expect(readSelectedProvider(undefined)).toBeUndefined()
     expect(readSelectedModel(undefined)).toBeUndefined()
-    expect(readSelectedProvider({ pending: { provider: '' } })).toBeUndefined()
-    expect(readSelectedModel({ pending: { model: '' } })).toBeUndefined()
+    expect(readSelectedProvider({ next: { provider: '' } })).toBeUndefined()
+    expect(readSelectedModel({ next: { model: '' } })).toBeUndefined()
   })
 })

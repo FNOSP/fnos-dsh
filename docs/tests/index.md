@@ -41,5 +41,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-030 | [飞牛 iOS App 打开 DSH 空白修复](/tests/FNOS-030-app-shell-blank-page) | [PLAN-FNOS-030](/plans/PLAN-FNOS-030-app-shell-blank-page) | 通过 | 15 条用例：包级 10 条全过；真实 NAS 4 通过 / 1 未执行（TC-014 未登录拒绝未单独取证）。2026-10-26 真机装成 v6.0.1，网关产物含 UpstreamSession 且旧 Token 注入为 0，首页 1 次请求即 200、无 token=、浏览器无 dsh-auth-*；**iOS App 实机由提出人验证正常访问** |
 | FNOS-031 | [升级迁移 cwd 提示词变量引用](/tests/FNOS-031-cwd-prompt-variable-migration) | [PLAN-FNOS-031](/plans/PLAN-FNOS-031-cwd-prompt-variable-migration) | 部分通过 | 13 条用例：包级 10 条全过（网关 147 条测试全绿）；真机 TC-012 通过（6.0.3／6.0.4 两次安装均记录迁移步骤）、TC-013 部分通过（内容 md5 一致、无备份；mtime 由既有插件重装步骤改写）、TC-006 未执行（SSH 禁令，改由包级覆盖）。同时修复安装自动化 BUG-03/04 |
 | FNOS-032 | [OpenCode 辅助调用补齐会话头](/tests/FNOS-032-opencode-aux-session-header) | [PLAN-FNOS-032](/plans/PLAN-FNOS-032-opencode-aux-session-header) | 执行中 | 6 条用例：包级 5 条全过（兜底、会话优先、空串、显式头、真实请求路径）；Auto 权限预设真实会话 1 条待执行 |
+| FNOS-033 | [用量胶囊按当前选择即时显隐](/tests/FNOS-033-usage-capsule-selection) | [PLAN-FNOS-033](/plans/PLAN-FNOS-033-usage-capsule-selection) | 通过 | 6 条包级全部通过：OpenCode 改读 `next`（208 条测试）、ZCode 回归（169 条测试）；BUG-01 已修复 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。
