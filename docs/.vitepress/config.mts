@@ -363,6 +363,10 @@ const requirementsSidebar = [
         text: 'FNOS-031 升级迁移 {{cwd}} 提示词变量引用',
         link: '/requirements/FNOS-031-cwd-prompt-variable-migration'
       },
+      {
+        text: 'FNOS-032 OpenCode 辅助调用补齐会话头',
+        link: '/requirements/FNOS-032-opencode-aux-session-header'
+      },
       ]
   }
 ]
@@ -496,6 +500,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-031 升级迁移 {{cwd}} 提示词变量引用',
         link: '/plans/PLAN-FNOS-031-cwd-prompt-variable-migration'
       },
+      {
+        text: 'PLAN-FNOS-032 OpenCode 辅助调用补齐会话头',
+        link: '/plans/PLAN-FNOS-032-opencode-aux-session-header'
+      },
     ]
   }
 ]
@@ -597,6 +605,10 @@ const testsSidebar = [
       {
         text: 'FNOS-031 升级迁移 cwd 提示词变量引用',
         link: '/tests/FNOS-031-cwd-prompt-variable-migration'
+      },
+      {
+        text: 'FNOS-032 OpenCode 辅助调用补齐会话头',
+        link: '/tests/FNOS-032-opencode-aux-session-header'
       },
     ]
   }

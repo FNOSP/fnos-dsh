@@ -1,5 +1,6 @@
 import { opencodeProvider } from '@earendil-works/pi-ai/providers/opencode'
 import { opencodeGoProvider } from '@earendil-works/pi-ai/providers/opencode-go'
+import type { ProviderStreams } from '@earendil-works/pi-ai'
 import { describe, expect, it } from 'vitest'
 import type { OpenCodeModel } from '../../src/contracts/catalog.ts'
 import { modelKey, OPENCODE_PROVIDER, wireModelId } from '../../src/contracts/identity.ts'
@@ -7,8 +8,11 @@ import {
   createOpenCodePiAdapter,
   createOpenCodeProfile,
   createOpenCodeProvider,
+  ensureOpenCodeSessionHeader,
+  OPENCODE_FALLBACK_SESSION_ID,
   OpenCodeProviderRuntime,
   toPiModel,
+  withOpenCodeSessionFallback,
 } from '../../src/host/provider.ts'
 
 function model(overrides: Partial<OpenCodeModel> = {}): OpenCodeModel {
@@ -239,5 +243,83 @@ describe('目录变化广播', () => {
     instance.update([model('a', 'go')])
     expect(calls.register).toBe(0)
     expect(calls.replace).toEqual([])
+  })
+})
+
+describe('辅助调用的会话头兜底', () => {
+  type Captured = { headers?: Record<string, string | null>, sessionId?: string }
+
+  it('无会话身份时补稳定兜底值', () => {
+    const options: Captured = ensureOpenCodeSessionHeader({})
+    expect(options.headers?.['x-opencode-session']).toBe(OPENCODE_FALLBACK_SESSION_ID)
+  })
+
+  it('有会话 id 时优先使用会话 id', () => {
+    const options: Captured = ensureOpenCodeSessionHeader({ sessionId: 'session-a' })
+    expect(options.headers?.['x-opencode-session']).toBe('session-a')
+  })
+
+  it('空会话 id 视为缺失，使用兜底值', () => {
+    const options: Captured = ensureOpenCodeSessionHeader({ sessionId: '' })
+    expect(options.headers?.['x-opencode-session']).toBe(OPENCODE_FALLBACK_SESSION_ID)
+  })
+
+  it('调用方已有的头（大小写不敏感）不被覆盖', () => {
+    const options: Captured = ensureOpenCodeSessionHeader({ headers: { 'X-OPEncode-Session': 'given' } })
+    expect(options.headers?.['X-OPEncode-Session']).toBe('given')
+    const names = Object.keys(options.headers ?? {}).filter(key => key.toLowerCase() === 'x-opencode-session')
+    expect(names).toHaveLength(1)
+  })
+
+  it('不改写原 options 对象', () => {
+    const original = { sessionId: 'session-a' }
+    const options: Captured = ensureOpenCodeSessionHeader(original)
+    expect(options).not.toBe(original)
+    expect('headers' in original).toBe(false)
+  })
+
+  it('stream 与 streamSimple 两条路径都会补齐', () => {
+    const calls: Array<{ kind: string, options: Captured }> = []
+    const streams = {
+      stream: (_model: unknown, _context: unknown, options: Captured) => {
+        calls.push({ kind: 'stream', options })
+        return undefined as never
+      },
+      streamSimple: (_model: unknown, _context: unknown, options: Captured) => {
+        calls.push({ kind: 'streamSimple', options })
+        return undefined as never
+      },
+    } as unknown as ProviderStreams
+    const wrapped = withOpenCodeSessionFallback(streams, 'fallback-x')
+    wrapped.stream({} as never, {} as never, {})
+    wrapped.streamSimple({} as never, {} as never, { sessionId: 'session-b' })
+    expect(calls[0]?.options.headers?.['x-opencode-session']).toBe('fallback-x')
+    expect(calls[1]?.options.headers?.['x-opencode-session']).toBe('session-b')
+  })
+
+  it('真实请求路径：无会话身份时请求头包含兜底值', async () => {
+    const provider = createOpenCodeProvider([model({ id: 'demo' })], async () => 'token')
+    const pi = toPiModel(model({ id: 'demo' }))
+    const headers: Headers[] = []
+    const fakeFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      headers.push(new Request(input as RequestInfo, init).headers)
+      return new Response(JSON.stringify({ error: { message: 'stop' } }), {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    const context = { messages: [{ role: 'user', content: 'hi' }] }
+    const run = async (options: Record<string, unknown>): Promise<void> => {
+      const stream = provider.stream(pi, context as never, {
+        apiKey: 'token',
+        fetch: fakeFetch as never,
+        ...options,
+      } as never)
+      for await (const _chunk of stream) { /* 消费到结束，确保请求已发出 */ }
+    }
+    await run({})
+    await run({ sessionId: 'session-z' })
+    expect(headers[0]?.get('x-opencode-session')).toBe(OPENCODE_FALLBACK_SESSION_ID)
+    expect(headers[1]?.get('x-opencode-session')).toBe('session-z')
   })
 })

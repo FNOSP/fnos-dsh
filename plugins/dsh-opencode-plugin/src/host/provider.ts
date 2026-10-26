@@ -14,7 +14,8 @@
  *
  * 网关要求每个会话带稳定的 `x-opencode-session` 头以复用上下文缓存；
  * pi-ai 的 `withOpenCodeSessionHeader` 会在 `options.sessionId` 存在时注入，
- * 而 `PiAiAdapter` 会从 DSH 的 `GenerateOptions.sessionId` 透传。
+ * 而 `PiAiAdapter` 会从 DSH 的 `GenerateOptions.sessionId` 透传。自动审查等
+ * 辅助调用不携带会话身份，由 {@link withOpenCodeSessionFallback} 补稳定兜底值。
  *
  * @module dsh-opencode/provider
  */
@@ -110,13 +111,79 @@ function withWireModelId(streams: ProviderStreams): ProviderStreams {
   }
 }
 
+/** OpenCode 网关要求的会话路由头。 */
+const OPENCODE_SESSION_HEADER = 'x-opencode-session'
+
+/**
+ * 没有会话身份时使用的稳定兜底值。
+ *
+ * 自动审查（`@deepseek-ai/dsh-experimental-auto-review`）等辅助调用通过
+ * `ctx.llm.stream` 直接发请求，不带 `GenerateOptions.sessionId`；OpenCode Go
+ * 要求所有推理请求带 `x-opencode-session`，缺头会返回 400 MissingSessionID
+ * 并中止工具调用。兜底值只用于这些无会话身份的调用，普通对话仍使用真实会话 id。
+ */
+export const OPENCODE_FALLBACK_SESSION_ID = 'dsh-opencode'
+
+/** 携带请求头与会话身份的最小形状。 */
+interface SessionHeaderInput {
+  readonly headers?: Record<string, string | null>
+  readonly sessionId?: string
+}
+
+function hasHeader(headers: Record<string, string | null> | undefined, name: string): boolean {
+  const expected = name.toLowerCase()
+  return Object.keys(headers ?? {}).some(key => key.toLowerCase() === expected)
+}
+
+/**
+ * 补齐 `x-opencode-session`：已有头不覆盖，优先真实会话 id，缺失或空串时用兜底值。
+ *
+ * @param options - 原始流选项（可能来自辅助调用，没有 sessionId）
+ * @param fallback - 无会话身份时使用的稳定值
+ * @returns 补齐后的选项；原对象不被修改
+ */
+export function ensureOpenCodeSessionHeader<T extends SessionHeaderInput | undefined>(
+  options: T,
+  fallback: string = OPENCODE_FALLBACK_SESSION_ID,
+): T {
+  if (hasHeader(options?.headers, OPENCODE_SESSION_HEADER)) return options
+  const sessionId = options?.sessionId
+  const value = typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : fallback
+  return {
+    ...options,
+    headers: { ...options?.headers, [OPENCODE_SESSION_HEADER]: value },
+  } as T
+}
+
+/** 给四个协议族补上会话头兜底；pi-ai 先按真实 sessionId 注入，缺省由这里补。 */
+export function withOpenCodeSessionFallback(
+  streams: ProviderStreams,
+  fallback: string = OPENCODE_FALLBACK_SESSION_ID,
+): ProviderStreams {
+  return {
+    ...streams,
+    stream: (model, context, options) =>
+      streams.stream(model, context, ensureOpenCodeSessionHeader(options, fallback)),
+    streamSimple: (model, context, options) =>
+      streams.streamSimple(model, context, ensureOpenCodeSessionHeader(options, fallback)),
+  }
+}
+
 /** 四个协议族的实现；每个都注入 `x-opencode-session` 头并还原网关模型 id。 */
 function openCodeApis(): NonNullable<CreateProviderOptions['api']> {
   return {
-    'anthropic-messages': withWireModelId(withOpenCodeSessionHeader(anthropicMessagesApi())),
-    'google-generative-ai': withWireModelId(withOpenCodeSessionHeader(googleGenerativeAIApi())),
-    'openai-completions': withWireModelId(withOpenCodeSessionHeader(openAICompletionsApi())),
-    'openai-responses': withWireModelId(withOpenCodeSessionHeader(openAIResponsesApi())),
+    'anthropic-messages': withWireModelId(
+      withOpenCodeSessionFallback(withOpenCodeSessionHeader(anthropicMessagesApi())),
+    ),
+    'google-generative-ai': withWireModelId(
+      withOpenCodeSessionFallback(withOpenCodeSessionHeader(googleGenerativeAIApi())),
+    ),
+    'openai-completions': withWireModelId(
+      withOpenCodeSessionFallback(withOpenCodeSessionHeader(openAICompletionsApi())),
+    ),
+    'openai-responses': withWireModelId(
+      withOpenCodeSessionFallback(withOpenCodeSessionHeader(openAIResponsesApi())),
+    ),
   }
 }
 
