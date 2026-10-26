@@ -23,6 +23,17 @@
  * 这是正常现象——文件已被应用接收。因此判定「注入成功」要看**页面是否出现后续状态**
  * （如 fnOS 的「未经验证应用的安全提示」），不能看 input 里还挂着文件。
  *
+ * ## 「必须先切上传来源」（2026-10-26 真机实测的根因）
+ *
+ * 对话框默认处于**「从 NAS 添加」**形态，此时页面上常驻的两枚 `input[type=file]` 属于该形态。
+ * 直接把文件塞进去会「看起来成功」（`input.files` 有值、字节能读），但应用**不消费**——
+ * 等满 30 秒也不弹安全提示。这与「偶发不生效」的历史现象一致：换页刷新后
+ * 来源状态不同，命中与否随机。
+ *
+ * 正确顺序是：**先把来源切到「从电脑上传」**（点击该按钮会让应用切换到电脑形态，并调用
+ * `input.click()` 请求选择器），拦下这次 `click()` 以免弹系统弹窗，再往被请求的那枚 input
+ * 注入。实测切换后 React 会立刻接管并清空 input，安全提示随即出现。
+ *
  * @module dsh-e2e-kit/upload-node
  */
 
@@ -102,11 +113,38 @@ export const uploadFile = defineNode<
           .filter(i => !i.hasAttribute('webkitdirectory'))
           .filter(accepts);
         if (all.length === 0) return null;
+        // 优先取「切换来源时被应用请求打开选择器」的那一枚——它才是「从电脑上传」真正
+        // 绑定 change 的 input（见下面切换来源的注释）。
+        const requested = all.find(i => i.dataset.fnosPickerRequested === '1');
+        if (requested) return requested;
         // fnOS 的「从电脑上传」是「隐藏 input + label 触发系统文件选择器」模式：
         // input 始终是 0×0 的隐藏元素，点按钮也不会新建 input。取第一个非目录的即可。
         const visible = all.find(i => { const r = i.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
         return visible ?? all[0];
       };
+      // **关键前置：先把上传来源切到「从电脑上传」。**
+      // 对话框默认是「从 NAS 添加」形态，页面上那两枚常驻 input 属于该形态——往里注入
+      // 文件虽然「成功」（能读到字节、input.files 有值），但应用**不消费**：实测等 30 秒
+      // 也不弹「未经验证应用的安全提示」。先切来源再注入时，React 会立刻接管并清空
+      // input，随后弹出安全提示。
+      // 切换来源时应用会调用 input.click() 打开系统文件选择器，这里把 click 拦下来：
+      // 既能切到「电脑」形态又不弹窗，同时记下被请求的那一枚 input。
+      const nativeClick = HTMLInputElement.prototype.click;
+      let sourceSwitched = false;
+      HTMLInputElement.prototype.click = function () { this.dataset.fnosPickerRequested = '1'; };
+      try {
+        const sourceSpan = [...document.querySelectorAll('span.semi-button-content')]
+          .filter(el => (el.textContent || '').trim() === '从电脑上传')
+          .pop();
+        const sourceButton = sourceSpan ? sourceSpan.closest('button') : null;
+        if (sourceButton !== null) {
+          sourceButton.click();
+          sourceSwitched = true;
+          await sleep(1200);
+        }
+      } finally {
+        HTMLInputElement.prototype.click = nativeClick;
+      }
       const input = pickInput();
       if (input === null) {
         return { pass: false, detail: '未找到匹配的 file input（accept=' + accept + '）' };
@@ -131,7 +169,7 @@ export const uploadFile = defineNode<
       // 注入后**不**在页面里长等：Bridge 的单次调用有 30 秒上限（实测
       // 'Bridge call timeout after 30000ms: evaluateJavaScript'），
       // 等待判定放到 Node 侧分次轮询。
-      return { pass: true, detail: '已注入 ' + fileName + '（' + buf.length + ' 字节）' };
+      return { pass: true, detail: '已注入 ' + fileName + '（' + buf.length + ' 字节，来源切换=' + sourceSwitched + '）' };
     })()`
 
     // 先开「手动安装」对话框（Node 侧分步做：页面脚本里的长等待会撞上
