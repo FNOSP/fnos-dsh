@@ -376,6 +376,17 @@ patch_dsh_attachment_local() {
         TRIM_PKGVAR="${TRIM_PKGVAR}" \
         "${NODE_BIN}/node" "${DSH_INSTALL_CALLBACK_HELPER}" patch-attachment-local ||
         fail_install "Unable to patch dsh attachment persistence"
+
+    # FNOS-031：DSH 0.2.1 移除了内置提示词变量 cwd。含该引用的旧 profile 会在提示词
+    # 组装阶段抛错，用户侧表现为「发消息没有任何响应」。这里在升级时移除该引用。
+    # 迁移失败只记日志、不阻塞安装——用户 profile 形态不可预期，不能因此让整次安装失败。
+    log_info "Migrating removed cwd prompt variable references in the DSH profile."
+    if DSH_PROFILE_DIRECTORY="${DSH_PROFILE_DIRECTORY}" \
+        "${NODE_BIN}/node" "${DSH_INSTALL_CALLBACK_HELPER}" migrate-cwd-prompt-variable; then
+        log_info "cwd prompt variable migration completed."
+    else
+        log_info "cwd prompt variable migration skipped; the profile was left unchanged."
+    fi
 }
 
 read_package_version() {

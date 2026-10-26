@@ -359,6 +359,10 @@ const requirementsSidebar = [
         text: 'FNOS-030 飞牛 iOS App 打开 DSH 空白修复',
         link: '/requirements/FNOS-030-app-shell-blank-page'
       },
+      {
+        text: 'FNOS-031 升级迁移 {{cwd}} 提示词变量引用',
+        link: '/requirements/FNOS-031-cwd-prompt-variable-migration'
+      },
       ]
   }
 ]
@@ -487,6 +491,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-030 飞牛 iOS App 打开 DSH 空白修复',
         link: '/plans/PLAN-FNOS-030-app-shell-blank-page'
+      },
+      {
+        text: 'PLAN-FNOS-031 升级迁移 {{cwd}} 提示词变量引用',
+        link: '/plans/PLAN-FNOS-031-cwd-prompt-variable-migration'
       },
     ]
   }

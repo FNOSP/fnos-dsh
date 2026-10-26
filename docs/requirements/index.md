@@ -83,5 +83,6 @@ flowchart TD
 | FNOS-028 | [项目与插件版本统一 5.10.0 及发布链路 dsh 基线标注](/requirements/FNOS-028-unified-project-version-bumpp) | 已完成（2026-10-25 提出人验收通过；版本命令直接调用 bumpp，版本统一 5.10.0；npm 发布与真机升级为发布后动作） |
 | FNOS-029 | [DSH 0.2.1-rc.3 插件适配与基线迁移](/requirements/FNOS-029-dsh-021-rc3-adaptation) | 规划中（锚定迁移 + 契约复核 + 双客户端回归；FPK 真机验证列为后续） |
 | FNOS-030 | [飞牛 iOS App 打开 DSH 空白修复](/requirements/FNOS-030-app-shell-blank-page) | 已完成（包级 10/10；真实 NAS 装成 v6.0.1 且 iOS App 实机正常访问；i18n 不在本需求范围） |
+| FNOS-031 | [升级迁移 cwd 提示词变量引用](/requirements/FNOS-031-cwd-prompt-variable-migration) | 阶段一、二完成（升级回调自动移除 profile 中的该变量引用；不加确认，只处理该变量；待真机验收） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

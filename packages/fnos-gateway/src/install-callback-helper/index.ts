@@ -18,6 +18,7 @@ import {
   staleReleaseAgeExclusions,
 } from './common.ts'
 import { patchDshAttachmentLocal } from './attachment-patch.ts'
+import { migrateCwdPromptVariable } from './cwd-migration.ts'
 import { createLogger, InstallHelperError } from './logger.ts'
 import { prepareNodePty } from './node-pty.ts'
 
@@ -140,6 +141,11 @@ export function createProgram(): Command {
     .command('patch-attachment-local')
     .description('Apply the fnOS attachment-local persistence patch')
     .action(patchDshAttachmentLocal)
+
+  program
+    .command('migrate-cwd-prompt-variable')
+    .description('Remove the removed cwd prompt variable from a DSH profile (FNOS-031)')
+    .action(migrateCwdPromptVariable)
 
   return program
 }
