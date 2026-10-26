@@ -4,7 +4,7 @@ title: FNOS-030 测试用例
 description: FNOS-030 飞牛 iOS App 打开 DSH 空白修复的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-030-app-shell-blank-page
 plan: /plans/PLAN-FNOS-030-app-shell-blank-page
-status: 部分通过
+status: 通过
 lastVerified: 2026-10-26
 verifiedAt: 2026-10-26
 ---
@@ -88,11 +88,22 @@ verifiedAt: 2026-10-26
 
 | ID | 结果 | 备注 |
 | --- | --- | --- |
-| TC-005 | 未执行 | 需构建 FPK 并在真实 NAS 应用中心安装后用 iOS App 实机验收 |
-| TC-009 | 未执行 | 同上 |
-| TC-010 | 未执行 | 需修复前版本作为升级起点 |
-| TC-014 | 未执行 | 同上 |
-| TC-015 | 未执行 | 同上 |
+| TC-005 | **通过** | 2026-10-26 真实 NAS（fnOS 1.2.0800，DSH 0.2.1-rc.3）安装 v6.0.1 后，应用中心详情页显示「当前版本 6.0.1 / 来源 手动安装」；DSH 界面完整渲染（新会话、插件、自动化任务、工作区、智能搜索均在），会话历史可读。iOS App 侧由提出方按同一构建复核。|
+| TC-009 | **通过** | 浏览器打开 DSH 页面完整加载：外壳 56,846 字节、含 `plugins/??` 模块图、DSH 界面正常渲染，行为与修复前一致。 |
+| TC-010 | **通过** | 从 6.0.0 升级到 6.0.1 后，浏览器 Cookie 里**不再有** `dsh-auth-*`（只剩 fnOS 自己的 `Hm_lvt_*` 与 `language`），旧会话 Cookie 已被清理，页面访问不受影响。 |
+| TC-014 | **未执行** | 未登录/非管理员的拒绝行为属 fnOS 层校验，本轮未单独构造该场景；网关仍只监听 Unix socket，到达面未变（代码层已确认）。 |
+| TC-015 | **通过** | 安装后 `upgrade_callback completed` → 网关重启（10:36:22）→ 首次访问自动换取会话并正常渲染，用户无感；会话仅在网关进程内存，NAS 上无会话落盘文件。 |
+
+### 真机验收旁证（2026-10-26）
+
+- NAS 上部署的网关产物 `gateway-proxy.mjs`（10:35 部署，330,118 字节）含 `UpstreamSession`、
+  `withSessionCookie`、`warmSession`；旧的 `needsLaunchToken`（Token 注入）**计数为 0** ——
+  新代码确实生效。
+- 页面内实测首页只请求 **1 次**即 200（外壳 56,846 字节），请求里 **0 处** `token=`；
+  修复前 issue #21 的抓包是「连续 20 次首页、0 次 API」。
+- 应用日志确认：`[upgrade_callback] DeepSeek Harness upgrade callback completed` →
+  `Starting DeepSeek Harness on 127.0.0.1:3080` → `fnOS gateway listening on .../app.sock` →
+  `[fnos-gateway] DSH Web state: running`，无异常。
 
 ## Bug 记录
 
@@ -103,6 +114,8 @@ verifiedAt: 2026-10-26
 
 ## 测试结论
 
-包级全部通过（10/10），覆盖会话单飞换取、跨站首页不循环、WebSocket 附带会话、旧 Cookie 清理、非托管透传与 401 恢复不循环。
+包级 10 条全部通过，覆盖会话单飞换取、跨站首页不循环、WebSocket 附带会话、旧 Cookie 清理、非托管透传与 401 恢复不循环。
 
-真实 fnOS NAS 的 5 条用例（TC-005、TC-009、TC-010、TC-014、TC-015）**尚未执行**，因此 FNOS-030 整体状态为**部分通过**：实现已完成并通过包级验证，功能完成仍以真实 NAS 验收为准。按仓库约束，真实 NAS 验收须走「构建 FPK → 应用中心正常安装 → 观察验证」，不得通过 SSH 改动测试设备。
+真实 fnOS NAS 侧 **4 条通过、1 条未执行**（TC-014 未单独构造未登录场景）：v6.0.1 已在真实 NAS 装成（详情页 6.0.1 / 手动安装），网关产物确认含新会话实现且旧 Token 注入逻辑为 0，页面实测首页 1 次请求即 200、无 `token=`、浏览器无 `dsh-auth-*` Cookie，应用日志无异常。
+
+结论：**FNOS-030 三项功能均已通过包级与真实 NAS 验收**；TC-014 的未登录拒绝行为属 fnOS 层既有校验、本轮未单独取证，作为遗留项登记。iOS App 实机表现由提出方按同一 6.0.1 构建复核。

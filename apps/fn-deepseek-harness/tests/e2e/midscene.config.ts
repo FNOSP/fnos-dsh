@@ -31,7 +31,7 @@
 import { defineTestProject } from '@midscene/test/config'
 import { createMidsceneNodes } from '@midscene/test/midscene'
 import { AgentOverChromeBridge } from '@midscene/web/bridge-mode'
-import { actUntilNode, assertInPage, clickInPage, defineBridgeSetup, type BridgeContext } from '@tnnevol/dsh-e2e-kit'
+import { actUntilNode, assertInPage, clickInPage, defineBridgeSetup, uploadFile, type BridgeContext } from '@tnnevol/dsh-e2e-kit'
 
 /**
  * 被测 NAS 的 fnOS Web 地址。
@@ -66,12 +66,14 @@ export default defineTestProject<BridgeContext>({
         actUntilNode,
         // 小控件优先用它：视觉定位对 <40px 的控件落点余量小（实测可偏到视口外）。
         clickInPage,
+        // 文件上传：直接往 input[type=file] 注入本地文件，绕开文件选择器与视觉定位。
+        uploadFile,
       ],
       // 相对执行目录（本包根）解析。
       files: { include: ['e2e/cases/**/*.yaml'] },
-      // 默认排除写操作用例：TC-104 会**覆盖安装** NAS 上的现有应用，不该在只读验收里
-      // 顺手跑掉。要跑它需临时把下面这行注释掉（CLI **没有** `--tags` 参数，实测确认，
-      // 标签过滤只在配置里生效）。
+      // 默认排除写操作（`destructive`）用例：安装类用例会**覆盖安装** NAS 上的现有应用，
+      // 不该在只读验收里顺手跑掉。要跑需临时把下面这行注释掉——CLI **没有** `--tags`
+      // 参数（实测确认），标签过滤只在配置里生效。
       tags: { exclude: ['destructive'] },
       // YAML 用 `${fpkDir}` 引用（项目变量，非环境变量）。
       variables: { fpkDir: allowedDir },

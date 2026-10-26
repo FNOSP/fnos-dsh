@@ -98,10 +98,11 @@ fnOS 桌面
                      └─ 同意协议 → 向导「下一步」→ 等待安装
 ```
 
-**两个界面事实**（都会让自动化点空）：
+**三个界面事实**（都会让自动化点空）：
 
 1. **「手动安装」在应用中心窗口的左下角**，不是顶部工具栏。
-2. **DSH 应用窗口可能正开着并铺满屏幕**，把桌面上的「应用中心」图标盖住 —— 此时点桌面图标会点到应用窗口上，表现为「点了没反应」。**先关掉正在开着的应用窗口**，或直接切到应用中心窗口操作。
+2. **桌面上打开应用中心要单击图标**：目标是带 `[desktopItemId]` 的那个容器（不是里面的文本节点），**单击**即可打开——在文本节点上派发事件无效，双击也不可靠。
+3. **DSH 应用窗口可能正开着并铺满屏幕**，把桌面上的「应用中心」图标盖住 —— 此时点桌面图标会点到应用窗口上，表现为「点了没反应」。**先关掉正在开着的应用窗口**，或直接切到应用中心窗口操作。
 
 ---
 
@@ -148,19 +149,39 @@ const tabs = await agent.getBrowserTabList()
 const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1)
 ```
 
-### 4.4 上传文件：注册与点击必须在**同一次** `aiAct`
+### 4.4 上传文件：直接注入 `input[type=file]`，**不要**走系统文件选择器
 
-Midscene 的文件选择器是「按次授权」的：
+**这是本册最重要的一条：不要用 `aiAct` + `fileChooserAccept` 上传 FPK。** 那条路依赖视觉定位与系统文件选择器，在真实 NAS 上不可靠（2026-10-26 实测）。
 
-```js
-await agent.aiAct('在「从电脑上传」区域点击「添加本地文件」', {
-  fileChooserAccept: ['/abs/path/to/app.fpk'],   // 绝对路径
-})
+正确做法是用共享包的 `dsh.uploadFile` 节点：Node 侧读文件 → base64 传入页面 → 页面内构造 `File` 塞进 `input[type=file]` → 派发完整事件序列。**零模型调用**，全确定性。
+
+```yaml
+- dsh.uploadFile:
+    label: 注入 FPK 到「从电脑上传」
+    path: ${fpkDir}/fn-deepseek-harness.fpk
+    accept: .fpk
+    expectText: 未经验证应用的安全提示
 ```
 
-- `fileChooserAccept` 是 **`aiAct` 的选项**（`AiActOptions`），不是构造参数，也不是环境变量。构造参数里写它会被 JS 静默忽略。
-- 路径必须是**绝对路径**；`fileChooserAllowedDir` 也是 `aiAct` 选项，用于「AI 自主决定上传哪个文件」的路径（此时会校验路径在该目录内）。直接用 `fileChooserAccept` 传绝对路径**不需要**它。
-- 注册与点击要在**同一次** `aiAct` 里完成：注册只在那一次调用期间有效。
+为什么旧路径不能用——实测失败全部发生在**视觉与文件选择器**环节，与被测物无关：
+
+| 失败形态 | 实测现象 |
+| --- | --- |
+| 模型限流 | `429 使用量已超出频率限制` → `502 额度已用尽`，上传步骤整体失败 |
+| 扩展断连 | `Error: Connection lost, reason: client namespace disconnect`（上传步骤跑 4 分钟后） |
+| 桥调用超时 | `Bridge call timeout after 30000ms: getBrowserTabList` |
+| 重规划死循环 | `planning cycle limit (20) has been reached`（模型反复找桌面上的应用中心图标） |
+
+界面上必须知道的四个事实（都会让注入落空）：
+
+1. **「从电脑上传」是「隐藏 input + label」模式**：`input[type=file]` 常驻且一直是 `0×0`，点按钮**不会新建** input。直接给那个隐藏 input 赋 `files` 即可。
+2. **页面里还有一个 `webkitdirectory` 的目录 input**，必须按属性排除，否则会注进目录选择器。
+3. **事件序列必须完整**：`pointerdown → pointerup → click → input → change`。只派发 `input`/`change` 时 fnOS 收不到文件——不弹安全提示，`input.files` 也不会被清空。
+4. **单次页面脚本不能长等**：Bridge 单次调用上限 30 秒。把「开对话框」与「注入」分步，等待判定放到 Node 侧轮询（`expectText` + `timeoutMs` 就是干这个的）。
+
+文件被接收的可观察证据：fnOS 立刻弹出「未经验证应用的安全提示」；随后 React 会**清空 input**（`files.length` 归 0），这是正常现象，不要据此判失败。
+
+完整可执行用例见 `apps/fn-deepseek-harness/tests/e2e/cases/FNOS-013-nas-install-from-computer.yaml`。
 
 ### 4.5 点击与坐标
 
@@ -208,7 +229,9 @@ await agent.aiAct('在「从电脑上传」区域点击「添加本地文件」'
 | 页面停在 fnOS 登录页 | NAS 会话掉线 | 重新登录（可能需要用户本人操作） |
 | 点了「手动安装」没反应 | DSH 应用窗口盖住了桌面图标 | 先关掉应用窗口 |
 | 模型报 `502` / `Connection error` | 上游模型瞬时故障 | 重试；flash 模型做长规划容易翻车，换更强的模型 |
-| 上传后 `fileChooser` 报错 | 路径不是绝对路径，或注册与点击不在同一次 `aiAct` | 绝对路径 + 合并到一次调用 |
+| 上传步骤 `429` / `502 额度已用尽` | 视觉模型额度或频率限制 | 改用 `dsh.uploadFile`（§4.4，零模型调用） |
+| 上传步骤 `Connection lost` / `Bridge call timeout` | 扩展断连或单次调用超 30 秒 | 同上改用 `dsh.uploadFile`；单次页面脚本不要长等 |
+| 注入后不弹安全提示 | 事件序列不完整，或注入到了目录 input | 补齐 `pointerdown → pointerup → click → input → change`；排除 `webkitdirectory` |
 | 桥端口 `EADDRINUSE 126.0.0.1:3766` | 另一个会话/进程占着桥 | 先确认是谁的再决定是否接管；不要直接杀 |
 
 ### 6.1 孤儿插件与悬空引用
@@ -255,7 +278,9 @@ tar -xzOf tmp/fpk-upload/*.fpk manifest | grep -E '^(version|platform)'
 | 记住这几句 | 为什么 |
 | --- | --- |
 | 版本不同才能装 | 相同版本被直接拒绝 |
-| `fileChooserAccept` 属于 `aiAct` | 放错地方被静默忽略 |
+| 上传用 `dsh.uploadFile`，不用 `fileChooserAccept` | 后者依赖视觉与系统选择器，实测不可靠 |
+| 事件序列要完整 | 少了指针事件 fnOS 收不到文件 |
+| 单次页面脚本别长等 | Bridge 单次调用上限 30 秒 |
 | `activate: false` 要显式传 | 缺省会抢前台 |
 | tabId 必须数字、且别取第一个匹配 | 分别是调用失败与「绑到登录页」 |
 | DOM 直写不进城书状态 | 提交后是旧值 |

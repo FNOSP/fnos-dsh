@@ -327,31 +327,45 @@ pnpm --filter @tnnevol/dsh-midscene run test:bridge "<目标URL>"
 
 `files.include` **相对执行目录**（插件根）解析，不是相对配置文件所在目录——写成 `tests/e2e/cases/**/*.yaml`。
 
-#### 文件上传：用 `aiAct` 的 `fileChooserAccept`（应用中心装 FPK 的唯一可靠路径）
+#### 文件上传：用 `dsh.uploadFile` 直接注入 `input[type=file]`（**不要**用 `fileChooserAccept`）
 
-FPK 上传是应用级验收里最容易卡住的一步。**能用的只有一条**：把文件路径写进 `aiAct` 的
-`fileChooserAccept` 选项，与「点击上传按钮」放在**同一次 `aiAct`** 里。
+FPK 上传是应用级验收里最容易卡住的一步。**2026-10-26 起本条结论已更正**：原先推荐的
+`aiAct` + `fileChooserAccept`（走系统文件选择器）在真实 NAS 上连续失败，失败全部发生在
+**视觉与文件选择器**环节，与被测物无关：
+
+| 失败形态 | 实测现象 |
+| --- | --- |
+| 模型限流 | `429 使用量已超出频率限制` → `502 额度已用尽`，上传步骤整体失败 |
+| 扩展断连 | `Error: Connection lost, reason: client namespace disconnect`（上传步骤跑 4 分钟后） |
+| 桥调用超时 | `Bridge call timeout after 30000ms: getBrowserTabList` |
+| 重规划死循环 | `planning cycle limit (20) has been reached`（模型反复找桌面上的应用中心图标） |
+
+**当前唯一可靠路径**是共享包的 `dsh.uploadFile` 节点：Node 侧读本地文件 → base64 传入页面 →
+页面内构造 `File` 塞进 `input[type=file]` → 派发完整事件序列。**零模型调用**，全确定性。
 
 ```yaml
-- aiAct:
-    prompt: >-
-      在「手动安装」对话框里确认存储空间是「存储空间 1」，点击「上传 fpk 文件」区域的
-      「从电脑上传」，在文件选择器里选中并上传该文件；出现安全提示点「同意」，向导保持
-      默认点「下一步」，等待进度对话框消失。
-    options:
-      fileChooserAccept: ['${fpkDir}/fn-deepseek-harness.fpk']
+- dsh.uploadFile:
+    label: 注入 FPK 到「从电脑上传」
+    path: ${fpkDir}/fn-deepseek-harness.fpk
+    accept: .fpk
+    expectText: 未经验证应用的安全提示
 ```
 
-三条实测约束：
+四条实测约束：
 
-- **预设随 `aiAct` 结束即清除**。先单独 `aiAct` 点按钮、再单独 `aiAct` 传文件，会一直等不到
-  文件选择器而卡死。点击与预设必须同一次。
-- **`fileChooserAllowedDir` 不是构造参数**，也不在 `project.ts` 的桥接配置里生效。它属于
-  `aiAct` 的选项，且只服务于**提示词驱动**的上传路径（AI 自己调 `RegisterFileChooserAccept`，
-  内部校验路径不越界）。走 `fileChooserAccept` 直接预设时**不需要它**——传了也被静默忽略。
-  构造参数里写它是常见误判：命令看似成功，其实成功的是另一条路径。
-- **路径用绝对路径或项目变量**（`${fpkDir}` 由 `project.ts` 的 `variables` 提供），不要写
-  相对路径——文件选择器以系统进程的 CWD 为基准，不是以用例目录为基准。
+- **「从电脑上传」是「隐藏 input + label」模式**：`input[type=file]` 常驻且一直是 `0×0`，
+  点按钮**不会新建** input。直接给该隐藏 input 赋 `files` 即可。
+- **页面里同时有一个 `webkitdirectory` 目录 input**，必须排除，否则会注进目录选择器。
+- **事件序列必须完整**：`pointerdown → pointerup → click → input → change`。只派发
+  `input`/`change` 时 fnOS 收不到文件——不弹安全提示，`input.files` 也不会被清空。
+- **单次页面脚本不能长等**：Bridge 单次调用上限 30 秒。把「开对话框」与「注入」分步，
+  等待判定放到 Node 侧轮询（即 `expectText` + `timeoutMs`）。
+
+文件被接收的可观察证据是 fnOS 弹出「未经验证应用的安全提示」；随后 React 会清空 input
+（`files.length` 归 0），属正常现象，**不要**据此判失败。
+
+完整可执行用例见 `apps/fn-deepseek-harness/tests/e2e/cases/FNOS-013-nas-install-from-computer.yaml`，
+操作手册见[从电脑上传 FPK 到 NAS 并安装](/guide/nas-fpk-install)第 4.4 节。
 
 **为什么不能用 Chrome MCP 的 `upload_file` 上传**：该工具受工作区根白名单限制，实测
 `/tmp`、`~/Downloads`、仓库内路径**全部被拒**，且它解析到的根可能是 `~/.dsh/profiles/desktop`
@@ -915,7 +929,7 @@ Codex Auth 插件的**已登录账号配置文件可直接用作测试账号**�
 | 2026-10-12 | Midscene 章节新增 Bridge Mode 并升为首选接入方式 | 按 Midscene 官方《Chrome 桥接模式》验证：脚本作 server（默认 127.0.0.1:3766），用户真实 Chrome 里的 Midscene 扩展反向连接，因此浏览器用户可见、复用真实 cookies 与登录态、无 macOS 钥匙串弹窗、视口即真实窗口（实测 1920×906）。实测同一任务在 Bridge Mode 下完整通过（首页断言 → 点击「插件」→ 独立核实进入插件列表 → 列表断言），而 CDP 直连需应对 756×413 窄视口与钥匙串授权。据此把接入方式改为三级优先级（Bridge Mode > 默认 Puppeteer > CDP），CDP 章节标注为备选。验证脚本入仓：`plugins/dsh-midscene-plugin/scripts/bridge-smoke.ts`（`pnpm --filter @tnnevol/dsh-midscene run test:bridge`）。 |
 | 2026-10-12 | Midscene 章节新增「有头浏览器的标签页纪律」 | 针对有头（Bridge Mode）测试新增四条纪律：先查后复用（同源同路径视为同一页，避免 DSH Web 的 `?token=` 变化导致复用失效）、复用后回到确定起点（复用页可能停在上次测试状态）、收尾至少保留一个目标页、只关闭本次新建的重复页。实测依据：`setActiveTabId` 只能绑定一次（因此必须「先查后绑定」）、`destroy(closeTab)` 仅关闭 `newlyCreatedTabIds`。验证：连续三轮测试后浏览器 8070 目标页恒为 1 张、总页数无堆积。 |
 | 2026-10-12 | Midscene 章节新增「Midscene Test 项目」小节 | 交互用例的正式载体落定为 Midscene Test：共享装配放 `packages/dsh-e2e-kit`，各插件在 `tests/e2e/` 放配置与用例、以 `test:e2e` 为入口。明确用例与测试文档的对应关系（文档是权威台账、YAML 的 `name` 以 `TC-0xx` 对齐）。登记四条实测约束：YAML 的 `${}` 插值是项目变量（javascript 步骤不能用模板字面量）、用例必须自建起始状态、归一状态必须用真实点击（程序化 click 不切换 React 受控状态）、断言分工（精确判定用 javascript、否定式判断不交给视觉模型）。状态依据从组件源码取。新增僵尸页自动降级说明。验证：FNOS-012 的 TC-028/029/030 经 `pnpm --filter @tnnevol/dsh-failover-search run test:e2e` 全部通过。 |
-| 2026-10-18 | 新增「文件上传」小节与标签过滤说明 | 应用中心装 FPK 的上传只有一条可靠路径：`aiAct` 的 `fileChooserAccept` 与「点击上传按钮」放在**同一次** `aiAct` 内——预设随 `aiAct` 结束即清除，拆成两次会一直等不到文件选择器。登记三条实测约束：`fileChooserAllowedDir` 是 `aiAct` 选项而非构造参数（且只服务于提示词驱动的上传路径，直接预设时不需要）；路径用绝对路径或项目变量，不以用例目录为基准；Chrome MCP 的 `upload_file` 受工作区根白名单限制，实测 `/tmp`、`~/Downloads` 与仓库内路径均被拒，且其解析根可能是个人 profile，故走 Midscene Test 而非 MCP 传文件。同时说明标签过滤只在配置里生效（CLI 无 `--tags`，写了会被忽略并跑完整个套件，易误触发写操作用例）。 |
+| 2026-10-18 | 新增「文件上传」小节与标签过滤说明 | 应用中心装 FPK 的上传只有一条可靠路径：`aiAct` 的 `fileChooserAccept` 与「点击上传按钮」放在**同一次** `aiAct` 内——预设随 `aiAct` 结束即清除，拆成两次会一直等不到文件选择器。登记三条实测约束：`fileChooserAllowedDir` 是 `aiAct` 选项而非构造参数（且只服务于提示词驱动的上传路径，直接预设时不需要）；路径用绝对路径或项目变量，不以用例目录为基准；Chrome MCP 的 `upload_file` 受工作区根白名单限制，实测 `/tmp`、`~/Downloads` 与仓库内路径均被拒，且其解析根可能是个人 profile，故走 Midscene Test 而非 MCP 传文件。**2026-10-26 更正**：`fileChooserAccept` 路径在真实 NAS 上不可靠（模型限流、扩展断连、桥超时、重规划死循环），文件上传小节已改为 `dsh.uploadFile` 直接注入 `input[type=file]`。同时说明标签过滤只在配置里生效（CLI 无 `--tags`，写了会被忽略并跑完整个套件，易误触发写操作用例）。 |
 | 2026-10-13 | Midscene 章节新增「连接目标页：一律用共享入口」 | 明确任何驱动有头浏览器的脚本（含 `tmp/` 下的一次性探测脚本）都必须用共享包的 `connectTarget()`，不得直接调 Midscene 的 `connectNewTabWithUrl()`（后者无条件新开页、不判断复用）。背景：复用逻辑一度只存在于 Midscene Test 的 setup 里，导致 29 个探测脚本各开一页又不关闭、浏览器堆积数十个重复标签页——规矩只写在文档而临时脚本用不上即治理漏洞，故把复用做成默认入口。 |
 | 2026-10-13 | 新增「连续交互必须用 Midscene Test 用例，禁止一次性探测脚本」 | 涉及两步以上、有前后依赖的交互验收必须写成 Midscene Test 用例并一条命令跑完；禁止拆成多个一次性脚本一步一停。依据：为「真实 NAS 装一次 FPK 并验收」写过 66 个一次性脚本，每个都 `kill 3766 → node xxx.mjs → sleep → grep`，导致每步重连桥（`setActiveTabId` 每个 Agent 只能调用一次）、进度反复中断、以 sleep+grep 猜测代替断言、用完即弃无法回归。同时明确 `setup` 每个执行项目只运行一次，是「连续不中断」的机制来源。 |
 | 2026-10-13 | 新增「断言必须用 `dsh.assertInPage`，不能用 `javascript` 步骤」 | Midscene 的 `javascript` 步骤底层是 CDP `Runtime.evaluate`，页面异常被放在 `exceptionDetails` 里返回而 Midscene 不检查，导致 `throw`/`Promise.reject`/语法错误三种形态全被静默吞掉——把 `javascript` 当断言用会得到假阳性（实测：一条断言「模块图不含某插件」的用例在目标确实含该插件时仍然通过）。要求改用共享包 `@tnnevol/dsh-e2e-kit` 的 `dsh.assertInPage`：页面内精确判定 + Node 侧抛错传播，零模型调用。 |

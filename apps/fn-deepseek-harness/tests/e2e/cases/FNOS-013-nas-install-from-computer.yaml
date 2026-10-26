@@ -1,0 +1,136 @@
+# fnOS 应用安装：从电脑上传 FPK（应用级）
+#
+# 用例编号与 docs/tests/FNOS-030-app-shell-blank-page.md 对齐：
+# 测试文档是**权威台账**（登记结果与结论），本文件是**执行载体**。
+#
+# ## 为什么不再用「aiAct + fileChooserAccept」
+#
+# 2026-10-26 在真实 fnOS NAS 上实测，旧路径（视觉模型点「从电脑上传」+ 系统文件
+# 选择器预设）连续失败，且失败全部发生在**视觉与文件选择器**环节，与被测物无关：
+#
+# | 失败形态 | 实测现象 |
+# | --- | --- |
+# | 模型限流 | `429 使用量已超出频率限制` → `502 额度已用尽`，上传步骤整体失败 |
+# | 扩展断连 | `Error: Connection lost, reason: client namespace disconnect`（上传步骤跑 4 分钟后） |
+# | 桥调用超时 | `Bridge call timeout after 30000ms: getBrowserTabList` |
+# | 重规划死循环 | `planning cycle limit (20) has been reached`（模型反复找桌面上的应用中心图标） |
+#
+# 现路径 `dsh.uploadFile`：Node 侧读本地文件 → base64 传入页面 → 页面内构造 `File`
+# 塞进 `input[type=file]` → 派发完整指针事件序列。**零模型调用**，全确定性。
+#
+# ## 界面与行为事实（2026-10-26 实测）
+#
+# - fnOS 应用中心里「手动安装」在**左下角**，不是顶部工具栏。
+# - fnOS 桌面上的「应用中心」是**图标**：目标是带 `[desktopItemId]` 的那个容器，
+#   **单击**即可打开（不是双击；在文本节点容器上派发事件无效）。
+# - 「从电脑上传」是「隐藏 `input[type=file]` + label 触发系统选择器」模式：
+#   input 常驻且一直是 `0×0`，点按钮**不会新建** input。还有一个
+#   `webkitdirectory` 的目录 input，必须排除。
+# - 注入时必须派发**完整**事件序列 `pointerdown → pointerup → click → input → change`；
+#   只派发 `input`/`change` 时 fnOS 收不到文件（不弹安全提示、input 也不被清空）。
+# - 文件被接收后 fnOS 立刻弹出「未经验证应用的安全提示」——可观察证据；
+#   React 会随即清空 input（`files.length` 归 0），属正常现象。
+# - 存储空间下拉**不需要切换**（保持默认）。
+# - 单次页面脚本**不能长等**：Bridge 的单次调用上限为 30 秒，
+#   因此「开对话框」与「注入」分步、等待判定在 Node 侧轮询。
+#
+# ## 当前自动化状态（如实登记）
+#
+# 注入与后续向导步骤均已可脚本化；但「注入后应用是否消费文件」在连续重跑中不稳定
+# （同一流程首次手工探查成功、随后自动重跑偶发不弹安全提示）。装机验收以
+# **实际安装结果**为准（应用中心详情页版本 + 模块图 + 网关产物），不以本用例通过
+# 作为唯一判据。2026-10-26 的 FNOS-030 真机安装由本流程 + 人工确认完成，结果见
+# docs/tests/FNOS-030-app-shell-blank-page.md。
+
+cases:
+  - name: TC-200 注入 FPK 并完成安装
+    tags: [FNOS-030, nas, install, destructive]
+    steps:
+      # 注入本地 FPK 到「从电脑上传」的 file input，并等 fnOS 弹出安全提示。
+      # 存储空间保持对话框默认值，不做任何切换。
+      #
+      # `dsh.uploadFile` 自己负责前置：回到桌面 → 点开「应用中心」→ 点开「手动安装」
+      # → 注入文件。因此**不**用 aiWaitFor 等中间状态——那需要视觉模型，会撞上模型限流。
+      - dsh.uploadFile:
+          label: 注入 FPK 到「从电脑上传」
+          path: ${fpkDir}/fn-deepseek-harness.fpk
+          accept: .fpk
+          expectText: 未经验证应用的安全提示
+          timeoutMs: 30000
+      # 同意安全提示 → 服务配置向导「下一步」→ 进入安装。
+      #
+      # 两步合并在一个脚本里并各自带重试，**不**用 aiWaitFor 等中间状态：
+      # aiWaitFor 走视觉模型，会撞上模型限流（实测 429/502），而这两步的判定
+      # 「按钮是否出现」是纯 DOM 事实，脚本轮询更稳。
+      - dsh.assertInPage:
+          label: 同意安全提示并进入服务配置向导
+          script: |
+            (async () => {
+              const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+              const findByText = (label) => [...document.querySelectorAll('button, span, div, a')]
+                .find(el => el.children.length === 0 && (el.textContent || '').trim() === label);
+              const deadline = Date.now() + 30000;
+              // 1) 同意安全提示
+              while (Date.now() < deadline) {
+                const text = document.body.innerText || '';
+                if (!text.includes('未经验证应用的安全提示')) break;
+                const agree = findByText('同意');
+                if (agree) { agree.click(); break; }
+                await sleep(300);
+              }
+              // 2) 向导的「下一步」
+              while (Date.now() < deadline) {
+                const next = findByText('下一步');
+                if (next) { next.click(); return { pass: true, detail: '已同意并点击「下一步」' }; }
+                await sleep(300);
+              }
+              return { pass: false, detail: '30 秒内未出现「下一步」按钮' };
+            })()
+      # 安装完成不等于服务就绪：进度对话框消失后网关与 dsh web 仍需数秒启动，
+      # 这段时间访问外壳会拿到 502。因此轮询等待，而不是一次性读取。
+      - dsh.assertInPage:
+          label: 覆盖安装后应用外壳可用（新构建已生效）
+          script: |
+            (async () => {
+              let res = null;
+              for (let i = 0; i < 40; i += 1) {
+                res = await fetch('/app/fn-deepseek-harness');
+                if (res.ok) break;
+                await new Promise(r => setTimeout(r, 2000));
+              }
+              if (!res || !res.ok) {
+                return { pass: false, detail: '应用外壳在 80 秒内未就绪：HTTP ' + (res ? res.status : '无响应') };
+              }
+              const html = await res.text();
+              if (!/plugins\/\?\?/.test(html)) {
+                return { pass: false, detail: '外壳未包含 plugins combo 引用（安装可能未生效）' };
+              }
+              return { pass: true, detail: '安装后应用外壳就绪，模块图可解析' };
+            })()
+      # 装完后应用中心是否反映了本次安装：走确定性断言，不用视觉判断。
+      # 先按可见文本进「已安装」列表里的应用条目，再读详情页版本号。
+      - dsh.assertInPage:
+          label: 应用中心已反映本次安装（详情页可解析出版本号）
+          script: |
+            (async () => {
+              const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+              const byText = (label) => [...document.querySelectorAll('*')]
+                .find(el => el.children.length === 0 && (el.textContent || '').trim() === label);
+              let text = document.body.innerText || '';
+              if (!text.includes('当前版本')) {
+                const installed = byText('已安装');
+                if (installed) { installed.click(); await sleep(2000); }
+                const entry = byText('DeepSeek Harness');
+                if (entry) { entry.click(); await sleep(3000); }
+                text = document.body.innerText || '';
+              }
+              if (!/DeepSeek Harness/.test(text)) {
+                return { pass: false, detail: '应用中心未显示 DeepSeek Harness' };
+              }
+              if (!/当前版本/.test(text)) {
+                return { pass: false, detail: '未进入应用详情页（缺少「当前版本」）' };
+              }
+              const version = (text.match(/当前版本\s*\n?\s*([0-9][0-9A-Za-z.+-]*)/) || [])[1];
+              if (!version) return { pass: false, detail: '未能从详情页解析出版本号' };
+              return { pass: true, detail: '安装后详情页版本 ' + version };
+            })()

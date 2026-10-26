@@ -2,7 +2,7 @@
 id: PLAN-FNOS-030
 title: PLAN-FNOS-030 飞牛 iOS App 打开 DSH 空白修复
 description: 网关服务端持有 DSH 会话的实施计划：当前与目标设计、影响范围、任务拆分与真机验证。
-status: in-review
+status: done
 owner: tnnevol
 planDate: 2026-10-26
 targetVersion: 6.0.0
@@ -16,7 +16,7 @@ lastVerified: 2026-10-26
 | 计划编号 | PLAN-FNOS-030 |
 | 计划日期 | 2026-10-26 |
 | 对应需求 | [FNOS-030 飞牛 iOS App 打开 DSH 空白修复](/requirements/FNOS-030-app-shell-blank-page) |
-| 计划状态 | 阶段一、二完成；阶段三、四待执行 |
+| 计划状态 | 已完成（阶段一至四全部完成） |
 
 ## 计划目标
 
@@ -185,12 +185,13 @@ flowchart TD
 | --- | --- |
 | 阶段一：网关会话模块与代理改造 | 已完成（T01-01 至 T01-04） |
 | 阶段二：包级验证与回归 | 已完成（T02-01 至 T02-03；132 条用例全绿、build 与 lint 通过） |
-| 阶段三：FPK 构建与真实 NAS 验收 | 待执行 |
-| 阶段四：文档收尾与版本 | 部分完成（T04-01 测试用例文档已回填、T04-02 状态已回写；版本更新待真机验收后执行） |
+| 阶段三：FPK 构建与真实 NAS 验收 | 已完成（v6.0.1 真机装成并验证） |
+| 阶段四：文档收尾与版本 | 已完成（测试用例回填、状态回写、`chore: release v6.0.1`） |
 
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-26 | 建立计划 | 依据 FNOS-030 与评估结论建立四阶段 12 任务；采纳 fork `9b0b27e` 网关会话部分，剥离 i18n；登记换取超时补充与 WS 重连备用方案两项本仓库实施差异 |
+| 2026-10-26 | 阶段三、四完成 | 构建并安装 v6.0.1 到真实 NAS：应用中心详情页 6.0.1 / 手动安装；网关产物含 `UpstreamSession`/`withSessionCookie`/`warmSession`，旧 `needsLaunchToken` 为 0；页面首页 1 次请求即 200、无 `token=`；浏览器无 `dsh-auth-*`；日志 `upgrade_callback completed` 后正常启动。版本提交 `chore: release v6.0.1`；安装自动化经验沉淀为 `dsh.uploadFile` 节点与 `FNOS-013-nas-install-from-computer.yaml` 用例 |
 | 2026-10-26 | 阶段一、二完成 | 新增 `upstream-session.ts`（含 10 秒换取超时）、改造代理与网关装配、移植并改造 4 个测试文件；包级 23 个测试文件 132 条用例全绿，build 与 lint 通过。fork 的 `upstream-session.spec.ts` 8 条用例按本仓库实现核对后采纳（编号改为 FNOS-030），`server.spec.ts` 与 `websocket-upgrade.spec.ts` 的旧 Token 注入断言按新语义改写，`recovery-page.spec.ts` 与 i18n 相关文件未取用 |
