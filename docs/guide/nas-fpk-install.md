@@ -172,12 +172,14 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 | 桥调用超时 | `Bridge call timeout after 30000ms: getBrowserTabList` |
 | 重规划死循环 | `planning cycle limit (20) has been reached`（模型反复找桌面上的应用中心图标） |
 
-界面上必须知道的四个事实（都会让注入落空）：
+界面上必须知道的六个事实（前两条会让注入「看起来成功但应用不消费」）：
 
-1. **「从电脑上传」是「隐藏 input + label」模式**：`input[type=file]` 常驻且一直是 `0×0`，点按钮**不会新建** input。直接给那个隐藏 input 赋 `files` 即可。
-2. **页面里还有一个 `webkitdirectory` 的目录 input**，必须按属性排除，否则会注进目录选择器。
-3. **事件序列必须完整**：`pointerdown → pointerup → click → input → change`。只派发 `input`/`change` 时 fnOS 收不到文件——不弹安全提示，`input.files` 也不会被清空。
-4. **单次页面脚本不能长等**：Bridge 单次调用上限 30 秒。把「开对话框」与「注入」分步，等待判定放到 Node 侧轮询（`expectText` + `timeoutMs` 就是干这个的）。
+1. **必须先切上传来源**。对话框默认处于**「从 NAS 添加」**形态，此时页面上常驻的两枚 `input[type=file]` 属于该形态：往里塞文件虽然「成功」（`input.files` 有值、字节可读），但应用**不消费**——等满 30 秒也不会弹安全提示。正确顺序是先点「从电脑上传」切到电脑形态，再往**被该点击请求打开选择器**的那枚 input 注入。切换时应用会调用 `input.click()`，先把这个 `click()` 拦下即可既不弹系统弹窗又完成切换；实测切换后 React 会立刻接管并清空 input，安全提示随即出现。`dsh.uploadFile` 已内置这一步。
+2. **打开对话框要容忍页面未就绪**。项目 setup 会先把复用页导航回目标地址，SPA 渲染需要时间：导航后立刻查找会报「既无『手动安装』也无『应用中心』入口」。脚本内短等轮询 + Node 侧重试才稳（`dsh.uploadFile` 已内置）。
+3. **「从电脑上传」是「隐藏 input + label」模式**：`input[type=file]` 常驻且一直是 `0×0`，点按钮**不会新建** input。直接给那个隐藏 input 赋 `files` 即可。
+4. **页面里还有一个 `webkitdirectory` 的目录 input**，必须按属性排除，否则会注进目录选择器。
+5. **事件序列必须完整**：`pointerdown → pointerup → click → input → change`。只派发 `input`/`change` 时 fnOS 收不到文件——不弹安全提示，`input.files` 也不会被清空。
+6. **单次页面脚本不能长等**：Bridge 单次调用上限 30 秒。把「开对话框」与「注入」分步，等待判定放到 Node 侧轮询（`expectText` + `timeoutMs` 就是干这个的）。
 
 文件被接收的可观察证据：fnOS 立刻弹出「未经验证应用的安全提示」；随后 React 会**清空 input**（`files.length` 归 0），这是正常现象，不要据此判失败。
 
@@ -231,7 +233,9 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 | 模型报 `502` / `Connection error` | 上游模型瞬时故障 | 重试；flash 模型做长规划容易翻车，换更强的模型 |
 | 上传步骤 `429` / `502 额度已用尽` | 视觉模型额度或频率限制 | 改用 `dsh.uploadFile`（§4.4，零模型调用） |
 | 上传步骤 `Connection lost` / `Bridge call timeout` | 扩展断连或单次调用超 30 秒 | 同上改用 `dsh.uploadFile`；单次页面脚本不要长等 |
-| 注入后不弹安全提示 | 事件序列不完整，或注入到了目录 input | 补齐 `pointerdown → pointerup → click → input → change`；排除 `webkitdirectory` |
+| 注入后不弹安全提示（`input.files` 却有值） | **没有先切「从电脑上传」来源**——常驻 input 属于「从 NAS 添加」形态，应用不消费；切来源即可（§4.4 事实 1） |
+| 注入后不弹安全提示（来源已切） | 事件序列不完整，或注入到了目录 input | 补齐 `pointerdown → pointerup → click → input → change`；排除 `webkitdirectory` |
+| 报「既无『手动安装』也无『应用中心』入口」 | 页面刚被导航回目标地址、SPA 还没渲染完 | 轮询等待（§4.4 事实 2），不要一次性查找 |
 | 桥端口 `EADDRINUSE 126.0.0.1:3766` | 另一个会话/进程占着桥 | 先确认是谁的再决定是否接管；不要直接杀 |
 
 ### 6.1 孤儿插件与悬空引用
