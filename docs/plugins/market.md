@@ -41,18 +41,18 @@ https://fndsh-doc.tnnevol.cn/plugins/market/index.json
 
 ### 关于图标
 
-只为有可信官方品牌素材的插件声明图标：
+图标来源必须清晰：官方品牌素材优先；维护者或用户明确提供的自定义图像也可作为插件自身视觉标识，但不得冒充搜索服务商或其他第三方官方品牌。
 
-| 插件 | 图标 |
+| 插件 | 图标来源 |
 | --- | --- |
 | `@tnnevol/dsh-fnos` | 飞牛 fnOS 官方品牌标识 |
 | `@tnnevol/dsh-midscene` | 本插件自有图标 |
 | `@tnnevol/dsh-codex-auth` | 无（未取到可确认归属的官方素材，省略） |
-| `@tnnevol/dsh-failover-search` | 无（同上） |
+| `@tnnevol/dsh-failover-search` | 用户提供的玻璃质感蓝色地球浪潮图（512×512 PNG，253,051 B；自定义图标，非搜索服务商官方标识） |
 | `@tnnevol/dsh-semi-ui-showcase` | 无（同上） |
 | `@tnnevol/dsh-zcode` | 本插件自有图标 |
 
-省略是有意的：用通用图形或自制图标冒充品牌标识会让用户误认来源。缺少图标只影响识别度，不影响安装与使用。
+无可信来源的图标仍有意省略；自定义图标只表达插件自身，不暗示任何第三方服务商背书。缺少图标只影响识别度，不影响安装与使用。
 
 ## 维护索引
 

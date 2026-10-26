@@ -67,4 +67,20 @@ describe('FNOS-010-04 构建产物契约', () => {
       expect(allowed(name), `client 残留了模块表里没有的 require("${name}")`).toBe(true)
     }
   })
+
+  it('声明并打包符合 DSH 上限的透明 PNG 插件图标', async () => {
+    const manifest = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8')) as {
+      icon?: string
+      files?: string[]
+    }
+    expect(manifest.icon).toBe('icon.png')
+    expect(manifest.files).toContain('icon.png')
+
+    const icon = await readFile(new URL('../../icon.png', import.meta.url))
+    expect(icon.byteLength).toBeGreaterThan(0)
+    expect(icon.byteLength).toBeLessThanOrEqual(256 * 1024)
+    expect(icon.subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    expect(icon.readUInt32BE(16)).toBe(512)
+    expect(icon.readUInt32BE(20)).toBe(512)
+  })
 })

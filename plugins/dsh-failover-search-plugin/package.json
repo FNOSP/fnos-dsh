@@ -41,10 +41,12 @@
   },
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
+  "icon": "icon.png",
   "files": [
     "README.md",
     "compatibility.json",
     "cordis.patch.yml",
+    "icon.png",
     "lib",
     "locale"
   ],
