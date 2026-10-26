@@ -38,5 +38,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-027 | [ZCode Start Plan 模型接入与账号额度](/tests/FNOS-027-dsh-zcode-plugin) | [PLAN-FNOS-027](/plans/PLAN-FNOS-027-dsh-zcode-plugin) | 功能验收 | 37 条用例；2026-10-25 自研 HTTP 通道在 DSH Web 与 DSH Desktop 均实测通过（纯文本 4 秒、工具调用带审批、多轮工具结果、图文、智能体团队、思考等级、限流退避），15 条通过 / 7 条部分通过 / 15 条未执行；插件未发布，市场条目与发布相关项未执行 |
 | FNOS-028 | [项目与插件版本统一及发布链路 dsh 基线标注](/tests/FNOS-028-unified-project-version-bumpp) | [PLAN-FNOS-028](/plans/PLAN-FNOS-028-unified-project-version-bumpp) | 验收通过 | 24 条用例（22 通过 / 2 未执行为发布后动作）；2026-10-25 提出人验收通过：版本统一 5.10.0、版本命令直接调用 bumpp（原生菜单+execute 同步钩子）、单条 release 提交实测；4 个实施缺陷已修复回归 |
 | FNOS-029 | [DSH 0.2.1-rc.3 插件适配与基线迁移](/tests/FNOS-029-dsh-021-rc3-adaptation) | [PLAN-FNOS-029](/plans/PLAN-FNOS-029-dsh-021-rc3-adaptation) | 执行中 | 22 条用例；覆盖基线迁移、八插件副本、双客户端回归；TC-020/TC-016 已先行通过 |
+| FNOS-030 | [飞牛 iOS App 打开 DSH 空白修复](/tests/FNOS-030-app-shell-blank-page) | [PLAN-FNOS-030](/plans/PLAN-FNOS-030-app-shell-blank-page) | 部分通过 | 15 条用例；2026-10-26 包级 10 条全部通过（会话单飞、首页不循环、WS 附会话、旧 Cookie 清理、非托管透传、401 恢复），真实 NAS 5 条未执行 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

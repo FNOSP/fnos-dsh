@@ -355,6 +355,10 @@ const requirementsSidebar = [
         text: 'FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移',
         link: '/requirements/FNOS-029-dsh-021-rc3-adaptation'
       },
+      {
+        text: 'FNOS-030 飞牛 iOS App 打开 DSH 空白修复',
+        link: '/requirements/FNOS-030-app-shell-blank-page'
+      },
       ]
   }
 ]
@@ -480,6 +484,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移',
         link: '/plans/PLAN-FNOS-029-dsh-021-rc3-adaptation'
       },
+      {
+        text: 'PLAN-FNOS-030 飞牛 iOS App 打开 DSH 空白修复',
+        link: '/plans/PLAN-FNOS-030-app-shell-blank-page'
+      },
     ]
   }
 ]
@@ -573,6 +581,10 @@ const testsSidebar = [
       {
         text: 'FNOS-029 DSH 0.2.1-rc.3 插件适配与基线迁移',
         link: '/tests/FNOS-029-dsh-021-rc3-adaptation'
+      },
+      {
+        text: 'FNOS-030 飞牛 iOS App 打开 DSH 空白修复',
+        link: '/tests/FNOS-030-app-shell-blank-page'
       },
     ]
   }
