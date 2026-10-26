@@ -635,6 +635,7 @@
         "en": "Composite web-search provider that fails over TinyFish → Tavily → official DeepSeek, spreads requests across multiple accounts per platform, and shows platform usage on the plugin page.",
         "zh": "复合网页搜索提供方：按 TinyFish → Tavily → 官方 DeepSeek 的顺序转移，同一平台的多个账号之间轮转分摊请求，并在插件详情页展示各平台用量。"
       },
+      "icon": "icons/4a57534a0d3937f3.png",
       "author": "tnnevol",
       "homepage": "https://fnapps-doc.tnnevol.cn/plugins/dsh-failover-search.html",
       "repository": {
