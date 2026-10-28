@@ -65,17 +65,17 @@ verifiedAt: 2026-10-26
 | ID | 关联用例 | 标题 | 级别 | 状态 | 说明 |
 | --- | --- | --- | --- | --- | --- |
 | BUG-01 | TC-001 | OpenCode 胶囊切走模型后不立即隐藏 | P0 | 已修复 | 读取了 wire view 中不存在的 `pending`，改为 `next ?? lastUsed` |
-| BUG-02 | TC-001 | 已发布的 6.0.6 仍带旧客户端构建 | P0 | 已定位，待补发 | `@tnnevol/dsh-opencode@6.0.6` 发布时未重新构建：`lib/index.js` 含会话头兜底，但 `lib/client.js` 仍读 `pending`。仓库源码与当前构建已正确；npm 上 6.0.6 无法撤回，需补发新版本（6.0.7） |
+| BUG-02 | TC-001 | 已发布的 6.0.6 仍带旧客户端构建 | P0 | 已定位；按决定不发布，本地打包交付 | `@tnnevol/dsh-opencode@6.0.6` 发布时未重新构建：`lib/index.js` 含会话头兜底，但 `lib/client.js` 仍读 `pending`。仓库源码已正确，本地重新构建的 tarball 已验证含修复（sha256 `86b9e3d8…`）；线上 6.0.6 保持不变 |
 
 ## 测试结论
 
 包级验证通过：OpenCode 的字段错误已修复，ZCode 既有正确实现补齐回归。
 
-线上交付状态（2026-10-28 核查）：npm 上已发布的 `@tnnevol/dsh-opencode@6.0.6` **未包含**本修复——其 `lib/client.js` 仍是旧构建（`pending`）。根源是发布时未重新构建，产物为磁盘旧 `lib/`；仓库源码与本地重新构建后的 tarball 均已验证含 `next` 修复。需补发 6.0.7，并在发布前按 [发布前必须重新构建产物](/build/release#发布前必须重新构建产物-强制性) 逐项核对。
+线上交付状态（2026-10-28 核查）：npm 上已发布的 `@tnnevol/dsh-opencode@6.0.6` **未包含**本修复——其 `lib/client.js` 仍是旧构建（`pending`）。根源是发布时未重新构建，产物为磁盘旧 `lib/`；仓库源码与本地重新构建后的 tarball 均已验证含 `next` 修复。按 2026-10-28 决定不发布 npm，改为本地打包交付：产物为 `tmp/fnos-opencode-local/tnnevol-dsh-opencode-6.0.6-local-capsule-fix.tgz`，解包验证 `client.js` 读 `next`、`index.js` 含会话头兜底。后续如需正式发布，按 [发布前必须重新构建产物](/build/release#发布前必须重新构建产物-强制性) 逐项核对。
 
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-26 | 建立测试用例文档 | 6 条用例全部包级通过；记录 BUG-01 |
-| 2026-10-28 | 补记 BUG-02 与线上核查 | 用户更新 6.0.6 后症状仍在；`npm pack` 取证确认线上包 `client.js` 为旧构建；补发计划改为 6.0.7 |
+| 2026-10-28 | 补记 BUG-02 与线上核查 | 用户更新 6.0.6 后症状仍在；`npm pack` 取证确认线上包 `client.js` 为旧构建；按决定不发布 npm，改为本地打包交付并验证产物 |
