@@ -21,6 +21,33 @@ export const FNOS_PATH_OPEN_VALIDATION_PATH = '/plugins/dsh-fnos/paths/open/vali
 /** Same-origin route that lists one level below an authorized NAS directory. */
 export const FNOS_AUTHORIZED_ENTRIES_PATH = '/plugins/dsh-fnos/authorized-directories/entries'
 
+/**
+ * Same-origin route that creates one new empty entry (folder or file) inside an
+ * already-authorized directory.
+ *
+ * 这是本插件**唯一的新增类写操作**：删除授权目录走的是 fnOS 的 ACL 接口，
+ * 而这里只是在用户已授权的目录内建条目，因此沿用同一套授权校验
+ * （授权根包含 + 真实路径解析 + 当前 NAS 用户可读），不新增权限模型。
+ */
+export const FNOS_AUTHORIZED_CREATE_PATH = '/plugins/dsh-fnos/authorized-directories/create'
+
+/** Kind of entry the create route may add. */
+export type AuthorizedCreateKind = 'directory' | 'file'
+
+/** Request body of the create route. */
+export interface AuthorizedCreateRequest {
+  /** Authorized directory that will hold the new entry. */
+  parent: string
+  /** Single path segment; validated on the Host. */
+  name: string
+  kind: AuthorizedCreateKind
+}
+
+/** Successful create response. */
+export interface AuthorizedCreateResponse {
+  entry: AuthorizedEntry
+}
+
 export interface AuthorizedDirectory {
   /** Internal fnOS path used by the Host side when removing the ACL. */
   path: string

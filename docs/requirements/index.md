@@ -86,6 +86,6 @@ flowchart TD
 | FNOS-031 | [升级迁移 cwd 提示词变量引用](/requirements/FNOS-031-cwd-prompt-variable-migration) | 已完成（升级回调自动移除 profile 中的该变量引用；不加确认，只处理该变量；真实 NAS 已装成 6.0.4 并记录迁移步骤） |
 | FNOS-032 | [OpenCode 辅助调用补齐会话头](/requirements/FNOS-032-opencode-aux-session-header) | 实施中（自动审查等无会话身份的调用补稳定 `x-opencode-session`，避免 400 中断工具调用） |
 | FNOS-033 | [用量胶囊按当前选择即时显隐](/requirements/FNOS-033-usage-capsule-selection) | 已完成（包级 + DSH Web/Desktop 运行时）：OpenCode 改读投影 `next`，切走模型立即隐藏；ZCode 实测同样正确 |
-| FNOS-034 | [fnOS 授权目录选择器改为输入卡片宽浮层](/requirements/FNOS-034-fnos-input-dock-picker) | 实施中：从工具栏下拉改为与斜杠指令同位置的卡片宽浮层 |
+| FNOS-034 | [fnOS 授权目录选择器改为输入卡片宽浮层](/requirements/FNOS-034-fnos-input-dock-picker) | 实施中：卡片宽浮层 + 层级低于指令面板 + 去搜索 + 面板内新建文件夹/空文件 |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

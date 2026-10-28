@@ -16,18 +16,22 @@ import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
+  DshDropdown as Dropdown,
   DshIconClose as IconClose,
   DshIconFile as IconFile,
   DshIconFolder as IconFolder,
+  DshIconPlus as IconPlus,
+  DshInput as Input,
+  DshModal as Modal,
   DshTooltip as Tooltip,
   DshTree as Tree,
 } from '@tnnevol/dsh-semi-ui'
-import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
+import { createAuthorizedEntry, requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
 import { planFnosOccurrenceRemovals, reconcileFnosOperationOccurrences, type PendingFnosOccurrence, type TrackedFnosOccurrence } from '../client/input-references/input-reference-operation.ts'
 import { displayName, selectedPaths, toTreeNode, updateChildren, type PickerTreeNode } from '../client/input-references/picker-tree.ts'
 import { usePickerOpen, type PickerOpenStore } from '../client/input-references/picker-store.ts'
-import type { AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
+import type { AuthorizedCreateKind, AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
 
 const EMPTY_TREE_VALUE: string[] = []
 
@@ -53,6 +57,43 @@ function nodeLabel(entry: AuthorizedEntry, showFullPath = false): ReactNode {
   )
   return <Tooltip content={entry.semanticPath} showArrow mouseEnterDelay={0.5}>{content}</Tooltip>
 }
+
+/** 取某个节点当前的子节点；用于把新建成功的条目并进已展开的那一层。 */
+function findChildren(nodes: readonly PickerTreeNode[], key: string): PickerTreeNode[] | undefined {
+  for (const node of nodes) {
+    if (node.key === key) return node.children
+    if (node.children === undefined) continue
+    const nested = findChildren(node.children, key)
+    if (nested !== undefined) return nested
+  }
+  return undefined
+}
+
+/** 把宿主错误码翻成用户能照着处理的文案。 */
+function createErrorMessage(error: unknown, t: (key: FnosCreateLocaleKey) => string): string {
+  const code = error instanceof Error ? error.message : ''
+  switch (code) {
+    case 'fnos-entry-exists': return t('createDialogExists')
+    case 'fnos-create-permission-denied':
+    case 'fnos-user-permission-denied':
+    case 'authorized-directory-not-readable':
+      return t('createDialogDenied')
+    case 'fnos-create-no-space': return t('createDialogNoSpace')
+    case 'fnos-create-read-only': return t('createDialogReadOnly')
+    case 'invalid-fnos-create-request': return t('createDialogInvalid')
+    default: return t('createDialogFailed')
+  }
+}
+
+/** 新建弹框会用到的那几条文案键（避免把整个 key 联合类型铺在手写签名里）。 */
+type FnosCreateLocaleKey =
+  | 'createDialogEmpty'
+  | 'createDialogExists'
+  | 'createDialogDenied'
+  | 'createDialogNoSpace'
+  | 'createDialogReadOnly'
+  | 'createDialogInvalid'
+  | 'createDialogFailed'
 
 export type FnosAuthorizedPathPanelProps =
   & PropsRuntime<'conversation.input.overlay'>
@@ -80,6 +121,12 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   const busy = input.phase === 'adjudicating' || input.phase === 'submitting'
   const value = desiredPaths ?? EMPTY_TREE_VALUE
   const maxHeight = useAnchoredMaxHeight(panelRef, PANEL_MAX_HEIGHT, open, PANEL_TOP_MARGIN)
+
+  // 新建弹框：`parent` 是右键命中的目录；`kind` 决定建文件夹还是空文件。
+  const [createTarget, setCreateTarget] = useState<{ parent: string, kind: AuthorizedCreateKind } | undefined>()
+  const [createName, setCreateName] = useState('')
+  const [createError, setCreateError] = useState<string | undefined>()
+  const [creating, setCreating] = useState(false)
 
   const applyEntries = useCallback((result: AuthorizedEntriesResult, parent?: string) => {
     for (const entry of result.entries) entries.current.set(entry.path, entry)
@@ -246,6 +293,64 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     applyEntries(result, key)
   }, [applyEntries])
 
+  /** 右键命中一个目录：打开新建弹框。命中文件时不提供新建（文件下无法再建条目）。 */
+  const handleContextMenu = useCallback((event: { preventDefault: () => void }, node: unknown) => {
+    const key = typeof node === 'object' && node !== null && 'key' in node && typeof node.key === 'string'
+      ? node.key
+      : undefined
+    if (key === undefined) return
+    const entry = entries.current.get(key)
+    if (entry !== undefined && entry.kind !== 'directory') return
+    event.preventDefault()
+    setCreateError(undefined)
+    setCreateName('')
+    setCreateTarget({ parent: key, kind: 'directory' })
+  }, [])
+
+  /** 提交新建：成功后把新条目并进当前层，避免整树重取导致已展开节点收起。 */
+  const submitCreate = useCallback(async () => {
+    if (createTarget === undefined || creating) return
+    const name = createName.trim()
+    if (name.length === 0) {
+      setCreateError(t('createDialogEmpty'))
+      return
+    }
+    setCreating(true)
+    setCreateError(undefined)
+    try {
+      const entry = await createAuthorizedEntry(createTarget.parent, name, createTarget.kind)
+      entries.current.set(entry.path, entry)
+      setTreeData(current => updateChildren(
+        current,
+        createTarget.parent,
+        [...(findChildren(current, createTarget.parent) ?? []), toTreeNode(entry, nodeLabel(entry))],
+      ))
+      setCreateTarget(undefined)
+      setCreateName('')
+    } catch (error: unknown) {
+      setCreateError(createErrorMessage(error, t))
+    } finally {
+      setCreating(false)
+    }
+  }, [createTarget, createName, creating, t])
+
+  /**
+   * 打开新建弹框。
+   *
+   * 不传 `parent` 时（工具栏按钮）落在「当前勾选的第一个目录」上；没有勾选就
+   * 用第一个根目录。这样按钮与右键两条入口共用同一份提交逻辑，只有父目录
+   * 来源不同。
+   */
+  const openCreateDialog = useCallback((kind: AuthorizedCreateKind, parent?: string) => {
+    const fallback = parent
+      ?? value.find(path => entries.current.get(path)?.kind === 'directory')
+      ?? treeData.find(node => entries.current.get(node.key)?.kind !== 'file')?.key
+    if (fallback === undefined) return
+    setCreateError(undefined)
+    setCreateName('')
+    setCreateTarget({ parent: fallback, kind })
+  }, [value, treeData])
+
   if (!open) return null
 
   return (
@@ -258,6 +363,28 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     >
       <div className="dsh-fnos-path-panel-header">
         <span className="dsh-fnos-path-panel-title">{t('inputPickerTitle')}</span>
+        {/* 新建入口：工具栏按钮建在选中的目录（无选中则第一个根），右键可指定目录。 */}
+        <Dropdown
+          trigger="click"
+          position="bottomRight"
+          clickToHide
+          render={(
+            <Dropdown.Menu>
+              <Dropdown.Item onClick={() => { openCreateDialog('directory') }}>{t('createFolder')}</Dropdown.Item>
+              <Dropdown.Item onClick={() => { openCreateDialog('file') }}>{t('createFile')}</Dropdown.Item>
+            </Dropdown.Menu>
+          )}
+        >
+          <button
+            type="button"
+            className="dsh-fnos-path-panel-action"
+            aria-label={t('createFolder')}
+            title={t('createFolder')}
+            disabled={busy}
+          >
+            <IconPlus size="small" />
+          </button>
+        </Dropdown>
         <button
           type="button"
           className="dsh-fnos-path-panel-close"
@@ -275,14 +402,39 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         treeData={treeData}
         value={value}
         loadData={loadData}
-        filterTreeNode
-        searchPlaceholder={t('workspaceSearchPlaceholder')}
         onChange={handleTreeChange}
+        onContextMenu={handleContextMenu}
         disabled={busy}
         showLine={false}
         className="dsh-fnos-path-panel-tree"
         emptyContent={t('inputPickerEmpty')}
       />
+      <Modal
+        title={createTarget?.kind === 'file' ? t('createDialogFileTitle') : t('createDialogTitle')}
+        visible={createTarget !== undefined}
+        onCancel={() => { setCreateTarget(undefined) }}
+        onOk={() => { void submitCreate() }}
+        okText={t('createDialogConfirm')}
+        cancelText={t('createDialogCancel')}
+        confirmLoading={creating}
+        centered
+        width={420}
+      >
+        <div className="dsh-fnos-create-form">
+          <label className="dsh-fnos-create-label" htmlFor="dsh-fnos-create-name">{t('createDialogLabel')}</label>
+          <Input
+            id="dsh-fnos-create-name"
+            autoFocus
+            value={createName}
+            onChange={(value: string) => { setCreateName(value) }}
+            onEnterPress={() => { void submitCreate() }}
+            {...(createError === undefined ? {} : { validateStatus: 'error' as const })}
+          />
+          <p className={createError === undefined ? 'dsh-fnos-create-hint' : 'dsh-fnos-create-error'}>
+            {createError ?? t('createDialogHint')}
+          </p>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -2,19 +2,22 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { constants as fsConstants, createWriteStream, type Stats } from 'node:fs'
-import { access, readdir, realpath, stat, unlink } from 'node:fs/promises'
+import { access, mkdir, readdir, realpath, stat, unlink, writeFile } from 'node:fs/promises'
 import { posix } from 'node:path'
 import { Writable } from 'node:stream'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { callFnOsApi, FnOsApiError } from '../api/fnos-api.ts'
 import {
+  FNOS_AUTHORIZED_CREATE_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH,
   FNOS_AUTHORIZED_ENTRIES_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_PATH,
   FNOS_PATH_CONVERSION_PATH,
   FNOS_PATH_OPEN_VALIDATION_PATH,
+  type AuthorizedCreateRequest,
+  type AuthorizedCreateResponse,
   type AuthorizedDirectory,
   type AuthorizedEntry,
   type AuthorizedEntriesResponse,
@@ -845,6 +848,38 @@ function listingPathValue(value: unknown): string | undefined | null {
   return normalizePathForAuthorization(raw) ?? null
 }
 
+/**
+ * 校验「新建条目」的请求体（FNOS-034）。
+ *
+ * 命名规则刻意保守：只允许**单段**名字，不接受任何路径分隔符，因此客户端
+ * 无法用 `../` 或绝对路径把条目写到父目录之外。Host 侧随后还会独立校验父
+ * 目录是否落在授权根内，两层互不依赖。
+ *
+ * 拒绝的字符是 Windows 与 fnOS 共享目录共有的禁名（`:` `*` `?` `"` `<` `>`
+ * `|` 与控制字符）：NAS 上的共享目录常被 SMB 客户端访问，允许这些字符会造出
+ * 在其它协议下打不开的条目。
+ */
+export function parseCreateRequest(value: unknown): AuthorizedCreateRequest | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  const record = value as Record<string, unknown>
+  const parent = normalizePathForAuthorization(record.parent)
+  if (parent === undefined) return null
+  const kind = record.kind
+  if (kind !== 'directory' && kind !== 'file') return null
+  if (typeof record.name !== 'string') return null
+  const name = record.name.trim()
+  if (name.length === 0 || name.length > 255) return null
+  // 单段名字：不含分隔符与控制字符，也不是 . 或 ..
+  if (name === '.' || name === '..') return null
+  if (/[/\\:*?"<>|]/u.test(name)) return null
+  // 控制字符单独判定：直接把它写进字符类会触发 `no-control-regex`，
+  // 而这里的目的恰恰是拒绝它们，用码点比较更直白也不会误伤可打印字符。
+  for (const character of name) {
+    if (character.codePointAt(0)! < 0x20) return null
+  }
+  return { parent, name, kind }
+}
+
 async function resolvedAuthorizedRoots(): Promise<string[]> {
   let roots: string[]
   try {
@@ -1256,6 +1291,59 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context, options: { setti
               json(res, error.status, { error: error.code })
               return
             }
+            errorResponse(res, error)
+          }
+        },
+      }),
+      /**
+       * 在已授权目录内新建空目录或空文件（FNOS-034）。
+       *
+       * 授权校验与读取列表**共用**同一条路径：父目录必须真实存在、可读可进入、
+       * 落在授权根内，且当前 NAS 用户有权限。因此这条路由不会成为绕过授权的
+       * 写入缝隙。
+       *
+       * 不覆盖已存在条目：`wx` / `mkdir` 的排他语义保证并发下也只有一个成功，
+       * 已存在时返回 409 而不是静默覆盖用户数据。
+       */
+      register({
+        kind: 'exact',
+        path: FNOS_AUTHORIZED_CREATE_PATH,
+        handler: async (req, res) => {
+          if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
+          if (!authorize(req, res)) return
+          try {
+            const request = parseCreateRequest(await readJsonBody(req))
+            if (request === null) return json(res, 400, { error: 'invalid-fnos-create-request' })
+            const roots = await resolvedAuthorizedRoots()
+            const parentValidation = await validateReadableAuthorizedPath(req, request.parent, roots, checkCurrentUserAcl)
+            if (!parentValidation.ok) {
+              return json(res, authorizedEntriesErrorForValidation(parentValidation).status, {
+                error: authorizedEntriesErrorForValidation(parentValidation).code,
+              })
+            }
+            const target = normalizePathForAuthorization(posix.join(request.parent, request.name))
+            // 名字是单段且已排除分隔符，这里再确认一次落点仍在授权根内。
+            if (target === undefined || !isPathWithinAuthorizedDirectory(target, roots)) {
+              return json(res, 403, { error: 'fnos-path-not-authorized' })
+            }
+            try {
+              if (request.kind === 'directory') await mkdir(target)
+              else await writeFile(target, '', { flag: 'wx' })
+            } catch (error: unknown) {
+              const code = (error as { code?: unknown }).code
+              if (code === 'EEXIST') return json(res, 409, { error: 'fnos-entry-exists' })
+              if (code === 'EACCES' || code === 'EPERM') return json(res, 403, { error: 'fnos-create-permission-denied' })
+              if (code === 'ENOSPC' || code === 'EDQUOT') return json(res, 507, { error: 'fnos-create-no-space' })
+              if (code === 'EROFS') return json(res, 403, { error: 'fnos-create-read-only' })
+              throw error
+            }
+            const entry: AuthorizedEntry = {
+              path: target,
+              semanticPath: (await convertPathsForDisplay([target], requestLanguage(req)))[0]?.semanticPath ?? target,
+              kind: request.kind,
+            }
+            json(res, 200, { entry } satisfies AuthorizedCreateResponse)
+          } catch (error: unknown) {
             errorResponse(res, error)
           }
         },

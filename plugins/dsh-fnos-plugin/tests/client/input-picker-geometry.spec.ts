@@ -132,3 +132,53 @@ describe('选择器不再使用下拉弹层', () => {
     expect(PANEL).not.toContain('visibilitychange')
   })
 })
+
+describe('FNOS-034 层级永远低于斜杠指令面板', () => {
+  it('面板 z-index 必须比指令面板的 100 低一级', () => {
+    // 上游 ui-input-trigger 的 MenuView.module.css 用 100。面板取 99，
+    // 两者同时出现时指令面板稳定在上；一旦有人把 100 写回来，同级就退化成
+    // 「谁后渲染谁在上」，层级不再可预期。
+    const body = ruleBody('.dsh-fnos-path-panel', /position:\s*absolute;/u)
+    expect(body).toMatch(/z-index:\s*99;/u)
+    expect(body).not.toMatch(/z-index:\s*100;/u)
+  })
+})
+
+describe('FNOS-034 面板不再提供搜索', () => {
+  it('Tree 不开启 filterTreeNode，也不带搜索占位符', () => {
+    expect(PANEL).not.toContain('filterTreeNode')
+    expect(PANEL).not.toContain('searchPlaceholder')
+  })
+})
+
+describe('FNOS-034 面板可新建文件夹与文件', () => {
+  it('工具栏有新建入口，提供文件夹与文件两种选择', () => {
+    expect(PANEL).toContain("t('createFolder')")
+    expect(PANEL).toContain("t('createFile')")
+    expect(PANEL).toContain('dsh-fnos-path-panel-action')
+  })
+
+  it('右键目录可打开新建弹框；命中文件不提供新建', () => {
+    expect(PANEL).toContain('onContextMenu={handleContextMenu}')
+    expect(PANEL).toContain("if (entry !== undefined && entry.kind !== 'directory') return")
+  })
+
+  it('弹框收集名称并走宿主路由创建', () => {
+    expect(PANEL).toContain('createAuthorizedEntry(createTarget.parent, name, createTarget.kind)')
+    expect(PANEL).toContain('createDialogTitle')
+    expect(PANEL).toContain('createDialogLabel')
+  })
+
+  it('创建成功后把新条目并进已展开的那一层（不整树重取）', () => {
+    expect(PANEL).toContain('updateChildren')
+    expect(PANEL).toContain('findChildren')
+    // 整树重取会让已展开的节点收起，用户体验上像「刷新了一下」。
+    expect(PANEL).not.toMatch(/await submitCreate[\s\S]{0,200}requestAuthorizedEntries\(\)/u)
+  })
+
+  it('错误按原因给出可操作文案，而不是统一「失败」', () => {
+    expect(PANEL).toContain("case 'fnos-entry-exists': return t('createDialogExists')")
+    expect(PANEL).toContain("case 'fnos-create-no-space': return t('createDialogNoSpace')")
+    expect(PANEL).toContain("case 'fnos-create-read-only': return t('createDialogReadOnly')")
+  })
+})

@@ -105,6 +105,21 @@ sequenceDiagram
 | PLAN-FNOS-034-T01-03 | FNOS-034-02 / AC-01、AC-02、AC-03 | 抽出 store 与树纯函数，浮层复用现有勾选与引用对账；会话隔离 | T01-01 | 单测 |
 | PLAN-FNOS-034-T01-04 | FNOS-034-03 / AC-01、AC-02、AC-03 | 关闭出口：卡片外点击、Esc、再点按钮 | T01-03 | 单测 |
 | PLAN-FNOS-034-T01-05 | 本地化 | 新增浮层标题、关闭、空态等文案的中英文案 | 无 | 文案单测 |
+| PLAN-FNOS-034-T01-06 | FNOS-034-04 / AC-01 | 浮层 `z-index` 取 99，严格低于指令面板的 100 | T01-02 | 样式契约测试 |
+| PLAN-FNOS-034-T01-07 | FNOS-034-05 / AC-01 | 移除 Tree 的 `filterTreeNode` 与搜索占位符 | 无 | 样式契约测试 |
+| PLAN-FNOS-034-T01-08 | FNOS-034-06 / AC-01、AC-02 | 标题栏新建入口（文件夹/文件）+ 目录右键新建；文件右键不提供 | 无 | 契约测试 |
+| PLAN-FNOS-034-T01-09 | FNOS-034-06 / AC-03、AC-05 | 命名弹框、错误文案映射、成功后并入当前层（不整树重取） | T01-08 | 契约测试 |
+| PLAN-FNOS-034-T01-10 | FNOS-034-06 / AC-04 | Host 新增 `authorized-directories/create` 路由：父目录走既有授权校验，名称单段校验，错误码分级 | 无 | 单测 + 类型检查 |
+
+### 新建条目的 Host 实现要点
+
+| 关注点 | 处理 |
+| --- | --- |
+| 授权边界 | 复用 `validateReadableAuthorizedPath`（授权根包含 + 真实路径解析 + 当前 NAS 用户可读），不新增权限模型 |
+| 名称合法性 | `parseCreateRequest` 只接受单段名：无分隔符、无控制字符、非 `.`/`..`、长度 ≤255、排除 `: * ? " < > \|`（SMB 兼容） |
+| 二次落点校验 | 拼接后再用 `isPathWithinAuthorizedDirectory` 确认目标仍在授权根内 |
+| 不覆盖数据 | 目录用 `mkdir`、文件用 `writeFile(..., { flag: 'wx' })`；`EEXIST` 映射为 409，绝不静默覆盖 |
+| 错误分级 | `EEXIST→409`、`EACCES/EPERM→403`、`ENOSPC/EDQUOT→507`、`EROFS→403`，客户端逐条翻译成可操作文案 |
 
 ### 阶段二：包级验证
 

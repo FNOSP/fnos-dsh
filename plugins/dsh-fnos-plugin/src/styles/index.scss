@@ -392,7 +392,7 @@ img.dsh-fnos-file-manager-icon {
   bottom: calc(100% + 4px);
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 99;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -428,6 +428,64 @@ img.dsh-fnos-file-manager-icon {
   line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 标题栏里的新建按钮：与关闭按钮同尺寸，保证标题栏高度一致。 */
+.dsh-fnos-path-panel-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-state-business-primary);
+    outline-offset: 1px;
+  }
+}
+
+.dsh-fnos-create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dsh-fnos-create-label {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-fnos-create-hint,
+.dsh-fnos-create-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-fnos-create-hint {
+  color: var(--dsw-alias-label-caption);
+}
+
+.dsh-fnos-create-error {
+  color: var(--dsw-alias-state-error-primary);
 }
 
 .dsh-fnos-path-panel-close {

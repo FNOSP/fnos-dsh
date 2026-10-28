@@ -1,11 +1,13 @@
 /** Browser-side API helpers for the fnOS authorized-directory route. */
 
 import {
+  FNOS_AUTHORIZED_CREATE_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH,
   FNOS_AUTHORIZED_ENTRIES_PATH,
   FNOS_PATH_CONVERSION_PATH,
   FNOS_PATH_OPEN_VALIDATION_PATH,
+  type AuthorizedCreateKind,
   type AuthorizedDirectory,
   type AuthorizedEntry,
   type AuthorizedEntriesResponse,
@@ -129,6 +131,44 @@ export async function requestAuthorizedEntries(path?: string): Promise<Authorize
     return { entries: [], truncated: false }
   }
   return entriesFromResponse(value as AuthorizedEntriesResponse)
+}
+
+/**
+ * 在已授权目录内新建一个空目录或空文件。
+ *
+ * 与列举走同一条授权校验；这里只负责发请求并把宿主返回的错误码原样抛给 UI，
+ * 让弹框能显示「已存在 / 权限不足 / 空间不足」这类可操作的原因，而不是
+ * 统一的「失败」。
+ */
+export async function createAuthorizedEntry(
+  parent: string,
+  name: string,
+  kind: AuthorizedCreateKind,
+): Promise<AuthorizedEntry> {
+  const response = await fetch(FNOS_AUTHORIZED_CREATE_PATH, {
+    method: 'POST',
+    headers: { ...requestHeaders(), 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ parent, name, kind }),
+  })
+  const value: unknown = await response.json().catch(() => undefined)
+  if (!response.ok) {
+    const code = typeof value === 'object' && value !== null && 'error' in value && typeof value.error === 'string'
+      ? value.error
+      : `HTTP ${response.status}`
+    throw new DirectoryRequestError(code)
+  }
+  const entry = typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as { entry?: unknown }).entry
+    : undefined
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+    throw new DirectoryRequestError('invalid-create-response')
+  }
+  const record = entry as Record<string, unknown>
+  const path = typeof record.path === 'string' ? record.path : ''
+  const semanticPath = typeof record.semanticPath === 'string' ? record.semanticPath : path
+  if (path.length === 0 || semanticPath.length === 0) throw new DirectoryRequestError('invalid-create-response')
+  return { path, semanticPath, kind }
 }
 
 export function readablePathsFromResponse(value: ReadablePathsResponse): ReadablePath[] {

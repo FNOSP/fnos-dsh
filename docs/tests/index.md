@@ -42,6 +42,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-031 | [升级迁移 cwd 提示词变量引用](/tests/FNOS-031-cwd-prompt-variable-migration) | [PLAN-FNOS-031](/plans/PLAN-FNOS-031-cwd-prompt-variable-migration) | 部分通过 | 13 条用例：包级 10 条全过（网关 147 条测试全绿）；真机 TC-012 通过（6.0.3／6.0.4 两次安装均记录迁移步骤）、TC-013 部分通过（内容 md5 一致、无备份；mtime 由既有插件重装步骤改写）、TC-006 未执行（SSH 禁令，改由包级覆盖）。同时修复安装自动化 BUG-03/04 |
 | FNOS-032 | [OpenCode 辅助调用补齐会话头](/tests/FNOS-032-opencode-aux-session-header) | [PLAN-FNOS-032](/plans/PLAN-FNOS-032-opencode-aux-session-header) | 执行中 | 6 条用例：包级 5 条全过（兜底、会话优先、空串、显式头、真实请求路径）；Auto 权限预设真实会话 1 条待执行 |
 | FNOS-033 | [用量胶囊按当前选择即时显隐](/tests/FNOS-033-usage-capsule-selection) | [PLAN-FNOS-033](/plans/PLAN-FNOS-033-usage-capsule-selection) | 通过 | 6 条包级全部通过（opencode 208 条、zcode 169 条）；DSH Web 与 DSH Desktop 各两个切换方向均即时显隐（未发送消息）；BUG-01 已修复，BUG-02（线上 6.0.6 旧构建）按决定改本地打包交付 |
-| FNOS-034 | [fnOS 授权目录选择器改为输入卡片宽浮层](/tests/FNOS-034-fnos-input-dock-picker) | [PLAN-FNOS-034](/plans/PLAN-FNOS-034-fnos-input-dock-picker) | 部分通过 | 22 条用例：包级 18 条全过（270 条测试全绿）；真机 TC-101 ~ TC-109 未执行（待 FPK 在真实 NAS 安装，本地 DSH Web 不作为验收依据） |
+| FNOS-034 | [fnOS 授权目录选择器改为输入卡片宽浮层](/tests/FNOS-034-fnos-input-dock-picker) | [PLAN-FNOS-034](/plans/PLAN-FNOS-034-fnos-input-dock-picker) | 部分通过 | 46 条用例：包级 32 条全过（290 条测试全绿，含层级、去搜索、新建条目校验）；真机 TC-101 ~ TC-114 未执行（待 FPK 在真实 NAS 安装，本地 DSH Web 不作为验收依据） |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。
