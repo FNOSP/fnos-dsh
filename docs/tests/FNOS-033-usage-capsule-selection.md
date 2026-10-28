@@ -60,6 +60,29 @@ verifiedAt: 2026-10-26
 
 包级汇总：`@tnnevol/dsh-opencode` 208 条通过；`@tnnevol/dsh-zcode` 169 条通过。
 
+运行时汇总：DSH Web 与 DSH Desktop 各两个方向（zcode ↔ opencode）全部即时显隐，均未发送消息。
+
+## DSH Web 与 DSH Desktop 运行时验证（2026-10-28）
+
+按[测试用例文档规范](/charter/tests-spec)的 DSH Web / DSH Desktop 口径执行。两客户端共用项目 `DSH_HOME=<repo>/.dsh`（profile 分别为 `web` / `desktop`），插件为仓库工作区链接构建（`link:` 指向 `plugins/*`，含本轮修复产物）。
+
+| 项 | DSH Web | DSH Desktop |
+| --- | --- | --- |
+| 运行时 | `dsh web`，DSH 0.2.1-rc.3，端口 8070（token 地址） | 上游检出 `fork-pj/deepseek-harness` 开发态，构建 `0.2.1-rc.3-1f81c04`，CDP 9333 |
+| 会话 | 新建「只回复两个字：测试」（GLM-5.3-Flash · zcode） | 同一 profile 自动可见同一会话 |
+| 方法 | 模型选择器切换模型，**不发送消息**，0.6–0.8s 后统计胶囊 DOM（`dsh-zcode-usage*` / `dsh-opencode-usage*`） | 同左，经 CDP 求值 |
+
+| 方向 | 切换前胶囊 | 切换后胶囊 | 结论 |
+| --- | --- | --- | --- |
+| zcode → opencode（Web） | zcode 3 / opencode 0 | zcode 0 / opencode 3 | 即时切换，无发送依赖 |
+| opencode → zcode（Web） | opencode 3 / zcode 0 | opencode 0 / zcode 3 | 即时切换 |
+| zcode → opencode（Desktop） | zcode 3 / opencode 0 | zcode 0 / opencode 3 | 即时切换 |
+| opencode → zcode（Desktop） | opencode 3 / zcode 0 | opencode 0 / zcode 3 | 即时切换 |
+
+结论：仓库构建下 OpenCode 与 ZCode 胶囊都在「选择模型」瞬间按新供应商显隐，两个客户端行为一致；OpenCode 读取 `next` 的修复在运行时生效。ZCode 无需改代码（其 `next ?? lastUsed` 本就正确）。
+
+清理：开发态 Desktop 以 `pkill -f "fork-pj/deepseek-harness"` 精确结束；用户安装版 `/Applications/DeepSeek Harness.app` 未受影响（仍在运行）。
+
 ## Bug 记录
 
 | ID | 关联用例 | 标题 | 级别 | 状态 | 说明 |
@@ -69,7 +92,7 @@ verifiedAt: 2026-10-26
 
 ## 测试结论
 
-包级验证通过：OpenCode 的字段错误已修复，ZCode 既有正确实现补齐回归。
+包级验证通过：OpenCode 的字段错误已修复，ZCode 既有正确实现补齐回归；DSH Web 与 DSH Desktop 运行时验证均通过（切换瞬间显隐，无发送依赖）。
 
 线上交付状态（2026-10-28 核查）：npm 上已发布的 `@tnnevol/dsh-opencode@6.0.6` **未包含**本修复——其 `lib/client.js` 仍是旧构建（`pending`）。根源是发布时未重新构建，产物为磁盘旧 `lib/`；仓库源码与本地重新构建后的 tarball 均已验证含 `next` 修复。按 2026-10-28 决定不发布 npm，改为本地打包交付：产物为 `tmp/fnos-opencode-local/tnnevol-dsh-opencode-6.0.6-local-capsule-fix.tgz`，解包验证 `client.js` 读 `next`、`index.js` 含会话头兜底。后续如需正式发布，按 [发布前必须重新构建产物](/build/release#发布前必须重新构建产物-强制性) 逐项核对。
 
@@ -79,3 +102,4 @@ verifiedAt: 2026-10-26
 | --- | --- | --- |
 | 2026-10-26 | 建立测试用例文档 | 6 条用例全部包级通过；记录 BUG-01 |
 | 2026-10-28 | 补记 BUG-02 与线上核查 | 用户更新 6.0.6 后症状仍在；`npm pack` 取证确认线上包 `client.js` 为旧构建；按决定不发布 npm，改为本地打包交付并验证产物 |
+| 2026-10-28 | 补记双客户端运行时验证 | DSH Web 与 DSH Desktop 各测 zcode ↔ opencode 两个方向：切换瞬间胶囊即按新供应商显隐，均未发送消息；ZCode 实测同样正确 |
