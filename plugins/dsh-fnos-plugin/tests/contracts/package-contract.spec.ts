@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
  */
 async function workspaceRuntimeBaseline(): Promise<string> {
   const workspace = await readFile(new URL('../../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
-  const match = workspace.match(/'@deepseek-ai\/dsh':\s*([0-9][0-9A-Za-z.+-]*)/u)
+  const match = workspace.match(/'@deepseek-ai\/dsh':\s*(\d[0-9A-Za-z.+-]*)/u)
   if (match?.[1] === undefined) throw new Error('pnpm-workspace.yaml must declare @deepseek-ai/dsh in the catalog')
   return match[1]
 }
@@ -360,7 +360,7 @@ describe('dsh-fnos package contract', () => {
     expect(semiTheme).toContain('background-color: var(--dsw-alias-tooltip-bg)')
     expect(semiTheme).toContain('color: var(--dsw-static-neutral-bluish-00)')
     expect(semiTheme).toContain('pointer-events: none')
-    expect(clientStyle).toContain('.dsh-fnos-authorized-path-picker {')
+    expect(clientStyle).toContain('.dsh-fnos-path-panel-tree {')
     expect(clientStyle).toContain('.semi-tree-option-list {')
     expect(clientStyle).toContain('overflow-x: auto')
     expect(clientStyle).toContain('width: 100% !important')
@@ -370,7 +370,10 @@ describe('dsh-fnos package contract', () => {
     expect(semiTheme).not.toContain('data-dsh-fnos-link')
 
     expect(semiTheme).not.toContain('data-dsh-fnos-input-references')
-    expect(picker).toContain('borderless')
+    // FNOS-034：面板改用 Tree 直接渲染在自有容器里，不再有 TreeSelect 的
+    // `borderless` 触发态；几何由 CSS 决定，不需要覆盖 Semi 的 popper 内联样式。
+    expect(picker).not.toContain('TreeSelect')
+    expect(picker).not.toContain('getPopupContainer')
     expect(picker).toContain('multiple')
     expect(picker).toContain('checkRelation="unRelated"')
     expect(picker).not.toContain('treeCheckable')
@@ -417,10 +420,17 @@ describe('dsh-fnos package contract', () => {
     const picker = await readFile(new URL('../../src/components/FnosAuthorizedPathPicker.tsx', import.meta.url), 'utf8')
     expect(picker).toContain('const value = desiredPaths ?? EMPTY_TREE_VALUE')
     const pickerStyle = await readFile(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    expect(pickerStyle).toContain('max-width: min(560px, calc(100vw - 32px))')
+    // FNOS-034：选择器不再是固定 560px 的下拉，而是贴齐输入卡片的浮层。
+    // 这里钉住「没有固定像素宽度」这件事——一旦有人把宽度常量写回来，
+    // 面板就不再跟随卡片宽度，窄屏也会重新出现横向滚动。
+    expect(pickerStyle).not.toContain('min(560px, calc(100vw - 32px))')
+    expect(pickerStyle).toMatch(/\.dsh-fnos-path-panel \{[^}]*left: 0;[^}]*right: 0;/u)
     expect(pickerStyle).toContain('overflow-x: auto')
     expect(picker).toContain('insertedTreePaths.current.clear()')
-    expect(picker).toContain('return paths')
+    // 归一化只保留绝对路径并去重，父子路径互不折叠。
+    const tree = await readFile(new URL('../../src/client/input-references/picker-tree.ts', import.meta.url), 'utf8')
+    expect(tree).toContain('export function selectedPaths')
+    expect(tree).toContain('return [...new Set(')
   })
 
   it('遮蔽官方「打开应用」入口并提供 fnOS 文件入口', async () => {

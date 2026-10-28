@@ -1,5 +1,5 @@
-/* Tree popup layout belongs to the fnOS picker feature, not the shared theme. */
-.dsh-fnos-authorized-path-picker {
+/* Tree 内部列表的横向兜底：长路径仍然可以横向滚动，不会被裁掉。 */
+.dsh-fnos-path-panel-tree {
   .semi-tree-option-list {
     width: 100% !important;
     min-width: 0 !important;
@@ -358,13 +358,6 @@ img.dsh-fnos-file-manager-icon {
   white-space: nowrap;
 }
 
-.dsh-fnos-input-picker {
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  background: transparent;
-}
-
 .dsh-fnos-input-picker-trigger {
   box-sizing: border-box;
   display: inline-flex;
@@ -384,14 +377,93 @@ img.dsh-fnos-file-manager-icon {
   }
 }
 
-.dsh-fnos-authorized-path-picker {
-  width: min(560px, calc(100vw - 32px));
-  max-width: min(560px, calc(100vw - 32px));
-  max-height: 320px;
+/* 授权目录选择器浮层。
+ *
+ * 几何全部跟着锚点（输入卡片内部的零高定位上下文）走，与 DSH 官方的斜杠
+ * 指令面板同一套写法：`bottom: calc(100% + 4px)` 贴在卡片上沿之上，
+ * `left: 0; right: 0` 让左右与卡片齐边。宽度不写任何像素常量，卡片多宽
+ * （包括 fnOS iframe 内的窄屏规则）面板就多宽。
+ *
+ * 高度分两层：外层 `max-height` 由运行时按视口上方可用空间钳制（内联样式），
+ * 内层的树区自己滚动，标题栏固定不动。
+ */
+.dsh-fnos-path-panel {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-specific-menu);
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
+  box-shadow: var(--dsw-elevation-prominent);
+  /* 面板是可滚动的高图层，滚动条取 l2 一对（与 mk 指令面板一致）。 */
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.dsh-fnos-path-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 8px 8px 8px 12px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.dsh-fnos-path-panel-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsh-fnos-path-panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-state-business-primary);
+    outline-offset: 1px;
+  }
+}
+
+.dsh-fnos-path-panel-tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px;
 
   .semi-tree-option-list {
-    max-height: 280px;
+    max-height: none;
     overflow-x: auto;
-    overflow-y: auto;
+    overflow-y: visible;
   }
 }

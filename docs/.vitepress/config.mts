@@ -371,6 +371,10 @@ const requirementsSidebar = [
         text: 'FNOS-033 用量胶囊按当前选择即时显隐',
         link: '/requirements/FNOS-033-usage-capsule-selection'
       },
+      {
+        text: 'FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层',
+        link: '/requirements/FNOS-034-fnos-input-dock-picker'
+      },
       ]
   }
 ]
@@ -512,6 +516,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-033 用量胶囊按当前选择即时显隐',
         link: '/plans/PLAN-FNOS-033-usage-capsule-selection'
       },
+      {
+        text: 'PLAN-FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层',
+        link: '/plans/PLAN-FNOS-034-fnos-input-dock-picker'
+      },
     ]
   }
 ]
@@ -621,6 +629,10 @@ const testsSidebar = [
       {
         text: 'FNOS-033 用量胶囊按当前选择即时显隐',
         link: '/tests/FNOS-033-usage-capsule-selection'
+      },
+      {
+        text: 'FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层',
+        link: '/tests/FNOS-034-fnos-input-dock-picker'
       },
     ]
   }

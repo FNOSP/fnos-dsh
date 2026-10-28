@@ -26,9 +26,11 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { AuthorizedDirectoriesDetailSection } from '../components/AuthorizedDirectoriesCard.tsx'
 import type { FnosDetailSubject } from '../components/AuthorizedDirectoriesCard.tsx'
 import { FnosInputPickerButton } from '../components/FnosInputPickerButton.tsx'
+import { FnosAuthorizedPathPanel } from '../components/FnosAuthorizedPathPicker.tsx'
 import { FnosOpenInHeaderAction } from '../components/FnosOpenInHeaderAction.tsx'
 import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAction.tsx'
 import { FNOS_OPEN_IN_APP_SEAT, FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
+import { createPickerOpenStore } from './input-references/picker-store.ts'
 import { insertFnosReferences } from './input-references/input-reference-actions.ts'
 import { createFnosCommandContribution, createFnosDirectorySource } from './input-references/fnos-command-source.ts'
 import { FNOS_REFERENCE_SOURCE, fnosReferenceDisplayText, fnosReferencePromptText, type FnosInputReference, type InputSnapshotForReference } from './input-references/input-references.ts'
@@ -210,15 +212,37 @@ export function apply(ctx: ClientContext): void {
     locale: namespace,
     inject: () => ({ t }),
   }, FnosWebRestartAction))
+
+  /**
+   * 授权目录选择器拆成两个槽位条目，共享一个会话级开关 store：
+   *
+   *  - `conversation.input.left`：工具栏里的 fnOS 图标，只翻转开关；
+   *  - `conversation.input.overlay`：卡片宽的浮层面板，位置与斜杠指令面板
+   *    一致（该槽锚点是输入卡片内部的零高定位上下文）。
+   *
+   * 两个条目没有父子关系，拿不到对方的 ref，只能靠外部 store 同步。
+   * overlay 座位的 `order` 取 10：排在指令面板(0)、命令选择(1)与反馈框(2)
+   * 之后，同一时刻最多只有一个由用户主动打开。
+   */
+  const pickerStore = createPickerOpenStore()
+  ctx.effect(() => () => { pickerStore.closeAll() }, 'dsh-fnos: picker store')
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left',
     id: 'dsh-fnos-input-picker',
     order: 100,
     locale: namespace,
+    inject: () => ({ store: pickerStore }),
+  }, FnosInputPickerButton))
+  ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({
+    name: 'conversation.input.overlay',
+    id: 'dsh-fnos-path-panel',
+    order: 10,
+    locale: namespace,
     inject: (sessionId: string) => ({
+      store: pickerStore,
       insertReferences: (input: InputSnapshotForReference, references: readonly FnosInputReference[]) => insertFnosReferences(ctx, sessionId as SessionId, references, input),
     }),
-  }, FnosInputPickerButton))
+  }, FnosAuthorizedPathPanel))
 }
 
 /** Insert a command-popup selection over the currently open `/` or `/fn` token. */

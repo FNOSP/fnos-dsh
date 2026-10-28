@@ -1,40 +1,46 @@
-/** Compact fnOS-authorized tree selector used by the DSH input toolbar. */
+/**
+ * fnOS 授权目录选择器的浮层面板。
+ *
+ * 挂在 `conversation.input.overlay`：这个槽的锚点是输入卡片内部的零高定位
+ * 上下文（上游 `InputBar` 的 `overlayAnchor`），斜杠指令面板也在这里。因此
+ * 面板只要像指令面板那样贴齐锚点，位置与宽度就与它一致，且宽度天然跟随卡片
+ * ——不需要测量，也不写任何固定像素宽度。
+ *
+ * 选择语义沿用改造前的实现：父子独立勾选、勾选即插入官方结构化引用、取消
+ * 勾选即移除对应引用。差异只在承载形式（下拉 → 卡片宽浮层）与关闭出口。
+ */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { InputActions, InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
-import { DshIconFile as IconFile, DshIconFolder as IconFolder, DshTooltip as Tooltip, DshTreeSelect as TreeSelect } from '@tnnevol/dsh-semi-ui'
+import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import { useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  DshIconClose as IconClose,
+  DshIconFile as IconFile,
+  DshIconFolder as IconFolder,
+  DshTooltip as Tooltip,
+  DshTree as Tree,
+} from '@tnnevol/dsh-semi-ui'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
-import { FnosColorLogo } from './FnosLogo.tsx'
 import { FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
 import { planFnosOccurrenceRemovals, reconcileFnosOperationOccurrences, type PendingFnosOccurrence, type TrackedFnosOccurrence } from '../client/input-references/input-reference-operation.ts'
+import { displayName, selectedPaths, toTreeNode, updateChildren, type PickerTreeNode } from '../client/input-references/picker-tree.ts'
+import { usePickerOpen, type PickerOpenStore } from '../client/input-references/picker-store.ts'
 import type { AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
-
-type InputSelector = <S>(
-  selector: (state: InputState) => S,
-  equality?: (left: S, right: S) => boolean,
-) => S
-
-type InputProps = {
-  useInput: InputSelector
-  inputActions: InputActions
-} & PropsLocale<'settings.dsh-fnos'>
-
-interface TreeNode {
-  key: string
-  value: string
-  label: ReactNode
-  isLeaf: boolean
-  children?: TreeNode[]
-}
 
 const EMPTY_TREE_VALUE: string[] = []
 
-function displayName(value: string): string {
-  const parts = value.split('/').filter(Boolean)
-  return parts.at(-1) ?? value
-}
+/**
+ * 视口顶部的安全距离。
+ *
+ * 与上游斜杠菜单同一取值：会话头部占 76px，再留 8px 空气，面板长高时停在
+ * 头部下方而不是从头部底下滑出去。
+ */
+const PANEL_TOP_MARGIN = 84
+
+/** 面板设计上限高度；运行时按上方可用空间再钳制。 */
+const PANEL_MAX_HEIGHT = 420
 
 function nodeLabel(entry: AuthorizedEntry, showFullPath = false): ReactNode {
   const name = showFullPath ? entry.semanticPath : displayName(entry.semanticPath)
@@ -48,40 +54,22 @@ function nodeLabel(entry: AuthorizedEntry, showFullPath = false): ReactNode {
   return <Tooltip content={entry.semanticPath} showArrow mouseEnterDelay={0.5}>{content}</Tooltip>
 }
 
-function toNode(entry: AuthorizedEntry, showFullPath = false): TreeNode {
-  return {
-    key: entry.path,
-    value: entry.path,
-    label: nodeLabel(entry, showFullPath),
-    isLeaf: entry.kind === 'file',
+export type FnosAuthorizedPathPanelProps =
+  & PropsRuntime<'conversation.input.overlay'>
+  & PropsLocale<'settings.dsh-fnos'>
+  & {
+    /** 与工具栏触发器共享的开关 store。 */
+    store: PickerOpenStore
+    insertReferences: (input: { draft: string, draftRev: number, occurrences?: readonly { readonly length: number }[] }, references: readonly FnosInputReference[]) => readonly FnosInputReference[]
   }
-}
 
-function updateChildren(nodes: readonly TreeNode[], key: string, children: TreeNode[]): TreeNode[] {
-  return nodes.map(node => {
-    if (node.key === key) return { ...node, children, isLeaf: false }
-    if (node.children === undefined) return node
-    return { ...node, children: updateChildren(node.children, key, children) }
-  })
-}
-
-/**
- * Keep every checked path so a parent and child can both be selected.
- */
-function selectedPaths(value: unknown): string[] {
-  const values = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value]
-  const paths = [...new Set(values.flatMap(item => typeof item === 'string' && item.startsWith('/') ? [item] : []))]
-  return paths
-}
-
-export type FnosAuthorizedPathPickerProps = InputProps & {
-  insertReferences: (input: { draft: string, draftRev: number, occurrences?: readonly { readonly length: number }[] }, references: readonly FnosInputReference[]) => readonly FnosInputReference[]
-}
-
-/** Selection is immediate; closing the TreeSelect never discards a choice. */
-export function FnosAuthorizedPathPicker({ useInput, inputActions, insertReferences, t }: FnosAuthorizedPathPickerProps) {
+/** 选择器浮层：展开时渲染树，收起时渲染 null（槽位锚点保持挂载）。 */
+export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, store, insertReferences, t }: FnosAuthorizedPathPanelProps) {
   const input = useInput((state: InputState) => state)
-  const [treeData, setTreeData] = useState<TreeNode[]>([])
+  // 必须走 store 的订阅钩子：直接读 `store.isOpen(...)` 不会在开关变化时重渲染。
+  const open = usePickerOpen(store, sessionId)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [treeData, setTreeData] = useState<PickerTreeNode[]>([])
   const [desiredPaths, setDesiredPaths] = useState<string[] | undefined>()
   const entries = useRef(new Map<string, AuthorizedEntry>())
   const operationBaselineOccurrenceIds = useRef(new Set<number>())
@@ -91,11 +79,13 @@ export function FnosAuthorizedPathPicker({ useInput, inputActions, insertReferen
   const pendingRemovalPaths = useRef(new Set<string>())
   const busy = input.phase === 'adjudicating' || input.phase === 'submitting'
   const value = desiredPaths ?? EMPTY_TREE_VALUE
+  const maxHeight = useAnchoredMaxHeight(panelRef, PANEL_MAX_HEIGHT, open, PANEL_TOP_MARGIN)
+
   const applyEntries = useCallback((result: AuthorizedEntriesResult, parent?: string) => {
     for (const entry of result.entries) entries.current.set(entry.path, entry)
-    const children = result.entries.map(entry => toNode(entry))
+    const children = result.entries.map(entry => toTreeNode(entry, nodeLabel(entry)))
     setTreeData(current => parent === undefined
-      ? result.entries.map(entry => toNode(entry, true))
+      ? result.entries.map(entry => toTreeNode(entry, nodeLabel(entry, true)))
       : updateChildren(current, parent, children))
   }, [])
 
@@ -108,6 +98,33 @@ export function FnosAuthorizedPathPicker({ useInput, inputActions, insertReferen
     })
     return () => { cancelled = true }
   }, [applyEntries])
+
+  // 展开/收起的两侧状态都在这里重置：展开时清掉上一次会话级的残留，收起时
+  // 放掉 `desiredPaths`，让下一次展开从空白选择开始，而不是回放旧勾选。
+  //
+  // 依赖只有 `open`：基线要取**展开那一刻**的 occurrence 快照，之后草稿里
+  // 新增的引用都属于本次操作的产物。把 `input.occurrences` 放进依赖，会在
+  // 每次插入引用后重新采一次基线，反而让「取消勾选 → 移除引用」的对账失效。
+  // 输入状态经 ref 读取，不进入依赖数组。
+  const occurrencesRef = useRef(input.occurrences)
+  occurrencesRef.current = input.occurrences
+  useEffect(() => {
+    operationBaselineOccurrenceIds.current.clear()
+    insertedTreePaths.current.clear()
+    pendingInsertedOccurrences.current.clear()
+    currentOperationOccurrences.current.clear()
+    pendingRemovalPaths.current.clear()
+    if (!open) {
+      setDesiredPaths(undefined)
+      return
+    }
+    operationBaselineOccurrenceIds.current = new Set(
+      occurrencesRef.current
+        .filter(occurrence => occurrence.source === FNOS_REFERENCE_SOURCE)
+        .map(occurrence => occurrence.occurrenceId),
+    )
+    setDesiredPaths(EMPTY_TREE_VALUE)
+  }, [open])
 
   const insertSelectedPaths = useCallback((paths: readonly string[]): void => {
     const pending = paths
@@ -130,7 +147,7 @@ export function FnosAuthorizedPathPicker({ useInput, inputActions, insertReferen
       pendingInsertedOccurrences.current.set(item.reference.ref, {
         path: item.path,
         ref: item.reference.ref,
-        // The picker inserts at the end of the draft, so DSH owns the gap.
+        // 选择器总是在草稿末尾插入，所以尾部分隔符由 DSH 负责。
         trailingSeparator: true,
       })
     }
@@ -138,8 +155,7 @@ export function FnosAuthorizedPathPicker({ useInput, inputActions, insertReferen
 
   useEffect(() => {
     if (desiredPaths === undefined) return
-    // Async-loaded children may not be present in entries.current during the
-    // selection event. Retry when treeData or the input snapshot changes.
+    // 异步加载的子节点在勾选那一刻可能还不在 entries 里；树或输入快照变化时重试。
     insertSelectedPaths(desiredPaths)
   }, [desiredPaths, insertSelectedPaths, treeData])
 
@@ -182,6 +198,32 @@ export function FnosAuthorizedPathPicker({ useInput, inputActions, insertReferen
     }
   }, [desiredPaths, input.draft, input.occurrences, inputActions])
 
+  const close = useCallback(() => { store.set(sessionId, false) }, [store, sessionId])
+
+  // 点击输入卡片之外收起。卡片内部（含面板自身与文本域）不关闭：用户点回
+  // 草稿继续输入时，选择器不该被顺手关掉。与上游斜杠菜单同一策略。
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: PointerEvent): void => {
+      if (!(event.target instanceof Node)) return
+      if (panelRef.current?.contains(event.target) === true) return
+      const card = panelRef.current?.closest('[data-composer-card]')
+      if (card?.contains(event.target) === true) return
+      close()
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => { document.removeEventListener('pointerdown', onPointerDown, true) }
+  }, [open, close])
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') close()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('keydown', onKeyDown) }
+  }, [open, close])
+
   const handleTreeChange = useCallback((next: unknown) => {
     const nextPaths = selectedPaths(next)
     for (const path of insertedTreePaths.current) {
@@ -191,8 +233,7 @@ export function FnosAuthorizedPathPicker({ useInput, inputActions, insertReferen
       }
     }
     setDesiredPaths(nextPaths)
-    // Commit a batch in the same event that produced it. This preserves every
-    // selected path even if Semi closes the dropdown before React effects run.
+    // 在同一次事件里完成提交：即使浮层随即关闭，已勾选的路径也不会丢。
     insertSelectedPaths(nextPaths)
   }, [insertSelectedPaths])
 
@@ -205,60 +246,43 @@ export function FnosAuthorizedPathPicker({ useInput, inputActions, insertReferen
     applyEntries(result, key)
   }, [applyEntries])
 
-  // Keep every selected path independent. Semi's related mode collapses
-  // parent/child keys and prevents selecting both a directory and its child.
+  if (!open) return null
+
   return (
-    <TreeSelect
-      aria-label={t('inputPicker')}
-      multiple
-      checkRelation="unRelated"
-      treeData={treeData}
-      value={value}
-      loadData={loadData}
-      dropdownClassName="dsh-fnos-authorized-path-picker"
-      onVisibleChange={(visible: boolean) => {
-        if (visible) {
-          operationBaselineOccurrenceIds.current = new Set(
-            input.occurrences
-              .filter(occurrence => occurrence.source === FNOS_REFERENCE_SOURCE)
-              .map(occurrence => occurrence.occurrenceId),
-          )
-          insertedTreePaths.current.clear()
-          pendingInsertedOccurrences.current.clear()
-          currentOperationOccurrences.current.clear()
-          pendingRemovalPaths.current.clear()
-          setDesiredPaths(EMPTY_TREE_VALUE)
-          return
-        }
-        operationBaselineOccurrenceIds.current.clear()
-        insertedTreePaths.current.clear()
-        pendingInsertedOccurrences.current.clear()
-        currentOperationOccurrences.current.clear()
-        pendingRemovalPaths.current.clear()
-        setDesiredPaths(undefined)
-      }}
-      onChange={handleTreeChange}
-      disabled={busy}
-      size="small"
-      borderless
-      showClear={false}
-      maxTagCount={0}
-      dropdownMatchSelectWidth={false}
-      showLine={false}
-      emptyContent={t('inputPickerEmpty')}
-      searchPlaceholder={t('workspaceSearchPlaceholder')}
-      placeholder=""
-      prefix={null}
-      triggerRender={() => (
-        <span
-          aria-label={t('inputPicker')}
-          title={t('inputPicker')}
-          className={`dsh-fnos-input-picker-trigger${busy ? ' is-busy' : ''}`}
+    <div
+      ref={panelRef}
+      className="dsh-fnos-path-panel"
+      style={{ maxHeight }}
+      role="dialog"
+      aria-label={t('inputPickerTitle')}
+    >
+      <div className="dsh-fnos-path-panel-header">
+        <span className="dsh-fnos-path-panel-title">{t('inputPickerTitle')}</span>
+        <button
+          type="button"
+          className="dsh-fnos-path-panel-close"
+          aria-label={t('inputPickerClose')}
+          title={t('inputPickerClose')}
+          onClick={close}
         >
-          <FnosColorLogo size={17} />
-        </span>
-      )}
-      className="dsh-fnos-input-picker"
-    />
+          <IconClose size="small" />
+        </button>
+      </div>
+      <Tree
+        aria-label={t('inputPickerTitle')}
+        multiple
+        checkRelation="unRelated"
+        treeData={treeData}
+        value={value}
+        loadData={loadData}
+        filterTreeNode
+        searchPlaceholder={t('workspaceSearchPlaceholder')}
+        onChange={handleTreeChange}
+        disabled={busy}
+        showLine={false}
+        className="dsh-fnos-path-panel-tree"
+        emptyContent={t('inputPickerEmpty')}
+      />
+    </div>
   )
 }

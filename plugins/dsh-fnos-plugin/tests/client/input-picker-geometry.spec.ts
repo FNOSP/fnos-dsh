@@ -1,0 +1,134 @@
+import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+
+/**
+ * FNOS-034-01 / FNOS-034-03：选择器浮层的几何与关闭出口。
+ *
+ * 这里断言的是源码里的几何契约而不是渲染结果——面板宽度依赖运行时的
+ * CSS 自定义属性（`--dsh-composer-card-max-width`），在没有真实卡片的环境里
+ * 渲染出来只会是 0 宽。真正要防的回归是：
+ *
+ *  1. 有人把固定像素宽度写回来（面板就不再跟随卡片）；
+ *  2. 定位不再贴齐锚点（就与斜杠指令面板错位）；
+ *  3. 某个关闭出口被删掉（用户被困在面板里）。
+ */
+
+const read = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
+
+const STYLE = read('../../src/styles/index.scss')
+const PANEL = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+
+/**
+ * 取出某个类名的规则体。
+ *
+ * 同名选择器在样式表里会出现多次（顶部的树内部横向兜底、底部的布局规则），
+ * 因此 `match` 用来挑出要断言的那一条；不传则取第一条。
+ */
+function ruleBody(selector: string, match?: RegExp): string {
+  let from = 0
+  while (from < STYLE.length) {
+    const start = STYLE.indexOf(`${selector} {`, from)
+    if (start < 0) break
+    const open = STYLE.indexOf('{', start)
+    let depth = 0
+    for (let index = open; index < STYLE.length; index += 1) {
+      if (STYLE[index] === '{') depth += 1
+      else if (STYLE[index] === '}') {
+        depth -= 1
+        if (depth === 0) {
+          const body = STYLE.slice(open + 1, index)
+          if (match === undefined || match.test(body)) return body
+          from = index + 1
+          break
+        }
+      }
+    }
+    if (from <= start) break
+  }
+  throw new Error(`样式里找不到规则 ${selector}${match === undefined ? '' : `（含 ${String(match)}）`}`)
+}
+
+describe('FNOS-034-01-AC-02 浮层几何贴齐输入卡片', () => {
+  const body = ruleBody('.dsh-fnos-path-panel')
+
+  it('左右对齐锚点（left/right 都为 0），宽度随卡片自适应', () => {
+    expect(body).toMatch(/left:\s*0;/u)
+    expect(body).toMatch(/right:\s*0;/u)
+  })
+
+  it('浮在输入卡片上沿之上', () => {
+    expect(body).toMatch(/bottom:\s*calc\(100% \+ 4px\);/u)
+  })
+
+  it('不写任何固定像素宽度', () => {
+    // 纯数字 px 宽度、或原来那套 560px 视口算式都必须没有。
+    expect(body).not.toMatch(/\bwidth:\s*\d+px/u)
+    expect(body).not.toContain('560px')
+    expect(body).not.toContain('100vw')
+  })
+
+  it('层级高于卡片内容，且绝对定位在锚点内', () => {
+    expect(body).toMatch(/position:\s*absolute;/u)
+    expect(body).toMatch(/z-index:\s*\d+;/u)
+  })
+})
+
+describe('FNOS-034-01-AC-03 最大高度按可用空间钳制', () => {
+  it('面板用锚定的最大高度，而不是另一个固定上限', () => {
+    expect(PANEL).toContain('useAnchoredMaxHeight')
+    expect(PANEL).toContain('style={{ maxHeight }}')
+  })
+
+  it('顶部留出会话头部的安全距离', () => {
+    // 上游斜杠菜单用 84（头部 76 + 8）；选择器保持一致，避免两处面板高度不同。
+    expect(PANEL).toMatch(/PANEL_TOP_MARGIN\s*=\s*84/u)
+  })
+
+  it('树区自己滚动，标题栏固定', () => {
+    const tree = ruleBody('.dsh-fnos-path-panel-tree', /flex:\s*1;/u)
+    expect(tree).toMatch(/overflow:\s*auto;/u)
+    expect(ruleBody('.dsh-fnos-path-panel-header')).toMatch(/flex:\s*none;/u)
+  })
+})
+
+describe('FNOS-034-03 浮层有三个收起出口', () => {
+  it('AC-01 点击输入卡片外部收起', () => {
+    expect(PANEL).toContain("document.addEventListener('pointerdown', onPointerDown, true)")
+    // 卡片内部不关闭：点回草稿继续输入时不该被顺手关掉。
+    expect(PANEL).toContain("closest('[data-composer-card]')")
+  })
+
+  it('AC-02 按 Esc 收起', () => {
+    expect(PANEL).toContain("event.key === 'Escape'")
+    expect(PANEL).toContain("document.addEventListener('keydown', onKeyDown)")
+  })
+
+  it('AC-03 再点工具栏图标收起（同一 store 的 toggle）', () => {
+    const button = read('../../src/components/FnosInputPickerButton.tsx')
+    expect(button).toContain('store.toggle(sessionId')
+    expect(button).toContain('aria-expanded={open}')
+  })
+
+  it('收起时监听器被移除，不残留全局监听', () => {
+    expect(PANEL).toContain("document.removeEventListener('pointerdown', onPointerDown, true)")
+    expect(PANEL).toContain("document.removeEventListener('keydown', onKeyDown)")
+  })
+})
+
+describe('选择器不再使用下拉弹层', () => {
+  it('面板与按钮都不再渲染 TreeSelect', () => {
+    expect(PANEL).not.toContain('TreeSelect')
+    expect(read('../../src/components/FnosInputPickerButton.tsx')).not.toContain('TreeSelect')
+  })
+
+  it('按钮只翻转 store，不再承载弹层内容', () => {
+    const button = read('../../src/components/FnosInputPickerButton.tsx')
+    expect(button).not.toContain('loadData')
+    expect(button).not.toContain('requestAuthorizedEntries')
+  })
+
+  it('不引入定时轮询', () => {
+    expect(PANEL).not.toContain('setInterval')
+    expect(PANEL).not.toContain('visibilitychange')
+  })
+})
