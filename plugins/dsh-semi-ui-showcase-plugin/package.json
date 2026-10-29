@@ -2,7 +2,7 @@
   "name": "@tnnevol/dsh-semi-ui-showcase",
   "displayName": "DSH Semi UI Showcase",
   "type": "module",
-  "version": "6.1.1",
+  "version": "6.1.2",
   "description": "Component showcase for the shared DSH-themed Semi Design package.",
   "author": "tnnevol",
   "documentation": "https://fndsh-doc.tnnevol.cn/plugins/dsh-semi-ui-showcase",

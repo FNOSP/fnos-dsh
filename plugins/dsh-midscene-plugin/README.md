@@ -7,7 +7,7 @@
 ## 安装
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-midscene@6.1.1
+dsh plugin --profile web add @tnnevol/dsh-midscene@6.1.2
 ```
 
 安装后重启 DSH Web profile。
