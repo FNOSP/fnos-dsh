@@ -37,7 +37,7 @@ verifiedAt: 2026-10-29
 本需求的验收一律以 **FPK 在真实 NAS 安装后**的表现为准。开发期间若需观察前端几何，只能作为实现自检，不能计入验收结论。
 :::
 
-包级：`pnpm --filter @tnnevol/dsh-fnos run check`（typecheck + vitest 367 条）。
+包级：`pnpm --filter @tnnevol/dsh-fnos run check`（typecheck + vitest 369 条）。
 
 FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例执行。
 
@@ -218,8 +218,10 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-034 | 通过 | 2026-10-28 | 同文件「不再自己量 scrollWidth，也不手写 Tooltip 分支」 |
 | TC-035 | 通过 | 2026-10-28 | 同文件「ellipsis 的 children 必须是纯文本」 |
 | TC-036 | 通过 | 2026-10-28 | 同文件「容器允许收缩」「不自定义 text-overflow」 |
+| TC-057 | 通过 | 2026-10-29 | `authorized-directory-picker.spec.ts`「非 0 code 且没有路径按取消处理，不弹错误」「非 0 code 配未知文案与 data: null 时同样静默」；对应 BUG-01 |
+| TC-058 | 通过 | 2026-10-29 | `input-picker-geometry.spec.ts`「标题栏两个按钮都不用原生 title，授权用文案按钮」 |
 
-包级总量：39 个测试文件 / 367 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
+包级总量：39 个测试文件 / 369 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
 
 ### 待执行（真实 NAS）
 
@@ -227,6 +229,12 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | --- | --- | --- |
 | TC-101 ~ TC-109 | 未执行 | 需先构建 FPK 并在真实 NAS 走应用中心安装 |
 | TC-110 ~ TC-122 | 未执行 | 同上；另需 NAS 上已有可写的授权目录才能验证新建 |
+
+## Bug 记录
+
+| ID | 现象 | 原因 | 修复 | 回归 |
+| --- | --- | --- | --- | --- |
+| BUG-01 | 在面板点「授权目录」唤起 fnOS 原生选择器后直接关掉，页面弹「无法授权该目录。」 | 取消时返回体是**解析成功、`code` 非 0、没有路径**的普通响应；判定链把「非 0 code」当失败，于是用户什么都没做却被报错。此前几轮修补分别覆盖了 `undefined`、`status: 'cancel'`、取消文案与 `code: 0` 无路径，恰好漏掉这一种组合 | 判定改用官方类型：`AppBridgeResponse` 只有 `code`/`msg`/`data`，没有取消专用 code；官方只记录 `AppAuthCallbackStatus` 的 `cancel` 与 `AppAuthCallbackError` 的 `access_denied`。因此「没有路径且没有这两种标记」一律按取消静默处理，`status: 'error'` 与 `access_denied` 仍照旧报错 | `authorized-directory-picker.spec.ts` 新增两条；原有 `access_denied` 报错用例保持通过 |
 
 ## 未覆盖与后续验证
 

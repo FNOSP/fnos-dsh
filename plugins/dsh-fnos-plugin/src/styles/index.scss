@@ -457,19 +457,21 @@ img.dsh-fnos-file-manager-icon {
   white-space: nowrap;
 }
 
-/* 标题栏的动作按钮：与关闭按钮同尺寸，保证标题栏高度一致。 */
-.dsh-fnos-path-panel-action {
+/* 标题栏的文案按钮：与图标按钮同高，宽度由文案撑开。 */
+.dsh-fnos-path-panel-new {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 24px;
   height: 24px;
-  padding: 0;
+  padding: 0 8px;
   border: 0;
   border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
 
   &:hover:not(:disabled) {

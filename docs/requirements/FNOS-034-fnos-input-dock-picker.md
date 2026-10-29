@@ -4,7 +4,7 @@ title: FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层
 description: fnOS 授权目录选择器当前锚在 28px 工具栏按钮上下拉展开，宽度固定且窄小；改为与斜杠指令面板同位置的输入卡片宽浮层。
 status: in-progress
 owner: tnnevol
-targetVersion: 6.1.13
+targetVersion: 6.1.15
 lastVerified: 2026-10-28
 ---
 
@@ -171,3 +171,5 @@ flowchart TB
 | 2026-10-28 | 建立需求：选择器从工具栏下拉改为输入卡片宽浮层（FNOS-034-01/02/03）。 |
 | 2026-10-28 | 追加三项：层级始终低于指令面板（FNOS-034-04）、面板不提供搜索（FNOS-034-05）、面板内右键新建文件夹与空文件（FNOS-034-06）。 |
 | 2026-10-29 | `targetVersion` 由 6.1.0 更新为 6.1.3：需求迭代中途按装机验证需要多次 `patch` 前进，实际交付点为 6.1.3。 |
+| 2026-10-29 | 修正「取消授权仍提示无法授权该目录」（FNOS-034-09 / AC-04）：判定改用官方类型而非文案——`AppBridgeResponse` 没有取消专用 code，官方只记录 `AppAuthCallbackStatus` 的 `cancel` 与 `AppAuthCallbackError` 的 `access_denied`；没有路径又没有这两种标记的返回一律按取消静默处理。`targetVersion` 更新为 6.1.15。 |
+| 2026-10-29 | 调整面板标题栏（FNOS-034-09 / AC-01）：授权入口由图标按钮改为文案按钮「新增授权」，标题栏的授权与关闭两个按钮都去掉原生 `title` 气泡提示（关闭按钮保留 `aria-label`）。`targetVersion` 仍为 6.1.15。 |

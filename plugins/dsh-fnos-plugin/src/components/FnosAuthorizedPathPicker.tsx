@@ -20,7 +20,6 @@ import {
   DshIconClose as IconClose,
   DshIconDelete as IconDelete,
   DshIconFile as IconFile,
-  DshIconPlus as IconPlus,
   DshIconFolder as IconFolder,
   DshInput as Input,
   DshModal as Modal,
@@ -597,22 +596,22 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       <div aria-hidden="true" className="dsh-fnos-path-panel-material" />
       <div className="dsh-fnos-path-panel-header">
         <span className="dsh-fnos-path-panel-title">{t('inputPickerTitle')}</span>
-        {/* 授权入口：唤起 fnOS 原生选择器，用户在那里确认目录权限。 */}
+        {/* 授权入口：唤起 fnOS 原生选择器，用户在那里确认目录权限。
+            用文案按钮而非图标：这个动作会打开一个系统窗口，图标说明不了它。
+            两个按钮都不设 `title`——原生气泡和面板自身的玻璃浮层风格不搭，
+            关闭按钮的无障碍名交给 `aria-label`。 */}
         <button
           type="button"
-          className="dsh-fnos-path-panel-action"
-          aria-label={t('authorizeDirectory')}
-          title={t('authorizeDirectory')}
+          className="dsh-fnos-path-panel-new"
           disabled={busy || authorizing}
           onClick={() => { void authorizeDirectory() }}
         >
-          <IconPlus size="small" />
+          {t('authorizeNewDirectory')}
         </button>
         <button
           type="button"
           className="dsh-fnos-path-panel-close"
           aria-label={t('inputPickerClose')}
-          title={t('inputPickerClose')}
           onClick={close}
         >
           <IconClose size="small" />

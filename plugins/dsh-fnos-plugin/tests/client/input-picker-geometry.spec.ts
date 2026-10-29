@@ -189,7 +189,7 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(PANEL).not.toContain('openCreateDialog')
     const header = /className="dsh-fnos-path-panel-header"[\s\S]*?<\/div>/u.exec(PANEL)?.[0] ?? ''
     expect(header.length).toBeGreaterThan(0)
-    expect(header).toContain('authorizeDirectory')
+    expect(header).toContain('authorizeNewDirectory')
     expect(header).not.toContain('createFolder')
     expect(header).not.toContain('createFile')
     // 菜单项文案仍在（右键菜单要用）。
@@ -203,6 +203,21 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     // 授权成功后必须同时刷新树与写持久化，缺一样都会导致「授权了但重装就丢」。
     expect(PANEL).toMatch(/pickAuthorizedDirectory[\s\S]{0,900}applyEntries/u)
     expect(PANEL).toMatch(/pickAuthorizedDirectory[\s\S]{0,900}requestPersistAuthorizedDirectories/u)
+  })
+
+  it('标题栏两个按钮都不用原生 title，授权用文案按钮', () => {
+    // 原生气泡是浅灰直角小方块，与面板的玻璃磨砂浮层风格冲突，因此标题栏的
+    // 授权与关闭都不挂 `title`；关闭按钮的无障碍名交给 `aria-label`。
+    const header = /className="dsh-fnos-path-panel-header"[\s\S]*?<\/div>/u.exec(PANEL)?.[0] ?? ''
+    expect(header.length).toBeGreaterThan(0)
+    expect(header).not.toContain('title=')
+    // 授权是「打开系统窗口」的重动作，图标说明不了，改用文案按钮。
+    expect(header).toContain('dsh-fnos-path-panel-new')
+    expect(header).toContain("t('authorizeNewDirectory')")
+    expect(header).not.toContain('IconPlus')
+    // 关闭仍是无障碍可认的图标按钮。
+    expect(header).toContain('dsh-fnos-path-panel-close')
+    expect(header).toContain("aria-label={t('inputPickerClose')}")
   })
 
   it('右键先弹上下文菜单，不直接开新建弹框', () => {
