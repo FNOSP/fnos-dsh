@@ -5,7 +5,7 @@ description: 把 fnOS 授权目录选择器从工具栏 TreeSelect 下拉改为 
 status: in-progress
 owner: tnnevol
 planDate: 2026-10-28
-targetVersion: 6.1.12
+targetVersion: 6.1.13
 lastVerified: 2026-10-28
 ---
 
