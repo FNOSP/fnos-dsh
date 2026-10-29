@@ -262,10 +262,17 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
 
   const close = useCallback(() => { store.set(sessionId, false) }, [store, sessionId])
 
+  // 弹层打开期间不因「点外部」收起面板。
+  //
+  // Modal 与 Dropdown 都由 Semi portal 到 body，`panelRef.current.contains(target)`
+  // 对它们恒为 false——弹框里点一下输入框或按钮，就会被判成「点了面板外部」，
+  // 连带把整个面板销毁。这两个浮层自己会处理外部关闭，面板在此期间应当让路。
+  const floatingOpen = createTarget !== undefined || contextMenu !== undefined
+
   // 点击输入卡片之外收起。卡片内部（含面板自身与文本域）不关闭：用户点回
   // 草稿继续输入时，选择器不该被顺手关掉。与上游斜杠菜单同一策略。
   useEffect(() => {
-    if (!open) return
+    if (!open || floatingOpen) return
     const onPointerDown = (event: PointerEvent): void => {
       if (!(event.target instanceof Node)) return
       if (panelRef.current?.contains(event.target) === true) return
@@ -275,16 +282,18 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     }
     document.addEventListener('pointerdown', onPointerDown, true)
     return () => { document.removeEventListener('pointerdown', onPointerDown, true) }
-  }, [open, close])
+  }, [open, floatingOpen, close])
 
+  // Esc 同理：弹层自己处理 Esc（Modal 关闭、菜单收起），面板不能抢在它前面
+  // 把自己整个关掉——那会让用户既丢了弹框也丢了面板。
   useEffect(() => {
-    if (!open) return
+    if (!open || floatingOpen) return
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') close()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => { document.removeEventListener('keydown', onKeyDown) }
-  }, [open, close])
+  }, [open, floatingOpen, close])
 
   const handleTreeChange = useCallback((next: unknown) => {
     const nextPaths = selectedPaths(next)

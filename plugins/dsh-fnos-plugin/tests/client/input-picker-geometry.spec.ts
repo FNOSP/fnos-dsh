@@ -113,6 +113,23 @@ describe('FNOS-034-03 浮层有三个收起出口', () => {
     expect(PANEL).toContain("document.removeEventListener('pointerdown', onPointerDown, true)")
     expect(PANEL).toContain("document.removeEventListener('keydown', onKeyDown)")
   })
+
+  it('弹层打开时不因点外部销毁整个面板', () => {
+    // Modal 与 Dropdown 都由 Semi portal 到 body，`panelRef.contains(target)`
+    // 对它们恒为 false——弹框里点一下就会被判成「点了面板外部」。
+    expect(PANEL).toContain('const floatingOpen = createTarget !== undefined || contextMenu !== undefined')
+  })
+
+  it('两个全局关闭监听在弹层打开期间都不注册', () => {
+    // 点外部与 Esc 两条路径都要让路：否则 Esc 会同时关掉弹框和面板。
+    const guards = PANEL.match(/if \(!open \|\| floatingOpen\) return/gu) ?? []
+    expect(guards).toHaveLength(2)
+  })
+
+  it('弹层收起后恢复外部点击关闭', () => {
+    // 让路只针对「弹层开着」这一段；依赖数组必须带上 floatingOpen 才能重新挂载。
+    expect(PANEL).toMatch(/\[open, floatingOpen, close\]/u)
+  })
 })
 
 describe('选择器不再使用下拉弹层', () => {
