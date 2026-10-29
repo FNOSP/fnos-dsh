@@ -33,7 +33,7 @@ verifiedAt: 2026-10-29
 `@tnnevol/dsh-fnos` 的快捷键拦截以 `isEmbeddedFnosFrame()` 为前提，脱离 fnOS 宿主时守卫直接返回空卸载函数，本地 DSH Web 里按这两个组合只会看到浏览器自身的反应，无法说明拦截是否成立。本需求的验收一律以 **FPK 在真实 NAS 安装后**在浏览器里的表现为准。
 :::
 
-包级：`pnpm --filter @tnnevol/dsh-fnos run check`（typecheck + vitest 367 条）。
+包级：`pnpm --filter @tnnevol/dsh-fnos run check`（typecheck + vitest 369 条）。
 
 ## 测试用例
 
@@ -83,7 +83,7 @@ verifiedAt: 2026-10-29
 | TC-014 | 通过 | 2026-10-29 | 同文件 `toContain('if (forwarding) return')` |
 | TC-015 | 通过 | 2026-10-29 | 同文件 `toContain('altKey: true')`；对应 BUG-01 |
 
-包级总量：39 个测试文件 / 368 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）。
+包级总量：39 个测试文件 / 369 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）。
 
 ### 待执行（真实 NAS）
 
