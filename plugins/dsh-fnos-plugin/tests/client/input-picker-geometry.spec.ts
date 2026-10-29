@@ -272,7 +272,9 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(PANEL).toContain('onConfirm={() => { void confirmDeleteFromContextMenu() }}')
     // 旧的删除 Modal 已移除：不应再有 submitDelete / deleteTarget。
     expect(PANEL).not.toContain('submitDelete')
-    expect(PANEL).not.toContain('deleteTarget')
+    // 旧 Modal 的 state 已删除；`deleteTargetRef` 是另一回事，删除链路的契约
+    // 由 delete-entry-contract.spec.ts 覆盖。
+    expect(PANEL).not.toContain('[deleteTarget, setDeleteTarget]')
   })
 
   it('删除成功后把条目从树与勾选中摘掉', () => {

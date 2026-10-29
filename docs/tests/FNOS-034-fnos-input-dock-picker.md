@@ -133,6 +133,8 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-052 | FNOS-034-09-AC-04 | 7 种取消形态（undefined / cancel 状态 / 文案配 null、缺失、非数组 data / AbortError / 取消异常） | 一律 `cancelled`，不产生提示 | 包级 |
 | TC-053 | FNOS-034-09-AC-05 | `access_denied` 与 `code === 1` 普通失败 | 前者判权限，后者判接口失败 | 包级 |
 | TC-054 | FNOS-034-09-AC-02 | 三种成功形态（`data` 数组 / 裸路径 / `paths`） | 都返回 `picked` 与正确路径 | 包级 |
+| TC-055 | FNOS-034-08-AC-03 | 确认后请求是否真的发出 | 目标取自 ref；请求早于本地状态清理；变异测试可捕获回归 | 包级 |
+| TC-056 | FNOS-034-08-AC-07 | Popconfirm 尺寸 | 无 width/style/className；样式表不覆盖；文案 ≤30 字 | 包级 |
 | TC-119 | FNOS-034-06-AC-07 | 真实 NAS 打开菜单后点面板其他位置 | 菜单收起，面板保持打开 | 真实 NAS |
 | TC-117 | FNOS-034-06-AC-06 | 真实 NAS 打开新建弹框后点击各处 | 面板保持打开；关闭弹框后面板仍在 | 真实 NAS |
 | TC-112 | FNOS-034-06-AC-01/03 | 真实 NAS 从右键菜单新建文件夹并填名 | 弹框可提交，新文件夹出现在该层，其它已展开节点保持展开 | 真实 NAS |
@@ -204,6 +206,8 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-052 | 通过 | 2026-10-29 | `authorized-directory-picker.spec.ts`「取消不报错」7 条 + `picker-result.spec.ts` 对应 6 条 |
 | TC-053 | 通过 | 2026-10-29 | 同文件「access_denied 归为权限问题」「code === 1 不再一律当权限问题」 |
 | TC-054 | 通过 | 2026-10-29 | 同文件「成功路径」3 条 |
+| TC-055 | 通过 | 2026-10-29 | `delete-entry-contract.spec.ts` 4 条；变异验证：还原 bug 后立即失败 |
+| TC-056 | 通过 | 2026-10-29 | 同文件 3 条 |
 | TC-039 | 通过 | 2026-10-29 | 同文件「点击菜单外或按 Esc 自动收起菜单」 |
 | TC-040 | 通过 | 2026-10-29 | `input-picker-geometry.spec.ts`「文件也能右键（可删除），新建项只对目录显示」 |
 | TC-041 | 通过 | 2026-10-29 | 同文件「菜单项带图标」「菜单含删除项，且用危险色区分」 |
@@ -215,7 +219,7 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-035 | 通过 | 2026-10-28 | 同文件「ellipsis 的 children 必须是纯文本」 |
 | TC-036 | 通过 | 2026-10-28 | 同文件「容器允许收缩」「不自定义 text-overflow」 |
 
-包级总量：37 个测试文件 / 338 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
+包级总量：38 个测试文件 / 345 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
 
 ### 待执行（真实 NAS）
 
@@ -236,4 +240,4 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 
 ## 最终结论
 
-包级 56 条用例全部通过；**验收尚未完成**——浮层呈现、层级叠放、新建条目的真实落盘都需在真实 NAS 上按 TC-101 ~ TC-117 执行后回填。按仓库约定，本地 DSH Web 的观感不作为验收依据。
+包级 58 条用例全部通过；**验收尚未完成**——浮层呈现、层级叠放、新建条目的真实落盘都需在真实 NAS 上按 TC-101 ~ TC-117 执行后回填。按仓库约定，本地 DSH Web 的观感不作为验收依据。

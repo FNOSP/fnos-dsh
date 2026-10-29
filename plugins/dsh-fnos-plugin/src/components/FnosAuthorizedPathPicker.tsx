@@ -220,6 +220,8 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     y: number
   } | undefined>()
   const menuRef = useRef<HTMLDivElement>(null)
+  // 删除目标独立存一份：Popconfirm 确认时菜单可能已卸载，不能依赖 state。
+  const deleteTargetRef = useRef<{ path: string, semanticPath: string } | undefined>(undefined)
 
   const applyEntries = useCallback((result: AuthorizedEntriesResult, parent?: string) => {
     for (const entry of result.entries) entries.current.set(entry.path, entry)
@@ -473,6 +475,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     if (entry === undefined) return
     event.preventDefault()
     const position = clampMenuPosition(event.clientX ?? 0, event.clientY ?? 0)
+    deleteTargetRef.current = { path: entry.path, semanticPath: entry.semanticPath }
     setContextMenu({ path: entry.path, semanticPath: entry.semanticPath, kind: entry.kind, x: position.x, y: position.y })
   }, [])
 
@@ -513,8 +516,14 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
    * 的本地清理完全一致。
    */
   const confirmDeleteFromContextMenu = useCallback(async () => {
-    const target = contextMenu
+    // 从 ref 取目标，而不是 `contextMenu` state。
+    //
+    // Popconfirm 的 `onConfirm` 触发时，与它同层的菜单节点可能已经因
+    // `onCancel`/外部点击而卸载；此时闭包里的 `contextMenu` 已是 undefined，
+    // 早期实现据此直接 return，删除**从未发出**——界面看起来「点了删除但没反应」。
+    const target = deleteTargetRef.current
     if (target === undefined) return
+    deleteTargetRef.current = undefined
     setContextMenu(undefined)
     try {
       await deleteAuthorizedEntry(target.path)
