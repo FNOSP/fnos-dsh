@@ -52,28 +52,50 @@ export async function pickAuthorizedDirectory(
     await sdk.ready()
     result = await sdk.pickSharedFile(params)
   } catch (error: unknown) {
-    const diagnosis = diagnosePickerResult(error)
     // 用户取消在 SDK 里也可能以异常形式出现，必须与真正的失败区分开。
-    if (diagnosis.outcome === 'cancelled') return { status: 'cancelled' }
-    return {
-      status: 'failed',
-      code: diagnosis.code === 1 ? 'fnos-authorized-directory-permission-denied' : 'fnos-authorized-directory-request-failed',
-      ...(diagnosis.message === undefined ? {} : { message: diagnosis.message }),
-    }
+    // 判定放在最前：任何「像取消」的信号都先当取消，宁可漏报错误也不要
+    // 把用户主动取消说成失败——后者会弹出一条他无法理解的提示。
+    if (isCancellation(error)) return { status: 'cancelled' }
+    return failureOf(error)
   }
 
   if (isPickerNoSelection(result)) return { status: 'cancelled' }
-  const diagnosis = diagnosePickerResult(result)
-  if (diagnosis.outcome === 'cancelled') return { status: 'cancelled' }
+  if (isCancellation(result)) return { status: 'cancelled' }
   const path = pickedPath(result)
-  if (diagnosis.outcome !== 'success' || path === undefined) {
-    return {
-      status: 'failed',
-      code: diagnosis.code === 1 ? 'fnos-authorized-directory-permission-denied' : 'fnos-authorized-directory-request-failed',
-      ...(diagnosis.message === undefined ? {} : { message: diagnosis.message }),
-    }
-  }
+  if (path === undefined) return failureOf(result)
   return { status: 'picked', path }
+}
+
+/**
+ * 是否为用户取消。
+ *
+ * 两层判定：先走通用诊断（覆盖 `undefined` 结果、`cancel` 状态、取消文案、
+ * AbortError），再兜一层官方契约的显式信号——`status: 'cancel'`。后者是
+ * `@trimjs/web-app` 的 `AppAuthCallbackStatus` 定义值，不该依赖正则去猜。
+ */
+function isCancellation(value: unknown): boolean {
+  const record = typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined
+  if (typeof record?.status === 'string' && record.status.trim().toLowerCase() === 'cancel') return true
+  return diagnosePickerResult(value).outcome === 'cancelled'
+}
+
+/**
+ * 把失败折叠成调用方能展示的原因。
+ *
+ * 只有官方契约里明确的 `access_denied` 才算权限问题；其余一律按接口失败处理。
+ * 早先实现用 `code === 1` 判断权限，但 `code: 1` 在 fnOS 各版本里也用于普通的
+ * 取消失败，会把取消说成「没有权限」。
+ */
+function failureOf(value: unknown): AuthorizedPickOutcome {
+  const diagnosis = diagnosePickerResult(value)
+  const denied = diagnosis.error === 'access_denied'
+  return {
+    status: 'failed',
+    code: denied ? 'fnos-authorized-directory-permission-denied' : 'fnos-authorized-directory-request-failed',
+    ...(diagnosis.message === undefined ? {} : { message: diagnosis.message }),
+  }
 }
 
 /**
@@ -92,6 +114,14 @@ function pickedPath(value: unknown): string | undefined {
 
   const record = value as Record<string, unknown>
   const data = record.data
+  // 最常见形态：`{ code: 0, data: ['/path'] }`。data 本身就是路径数组，
+  // 早期实现只查了 `data.path`，于是成功结果被判成失败。
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const candidate = accept(item)
+      if (candidate !== undefined) return candidate
+    }
+  }
   if (typeof data === 'object' && data !== null) {
     const nested = accept((data as Record<string, unknown>).path)
     if (nested !== undefined) return nested

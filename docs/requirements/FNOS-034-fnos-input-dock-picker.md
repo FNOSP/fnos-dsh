@@ -147,7 +147,8 @@ flowchart TB
 - `FNOS-034-09-AC-01`：标题栏提供授权入口，唤起 fnOS 原生目录选择器（权限由用户在系统中确认）。
 - `FNOS-034-09-AC-02`：授权成功后重新拉取根列表，新目录立刻出现在树中。
 - `FNOS-034-09-AC-03`：授权成功同时写入持久化记录；写盘失败只提示不中断，因为授权已在 fnOS 侧生效。
-- `FNOS-034-09-AC-04`：用户取消选择不报错、不提示。
+- `FNOS-034-09-AC-04`：用户取消选择不报错、不提示。取消的判定不依赖响应里 `data` 的形态——官方契约（`@trimjs/web-app` 的 `AppAuthCallbackStatus`）定义取消为 `status: 'cancel'`，而取消文案可能出现在 `data` 缺失、为 `null` 或非数组的响应里。
+- `FNOS-034-09-AC-05`：只有官方契约的 `access_denied` 才算权限问题；`code === 1` 不单独作为权限判据（该码在部分 fnOS 版本里也用于普通取消失败）。
 
 ### FNOS-034-10
 - `FNOS-034-10-AC-01`：settings 为空而 `TRIM_PKGVAR/gateway/path-allowlist.json` 有内容时，启动从缓存回填 settings。

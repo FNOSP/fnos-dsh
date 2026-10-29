@@ -137,8 +137,18 @@ export function diagnosePickerResult(value: unknown): PickerResultDiagnosis {
     return diagnosisFor(value, 'error', 'explicit-error-status')
   }
 
+  // 取消的文案判定不能要求 `data` 恰好是空数组。
+  //
+  // 早期实现要求 `Array.isArray(data) && data.length === 0`，但真机取消时
+  // `data` 可能是 `null`、缺失，或根本不是一个数组——条件不成立就落到下面的
+  // `code !== 0 → error`，再被调用方按 `code === 1` 翻成「没有权限」。用户点了
+  // 取消却被告知没有权限，就是这么来的。
+  //
+  // 官方契约（`@trimjs/web-app` 的 `AppAuthCallbackStatus`）定义取消为
+  // `status: 'cancel'`；那类响应已在上面按 status 判掉。这里覆盖的是**没有
+  // 显式 status、只给了取消文案**的版本差异，因此只看文案，不看 data。
   const message = stringField(record, 'msg') ?? stringField(record, 'message')
-  if (message !== undefined && Array.isArray(record.data) && record.data.length === 0 && cancellationMessagePattern.test(message)) {
+  if (message !== undefined && cancellationMessagePattern.test(message)) {
     return diagnosisFor(value, 'cancelled', 'explicit-cancel-message')
   }
 
