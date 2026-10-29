@@ -256,7 +256,8 @@ describe('gateway proxy-path route over the real DSH webserver', () => {
       })
       const response = await send({ port: webserver.port, method: 'GET', path: FNOS_GATEWAY_PROXY_PATHS_ROUTE })
       expect(response.status).toBe(200)
-      expect(JSON.parse(response.body)).toEqual({ version: 1, paths: ['/store/api'] })
+      // GET 额外带上网关固定前缀（只读展示用），用子集匹配。
+      expect(JSON.parse(response.body)).toMatchObject({ version: 1, paths: ['/store/api'] })
     } finally {
       await close()
     }

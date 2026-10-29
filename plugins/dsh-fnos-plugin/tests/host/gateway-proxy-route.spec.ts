@@ -163,6 +163,19 @@ describe('fnOS gateway proxy path route', () => {
     await expect(readFile(file, 'utf8')).resolves.not.toContain('/stale')
   })
 
+  /**
+   * 系统内置前缀只读：GET 要把它们一并返回，前端才渲染得出只读区。
+   * 「拦掉」与「看得见」是两件事——只拦不显示，用户会反复尝试添加再被拒。
+   */
+  it('returns the built-in prefixes alongside the editable snapshot', async () => {
+    register({ describe: () => [{ ns: 'dsh-fnos', value: { gatewayProxyPaths: ['/store/api'] } }], update })
+    const res = await invoke('GET')
+    expect(res.statusCode).toBe(200)
+    const body = JSON.parse(String(res.body)) as { paths: string[], builtin: { path: string }[] }
+    expect(body.paths).toEqual(['/store/api'])
+    expect(body.builtin.map(item => item.path)).toEqual(['/api', '/plugins', '/__fnos-gateway'])
+  })
+
   it('still rejects an invalid snapshot with the explicit 400 code', async () => {
     register({ describe: describe_, update })
     const res = await invoke('PUT', { version: 1, paths: ['not-absolute'] })
@@ -202,7 +215,8 @@ describe('fnOS gateway proxy path route', () => {
     register({ describe: () => [{ ns: 'dsh-fnos', value: { gatewayProxyPaths: ['/store/api'] } }], update })
     const res = await invoke('GET')
     expect(res.statusCode).toBe(200)
-    expect(JSON.parse(String(res.body))).toEqual({ version: 1, paths: ['/store/api'] })
+    // GET 额外带上网关固定前缀（供前端渲染只读区），因此这里不能用精确深比较。
+    expect(JSON.parse(String(res.body))).toMatchObject({ version: 1, paths: ['/store/api'] })
   })
 
   it('answers 405 for an unsupported method', async () => {

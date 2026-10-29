@@ -16,7 +16,7 @@ import {
   FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
   type AuthorizedDirectory,
 } from '../contracts/authorized-directories-contract.ts'
-import { FNOS_GATEWAY_PROXY_PATHS_ROUTE } from '../contracts/gateway-proxy-contract.ts'
+import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_ROUTE } from '../contracts/gateway-proxy-contract.ts'
 import { isProxyPathsSaveShortcut } from '../client/shortcuts/proxy-paths-save-shortcut.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -382,6 +382,23 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
                   <DshIconInfoCircle />
                 </span>
               </DshTooltip>
+            </div>
+            {/*
+              系统内置前缀单独展示、只读。
+              它们本来就被校验拦在可配置项之外，但「拦掉」不等于「看得见」——
+              不列出来，用户会反复尝试添加这些路径然后被拒，却不知道为什么。
+            */}
+            <div className="dsh-fnos-gateway-builtin">
+              <p className="dsh-fnos-authorized-body">{t('gatewayProxyBuiltinLabel')}</p>
+              <ul className="dsh-fnos-gateway-builtin-list">
+                {FNOS_GATEWAY_BUILTIN_PREFIXES.map(item => (
+                  <li key={item.path} className="dsh-fnos-gateway-builtin-item">
+                    <code>{item.path}</code>
+                    <span>{item.description}</span>
+                    <span className="dsh-fnos-gateway-builtin-badge">{t('gatewayProxyBuiltinReadonly')}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
             <textarea value={proxyPathsDraft} placeholder={t('gatewayProxyPlaceholder')} className="dsh-fnos-authorized-textarea" disabled={busy} onKeyDown={handleProxyPathsKeyDown} onChange={event => { setProxyPathsDraft(event.currentTarget.value); setProxyMessage(undefined) }} />
             {proxyMessage === undefined ? null : <p className="dsh-fnos-authorized-body dsh-fnos-authorized-gateway-message">{proxyMessage}</p>}

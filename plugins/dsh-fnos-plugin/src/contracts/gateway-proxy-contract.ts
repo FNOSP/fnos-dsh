@@ -1,4 +1,20 @@
 export const FNOS_GATEWAY_PROXY_PATHS_ROUTE = '/plugins/dsh-fnos/gateway/proxy-paths'
+
+/**
+ * 网关自带的固定前缀，用户不可编辑。
+ *
+ * 这三个前缀由网关自身占用：`/api` 是 DSH 上游接口、`/plugins` 是插件路由、
+ * `/__fnos-gateway` 是网关内部服务。它们本来就被校验拦在用户可配置项之外
+ * （见 {@link normalizeGatewayProxyPaths}），但**拦掉不等于看不见**——用户
+ * 编辑反代规则时需要知道这些路径为什么不在自己手里，否则会反复尝试添加并被
+ * 拒绝。因此把它们作为只读项单独展示。
+ */
+export const FNOS_GATEWAY_BUILTIN_PREFIXES: readonly { path: string, description: string }[] = [
+  { path: '/api', description: 'DSH 上游接口' },
+  { path: '/plugins', description: '插件路由' },
+  { path: '/__fnos-gateway', description: '网关内部服务' },
+]
+
 export const FNOS_GATEWAY_PROXY_PATHS_FILE = 'gateway/path-allowlist.json'
 export interface GatewayProxyPathsDocument { version: 1, paths: string[] }
 

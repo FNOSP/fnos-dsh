@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
+import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
 import type { FnosSettings } from '../contracts/theme-contract.ts'
 
 function send(res: ServerResponse, status: number, value: unknown): void { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(value)) }
@@ -118,7 +118,13 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
         const file = gatewayProxyPathsFile()
         if (file === undefined) return send(res, 503, { error: 'fnos-gateway-config-unavailable' })
-        if (req.method === 'GET') return send(res, 200, { version: 1, paths: normalizeGatewayProxyPaths(readSettings().gatewayProxyPaths ?? []) ?? [] })
+        // GET 额外带上网关固定前缀：前端据此渲染「系统内置」只读区，
+        // 让用户明白这些路径为什么不在自己的可编辑列表里。
+        if (req.method === 'GET') return send(res, 200, {
+          version: 1,
+          paths: normalizeGatewayProxyPaths(readSettings().gatewayProxyPaths ?? []) ?? [],
+          builtin: FNOS_GATEWAY_BUILTIN_PREFIXES,
+        })
         if (req.method !== 'PUT') return send(res, 405, { error: 'method-not-allowed' })
         const paths = validateGatewayProxyPaths(await body(req))
         if (paths === undefined) return send(res, 400, { error: 'invalid-gateway-proxy-paths' })

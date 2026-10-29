@@ -587,3 +587,46 @@ img.dsh-fnos-file-manager-icon {
     overflow-y: visible;
   }
 }
+
+/* 系统内置反代前缀：只读展示区。
+   与可编辑的 textarea 视觉上要能区分开，否则用户会尝试往里输入。 */
+.dsh-fnos-gateway-builtin {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dsh-fnos-gateway-builtin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-fnos-gateway-builtin-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+
+  code {
+    color: var(--dsw-alias-label-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+}
+
+.dsh-fnos-gateway-builtin-badge {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-caption);
+  font-size: 11px;
+  line-height: 18px;
+}
