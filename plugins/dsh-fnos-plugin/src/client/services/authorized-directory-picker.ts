@@ -60,11 +60,22 @@ export async function pickAuthorizedDirectory(
     console.info('[dsh-fnos][fnos-sdk] raw-result', JSON.stringify(result))
   } catch (error: unknown) {
     logPickerSdkValue('rejected', error)
-    // 用户取消在 SDK 里也可能以异常形式出现，必须与真正的失败区分开。
-    // 判定放在最前：任何「像取消」的信号都先当取消，宁可漏报错误也不要
-    // 把用户主动取消说成失败——后者会弹出一条他无法理解的提示。
+    // `pickSharedFile` 阶段的异常一律视为「用户没有选到目录」。
+    //
+    // 依据是插件设置页的既有行为：它在该阶段无条件静默返回。设置页从未出现
+    // 「取消却提示无权限」，而选择器面板反复出现——两者唯一的结构差异就在这里。
+    // 设置页不判断异常是不是取消，直接当成取消。
+    //
+    // 为什么可以这样放宽：原生选择器是独立窗口，它能抛出的异常只有「用户关掉了
+    // 它」这一类；真正的授权失败走的是**正常返回**（`status: 'error'` /
+    // `error: 'access_denied'`），由下方返回值的判定覆盖，不会落到这里。
+    // 因此这里静默不会掩盖真实错误。
     if (isCancellation(error)) return { status: 'cancelled' }
-    return failureOf(error)
+    console.info('[dsh-fnos][fnos-sdk] pick-rejected-as-cancel', {
+      reason: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : undefined,
+    })
+    return { status: 'cancelled' }
   }
 
   if (isPickerNoSelection(result)) return { status: 'cancelled' }

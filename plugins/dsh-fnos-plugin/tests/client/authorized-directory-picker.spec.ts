@@ -42,6 +42,35 @@ describe('FNOS-034 授权选择器：取消不报错', () => {
   })
 })
 
+describe('FNOS-034 授权选择器：选择阶段异常一律静默', () => {
+  /**
+   * 与插件设置页对齐。
+   *
+   * 设置页的既有实现是「`pickSharedFile` 阶段抛异常就静默返回」，它从未出现
+   * 「取消却提示无权限」；面板走新服务，只在识别到取消时静默，其余弹提示——
+   * 两者唯一的结构差异就在这。原生选择器是独立窗口，它能抛出的异常只有
+   * 「用户关掉了它」，真正的授权失败走正常返回（`status: 'error'`），因此
+   * 这里放宽不会掩盖真实错误。
+   */
+  it.each([
+    ['普通 Error', new Error('something went wrong')],
+    ['短 message 的 Error', new Error('x')],
+    ['非 Error 对象', { reason: 'unknown' }],
+    ['字符串', 'boom'],
+    ['code: 1 的对象', { code: 1, msg: '' }],
+  ])('抛 %s 时静默为 cancelled', async (_label, thrown) => {
+    pickSharedFile.mockRejectedValueOnce(thrown)
+    await expect(pickAuthorizedDirectory(options)).resolves.toEqual({ status: 'cancelled' })
+  })
+
+  it('但真正走返回值的权限失败仍要报出来', async () => {
+    // 异常路径放宽后，必须确认返回值路径没有被一起放宽。
+    pickSharedFile.mockResolvedValueOnce({ status: 'error', error: 'access_denied' })
+    const outcome = await pickAuthorizedDirectory(options)
+    expect(outcome).toMatchObject({ status: 'failed', code: 'fnos-authorized-directory-permission-denied' })
+  })
+})
+
 describe('FNOS-034 授权选择器：真实失败仍要有原因', () => {
   it('官方 access_denied 归为权限问题', async () => {
     pickSharedFile.mockResolvedValueOnce({ status: 'error', error: 'access_denied' })
