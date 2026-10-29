@@ -5,8 +5,8 @@ description: FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层的�
 requirement: /requirements/FNOS-034-fnos-input-dock-picker
 plan: /plans/PLAN-FNOS-034-fnos-input-dock-picker
 status: 部分通过
-lastVerified: 2026-10-28
-verifiedAt: 2026-10-28
+lastVerified: 2026-10-29
+verifiedAt: 2026-10-29
 ---
 
 # FNOS-034 测试用例
@@ -37,7 +37,7 @@ verifiedAt: 2026-10-28
 本需求的验收一律以 **FPK 在真实 NAS 安装后**的表现为准。开发期间若需观察前端几何，只能作为实现自检，不能计入验收结论。
 :::
 
-包级：`pnpm --filter @tnnevol/dsh-fnos run check`（typecheck + vitest 270 条）。
+包级：`pnpm --filter @tnnevol/dsh-fnos run check`（typecheck + vitest 367 条）。
 
 FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例执行。
 
@@ -219,7 +219,7 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-035 | 通过 | 2026-10-28 | 同文件「ellipsis 的 children 必须是纯文本」 |
 | TC-036 | 通过 | 2026-10-28 | 同文件「容器允许收缩」「不自定义 text-overflow」 |
 
-包级总量：38 个测试文件 / 345 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
+包级总量：39 个测试文件 / 367 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
 
 ### 待执行（真实 NAS）
 
@@ -240,4 +240,4 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 
 ## 最终结论
 
-包级 58 条用例全部通过；**验收尚未完成**——浮层呈现、层级叠放、新建条目的真实落盘都需在真实 NAS 上按 TC-101 ~ TC-117 执行后回填。按仓库约定，本地 DSH Web 的观感不作为验收依据。
+上表所列包级用例全部通过；**验收尚未完成**——浮层呈现、层级叠放、新建条目的真实落盘都需在真实 NAS 上按 TC-101 起的真机用例执行后回填。按仓库约定，本地 DSH Web 的观感不作为验收依据。

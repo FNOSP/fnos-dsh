@@ -375,6 +375,10 @@ const requirementsSidebar = [
         text: 'FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层',
         link: '/requirements/FNOS-034-fnos-input-dock-picker'
       },
+      {
+        text: 'FNOS-035 fnOS iframe 内拦截浏览器快捷键',
+        link: '/requirements/FNOS-035-browser-shortcut-interception'
+      },
       ]
   }
 ]
@@ -520,6 +524,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层',
         link: '/plans/PLAN-FNOS-034-fnos-input-dock-picker'
       },
+      {
+        text: 'PLAN-FNOS-035 fnOS iframe 内拦截浏览器快捷键',
+        link: '/plans/PLAN-FNOS-035-browser-shortcut-interception'
+      },
     ]
   }
 ]
@@ -633,6 +641,10 @@ const testsSidebar = [
       {
         text: 'FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层',
         link: '/tests/FNOS-034-fnos-input-dock-picker'
+      },
+      {
+        text: 'FNOS-035 fnOS iframe 内拦截浏览器快捷键',
+        link: '/tests/FNOS-035-browser-shortcut-interception'
       },
     ]
   }
