@@ -152,10 +152,13 @@ describe('FNOS-034 面板不再提供搜索', () => {
 })
 
 describe('FNOS-034 面板可新建文件夹与文件', () => {
-  it('工具栏有新建入口，提供文件夹与文件两种选择', () => {
+  it('标题栏没有新建入口，新建只从右键菜单进入', () => {
+    // 用户只要求右键新建。标题栏的「+」按钮是多余入口，已移除。
+    expect(PANEL).not.toContain('dsh-fnos-path-panel-action')
+    expect(PANEL).not.toContain('openCreateDialog')
+    // 但菜单项文案仍在（右键菜单要用）。
     expect(PANEL).toContain("t('createFolder')")
     expect(PANEL).toContain("t('createFile')")
-    expect(PANEL).toContain('dsh-fnos-path-panel-action')
   })
 
   it('右键先弹上下文菜单，不直接开新建弹框', () => {

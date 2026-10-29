@@ -436,37 +436,6 @@ img.dsh-fnos-file-manager-icon {
   white-space: nowrap;
 }
 
-/* 标题栏里的新建按钮：与关闭按钮同尺寸，保证标题栏高度一致。 */
-.dsh-fnos-path-panel-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--dsw-radius-sm);
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: var(--dsw-alias-interactive-bg-hover);
-    color: var(--dsw-alias-label-primary);
-  }
-
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--dsw-alias-state-business-primary);
-    outline-offset: 1px;
-  }
-}
-
 /* 右键菜单的锚点：零尺寸、不参与布局。
    用 `fixed` 是为了让 `left/top` 直接对接 `event.clientX/clientY`（视口坐标），
    不必换算面板自身偏移与树的滚动量；`pointer-events: none` 保证它不挡住点击目标。 */

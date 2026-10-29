@@ -20,7 +20,6 @@ import {
   DshIconClose as IconClose,
   DshIconFile as IconFile,
   DshIconFolder as IconFolder,
-  DshIconPlus as IconPlus,
   DshInput as Input,
   DshModal as Modal,
   DshTree as Tree,
@@ -364,23 +363,6 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     }
   }, [createTarget, createName, creating, t])
 
-  /**
-   * 打开新建弹框。
-   *
-   * 不传 `parent` 时（工具栏按钮）落在「当前勾选的第一个目录」上；没有勾选就
-   * 用第一个根目录。这样按钮与右键两条入口共用同一份提交逻辑，只有父目录
-   * 来源不同。
-   */
-  const openCreateDialog = useCallback((kind: AuthorizedCreateKind, parent?: string) => {
-    const fallback = parent
-      ?? value.find(path => entries.current.get(path)?.kind === 'directory')
-      ?? treeData.find(node => entries.current.get(node.key)?.kind !== 'file')?.key
-    if (fallback === undefined) return
-    setCreateError(undefined)
-    setCreateName('')
-    setCreateTarget({ parent: fallback, kind })
-  }, [value, treeData])
-
   if (!open) return null
 
   return (
@@ -393,28 +375,6 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     >
       <div className="dsh-fnos-path-panel-header">
         <span className="dsh-fnos-path-panel-title">{t('inputPickerTitle')}</span>
-        {/* 新建入口：工具栏按钮建在选中的目录（无选中则第一个根），右键可指定目录。 */}
-        <Dropdown
-          trigger="click"
-          position="bottomRight"
-          clickToHide
-          render={(
-            <Dropdown.Menu>
-              <Dropdown.Item onClick={() => { openCreateDialog('directory') }}>{t('createFolder')}</Dropdown.Item>
-              <Dropdown.Item onClick={() => { openCreateDialog('file') }}>{t('createFile')}</Dropdown.Item>
-            </Dropdown.Menu>
-          )}
-        >
-          <button
-            type="button"
-            className="dsh-fnos-path-panel-action"
-            aria-label={t('createFolder')}
-            title={t('createFolder')}
-            disabled={busy}
-          >
-            <IconPlus size="small" />
-          </button>
-        </Dropdown>
         <button
           type="button"
           className="dsh-fnos-path-panel-close"
