@@ -126,6 +126,43 @@ describe('fnOS gateway proxy path route', () => {
     await expect(readFile(file, 'utf8')).resolves.toContain('"/store/api"')
   })
 
+  /**
+   * 卸载重装后的恢复：用户勾了「保留数据」时 FNOS-017 的 allowlist 文件仍在
+   * `TRIM_PKGVAR` 里，但新建的 profile settings 是空的。启动镜像若照旧「以
+   * settings 为准写文件」，就会用空列表把缓存覆盖掉，用户的代理配置在首次启动
+   * 瞬间永久丢失。因此 settings 为空而文件有值时，必须反向从文件恢复。
+   */
+  it('restores settings from the cached allowlist when settings are empty', async () => {
+    const file = join(directory, 'gateway', 'path-allowlist.json')
+    await mkdir(join(directory, 'gateway'), { recursive: true })
+    await writeFile(file, JSON.stringify({ version: 1, paths: ['/cached/api'] }), 'utf8')
+
+    const update = vi.fn(async () => undefined)
+    register({ describe: () => [{ ns: 'dsh-fnos', value: {} }], update })
+
+    // 恢复是 fire-and-forget，等它落地。
+    await vi.waitFor(() => { expect(update).toHaveBeenCalled() })
+    expect(update).toHaveBeenCalledWith('dsh-fnos', { gatewayProxyPaths: ['/cached/api'] })
+    // 缓存不得被空 settings 覆盖。
+    await expect(readFile(file, 'utf8')).resolves.toContain('/cached/api')
+  })
+
+  it('keeps settings authoritative when they already carry paths', async () => {
+    const file = join(directory, 'gateway', 'path-allowlist.json')
+    await mkdir(join(directory, 'gateway'), { recursive: true })
+    await writeFile(file, JSON.stringify({ version: 1, paths: ['/stale'] }), 'utf8')
+
+    const update = vi.fn(async () => undefined)
+    register({ describe: () => [{ ns: 'dsh-fnos', value: { gatewayProxyPaths: ['/fresh'] } }], update })
+
+    await vi.waitFor(async () => {
+      await expect(readFile(file, 'utf8')).resolves.toContain('/fresh')
+    })
+    // 有配置时不反向读文件，也不该去写 settings。
+    expect(update).not.toHaveBeenCalled()
+    await expect(readFile(file, 'utf8')).resolves.not.toContain('/stale')
+  })
+
   it('still rejects an invalid snapshot with the explicit 400 code', async () => {
     register({ describe: describe_, update })
     const res = await invoke('PUT', { version: 1, paths: ['not-absolute'] })

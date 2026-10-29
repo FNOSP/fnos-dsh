@@ -125,6 +125,10 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-118 | FNOS-034-06-AC-07 | 真实 NAS 在树中段右键 | 菜单出现在光标附近（不是面板角落） | 真实 NAS |
 | TC-045 | FNOS-034-06-AC-08 | 断言菜单渲染位置 | 用 `createPortal` 挂到 `document.body`；面板规则含 `backdrop-filter` | 包级 |
 | TC-046 | FNOS-034-08-AC-06 | 断言浮层守卫覆盖所有 portal 浮层 | `floatingOpen` 含 `createTarget` 与 `contextMenu`；新增浮层漏加即失败 | 包级 |
+| TC-047 | FNOS-034-09-AC-01 | 断言授权入口与 SDK 路径 | 标题栏含 `authorizeDirectory`，走 `pickAuthorizedDirectory` | 包级 |
+| TC-048 | FNOS-034-09-AC-02/03 | 断言授权成功后的两个后续动作 | 同时调用 `applyEntries` 与 `requestPersistAuthorizedDirectories` | 包级 |
+| TC-049 | FNOS-034-10-AC-01/03 | settings 为空、缓存有值 | settings 被回填为缓存值；缓存文件未被清空 | 包级 |
+| TC-050 | FNOS-034-10-AC-02 | settings 已有值、缓存是旧的 | 以 settings 为准写文件；不回填 settings | 包级 |
 | TC-119 | FNOS-034-06-AC-07 | 真实 NAS 打开菜单后点面板其他位置 | 菜单收起，面板保持打开 | 真实 NAS |
 | TC-117 | FNOS-034-06-AC-06 | 真实 NAS 打开新建弹框后点击各处 | 面板保持打开；关闭弹框后面板仍在 | 真实 NAS |
 | TC-112 | FNOS-034-06-AC-01/03 | 真实 NAS 从右键菜单新建文件夹并填名 | 弹框可提交，新文件夹出现在该层，其它已展开节点保持展开 | 真实 NAS |
@@ -188,6 +192,10 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-038 | 通过 | 2026-10-29 | 同文件「菜单自绘并落在鼠标坐标上」「菜单落点被收进视口」 |
 | TC-045 | 通过 | 2026-10-29 | `input-picker-geometry.spec.ts`「菜单经 Portal 挂到 body」 |
 | TC-046 | 通过 | 2026-10-29 | 同文件「每个 portal 浮层的开关状态都纳入了 floatingOpen 守卫」 |
+| TC-047 | 通过 | 2026-10-29 | `input-picker-geometry.spec.ts`「标题栏提供授权入口，走 fnOS 原生选择器」 |
+| TC-048 | 通过 | 2026-10-29 | 同文件「授权成功同时刷新树与持久化」 |
+| TC-049 | 通过 | 2026-10-29 | `gateway-proxy-route.spec.ts`「restores settings from the cached allowlist」 |
+| TC-050 | 通过 | 2026-10-29 | 同文件「keeps settings authoritative when they already carry paths」 |
 | TC-039 | 通过 | 2026-10-29 | 同文件「点击菜单外或按 Esc 自动收起菜单」 |
 | TC-040 | 通过 | 2026-10-29 | `input-picker-geometry.spec.ts`「文件也能右键（可删除），新建项只对目录显示」 |
 | TC-041 | 通过 | 2026-10-29 | 同文件「菜单项带图标」「菜单含删除项，且用危险色区分」 |
@@ -199,7 +207,7 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-035 | 通过 | 2026-10-28 | 同文件「ellipsis 的 children 必须是纯文本」 |
 | TC-036 | 通过 | 2026-10-28 | 同文件「容器允许收缩」「不自定义 text-overflow」 |
 
-包级总量：36 个测试文件 / 314 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
+包级总量：36 个测试文件 / 317 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
 
 ### 待执行（真实 NAS）
 
@@ -220,4 +228,4 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 
 ## 最终结论
 
-包级 48 条用例全部通过；**验收尚未完成**——浮层呈现、层级叠放、新建条目的真实落盘都需在真实 NAS 上按 TC-101 ~ TC-117 执行后回填。按仓库约定，本地 DSH Web 的观感不作为验收依据。
+包级 52 条用例全部通过；**验收尚未完成**——浮层呈现、层级叠放、新建条目的真实落盘都需在真实 NAS 上按 TC-101 ~ TC-117 执行后回填。按仓库约定，本地 DSH Web 的观感不作为验收依据。

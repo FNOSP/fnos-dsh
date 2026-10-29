@@ -436,6 +436,37 @@ img.dsh-fnos-file-manager-icon {
   white-space: nowrap;
 }
 
+/* 标题栏的动作按钮：与关闭按钮同尺寸，保证标题栏高度一致。 */
+.dsh-fnos-path-panel-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-state-business-primary);
+    outline-offset: 1px;
+  }
+}
+
 /* 右键上下文菜单：直接落在鼠标坐标上。
    `position: fixed` 让 `left/top` 对接 `event.clientX/clientY`（视口坐标）。
    菜单必须由 React Portal 挂到 body——面板带 `backdrop-filter` 与 `overflow:

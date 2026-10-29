@@ -20,6 +20,7 @@ import {
   DshIconClose as IconClose,
   DshIconDelete as IconDelete,
   DshIconFile as IconFile,
+  DshIconPlus as IconPlus,
   DshIconFolder as IconFolder,
   DshInput as Input,
   DshModal as Modal,
@@ -28,7 +29,8 @@ import {
   DshTree as Tree,
   DshTypography as Typography,
 } from '@tnnevol/dsh-semi-ui'
-import { createAuthorizedEntry, deleteAuthorizedEntry, requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
+import { createAuthorizedEntry, deleteAuthorizedEntry, requestAuthorizedEntries, requestPersistAuthorizedDirectories, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
+import { pickAuthorizedDirectory } from '../client/services/authorized-directory-picker.ts'
 import { FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
 import { planFnosOccurrenceRemovals, reconcileFnosOperationOccurrences, type PendingFnosOccurrence, type TrackedFnosOccurrence } from '../client/input-references/input-reference-operation.ts'
 import { displayName, selectedPaths, toTreeNode, updateChildren, type PickerTreeNode } from '../client/input-references/picker-tree.ts'
@@ -118,6 +120,17 @@ function deleteErrorMessage(error: unknown, t: (key: FnosDeleteLocaleKey) => str
   }
 }
 
+/** 把授权失败的错误码翻成可操作文案。 */
+function authorizeErrorMessage(code: string, t: (key: FnosAuthorizeLocaleKey) => string): string {
+  switch (code) {
+    case 'fnos-authorized-directory-permission-denied': return t('authorizeDenied')
+    default: return t('authorizeFailed')
+  }
+}
+
+/** 授权提示会用到的文案键。 */
+type FnosAuthorizeLocaleKey = 'authorizeDenied' | 'authorizeFailed'
+
 /** 删除弹框会用到的文案键。 */
 type FnosDeleteLocaleKey =
   | 'deleteDialogRootForbidden'
@@ -196,6 +209,8 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   const [createName, setCreateName] = useState('')
   const [createError, setCreateError] = useState<string | undefined>()
   const [creating, setCreating] = useState(false)
+  // 授权动作进行中：期间禁用授权按钮，避免并发唤起多个原生死选择器。
+  const [authorizing, setAuthorizing] = useState(false)
   // 右键上下文菜单：命中的条目与鼠标坐标（菜单定位）。
   const [contextMenu, setContextMenu] = useState<{
     path: string
@@ -393,6 +408,49 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
    * 而 `trigger="custom"` 下它也不注册任何外部点击关闭。这两件事都要自己接管。
    */
   /**
+   * 在面板内新增一个授权目录。
+   *
+   * 权限必须由用户在 fnOS 主程序里确认，因此这里唤起原生选择器，而不是在面板
+   * 内自由浏览文件系统。成功后两件事必须一起做：
+   *
+   *  1. 重新拉取根列表，让新授权的目录立刻出现在树里；
+   *  2. 把当前可移除的根写入持久化——否则重装后这条授权就丢了。
+   *
+   * 持久化失败只提示不中断：授权本身已经在 fnOS 侧生效，不该因为写记录失败
+   * 让用户以为整个操作失败了。
+   */
+  const authorizeDirectory = useCallback(async () => {
+    if (authorizing) return
+    setAuthorizing(true)
+    try {
+      const outcome = await pickAuthorizedDirectory({
+        title: t('authorizeDirectory'),
+        okText: t('inputPickerConfirm'),
+      })
+      if (outcome.status === 'cancelled') return
+      if (outcome.status === 'failed') {
+        Toast.error({ content: authorizeErrorMessage(outcome.code, t) })
+        return
+      }
+      const result = await requestAuthorizedEntries()
+      applyEntries(result)
+      // 只持久化用户可移除的根（当前列表里全部是根）。
+      const paths = result.entries.filter(entry => entry.kind === 'directory').map(entry => entry.path)
+      try {
+        await requestPersistAuthorizedDirectories(paths)
+      } catch {
+        Toast.warning({ content: t('authorizePersistFailed') })
+      }
+      Toast.success({ content: t('authorizeSucceeded') })
+    } catch (error: unknown) {
+      const code = error instanceof Error ? error.message : ''
+      Toast.error({ content: authorizeErrorMessage(code, t) })
+    } finally {
+      setAuthorizing(false)
+    }
+  }, [authorizing, applyEntries, t])
+
+  /**
    * 右键命中一个条目：在鼠标位置弹出上下文菜单。
    *
    * 菜单项按条目类型区分：目录可新建与删除，文件只能删除（文件下无法再建
@@ -515,6 +573,17 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     >
       <div className="dsh-fnos-path-panel-header">
         <span className="dsh-fnos-path-panel-title">{t('inputPickerTitle')}</span>
+        {/* 授权入口：唤起 fnOS 原生选择器，用户在那里确认目录权限。 */}
+        <button
+          type="button"
+          className="dsh-fnos-path-panel-action"
+          aria-label={t('authorizeDirectory')}
+          title={t('authorizeDirectory')}
+          disabled={busy || authorizing}
+          onClick={() => { void authorizeDirectory() }}
+        >
+          <IconPlus size="small" />
+        </button>
         <button
           type="button"
           className="dsh-fnos-path-panel-close"

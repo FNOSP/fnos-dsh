@@ -183,13 +183,26 @@ describe('FNOS-034 面板不再提供搜索', () => {
 })
 
 describe('FNOS-034 面板可新建文件夹与文件', () => {
-  it('标题栏没有新建入口，新建只从右键菜单进入', () => {
-    // 用户只要求右键新建。标题栏的「+」按钮是多余入口，已移除。
-    expect(PANEL).not.toContain('dsh-fnos-path-panel-action')
+  it('标题栏没有「新建」入口：新建只从右键菜单进入', () => {
+    // 标题栏的按钮是**授权**入口，不是新建入口。两者不要混淆：
+    // 新建作用在某个具体目录上，必须由右键指定对象；授权是全局动作。
     expect(PANEL).not.toContain('openCreateDialog')
-    // 但菜单项文案仍在（右键菜单要用）。
+    const header = /className="dsh-fnos-path-panel-header"[\s\S]*?<\/div>/u.exec(PANEL)?.[0] ?? ''
+    expect(header.length).toBeGreaterThan(0)
+    expect(header).toContain('authorizeDirectory')
+    expect(header).not.toContain('createFolder')
+    expect(header).not.toContain('createFile')
+    // 菜单项文案仍在（右键菜单要用）。
     expect(PANEL).toContain("t('createFolder')")
     expect(PANEL).toContain("t('createFile')")
+  })
+
+  it('标题栏提供授权入口，走 fnOS 原生选择器', () => {
+    expect(PANEL).toContain('authorizeDirectory')
+    expect(PANEL).toContain('pickAuthorizedDirectory')
+    // 授权成功后必须同时刷新树与写持久化，缺一样都会导致「授权了但重装就丢」。
+    expect(PANEL).toMatch(/pickAuthorizedDirectory[\s\S]{0,900}applyEntries/u)
+    expect(PANEL).toMatch(/pickAuthorizedDirectory[\s\S]{0,900}requestPersistAuthorizedDirectories/u)
   })
 
   it('右键先弹上下文菜单，不直接开新建弹框', () => {

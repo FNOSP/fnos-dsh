@@ -83,7 +83,28 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
   if (file !== undefined) {
     const sync = (value: FnosSettings): Promise<void> => writeDocument(file, { version: 1, paths: normalizeGatewayProxyPaths(value.gatewayProxyPaths ?? []) ?? [] })
     ctx.effect(() => {
-      void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to initialize gateway proxy paths', error) })
+      // 启动时的方向取决于 settings 是否为空：
+      //
+      //  - settings 有值 → 以它为准写向文件（正常运行、用户刚改过配置）；
+      //  - settings 为空而文件有值 → **从文件恢复**。这是卸载重装后的场景：
+      //    用户勾了「保留数据」，`TRIM_PKGVAR` 里的 allowlist 还在，但 profile
+      //    是新建的、settings 为空。若这时仍按 settings 写文件，就会用空列表
+      //    把缓存覆盖掉，用户的代理配置在首次启动瞬间永久丢失。
+      //
+      // 先恢复再镜像，只写一次，避免「先清空再回填」的中间态。
+      const restoreOrSync = async (): Promise<void> => {
+        const configured = normalizeGatewayProxyPaths(readSettings().gatewayProxyPaths ?? []) ?? []
+        if (configured.length === 0) {
+          const cached = await readDocument(file)
+          const cachedPaths = normalizeGatewayProxyPaths(cached.paths) ?? []
+          if (cachedPaths.length > 0) {
+            await settings.update(settingsNamespace, { gatewayProxyPaths: cachedPaths })
+            return
+          }
+        }
+        await sync(readSettings())
+      }
+      void restoreOrSync().catch(error => { console.error('[dsh-fnos] unable to initialize gateway proxy paths', error) })
       return ctx.on('settings/document-updated', namespace => {
         if (namespace === settingsNamespace) void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to mirror gateway proxy paths', error) })
       })
