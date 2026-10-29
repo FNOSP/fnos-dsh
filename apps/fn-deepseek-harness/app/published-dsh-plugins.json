@@ -3,15 +3,15 @@
   "plugins": [
     {
       "name": "@tnnevol/dsh-codex-auth",
-      "version": "6.1.4"
+      "version": "6.1.5"
     },
     {
       "name": "@tnnevol/dsh-fnos",
-      "version": "6.1.4"
+      "version": "6.1.5"
     },
     {
       "name": "@tnnevol/dsh-failover-search",
-      "version": "6.1.4"
+      "version": "6.1.5"
     },
     {
       "name": "dshmarket",
