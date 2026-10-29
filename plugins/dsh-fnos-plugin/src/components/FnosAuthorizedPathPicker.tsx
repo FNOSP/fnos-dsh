@@ -141,6 +141,8 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   const [createName, setCreateName] = useState('')
   const [createError, setCreateError] = useState<string | undefined>()
   const [creating, setCreating] = useState(false)
+  // 右键上下文菜单：命中的目录与鼠标坐标（菜单锚点）。
+  const [contextMenu, setContextMenu] = useState<{ parent: string, x: number, y: number } | undefined>()
 
   const applyEntries = useCallback((result: AuthorizedEntriesResult, parent?: string) => {
     for (const entry of result.entries) entries.current.set(entry.path, entry)
@@ -307,8 +309,14 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     applyEntries(result, key)
   }, [applyEntries])
 
-  /** 右键命中一个目录：打开新建弹框。命中文件时不提供新建（文件下无法再建条目）。 */
-  const handleContextMenu = useCallback((event: { preventDefault: () => void }, node: unknown) => {
+  /**
+   * 右键命中一个目录：在鼠标位置弹出上下文菜单。
+   *
+   * 命中文件时不弹菜单（文件下无法再建条目）。菜单位置用一个固定定位的零尺寸
+   * 锚点表达——Semi `Dropdown` 只认自己的子元素做锚点，拿不到 `onContextMenu`
+   * 给的原生事件坐标，所以由我们把坐标接管成锚点位置。
+   */
+  const handleContextMenu = useCallback((event: { preventDefault: () => void, clientX?: number, clientY?: number }, node: unknown) => {
     const key = typeof node === 'object' && node !== null && 'key' in node && typeof node.key === 'string'
       ? node.key
       : undefined
@@ -316,10 +324,18 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     const entry = entries.current.get(key)
     if (entry !== undefined && entry.kind !== 'directory') return
     event.preventDefault()
+    setContextMenu({ parent: key, x: event.clientX ?? 0, y: event.clientY ?? 0 })
+  }, [])
+
+  /** 从上下文菜单进入新建弹框；菜单随即收起。 */
+  const createFromContextMenu = useCallback((kind: AuthorizedCreateKind) => {
+    const target = contextMenu
+    setContextMenu(undefined)
+    if (target === undefined) return
     setCreateError(undefined)
     setCreateName('')
-    setCreateTarget({ parent: key, kind: 'directory' })
-  }, [])
+    setCreateTarget({ parent: target.parent, kind })
+  }, [contextMenu])
 
   /** 提交新建：成功后把新条目并进当前层，避免整树重取导致已展开节点收起。 */
   const submitCreate = useCallback(async () => {
@@ -423,6 +439,30 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         className="dsh-fnos-path-panel-tree"
         emptyContent={t('inputPickerEmpty')}
       />
+      {/*
+        右键上下文菜单。用 `trigger="custom"` + 受控 `visible`：Tree 的
+        `onContextMenu` 只给事件坐标，而 Dropdown 只认自己的子元素做锚点，
+        因此子元素就是一个定位在鼠标处的零尺寸锚点。
+      */}
+      <Dropdown
+        trigger="custom"
+        visible={contextMenu !== undefined}
+        onVisibleChange={(visible: boolean) => { if (!visible) setContextMenu(undefined) }}
+        position="bottomLeft"
+        getPopupContainer={() => panelRef.current ?? document.body}
+        render={(
+          <Dropdown.Menu>
+            <Dropdown.Item onClick={() => { createFromContextMenu('directory') }}>{t('createFolder')}</Dropdown.Item>
+            <Dropdown.Item onClick={() => { createFromContextMenu('file') }}>{t('createFile')}</Dropdown.Item>
+          </Dropdown.Menu>
+        )}
+      >
+        <span
+          className="dsh-fnos-path-context-anchor"
+          style={{ left: contextMenu?.x ?? 0, top: contextMenu?.y ?? 0 }}
+          aria-hidden
+        />
+      </Dropdown>
       <Modal
         title={createTarget?.kind === 'file' ? t('createDialogFileTitle') : t('createDialogTitle')}
         visible={createTarget !== undefined}

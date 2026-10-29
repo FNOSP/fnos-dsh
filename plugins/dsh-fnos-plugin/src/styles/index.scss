@@ -467,6 +467,16 @@ img.dsh-fnos-file-manager-icon {
   }
 }
 
+/* 右键菜单的锚点：零尺寸、不参与布局。
+   用 `fixed` 是为了让 `left/top` 直接对接 `event.clientX/clientY`（视口坐标），
+   不必换算面板自身偏移与树的滚动量；`pointer-events: none` 保证它不挡住点击目标。 */
+.dsh-fnos-path-context-anchor {
+  position: fixed;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
 .dsh-fnos-create-form {
   display: flex;
   flex-direction: column;

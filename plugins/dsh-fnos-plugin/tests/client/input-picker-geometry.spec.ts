@@ -158,9 +158,30 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(PANEL).toContain('dsh-fnos-path-panel-action')
   })
 
-  it('右键目录可打开新建弹框；命中文件不提供新建', () => {
+  it('右键先弹上下文菜单，不直接开新建弹框', () => {
     expect(PANEL).toContain('onContextMenu={handleContextMenu}')
+    // 右键只记录坐标与目标目录；弹框由菜单项触发（createFromContextMenu）。
+    expect(PANEL).toContain('setContextMenu({ parent: key')
+    expect(PANEL).toMatch(/handleContextMenu[\s\S]{0,600}setContextMenu/u)
+    expect(PANEL).not.toMatch(/handleContextMenu[\s\S]{0,600}setCreateTarget/u)
+    expect(PANEL).toContain('createFromContextMenu')
+  })
+
+  it('菜单用受控 custom 触发，锚点跟随鼠标坐标', () => {
+    expect(PANEL).toContain('trigger="custom"')
+    expect(PANEL).toContain('visible={contextMenu !== undefined}')
+    expect(PANEL).toContain('dsh-fnos-path-context-anchor')
+    // fixed 定位才能直接吃 clientX/clientY，不用换算面板偏移。
+    expect(ruleBody('.dsh-fnos-path-context-anchor')).toMatch(/position:\s*fixed;/u)
+  })
+
+  it('命中文件不弹菜单（文件下无法再建条目）', () => {
     expect(PANEL).toContain("if (entry !== undefined && entry.kind !== 'directory') return")
+  })
+
+  it('菜单含新建文件夹与新建文件两项', () => {
+    expect(PANEL).toMatch(/Dropdown\.Item[\s\S]{0,140}createFromContextMenu\('directory'\)/u)
+    expect(PANEL).toMatch(/Dropdown\.Item[\s\S]{0,140}createFromContextMenu\('file'\)/u)
   })
 
   it('弹框收集名称并走宿主路由创建', () => {

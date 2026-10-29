@@ -107,7 +107,7 @@ sequenceDiagram
 | PLAN-FNOS-034-T01-05 | 本地化 | 新增浮层标题、关闭、空态等文案的中英文案 | 无 | 文案单测 |
 | PLAN-FNOS-034-T01-06 | FNOS-034-04 / AC-01 | 浮层 `z-index` 取 99，严格低于指令面板的 100 | T01-02 | 样式契约测试 |
 | PLAN-FNOS-034-T01-07 | FNOS-034-05 / AC-01 | 移除 Tree 的 `filterTreeNode` 与搜索占位符 | 无 | 样式契约测试 |
-| PLAN-FNOS-034-T01-08 | FNOS-034-06 / AC-01、AC-02 | 标题栏新建入口（文件夹/文件）+ 目录右键新建；文件右键不提供 | 无 | 契约测试 |
+| PLAN-FNOS-034-T01-08 | FNOS-034-06 / AC-01、AC-02 | 标题栏新建入口（文件夹/文件）+ 目录右键先弹上下文菜单再新建；文件右键不弹菜单 | 无 | 契约测试 |
 | PLAN-FNOS-034-T01-09 | FNOS-034-06 / AC-03、AC-05 | 命名弹框、错误文案映射、成功后并入当前层（不整树重取） | T01-08 | 契约测试 |
 | PLAN-FNOS-034-T01-10 | FNOS-034-06 / AC-04 | Host 新增 `authorized-directories/create` 路由：父目录走既有授权校验，名称单段校验，错误码分级 | 无 | 单测 + 类型检查 |
 | PLAN-FNOS-034-T01-11 | FNOS-034-07 / AC-01、AC-02、AC-03 | 节点标签改用 `Typography.Text` 的 <code v-pre>ellipsis={{ showTooltip: true, rows: 1 }}</code>：省略与「溢出才提示」都由 Semi 内部 `isOverflowed` 判定；容器 `min-width` 改为 0，且不自定义 `text-overflow` 以免与 Typography 自带规则抵消 | T01-08 | 契约测试 |
