@@ -4,7 +4,7 @@ title: FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层
 description: fnOS 授权目录选择器当前锚在 28px 工具栏按钮上下拉展开，宽度固定且窄小；改为与斜杠指令面板同位置的输入卡片宽浮层。
 status: in-progress
 owner: tnnevol
-targetVersion: 6.1.0
+targetVersion: 6.1.3
 lastVerified: 2026-10-28
 ---
 
@@ -38,6 +38,21 @@ fnOS 插件在输入区工具栏左侧放了一个 fnOS 图标按钮，点开后
 | 该槽只在有会话时存在（Hero 空态无锚点），与工具栏按钮的显隐条件一致 | 上游 `InputBar.tsx` 的 `sessionId !== undefined` 判断 | FNOS-034-01 | 已核实 |
 | `conversation.input.dock` 是在流内卡片、左右各内缩 16px 且挤占对话高度，不符合「与指令同位置」 | 上游 `TodoPanel.module.css`、`QueueDock.module.css` 的宽度算式 | FNOS-034-01 | 已核实 |
 | Semi `Tree` 支持 `multiple` + `checkRelation="unRelated"` + `loadData`，与现有选择语义一致 | `@douyinfe/semi-ui` 2.90.2 的 `TreeProps` | FNOS-034-01 | 已核实 |
+
+## 发版粒度复盘
+
+本需求在实施过程中连续发版 8 次（`6.0.6` → `6.3.3`），其中 7 次是同一功能迭代中途的修补。问题不在档位选错，而在**发版粒度**：每改一次代码就推一格版本号，导致同一个需求跨越 3 个 minor 段，用户视角像经历了多次大版本升级。
+
+事后已把 `6.2.x`/`6.3.x` 的历史重做为连贯的 `6.1.x`，并把根因写进规范：
+
+| 缺口 | 补充位置 |
+| --- | --- |
+| 「一次发布覆盖多少改动」无判据 | [发布批次](/build/versioning#发布批次一次发布覆盖一批变化不是一个提交) |
+| `targetVersion` 字段存在但语义未定义 | [需求文档规范](/charter/requirements-spec#frontmatter-中的-targetversion) |
+| 装机验证性升版应固定用 `patch` | [发布批次](/build/versioning#装机验证性升版的档位固定为-patch) |
+| 缺机器可判定的发版前自查 | AGENTS.md 硬约束 + [发布检查](/build/versioning#先回答现在该不该发版) |
+
+后续遇到同类需求（一个需求需要多次装机验证）时：修补沿用 `patch` 前进，**不按改动性质重算档位**；收口后确认版本落在 `targetVersion` 上。
 
 ## 需求目标
 
@@ -133,3 +148,4 @@ flowchart TB
 | --- | --- |
 | 2026-10-28 | 建立需求：选择器从工具栏下拉改为输入卡片宽浮层（FNOS-034-01/02/03）。 |
 | 2026-10-28 | 追加三项：层级始终低于指令面板（FNOS-034-04）、面板不提供搜索（FNOS-034-05）、面板内右键新建文件夹与空文件（FNOS-034-06）。 |
+| 2026-10-29 | `targetVersion` 由 6.1.0 更新为 6.1.3：需求迭代中途按装机验证需要多次 `patch` 前进，实际交付点为 6.1.3。 |

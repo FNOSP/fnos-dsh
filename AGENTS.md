@@ -73,6 +73,8 @@
 - 代码注释使用中文、保持简洁，删除功能时同步删除对应注释，见 [路径与编码](docs/development/conventions.md)。
 - 每次功能完成及时更新 `apps/fn-deepseek-harness/manifest` 的 `desc` 与 `changelog`；`desc` 支持富文本（HTML），见 [Manifest 清单配置](docs/development/manifest.md)。
 - 修改插件或项目的功能结束后，必须用 `pnpm run version` 更新插件或项目版本（两条独立提交：先功能改动，再版本提交），见 [版本管理](docs/build/versioning.md)。
+- **一次发布覆盖一批用户可感知的变化，不是一个提交**：同一需求的连续修补（改样式、改交互、改文案、修上一版引入的问题）累积到该需求收口后一次发布；中途仅为装机验证换号时档位**固定用 `patch`**，不按改动性质重算，见[发布批次](docs/build/versioning.md#发布批次一次发布覆盖一批变化不是一个提交)。
+- 发版前先做机器可判定的自查：`git log <上一个 tag>..HEAD --no-merges` 里的业务提交**必须同属一个需求编号**；跨需求混发即违规。同时确认推进后的版本仍落在该需求 `targetVersion` 上，越过说明发版粒度过细。
 - `pnpm run version` 产生的 Tag 只留本地不推送（命令内硬编码不 push），推送由发布者手动执行；非交互执行带 `--yes`，见 [版本管理](docs/build/versioning.md#版本更新时机强制)。
 - 计划任务完成后在 `docs/tests/` 回填与需求同编号的测试用例文档（含结果、Bug、最终结论）；计划文档不再写测试用例表，见 [测试用例文档规范](docs/charter/tests-spec.md)。
 - 官方上游项目只作为契约和行为参考，不直接修改或提交上游代码。
