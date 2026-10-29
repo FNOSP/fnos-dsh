@@ -592,6 +592,9 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       role="dialog"
       aria-label={t('inputPickerTitle')}
     >
+      {/* 玻璃磨砂背景层：与 DSH 指令面板同一套 material，单独一层承载
+          backdrop-filter，避免把面板变成 fixed 后代的包含块。 */}
+      <div aria-hidden="true" className="dsh-fnos-path-panel-material" />
       <div className="dsh-fnos-path-panel-header">
         <span className="dsh-fnos-path-panel-title">{t('inputPickerTitle')}</span>
         {/* 授权入口：唤起 fnOS 原生选择器，用户在那里确认目录权限。 */}

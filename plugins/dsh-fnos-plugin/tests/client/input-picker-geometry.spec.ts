@@ -222,14 +222,34 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(ruleBody('.dsh-fnos-path-context-menu')).toMatch(/position:\s*fixed;/u)
   })
 
-  it('菜单经 Portal 挂到 body，否则 fixed 会被面板的包含块劫持', () => {
-    // 面板带 `backdrop-filter` 与 `overflow: hidden`，会成为 fixed 后代的包含块。
-    // 菜单若留在面板内部，left/top 就不是视口坐标——实机表现为「右键在顶部，
-    // 菜单却出现在面板右下角」。这一条是那次 bug 的防线。
+  it('菜单经 Portal 挂到 body，否则 fixed 会被包含块劫持', () => {
+    // 面板或其背景层带 `backdrop-filter` 时会成为 fixed 后代的包含块。菜单若
+    // 留在面板内部，left/top 就不是视口坐标——实机表现为「右键在顶部，菜单却
+    // 出现在面板右下角」。这一条是那次 bug 的防线。
     expect(PANEL).toContain('createPortal')
     expect(PANEL).toMatch(/document\.body,\s*\)\}/u)
-    const panelRule = ruleBody('.dsh-fnos-path-panel', /position:\s*absolute;/u)
-    expect(panelRule).toMatch(/backdrop-filter:/u)
+  })
+
+  it('磨砂背景单独成层，不写在面板根元素上', () => {
+    // 背景写在根元素上会让整个面板成为 fixed 后代的包含块；上游 MenuSurface 同样
+    // 把 material 拆成独立子层。
+    expect(PANEL).toContain('dsh-fnos-path-panel-material')
+    // 直接断言 material 规则体的声明，不从根元素规则反向推断——根元素规则附近的
+    // 说明性注释里也提到 backdrop-filter，反向断言会误伤。
+    const material = /\n\.dsh-fnos-path-panel-material \{([\s\S]*?)\n\}/u.exec(STYLE)?.[1] ?? ''
+    expect(material.length).toBeGreaterThan(0)
+    expect(material).toMatch(/backdrop-filter:\s*var\(--dsw-menu-backdrop-filter\)/u)
+    expect(material).toMatch(/z-index:\s*-1;/u)
+    expect(material).toMatch(/pointer-events:\s*none;/u)
+  })
+
+  it('磨砂填充用 surface-fill，而不是 macOS 上近不透明的 specific-menu', () => {
+    // `--dsw-specific-menu` 在 darwin 上被覆盖成 0.94，是「没有 opaque backing
+    // 的浮层」的保守值；用它就没有玻璃通透感。指令面板用的是 surface-fill
+    // （0.58 浅色 / 0.45 深色）。
+    const material = /\n\.dsh-fnos-path-panel-material \{([\s\S]*?)\n\}/u.exec(STYLE)?.[1] ?? ''
+    expect(material).toContain('var(--dsw-menu-surface-fill)')
+    expect(material).not.toContain('var(--dsw-specific-menu)')
   })
 
   it('菜单落点被收进视口，不会顶出右下角', () => {

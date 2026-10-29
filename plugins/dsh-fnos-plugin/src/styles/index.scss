@@ -407,12 +407,33 @@ img.dsh-fnos-file-manager-icon {
   border: 0;
   --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
   border-radius: var(--dsw-radius-panel);
-  background: var(--dsw-specific-menu);
-  backdrop-filter: var(--dsw-menu-backdrop-filter);
   box-shadow: var(--dsw-elevation-prominent);
-  /* 面板是可滚动的高图层，滚动条取 l2 一对（与 mk 指令面板一致）。 */
+  /* 面板是可滚动的高图层，滚动条取 l2 一对（与指令面板一致）。 */
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  /* 背景与磨砂放在独立的 .dsh-fnos-path-panel-material 子层，不写在本元素上。
+     `backdrop-filter` 会成为 fixed 后代的包含块，写在根元素上会把右键菜单的
+     定位基准换成面板（此前踩过）；单独一层则只影响那一层自身。 */
+  isolation: isolate;
+}
+
+/*
+ * 玻璃磨砂背景层，与 DSH 指令面板（上游 MenuSurface）同一套 material：
+ *
+ *  - 填充色用 `--dsw-menu-surface-fill`（半透明 0.58 / 0.45），**不能**用
+ *    `--dsw-specific-menu`——后者在 macOS 上被特意覆盖成 0.94 近不透明，
+ *    是为「没有 opaque backing 的浮层」准备的保守值，用它会失去通透感；
+ *  - 磨砂用 `--dsw-menu-backdrop-filter`（blur(40px) saturate(150%)）；
+ *  - `z-index: -1` 让它待在内容后面，`pointer-events: none` 不挡交互。
+ */
+.dsh-fnos-path-panel-material {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--dsw-menu-surface-fill);
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
+  pointer-events: none;
 }
 
 .dsh-fnos-path-panel-header {
