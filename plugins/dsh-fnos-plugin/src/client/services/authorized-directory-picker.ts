@@ -55,6 +55,9 @@ export async function pickAuthorizedDirectory(
     // 记录真实返回形态：本地无法复现真机取消/失败的各种 shape，出问题时
     // 这条日志是唯一能定性的一手证据（不含选中的 NAS 路径）。
     logPickerSdkValue('resolved', result)
+    // 原始返回单独打一条：诊断只保留形状摘要，而真机取消的形态比契约更杂，
+    // 排障时需要看到完整对象才能判定。不含选中的 NAS 路径以外的敏感信息。
+    console.info('[dsh-fnos][fnos-sdk] raw-result', JSON.stringify(result))
   } catch (error: unknown) {
     logPickerSdkValue('rejected', error)
     // 用户取消在 SDK 里也可能以异常形式出现，必须与真正的失败区分开。
@@ -67,7 +70,24 @@ export async function pickAuthorizedDirectory(
   if (isPickerNoSelection(result)) return { status: 'cancelled' }
   if (isCancellation(result)) return { status: 'cancelled' }
   const path = pickedPath(result)
-  if (path === undefined) return failureOf(result)
+  if (path === undefined) {
+    // 取不到路径时再判一次「这算不算取消」，而不是直接当失败。
+    //
+    // 语义上「成功必然带路径」，所以 `code: 0` 但拿不到路径只能是用户没选。
+    // 真机上取消的形态比契约更杂（`data` 可能是 null、`[]`、缺失，或包了一层
+    // 非标准结构），只靠文案/status 会漏；把它当取消比弹「无法授权」更贴近事实。
+    // 但必须先排除「明确的错误」：`status: 'error'` 或 `error: 'access_denied'`
+    // 是真实的权限/接口失败，绝不能因为没取到路径就改判成取消——那会把真问题
+    // 变成静默，用户以为没事、实际什么都没发生。
+    const record = typeof result === 'object' && result !== null && !Array.isArray(result)
+      ? result as Record<string, unknown>
+      : undefined
+    const explicitError = typeof record?.status === 'string' && record.status.trim().toLowerCase() === 'error'
+    if (explicitError || record?.error === 'access_denied') return failureOf(result)
+    const code = record?.code
+    if (code === 0 || code === undefined) return { status: 'cancelled' }
+    return failureOf(result)
+  }
   return { status: 'picked', path }
 }
 

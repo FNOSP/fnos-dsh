@@ -263,8 +263,12 @@ function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
         return
       }
       if (diagnosis.outcome !== 'success') {
+        // 只有官方契约的 `access_denied` 才算权限问题。`code === 1` 在部分
+        // fnOS 版本里也用于普通取消失败，硬判权限会给出误导性文案。
         throw new DirectoryRequestError(
-          diagnosis.code === 1 ? 'fnos-authorized-directory-permission-denied' : 'fnos-authorized-directory-request-failed',
+          diagnosis.error === 'access_denied'
+            ? 'fnos-authorized-directory-permission-denied'
+            : 'fnos-authorized-directory-request-failed',
           diagnosis.message ?? diagnosis.error ?? `fnOS picker returned ${diagnosis.reason}`,
         )
       }

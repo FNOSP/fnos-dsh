@@ -77,8 +77,16 @@ describe('FNOS-034 授权选择器：成功路径', () => {
     await expect(pickAuthorizedDirectory(options)).resolves.toEqual({ status: 'picked', path: expected })
   })
 
-  it('code 0 但没选任何目录 → cancelled', async () => {
-    pickSharedFile.mockResolvedValueOnce({ code: 0, msg: '', data: [] })
+  it.each([
+    ['code 0 + 空数组', { code: 0, msg: '', data: [] }],
+    ['code 0 + data 为 null', { code: 0, msg: '', data: null }],
+    ['code 0 + 无 data 字段', { code: 0, msg: '' }],
+    ['code 0 + data 是无路径对象', { code: 0, msg: '', data: {} }],
+    ['code 0 + 空字符串 data', { code: 0, msg: '', data: '' }],
+  ])('取不到路径（%s）→ cancelled，不提示', async (_label, value) => {
+    // 语义上「成功必然带路径」，所以 code 0 却拿不到路径只能是用户没选。
+    // 真机取消形态比契约更杂，硬判失败会弹「无法授权」。
+    pickSharedFile.mockResolvedValueOnce(value)
     await expect(pickAuthorizedDirectory(options)).resolves.toEqual({ status: 'cancelled' })
   })
 })
