@@ -436,14 +436,47 @@ img.dsh-fnos-file-manager-icon {
   white-space: nowrap;
 }
 
-/* 右键菜单的锚点：零尺寸、不参与布局。
-   用 `fixed` 是为了让 `left/top` 直接对接 `event.clientX/clientY`（视口坐标），
-   不必换算面板自身偏移与树的滚动量；`pointer-events: none` 保证它不挡住点击目标。 */
-.dsh-fnos-path-context-anchor {
+/* 右键上下文菜单：直接落在鼠标坐标上。
+   `position: fixed` 让 `left/top` 对接 `event.clientX/clientY`（视口坐标），
+   与面板自身偏移、树的滚动量都无关。 */
+.dsh-fnos-path-context-menu {
   position: fixed;
-  width: 0;
-  height: 0;
-  pointer-events: none;
+  z-index: 1000;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 132px;
+  padding: 4px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-specific-menu);
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+.dsh-fnos-path-context-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--dsw-radius-md);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-state-business-primary);
+    outline-offset: -2px;
+  }
 }
 
 .dsh-fnos-create-form {

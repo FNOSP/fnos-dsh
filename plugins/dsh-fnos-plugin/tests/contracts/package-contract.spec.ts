@@ -372,10 +372,10 @@ describe('dsh-fnos package contract', () => {
     expect(semiTheme).not.toContain('data-dsh-fnos-input-references')
     // FNOS-034：面板改用 Tree 直接渲染在自有容器里，不再有 TreeSelect 的
     // `borderless` 触发态；面板几何由 CSS 决定，不靠 Semi 的 popper 内联样式。
-    // `getPopupContainer` 现在只服务于右键上下文菜单（Dropdown），且挂在面板
-    // 容器上；它不再用于把「面板本体」搬进卡片——面板仍是普通 DOM 节点。
+    // 右键菜单也已改为自绘（Semi Dropdown 的定位依赖锚点 rect，喂零尺寸锚点
+    // 会被算到面板角落），因此整个文件不再需要 `getPopupContainer`。
     expect(picker).not.toContain('TreeSelect')
-    expect(picker).toMatch(/getPopupContainer[\s\S]{0,80}panelRef\.current/u)
+    expect(picker).not.toContain('getPopupContainer')
     expect(picker).toContain('multiple')
     expect(picker).toContain('checkRelation="unRelated"')
     expect(picker).not.toContain('treeCheckable')

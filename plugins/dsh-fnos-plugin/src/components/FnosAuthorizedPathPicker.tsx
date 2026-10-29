@@ -16,7 +16,6 @@ import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
-  DshDropdown as Dropdown,
   DshIconClose as IconClose,
   DshIconFile as IconFile,
   DshIconFolder as IconFolder,
@@ -44,6 +43,24 @@ const PANEL_TOP_MARGIN = 84
 
 /** 面板设计上限高度；运行时按上方可用空间再钳制。 */
 const PANEL_MAX_HEIGHT = 420
+
+/**
+ * 把右键菜单落点收进视口。
+ *
+ * 在靠近右下角处右键时，菜单会顶出可视区被裁掉。这里按菜单的**估算尺寸**
+ * 往回收：菜单只有两项，用保守常量即可，不必等布局测量后再修正——那样首帧
+ * 会先画到界外再跳回来，看起来像闪一下。
+ */
+function clampMenuPosition(x: number, y: number): { x: number, y: number } {
+  if (typeof window === 'undefined') return { x, y }
+  const MENU_WIDTH = 148
+  const MENU_HEIGHT = 84
+  const margin = 8
+  return {
+    x: Math.max(margin, Math.min(x, window.innerWidth - MENU_WIDTH - margin)),
+    y: Math.max(margin, Math.min(y, window.innerHeight - MENU_HEIGHT - margin)),
+  }
+}
 
 /**
  * 目录名：用 Semi `Typography.Text` 的 `ellipsis` 做单行省略。
@@ -140,8 +157,9 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   const [createName, setCreateName] = useState('')
   const [createError, setCreateError] = useState<string | undefined>()
   const [creating, setCreating] = useState(false)
-  // 右键上下文菜单：命中的目录与鼠标坐标（菜单锚点）。
+  // 右键上下文菜单：命中的目录与鼠标坐标（菜单定位）。
   const [contextMenu, setContextMenu] = useState<{ parent: string, x: number, y: number } | undefined>()
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const applyEntries = useCallback((result: AuthorizedEntriesResult, parent?: string) => {
     for (const entry of result.entries) entries.current.set(entry.path, entry)
@@ -264,7 +282,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
 
   // 弹层打开期间不因「点外部」收起面板。
   //
-  // Modal 与 Dropdown 都由 Semi portal 到 body，`panelRef.current.contains(target)`
+  // Modal 由 Semi portal 到 body，`panelRef.current.contains(target)`
   // 对它们恒为 false——弹框里点一下输入框或按钮，就会被判成「点了面板外部」，
   // 连带把整个面板销毁。这两个浮层自己会处理外部关闭，面板在此期间应当让路。
   const floatingOpen = createTarget !== undefined || contextMenu !== undefined
@@ -320,9 +338,11 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   /**
    * 右键命中一个目录：在鼠标位置弹出上下文菜单。
    *
-   * 命中文件时不弹菜单（文件下无法再建条目）。菜单位置用一个固定定位的零尺寸
-   * 锚点表达——Semi `Dropdown` 只认自己的子元素做锚点，拿不到 `onContextMenu`
-   * 给的原生事件坐标，所以由我们把坐标接管成锚点位置。
+   * 命中文件时不弹菜单（文件下无法再建条目）。
+   *
+   * 菜单自己画、不用 Semi `Dropdown`：它的定位依赖锚点元素的
+   * `getBoundingClientRect` 与容器坐标系，喂一个零尺寸锚点会被算到面板角落；
+   * 而 `trigger="custom"` 下它也不注册任何外部点击关闭。这两件事都要自己接管。
    */
   const handleContextMenu = useCallback((event: { preventDefault: () => void, clientX?: number, clientY?: number }, node: unknown) => {
     const key = typeof node === 'object' && node !== null && 'key' in node && typeof node.key === 'string'
@@ -332,8 +352,29 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     const entry = entries.current.get(key)
     if (entry !== undefined && entry.kind !== 'directory') return
     event.preventDefault()
-    setContextMenu({ parent: key, x: event.clientX ?? 0, y: event.clientY ?? 0 })
+    const position = clampMenuPosition(event.clientX ?? 0, event.clientY ?? 0)
+    setContextMenu({ parent: key, x: position.x, y: position.y })
   }, [])
+
+  // 菜单打开期间：点击菜单之外或按 Esc 收起（与系统右键菜单一致）。
+  // 用捕获阶段，保证菜单项自己的 click 之前不会先被其它监听吞掉。
+  useEffect(() => {
+    if (contextMenu === undefined) return
+    const onPointerDown = (event: PointerEvent): void => {
+      if (!(event.target instanceof Node)) return
+      if (menuRef.current?.contains(event.target) === true) return
+      setContextMenu(undefined)
+    }
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setContextMenu(undefined)
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [contextMenu])
 
   /** 从上下文菜单进入新建弹框；菜单随即收起。 */
   const createFromContextMenu = useCallback((kind: AuthorizedCreateKind) => {
@@ -409,29 +450,35 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         emptyContent={t('inputPickerEmpty')}
       />
       {/*
-        右键上下文菜单。用 `trigger="custom"` + 受控 `visible`：Tree 的
-        `onContextMenu` 只给事件坐标，而 Dropdown 只认自己的子元素做锚点，
-        因此子元素就是一个定位在鼠标处的零尺寸锚点。
+        右键上下文菜单。自己画：`position: fixed` 直接落在鼠标坐标上，与面板
+        自身的滚动、偏移无关；外部点击与 Esc 的收起由上面的 effect 处理。
       */}
-      <Dropdown
-        trigger="custom"
-        visible={contextMenu !== undefined}
-        onVisibleChange={(visible: boolean) => { if (!visible) setContextMenu(undefined) }}
-        position="bottomLeft"
-        getPopupContainer={() => panelRef.current ?? document.body}
-        render={(
-          <Dropdown.Menu>
-            <Dropdown.Item onClick={() => { createFromContextMenu('directory') }}>{t('createFolder')}</Dropdown.Item>
-            <Dropdown.Item onClick={() => { createFromContextMenu('file') }}>{t('createFile')}</Dropdown.Item>
-          </Dropdown.Menu>
-        )}
-      >
-        <span
-          className="dsh-fnos-path-context-anchor"
-          style={{ left: contextMenu?.x ?? 0, top: contextMenu?.y ?? 0 }}
-          aria-hidden
-        />
-      </Dropdown>
+      {contextMenu === undefined ? null : (
+        <div
+          ref={menuRef}
+          className="dsh-fnos-path-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          role="menu"
+          aria-label={t('createFolder')}
+        >
+          <button
+            type="button"
+            className="dsh-fnos-path-context-item"
+            role="menuitem"
+            onClick={() => { createFromContextMenu('directory') }}
+          >
+            {t('createFolder')}
+          </button>
+          <button
+            type="button"
+            className="dsh-fnos-path-context-item"
+            role="menuitem"
+            onClick={() => { createFromContextMenu('file') }}
+          >
+            {t('createFile')}
+          </button>
+        </div>
+      )}
       <Modal
         title={createTarget?.kind === 'file' ? t('createDialogFileTitle') : t('createDialogTitle')}
         visible={createTarget !== undefined}

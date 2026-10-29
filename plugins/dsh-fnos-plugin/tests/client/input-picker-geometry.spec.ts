@@ -187,12 +187,26 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(PANEL).toContain('createFromContextMenu')
   })
 
-  it('菜单用受控 custom 触发，锚点跟随鼠标坐标', () => {
-    expect(PANEL).toContain('trigger="custom"')
-    expect(PANEL).toContain('visible={contextMenu !== undefined}')
-    expect(PANEL).toContain('dsh-fnos-path-context-anchor')
-    // fixed 定位才能直接吃 clientX/clientY，不用换算面板偏移。
-    expect(ruleBody('.dsh-fnos-path-context-anchor')).toMatch(/position:\s*fixed;/u)
+  it('菜单自绘并落在鼠标坐标上，不再依赖 Semi Dropdown 定位', () => {
+    // Semi Dropdown 的定位依赖锚点 rect 与容器坐标系，喂零尺寸锚点会被算到
+    // 面板角落；custom 触发下它也不注册外部点击关闭。两点都必须自己接管。
+    expect(PANEL).toContain('dsh-fnos-path-context-menu')
+    expect(PANEL).toContain('style={{ left: contextMenu.x, top: contextMenu.y }}')
+    expect(ruleBody('.dsh-fnos-path-context-menu')).toMatch(/position:\s*fixed;/u)
+  })
+
+  it('菜单落点被收进视口，不会顶出右下角', () => {
+    expect(PANEL).toContain('clampMenuPosition')
+    expect(PANEL).toMatch(/window\.innerWidth - MENU_WIDTH/u)
+    expect(PANEL).toMatch(/window\.innerHeight - MENU_HEIGHT/u)
+  })
+
+  it('点击菜单外或按 Esc 自动收起菜单', () => {
+    // 实机反馈的第二个问题：点面板别处菜单不消失。
+    expect(PANEL).toMatch(/if \(contextMenu === undefined\) return/u)
+    expect(PANEL).toContain('menuRef.current?.contains(event.target)')
+    expect(PANEL).toContain("if (event.key === 'Escape') setContextMenu(undefined)")
+    expect(PANEL).toContain("document.addEventListener('pointerdown', onPointerDown, true)")
   })
 
   it('命中文件不弹菜单（文件下无法再建条目）', () => {
@@ -200,8 +214,8 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
   })
 
   it('菜单含新建文件夹与新建文件两项', () => {
-    expect(PANEL).toMatch(/Dropdown\.Item[\s\S]{0,140}createFromContextMenu\('directory'\)/u)
-    expect(PANEL).toMatch(/Dropdown\.Item[\s\S]{0,140}createFromContextMenu\('file'\)/u)
+    expect(PANEL).toMatch(/dsh-fnos-path-context-item[\s\S]{0,220}createFromContextMenu\('directory'\)/u)
+    expect(PANEL).toMatch(/dsh-fnos-path-context-item[\s\S]{0,220}createFromContextMenu\('file'\)/u)
   })
 
   it('弹框收集名称并走宿主路由创建', () => {
