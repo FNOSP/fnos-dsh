@@ -2,7 +2,7 @@
   "name": "@tnnevol/dsh-e2e-kit",
   "displayName": "DSH E2E Kit",
   "type": "module",
-  "version": "6.1.2",
+  "version": "6.1.3",
   "description": "Shared harness for Midscene Test projects in this repository: Bridge Mode project setup, tab discipline, and result verification.",
   "author": "tnnevol",
   "license": "Apache-2.0",
