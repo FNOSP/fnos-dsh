@@ -9,7 +9,7 @@
  * 授权卡片与输入区选择器面板都要用它，两处各写一遍必然在错误分类上漂移。
  */
 
-import { diagnosePickerResult, isPickerNoSelection } from '../input-references/picker-result.ts'
+import { diagnosePickerResult, isPickerNoSelection, logPickerSdkEvent, logPickerSdkValue } from '../input-references/picker-result.ts'
 import { createTrimApp } from './sdk.ts'
 
 /** 选择器返回的授权结果。 */
@@ -50,8 +50,13 @@ export async function pickAuthorizedDirectory(
   try {
     const sdk = createTrimApp()
     await sdk.ready()
+    logPickerSdkEvent('created', { via: 'authorized-directory-picker', isWeb: sdk.isWeb, isStandaloneWeb: sdk.isStandaloneWeb })
     result = await sdk.pickSharedFile(params)
+    // 记录真实返回形态：本地无法复现真机取消/失败的各种 shape，出问题时
+    // 这条日志是唯一能定性的一手证据（不含选中的 NAS 路径）。
+    logPickerSdkValue('resolved', result)
   } catch (error: unknown) {
+    logPickerSdkValue('rejected', error)
     // 用户取消在 SDK 里也可能以异常形式出现，必须与真正的失败区分开。
     // 判定放在最前：任何「像取消」的信号都先当取消，宁可漏报错误也不要
     // 把用户主动取消说成失败——后者会弹出一条他无法理解的提示。

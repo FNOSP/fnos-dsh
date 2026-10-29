@@ -486,6 +486,10 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     const onPointerDown = (event: PointerEvent): void => {
       if (!(event.target instanceof Node)) return
       if (menuRef.current?.contains(event.target) === true) return
+      // Popconfirm 的弹层由 Semi portal 到 body，不在 menuRef 内。不豁免的话，
+      // 点「确定」会被判成「菜单外点击」→ 菜单卸载 → Popconfirm 一起消失，
+      // onConfirm 永远不会触发。这正是「删除点了没反应」的真因。
+      if (event.target instanceof Element && event.target.closest('.semi-popconfirm') !== null) return
       setContextMenu(undefined)
     }
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -522,17 +526,25 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     // `onCancel`/外部点击而卸载；此时闭包里的 `contextMenu` 已是 undefined，
     // 早期实现据此直接 return，删除**从未发出**——界面看起来「点了删除但没反应」。
     const target = deleteTargetRef.current
+    // 这条日志是「删除到底有没有发出请求」的唯一判据：不打印说明参数/状态
+    // 在进入前就断了，打印了但失败说明是宿主拒绝。
+    console.info('[dsh-fnos][delete] confirm', { hasTarget: target !== undefined, path: target?.path })
     if (target === undefined) return
     deleteTargetRef.current = undefined
     setContextMenu(undefined)
     try {
       await deleteAuthorizedEntry(target.path)
+      console.info('[dsh-fnos][delete] succeeded', { path: target.path })
       entries.current.delete(target.path)
       setTreeData(current => removeNode(current, target.path))
       setDesiredPaths(current => current?.filter(path => path !== target.path))
       if (pendingInsertedOccurrences.current.size > 0) pendingRemovalPaths.current.add(target.path)
     } catch (error: unknown) {
       // 菜单已收起，用 toast 告知失败原因，不静默吞掉。
+      console.warn('[dsh-fnos][delete] failed', {
+        path: target.path,
+        reason: error instanceof Error ? error.message : String(error),
+      })
       Toast.error({ content: deleteErrorMessage(error, t) })
     }
   }, [contextMenu, t])

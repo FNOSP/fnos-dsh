@@ -36,6 +36,21 @@ describe('FNOS-034 删除：确认后必须真的发出请求', () => {
     expect(cleanup).toBeGreaterThan(call)
   })
 
+  it('Popconfirm 弹层不被判为「菜单外点击」', () => {
+    // Popconfirm 由 Semi portal 到 body，不在 menuRef 内。不豁免的话，点「确定」
+    // 会被外部点击监听判成菜单外点击 → 菜单卸载 → Popconfirm 消失 →
+    // onConfirm 永不触发。这是「删除点了没反应」的真因。
+    expect(PANEL).toContain("closest('.semi-popconfirm')")
+  })
+
+  it('确认链路有可观测日志', () => {
+    // 无日志时，实机出问题只能靠猜。两条日志分别覆盖「请求是否发出」与
+    // 「宿主是否拒绝」。
+    expect(PANEL).toContain("[dsh-fnos][delete] confirm")
+    expect(PANEL).toContain("[dsh-fnos][delete] succeeded")
+    expect(PANEL).toContain("[dsh-fnos][delete] failed")
+  })
+
   it('失败时用 toast 告知，不静默吞掉', () => {
     expect(PANEL).toMatch(/catch \(error: unknown\) \{[\s\S]{0,220}Toast\.error/u)
   })

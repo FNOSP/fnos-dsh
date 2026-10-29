@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 
 /**
@@ -53,6 +54,16 @@ describe('FNOS-034 授权选择器：真实失败仍要有原因', () => {
     pickSharedFile.mockResolvedValueOnce({ code: 1, msg: '接口异常', data: [] })
     const outcome = await pickAuthorizedDirectory(options)
     expect(outcome).toMatchObject({ status: 'failed', code: 'fnos-authorized-directory-request-failed' })
+  })
+})
+
+describe('FNOS-034 授权选择器：可观测性', () => {
+  it('记录创建、返回与异常三个阶段的日志', () => {
+    // 本地无法复现真机取消/失败的 shape，这条日志是唯一一手证据。
+    const source = readFileSync(new URL('../../src/client/services/authorized-directory-picker.ts', import.meta.url), 'utf8')
+    expect(source).toContain("logPickerSdkEvent('created'")
+    expect(source).toContain("logPickerSdkValue('resolved'")
+    expect(source).toContain("logPickerSdkValue('rejected'")
   })
 })
 
