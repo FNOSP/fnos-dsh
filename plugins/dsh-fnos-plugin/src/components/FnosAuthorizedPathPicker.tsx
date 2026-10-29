@@ -10,7 +10,7 @@
  * 勾选即移除对应引用。差异只在承载形式（下拉 → 卡片宽浮层）与关闭出口。
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -23,8 +23,8 @@ import {
   DshIconPlus as IconPlus,
   DshInput as Input,
   DshModal as Modal,
-  DshTooltip as Tooltip,
   DshTree as Tree,
+  DshTypography as Typography,
 } from '@tnnevol/dsh-semi-ui'
 import { createAuthorizedEntry, requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
@@ -47,44 +47,27 @@ const PANEL_TOP_MARGIN = 84
 const PANEL_MAX_HEIGHT = 420
 
 /**
- * 只在文本真的被省略时才挂气泡提示。
+ * 目录名：用 Semi `Typography.Text` 的 `ellipsis` 做单行省略。
  *
- * 做法与上游 `ui-primitives/CommandText` 一致：量 `scrollWidth > clientWidth`，
- * 并用 `ResizeObserver` 跟随面板宽度变化重测。名字放得下时不渲染 Tooltip，
- * 避免「没截断也弹出提示」的噪音。
+ * `ellipsis.showTooltip` 的语义正是我们要的——`Typography` 内部用
+ * `isOverflowed` 判断文本是否真的被截断（semi-ui `typography/base.js`：
+ * `const show = noExpandText && overflowed && showTooltip`），只有溢出了才挂
+ * 提示。名字放得下时不会弹气泡，也不需要我们自己量 `scrollWidth`。
+ *
+ * 注意 `ellipsis` 只支持纯文本 children，因此这里必须传 `string`。
  */
-function NodeLabelText({ text, fullPath }: { text: string, fullPath: string }) {
-  const textRef = useRef<HTMLSpanElement>(null)
-  const [truncated, setTruncated] = useState(false)
-
-  useLayoutEffect(() => {
-    const element = textRef.current
-    if (element === null) return undefined
-    const measure = (): void => { setTruncated(element.scrollWidth > element.clientWidth + 1) }
-    measure()
-    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure)
-    observer?.observe(element)
-    const fonts = 'fonts' in element.ownerDocument ? element.ownerDocument.fonts : undefined
-    fonts?.addEventListener('loadingdone', measure)
-    return () => {
-      observer?.disconnect()
-      fonts?.removeEventListener('loadingdone', measure)
-    }
-  }, [text])
-
-  const content = <span ref={textRef} className="dsh-fnos-tree-node-label-text">{text}</span>
-  return truncated
-    ? <Tooltip content={fullPath} showArrow mouseEnterDelay={0.5}>{content}</Tooltip>
-    : content
-}
-
 function nodeLabel(entry: AuthorizedEntry, showFullPath = false): ReactNode {
   const name = showFullPath ? entry.semanticPath : displayName(entry.semanticPath)
   const Icon = entry.kind === 'directory' ? IconFolder : IconFile
   return (
     <span className="dsh-fnos-tree-node-label">
       <Icon size="small" />
-      <NodeLabelText text={name} fullPath={entry.semanticPath} />
+      <Typography.Text
+        className="dsh-fnos-tree-node-label-text"
+        ellipsis={{ showTooltip: true, rows: 1 }}
+      >
+        {name}
+      </Typography.Text>
     </span>
   )
 }

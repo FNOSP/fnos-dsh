@@ -119,10 +119,10 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 
 | ID | 覆盖验收 | 步骤 | 预期 | 执行环境 |
 | --- | --- | --- | --- | --- |
-| TC-033 | FNOS-034-07-AC-01 | 断言溢出判定方式 | 用 `element.scrollWidth > element.clientWidth` 比较，而不是无条件挂 Tooltip | 包级 |
-| TC-034 | FNOS-034-07-AC-01 | 断言渲染分支 | 未溢出只渲染文本，溢出才包 `<Tooltip>` | 包级 |
-| TC-035 | FNOS-034-07-AC-03 | 断言重测时机 | 有 `ResizeObserver`，且监听 `fonts` 的 `loadingdone` | 包级 |
-| TC-036 | FNOS-034-07-AC-01/02 | 断言标签容器与文本样式 | 容器 `min-width: 0`（不是 `max-content`），文本 `text-overflow: ellipsis` | 包级 |
+| TC-033 | FNOS-034-07-AC-01/03 | 断言承载方式 | 用 `Typography.Text` + `ellipsis={{ showTooltip: true, rows: 1 }}`，不手写宽度测量 | 包级 |
+| TC-034 | FNOS-034-07-AC-03 | 断言不再自行判定 | 源码里没有 `scrollWidth >`、`ResizeObserver`、`loadingdone` | 包级 |
+| TC-035 | FNOS-034-07-AC-03 | 断言 children 为纯文本 | `Typography.Text` 内是 `{name}`（Semi 的 `ellipsis` 只支持 string） | 包级 |
+| TC-036 | FNOS-034-07-AC-01/02 | 断言标签样式 | 容器 `min-width: 0`（不撑开）；文本不自定义 `text-overflow`/`white-space`（交给 Typography） | 包级 |
 | TC-115 | FNOS-034-07-AC-01 | 真实 NAS：悬停一个名字较短、未被截断的目录 | 不出现气泡提示 | 真实 NAS |
 | TC-116 | FNOS-034-07-AC-02 | 真实 NAS：把窗口拉窄使名字被省略号截断，再悬停 | 出现气泡提示并显示完整路径 | 真实 NAS |
 | TC-106 | FNOS-034-03-AC-01 | 真实 NAS 打开面板后点页面空白处 | 面板收起 | 真实 NAS |
@@ -168,10 +168,10 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-030 | 通过 | 2026-10-28 | 同文件「拒绝 . 与 ..」「拒绝空名与纯空白」「拒绝超长名称」 |
 | TC-031 | 通过 | 2026-10-28 | 同文件「去掉首尾空白后接受常见名字」「允许中文、空格、点与短横线」 |
 | TC-032 | 通过 | 2026-10-28 | `input-picker-geometry.spec.ts`「错误按原因给出可操作文案」 |
-| TC-033 | 通过 | 2026-10-28 | `input-picker-geometry.spec.ts`「用 scrollWidth/clientWidth 判断是否真的溢出」 |
-| TC-034 | 通过 | 2026-10-28 | 同文件「未溢出时不渲染 Tooltip，溢出了才渲染」 |
-| TC-035 | 通过 | 2026-10-28 | 同文件「面板宽度变化后重新测量」「字体加载完成后重新测量」 |
-| TC-036 | 通过 | 2026-10-28 | 同文件「标签容器允许收缩，否则省略号永不出现」 |
+| TC-033 | 通过 | 2026-10-28 | `input-picker-geometry.spec.ts`「用 Semi Typography 的 ellipsis 承载省略与提示」 |
+| TC-034 | 通过 | 2026-10-28 | 同文件「不再自己量 scrollWidth，也不手写 Tooltip 分支」 |
+| TC-035 | 通过 | 2026-10-28 | 同文件「ellipsis 的 children 必须是纯文本」 |
+| TC-036 | 通过 | 2026-10-28 | 同文件「容器允许收缩」「不自定义 text-overflow」 |
 
 包级总量：36 个测试文件 / 295 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
 

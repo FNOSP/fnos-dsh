@@ -184,32 +184,36 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
 })
 
 describe('FNOS-034 气泡提示只在文本被省略时出现', () => {
-  it('用 scrollWidth/clientWidth 判断是否真的溢出', () => {
-    // 无条件包 Tooltip 会让「名字放得下」的行也弹提示，是实机反馈的问题。
-    expect(PANEL).toContain('element.scrollWidth > element.clientWidth')
+  it('用 Semi Typography 的 ellipsis 承载省略与提示', () => {
+    // 不再手写 scrollWidth 判定：Typography 内部用 isOverflowed 判断，
+    // 只有真正溢出时才挂 tooltip（`noExpandText && overflowed && showTooltip`）。
+    expect(PANEL).toContain('Typography.Text')
+    expect(PANEL).toContain('ellipsis={{ showTooltip: true, rows: 1 }}')
   })
 
-  it('未溢出时不渲染 Tooltip，溢出了才渲染', () => {
-    expect(PANEL).toMatch(/return truncated\s*\n?\s*\? <Tooltip/u)
-    expect(PANEL).toMatch(/:\s*content/u)
+  it('不再自己量 scrollWidth，也不手写 Tooltip 分支', () => {
+    expect(PANEL).not.toContain('scrollWidth >')
+    expect(PANEL).not.toContain('ResizeObserver')
+    expect(PANEL).not.toContain('loadingdone')
   })
 
-  it('面板宽度变化后重新测量（ResizeObserver）', () => {
-    expect(PANEL).toContain('ResizeObserver')
-    expect(PANEL).toContain("observer?.observe(element)")
+  it('ellipsis 的 children 必须是纯文本（Semi 明确限制）', () => {
+    // `ellipsis` 只支持 string children；传 ReactNode 会静默失效。
+    // 从 JSX 起匹配，避免命中注释里说明性的 `<Typography.Text`。
+    const jsx = PANEL.slice(PANEL.indexOf('<Typography.Text'))
+    expect(jsx).toMatch(/^<Typography\.Text[\s\S]{0,200}>\s*\{name\}\s*<\/Typography\.Text>/u)
   })
 
-  it('字体加载完成后重新测量，避免首帧误判', () => {
-    expect(PANEL).toContain("fonts?.addEventListener('loadingdone', measure)")
-  })
-
-  it('标签容器允许收缩，否则省略号永不出现、判断恒为假', () => {
+  it('容器允许收缩，否则省略号永不出现、溢出判定恒为假', () => {
     const label = ruleBody('.dsh-fnos-tree-node-label', /display:\s*inline-flex;/u)
     expect(label).toMatch(/min-width:\s*0;/u)
     // `min-width: max-content` 会把文本撑到内容宽度，省略号永远不触发。
     expect(label).not.toContain('min-width: max-content')
+  })
+
+  it('不自定义 text-overflow，避免与 Typography 自带规则抵消', () => {
     const text = ruleBody('.dsh-fnos-tree-node-label-text')
-    expect(text).toMatch(/text-overflow:\s*ellipsis;/u)
-    expect(text).toMatch(/min-width:\s*0;/u)
+    expect(text).not.toContain('text-overflow')
+    expect(text).not.toContain('white-space')
   })
 })

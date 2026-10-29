@@ -345,9 +345,12 @@ img.dsh-fnos-file-manager-icon {
   font: 13px/20px ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* 节点标签：允许收缩，长名字才会真的被省略号截断。
-   `min-width: max-content` 会让文本永远撑到内容宽度，省略号永不出现，
-   「仅省略时提示」的判断也就永远为假。 */
+/* 节点标签：容器只负责「图标 + 文本」的排布与收缩。
+   省略与气泡由 Semi `Typography.Text` 的 `ellipsis` 自己处理
+   （它会给文本加 `-ellipsis-overflow-ellipsis`：block + nowrap +
+   text-overflow），这里不再自定义 text-overflow，避免两套规则互相抵消。
+   `min-width: 0` 是必需的：没有它，flex 子项的最小内容宽度会把文本撑开，
+   省略号永不出现，`showTooltip` 的溢出判定也就恒为假。 */
 .dsh-fnos-tree-node-label {
   display: inline-flex;
   align-items: center;
@@ -358,9 +361,7 @@ img.dsh-fnos-file-manager-icon {
 
 .dsh-fnos-tree-node-label-text {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 100%;
 }
 
 .dsh-fnos-input-picker-trigger {
