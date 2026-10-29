@@ -4,7 +4,7 @@ title: FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层
 description: fnOS 授权目录选择器当前锚在 28px 工具栏按钮上下拉展开，宽度固定且窄小；改为与斜杠指令面板同位置的输入卡片宽浮层。
 status: in-progress
 owner: tnnevol
-targetVersion: 6.1.4
+targetVersion: 6.1.5
 lastVerified: 2026-10-28
 ---
 
