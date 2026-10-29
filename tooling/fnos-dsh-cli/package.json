@@ -1,7 +1,7 @@
 {
   "name": "@tnnevol/fnos-dsh-cli",
   "type": "module",
-  "version": "6.1.7",
+  "version": "6.1.8",
   "private": true,
   "description": "Release, build and repository maintenance CLI for fnOS DSH.",
   "bin": {
