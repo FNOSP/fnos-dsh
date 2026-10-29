@@ -78,11 +78,20 @@ describe('FNOS-034 授权选择器：真实失败仍要有原因', () => {
     expect(outcome).toMatchObject({ status: 'failed', code: 'fnos-authorized-directory-permission-denied' })
   })
 
-  it('code === 1 不再一律当权限问题', async () => {
-    // 该码在部分 fnOS 版本里只是普通失败，硬判权限会给出误导性文案。
+  it('非 0 code 且没有路径按取消处理，不弹错误', async () => {
+    // 用户在原生窗口里取消时，返回体可能是解析成功的普通响应：`code` 非 0、
+    // 没有路径、也没有 `status: 'error'` / `error: 'access_denied'` 这两种官方
+    // 标记。官方类型里没有「取消专用 code」，这类响应只能算「用户没选」，
+    // 否则就会在用户什么都没做的情况下弹「无法授权该目录」。
     pickSharedFile.mockResolvedValueOnce({ code: 1, msg: '接口异常', data: [] })
     const outcome = await pickAuthorizedDirectory(options)
-    expect(outcome).toMatchObject({ status: 'failed', code: 'fnos-authorized-directory-request-failed' })
+    expect(outcome).toEqual({ status: 'cancelled' })
+  })
+
+  it('非 0 code 配未知文案与 data: null 时同样静默', async () => {
+    // 文案不可枚举，判定不能依赖它。
+    pickSharedFile.mockResolvedValueOnce({ code: 1, msg: 'something else entirely', data: null })
+    await expect(pickAuthorizedDirectory(options)).resolves.toEqual({ status: 'cancelled' })
   })
 })
 

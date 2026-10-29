@@ -95,9 +95,17 @@ export async function pickAuthorizedDirectory(
       : undefined
     const explicitError = typeof record?.status === 'string' && record.status.trim().toLowerCase() === 'error'
     if (explicitError || record?.error === 'access_denied') return failureOf(result)
-    const code = record?.code
-    if (code === 0 || code === undefined) return { status: 'cancelled' }
-    return failureOf(result)
+    // 其余一律按「用户没选」处理。
+    //
+    // 判据取自官方类型，而不是猜文案：`@trimjs/web-app` 的 `AppBridgeResponse`
+    // 只有 `code`/`msg`/`data`，**没有「取消专用 code」**；它记录的取消是
+    // `AppAuthCallbackStatus` 的 `cancel`，记录的失败是 `AppAuthCallbackError`
+    // 的 `access_denied`。用户在原生窗口里关掉选择器时，返回体可能是**带非 0
+    // code 的普通响应**（没有路径、也没有上面两种标记），把它当失败就会在用户
+    // 什么都没做的情况下弹「无法授权该目录」。
+    //
+    // 上面两条显式错误判据保持不变，真正的权限拒绝照旧报出来。
+    return { status: 'cancelled' }
   }
   return { status: 'picked', path }
 }
