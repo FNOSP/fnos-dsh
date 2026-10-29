@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -399,6 +400,10 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
    * 菜单自己画、不用 Semi `Dropdown`：它的定位依赖锚点元素的
    * `getBoundingClientRect` 与容器坐标系，喂一个零尺寸锚点会被算到面板角落；
    * 而 `trigger="custom"` 下它也不注册任何外部点击关闭。这两件事都要自己接管。
+   *
+   * 菜单还必须经 Portal 挂到 body：面板带 `backdrop-filter` 与 `overflow:
+   * hidden`，会成为 `fixed` 后代的包含块——留在面板内部的话，`left/top` 就
+   * 不再是视口坐标，菜单会停在面板角落。
    */
   const handleContextMenu = useCallback((event: { preventDefault: () => void, clientX?: number, clientY?: number }, node: unknown) => {
     const key = typeof node === 'object' && node !== null && 'key' in node && typeof node.key === 'string'
@@ -544,7 +549,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         右键上下文菜单。自己画：`position: fixed` 直接落在鼠标坐标上，与面板
         自身的滚动、偏移无关；外部点击与 Esc 的收起由上面的 effect 处理。
       */}
-      {contextMenu === undefined ? null : (
+      {contextMenu === undefined ? null : createPortal(
         <div
           ref={menuRef}
           className="dsh-fnos-path-context-menu"
@@ -583,7 +588,8 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
             <IconDelete size="small" />
             {t('deleteEntry')}
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
       <Modal
         title={t('deleteDialogTitle')}

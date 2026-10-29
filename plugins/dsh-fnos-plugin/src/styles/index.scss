@@ -437,8 +437,10 @@ img.dsh-fnos-file-manager-icon {
 }
 
 /* 右键上下文菜单：直接落在鼠标坐标上。
-   `position: fixed` 让 `left/top` 对接 `event.clientX/clientY`（视口坐标），
-   与面板自身偏移、树的滚动量都无关。 */
+   `position: fixed` 让 `left/top` 对接 `event.clientX/clientY`（视口坐标）。
+   菜单必须由 React Portal 挂到 body——面板带 `backdrop-filter` 与 `overflow:
+   hidden`，它会成为 `fixed` 后代的**包含块**，菜单若留在面板内部就会相对面板
+   定位，跑到面板角落而不是光标处。 */
 .dsh-fnos-path-context-menu {
   position: fixed;
   z-index: 1000;

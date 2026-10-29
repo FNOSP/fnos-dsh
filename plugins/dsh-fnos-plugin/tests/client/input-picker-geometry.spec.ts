@@ -195,6 +195,16 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(ruleBody('.dsh-fnos-path-context-menu')).toMatch(/position:\s*fixed;/u)
   })
 
+  it('菜单经 Portal 挂到 body，否则 fixed 会被面板的包含块劫持', () => {
+    // 面板带 `backdrop-filter` 与 `overflow: hidden`，会成为 fixed 后代的包含块。
+    // 菜单若留在面板内部，left/top 就不是视口坐标——实机表现为「右键在顶部，
+    // 菜单却出现在面板右下角」。这一条是那次 bug 的防线。
+    expect(PANEL).toContain('createPortal')
+    expect(PANEL).toMatch(/document\.body,\s*\)\}/u)
+    const panelRule = ruleBody('.dsh-fnos-path-panel', /position:\s*absolute;/u)
+    expect(panelRule).toMatch(/backdrop-filter:/u)
+  })
+
   it('菜单落点被收进视口，不会顶出右下角', () => {
     expect(PANEL).toContain('clampMenuPosition')
     expect(PANEL).toMatch(/window\.innerWidth - MENU_WIDTH/u)
