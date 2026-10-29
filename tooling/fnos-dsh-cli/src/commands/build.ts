@@ -10,7 +10,7 @@ import { runDocsBuild } from './docs.js'
 import { optionValue } from '../core/args.js'
 import { requireDshBaseline } from '../core/dsh-baseline.js'
 import { addBooleanArgs, addOptionalValueArg } from '../core/command-args.js'
-import { runCommand } from '../core/process.js'
+import { captureCommandOutput, runCommand } from '../core/process.js'
 import { runTurbo } from '../core/turbo.js'
 import { askBuildSelection, askBundleDshPlugins, askFpkApps, askPlugins } from '../ui/prompts.js'
 
@@ -375,7 +375,45 @@ async function buildFpkApps(apps: FpkApp[], options: { bundleDshPlugins?: boolea
     await prepareDshPluginBundle(app, options.bundleDshPlugins === true)
     console.log(`\nBuilding FPK: ${app.name}`)
     await runCommand('fnpack', ['build'], join(repositoryRoot, 'apps', app.name))
+    await renameFpkForRelease(app)
   }
+}
+
+/**
+ * 把 `fnpack` 产出的固定名 FPK 改成发布用的带版本名。
+ *
+ * 与 `.github/workflows/build-app.yml` 的「Rename FPK with DSH version」保持一致：
+ *
+ *   <appname>-<RELEASE_TAG>-dsh-<DSH_BASELINE>.fpk
+ *
+ * 本地构建以前只留 `fn-deepseek-harness.fpk`，与 CI 产物同名不同款——装机时
+ * 分不清手上这份来自哪次构建、对应哪个 DSH 基线。统一格式后，本地产物与
+ * Release 附件可以直接对照。
+ *
+ * `RELEASE_TAG` 在 CI 由 `inputs.release_tag` 提供，本地没有那层输入，改取当前
+ * 提交命中的 tag（等价）。没有精确 tag 时退回 manifest 版本补 `v` 前缀——那正是
+ * `pnpm run version` 会打出的形态。
+ */
+async function renameFpkForRelease(app: FpkApp): Promise<void> {
+  const appDir = join(repositoryRoot, 'apps', app.name)
+  const original = (await readdir(appDir)).find(entry => entry.endsWith('.fpk'))
+  if (original === undefined) throw new Error(`fnpack produced no .fpk in apps/${app.name}`)
+  const versioned = `${app.name}-${await resolveReleaseTag()}-dsh-${requireDshBaseline()}.fpk`
+  if (original === versioned) return
+  await rename(join(appDir, original), join(appDir, versioned))
+  console.log(`Release FPK: apps/${app.name}/${versioned}`)
+}
+
+/** 当前提交命中的 tag；没有则用 manifest 版本补 `v`，与 `pnpm run version` 一致。 */
+async function resolveReleaseTag(): Promise<string> {
+  const tag = (await captureCommandOutput('git', ['describe', '--tags', '--exact-match'], repositoryRoot))?.trim()
+  if (tag !== undefined && tag.length > 0 && tag.startsWith('v')) return tag
+  for (const app of listFpkApps()) {
+    const manifest = await readFile(join(repositoryRoot, 'apps', app.name, 'manifest'), 'utf8')
+    const version = /^version\s*=\s*(\S+)\s*$/mu.exec(manifest)?.[1]
+    if (version !== undefined) return `v${version}`
+  }
+  throw new Error('Unable to determine the release tag: no v* tag on HEAD and no manifest version found')
 }
 
 async function selectPluginFilters(filter?: string): Promise<string[] | undefined> {

@@ -67,7 +67,9 @@ fnOS 的比较逻辑：**三段式** `x.y.z`，`x.y.z-m` 里的 `m` **只有数�
 | CI Release 附件 | `gh release download v<版本号> --pattern "*.fpk"` | **装机验证首选** —— 与线上分发的是同一份 |
 | 本地构建 | `pnpm run build -- --fpk --app fn-deepseek-harness` | 迭代快；产物落在 `apps/fn-deepseek-harness/*.fpk` |
 
-CI 产物会被重命名为 `fn-deepseek-harness-<Tag>-dsh-<DSH 基线>.fpk`，注意 `dsh-` 段是 **DSH 运行时基线**、不是应用版本；应用版本以 Tag 为准。
+两种来源的产物**同名同格式**：`fn-deepseek-harness-<Tag>-dsh-<DSH 基线>.fpk`。本地构建在 `fnpack` 打完包后自己完成重命名，规则与 CI 的「Rename FPK with DSH version」一致，因此不必再手工改名，也不会出现同名的两份不同产物。注意 `dsh-` 段是 **DSH 运行时基线**、不是应用版本；应用版本以 Tag 为准。
+
+本地没有 CI 那层 `release_tag` 输入，Tag 取当前提交命中的 git tag；没有精确 tag 时退回 manifest 版本并补 `v` 前缀（即 `pnpm run version` 打出的形态）。
 
 ### 「瘦包」是设计，不是构建坏了
 
@@ -158,7 +160,8 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 ```yaml
 - dsh.uploadFile:
     label: 注入 FPK 到「从电脑上传」
-    path: ${fpkDir}/fn-deepseek-harness.fpk
+    # 用例用解析好的完整路径，不写死版本号
+    path: ${fpkPath}
     accept: .fpk
     expectText: 未经验证应用的安全提示
 ```

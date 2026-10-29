@@ -28,6 +28,8 @@
  * 2. YAML 里 `${name}` 是**项目变量**（缺失即报错），`${{NAME}}` 才是环境变量；
  *    `javascript` 步骤不要写模板字面量（会被扫描插值）。
  */
+import { readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { defineTestProject } from '@midscene/test/config'
 import { createMidsceneNodes } from '@midscene/test/midscene'
 import { AgentOverChromeBridge } from '@midscene/web/bridge-mode'
@@ -49,6 +51,21 @@ const allowedDir = process.env.DSH_FPK_DIR
 if (allowedDir === undefined || allowedDir === '') {
   throw new Error('缺少 DSH_FPK_DIR：请指向存放待安装 FPK 的目录（仅授权该目录）')
 }
+
+/**
+ * 目录里待安装的那份 FPK。
+ *
+ * 不能把文件名写死：本地构建产物叫
+ * `fn-deepseek-harness-<Tag>-dsh-<DSH 基线>.fpk`（与 CI 一致），版本一变就得改
+ * 用例。这里按扩展名解析，并要求**恰好一份**——放多份时直接报错比猜一个更安全，
+ * 否则用例可能装到上一次的旧包，结果却看起来「通过」。
+ */
+const fpkFiles = readdirSync(allowedDir).filter(entry => entry.endsWith('.fpk'))
+if (fpkFiles.length === 0) throw new Error(`DSH_FPK_DIR 里没有 .fpk：${allowedDir}`)
+if (fpkFiles.length > 1) {
+  throw new Error(`DSH_FPK_DIR 里有 ${String(fpkFiles.length)} 份 .fpk，请只留待安装的那一份：${fpkFiles.join(', ')}`)
+}
+const fpkPath = join(allowedDir, String(fpkFiles[0]))
 
 export default defineTestProject<BridgeContext>({
   projects: [
@@ -75,8 +92,9 @@ export default defineTestProject<BridgeContext>({
       // 不该在只读验收里顺手跑掉。要跑需临时把下面这行注释掉——CLI **没有** `--tags`
       // 参数（实测确认），标签过滤只在配置里生效。
       tags: { exclude: ['destructive'] },
-      // YAML 用 `${fpkDir}` 引用（项目变量，非环境变量）。
-      variables: { fpkDir: allowedDir },
+      // YAML 用 `${fpkDir}` / `${fpkPath}` 引用（项目变量，非环境变量）。
+      // `fpkPath` 是解析好的**完整路径**，用例据此不感知版本号。
+      variables: { fpkDir: allowedDir, fpkPath },
     },
   ],
   test: {

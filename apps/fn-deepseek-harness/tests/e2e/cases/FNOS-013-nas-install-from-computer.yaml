@@ -59,7 +59,8 @@ cases:
       # → 注入文件。因此**不**用 aiWaitFor 等中间状态——那需要视觉模型，会撞上模型限流。
       - dsh.uploadFile:
           label: 注入 FPK 到「从电脑上传」
-          path: ${fpkDir}/fn-deepseek-harness.fpk
+          # 用解析好的完整路径：产物名带版本与 DSH 基线，写死会在每次发版后失效。
+          path: ${fpkPath}
           accept: .fpk
           expectText: 未经验证应用的安全提示
           timeoutMs: 30000
