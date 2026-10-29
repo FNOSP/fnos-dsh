@@ -345,14 +345,19 @@ img.dsh-fnos-file-manager-icon {
   font: 13px/20px ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* 节点标签：允许收缩，长名字才会真的被省略号截断。
+   `min-width: max-content` 会让文本永远撑到内容宽度，省略号永不出现，
+   「仅省略时提示」的判断也就永远为假。 */
 .dsh-fnos-tree-node-label {
   display: inline-flex;
   align-items: center;
-  min-width: max-content;
+  min-width: 0;
+  max-width: 100%;
   gap: 7px;
 }
 
 .dsh-fnos-tree-node-label-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

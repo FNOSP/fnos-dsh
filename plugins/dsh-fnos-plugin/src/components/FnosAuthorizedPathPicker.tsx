@@ -10,7 +10,7 @@
  * 勾选即移除对应引用。差异只在承载形式（下拉 → 卡片宽浮层）与关闭出口。
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -46,16 +46,47 @@ const PANEL_TOP_MARGIN = 84
 /** 面板设计上限高度；运行时按上方可用空间再钳制。 */
 const PANEL_MAX_HEIGHT = 420
 
+/**
+ * 只在文本真的被省略时才挂气泡提示。
+ *
+ * 做法与上游 `ui-primitives/CommandText` 一致：量 `scrollWidth > clientWidth`，
+ * 并用 `ResizeObserver` 跟随面板宽度变化重测。名字放得下时不渲染 Tooltip，
+ * 避免「没截断也弹出提示」的噪音。
+ */
+function NodeLabelText({ text, fullPath }: { text: string, fullPath: string }) {
+  const textRef = useRef<HTMLSpanElement>(null)
+  const [truncated, setTruncated] = useState(false)
+
+  useLayoutEffect(() => {
+    const element = textRef.current
+    if (element === null) return undefined
+    const measure = (): void => { setTruncated(element.scrollWidth > element.clientWidth + 1) }
+    measure()
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure)
+    observer?.observe(element)
+    const fonts = 'fonts' in element.ownerDocument ? element.ownerDocument.fonts : undefined
+    fonts?.addEventListener('loadingdone', measure)
+    return () => {
+      observer?.disconnect()
+      fonts?.removeEventListener('loadingdone', measure)
+    }
+  }, [text])
+
+  const content = <span ref={textRef} className="dsh-fnos-tree-node-label-text">{text}</span>
+  return truncated
+    ? <Tooltip content={fullPath} showArrow mouseEnterDelay={0.5}>{content}</Tooltip>
+    : content
+}
+
 function nodeLabel(entry: AuthorizedEntry, showFullPath = false): ReactNode {
   const name = showFullPath ? entry.semanticPath : displayName(entry.semanticPath)
   const Icon = entry.kind === 'directory' ? IconFolder : IconFile
-  const content = (
+  return (
     <span className="dsh-fnos-tree-node-label">
       <Icon size="small" />
-      <span className="dsh-fnos-tree-node-label-text">{name}</span>
+      <NodeLabelText text={name} fullPath={entry.semanticPath} />
     </span>
   )
-  return <Tooltip content={entry.semanticPath} showArrow mouseEnterDelay={0.5}>{content}</Tooltip>
 }
 
 /** 取某个节点当前的子节点；用于把新建成功的条目并进已展开的那一层。 */

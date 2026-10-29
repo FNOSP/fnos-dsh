@@ -182,3 +182,34 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(PANEL).toContain("case 'fnos-create-read-only': return t('createDialogReadOnly')")
   })
 })
+
+describe('FNOS-034 气泡提示只在文本被省略时出现', () => {
+  it('用 scrollWidth/clientWidth 判断是否真的溢出', () => {
+    // 无条件包 Tooltip 会让「名字放得下」的行也弹提示，是实机反馈的问题。
+    expect(PANEL).toContain('element.scrollWidth > element.clientWidth')
+  })
+
+  it('未溢出时不渲染 Tooltip，溢出了才渲染', () => {
+    expect(PANEL).toMatch(/return truncated\s*\n?\s*\? <Tooltip/u)
+    expect(PANEL).toMatch(/:\s*content/u)
+  })
+
+  it('面板宽度变化后重新测量（ResizeObserver）', () => {
+    expect(PANEL).toContain('ResizeObserver')
+    expect(PANEL).toContain("observer?.observe(element)")
+  })
+
+  it('字体加载完成后重新测量，避免首帧误判', () => {
+    expect(PANEL).toContain("fonts?.addEventListener('loadingdone', measure)")
+  })
+
+  it('标签容器允许收缩，否则省略号永不出现、判断恒为假', () => {
+    const label = ruleBody('.dsh-fnos-tree-node-label', /display:\s*inline-flex;/u)
+    expect(label).toMatch(/min-width:\s*0;/u)
+    // `min-width: max-content` 会把文本撑到内容宽度，省略号永远不触发。
+    expect(label).not.toContain('min-width: max-content')
+    const text = ruleBody('.dsh-fnos-tree-node-label-text')
+    expect(text).toMatch(/text-overflow:\s*ellipsis;/u)
+    expect(text).toMatch(/min-width:\s*0;/u)
+  })
+})
