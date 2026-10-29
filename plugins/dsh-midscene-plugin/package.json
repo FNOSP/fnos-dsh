@@ -2,7 +2,7 @@
   "name": "@tnnevol/dsh-midscene",
   "displayName": "Midscene Bridge",
   "type": "module",
-  "version": "6.1.14",
+  "version": "6.1.15",
   "description": "Hosts a loopback OpenAI-compatible bridge that exposes every model configured in DSH (official routes, plugin routes, and user-declared providers) so Midscene browser automation can drive pages with natural language without holding any credential itself.",
   "author": "tnnevol",
   "license": "Apache-2.0",
