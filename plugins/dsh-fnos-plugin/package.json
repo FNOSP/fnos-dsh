@@ -2,7 +2,7 @@
   "name": "@tnnevol/dsh-fnos",
   "displayName": "fnos",
   "type": "module",
-  "version": "6.1.6",
+  "version": "6.1.7",
   "description": "fnOS-specific integrations for DeepSeek Harness.",
   "author": "tnnevol",
   "license": "Apache-2.0",
