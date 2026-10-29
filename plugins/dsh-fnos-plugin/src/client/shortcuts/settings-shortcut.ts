@@ -33,8 +33,9 @@ export function installFnosSettingsShortcut(): () => void {
    * `resolve` 会判断当前是否已经有设置弹层（有则关闭），自行调用会绕过那个
    * 状态机，出现「按一次开、再按一次关不掉」。
    *
-   * 补发时去掉 `altKey`，让事件命中 **Desktop 那组** `primary + Comma`——
-   * 用户按的就是这个组合，而 Web 那组要求 `alt`，语义上不该被凭空加上。
+   * 补发时**必须补上 `altKey`**：fnOS 里运行时是 Web，官方 `settings.open` 的
+   * 默认绑定是 `primary + alt + Comma`（只有 Desktop 才是 `primary + Comma`）。
+   * 不带 `alt` 补发出来的事件两组都命中不了，表现成「浏览器不再抢、设置也不开」。
    * `preventDefault` 已在原事件上做过，补发的事件不会再走浏览器默认行为。
    */
   /**
@@ -54,7 +55,7 @@ export function installFnosSettingsShortcut(): () => void {
       cancelable: true,
       ctrlKey: event.ctrlKey,
       metaKey: event.metaKey,
-      altKey: event.altKey,
+      altKey: true,
       shiftKey: event.shiftKey,
     })
     // 目标是当前焦点元素：DSH 的适配器按事件目标判断区域（page / editable / terminal）。

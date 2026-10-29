@@ -81,14 +81,21 @@ verifiedAt: 2026-10-29
 | TC-012 | 通过 | 2026-10-29 | `package-contract.spec.ts` 中 `event.preventDefault()` 与 `target.dispatchEvent(forwarded)` 两条断言 |
 | TC-013 | 通过 | 2026-10-29 | 同文件 `not.toContain('openSettingsDocument')`、`not.toContain('sidebarRight')` |
 | TC-014 | 通过 | 2026-10-29 | 同文件 `toContain('if (forwarding) return')` |
+| TC-015 | 通过 | 2026-10-29 | 同文件 `toContain('altKey: true')`；对应 BUG-01 |
 
-包级总量：39 个测试文件 / 367 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）。
+包级总量：39 个测试文件 / 368 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）。
 
 ### 待执行（真实 NAS）
 
 | ID | 结果 | 阻塞原因 |
 | --- | --- | --- |
 | TC-101 ~ TC-103 | 未执行 | 需先构建 FPK 并在真实 NAS 走应用中心安装，再在浏览器里按键 |
+
+## Bug 记录
+
+| ID | 现象 | 原因 | 修复 | 回归 |
+| --- | --- | --- | --- | --- |
+| BUG-01 | fnOS 应用内按 `Ctrl/Cmd + ,`，浏览器自身的设置不再弹出（说明拦截生效），但 DSH 设置弹框也不出现 | 官方 `settings.open` 的默认绑定按运行时区分：Desktop 是 `primary + Comma`，**Web 是 `primary + alt + Comma`**。fnOS 应用跑在 iframe 里、运行时为 Web，而补发事件沿用了用户实际按键、没带 `alt`，于是官方两组绑定都命中不了；原事件又已被 `stopPropagation`，表现就是「什么都不发生」 | 补发事件统一置 `altKey: true`，命中 Web 那组绑定；修饰键沿用用户实际按键，保证 macOS 用 `meta`、Windows 用 `control` 都能对上 `primary` | `package-contract.spec.ts` 增加 `altKey: true` 断言；`settings-shortcut.spec.ts` 的识别用例不变 |
 
 ## 未覆盖与后续验证
 

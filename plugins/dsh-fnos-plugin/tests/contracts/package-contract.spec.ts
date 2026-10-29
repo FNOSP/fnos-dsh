@@ -232,6 +232,8 @@ describe('dsh-fnos package contract', () => {
     const settingsShortcut = await readFile(new URL('../../src/client/shortcuts/settings-shortcut.ts', import.meta.url), 'utf8')
     expect(settingsShortcut).toContain('event.preventDefault()')
     expect(settingsShortcut).toContain('target.dispatchEvent(forwarded)')
+    // Web 运行时的默认绑定带 alt；补发必须补上，否则两组绑定都命中不了。
+    expect(settingsShortcut).toContain('altKey: true')
     // 不得直接调官方私有入口：那会绕过 settings.open 的状态机。
     expect(settingsShortcut).not.toContain('openSettingsDocument')
     expect(settingsShortcut).not.toContain('sidebarRight')
