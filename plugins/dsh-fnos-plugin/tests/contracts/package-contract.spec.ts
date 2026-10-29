@@ -219,14 +219,24 @@ describe('dsh-fnos package contract', () => {
     const refreshShortcutMatcher = await readFile(new URL('../../src/client/shortcuts/browser-refresh-shortcut-matcher.ts', import.meta.url), 'utf8')
     expect(refreshShortcutMatcher).toContain("event.key === 'F5'")
     expect(refreshShortcutMatcher).toContain("event.key.toLowerCase() === 'r'")
-    // DSH registers the settings shortcut itself (`settings.open`, Comma with the
-    // primary modifier on every platform) and additionally closes the settings
-    // shell, respects its regions and lets the user rebind it. A plugin-local
-    // listener would only shadow that command, so the plugin must not reinstate
-    // one. Keep this inverted guard so an edit cannot silently add it back.
-    expect(source).not.toContain('installFnosSettingsShortcut')
-    await expect(readFile(new URL('../../src/client/shortcuts/settings-shortcut.ts', import.meta.url), 'utf8'))
-      .rejects.toMatchObject({ code: 'ENOENT' })
+    // 设置快捷键的处理在 fnOS iframe 里必须**拦截浏览器默认行为并转发**，
+    // 而不是自己实现一份开面板逻辑。
+    //
+    // DSH 自己注册 `settings.open`（Comma + primary），并负责「已打开则关闭」、
+    // 区域判定与用户改键。插件若自建监听直接调开面板，只会遮蔽那条命令。
+    // 但浏览器会先把 `Ctrl/Cmd + ,` 当成自身的设置吃掉，DSH 收不到——所以插件
+    // 在 window 捕获阶段 preventDefault 后**重新派发**事件，让官方命令照常执行。
+    //
+    // 这条 guard 因此从「不得存在」改为「必须是转发、不得是自实现」。
+    expect(source).toContain('installFnosSettingsShortcut')
+    const settingsShortcut = await readFile(new URL('../../src/client/shortcuts/settings-shortcut.ts', import.meta.url), 'utf8')
+    expect(settingsShortcut).toContain('event.preventDefault()')
+    expect(settingsShortcut).toContain('target.dispatchEvent(forwarded)')
+    // 不得直接调官方私有入口：那会绕过 settings.open 的状态机。
+    expect(settingsShortcut).not.toContain('openSettingsDocument')
+    expect(settingsShortcut).not.toContain('sidebarRight')
+    // 补发事件必须有重入保护，否则会在自身监听上无限递归。
+    expect(settingsShortcut).toContain('if (forwarding) return')
   })
 
   it('keeps the cancel-authorization label stable while adding a directory', async () => {
