@@ -119,7 +119,7 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 
 | ID | 覆盖验收 | 步骤 | 预期 | 执行环境 |
 | --- | --- | --- | --- | --- |
-| TC-033 | FNOS-034-07-AC-01/03 | 断言承载方式 | 用 `Typography.Text` + `ellipsis={{ showTooltip: true, rows: 1 }}`，不手写宽度测量 | 包级 |
+| TC-033 | FNOS-034-07-AC-01/03 | 断言承载方式 | 用 `Typography.Text` + <code v-pre>ellipsis={{ showTooltip: true, rows: 1 }}</code>，不手写宽度测量 | 包级 |
 | TC-034 | FNOS-034-07-AC-03 | 断言不再自行判定 | 源码里没有 `scrollWidth >`、`ResizeObserver`、`loadingdone` | 包级 |
 | TC-035 | FNOS-034-07-AC-03 | 断言 children 为纯文本 | `Typography.Text` 内是 `{name}`（Semi 的 `ellipsis` 只支持 string） | 包级 |
 | TC-036 | FNOS-034-07-AC-01/02 | 断言标签样式 | 容器 `min-width: 0`（不撑开）；文本不自定义 `text-overflow`/`white-space`（交给 Typography） | 包级 |
