@@ -23,6 +23,8 @@ import {
   DshIconFolder as IconFolder,
   DshInput as Input,
   DshModal as Modal,
+  DshPopconfirm as Popconfirm,
+  DshToast as Toast,
   DshTree as Tree,
   DshTypography as Typography,
 } from '@tnnevol/dsh-semi-ui'
@@ -202,10 +204,6 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     x: number
     y: number
   } | undefined>()
-  // 删除确认弹框：待删条目。
-  const [deleteTarget, setDeleteTarget] = useState<{ path: string, semanticPath: string } | undefined>()
-  const [deleteError, setDeleteError] = useState<string | undefined>()
-  const [deleting, setDeleting] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const applyEntries = useCallback((result: AuthorizedEntriesResult, parent?: string) => {
@@ -331,7 +329,10 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   //
   // Modal 由 Semi portal 到 body，`panelRef.current.contains(target)`
   // 对它们恒为 false——弹框里点一下输入框或按钮，就会被判成「点了面板外部」，
-  // 连带把整个面板销毁。这两个浮层自己会处理外部关闭，面板在此期间应当让路。
+  // 连带把整个面板销毁。这些浮层自己会处理外部关闭，面板在此期间应当让路。
+  //
+  // **新增浮层时必须同步加进这里**：漏一个就会重现「弹框一打开、点一下就整个
+  // 面板消失」。删除确认曾漏过，症状与新建弹框那次完全相同。
   const floatingOpen = createTarget !== undefined || contextMenu !== undefined
 
   // 点击输入卡片之外收起。卡片内部（含面板自身与文本域）不关闭：用户点回
@@ -447,14 +448,27 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     setCreateTarget({ parent: target.path, kind })
   }, [contextMenu])
 
-  /** 从上下文菜单进入删除确认；菜单随即收起。 */
-  const requestDeleteFromContextMenu = useCallback(() => {
+  /**
+   * Popconfirm 确认后执行删除。
+   *
+   * 与旧 Modal 的差别只在于「确认」这一步由 Popconfirm 承担，删除本身与之后
+   * 的本地清理完全一致。
+   */
+  const confirmDeleteFromContextMenu = useCallback(async () => {
     const target = contextMenu
-    setContextMenu(undefined)
     if (target === undefined) return
-    setDeleteError(undefined)
-    setDeleteTarget({ path: target.path, semanticPath: target.semanticPath })
-  }, [contextMenu])
+    setContextMenu(undefined)
+    try {
+      await deleteAuthorizedEntry(target.path)
+      entries.current.delete(target.path)
+      setTreeData(current => removeNode(current, target.path))
+      setDesiredPaths(current => current?.filter(path => path !== target.path))
+      if (pendingInsertedOccurrences.current.size > 0) pendingRemovalPaths.current.add(target.path)
+    } catch (error: unknown) {
+      // 菜单已收起，用 toast 告知失败原因，不静默吞掉。
+      Toast.error({ content: deleteErrorMessage(error, t) })
+    }
+  }, [contextMenu, t])
 
   /** 提交新建：成功后把新条目并进当前层，避免整树重取导致已展开节点收起。 */
   const submitCreate = useCallback(async () => {
@@ -483,31 +497,11 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     }
   }, [createTarget, createName, creating, t])
 
-  /**
-   * 提交删除。
-   *
-   * 成功后把该条目从树里摘掉，并清掉它的勾选与已插入引用——否则界面上会留下
-   * 一个指向已删路径的引用，发出去只会让模型拿到一个不存在的路径。
-   */
-  const submitDelete = useCallback(async () => {
-    if (deleteTarget === undefined || deleting) return
-    setDeleting(true)
-    setDeleteError(undefined)
-    try {
-      await deleteAuthorizedEntry(deleteTarget.path)
-      const removed = deleteTarget.path
-      entries.current.delete(removed)
-      setTreeData(current => removeNode(current, removed))
-      setDeleteTarget(undefined)
-      // 已勾选的路径跟着失效；对应的引用由既有对账逻辑在下一轮移除。
-      setDesiredPaths(current => current?.filter(path => path !== removed))
-      if (pendingInsertedOccurrences.current.size > 0) pendingRemovalPaths.current.add(removed)
-    } catch (error: unknown) {
-      setDeleteError(deleteErrorMessage(error, t))
-    } finally {
-      setDeleting(false)
-    }
-  }, [deleteTarget, deleting, t])
+  /** Popconfirm 正文：说明删的是哪个条目，避免在树里认错行。 */
+  const deleteConfirmContent = t('deleteDialogBody').replace(
+    '{name}',
+    displayName(contextMenu?.semanticPath ?? ''),
+  )
 
   if (!open) return null
 
@@ -579,35 +573,33 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
               </button>
             </>
           )}
-          <button
-            type="button"
-            className="dsh-fnos-path-context-item is-danger"
-            role="menuitem"
-            onClick={() => { requestDeleteFromContextMenu() }}
+          {/*
+            删除用 Popconfirm 就地确认：比整块 Modal 轻，且不打断右键上下文。
+            它的弹层由 Semi 默认 portal 到 body，不受面板 backdrop-filter 的
+            包含块影响。
+          */}
+          <Popconfirm
+            title={t('deleteDialogTitle')}
+            content={deleteConfirmContent}
+            okText={t('deleteDialogConfirm')}
+            cancelText={t('createDialogCancel')}
+            okButtonProps={{ type: 'danger' }}
+            position="left"
+            onConfirm={() => { void confirmDeleteFromContextMenu() }}
+            onCancel={() => { setContextMenu(undefined) }}
           >
-            <IconDelete size="small" />
-            {t('deleteEntry')}
-          </button>
+            <button
+              type="button"
+              className="dsh-fnos-path-context-item is-danger"
+              role="menuitem"
+            >
+              <IconDelete size="small" />
+              {t('deleteEntry')}
+            </button>
+          </Popconfirm>
         </div>,
         document.body,
       )}
-      <Modal
-        title={t('deleteDialogTitle')}
-        visible={deleteTarget !== undefined}
-        onCancel={() => { setDeleteTarget(undefined) }}
-        onOk={() => { void submitDelete() }}
-        okText={t('deleteDialogConfirm')}
-        cancelText={t('createDialogCancel')}
-        confirmLoading={deleting}
-        okButtonProps={{ type: 'danger' }}
-        centered
-        width={420}
-      >
-        <p className="dsh-fnos-create-hint">
-          {t('deleteDialogBody').replace('{name}', displayName(deleteTarget?.semanticPath ?? ''))}
-        </p>
-        {deleteError === undefined ? null : <p className="dsh-fnos-create-error">{deleteError}</p>}
-      </Modal>
       <Modal
         title={createTarget?.kind === 'file' ? t('createDialogFileTitle') : t('createDialogTitle')}
         visible={createTarget !== undefined}

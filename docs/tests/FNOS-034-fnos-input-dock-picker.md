@@ -116,7 +116,7 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-039 | FNOS-034-06-AC-07 | 断言菜单收起条件 | 点击菜单外或 Esc 时 `setContextMenu(undefined)` | 包级 |
 | TC-040 | FNOS-034-08-AC-01 | 断言右键与菜单项可见性 | 文件也能右键；新建项只对目录显示 | 包级 |
 | TC-041 | FNOS-034-08-AC-02 | 断言菜单项图标 | 三个菜单项各带语义图标；删除项用 `is-danger` | 包级 |
-| TC-042 | FNOS-034-08-AC-03 | 断言删除确认 | 存在确认弹框与 `onOk` 提交；确认按钮为 danger | 包级 |
+| TC-042 | FNOS-034-08-AC-03 | 断言删除确认形态 | 用 Popconfirm 就地确认（不再弹 Modal）；确认按钮 danger | 包级 |
 | TC-043 | FNOS-034-08-AC-05 | 断言删除后的本地清理 | `removeNode`、`entries.delete`、勾选过滤 | 包级 |
 | TC-044 | FNOS-034-08-AC-04 | `parseDeleteRequest` 校验 | 绝对路径通过；相对/空/NUL 拒绝；`..` 规范化 | 包级 |
 | TC-120 | FNOS-034-08-AC-01/02 | 真实 NAS 右键文件与目录 | 文件菜单只有删除；目录有新建两项 + 删除；图标正常 | 真实 NAS |
@@ -124,6 +124,7 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-122 | FNOS-034-08-AC-04 | 真实 NAS 尝试删除授权根 | 提示根目录不可删除，条目仍在 | 真实 NAS |
 | TC-118 | FNOS-034-06-AC-07 | 真实 NAS 在树中段右键 | 菜单出现在光标附近（不是面板角落） | 真实 NAS |
 | TC-045 | FNOS-034-06-AC-08 | 断言菜单渲染位置 | 用 `createPortal` 挂到 `document.body`；面板规则含 `backdrop-filter` | 包级 |
+| TC-046 | FNOS-034-08-AC-06 | 断言浮层守卫覆盖所有 portal 浮层 | `floatingOpen` 含 `createTarget` 与 `contextMenu`；新增浮层漏加即失败 | 包级 |
 | TC-119 | FNOS-034-06-AC-07 | 真实 NAS 打开菜单后点面板其他位置 | 菜单收起，面板保持打开 | 真实 NAS |
 | TC-117 | FNOS-034-06-AC-06 | 真实 NAS 打开新建弹框后点击各处 | 面板保持打开；关闭弹框后面板仍在 | 真实 NAS |
 | TC-112 | FNOS-034-06-AC-01/03 | 真实 NAS 从右键菜单新建文件夹并填名 | 弹框可提交，新文件夹出现在该层，其它已展开节点保持展开 | 真实 NAS |
@@ -186,10 +187,11 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-037 | 通过 | 2026-10-29 | `input-picker-geometry.spec.ts`「弹层打开时不因点外部销毁整个面板」等三条 |
 | TC-038 | 通过 | 2026-10-29 | 同文件「菜单自绘并落在鼠标坐标上」「菜单落点被收进视口」 |
 | TC-045 | 通过 | 2026-10-29 | `input-picker-geometry.spec.ts`「菜单经 Portal 挂到 body」 |
+| TC-046 | 通过 | 2026-10-29 | 同文件「每个 portal 浮层的开关状态都纳入了 floatingOpen 守卫」 |
 | TC-039 | 通过 | 2026-10-29 | 同文件「点击菜单外或按 Esc 自动收起菜单」 |
 | TC-040 | 通过 | 2026-10-29 | `input-picker-geometry.spec.ts`「文件也能右键（可删除），新建项只对目录显示」 |
 | TC-041 | 通过 | 2026-10-29 | 同文件「菜单项带图标」「菜单含删除项，且用危险色区分」 |
-| TC-042 | 通过 | 2026-10-29 | 同文件「删除先确认，不会一下就删掉」 |
+| TC-042 | 通过 | 2026-10-29 | 同文件「删除用 Popconfirm 就地确认，不再弹整块 Modal」 |
 | TC-043 | 通过 | 2026-10-29 | 同文件「删除成功后把条目从树与勾选中摘掉」 |
 | TC-044 | 通过 | 2026-10-29 | `tests/host/authorized-create-request.spec.ts`「删除条目：请求体校验」5 条 |
 | TC-033 | 通过 | 2026-10-28 | `input-picker-geometry.spec.ts`「用 Semi Typography 的 ellipsis 承载省略与提示」 |
@@ -197,7 +199,7 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 | TC-035 | 通过 | 2026-10-28 | 同文件「ellipsis 的 children 必须是纯文本」 |
 | TC-036 | 通过 | 2026-10-28 | 同文件「容器允许收缩」「不自定义 text-overflow」 |
 
-包级总量：36 个测试文件 / 313 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
+包级总量：36 个测试文件 / 314 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
 
 ### 待执行（真实 NAS）
 
@@ -218,4 +220,4 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 
 ## 最终结论
 
-包级 47 条用例全部通过；**验收尚未完成**——浮层呈现、层级叠放、新建条目的真实落盘都需在真实 NAS 上按 TC-101 ~ TC-117 执行后回填。按仓库约定，本地 DSH Web 的观感不作为验收依据。
+包级 48 条用例全部通过；**验收尚未完成**——浮层呈现、层级叠放、新建条目的真实落盘都需在真实 NAS 上按 TC-101 ~ TC-117 执行后回填。按仓库约定，本地 DSH Web 的观感不作为验收依据。

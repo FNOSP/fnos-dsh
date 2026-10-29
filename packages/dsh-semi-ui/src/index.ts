@@ -20,6 +20,7 @@ export {
   DshSkeleton,
   DshToast,
   DshTooltip,
+  DshPopconfirm,
   DshPopover,
   DshScrollList,
   DshSelect,

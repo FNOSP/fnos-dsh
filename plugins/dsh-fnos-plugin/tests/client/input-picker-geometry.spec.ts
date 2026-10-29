@@ -115,9 +115,23 @@ describe('FNOS-034-03 浮层有三个收起出口', () => {
   })
 
   it('弹层打开时不因点外部销毁整个面板', () => {
-    // Modal 与 Dropdown 都由 Semi portal 到 body，`panelRef.contains(target)`
+    // Modal 与 Popconfirm 都由 Semi portal 到 body，`panelRef.contains(target)`
     // 对它们恒为 false——弹框里点一下就会被判成「点了面板外部」。
-    expect(PANEL).toContain('const floatingOpen = createTarget !== undefined || contextMenu !== undefined')
+    expect(PANEL).toMatch(/const floatingOpen = [\s\S]{0,160}createTarget !== undefined/u)
+    expect(PANEL).toMatch(/const floatingOpen = [\s\S]{0,160}contextMenu !== undefined/u)
+  })
+
+  it('每个 portal 浮层的开关状态都纳入了 floatingOpen 守卫', () => {
+    // 这条防的是「新增浮层却忘了加守卫」——删除 Modal 曾漏过一次，症状是
+    // 弹框一打开、点一下就整个面板消失。做法：找出所有作为浮层开关的 state，
+    // 要求每一个都出现在 floatingOpen 的表达式里。
+    const guard = /const floatingOpen =([\s\S]{0,240})/u.exec(PANEL)?.[1] ?? ''
+    expect(guard.length).toBeGreaterThan(0)
+    // 面板里所有 portal 浮层的开关状态（新建弹框、右键菜单）。
+    const floatingStates = ['createTarget', 'contextMenu']
+    for (const state of floatingStates) {
+      expect(guard).toContain(state)
+    }
   })
 
   it('两个全局关闭监听在弹层打开期间都不注册', () => {
@@ -233,24 +247,26 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
   })
 
   it('菜单含删除项，且用危险色区分', () => {
-    expect(PANEL).toContain('requestDeleteFromContextMenu')
+    expect(PANEL).toContain('confirmDeleteFromContextMenu')
     expect(ruleBody('.dsh-fnos-path-context-item')).toContain('&.is-danger')
     expect(ruleBody('.dsh-fnos-path-context-item')).toContain('dsw-alias-state-error-primary')
   })
 
-  it('删除先确认，不会一下就删掉', () => {
-    // 破坏性操作：必须经过确认弹框，确认后才调用宿主路由。
-    expect(PANEL).toContain('deleteDialogTitle')
-    expect(PANEL).toContain('deleteDialogBody')
-    expect(PANEL).toMatch(/onOk=\{\(\) => \{ void submitDelete\(\) \}\}/u)
-    expect(PANEL).toContain('okButtonProps={{ type: \'danger\' }}')
+  it('删除用 Popconfirm 就地确认，不再弹整块 Modal', () => {
+    // 破坏性操作必须确认；但用 Popconfirm 比 Modal 轻，且不打断右键上下文。
+    expect(PANEL).toContain('<Popconfirm')
+    expect(PANEL).toContain("okButtonProps={{ type: 'danger' }}")
+    expect(PANEL).toContain('onConfirm={() => { void confirmDeleteFromContextMenu() }}')
+    // 旧的删除 Modal 已移除：不应再有 submitDelete / deleteTarget。
+    expect(PANEL).not.toContain('submitDelete')
+    expect(PANEL).not.toContain('deleteTarget')
   })
 
   it('删除成功后把条目从树与勾选中摘掉', () => {
     // 否则会留下指向已删路径的引用，发出去模型只会拿到不存在的路径。
-    expect(PANEL).toContain('removeNode(current, removed)')
-    expect(PANEL).toContain('entries.current.delete(removed)')
-    expect(PANEL).toContain("current?.filter(path => path !== removed)")
+    expect(PANEL).toContain('removeNode(current, target.path)')
+    expect(PANEL).toContain('entries.current.delete(target.path)')
+    expect(PANEL).toContain("current?.filter(path => path !== target.path)")
   })
 
   it('菜单含新建文件夹与新建文件两项', () => {
