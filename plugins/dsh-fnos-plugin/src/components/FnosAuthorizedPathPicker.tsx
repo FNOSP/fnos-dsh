@@ -17,6 +17,7 @@ import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots
 import { useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   DshIconClose as IconClose,
+  DshIconDelete as IconDelete,
   DshIconFile as IconFile,
   DshIconFolder as IconFolder,
   DshInput as Input,
@@ -24,7 +25,7 @@ import {
   DshTree as Tree,
   DshTypography as Typography,
 } from '@tnnevol/dsh-semi-ui'
-import { createAuthorizedEntry, requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
+import { createAuthorizedEntry, deleteAuthorizedEntry, requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
 import { planFnosOccurrenceRemovals, reconcileFnosOperationOccurrences, type PendingFnosOccurrence, type TrackedFnosOccurrence } from '../client/input-references/input-reference-operation.ts'
 import { displayName, selectedPaths, toTreeNode, updateChildren, type PickerTreeNode } from '../client/input-references/picker-tree.ts'
@@ -87,6 +88,41 @@ function nodeLabel(entry: AuthorizedEntry, showFullPath = false): ReactNode {
     </span>
   )
 }
+
+/** 从树里摘掉一个节点（含其子树），返回新数组。 */
+function removeNode(nodes: readonly PickerTreeNode[], key: string): PickerTreeNode[] {
+  return nodes.flatMap(node => {
+    if (node.key === key) return []
+    if (node.children === undefined) return [node]
+    return [{ ...node, children: removeNode(node.children, key) }]
+  })
+}
+
+/** 把删除失败的错误码翻成用户能照着处理的文案。 */
+function deleteErrorMessage(error: unknown, t: (key: FnosDeleteLocaleKey) => string): string {
+  const code = error instanceof Error ? error.message : ''
+  switch (code) {
+    case 'fnos-delete-root-forbidden': return t('deleteDialogRootForbidden')
+    case 'fnos-delete-permission-denied':
+    case 'fnos-path-not-authorized':
+      return t('deleteDialogDenied')
+    case 'fnos-delete-read-only': return t('deleteDialogReadOnly')
+    case 'fnos-delete-busy':
+    case 'fnos-delete-not-empty':
+      return t('deleteDialogBusy')
+    case 'fnos-entry-not-found': return t('deleteDialogNotFound')
+    default: return t('deleteDialogFailed')
+  }
+}
+
+/** 删除弹框会用到的文案键。 */
+type FnosDeleteLocaleKey =
+  | 'deleteDialogRootForbidden'
+  | 'deleteDialogDenied'
+  | 'deleteDialogReadOnly'
+  | 'deleteDialogBusy'
+  | 'deleteDialogNotFound'
+  | 'deleteDialogFailed'
 
 /** 取某个节点当前的子节点；用于把新建成功的条目并进已展开的那一层。 */
 function findChildren(nodes: readonly PickerTreeNode[], key: string): PickerTreeNode[] | undefined {
@@ -157,8 +193,18 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   const [createName, setCreateName] = useState('')
   const [createError, setCreateError] = useState<string | undefined>()
   const [creating, setCreating] = useState(false)
-  // 右键上下文菜单：命中的目录与鼠标坐标（菜单定位）。
-  const [contextMenu, setContextMenu] = useState<{ parent: string, x: number, y: number } | undefined>()
+  // 右键上下文菜单：命中的条目与鼠标坐标（菜单定位）。
+  const [contextMenu, setContextMenu] = useState<{
+    path: string
+    semanticPath: string
+    kind: AuthorizedCreateKind
+    x: number
+    y: number
+  } | undefined>()
+  // 删除确认弹框：待删条目。
+  const [deleteTarget, setDeleteTarget] = useState<{ path: string, semanticPath: string } | undefined>()
+  const [deleteError, setDeleteError] = useState<string | undefined>()
+  const [deleting, setDeleting] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const applyEntries = useCallback((result: AuthorizedEntriesResult, parent?: string) => {
@@ -344,16 +390,26 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
    * `getBoundingClientRect` 与容器坐标系，喂一个零尺寸锚点会被算到面板角落；
    * 而 `trigger="custom"` 下它也不注册任何外部点击关闭。这两件事都要自己接管。
    */
+  /**
+   * 右键命中一个条目：在鼠标位置弹出上下文菜单。
+   *
+   * 菜单项按条目类型区分：目录可新建与删除，文件只能删除（文件下无法再建
+   * 条目）。删除对两者都开放，因此文件也能右键。
+   *
+   * 菜单自己画、不用 Semi `Dropdown`：它的定位依赖锚点元素的
+   * `getBoundingClientRect` 与容器坐标系，喂一个零尺寸锚点会被算到面板角落；
+   * 而 `trigger="custom"` 下它也不注册任何外部点击关闭。这两件事都要自己接管。
+   */
   const handleContextMenu = useCallback((event: { preventDefault: () => void, clientX?: number, clientY?: number }, node: unknown) => {
     const key = typeof node === 'object' && node !== null && 'key' in node && typeof node.key === 'string'
       ? node.key
       : undefined
     if (key === undefined) return
     const entry = entries.current.get(key)
-    if (entry !== undefined && entry.kind !== 'directory') return
+    if (entry === undefined) return
     event.preventDefault()
     const position = clampMenuPosition(event.clientX ?? 0, event.clientY ?? 0)
-    setContextMenu({ parent: key, x: position.x, y: position.y })
+    setContextMenu({ path: entry.path, semanticPath: entry.semanticPath, kind: entry.kind, x: position.x, y: position.y })
   }, [])
 
   // 菜单打开期间：点击菜单之外或按 Esc 收起（与系统右键菜单一致）。
@@ -383,7 +439,16 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     if (target === undefined) return
     setCreateError(undefined)
     setCreateName('')
-    setCreateTarget({ parent: target.parent, kind })
+    setCreateTarget({ parent: target.path, kind })
+  }, [contextMenu])
+
+  /** 从上下文菜单进入删除确认；菜单随即收起。 */
+  const requestDeleteFromContextMenu = useCallback(() => {
+    const target = contextMenu
+    setContextMenu(undefined)
+    if (target === undefined) return
+    setDeleteError(undefined)
+    setDeleteTarget({ path: target.path, semanticPath: target.semanticPath })
   }, [contextMenu])
 
   /** 提交新建：成功后把新条目并进当前层，避免整树重取导致已展开节点收起。 */
@@ -412,6 +477,32 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       setCreating(false)
     }
   }, [createTarget, createName, creating, t])
+
+  /**
+   * 提交删除。
+   *
+   * 成功后把该条目从树里摘掉，并清掉它的勾选与已插入引用——否则界面上会留下
+   * 一个指向已删路径的引用，发出去只会让模型拿到一个不存在的路径。
+   */
+  const submitDelete = useCallback(async () => {
+    if (deleteTarget === undefined || deleting) return
+    setDeleting(true)
+    setDeleteError(undefined)
+    try {
+      await deleteAuthorizedEntry(deleteTarget.path)
+      const removed = deleteTarget.path
+      entries.current.delete(removed)
+      setTreeData(current => removeNode(current, removed))
+      setDeleteTarget(undefined)
+      // 已勾选的路径跟着失效；对应的引用由既有对账逻辑在下一轮移除。
+      setDesiredPaths(current => current?.filter(path => path !== removed))
+      if (pendingInsertedOccurrences.current.size > 0) pendingRemovalPaths.current.add(removed)
+    } catch (error: unknown) {
+      setDeleteError(deleteErrorMessage(error, t))
+    } finally {
+      setDeleting(false)
+    }
+  }, [deleteTarget, deleting, t])
 
   if (!open) return null
 
@@ -461,24 +552,56 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
           role="menu"
           aria-label={t('createFolder')}
         >
+          {contextMenu.kind !== 'directory' ? null : (
+            <>
+              <button
+                type="button"
+                className="dsh-fnos-path-context-item"
+                role="menuitem"
+                onClick={() => { createFromContextMenu('directory') }}
+              >
+                <IconFolder size="small" />
+                {t('createFolder')}
+              </button>
+              <button
+                type="button"
+                className="dsh-fnos-path-context-item"
+                role="menuitem"
+                onClick={() => { createFromContextMenu('file') }}
+              >
+                <IconFile size="small" />
+                {t('createFile')}
+              </button>
+            </>
+          )}
           <button
             type="button"
-            className="dsh-fnos-path-context-item"
+            className="dsh-fnos-path-context-item is-danger"
             role="menuitem"
-            onClick={() => { createFromContextMenu('directory') }}
+            onClick={() => { requestDeleteFromContextMenu() }}
           >
-            {t('createFolder')}
-          </button>
-          <button
-            type="button"
-            className="dsh-fnos-path-context-item"
-            role="menuitem"
-            onClick={() => { createFromContextMenu('file') }}
-          >
-            {t('createFile')}
+            <IconDelete size="small" />
+            {t('deleteEntry')}
           </button>
         </div>
       )}
+      <Modal
+        title={t('deleteDialogTitle')}
+        visible={deleteTarget !== undefined}
+        onCancel={() => { setDeleteTarget(undefined) }}
+        onOk={() => { void submitDelete() }}
+        okText={t('deleteDialogConfirm')}
+        cancelText={t('createDialogCancel')}
+        confirmLoading={deleting}
+        okButtonProps={{ type: 'danger' }}
+        centered
+        width={420}
+      >
+        <p className="dsh-fnos-create-hint">
+          {t('deleteDialogBody').replace('{name}', displayName(deleteTarget?.semanticPath ?? ''))}
+        </p>
+        {deleteError === undefined ? null : <p className="dsh-fnos-create-error">{deleteError}</p>}
+      </Modal>
       <Modal
         title={createTarget?.kind === 'file' ? t('createDialogFileTitle') : t('createDialogTitle')}
         visible={createTarget !== undefined}

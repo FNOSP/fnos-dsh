@@ -48,6 +48,22 @@ export interface AuthorizedCreateResponse {
   entry: AuthorizedEntry
 }
 
+/**
+ * Same-origin route that deletes one entry (file or folder) inside an
+ * already-authorized directory.
+ *
+ * 与新建同属「在已授权目录内改动条目」，因此复用同一套授权校验。区别在于这是
+ * **破坏性**操作：只允许删除范围内的条目，且授权根本身不可删——否则用户一次
+ * 误操作就可能把应用自己的数据目录删掉。
+ */
+export const FNOS_AUTHORIZED_DELETE_ENTRY_PATH = '/plugins/dsh-fnos/authorized-directories/delete-entry'
+
+/** Request body of the delete-entry route. */
+export interface AuthorizedDeleteRequest {
+  /** Absolute path of the entry to remove. */
+  path: string
+}
+
 export interface AuthorizedDirectory {
   /** Internal fnOS path used by the Host side when removing the ACL. */
   path: string

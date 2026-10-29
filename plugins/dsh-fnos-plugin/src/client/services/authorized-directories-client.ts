@@ -2,6 +2,7 @@
 
 import {
   FNOS_AUTHORIZED_CREATE_PATH,
+  FNOS_AUTHORIZED_DELETE_ENTRY_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH,
   FNOS_AUTHORIZED_ENTRIES_PATH,
@@ -169,6 +170,26 @@ export async function createAuthorizedEntry(
   const semanticPath = typeof record.semanticPath === 'string' ? record.semanticPath : path
   if (path.length === 0 || semanticPath.length === 0) throw new DirectoryRequestError('invalid-create-response')
   return { path, semanticPath, kind }
+}
+
+/**
+ * 删除授权目录内的一个条目。
+ *
+ * 与新建对称：只把宿主返回的错误码原样抛给 UI，由弹框翻成可操作的原因。
+ */
+export async function deleteAuthorizedEntry(path: string): Promise<void> {
+  const response = await fetch(FNOS_AUTHORIZED_DELETE_ENTRY_PATH, {
+    method: 'POST',
+    headers: { ...requestHeaders(), 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ path }),
+  })
+  if (response.ok) return
+  const value: unknown = await response.json().catch(() => undefined)
+  const code = typeof value === 'object' && value !== null && 'error' in value && typeof value.error === 'string'
+    ? value.error
+    : `HTTP ${response.status}`
+  throw new DirectoryRequestError(code)
 }
 
 export function readablePathsFromResponse(value: ReadablePathsResponse): ReadablePath[] {

@@ -180,10 +180,10 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
 
   it('右键先弹上下文菜单，不直接开新建弹框', () => {
     expect(PANEL).toContain('onContextMenu={handleContextMenu}')
-    // 右键只记录坐标与目标目录；弹框由菜单项触发（createFromContextMenu）。
-    expect(PANEL).toContain('setContextMenu({ parent: key')
-    expect(PANEL).toMatch(/handleContextMenu[\s\S]{0,600}setContextMenu/u)
-    expect(PANEL).not.toMatch(/handleContextMenu[\s\S]{0,600}setCreateTarget/u)
+    // 右键只记录目标条目与坐标；弹框由菜单项触发（createFromContextMenu）。
+    expect(PANEL).toContain('setContextMenu({ path: entry.path')
+    expect(PANEL).toMatch(/handleContextMenu[\s\S]{0,700}setContextMenu/u)
+    expect(PANEL).not.toMatch(/handleContextMenu[\s\S]{0,700}setCreateTarget/u)
     expect(PANEL).toContain('createFromContextMenu')
   })
 
@@ -209,8 +209,38 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(PANEL).toContain("document.addEventListener('pointerdown', onPointerDown, true)")
   })
 
-  it('命中文件不弹菜单（文件下无法再建条目）', () => {
-    expect(PANEL).toContain("if (entry !== undefined && entry.kind !== 'directory') return")
+  it('文件也能右键（可删除），新建项只对目录显示', () => {
+    // 删除对文件和目录都开放，因此右键不再按类型拦截。
+    expect(PANEL).not.toContain("if (entry !== undefined && entry.kind !== 'directory') return")
+    expect(PANEL).toContain("contextMenu.kind !== 'directory' ? null :")
+  })
+
+  it('菜单项带图标', () => {
+    // 用户要求列表显示图标；三个菜单项各配一个语义图标。
+    expect(PANEL).toMatch(/<IconFolder size="small" \/>\s*\{t\('createFolder'\)\}/u)
+    expect(PANEL).toMatch(/<IconFile size="small" \/>\s*\{t\('createFile'\)\}/u)
+    expect(PANEL).toMatch(/<IconDelete size="small" \/>\s*\{t\('deleteEntry'\)\}/u)
+  })
+
+  it('菜单含删除项，且用危险色区分', () => {
+    expect(PANEL).toContain('requestDeleteFromContextMenu')
+    expect(ruleBody('.dsh-fnos-path-context-item')).toContain('&.is-danger')
+    expect(ruleBody('.dsh-fnos-path-context-item')).toContain('dsw-alias-state-error-primary')
+  })
+
+  it('删除先确认，不会一下就删掉', () => {
+    // 破坏性操作：必须经过确认弹框，确认后才调用宿主路由。
+    expect(PANEL).toContain('deleteDialogTitle')
+    expect(PANEL).toContain('deleteDialogBody')
+    expect(PANEL).toMatch(/onOk=\{\(\) => \{ void submitDelete\(\) \}\}/u)
+    expect(PANEL).toContain('okButtonProps={{ type: \'danger\' }}')
+  })
+
+  it('删除成功后把条目从树与勾选中摘掉', () => {
+    // 否则会留下指向已删路径的引用，发出去模型只会拿到不存在的路径。
+    expect(PANEL).toContain('removeNode(current, removed)')
+    expect(PANEL).toContain('entries.current.delete(removed)')
+    expect(PANEL).toContain("current?.filter(path => path !== removed)")
   })
 
   it('菜单含新建文件夹与新建文件两项', () => {

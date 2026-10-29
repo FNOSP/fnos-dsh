@@ -112,6 +112,7 @@ export { default as DshIconHelpCircleStroked } from '@douyinfe/semi-icons/lib/es
 export { default as DshIconInfoCircle } from '@douyinfe/semi-icons/lib/es/icons/IconInfoCircle.js'
 export { default as DshIconList } from '@douyinfe/semi-icons/lib/es/icons/IconList.js'
 export { default as DshIconMoon } from '@douyinfe/semi-icons/lib/es/icons/IconMoon.js'
+export { default as DshIconDelete } from '@douyinfe/semi-icons/lib/es/icons/IconDelete.js'
 export { default as DshIconModalStroked } from '@douyinfe/semi-icons/lib/es/icons/IconModalStroked.js'
 export { default as DshIconMore } from '@douyinfe/semi-icons/lib/es/icons/IconMore.js'
 export { default as DshIconPlus } from '@douyinfe/semi-icons/lib/es/icons/IconPlus.js'

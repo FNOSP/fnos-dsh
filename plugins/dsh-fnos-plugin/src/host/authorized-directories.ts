@@ -2,7 +2,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { constants as fsConstants, createWriteStream, type Stats } from 'node:fs'
-import { access, mkdir, readdir, realpath, stat, unlink, writeFile } from 'node:fs/promises'
+import { access, mkdir, readdir, realpath, rm, stat, unlink, writeFile } from 'node:fs/promises'
 import { posix } from 'node:path'
 import { Writable } from 'node:stream'
 import type { Context } from '@deepseek-ai/cordis'
@@ -10,6 +10,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import { callFnOsApi, FnOsApiError } from '../api/fnos-api.ts'
 import {
   FNOS_AUTHORIZED_CREATE_PATH,
+  FNOS_AUTHORIZED_DELETE_ENTRY_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH,
   FNOS_AUTHORIZED_ENTRIES_PATH,
@@ -18,6 +19,7 @@ import {
   FNOS_PATH_OPEN_VALIDATION_PATH,
   type AuthorizedCreateRequest,
   type AuthorizedCreateResponse,
+  type AuthorizedDeleteRequest,
   type AuthorizedDirectory,
   type AuthorizedEntry,
   type AuthorizedEntriesResponse,
@@ -880,6 +882,18 @@ export function parseCreateRequest(value: unknown): AuthorizedCreateRequest | nu
   return { parent, name, kind }
 }
 
+/**
+ * 校验「删除条目」的请求体。
+ *
+ * 只接受绝对路径；真正的边界判定交给路由里的授权校验。这里不猜路径含义，
+ * 避免把「相对路径」这类输入误当成合法目标。
+ */
+export function parseDeleteRequest(value: unknown): AuthorizedDeleteRequest | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  const path = normalizePathForAuthorization((value as Record<string, unknown>).path)
+  return path === undefined ? null : { path }
+}
+
 async function resolvedAuthorizedRoots(): Promise<string[]> {
   let roots: string[]
   try {
@@ -1343,6 +1357,49 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context, options: { setti
               kind: request.kind,
             }
             json(res, 200, { entry } satisfies AuthorizedCreateResponse)
+          } catch (error: unknown) {
+            errorResponse(res, error)
+          }
+        },
+      }),
+      /**
+       * 删除授权目录内的一个条目（FNOS-034）。
+       *
+       * 破坏性操作，但边界与读取、新建一致：目标必须落在授权根内。额外加一条
+       * **硬约束**：授权根本身不允许删除——用户删掉根等于把应用的数据目录整个
+       * 抹掉，那不该由这个面板触发。
+       */
+      register({
+        kind: 'exact',
+        path: FNOS_AUTHORIZED_DELETE_ENTRY_PATH,
+        handler: async (req, res) => {
+          if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
+          if (!authorize(req, res)) return
+          try {
+            const request = parseDeleteRequest(await readJsonBody(req))
+            if (request === null) return json(res, 400, { error: 'invalid-fnos-delete-request' })
+            const roots = await resolvedAuthorizedRoots()
+            if (!isPathWithinAuthorizedDirectory(request.path, roots)) {
+              return json(res, 403, { error: 'fnos-path-not-authorized' })
+            }
+            // 授权根本身不可删：比对规范化后的根集合，避免用 `..` 或尾斜杠绕过。
+            if (roots.some(root => normalizePathForAuthorization(root) === request.path)) {
+              return json(res, 403, { error: 'fnos-delete-root-forbidden' })
+            }
+            const entryStat = await stat(request.path).catch(() => undefined)
+            if (entryStat === undefined) return json(res, 404, { error: 'fnos-entry-not-found' })
+            try {
+              // 目录递归删除；文件只需 unlink 语义，`recursive` 对文件同样成立。
+              await rm(request.path, { recursive: entryStat.isDirectory(), force: false })
+            } catch (error: unknown) {
+              const code = (error as { code?: unknown }).code
+              if (code === 'EACCES' || code === 'EPERM') return json(res, 403, { error: 'fnos-delete-permission-denied' })
+              if (code === 'ENOTEMPTY') return json(res, 409, { error: 'fnos-delete-not-empty' })
+              if (code === 'EROFS') return json(res, 403, { error: 'fnos-delete-read-only' })
+              if (code === 'EBUSY') return json(res, 409, { error: 'fnos-delete-busy' })
+              throw error
+            }
+            json(res, 200, { ok: true })
           } catch (error: unknown) {
             errorResponse(res, error)
           }

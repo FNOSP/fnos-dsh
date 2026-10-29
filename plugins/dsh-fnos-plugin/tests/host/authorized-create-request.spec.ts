@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseCreateRequest } from '../../src/host/authorized-directories.ts'
+import { parseCreateRequest, parseDeleteRequest } from '../../src/host/authorized-directories.ts'
 
 /**
  * FNOS-034：面板右键新建条目的请求体校验。
@@ -91,5 +91,33 @@ describe('FNOS-034 新建条目：名称校验', () => {
     for (const name of ['第 1 季', 'v1.2.3', 'a-b_c', '.hidden']) {
       expect(create(name)).not.toBeNull()
     }
+  })
+})
+
+describe('FNOS-034 删除条目：请求体校验', () => {
+  it('接受绝对路径', () => {
+    expect(parseDeleteRequest({ path: '/vol1/media/a.mkv' })).toEqual({ path: '/vol1/media/a.mkv' })
+  })
+
+  it('拒绝相对路径与空值', () => {
+    for (const value of [{ path: 'vol1/media' }, { path: '' }, { path: 42 }]) {
+      expect(parseDeleteRequest(value)).toBeNull()
+    }
+  })
+
+  it('非对象请求体一律拒绝', () => {
+    for (const value of [null, undefined, 'x', 42, []]) {
+      expect(parseDeleteRequest(value)).toBeNull()
+    }
+  })
+
+  it('路径里的 .. 会被规范化', () => {
+    // 规范化后仍是绝对路径；真正的授权根比对在路由里做。
+    expect(parseDeleteRequest({ path: '/vol1/media/../media/a.mkv' }))
+      .toEqual({ path: '/vol1/media/a.mkv' })
+  })
+
+  it('拒绝含 NUL 的路径', () => {
+    expect(parseDeleteRequest({ path: '/vol1/a\u0000b' })).toBeNull()
   })
 })

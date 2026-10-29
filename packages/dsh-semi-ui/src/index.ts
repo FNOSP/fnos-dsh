@@ -53,6 +53,7 @@ export {
   DshIconCommand,
   DshIconCopy,
   DshIconExternalOpen,
+  DshIconDelete,
   DshIconDownload,
   DshIconEdit,
   DshIconElementStroked,

@@ -457,6 +457,7 @@ img.dsh-fnos-file-manager-icon {
 .dsh-fnos-path-context-item {
   display: flex;
   align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 6px 8px;
   border: 0;
@@ -476,6 +477,16 @@ img.dsh-fnos-file-manager-icon {
   &:focus-visible {
     outline: 2px solid var(--dsw-alias-state-business-primary);
     outline-offset: -2px;
+  }
+
+  /* 删除是破坏性操作：用错误色与其它项拉开，降低误点概率。 */
+  &.is-danger {
+    color: var(--dsw-alias-state-error-primary);
+
+    &:hover {
+      background: var(--dsw-alias-state-error-primary);
+      color: var(--dsw-static-neutral-bluish-00);
+    }
   }
 }
 
