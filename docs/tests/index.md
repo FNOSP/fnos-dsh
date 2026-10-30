@@ -45,5 +45,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-034 | [fnOS 授权目录选择器改为输入卡片宽浮层](/tests/FNOS-034-fnos-input-dock-picker) | [PLAN-FNOS-034](/plans/PLAN-FNOS-034-fnos-input-dock-picker) | 通过 | 52 条用例：包级 36 条全过（369 条测试全绿，含层级、去搜索、新建条目校验、气泡省略判定、取消静默）；真机 2026-10-30 在真实 NAS 验收通过（6.1.15，提出人确认） |
 | FNOS-035 | [fnOS iframe 内拦截浏览器快捷键](/tests/FNOS-035-browser-shortcut-interception) | [PLAN-FNOS-035](/plans/PLAN-FNOS-035-browser-shortcut-interception) | 通过 | 11 条用例：包级 11 条全过（369 条测试全绿；含识别边界、只转发不自实现、重入保护）；真机 2026-10-30 在真实 NAS 验收通过（6.1.15，提出人确认） |
 | FNOS-036 | [DSH 0.2.1-rc.5 插件适配与基线迁移](/tests/FNOS-036-dsh-021-rc5-adaptation) | [PLAN-FNOS-036](/plans/PLAN-FNOS-036-dsh-021-rc5-adaptation) | 部分通过 | 23 条用例：11 通过 / 8 部分通过 / 1 不适用 / 3 待执行。包级与构建链路全过（catalog 三处 348 条同步、0 残留、门禁变异、29 个 turbo 任务全绿含七插件 1366 条单测）；**双客户端已验**——DSH Web 运行时 `0.2.1-rc.5`（80 入口）、开发态 Desktop `0.2.1-rc.5-b830ec9`（78 入口），六个在范围内插件均加载且插件管理页无异常（唯一「异常」为范围外 CodeBuddy）；代表功能逐项走查、主题切换与 FPK 真机待补 |
+| FNOS-037 | [本地构建 FPK 改名定位到错误产物](/tests/FNOS-037-local-fpk-rename-source) | [PLAN-FNOS-037](/plans/PLAN-FNOS-037-local-fpk-rename-source) | 通过 | 7 条用例全过：包级 6 条（含变异验证——缺陷版 3 条变红、还原后全绿）+ 实跑构建 1 条；构建后目录只剩一份产物，包内 `manifest` 为 7.0.0 / rc.5，原先错配文件被覆盖 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

@@ -12,12 +12,16 @@ import { describe, expect, it } from 'vitest'
  * 这个测试钉住两边**同名同格式**：只要有一侧改了模板，这里就红。
  * 它断言的是「同一套占位符与分隔符」，不是某个具体版本号——版本每次发布都会变，
  * 把版本写死会让测试与它保护的产线一起过期。
+ *
+ * 命名模板自 FNOS-037 起由 `core/fpk-artifacts.ts` 的 `fpkReleaseFileName` 提供
+ * （原先内联在 `build.ts`），本测试随之改读该模块。
  */
 
 const BUILD = await readFile(new URL('../src/commands/build.ts', import.meta.url), 'utf8')
+const ARTIFACTS = await readFile(new URL('../src/core/fpk-artifacts.ts', import.meta.url), 'utf8')
 const WORKFLOW = await readFile(new URL('../../../.github/workflows/build-app.yml', import.meta.url), 'utf8')
 
-/** 从 `VERSIONED_FPK=` / `versioned = ` 赋值里取出模板字面量。 */
+/** 从 `VERSIONED_FPK=` / `return ` 赋值里取出模板字面量。 */
 function templateOf(source: string, pattern: RegExp): string {
   const match = pattern.exec(source)
   if (match?.[1] === undefined) throw new Error(`找不到命名模板：${String(pattern)}`)
@@ -26,7 +30,7 @@ function templateOf(source: string, pattern: RegExp): string {
 
 describe('FPK 产物命名与 CI workflow 一致', () => {
   const workflowTemplate = templateOf(WORKFLOW, /VERSIONED_FPK="([^"]+)"/u)
-  const buildTemplate = templateOf(BUILD, /const versioned = `([^`]+)`/u)
+  const buildTemplate = templateOf(ARTIFACTS, /return `([^`]*\.fpk)`/u)
 
   it('workflow 侧读的是 catalog 基线，而不是写死版本', () => {
     expect(WORKFLOW).toContain('DSH_BASELINE="$(sed -nE')
@@ -35,22 +39,22 @@ describe('FPK 产物命名与 CI workflow 一致', () => {
 
   it('本地构建侧同样从 catalog 读基线', () => {
     expect(BUILD).toContain('requireDshBaseline()')
-    expect(BUILD).not.toMatch(/const DSL_BASELINE|DSH_BASELINE\s*=\s*'0\./u)
+    expect(ARTIFACTS).not.toMatch(/DSH_BASELINE\s*=\s*'0\./u)
   })
 
   it('两侧的占位符与分隔符完全一致', () => {
-    // workflow 用 shell 的 VAR 插值，build.ts 用模板字符串插值；先把两边各自
-    // 的插值语法归一成同一个占位符，再比较「形状」是否一致。
-    // 应用名一侧写死、一侧用 `${app.name}`：都归一成 <app> 才能比较。
+    // workflow 用 shell 的 VAR 插值，创建模板时用 JS 模板字符串插值；先把两边
+    // 各自的插值语法归一成同一个占位符，再比较「形状」是否一致。
+    // 应用名在 workflow 侧写死、本地侧用 `${appName}`：都归一成同一个名字才能比较。
     const open = '$' + '{'
     const close = '}'
     const slot = (name: string): string => open + name + close
     const normalize = (value: string): string => value
       .replaceAll(slot('RELEASE_TAG'), '<tag>')
-      .replaceAll(slot('await resolveReleaseTag()'), '<tag>')
+      .replaceAll(slot('releaseTag'), '<tag>')
       .replaceAll(slot('DSH_BASELINE'), '<baseline>')
-      .replaceAll(slot('requireDshBaseline()'), '<baseline>')
-      .replaceAll(slot('app.name'), 'fn-deepseek-harness')
+      .replaceAll(slot('baseline'), '<baseline>')
+      .replaceAll(slot('appName'), 'fn-deepseek-harness')
     expect(normalize(buildTemplate)).toBe(normalize(workflowTemplate))
   })
 
@@ -71,5 +75,12 @@ describe('FPK 产物命名与 CI workflow 一致', () => {
     expect(BUILD).toMatch(/return `v\$\{version\}`/u)
     expect(BUILD).toContain('git')
     expect(BUILD).toContain('--exact-match')
+  })
+
+  it('源文件按 fnpack 固定名取，不扫目录里第一个 .fpk', () => {
+    // FNOS-037 的真实缺陷：残留的版本化产物会排在前面被选中，于是旧包被改成
+    // 新名字、新包留在原名，产物名字与内容对不上且不报错。
+    expect(ARTIFACTS).toMatch(/const from = `\$\{appName\}\.fpk`/u)
+    expect(BUILD).not.toMatch(/readdir\(appDir\)\)\.find\(entry => entry\.endsWith\('\.fpk'\)\)/u)
   })
 })

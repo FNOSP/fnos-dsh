@@ -383,6 +383,10 @@ const requirementsSidebar = [
         text: 'FNOS-036 DSH 0.2.1-rc.5 插件适配与基线迁移',
         link: '/requirements/FNOS-036-dsh-021-rc5-adaptation'
       },
+      {
+        text: 'FNOS-037 本地构建 FPK 改名定位到错误产物',
+        link: '/requirements/FNOS-037-local-fpk-rename-source'
+      },
       ]
   }
 ]
@@ -536,6 +540,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-036 DSH 0.2.1-rc.5 插件适配与基线迁移',
         link: '/plans/PLAN-FNOS-036-dsh-021-rc5-adaptation'
       },
+      {
+        text: 'PLAN-FNOS-037 本地构建 FPK 改名定位到错误产物',
+        link: '/plans/PLAN-FNOS-037-local-fpk-rename-source'
+      },
     ]
   }
 ]
@@ -657,6 +665,10 @@ const testsSidebar = [
       {
         text: 'FNOS-036 DSH 0.2.1-rc.5 插件适配与基线迁移',
         link: '/tests/FNOS-036-dsh-021-rc5-adaptation'
+      },
+      {
+        text: 'FNOS-037 本地构建 FPK 改名定位到错误产物',
+        link: '/tests/FNOS-037-local-fpk-rename-source'
       },
     ]
   }

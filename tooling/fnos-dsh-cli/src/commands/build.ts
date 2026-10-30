@@ -9,6 +9,7 @@ import { readFpkApps, readGatewayName, type FpkApp } from '../config/workspace.j
 import { runDocsBuild } from './docs.js'
 import { optionValue } from '../core/args.js'
 import { requireDshBaseline } from '../core/dsh-baseline.js'
+import { fpkReleaseFileName, renameFpkToRelease } from '../core/fpk-artifacts.js'
 import { addBooleanArgs, addOptionalValueArg } from '../core/command-args.js'
 import { captureCommandOutput, runCommand } from '../core/process.js'
 import { runTurbo } from '../core/turbo.js'
@@ -393,15 +394,22 @@ async function buildFpkApps(apps: FpkApp[], options: { bundleDshPlugins?: boolea
  * `RELEASE_TAG` 在 CI 由 `inputs.release_tag` 提供，本地没有那层输入，改取当前
  * 提交命中的 tag（等价）。没有精确 tag 时退回 manifest 版本补 `v` 前缀——那正是
  * `pnpm run version` 会打出的形态。
+ *
+ * 取源文件一律用 fnpack 的固定产物名 `<app>.fpk`（见 `core/fpk-artifacts.ts`），
+ * 不能扫目录里「第一个 .fpk」：上一次构建残留的版本化产物会排在前面，导致旧包
+ * 被改名成新名字、新包留在原名，产物名字与内容对不上。
  */
 async function renameFpkForRelease(app: FpkApp): Promise<void> {
   const appDir = join(repositoryRoot, 'apps', app.name)
-  const original = (await readdir(appDir)).find(entry => entry.endsWith('.fpk'))
-  if (original === undefined) throw new Error(`fnpack produced no .fpk in apps/${app.name}`)
-  const versioned = `${app.name}-${await resolveReleaseTag()}-dsh-${requireDshBaseline()}.fpk`
-  if (original === versioned) return
-  await rename(join(appDir, original), join(appDir, versioned))
-  console.log(`Release FPK: apps/${app.name}/${versioned}`)
+  const target = fpkReleaseFileName(app.name, await resolveReleaseTag(), requireDshBaseline())
+  const result = await renameFpkToRelease(appDir, app.name, target)
+  console.log(`Release FPK: apps/${app.name}/${result.to}`)
+  if (result.replacedStaleTarget) {
+    console.log(`  已覆盖同名的上一轮产物（此前存在 ${result.to}）`)
+  }
+  if (result.leftovers.length > 0) {
+    console.warn(`  警告：apps/${app.name} 下还有其它 FPK，装机时容易拿错：${result.leftovers.join('、')}`)
+  }
 }
 
 /** 当前提交命中的 tag；没有则用 manifest 版本补 `v`，与 `pnpm run version` 一致。 */
