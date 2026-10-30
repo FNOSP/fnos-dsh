@@ -585,9 +585,6 @@ importers:
       '@deepseek-ai/dsh-agent':
         specifier: catalog:dsh
         version: 0.2.1-rc.5(cbd9b78489f743dd32cfe135059e56db)
-      '@deepseek-ai/dsh-client-connection':
-        specifier: catalog:dsh
-        version: 0.2.1-rc.5(@deepseek-ai/cordis@4.0.5)(@deepseek-ai/dsh-scope@0.2.1-rc.5(@deepseek-ai/cordis@4.0.5))
       '@deepseek-ai/dsh-client-locale':
         specifier: catalog:dsh
         version: 0.2.1-rc.5(@deepseek-ai/cordis@4.0.5)
