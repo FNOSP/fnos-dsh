@@ -91,5 +91,6 @@ flowchart TD
 | FNOS-036 | [DSH 0.2.1-rc.5 插件适配与基线迁移](/requirements/FNOS-036-dsh-021-rc5-adaptation) | 实施中（锚定迁移 + 契约复核 + 双客户端回归；CodeBuddy 副本按提出人要求排除；FPK 真机验证列为后续） |
 | FNOS-037 | [本地构建 FPK 改名定位到错误产物](/requirements/FNOS-037-local-fpk-rename-source) | 已完成（改名按 fnpack 固定产物名取源；同名旧产物被覆盖、命名不同者告警；变异验证 + 实跑构建通过） |
 | FNOS-038 | [工作区快捷入口目录名气泡只在省略时出现](/requirements/FNOS-038-workspace-shortcut-tooltip) | 实施中（包级用例、typecheck、lint 与 client 产物重建通过；真实 NAS 验收待执行） |
+| FNOS-039 | [新建条目弹框对齐 fnOS 文件管理样式](/requirements/FNOS-039-create-dialog-style) | 实施中（包级用例、typecheck、lint 与 client 产物重建通过；真实 NAS 验收待执行） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

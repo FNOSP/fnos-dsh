@@ -327,7 +327,10 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
   it('弹框收集名称并走宿主路由创建', () => {
     expect(PANEL).toContain('createAuthorizedEntry(createTarget.parent, name, createTarget.kind)')
     expect(PANEL).toContain('createDialogTitle')
-    expect(PANEL).toContain('createDialogLabel')
+    // 标签按条目类型区分（文件夹/文件），并带必填标记。
+    expect(PANEL).toContain('createDialogFolderLabel')
+    expect(PANEL).toContain('createDialogFileLabel')
+    expect(PANEL).toContain('dsh-fnos-create-required')
   })
 
   it('创建成功后把新条目并进已展开的那一层（不整树重取）', () => {
@@ -376,5 +379,51 @@ describe('FNOS-034 气泡提示只在文本被省略时出现', () => {
     const text = ruleBody('.dsh-fnos-tree-node-label-text')
     expect(text).not.toContain('text-overflow')
     expect(text).not.toContain('white-space')
+  })
+})
+
+/**
+ * 新建文件夹 / 新建文件的弹框：视觉对齐 fnOS「文件管理」的同名弹框。
+ *
+ * 关键约束是**按钮色调只在本插件内改**：DSH 亮色主题的主按钮是反色（深底白
+ * 字），fnOS 用品牌蓝。可以覆盖，但作用域必须收在 `dsh-fnos-create-dialog`
+ * 里，并且不能把色值下沉到共享包主题——否则所有插件的主按钮都会跟着变蓝。
+ */
+describe('FNOS-038 新建弹框的按钮色调只在本插件内覆盖', () => {
+  /** 内层规则写在 `.dsh-fnos-create-dialog` 里，先取外层块再在块内断言。 */
+  const dialog = ruleBody('.dsh-fnos-create-dialog')
+
+  it('Modal 带上隔离用的类名', () => {
+    expect(PANEL).toContain('className="dsh-fnos-create-dialog"')
+  })
+
+  it('品牌蓝定义在弹框作用域内，不写成全局变量', () => {
+    expect(dialog).toContain('--dsh-fnos-create-brand: #06f;')
+    expect(dialog).toContain('--dsh-fnos-create-brand-hover: #005eeb;')
+    expect(dialog).toContain('--dsh-fnos-create-brand-active: #0043b8;')
+  })
+
+  it('确定按钮的覆盖收在弹框类名之下', () => {
+    // 内层选择器只命中 footer 里的主按钮，不会外溢到其它 Semi 按钮。
+    expect(dialog).toContain('.semi-modal-footer .semi-button-primary {')
+    expect(dialog).toContain('background: var(--dsh-fnos-create-brand);')
+    expect(dialog).toContain('background: var(--dsh-fnos-create-brand-hover);')
+  })
+
+  it('取消按钮是白底描边，与 fnOS 弹框一致', () => {
+    expect(dialog).toContain('.semi-modal-footer .semi-button:not(.semi-button-primary) {')
+    expect(dialog).toContain('background: var(--dsw-alias-bg-layer-1);')
+    expect(dialog).toContain('border: 1px solid var(--dsw-alias-border-l2);')
+  })
+
+  it('共享包主题里没有混入 fnOS 品牌蓝', () => {
+    // 色值只能出现在插件样式里；共享包一旦被改动，所有插件的主按钮都会变色。
+    const sharedTheme = read('../../../../packages/dsh-semi-ui/src/theme.scss')
+    const sharedRuntime = read('../../../../packages/dsh-semi-ui/src/theme.ts')
+    for (const source of [sharedTheme, sharedRuntime]) {
+      expect(source).not.toContain('#06f')
+      expect(source).not.toContain('0066ff')
+      expect(source).not.toContain('dsh-fnos-create-brand')
+    }
   })
 })

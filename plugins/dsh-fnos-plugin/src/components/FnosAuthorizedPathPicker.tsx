@@ -701,10 +701,14 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         cancelText={t('createDialogCancel')}
         confirmLoading={creating}
         centered
-        width={420}
+        width={440}
+        className="dsh-fnos-create-dialog"
       >
         <div className="dsh-fnos-create-form">
-          <label className="dsh-fnos-create-label" htmlFor="dsh-fnos-create-name">{t('createDialogLabel')}</label>
+          <label className="dsh-fnos-create-label" htmlFor="dsh-fnos-create-name">
+            {createTarget?.kind === 'file' ? t('createDialogFileLabel') : t('createDialogFolderLabel')}
+            <span className="dsh-fnos-create-required" aria-hidden="true">*</span>
+          </label>
           <Input
             id="dsh-fnos-create-name"
             autoFocus

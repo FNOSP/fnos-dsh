@@ -546,16 +546,98 @@ img.dsh-fnos-file-manager-icon {
   }
 }
 
+/* 新建文件夹 / 新建文件弹框：视觉对齐 fnOS「文件管理」的同名弹框。
+   按钮色调只在本插件内覆盖，作用域限定在 `dsh-fnos-create-dialog`（Modal 由
+   Semi portal 到 body，必须靠这个类名隔离），不下沉到 @tnnevol/dsh-semi-ui
+   主题层：DSH 亮色主题的主按钮是反色（深底白字），fnOS 用品牌蓝。
+   色值取自 fnOS Web 的品牌档位 `--semi-brand-5/6/7`：
+   rgb(0,102,255) / rgb(0,94,235) / rgb(0,67,184)。 */
+.dsh-fnos-create-dialog {
+  --dsh-fnos-create-brand: #06f;
+  --dsh-fnos-create-brand-hover: #005eeb;
+  --dsh-fnos-create-brand-active: #0043b8;
+
+  .semi-modal-content {
+    border-radius: 12px;
+  }
+
+  .semi-modal-header {
+    padding: 20px 24px 0;
+  }
+
+  .semi-modal-header .semi-modal-title {
+    color: var(--dsw-alias-label-primary);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 26px;
+  }
+
+  .semi-modal-body {
+    padding: 16px 24px 0;
+  }
+
+  .semi-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 24px;
+    border-top: 0;
+  }
+
+  .semi-modal-footer .semi-button {
+    min-width: 72px;
+    height: 32px;
+    padding: 0 16px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
+  /* Semi 用相邻兄弟选择器加间距，这里改由 footer 的 gap 统一控制。 */
+  .semi-modal-footer .semi-button + .semi-button {
+    margin-left: 0;
+  }
+
+  .semi-modal-footer .semi-button:not(.semi-button-primary) {
+    border: 1px solid var(--dsw-alias-border-l2);
+    background: var(--dsw-alias-bg-layer-1);
+    color: var(--dsw-alias-label-primary);
+  }
+
+  .semi-modal-footer .semi-button-primary {
+    border-color: transparent;
+    background: var(--dsh-fnos-create-brand);
+    color: var(--dsw-static-neutral-bluish-00);
+
+    &:hover {
+      background: var(--dsh-fnos-create-brand-hover);
+    }
+
+    &:active {
+      background: var(--dsh-fnos-create-brand-active);
+    }
+  }
+
+  .dsh-fnos-create-form .semi-input-wrapper {
+    height: 40px;
+    border-radius: 6px;
+  }
+}
+
 .dsh-fnos-create-form {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .dsh-fnos-create-label {
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.dsh-fnos-create-required {
+  margin-left: 2px;
+  color: var(--dsw-alias-state-error-primary);
 }
 
 .dsh-fnos-create-hint,

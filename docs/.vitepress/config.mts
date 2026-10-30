@@ -391,6 +391,10 @@ const requirementsSidebar = [
         text: 'FNOS-038 工作区快捷入口目录名气泡只在省略时出现',
         link: '/requirements/FNOS-038-workspace-shortcut-tooltip'
       },
+      {
+        text: 'FNOS-039 新建条目弹框对齐 fnOS 文件管理样式',
+        link: '/requirements/FNOS-039-create-dialog-style'
+      },
       ]
   }
 ]
@@ -552,6 +556,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-038 工作区快捷入口目录名气泡只在省略时出现',
         link: '/plans/PLAN-FNOS-038-workspace-shortcut-tooltip'
       },
+      {
+        text: 'PLAN-FNOS-039 新建条目弹框对齐 fnOS 文件管理样式',
+        link: '/plans/PLAN-FNOS-039-create-dialog-style'
+      },
     ]
   }
 ]
@@ -681,6 +689,10 @@ const testsSidebar = [
       {
         text: 'FNOS-038 工作区快捷入口目录名气泡只在省略时出现',
         link: '/tests/FNOS-038-workspace-shortcut-tooltip'
+      },
+      {
+        text: 'FNOS-039 新建条目弹框对齐 fnOS 文件管理样式',
+        link: '/tests/FNOS-039-create-dialog-style'
       },
     ]
   }
