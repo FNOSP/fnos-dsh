@@ -4,9 +4,9 @@ title: FNOS-034 测试用例
 description: FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层的测试用例与执行结果。
 requirement: /requirements/FNOS-034-fnos-input-dock-picker
 plan: /plans/PLAN-FNOS-034-fnos-input-dock-picker
-status: 部分通过
-lastVerified: 2026-10-29
-verifiedAt: 2026-10-29
+status: 通过
+lastVerified: 2026-10-30
+verifiedAt: 2026-10-30
 ---
 
 # FNOS-034 测试用例
@@ -223,12 +223,11 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 
 包级总量：39 个测试文件 / 369 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）；`run build` 产出 `lib/client.js` 2.14 MB。
 
-### 待执行（真实 NAS）
+### 已执行（真实 NAS）
 
-| ID | 结果 | 阻塞原因 |
-| --- | --- | --- |
-| TC-101 ~ TC-109 | 未执行 | 需先构建 FPK 并在真实 NAS 走应用中心安装 |
-| TC-110 ~ TC-122 | 未执行 | 同上；另需 NAS 上已有可写的授权目录才能验证新建 |
+| ID | 结果 | 日期 | 证据 |
+| --- | --- | --- | --- |
+| TC-101 ~ TC-122 | 通过 | 2026-10-30 | 6.1.15 FPK 在真实 NAS 走应用中心安装后，提出人确认整体验收通过；本轮重点复验了取消授权不再误报、标题栏文案按钮与去掉原生气泡。逐条细节未单独截图取证 |
 
 ## Bug 记录
 
@@ -248,4 +247,4 @@ FPK：`pnpm run build` 后在应用中心安装，按 TC-101 起的真机用例�
 
 ## 最终结论
 
-上表所列包级用例全部通过；**验收尚未完成**——浮层呈现、层级叠放、新建条目的真实落盘都需在真实 NAS 上按 TC-101 起的真机用例执行后回填。按仓库约定，本地 DSH Web 的观感不作为验收依据。
+上表所列包级用例全部通过；**真机验收于 2026-10-30 通过**（提出人在真实 NAS 上确认 6.1.15）。此前几轮真机反馈（取消授权误报、标题栏按钮与原生气泡、层级与宽度）均已修复并复验；本地 DSH Web 的观感不作为验收依据。

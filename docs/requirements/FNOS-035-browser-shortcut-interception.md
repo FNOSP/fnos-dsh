@@ -2,10 +2,10 @@
 id: FNOS-035
 title: FNOS-035 fnOS iframe 内拦截浏览器快捷键
 description: DSH 的刷新与「打开设置」快捷键在 fnOS 应用的 iframe 里被浏览器先一步吃掉；插件在捕获阶段拦下并转发，让官方快捷键照常生效。
-status: in-progress
+status: done
 owner: tnnevol
 targetVersion: 6.1.14
-lastVerified: 2026-10-29
+lastVerified: 2026-10-30
 ---
 
 # FNOS-035 fnOS iframe 内拦截浏览器快捷键
@@ -14,7 +14,7 @@ lastVerified: 2026-10-29
 | --- | --- |
 | 需求编号 | FNOS-035 |
 | 提出日期 | 2026-10-29（来自用户对 DSH Web 设置快捷键的实机反馈） |
-| 需求状态 | 实施中 |
+| 需求状态 | 已完成 |
 | 关联计划 | [PLAN-FNOS-035 fnOS iframe 内拦截浏览器快捷键](/plans/PLAN-FNOS-035-browser-shortcut-interception) |
 
 ## 需求背景
@@ -105,3 +105,4 @@ flowchart LR
 | --- | --- |
 | 2026-10-29 | 建立需求：把此前已随 6.1.x 交付的刷新快捷键拦截与本轮新做的「打开设置」快捷键转发登记为同一需求（FNOS-035-01/02），`targetVersion` 对齐到实际交付点 6.1.13。 |
 | 2026-10-29 | 真机反馈「拦截生效但设置弹框没打开」：官方默认绑定在 Web 运行时是 `primary + alt + Comma`（只有 Desktop 才是 `primary + Comma`），补发事件没带 `alt`，两组绑定都命中不了。改为补发时统一置 `altKey: true`。`targetVersion` 更新为 6.1.14。 |
+| 2026-10-30 | 真机验收通过（提出人在真实 NAS 上确认 6.1.15）：`Ctrl/Cmd + ,` 能打开并关闭 DSH 设置面板，刷新快捷键仍只作用于内嵌页面。需求标记为已完成。 |

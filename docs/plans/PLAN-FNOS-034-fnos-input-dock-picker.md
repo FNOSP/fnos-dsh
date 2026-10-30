@@ -2,11 +2,11 @@
 id: PLAN-FNOS-034
 title: PLAN-FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层
 description: 把 fnOS 授权目录选择器从工具栏 TreeSelect 下拉改为 conversation.input.overlay 里的卡片宽浮层，含组件拆分、几何、交互、测试与验证。
-status: in-progress
+status: done
 owner: tnnevol
 planDate: 2026-10-28
-targetVersion: 6.1.13
-lastVerified: 2026-10-28
+targetVersion: 6.1.15
+lastVerified: 2026-10-30
 ---
 
 # PLAN-FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层
@@ -16,7 +16,7 @@ lastVerified: 2026-10-28
 | 计划编号 | PLAN-FNOS-034 |
 | 计划日期 | 2026-10-28 |
 | 对应需求 | [FNOS-034 fnOS 授权目录选择器改为输入卡片宽浮层](/requirements/FNOS-034-fnos-input-dock-picker) |
-| 计划状态 | 阶段一、二、四完成；阶段三（真实 NAS 验收）待执行 |
+| 计划状态 | 阶段一至四全部完成（真实 NAS 验收于 2026-10-30 通过） |
 
 ## 实施结果（2026-10-28）
 
@@ -24,7 +24,7 @@ lastVerified: 2026-10-28
 | --- | --- |
 | 阶段一 实现 | 完成：新增 `picker-store.ts`、`picker-tree.ts`，面板改挂 `conversation.input.overlay`（`id: dsh-fnos-path-panel`、`order: 10`），按钮只翻转 store |
 | 阶段二 包级验证 | 完成：`pnpm --filter @tnnevol/dsh-fnos run check` 35 文件 / 270 条全绿；`run build` 产出 `lib/client.js` 2.13 MB |
-| 阶段三 真机验收 | **未执行**：需构建 FPK 后在真实 NAS 走应用中心安装。本地 DSH Web 不作为验收依据 |
+| 阶段三 真机验收 | 完成（2026-10-30）：FPK 在真实 NAS 安装后由提出人验收通过；浮层位置与宽度、层级、取消授权与标题栏文案按钮均符合预期 |
 | 阶段四 文档与版本 | 需求/计划/测试用例已回填，manifest 已更新，索引与 sidebar 已登记 |
 
 ::: warning 验收以 FPK 真机为准

@@ -2,7 +2,7 @@
 id: PLAN-FNOS-035
 title: PLAN-FNOS-035 fnOS iframe 内拦截浏览器快捷键
 description: 在 fnOS iframe 的捕获阶段拦下刷新三键与「打开设置」组合，刷新走 reload、设置键转发给 DSH 官方命令，含实现、契约测试与真机验证。
-status: in-progress
+status: done
 owner: tnnevol
 planDate: 2026-10-29
 targetVersion: 6.1.13
@@ -16,7 +16,7 @@ lastVerified: 2026-10-29
 | 计划编号 | PLAN-FNOS-035 |
 | 计划日期 | 2026-10-29 |
 | 对应需求 | [FNOS-035 fnOS iframe 内拦截浏览器快捷键](/requirements/FNOS-035-browser-shortcut-interception) |
-| 计划状态 | 阶段一、二、四完成；阶段三（真实 NAS 验收）待执行 |
+| 计划状态 | 阶段一至四全部完成（真实 NAS 验收于 2026-10-30 通过） |
 
 ## 实施结果（2026-10-29）
 

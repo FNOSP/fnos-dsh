@@ -4,9 +4,9 @@ title: FNOS-035 测试用例
 description: FNOS-035 fnOS iframe 内拦截浏览器快捷键的测试用例与执行结果。
 requirement: /requirements/FNOS-035-browser-shortcut-interception
 plan: /plans/PLAN-FNOS-035-browser-shortcut-interception
-status: 部分通过
-lastVerified: 2026-10-29
-verifiedAt: 2026-10-29
+status: 通过
+lastVerified: 2026-10-30
+verifiedAt: 2026-10-30
 ---
 
 # FNOS-035 测试用例
@@ -85,11 +85,11 @@ verifiedAt: 2026-10-29
 
 包级总量：39 个测试文件 / 369 条全绿（`pnpm --filter @tnnevol/dsh-fnos run check`）。
 
-### 待执行（真实 NAS）
+### 已执行（真实 NAS）
 
-| ID | 结果 | 阻塞原因 |
-| --- | --- | --- |
-| TC-101 ~ TC-103 | 未执行 | 需先构建 FPK 并在真实 NAS 走应用中心安装，再在浏览器里按键 |
+| ID | 结果 | 日期 | 证据 |
+| --- | --- | --- | --- |
+| TC-101 ~ TC-103 | 通过 | 2026-10-30 | 6.1.15 FPK 在真实 NAS 安装后，提出人确认 `Ctrl/Cmd + ,` 能打开并关闭 DSH 设置面板、刷新快捷键仍只作用于内嵌页面。逐条细节未单独截图取证 |
 
 ## Bug 记录
 
@@ -108,4 +108,4 @@ verifiedAt: 2026-10-29
 
 ## 最终结论
 
-包级 11 条用例全部通过；**验收尚未完成**——浏览器是否真的把组合键让出来、面板开合往返、刷新只作用于 iframe，都必须在真实 NAS 上按 TC-101 ~ TC-103 执行后回填。按仓库约定，本地 DSH Web 的观感不作为验收依据。
+包级 11 条用例全部通过；**真机验收于 2026-10-30 通过**（提出人在真实 NAS 上确认 6.1.15）：设置键能正常开合设置面板，刷新快捷键仍只刷新内嵌页面。本地 DSH Web 的观感不作为验收依据。
