@@ -86,6 +86,7 @@ verifiedAt: 2026-10-30
 | BUG-039-04 | 真机：弹框 326px 过高、关闭按钮有灰色方块、常驻说明行多出一行 | 主题给 header/footer 各加 24px margin；`.semi-modal-close` 底色取 `--semi-color-fill-0`；`createDialogHint` 常驻渲染 | margin 归零 + 三段内边距、关闭按钮去底色去边框、说明行改为仅出错时显示并把规则并入错误文案；真机注入构建产物 CSS 复测 196px |
 | BUG-039-05 | 真机：输入框文字偏心（上 1 / 下 9）、按钮偏小、新建弹框无 placeholder | 内层 `.semi-input` 默认 30px 且贴顶；按钮按 72×32 设定；JSX 未传 placeholder | 输入 36 高 + 内层撑满；按钮 88×36/r8/600、间距 12；两个弹框分别补标题式与原名式 placeholder；基准值取自 fnOS 原生弹框实测 |
 | BUG-039-06 | 真机：弹框外圈有一道细描边；取消与确定之间没有间距 | 描边来自 Semi 基础 `border: 1px solid var(--semi-color-border)`；footer 非 flex，未加 `!important` 的 `display/gap` 被基础样式压住，gap 失效 | content 改 `border: 0 !important` 并保留主题阴影；footer 强制 `display: flex !important` + `gap: 15px !important`；真机复测边框 0、按钮间距 15 |
+| BUG-039-07 | 真机：按钮间距仍为 0 | 真实 DOM 在 footer 与按钮之间还有一层包裹节点，`gap` 写在外层不生效，且相邻 `margin-left` 已被归零 | `gap` 写进 `.semi-modal-footer > div`；用例同步改为断言该层存在；复刻真实嵌套结构复测 15px |
 
 ## 最终结论
 

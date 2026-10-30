@@ -184,6 +184,9 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
         open={open}
         align="end"
         dense
+        // listClassName 是官方留给 portaled 列表的唯一样式钩子：子菜单卡片也在
+        // 这个列表里，只有靠它才能把「二级菜单固定向左」限制在本菜单内。
+        listClassName="dsh-fnos-session-log-menu"
         items={menuItems}
         onClose={() => { setOpen(false) }}
         onSelect={(id) => {
@@ -229,6 +232,7 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
         onOk={() => { void confirmNasExport() }}
         onCancel={closeNasDialog}
         width={560}
+        className="dsh-fnos-nas-dialog"
       >
         <div className="dsh-fnos-session-log-dialog-body">
           {loading ? <p>{t('sessionLogNasLoading')}</p> : null}

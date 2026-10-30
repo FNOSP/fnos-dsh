@@ -474,9 +474,10 @@ describe('FNOS-039 弹框与 fnOS 原生弹框的细节对齐', () => {
     expect(dialog).toContain('height: 36px;')
     expect(dialog).toContain('border-radius: 8px;')
     expect(dialog).toContain('font-weight: 600;')
-    // Semi 的 footer 只是 `text-align: right`，不是 flex——不强制 flex 时 gap 不生效，
-    // 两个按钮会贴在一起。这三条必须同时存在。
+    // 真机结构是 `.semi-modal-footer > div > button + button`：按钮在包裹层里，
+    // gap 写在外层不会生效（外层只有一个孩子），必须写进包裹层。
     expect(dialog).toContain('display: flex !important;')
+    expect(dialog).toContain('.semi-modal-footer > div {')
     expect(dialog).toContain('gap: 15px !important;')
     // Semi 自带相邻按钮 margin-left，必须归零，否则会叠加成 15 + 8。
     expect(dialog).toContain('.semi-button + .semi-button {')

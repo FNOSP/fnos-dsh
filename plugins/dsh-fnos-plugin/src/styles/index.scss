@@ -104,6 +104,20 @@ img.dsh-fnos-file-manager-icon {
 /* Session log 的触发按钮：数值取自官方 session-log-export 的
    `HeaderAction.module.css`。头部右侧的 28px 圆形图标按钮，15px 字形，
    透明无边框，hover 才出底色——它是个纯图标按钮，不带文案也不带边框。 */
+/* 官方 `Menu` 没有子菜单方向/边界的 props，而子菜单默认渲染在右侧
+   （`.submenu { left: calc(100% + 10px) }`）。会话头部菜单贴着窗口右缘，
+   右侧展开会被裁掉，这里固定改为向左展开；作用域收到本菜单的类名上，
+   不影响 DSH 其它菜单。::before 是原语的指针命中桥，方向要一起翻。 */
+.dsh-fnos-session-log-menu .submenu {
+  left: auto !important;
+  right: calc(100% + 10px) !important;
+}
+
+.dsh-fnos-session-log-menu .submenu::before {
+  left: auto !important;
+  right: -10px !important;
+}
+
 .dsh-fnos-session-log-button {
   display: inline-flex;
   flex: none;
@@ -125,6 +139,48 @@ img.dsh-fnos-file-manager-icon {
 }
 
 .dsh-fnos-session-log-button:hover { background: var(--dsw-alias-interactive-bg-hover); }
+/* 「导出 Session log 到 NAS」弹框：与新建弹框同一套去描边/收紧节奏的处理，
+   但内边距在新建弹框的基础上各再收 5px（标题带与按钮带都要更紧凑）。
+   去掉 Semi 基础样式给的 1px 描边，保留主题阴影。 */
+.dsh-fnos-nas-dialog {
+  .semi-modal-content {
+    border: 0 !important;
+    border-radius: 12px;
+    padding: 0 !important;
+  }
+
+  .semi-modal-header {
+    margin: 0 !important;
+    padding: 15px 19px 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  .semi-modal-body {
+    margin: 0 !important;
+    padding: 7px 19px 0 !important;
+  }
+
+  .semi-modal-footer {
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin: 0 !important;
+    padding: 11px 19px 15px !important;
+    border-top: 0 !important;
+  }
+
+  /* 与新建弹框同理：按钮在 footer 的包裹层里，间距要写在那一层。 */
+  .semi-modal-footer > div {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 15px !important;
+    width: 100%;
+  }
+
+  .semi-modal-footer .semi-button + .semi-button {
+    margin-left: 0 !important;
+  }
+}
+
 .dsh-fnos-session-log-dialog-body { min-height: 260px; }
 .dsh-fnos-session-log-error { color: var(--dsw-alias-state-error-primary); }
 .dsh-fnos-session-log-tree { max-height: 340px; overflow: auto; }
@@ -621,15 +677,22 @@ img.dsh-fnos-file-manager-icon {
   }
 
   .semi-modal-footer {
-    /* Semi 的 footer 只是 `text-align: right`，不是 flex——不强制 flex 时
-       下面的 gap 不生效，两个按钮会贴在一起。 */
+    /* Semi 的 footer 只是 `text-align: right`，不是 flex。 */
     display: flex !important;
     justify-content: flex-end !important;
-    gap: 15px !important;
     margin: 0 !important;
     padding: 16px 24px 20px !important;
     border-top: 0 !important;
     border-radius: 0;
+  }
+
+  /* 按钮外面还有一层包裹节点（Semi 把 footer 内容包进一个 div），gap 必须写在
+     那一层才生效；写在外层只会在「包裹层与它自己」之间留空，按钮仍然贴在一起。 */
+  .semi-modal-footer > div {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 15px !important;
+    width: 100%;
   }
 
   /* 按钮尺寸统一；颜色在下面按类名单独落。 */

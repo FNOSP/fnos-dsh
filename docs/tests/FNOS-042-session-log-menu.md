@@ -60,7 +60,8 @@ verifiedAt: 2026-10-30
 | 用例 | 结果 | 证据 |
 | --- | --- | --- |
 | TC-001 ~ TC-003、TC-005、TC-006、TC-008、TC-009 | 通过 | `tests/client/session-log-menu.spec.ts`（6 条）；全量 `vitest run` 44 文件 / 428 条通过 |
-| TC-004、TC-007 | 未执行 | 需构建 FPK 后在真实 fnOS NAS 验证 |
+| TC-004、TC-007 | 未执行 | 需构建 FPK 后在真实 fnOS NAS 验证；子菜单方向已按「固定向左」实现并有源码断言 |
+| 二级菜单方向 | 通过（源码） | `.dsh-fnos-session-log-menu .submenu` 与 `::before` 均翻到左侧，作用域限定在本菜单 |
 
 构建与静态检查：
 
@@ -72,7 +73,7 @@ verifiedAt: 2026-10-30
 
 | 编号 | 现象 | 定位 | 处置 |
 | --- | --- | --- | --- |
-| — | 本轮未发现缺陷 | — | — |
+| BUG-042-02 | 真机：子菜单向右展开被窗口裁掉 | 官方 `Menu` 无子菜单方向 props，`.submenu` 固定 `left: calc(100% + 10px)` | 用 `listClassName` 作用域把 `.submenu` 及其 `::before` 命中桥翻到左侧；用例断言作用域前缀存在且无全局裸 `.submenu` 规则 |
 
 ## 最终结论
 

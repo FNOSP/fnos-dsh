@@ -4,7 +4,7 @@ title: FNOS-039 新建条目弹框对齐 fnOS 文件管理样式
 description: 把插件里「新建文件夹 / 新建文件」弹框的排版与按钮色调对齐 fnOS「文件管理」的同名弹框；按钮配色只在本插件内覆盖，不下沉到共享包主题。
 status: in-progress
 owner: tnnevol
-targetVersion: 7.0.10
+targetVersion: 7.0.12
 lastVerified: 2026-10-30
 ---
 
@@ -96,3 +96,4 @@ lastVerified: 2026-10-30
 | 2026-10-30 | 按真机实测收敛版式 | 在真机页面（`/app/fn-deepseek-harness`，`192.168.0.17:5666`）注入同结构 DOM 实测：共享主题给 `.semi-modal-header` / `.semi-modal-footer` **各加 24px 上下 margin**，弹框因此 326px 高（header 高 46 却占 94、footer 高 72 却占 120）；`.semi-modal-close` 另有 `--semi-color-fill-0` 底色，在 DSH 主题里渲染成灰色方块。改为 margin 归零 + 三段自管内边距（header 20/24、body 12/24、footer 16/24/20），关闭按钮去底色去边框，常驻说明行改为只在出错时出现（名称规则并入「名称不可用」文案）。同一页面注入构建产物 CSS 复测：**326px → 196px**，确定按钮 `rgb(0,102,255)`、取消白底描边、输入框白底 40px，亮/暗两套主题均正确。<code>targetVersion</code> 更新为 7.0.8。 |
 | 2026-10-30 | 以 fnOS 原生弹框为基准逐项对齐 | 在真机打开 fnOS「文件管理」的新建文件夹弹框，直接量取原生实现：弹框 **454** 宽、输入框 **36** 高/圆角 6/内部上下各 **1px**、按钮 **88×36**/圆角 8/字重 600/间距 **12**、取消为**透明底 + 描边 + 次级文字色**、placeholder 与标题一致（「新建文件夹」）。据此修正三处不符：①输入框原来 40 高且内层 `.semi-input` 只有 30 且贴顶（上 1 / 下 9），改为 36 高并让内层撑满（上下各 1）；②按钮由 72×32/r6/400 改为 88×36/r8/600；③新建弹框补 placeholder（与标题一致），重命名弹框以原名作 placeholder。同一页面注入构建产物 CSS 复测结果与基准逐项一致。<code>targetVersion</code> 更新为 7.0.9。 |
 | 2026-10-30 | 去外描边、按钮间距改 15px | 提出人指出弹框外圈描边难看、两个按钮之间没有间距。定位两处基础样式：①`.semi-modal-content` 自带 `border: 1px solid var(--semi-color-border)`（Semi 基础样式，不是主题）；②`.semi-modal-footer` 在 Semi 里**只是 `text-align: right`，不是 flex**，此前只写 `display: flex; gap` 未加 `!important`，被基础样式压住后 `gap` 不生效，按钮实测贴在一起。改为 `border: 0 !important`（阴影沿用主题，不另加）、footer `display: flex !important` + `gap: 15px !important`，并保留相邻按钮 `margin-left: 0 !important` 防叠加。真机注入构建产物 CSS 复测：边框 `0px none`、阴影保留、实际按钮间距 **15px**。<code>targetVersion</code> 更新为 7.0.10。 |
+| 2026-10-30 | 按钮间距真正生效 + NAS 弹框同套处理 | 提出人从 DevTools 指出：真正的 DOM 是 `.semi-modal-footer > div > button + button`——按钮外面还有一层包裹节点，`gap` 写在外层只作用于「外层与它唯一的孩子」，按钮之间仍是 0；而此前又把 Semi 自带的相邻 `margin-left` 归零，于是彻底贴在一起（我之前是用自己复刻的扁平结构自测的，结构不对，属于验证方法有误）。改为把 `display:flex + gap:15px` 写进 `.semi-modal-footer > div`。同时「导出 Session log 到 NAS」弹框按同一套处理：去描边（保留主题阴影）、标题带与按钮带的内边距各比新建弹框再收 5px（header 20/24→15/19、body 12/24→7/19、footer 16/24/20→11/19/15），并同样修正按钮间距。真机注入产物 CSS 复刻**真实嵌套结构**（含 tertiary light 取消按钮）复测：包裹层 flex、`gap` 15px、实测按钮间距 **15px**、边框 0、阴影保留。<code>targetVersion</code> 更新为 7.0.12。 |

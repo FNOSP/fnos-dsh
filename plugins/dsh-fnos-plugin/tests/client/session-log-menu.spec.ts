@@ -64,3 +64,26 @@ describe('FNOS-042 Session 日志菜单结构', () => {
     expect(LOCALES).toContain("sessionLogFeedback: '反馈'")
   })
 })
+
+describe('FNOS-042 二级菜单固定向左', () => {
+  // 官方 Menu 没有子菜单方向/边界的 props，子菜单默认渲染在右侧
+  // （`.submenu { left: calc(100% + 10px) }`）。会话头部菜单贴着窗口右缘，
+  // 右侧展开会被裁掉，因此固定改为向左；作用域收到本菜单的 listClassName 上。
+  const STYLE = read('../../src/styles/index.scss')
+
+  it('给菜单挂了 listClassName 作为样式钩子', () => {
+    expect(ACTION).toContain('listClassName="dsh-fnos-session-log-menu"')
+  })
+
+  it('子菜单卡片翻到左侧，指针命中桥一起翻', () => {
+    expect(STYLE).toContain('.dsh-fnos-session-log-menu .submenu {')
+    expect(STYLE).toContain('right: calc(100% + 10px) !important;')
+    expect(STYLE).toContain('.dsh-fnos-session-log-menu .submenu::before {')
+    expect(STYLE).toContain('right: -10px !important;')
+  })
+
+  it('覆盖不写到全局，避免影响 DSH 其它菜单', () => {
+    // 不允许出现不带本菜单前缀的裸 `.submenu {` 规则。
+    expect(STYLE).not.toMatch(/^\.submenu \{/mu)
+  })
+})
