@@ -4,7 +4,7 @@ title: FNOS-039 新建条目弹框对齐 fnOS 文件管理样式
 description: 把插件里「新建文件夹 / 新建文件」弹框的排版与按钮色调对齐 fnOS「文件管理」的同名弹框；按钮配色只在本插件内覆盖，不下沉到共享包主题。
 status: in-progress
 owner: tnnevol
-targetVersion: 7.0.4
+targetVersion: 7.0.7
 lastVerified: 2026-10-30
 ---
 
@@ -92,3 +92,4 @@ lastVerified: 2026-10-30
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-30 | 初始登记 | 建立 FNOS-039。提出人给出 fnOS「文件管理」新建文件夹弹框截图，要求插件同名弹框对齐，并明确「按钮色调在插件内改、不进共享包」。品牌蓝从 fnOS Web UI 的 `--semi-brand-5/6/7` 取值；另登记标签与确认文案的对齐项。5 条调研结论，关联 PLAN-FNOS-039。 |
+| 2026-10-30 | 修正配色未生效与间距过大 | 提出人真机截图显示「确定」仍是 DSH 深色主按钮、取消是浅灰实心、输入框是灰底，且弹框上下有多余空白。定位两处：①共享主题给按钮写的是 <code>body[data-dsh-semi-theme] … .semi-button-primary.semi-button-solid:not(…)</code>（特异性 0,6,1）且使用固定 token，插件常规选择器压不过，作用域内改 token 又会把「取消」文字一起染蓝；②<code>.semi-modal-content</code> 默认内边距与我加的三段内边距叠加。改为给两个按钮挂显式类名（<code>dsh-fnos-create-confirm</code>/<code>-cancel</code>）在弹框作用域内用 <code>!important</code> 落色，content 内边距归零后由 header/body/footer 各自控制，输入框改白底细描边，宽度由 440 收到 420。<code>targetVersion</code> 更新为 7.0.7。 |

@@ -403,17 +403,26 @@ describe('FNOS-038 新建弹框的按钮色调只在本插件内覆盖', () => {
     expect(dialog).toContain('--dsh-fnos-create-brand-active: #0043b8;')
   })
 
-  it('确定按钮的覆盖收在弹框类名之下', () => {
-    // 内层选择器只命中 footer 里的主按钮，不会外溢到其它 Semi 按钮。
-    expect(dialog).toContain('.semi-modal-footer .semi-button-primary {')
-    expect(dialog).toContain('background: var(--dsh-fnos-create-brand);')
-    expect(dialog).toContain('background: var(--dsh-fnos-create-brand-hover);')
+  it('确定按钮按显式类名落色，且带 !important 压过共享主题', () => {
+    // 共享主题的按钮规则是 `body[data-dsh-semi-theme] ... .semi-button-primary...`
+    // （特异性 0,6,1），常规选择器压不过；这里必须靠显式类名 + !important。
+    expect(dialog).toContain('.semi-modal-footer .dsh-fnos-create-confirm {')
+    expect(dialog).toContain('background: var(--dsh-fnos-create-brand) !important;')
+    expect(dialog).toContain('background: var(--dsh-fnos-create-brand-hover) !important;')
+    // 按钮类名由 Modal 的 okButtonProps 注入。
+    expect(PANEL).toContain("okButtonProps={{ className: 'dsh-fnos-create-confirm' }}")
   })
 
   it('取消按钮是白底描边，与 fnOS 弹框一致', () => {
-    expect(dialog).toContain('.semi-modal-footer .semi-button:not(.semi-button-primary) {')
-    expect(dialog).toContain('background: var(--dsw-alias-bg-layer-1);')
-    expect(dialog).toContain('border: 1px solid var(--dsw-alias-border-l2);')
+    expect(dialog).toContain('.semi-modal-footer .dsh-fnos-create-cancel {')
+    expect(dialog).toContain('background: var(--dsw-alias-bg-layer-1) !important;')
+    expect(dialog).toContain('border: 1px solid var(--dsw-alias-border-l2) !important;')
+    expect(PANEL).toContain("cancelButtonProps={{ className: 'dsh-fnos-create-cancel' }}")
+  })
+
+  it('弹框本体不吃主题默认内边距，避免上下叠出大段空白', () => {
+    expect(dialog).toContain('padding: 0 !important;')
+    expect(dialog).toContain('padding: 20px 24px !important;')
   })
 
   it('共享包主题里没有混入 fnOS 品牌蓝', () => {

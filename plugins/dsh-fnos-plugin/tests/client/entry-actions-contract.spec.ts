@@ -113,3 +113,35 @@ describe('FNOS-040-04 输入区图标气泡改为「文件管理」', () => {
     expect(LOCALES).toContain("inputPicker: 'File manager'")
   })
 })
+
+describe('FNOS-040-05 面板浮层锁必须覆盖每个弹框', () => {
+  // 面板的「外部点击关闭」对 Semi portal 到 body 的弹框恒判为「点了外面」，
+  // 靠 `floatingOpen` 在弹框期间让路。删除确认与重命名都漏过一次，症状都是
+  // 「弹框一打开，点一下就整个面板消失」。这里从组件源码里把弹框状态变量扫出来，
+  // 要求每一个都出现在 `floatingOpen` 里——新增弹框忘了加，用例直接变红。
+  const overlayStates = Array.from(new Set(
+    Array.from(PANEL.matchAll(/set([A-Z]\w*)(?:<[^>]*>)?\s*\(/gu))
+      .flatMap(match => (match[1] === undefined ? [] : [match[1]]))
+      .filter(name => /Target|Menu$/u.test(name)),
+  ))
+
+  it('扫到了预期的弹框状态', () => {
+    // 至少包含新建、重命名与右键菜单三类，否则这条用例就失去意义。
+    expect(overlayStates).toEqual(expect.arrayContaining(['CreateTarget', 'RenameTarget', 'ContextMenu']))
+  })
+
+  it('每个弹框状态都进了 floatingOpen', () => {
+    const declaration = PANEL.match(/const floatingOpen = [^\n]+/u)?.[0] ?? ''
+    expect(declaration).not.toBe('')
+    for (const state of overlayStates) {
+      const head = state.slice(0, 1).toLowerCase()
+      const property = `${head}${state.slice(1)}`
+      expect(declaration).toContain(`${property} !== undefined`)
+    }
+  })
+
+  it('弹框打开期间同时屏蔽 Esc 关面板', () => {
+    // Esc 也走 floatingOpen；否则按一次 Esc 会连面板带弹框一起关掉。
+    expect(PANEL).toMatch(/if \(!open \|\| floatingOpen\) return/u)
+  })
+})

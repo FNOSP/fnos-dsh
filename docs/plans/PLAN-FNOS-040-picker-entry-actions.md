@@ -5,7 +5,7 @@ description: 新增宿主重命名路由与前端打开分流，菜单补「打�
 status: completed
 owner: tnnevol
 planDate: 2026-10-30
-targetVersion: 7.0.5
+targetVersion: 7.0.7
 lastVerified: 2026-10-30
 ---
 

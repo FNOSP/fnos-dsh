@@ -4,7 +4,7 @@ title: FNOS-040 面板右键打开与重命名、状态保持与入口文案
 description: 给授权目录面板的右键菜单补「打开」（目录走文件管理器、文件走 fnOS 预览）与「重命名」；重新展开面板时保留展开状态与滚动位置（勾选状态仍重置）；输入区图标气泡改为「文件管理」。
 status: in-progress
 owner: tnnevol
-targetVersion: 7.0.5
+targetVersion: 7.0.7
 lastVerified: 2026-10-30
 ---
 
@@ -102,3 +102,4 @@ lastVerified: 2026-10-30
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-10-30 | 初始登记 | 建立 FNOS-040。提出人给两张截图并提三项：右键补「打开/重命名」、重新打开面板保留展开与滚动、入口气泡改「文件管理」。调研确认打开需按类型分流到 SDK 的 `openFile`/`openFileManager`，纵向滚动在树的根元素上，宿主可直接用 `rename` 且必须先探测目标存在（POSIX 会静默覆盖）、授权根不可改名。6 条调研结论，关联 PLAN-FNOS-040。 |
+| 2026-10-30 | 修复重命名弹框未纳入面板浮层锁 | 提出人反馈：打开重命名弹框后点击任意处，整个面板连同弹框被销毁。根因是 <code>floatingOpen</code> 只收了 <code>createTarget</code> 与 <code>contextMenu</code>，漏了新增的 <code>renameTarget</code>——面板的「外部点击关闭」对 portal 到 body 的弹框恒判为「点了外面」。补齐 <code>renameTarget</code>（Esc 处理同源），并新增结构化用例：从源码扫出所有弹框状态变量，要求每一个都出现在 <code>floatingOpen</code> 里，新增弹框忘记加会直接变红。<code>targetVersion</code> 更新为 7.0.7。 |

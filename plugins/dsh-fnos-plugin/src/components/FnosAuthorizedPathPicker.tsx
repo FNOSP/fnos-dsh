@@ -442,8 +442,8 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   // 连带把整个面板销毁。这些浮层自己会处理外部关闭，面板在此期间应当让路。
   //
   // **新增浮层时必须同步加进这里**：漏一个就会重现「弹框一打开、点一下就整个
-  // 面板消失」。删除确认曾漏过，症状与新建弹框那次完全相同。
-  const floatingOpen = createTarget !== undefined || contextMenu !== undefined
+  // 面板消失」。删除确认与重命名各漏过一次，症状完全相同。
+  const floatingOpen = createTarget !== undefined || renameTarget !== undefined || contextMenu !== undefined
 
   // 点击输入卡片之外收起。卡片内部（含面板自身与文本域）不关闭：用户点回
   // 草稿继续输入时，选择器不该被顺手关掉。与上游斜杠菜单同一策略。
@@ -873,8 +873,10 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         cancelText={t('createDialogCancel')}
         confirmLoading={creating}
         centered
-        width={440}
+        width={420}
         className="dsh-fnos-create-dialog"
+        okButtonProps={{ className: 'dsh-fnos-create-confirm' }}
+        cancelButtonProps={{ className: 'dsh-fnos-create-cancel' }}
       >
         <div className="dsh-fnos-create-form">
           <label className="dsh-fnos-create-label" htmlFor="dsh-fnos-create-name">
@@ -904,8 +906,10 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         cancelText={t('createDialogCancel')}
         confirmLoading={renaming}
         centered
-        width={440}
+        width={420}
         className="dsh-fnos-create-dialog"
+        okButtonProps={{ className: 'dsh-fnos-create-confirm' }}
+        cancelButtonProps={{ className: 'dsh-fnos-create-cancel' }}
       >
         <div className="dsh-fnos-create-form">
           <label className="dsh-fnos-create-label" htmlFor="dsh-fnos-rename-name">

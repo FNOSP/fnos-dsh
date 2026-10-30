@@ -553,10 +553,17 @@ img.dsh-fnos-file-manager-icon {
   }
 }
 
-/* 新建文件夹 / 新建文件弹框：视觉对齐 fnOS「文件管理」的同名弹框。
-   按钮色调只在本插件内覆盖，作用域限定在 `dsh-fnos-create-dialog`（Modal 由
-   Semi portal 到 body，必须靠这个类名隔离），不下沉到 @tnnevol/dsh-semi-ui
-   主题层：DSH 亮色主题的主按钮是反色（深底白字），fnOS 用品牌蓝。
+/* 新建文件夹 / 新建文件 / 重命名弹框：视觉对齐 fnOS「文件管理」的同名弹框。
+   作用域限定在 `dsh-fnos-create-dialog`（Modal 由 Semi portal 到 body，只能靠
+   这个类名隔离），不下沉到 @tnnevol/dsh-semi-ui 主题层。
+
+   为什么按钮要用 `!important`：共享主题给按钮写的是
+   `body[data-dsh-semi-theme]:not([data-ds-dark-theme]) .semi-button.semi-button-primary.semi-button-solid:not(...)`，
+   特异性 (0,6,1)，插件里任何常规选择器都压不过；而且它用的是固定 token
+   （`--dsw-static-neutral-bluish-1000` 等），在作用域内改写变量会连带把「取消」
+   的文字色一起改蓝。因此这里给两个按钮挂了显式类名，只在弹框内用
+   `!important` 落色——覆盖范围仍被类名限定，不会外溢到别的 Semi 按钮。
+
    色值取自 fnOS Web 的品牌档位 `--semi-brand-5/6/7`：
    rgb(0,102,255) / rgb(0,94,235) / rgb(0,67,184)。 */
 .dsh-fnos-create-dialog {
@@ -564,12 +571,16 @@ img.dsh-fnos-file-manager-icon {
   --dsh-fnos-create-brand-hover: #005eeb;
   --dsh-fnos-create-brand-active: #0043b8;
 
+  /* 弹框本体：去掉主题给 content 的默认内边距，改由 header/body/footer 自己控，
+     否则上下会各叠一层，出现一大段空白。 */
   .semi-modal-content {
     border-radius: 12px;
+    padding: 0 !important;
   }
 
   .semi-modal-header {
-    padding: 20px 24px 0;
+    padding: 20px 24px 0 !important;
+    border-bottom: 0;
   }
 
   .semi-modal-header .semi-modal-title {
@@ -577,20 +588,22 @@ img.dsh-fnos-file-manager-icon {
     font-size: 18px;
     font-weight: 600;
     line-height: 26px;
+    margin: 0;
   }
 
   .semi-modal-body {
-    padding: 16px 24px 0;
+    padding: 16px 24px 0 !important;
   }
 
   .semi-modal-footer {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    padding: 20px 24px;
+    padding: 20px 24px !important;
     border-top: 0;
   }
 
+  /* 按钮尺寸统一；颜色在下面按类名单独落。 */
   .semi-modal-footer .semi-button {
     min-width: 72px;
     height: 32px;
@@ -604,29 +617,44 @@ img.dsh-fnos-file-manager-icon {
     margin-left: 0;
   }
 
-  .semi-modal-footer .semi-button:not(.semi-button-primary) {
-    border: 1px solid var(--dsw-alias-border-l2);
-    background: var(--dsw-alias-bg-layer-1);
-    color: var(--dsw-alias-label-primary);
-  }
-
-  .semi-modal-footer .semi-button-primary {
-    border-color: transparent;
-    background: var(--dsh-fnos-create-brand);
-    color: var(--dsw-static-neutral-bluish-00);
+  /* 取消：白底 + 描边 + 主文字色。 */
+  .semi-modal-footer .dsh-fnos-create-cancel {
+    background: var(--dsw-alias-bg-layer-1) !important;
+    border: 1px solid var(--dsw-alias-border-l2) !important;
+    color: var(--dsw-alias-label-primary) !important;
 
     &:hover {
-      background: var(--dsh-fnos-create-brand-hover);
+      background: var(--dsw-alias-interactive-bg-hover) !important;
+    }
+  }
+
+  /* 确定：fnOS 品牌蓝实心。 */
+  .semi-modal-footer .dsh-fnos-create-confirm {
+    background: var(--dsh-fnos-create-brand) !important;
+    border: 1px solid var(--dsh-fnos-create-brand) !important;
+    color: #fff !important;
+
+    &:hover {
+      background: var(--dsh-fnos-create-brand-hover) !important;
+      border-color: var(--dsh-fnos-create-brand-hover) !important;
     }
 
     &:active {
-      background: var(--dsh-fnos-create-brand-active);
+      background: var(--dsh-fnos-create-brand-active) !important;
+      border-color: var(--dsh-fnos-create-brand-active) !important;
     }
   }
 
+  /* 输入框：白底 + 细描边，不用主题的浅灰填充（fnOS 弹框里是白底）。 */
   .dsh-fnos-create-form .semi-input-wrapper {
     height: 40px;
-    border-radius: 6px;
+    background: var(--dsw-alias-bg-layer-1) !important;
+    border: 1px solid var(--dsw-alias-border-l2) !important;
+    border-radius: 6px !important;
+
+    &:focus-within {
+      border-color: var(--dsw-alias-state-business-primary) !important;
+    }
   }
 }
 

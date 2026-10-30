@@ -97,6 +97,7 @@ verifiedAt: 2026-10-30
 | --- | --- | --- | --- |
 | BUG-040-01 | 滚动位置最初记在 `.semi-tree-option-list` 上 | 该元素只负责横向（`overflow-x: auto`，`max-height: none`），纵向滚动在树根元素 | 改为 `.dsh-fnos-path-panel-tree`，并补样式断言把两者钉在一起 |
 | BUG-040-02 | 宿主重命名路由初版引用 `AuthorizedCreateKind` 未导入 | 复用条目类型时漏了 type import | 补 import，typecheck 通过 |
+| BUG-040-03 | 真机：重命名弹框打开后点击任意处，面板与弹框一起消失 | `floatingOpen` 漏了 `renameTarget` | 补齐后 Esc 一并让路；新增结构化用例扫出全部弹框状态并逐个断言在锁内，防止再次遗漏 |
 
 ## 最终结论
 
