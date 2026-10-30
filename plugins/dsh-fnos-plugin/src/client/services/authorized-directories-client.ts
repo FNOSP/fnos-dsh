@@ -6,6 +6,7 @@ import {
   FNOS_AUTHORIZED_DIRECTORIES_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH,
   FNOS_AUTHORIZED_ENTRIES_PATH,
+  FNOS_AUTHORIZED_RENAME_ENTRY_PATH,
   FNOS_PATH_CONVERSION_PATH,
   FNOS_PATH_OPEN_VALIDATION_PATH,
   type AuthorizedCreateKind,
@@ -192,6 +193,42 @@ export async function deleteAuthorizedEntry(path: string): Promise<void> {
     ? value.error
     : `HTTP ${response.status}`
   throw new DirectoryRequestError(code)
+}
+
+/**
+ * 重命名授权目录内的一个条目。
+ *
+ * 与新建同一条授权校验；宿主返回的错误码原样抛给 UI，让弹框能显示
+ * 「重名 / 权限不足 / 只读」这类可操作的原因。
+ */
+export async function renameAuthorizedEntry(path: string, name: string): Promise<AuthorizedEntry> {
+  const response = await fetch(FNOS_AUTHORIZED_RENAME_ENTRY_PATH, {
+    method: 'POST',
+    headers: { ...requestHeaders(), 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ path, name }),
+  })
+  const value: unknown = await response.json().catch(() => undefined)
+  if (!response.ok) {
+    const code = typeof value === 'object' && value !== null && 'error' in value && typeof value.error === 'string'
+      ? value.error
+      : `HTTP ${response.status}`
+    throw new DirectoryRequestError(code)
+  }
+  const entry = typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as { entry?: unknown }).entry
+    : undefined
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+    throw new DirectoryRequestError('invalid-rename-response')
+  }
+  const record = entry as Record<string, unknown>
+  const nextPath = typeof record.path === 'string' ? record.path : ''
+  const semanticPath = typeof record.semanticPath === 'string' ? record.semanticPath : nextPath
+  const kind = record.kind === 'directory' || record.kind === 'file' ? record.kind : undefined
+  if (nextPath.length === 0 || semanticPath.length === 0 || kind === undefined) {
+    throw new DirectoryRequestError('invalid-rename-response')
+  }
+  return { path: nextPath, semanticPath, kind }
 }
 
 export function readablePathsFromResponse(value: ReadablePathsResponse): ReadablePath[] {

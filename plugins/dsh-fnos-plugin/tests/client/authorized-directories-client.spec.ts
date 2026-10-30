@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { directoriesFromResponse, readablePathsFromResponse, requestAuthorizedEntries } from '../../src/client/services/authorized-directories-client.ts'
+import { directoriesFromResponse, readablePathsFromResponse, renameAuthorizedEntry, requestAuthorizedEntries } from '../../src/client/services/authorized-directories-client.ts'
 
 describe('fnOS authorized-directory client response', () => {
   afterEach(() => {
@@ -75,5 +75,38 @@ describe('fnOS authorized-directory client response', () => {
       truncated: true,
     })
     expect(fetch).toHaveBeenCalledWith('/plugins/dsh-fnos/authorized-directories/entries', expect.objectContaining({ method: 'POST' }))
+  })
+})
+
+describe('FNOS-040-02 重命名条目的客户端封装', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('把新名字发给宿主并返回改名后的条目', async () => {
+    const fetch = vi.fn(async () => new Response(JSON.stringify({
+      entry: { path: '/vol4/share/new.txt', semanticPath: '存储空间4/share/new.txt', kind: 'file' },
+    }), { status: 200 }))
+    vi.stubGlobal('fetch', fetch)
+
+    await expect(renameAuthorizedEntry('/vol4/share/old.txt', 'new.txt')).resolves.toEqual({
+      path: '/vol4/share/new.txt',
+      semanticPath: '存储空间4/share/new.txt',
+      kind: 'file',
+    })
+    expect(fetch).toHaveBeenCalledWith(
+      '/plugins/dsh-fnos/authorized-directories/rename-entry',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('宿主错误码原样抛出，供弹框翻成可操作原因', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'fnos-entry-exists' }), { status: 409 })))
+    await expect(renameAuthorizedEntry('/vol4/share/a', 'b')).rejects.toThrow('fnos-entry-exists')
+  })
+
+  it('响应体缺字段时按协议错误处理，不当成成功', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ entry: { path: '/vol4/share/a' } }), { status: 200 })))
+    await expect(renameAuthorizedEntry('/vol4/share/a', 'b')).rejects.toThrow('invalid-rename-response')
   })
 })

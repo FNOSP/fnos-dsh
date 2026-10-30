@@ -510,6 +510,13 @@ img.dsh-fnos-file-manager-icon {
   box-shadow: var(--dsw-elevation-prominent);
 }
 
+/* 菜单内分组用的细线：把「对条目本身的操作」与「新建/删除」分开。 */
+.dsh-fnos-path-context-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--dsw-alias-border-l1);
+}
+
 .dsh-fnos-path-context-item {
   display: flex;
   align-items: center;

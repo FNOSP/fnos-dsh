@@ -19,8 +19,10 @@ import { useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   DshIconClose as IconClose,
   DshIconDelete as IconDelete,
+  DshIconEdit as IconEdit,
   DshIconFile as IconFile,
   DshIconFolder as IconFolder,
+  DshIconFolderOpen as IconFolderOpen,
   DshInput as Input,
   DshModal as Modal,
   DshPopconfirm as Popconfirm,
@@ -28,8 +30,10 @@ import {
   DshTree as Tree,
   DshTypography as Typography,
 } from '@tnnevol/dsh-semi-ui'
-import { createAuthorizedEntry, deleteAuthorizedEntry, requestAuthorizedEntries, requestPersistAuthorizedDirectories, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
+import { createAuthorizedEntry, deleteAuthorizedEntry, renameAuthorizedEntry, requestAuthorizedEntries, requestPersistAuthorizedDirectories, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { pickAuthorizedDirectory } from '../client/services/authorized-directory-picker.ts'
+import { openFnosEntry } from '../client/services/file-opener.ts'
+import { createTrimApp } from '../client/services/sdk.ts'
 import { FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
 import { planFnosOccurrenceRemovals, reconcileFnosOperationOccurrences, type PendingFnosOccurrence, type TrackedFnosOccurrence } from '../client/input-references/input-reference-operation.ts'
 import { displayName, selectedPaths, toTreeNode, updateChildren, type PickerTreeNode } from '../client/input-references/picker-tree.ts'
@@ -166,6 +170,54 @@ function createErrorMessage(error: unknown, t: (key: FnosCreateLocaleKey) => str
   }
 }
 
+/** 把重命名的宿主错误码翻成用户能照着处理的文案。 */
+function renameErrorMessage(error: unknown, t: (key: FnosRenameLocaleKey) => string): string {
+  const code = error instanceof Error ? error.message : ''
+  switch (code) {
+    case 'fnos-entry-exists': return t('createDialogExists')
+    case 'fnos-rename-permission-denied':
+    case 'fnos-user-permission-denied':
+    case 'authorized-directory-not-readable':
+      return t('createDialogDenied')
+    case 'fnos-rename-read-only': return t('createDialogReadOnly')
+    case 'fnos-rename-root-forbidden': return t('renameDialogRootForbidden')
+    case 'fnos-entry-not-found': return t('renameDialogNotFound')
+    case 'fnos-rename-busy': return t('renameDialogBusy')
+    case 'invalid-fnos-rename-request': return t('createDialogInvalid')
+    default: return t('createDialogFailed')
+  }
+}
+
+/** 取父目录路径；根目录的父级就是它自己。 */
+function parentPathOf(path: string): string {
+  const index = path.lastIndexOf('/')
+  return index <= 0 ? '/' : path.slice(0, index)
+}
+
+/**
+ * 面板里真正纵向滚动的那一层。
+ *
+ * `.dsh-fnos-path-panel` 只负责限高并 `overflow: hidden`；纵向滚动落在树的根元素
+ * 上（`styles/index.scss` 的 `.dsh-fnos-path-panel-tree { flex: 1; overflow: auto }`），
+ * 内层 `.semi-tree-option-list` 只处理横向。记错层会永远读到 `scrollTop = 0`。
+ */
+function treeScrollContainer(panel: HTMLElement | null): HTMLElement | null {
+  if (panel === null) return null
+  return panel.querySelector<HTMLElement>('.dsh-fnos-path-panel-tree')
+}
+
+/** 重命名弹框会用到的那几条文案键。 */
+type FnosRenameLocaleKey =
+  | 'createDialogEmpty'
+  | 'createDialogExists'
+  | 'createDialogDenied'
+  | 'createDialogReadOnly'
+  | 'createDialogInvalid'
+  | 'createDialogFailed'
+  | 'renameDialogRootForbidden'
+  | 'renameDialogNotFound'
+  | 'renameDialogBusy'
+
 /** 新建弹框会用到的那几条文案键（避免把整个 key 联合类型铺在手写签名里）。 */
 type FnosCreateLocaleKey =
   | 'createDialogEmpty'
@@ -221,6 +273,15 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   const menuRef = useRef<HTMLDivElement>(null)
   // 删除目标独立存一份：Popconfirm 确认时菜单可能已卸载，不能依赖 state。
   const deleteTargetRef = useRef<{ path: string, semanticPath: string } | undefined>(undefined)
+  // 重命名弹框：初值是条目当前的名字（只取基线名，不把整条语义路径填进去）。
+  const [renameTarget, setRenameTarget] = useState<{ path: string, semanticPath: string, kind: AuthorizedCreateKind } | undefined>()
+  const [renameName, setRenameName] = useState('')
+  const [renameError, setRenameError] = useState<string | undefined>()
+  const [renaming, setRenaming] = useState(false)
+  // 展开状态由面板持有：面板收起时子树会卸载，交给 Semi 的内部状态就丢了。
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([])
+  // 滚动位置同理：收起时记住，重新展开后还原（勾选状态不还原）。
+  const scrollTopRef = useRef(0)
 
   const applyEntries = useCallback((result: AuthorizedEntriesResult, parent?: string) => {
     for (const entry of result.entries) entries.current.set(entry.path, entry)
@@ -266,6 +327,39 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     )
     setDesiredPaths(EMPTY_TREE_VALUE)
   }, [open])
+
+  /**
+   * 展开/收起与滚动位置跨「收起 → 重新展开」保留。
+   *
+   * 面板收起时整棵子树会卸载，Semi Tree 内部的展开与滚动状态随之丢失。这两样
+   * 都是「用户刚才看到哪」的上下文，重新打开还要再翻一次很烦；勾选状态则按
+   * 每次操作重新开始，继续保持原先的重置行为。
+   */
+  useEffect(() => {
+    if (!open) return
+    const container = treeScrollContainer(panelRef.current)
+    if (container === null) return
+    // 让树先按上一次的展开状态渲染出同样的高度，再还原滚动位置。
+    const frame = requestAnimationFrame(() => {
+      container.scrollTop = scrollTopRef.current
+    })
+    const onScroll = (): void => { scrollTopRef.current = container.scrollTop }
+    container.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      cancelAnimationFrame(frame)
+      container.removeEventListener('scroll', onScroll)
+    }
+  }, [open])
+
+  /** 记住展开状态；子树卸载后靠这份 state 还原。 */
+  const handleExpand = useCallback((keys: unknown) => {
+    setExpandedKeys(Array.isArray(keys) ? keys.filter((key): key is string => typeof key === 'string') : [])
+  }, [])
+
+  /** 条目消失或换了路径后，把它与它名下子树的展开记录清掉。 */
+  const forgetExpandedKeys = useCallback((path: string) => {
+    setExpandedKeys(keys => keys.filter(key => key !== path && !key.startsWith(`${path}/`)))
+  }, [])
 
   const insertSelectedPaths = useCallback((paths: readonly string[]): void => {
     const pending = paths
@@ -513,6 +607,57 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   }, [contextMenu])
 
   /**
+   * 用 fnOS 自己的界面打开条目：目录交给文件管理器定位，文件交给 fnOS 的
+   * 打开/预览能力。插件不复制一套浏览或预览，只负责把路径转过去。
+   */
+  const openFromContextMenu = useCallback(async () => {
+    const target = contextMenu
+    setContextMenu(undefined)
+    if (target === undefined) return
+    try {
+      await openFnosEntry(target.path, target.kind, () => createTrimApp())
+    } catch {
+      Toast.error({ content: t('openEntryFailed') })
+    }
+  }, [contextMenu, t])
+
+  /** 从上下文菜单进入重命名弹框；输入框初值取条目当前的名字。 */
+  const renameFromContextMenu = useCallback(() => {
+    const target = contextMenu
+    setContextMenu(undefined)
+    if (target === undefined) return
+    setRenameError(undefined)
+    setRenameName(displayName(target.semanticPath))
+    setRenameTarget({ path: target.path, semanticPath: target.semanticPath, kind: target.kind })
+  }, [contextMenu])
+
+  /** 提交重命名：成功后只重取父目录那一层，其它已展开的分支保持原样。 */
+  const submitRename = useCallback(async () => {
+    if (renameTarget === undefined || renaming) return
+    const name = renameName.trim()
+    if (name.length === 0) {
+      setRenameError(t('createDialogEmpty'))
+      return
+    }
+    setRenaming(true)
+    setRenameError(undefined)
+    try {
+      const entry = await renameAuthorizedEntry(renameTarget.path, name)
+      entries.current.delete(renameTarget.path)
+      entries.current.set(entry.path, entry)
+      forgetExpandedKeys(renameTarget.path)
+      const parent = parentPathOf(renameTarget.path)
+      applyEntries(await requestAuthorizedEntries(parent), parent)
+      setRenameTarget(undefined)
+      setRenameName('')
+    } catch (error: unknown) {
+      setRenameError(renameErrorMessage(error, t))
+    } finally {
+      setRenaming(false)
+    }
+  }, [renameTarget, renameName, renaming, applyEntries, forgetExpandedKeys, t])
+
+  /**
    * Popconfirm 确认后执行删除。
    *
    * 与旧 Modal 的差别只在于「确认」这一步由 Popconfirm 承担，删除本身与之后
@@ -537,6 +682,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       entries.current.delete(target.path)
       setTreeData(current => removeNode(current, target.path))
       setDesiredPaths(current => current?.filter(path => path !== target.path))
+      forgetExpandedKeys(target.path)
       if (pendingInsertedOccurrences.current.size > 0) pendingRemovalPaths.current.add(target.path)
     } catch (error: unknown) {
       // 菜单已收起，用 toast 告知失败原因，不静默吞掉。
@@ -546,7 +692,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       })
       Toast.error({ content: deleteErrorMessage(error, t) })
     }
-  }, [contextMenu, t])
+  }, [contextMenu, forgetExpandedKeys, t])
 
   /** 提交新建：成功后把新条目并进当前层，避免整树重取导致已展开节点收起。 */
   const submitCreate = useCallback(async () => {
@@ -623,6 +769,9 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         checkRelation="unRelated"
         treeData={treeData}
         value={value}
+        // 展开状态受控：面板收起时子树会卸载，交给 Semi 内部状态就丢了。
+        expandedKeys={expandedKeys}
+        onExpand={handleExpand}
         loadData={loadData}
         onChange={handleTreeChange}
         onContextMenu={handleContextMenu}
@@ -643,6 +792,29 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
           role="menu"
           aria-label={t('createFolder')}
         >
+          {/*
+            打开：目录交给 fnOS 文件管理器定位，文件交给 fnOS 的打开/预览能力。
+            与新建/删除同为「对这一个条目做事」，因此排在菜单最前面。
+          */}
+          <button
+            type="button"
+            className="dsh-fnos-path-context-item"
+            role="menuitem"
+            onClick={() => { void openFromContextMenu() }}
+          >
+            {contextMenu.kind === 'directory' ? <IconFolderOpen size="small" /> : <IconFile size="small" />}
+            {t('openEntry')}
+          </button>
+          <button
+            type="button"
+            className="dsh-fnos-path-context-item"
+            role="menuitem"
+            onClick={renameFromContextMenu}
+          >
+            <IconEdit size="small" />
+            {t('renameEntry')}
+          </button>
+          <div className="dsh-fnos-path-context-separator" aria-hidden="true" />
           {contextMenu.kind !== 'directory' ? null : (
             <>
               <button
@@ -720,6 +892,35 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
           <p className={createError === undefined ? 'dsh-fnos-create-hint' : 'dsh-fnos-create-error'}>
             {createError ?? t('createDialogHint')}
           </p>
+        </div>
+      </Modal>
+      {/* 重命名沿用同一套弹框样式与校验反馈，只是标题与初值不同。 */}
+      <Modal
+        title={t('renameDialogTitle')}
+        visible={renameTarget !== undefined}
+        onCancel={() => { setRenameTarget(undefined) }}
+        onOk={() => { void submitRename() }}
+        okText={t('createDialogConfirm')}
+        cancelText={t('createDialogCancel')}
+        confirmLoading={renaming}
+        centered
+        width={440}
+        className="dsh-fnos-create-dialog"
+      >
+        <div className="dsh-fnos-create-form">
+          <label className="dsh-fnos-create-label" htmlFor="dsh-fnos-rename-name">
+            {renameTarget?.kind === 'file' ? t('createDialogFileLabel') : t('createDialogFolderLabel')}
+            <span className="dsh-fnos-create-required" aria-hidden="true">*</span>
+          </label>
+          <Input
+            id="dsh-fnos-rename-name"
+            autoFocus
+            value={renameName}
+            onChange={(value: string) => { setRenameName(value) }}
+            onEnterPress={() => { void submitRename() }}
+            {...(renameError === undefined ? {} : { validateStatus: 'error' as const })}
+          />
+          {renameError === undefined ? null : <p className="dsh-fnos-create-error">{renameError}</p>}
         </div>
       </Modal>
     </div>

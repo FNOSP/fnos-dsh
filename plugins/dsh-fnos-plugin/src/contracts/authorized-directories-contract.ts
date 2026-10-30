@@ -64,6 +64,31 @@ export interface AuthorizedDeleteRequest {
   path: string
 }
 
+/**
+ * Same-origin route that renames one entry inside an already-authorized directory.
+ *
+ * 与新建/删除同属「在已授权目录内改动条目」，复用同一套授权校验。两条额外约束：
+ *
+ * 1. 授权根本身不可改名——授权记录按路径登记，改了名会让已持久化的授权指向
+ *    一个不存在的路径。
+ * 2. 目标名已存在时直接报错，不覆盖：`rename` 在 POSIX 下会静默覆盖同名文件，
+ *    那等于用一个改名动作销毁了另一份用户数据。
+ */
+export const FNOS_AUTHORIZED_RENAME_ENTRY_PATH = '/plugins/dsh-fnos/authorized-directories/rename-entry'
+
+/** Request body of the rename-entry route. */
+export interface AuthorizedRenameRequest {
+  /** Absolute path of the entry to rename. */
+  path: string
+  /** New single-segment name; validated on the Host. */
+  name: string
+}
+
+/** Successful rename response carries the entry under its new path. */
+export interface AuthorizedRenameResponse {
+  entry: AuthorizedEntry
+}
+
 export interface AuthorizedDirectory {
   /** Internal fnOS path used by the Host side when removing the ACL. */
   path: string

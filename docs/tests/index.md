@@ -48,5 +48,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-037 | [本地构建 FPK 改名定位到错误产物](/tests/FNOS-037-local-fpk-rename-source) | [PLAN-FNOS-037](/plans/PLAN-FNOS-037-local-fpk-rename-source) | 通过 | 7 条用例全过：包级 6 条（含变异验证——缺陷版 3 条变红、还原后全绿）+ 实跑构建 1 条；构建后目录只剩一份产物，包内 `manifest` 为 7.0.0 / rc.5，原先错配文件被覆盖 |
 | FNOS-038 | [工作区快捷入口目录名气泡只在省略时出现](/tests/FNOS-038-workspace-shortcut-tooltip) | [PLAN-FNOS-038](/plans/PLAN-FNOS-038-workspace-shortcut-tooltip) | 部分通过 | 包级 5 条守卫用例 + 全量 374 条通过；真机交互 4 条待装 FPK 后补测 |
 | FNOS-039 | [新建条目弹框对齐 fnOS 文件管理样式](/tests/FNOS-039-create-dialog-style) | [PLAN-FNOS-039](/plans/PLAN-FNOS-039-create-dialog-style) | 部分通过 | 包级 8 条守卫 + 全量 379 条通过；真机观感 4 条待装 FPK 后补测 |
+| FNOS-040 | [面板右键打开与重命名、状态保持与入口文案](/tests/FNOS-040-picker-entry-actions) | [PLAN-FNOS-040](/plans/PLAN-FNOS-040-picker-entry-actions) | 部分通过 | 包级 25 条 + 全量 410 条通过；真机 5 条待装 FPK 后补测 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

@@ -395,6 +395,10 @@ const requirementsSidebar = [
         text: 'FNOS-039 新建条目弹框对齐 fnOS 文件管理样式',
         link: '/requirements/FNOS-039-create-dialog-style'
       },
+      {
+        text: 'FNOS-040 面板右键打开与重命名、状态保持与入口文案',
+        link: '/requirements/FNOS-040-picker-entry-actions'
+      },
       ]
   }
 ]
@@ -560,6 +564,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-039 新建条目弹框对齐 fnOS 文件管理样式',
         link: '/plans/PLAN-FNOS-039-create-dialog-style'
       },
+      {
+        text: 'PLAN-FNOS-040 面板右键打开与重命名、状态保持与入口文案',
+        link: '/plans/PLAN-FNOS-040-picker-entry-actions'
+      },
     ]
   }
 ]
@@ -693,6 +701,10 @@ const testsSidebar = [
       {
         text: 'FNOS-039 新建条目弹框对齐 fnOS 文件管理样式',
         link: '/tests/FNOS-039-create-dialog-style'
+      },
+      {
+        text: 'FNOS-040 面板右键打开与重命名、状态保持与入口文案',
+        link: '/tests/FNOS-040-picker-entry-actions'
       },
     ]
   }

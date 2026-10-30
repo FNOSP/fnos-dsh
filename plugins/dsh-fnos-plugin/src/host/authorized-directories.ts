@@ -2,7 +2,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { constants as fsConstants, createWriteStream, type Stats } from 'node:fs'
-import { access, mkdir, readdir, realpath, rm, stat, unlink, writeFile } from 'node:fs/promises'
+import { access, mkdir, readdir, realpath, rename, rm, stat, unlink, writeFile } from 'node:fs/promises'
 import { posix } from 'node:path'
 import { Writable } from 'node:stream'
 import type { Context } from '@deepseek-ai/cordis'
@@ -15,14 +15,18 @@ import {
   FNOS_AUTHORIZED_DIRECTORIES_PERSIST_PATH,
   FNOS_AUTHORIZED_ENTRIES_PATH,
   FNOS_AUTHORIZED_DIRECTORIES_PATH,
+  FNOS_AUTHORIZED_RENAME_ENTRY_PATH,
   FNOS_PATH_CONVERSION_PATH,
   FNOS_PATH_OPEN_VALIDATION_PATH,
+  type AuthorizedCreateKind,
   type AuthorizedCreateRequest,
   type AuthorizedCreateResponse,
   type AuthorizedDeleteRequest,
   type AuthorizedDirectory,
   type AuthorizedEntry,
   type AuthorizedEntriesResponse,
+  type AuthorizedRenameRequest,
+  type AuthorizedRenameResponse,
   type ReadablePath,
 } from '../contracts/authorized-directories-contract.ts'
 import { FNOS_SETTINGS_DOCUMENT_PATH } from '../contracts/settings-document-contract.ts'
@@ -868,8 +872,24 @@ export function parseCreateRequest(value: unknown): AuthorizedCreateRequest | nu
   if (parent === undefined) return null
   const kind = record.kind
   if (kind !== 'directory' && kind !== 'file') return null
-  if (typeof record.name !== 'string') return null
-  const name = record.name.trim()
+  const name = parseEntryName(record.name)
+  return name === null ? null : { parent, name, kind }
+}
+
+/**
+ * 校验单段条目名（新建与重命名共用）。
+ *
+ * 规则刻意保守：只允许**单段**名字，不接受任何路径分隔符，因此客户端无法用
+ * `../` 或绝对路径把条目挪到父目录之外。Host 侧随后还会独立校验落点是否在
+ * 授权根内，两层互不依赖。
+ *
+ * 拒绝的字符是 Windows 与 fnOS 共享目录共有的禁名（`:` `*` `?` `"` `<` `>`
+ * `|` 与控制字符）：NAS 上的共享目录常被 SMB 客户端访问，允许这些字符会造出
+ * 在其它协议下打不开的条目。
+ */
+function parseEntryName(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const name = value.trim()
   if (name.length === 0 || name.length > 255) return null
   // 单段名字：不含分隔符与控制字符，也不是 . 或 ..
   if (name === '.' || name === '..') return null
@@ -879,7 +899,7 @@ export function parseCreateRequest(value: unknown): AuthorizedCreateRequest | nu
   for (const character of name) {
     if (character.codePointAt(0)! < 0x20) return null
   }
-  return { parent, name, kind }
+  return name
 }
 
 /**
@@ -892,6 +912,21 @@ export function parseDeleteRequest(value: unknown): AuthorizedDeleteRequest | nu
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
   const path = normalizePathForAuthorization((value as Record<string, unknown>).path)
   return path === undefined ? null : { path }
+}
+
+/**
+ * 校验「重命名条目」的请求体。
+ *
+ * 路径与名字分别校验：路径只负责指向目标（边界由路由判定），名字必须是合法
+ * 单段名。两者都不在此处猜测语义，避免把越权输入当成合法目标放行。
+ */
+export function parseRenameRequest(value: unknown): AuthorizedRenameRequest | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  const record = value as Record<string, unknown>
+  const path = normalizePathForAuthorization(record.path)
+  if (path === undefined) return null
+  const name = parseEntryName(record.name)
+  return name === null ? null : { path, name }
 }
 
 async function resolvedAuthorizedRoots(): Promise<string[]> {
@@ -1400,6 +1435,65 @@ export function registerAuthorizedDirectoryRoutes(ctx: Context, options: { setti
               throw error
             }
             json(res, 200, { ok: true })
+          } catch (error: unknown) {
+            errorResponse(res, error)
+          }
+        },
+      }),
+      /**
+       * 重命名授权目录内的一个条目（文件或目录）。
+       *
+       * 边界与新建/删除一致：目标必须落在授权根内。额外两条：
+       *
+       * 1. 授权根本身不可改名——授权记录按路径登记，改名会让已持久化的记录
+       *    指向一个不存在的路径。
+       * 2. 目标名已存在时直接报错，不覆盖。POSIX 的 `rename` 会静默覆盖同名
+       *    文件，那等于用一个改名动作销毁了另一份用户数据。
+       */
+      register({
+        kind: 'exact',
+        path: FNOS_AUTHORIZED_RENAME_ENTRY_PATH,
+        handler: async (req, res) => {
+          if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
+          if (!authorize(req, res)) return
+          try {
+            const request = parseRenameRequest(await readJsonBody(req))
+            if (request === null) return json(res, 400, { error: 'invalid-fnos-rename-request' })
+            const roots = await resolvedAuthorizedRoots()
+            if (!isPathWithinAuthorizedDirectory(request.path, roots)) {
+              return json(res, 403, { error: 'fnos-path-not-authorized' })
+            }
+            if (roots.some(root => normalizePathForAuthorization(root) === request.path)) {
+              return json(res, 403, { error: 'fnos-rename-root-forbidden' })
+            }
+            const entryStat = await stat(request.path).catch(() => undefined)
+            if (entryStat === undefined) return json(res, 404, { error: 'fnos-entry-not-found' })
+            const kind: AuthorizedCreateKind = entryStat.isDirectory() ? 'directory' : 'file'
+            const target = normalizePathForAuthorization(posix.join(posix.dirname(request.path), request.name))
+            if (target === undefined || !isPathWithinAuthorizedDirectory(target, roots)) {
+              return json(res, 403, { error: 'fnos-path-not-authorized' })
+            }
+            const semanticPathFor = async (path: string): Promise<string> =>
+              (await convertPathsForDisplay([path], requestLanguage(req)))[0]?.semanticPath ?? path
+            // 名字没变：不调用文件系统，直接把当前条目回给调用方。
+            if (target === request.path) {
+              json(res, 200, { entry: { path: target, semanticPath: await semanticPathFor(target), kind } } satisfies AuthorizedRenameResponse)
+              return
+            }
+            const existing = await stat(target).catch(() => undefined)
+            if (existing !== undefined) return json(res, 409, { error: 'fnos-entry-exists' })
+            try {
+              await rename(request.path, target)
+            } catch (error: unknown) {
+              const code = (error as { code?: unknown }).code
+              if (code === 'EACCES' || code === 'EPERM') return json(res, 403, { error: 'fnos-rename-permission-denied' })
+              if (code === 'EROFS') return json(res, 403, { error: 'fnos-rename-read-only' })
+              if (code === 'ENOENT') return json(res, 404, { error: 'fnos-entry-not-found' })
+              if (code === 'EEXIST' || code === 'ENOTEMPTY') return json(res, 409, { error: 'fnos-entry-exists' })
+              if (code === 'EBUSY') return json(res, 409, { error: 'fnos-rename-busy' })
+              throw error
+            }
+            json(res, 200, { entry: { path: target, semanticPath: await semanticPathFor(target), kind } } satisfies AuthorizedRenameResponse)
           } catch (error: unknown) {
             errorResponse(res, error)
           }
