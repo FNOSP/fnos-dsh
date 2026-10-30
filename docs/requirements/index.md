@@ -93,5 +93,6 @@ flowchart TD
 | FNOS-038 | [工作区快捷入口目录名气泡只在省略时出现](/requirements/FNOS-038-workspace-shortcut-tooltip) | 实施中（包级用例、typecheck、lint 与 client 产物重建通过；真实 NAS 验收待执行） |
 | FNOS-039 | [新建条目弹框对齐 fnOS 文件管理样式](/requirements/FNOS-039-create-dialog-style) | 实施中（包级用例、typecheck、lint 与 client 产物重建通过；真实 NAS 验收待执行） |
 | FNOS-040 | [面板右键打开与重命名、状态保持与入口文案](/requirements/FNOS-040-picker-entry-actions) | 实施中（包级用例、typecheck、lint 与 client 产物重建通过；真实 NAS 验收待执行） |
+| FNOS-041 | [内置 Skill 由 trim-cli 换成 fnos-cli](/requirements/FNOS-041-fnos-cli-skill) | 实施中（包级用例与产物冒烟通过；老用户 trim-cli skill 保留；真实 NAS 验收待执行） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

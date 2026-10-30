@@ -399,6 +399,10 @@ const requirementsSidebar = [
         text: 'FNOS-040 面板右键打开与重命名、状态保持与入口文案',
         link: '/requirements/FNOS-040-picker-entry-actions'
       },
+      {
+        text: 'FNOS-041 内置 Skill 由 trim-cli 换成 fnos-cli',
+        link: '/requirements/FNOS-041-fnos-cli-skill'
+      },
       ]
   }
 ]
@@ -568,6 +572,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-040 面板右键打开与重命名、状态保持与入口文案',
         link: '/plans/PLAN-FNOS-040-picker-entry-actions'
       },
+      {
+        text: 'PLAN-FNOS-041 内置 Skill 由 trim-cli 换成 fnos-cli',
+        link: '/plans/PLAN-FNOS-041-fnos-cli-skill'
+      },
     ]
   }
 ]
@@ -705,6 +713,10 @@ const testsSidebar = [
       {
         text: 'FNOS-040 面板右键打开与重命名、状态保持与入口文案',
         link: '/tests/FNOS-040-picker-entry-actions'
+      },
+      {
+        text: 'FNOS-041 内置 Skill 由 trim-cli 换成 fnos-cli',
+        link: '/tests/FNOS-041-fnos-cli-skill'
       },
     ]
   }

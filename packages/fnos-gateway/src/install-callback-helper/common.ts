@@ -53,14 +53,40 @@ export async function findPackageDirectory(root: string, packageName: string): P
   return undefined
 }
 
-/** Replace the installed user's trim-cli skill with the package-provided copy. */
-export async function copyTrimCliSkill(packageDirectory: string, targetDirectory: string): Promise<void> {
-  const sourceDirectory = join(packageDirectory, 'skill')
+/** Outcome of installing a bundled skill into the user agents directory. */
+export type SkillInstallOutcome = 'installed' | 'skipped'
+
+/**
+ * 把随包分发的 skill 装到用户目录，**已经存在就整目录跳过**。
+ *
+ * 为什么不覆盖：用户可能自己用 `npx skills add` 装过同一个 skill（甚至更新），
+ * 或者按自己的习惯改过里面某条说明。覆盖等于把用户的改动和版本选择一起抹掉。
+ * 存在即视为「用户已自助安装」，只记一条日志。
+ *
+ * 但也不能和别的 skill 混为一谈：调用方在安装失败时必须能区分「跳过」与
+ * 「复制失败」，所以返回 `installed` / `skipped`，由 shell 决定提示文案。
+ *
+ * 复制本身走「临时目录 + 原子 rename」：中途失败不会留下半个 skill 目录，也不会
+ * 让下一次安装误判成「已存在」而永久跳过。
+ */
+export async function installSkillIfAbsent(
+  sourceDirectory: string,
+  targetDirectory: string,
+): Promise<SkillInstallOutcome> {
   try {
     if (!(await stat(sourceDirectory)).isDirectory()) throw new Error('skill path is not a directory')
     await stat(join(sourceDirectory, 'SKILL.md'))
   } catch {
-    throw new Error(`The installed @trimjs/trim-cli package does not contain a usable skill at ${sourceDirectory}`)
+    throw new Error(`The bundled skill at ${sourceDirectory} is missing or has no SKILL.md`)
+  }
+
+  // 目录存在（哪怕内容为空）都算用户已安装：安装中断留下的空目录也不该被覆盖，
+  // 否则会掩盖上一次失败的现场。
+  try {
+    await stat(targetDirectory)
+    return 'skipped'
+  } catch {
+    // 目标不存在，继续安装。
   }
 
   const temporaryDirectory = `${targetDirectory}.tmp-${process.pid}`
@@ -68,12 +94,12 @@ export async function copyTrimCliSkill(packageDirectory: string, targetDirectory
   try {
     await cp(sourceDirectory, temporaryDirectory, { recursive: true, force: true })
     await mkdir(dirname(targetDirectory), { recursive: true })
-    await rm(targetDirectory, { recursive: true, force: true })
     await rename(temporaryDirectory, targetDirectory)
   } catch (error) {
     await rm(temporaryDirectory, { recursive: true, force: true })
     throw error
   }
+  return 'installed'
 }
 
 async function fileMode(path: string, fallback: number): Promise<number> {

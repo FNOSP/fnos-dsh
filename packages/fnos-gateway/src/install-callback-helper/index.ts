@@ -3,9 +3,9 @@
 import { Command, CommanderError } from 'commander'
 import {
   bundledPluginVersion,
-  copyTrimCliSkill,
   danglingBundledOwnPlugins,
   findPackageDirectory,
+  installSkillIfAbsent,
   packageField,
   persistPnpmStoreDir,
   profileDependencyVersion,
@@ -64,11 +64,14 @@ export function createProgram(): Command {
     })
 
   program
-    .command('copy-trim-cli-skill')
-    .description('Copy the trim-cli package skill into the user agents directory')
-    .argument('<package-directory>')
+    .command('install-skill')
+    .description('Install a bundled skill into the user agents directory; skip when it already exists')
+    .argument('<source-directory>')
     .argument('<target-directory>')
-    .action(copyTrimCliSkill)
+    .action(async (sourceDirectory: string, targetDirectory: string) => {
+      // 输出 installed / skipped，交给 shell 决定提示文案。
+      process.stdout.write(await installSkillIfAbsent(sourceDirectory, targetDirectory))
+    })
 
   program
     .command('profile-dependency-version')

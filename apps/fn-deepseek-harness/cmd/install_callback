@@ -12,6 +12,8 @@ DSH_BIN="${NPM_CONFIG_PREFIX}/bin/dsh"
 DSH_PACKAGE="@deepseek-ai/dsh"
 DSH_VERSION="0.2.1-rc.5"
 TRIM_CLI_PACKAGE="@trimjs/trim-cli"
+# 随包内置的 Agent skill（来自 fnnas-labs/fnos-cli-skill，装在 ${APP_DEST}/skills 下）。
+FNOS_CLI_SKILL_NAME="fnos-cli"
 PNPM_VERSION="11.7.0"
 PNPM_BIN="${NPM_CONFIG_PREFIX}/bin/pnpm"
 DSH_INSTALL_CALLBACK_HELPER="${APP_DEST}/scripts/install-callback-helper.mjs"
@@ -345,10 +347,32 @@ install_trim_cli() {
     [ -f "${package_directory}/package.json" ] ||
         fail_install "Installed ${TRIM_CLI_PACKAGE}@latest cannot be found at ${package_directory}"
 
-    run_install_callback_helper copy-trim-cli-skill \
-        "${package_directory}" "${HOME}/.agents/skills/trim-cli" ||
-        fail_install "Unable to install the ${TRIM_CLI_PACKAGE} skill into ${HOME}/.agents/skills/trim-cli"
-    log_info "Installed the ${TRIM_CLI_PACKAGE} skill into ${HOME}/.agents/skills/trim-cli."
+    # 只装 CLI，不再分发它的 skill：内置 skill 已改为随包的 fnos-cli。
+    # 老用户机器上已有的 ~/.agents/skills/trim-cli 保持原样，既不刷新也不删除。
+    log_info "Installed the ${TRIM_CLI_PACKAGE} CLI into ${NPM_GLOBAL_ROOT}."
+}
+
+# 随包内置的 fnos-cli skill（自带启动器，首次运行自行下载对应版本 CLI）。
+# 用户已经自己装过（目录存在）就整目录跳过，不覆盖用户那份。
+install_fnos_cli_skill() {
+    local source_directory="${APP_DEST}/skills/${FNOS_CLI_SKILL_NAME}"
+    local target_directory="${HOME}/.agents/skills/${FNOS_CLI_SKILL_NAME}"
+    local outcome
+
+    [ -f "${source_directory}/SKILL.md" ] ||
+        fail_install "The package does not contain the ${FNOS_CLI_SKILL_NAME} skill at ${source_directory}"
+
+    outcome="$(run_install_callback_helper install-skill "${source_directory}" "${target_directory}")" ||
+        fail_install "Unable to install the ${FNOS_CLI_SKILL_NAME} skill into ${target_directory}"
+
+    case "${outcome}" in
+    skipped)
+        log_info "Keeping the user-installed ${FNOS_CLI_SKILL_NAME} skill at ${target_directory}."
+        ;;
+    *)
+        log_info "Installed the ${FNOS_CLI_SKILL_NAME} skill into ${target_directory}."
+        ;;
+    esac
 }
 
 patch_dsh_attachment_local() {
@@ -516,6 +540,7 @@ main() {
     remove_unsatisfiable_own_plugins
     heal_profile_release_age_exclusions
     install_trim_cli
+    install_fnos_cli_skill
     install_published_dsh_plugins
 }
 
