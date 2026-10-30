@@ -574,6 +574,9 @@ img.dsh-fnos-file-manager-icon {
   /* 弹框本体：去掉主题给 content 的默认内边距，改由 header/body/footer 自己控，
      否则上下会各叠一层，出现一大段空白。 */
   .semi-modal-content {
+    /* 外边框来自 Semi 基础样式 `border: 1px solid var(--semi-color-border)`；
+       弹框靠阴影分层即可，留着这圈描边会显得脏。阴影沿用主题，不另加。 */
+    border: 0 !important;
     border-radius: 12px;
     padding: 0 !important;
   }
@@ -618,9 +621,11 @@ img.dsh-fnos-file-manager-icon {
   }
 
   .semi-modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
+    /* Semi 的 footer 只是 `text-align: right`，不是 flex——不强制 flex 时
+       下面的 gap 不生效，两个按钮会贴在一起。 */
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 15px !important;
     margin: 0 !important;
     padding: 16px 24px 20px !important;
     border-top: 0 !important;
@@ -645,7 +650,7 @@ img.dsh-fnos-file-manager-icon {
 
   /* Semi 用相邻兄弟选择器加间距，这里改由 footer 的 gap 统一控制。 */
   .semi-modal-footer .semi-button + .semi-button {
-    margin-left: 0;
+    margin-left: 0 !important;
   }
 
   /* 取消：白底 + 描边 + 主文字色。 */

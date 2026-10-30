@@ -469,15 +469,26 @@ describe('FNOS-039 弹框与 fnOS 原生弹框的细节对齐', () => {
     expect(dialog).toContain('line-height: 34px !important;')
   })
 
-  it('按钮尺寸与字重对齐 fnOS（88×36 / radius 8 / 600），间距 12', () => {
+  it('按钮尺寸与字重对齐 fnOS（88×36 / radius 8 / 600）', () => {
     expect(dialog).toContain('min-width: 88px;')
     expect(dialog).toContain('height: 36px;')
     expect(dialog).toContain('border-radius: 8px;')
     expect(dialog).toContain('font-weight: 600;')
-    expect(dialog).toContain('gap: 12px;')
-    // Semi 自带相邻按钮 margin-left，必须归零，否则间距会变成 12 + 8。
+    // Semi 的 footer 只是 `text-align: right`，不是 flex——不强制 flex 时 gap 不生效，
+    // 两个按钮会贴在一起。这三条必须同时存在。
+    expect(dialog).toContain('display: flex !important;')
+    expect(dialog).toContain('gap: 15px !important;')
+    // Semi 自带相邻按钮 margin-left，必须归零，否则会叠加成 15 + 8。
     expect(dialog).toContain('.semi-button + .semi-button {')
-    expect(dialog).toContain('margin-left: 0;')
+    expect(dialog).toContain('margin-left: 0 !important;')
+  })
+
+
+  it('弹框去掉外描边，只靠阴影分层', () => {
+    // 这圈边框来自 Semi 基础样式 `border: 1px solid var(--semi-color-border)`。
+    expect(dialog).toContain('border: 0 !important;')
+    // 阴影沿用主题，不自己再叠一层。
+    expect(dialog).not.toContain('box-shadow: 0 12px');
   })
 
   it('取消按钮是透明底，不是填充色卡片', () => {
