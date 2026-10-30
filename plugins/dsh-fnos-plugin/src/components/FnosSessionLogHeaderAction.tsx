@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DshIconFolder, DshModal, DshTree } from '@tnnevol/dsh-semi-ui'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { exportSessionLogToNas } from '../client/services/session-log-export-client.ts'
 import type { AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
+
+/** 反馈入口：本仓库地址。 */
+const FEEDBACK_URL = 'https://github.com/FNOSP/fnos-dsh'
 
 
 interface SessionLogDownloadEntry {
@@ -152,11 +155,27 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
     }
   }, [selectedDirectory, sessionId, t])
 
+  // 反馈入口指向本仓库。用新窗口打开并带 noreferrer，避免把 DSH 页面作为
+  // referrer 传给外站，也让 iframe 内的点击不接管当前页。
+  const openFeedbackPage = useCallback(() => {
+    window.open(FEEDBACK_URL, '_blank', 'noopener,noreferrer')
+  }, [])
+
   const nasExportEnabled = selectedDirectory !== undefined && !loading
   // 与官方 session-log-export 一致：菜单项自带图标，触发按钮不带文字。
+  // 结构也对齐官方：第一项是「下载 Session 日志」，本插件额外提供的两种落点
+  // （电脑 / NAS）挂在它的子菜单里，而不是平铺成两个同级项；第二项是反馈。
   const menuItems: MenuItem[] = [
-    { id: 'computer', label: t('sessionLogExportComputer'), icon: <IconDownloadOutlineRegular /> },
-    { id: 'nas', label: t('sessionLogExportNas'), icon: <IconFolderOpenOutlineRegular /> },
+    {
+      id: 'download',
+      label: t('sessionLogDownload'),
+      icon: <IconDownloadOutlineRegular />,
+      submenu: [
+        { id: 'computer', label: t('sessionLogExportComputer'), icon: <IconDownloadOutlineRegular /> },
+        { id: 'nas', label: t('sessionLogExportNas'), icon: <IconFolderOpenOutlineRegular /> },
+      ],
+    },
+    { id: 'feedback', label: t('sessionLogFeedback'), icon: <IconPaperPlaneOutlineRegular /> },
   ]
 
   return (
@@ -170,7 +189,8 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
         onSelect={(id) => {
           setOpen(false)
           if (id === 'computer') void exportToComputer(sessionId)
-          else openNasDialog()
+          else if (id === 'nas') openNasDialog()
+          else if (id === 'feedback') openFeedbackPage()
         }}
         anchor={(
           <button

@@ -50,5 +50,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-039 | [新建条目弹框对齐 fnOS 文件管理样式](/tests/FNOS-039-create-dialog-style) | [PLAN-FNOS-039](/plans/PLAN-FNOS-039-create-dialog-style) | 部分通过 | 包级 8 条守卫 + 全量 379 条通过；真机观感 4 条待装 FPK 后补测 |
 | FNOS-040 | [面板右键打开与重命名、状态保持与入口文案](/tests/FNOS-040-picker-entry-actions) | [PLAN-FNOS-040](/plans/PLAN-FNOS-040-picker-entry-actions) | 部分通过 | 包级 25 条 + 全量 410 条通过；真机 5 条待装 FPK 后补测 |
 | FNOS-041 | [内置 Skill 由 trim-cli 换成 fnos-cli](/tests/FNOS-041-fnos-cli-skill) | [PLAN-FNOS-041](/plans/PLAN-FNOS-041-fnos-cli-skill) | 部分通过 | 包级 10 条 + 产物冒烟（installed→skipped）+ 脚本契约 4 条通过；真机 3 条待装 FPK 后补测 |
+| FNOS-042 | [Session 日志菜单对齐官方默认结构](/tests/FNOS-042-session-log-menu) | [PLAN-FNOS-042](/plans/PLAN-FNOS-042-session-log-menu) | 部分通过 | 包级 6 条 + 全量 428 条通过；真机 2 条待装 FPK 后补测 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

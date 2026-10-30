@@ -403,6 +403,10 @@ const requirementsSidebar = [
         text: 'FNOS-041 内置 Skill 由 trim-cli 换成 fnos-cli',
         link: '/requirements/FNOS-041-fnos-cli-skill'
       },
+      {
+        text: 'FNOS-042 Session 日志菜单对齐官方默认结构',
+        link: '/requirements/FNOS-042-session-log-menu'
+      },
       ]
   }
 ]
@@ -576,6 +580,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-041 内置 Skill 由 trim-cli 换成 fnos-cli',
         link: '/plans/PLAN-FNOS-041-fnos-cli-skill'
       },
+      {
+        text: 'PLAN-FNOS-042 Session 日志菜单对齐官方默认结构',
+        link: '/plans/PLAN-FNOS-042-session-log-menu'
+      },
     ]
   }
 ]
@@ -717,6 +725,10 @@ const testsSidebar = [
       {
         text: 'FNOS-041 内置 Skill 由 trim-cli 换成 fnos-cli',
         link: '/tests/FNOS-041-fnos-cli-skill'
+      },
+      {
+        text: 'FNOS-042 Session 日志菜单对齐官方默认结构',
+        link: '/tests/FNOS-042-session-log-menu'
       },
     ]
   }
