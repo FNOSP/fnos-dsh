@@ -48,7 +48,7 @@ const srcPath = (...segments: string[]) => join(here, '..', 'src', ...segments)
 四条依赖字段（`dependencies`、`devDependencies`、`peerDependencies`、`optionalDependencies`）同一规则：**DSH 运行时版本只在 catalog 里出现一次，插件 manifest 一律用 `catalog:dsh` 引用，不写字面版本。**
 
 ```json
-"engines": { "node": "^22.19.0 || >=24.0.0", "dsh": "0.2.1-rc.3" },
+"engines": { "node": "^22.19.0 || >=24.0.0", "dsh": "0.2.1-rc.5" },
 "peerDependencies": { "@deepseek-ai/dsh-llm": "catalog:dsh" }
 ```
 

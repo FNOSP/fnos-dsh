@@ -74,5 +74,6 @@ flowchart TD
 | PLAN-FNOS-033 | [用量胶囊按当前选择即时显隐](/plans/PLAN-FNOS-033-usage-capsule-selection) | 已完成（三阶段；包级 opencode 208 条 / zcode 169 条全绿） |
 | PLAN-FNOS-034 | [fnOS 授权目录选择器改为输入卡片宽浮层](/plans/PLAN-FNOS-034-fnos-input-dock-picker) | 已完成（四阶段全部完成；真实 NAS 验收 2026-10-30 通过） |
 | PLAN-FNOS-035 | [fnOS iframe 内拦截浏览器快捷键](/plans/PLAN-FNOS-035-browser-shortcut-interception) | 已完成（四阶段全部完成；真实 NAS 验收 2026-10-30 通过） |
+| PLAN-FNOS-036 | [DSH 0.2.1-rc.5 插件适配与基线迁移](/plans/PLAN-FNOS-036-dsh-021-rc5-adaptation) | 实施中（四阶段：基线改写 → 包级验证 → 双客户端回归 → 文档与版本） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

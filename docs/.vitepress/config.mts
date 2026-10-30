@@ -379,6 +379,10 @@ const requirementsSidebar = [
         text: 'FNOS-035 fnOS iframe 内拦截浏览器快捷键',
         link: '/requirements/FNOS-035-browser-shortcut-interception'
       },
+      {
+        text: 'FNOS-036 DSH 0.2.1-rc.5 插件适配与基线迁移',
+        link: '/requirements/FNOS-036-dsh-021-rc5-adaptation'
+      },
       ]
   }
 ]
@@ -528,6 +532,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-035 fnOS iframe 内拦截浏览器快捷键',
         link: '/plans/PLAN-FNOS-035-browser-shortcut-interception'
       },
+      {
+        text: 'PLAN-FNOS-036 DSH 0.2.1-rc.5 插件适配与基线迁移',
+        link: '/plans/PLAN-FNOS-036-dsh-021-rc5-adaptation'
+      },
     ]
   }
 ]
@@ -645,6 +653,10 @@ const testsSidebar = [
       {
         text: 'FNOS-035 fnOS iframe 内拦截浏览器快捷键',
         link: '/tests/FNOS-035-browser-shortcut-interception'
+      },
+      {
+        text: 'FNOS-036 DSH 0.2.1-rc.5 插件适配与基线迁移',
+        link: '/tests/FNOS-036-dsh-021-rc5-adaptation'
       },
     ]
   }

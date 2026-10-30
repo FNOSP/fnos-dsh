@@ -88,5 +88,6 @@ flowchart TD
 | FNOS-033 | [用量胶囊按当前选择即时显隐](/requirements/FNOS-033-usage-capsule-selection) | 已完成（包级 + DSH Web/Desktop 运行时）：OpenCode 改读投影 `next`，切走模型立即隐藏；ZCode 实测同样正确 |
 | FNOS-034 | [fnOS 授权目录选择器改为输入卡片宽浮层](/requirements/FNOS-034-fnos-input-dock-picker) | 已完成（真实 NAS 验收通过）：卡片宽浮层 + 层级低于指令面板 + 去搜索 + 面板内新建文件夹/空文件 + 气泡仅省略时提示 + 取消授权静默 |
 | FNOS-035 | [fnOS iframe 内拦截浏览器快捷键](/requirements/FNOS-035-browser-shortcut-interception) | 已完成（真实 NAS 验收通过）：刷新三键只刷新 DSH Web + 「打开设置」组合转发给 DSH 官方命令 |
+| FNOS-036 | [DSH 0.2.1-rc.5 插件适配与基线迁移](/requirements/FNOS-036-dsh-021-rc5-adaptation) | 实施中（锚定迁移 + 契约复核 + 双客户端回归；CodeBuddy 副本按提出人要求排除；FPK 真机验证列为后续） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。
