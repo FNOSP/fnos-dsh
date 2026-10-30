@@ -629,11 +629,12 @@ img.dsh-fnos-file-manager-icon {
 
   /* 按钮尺寸统一；颜色在下面按类名单独落。 */
   .semi-modal-footer .semi-button {
-    min-width: 72px;
-    height: 32px;
+    min-width: 88px;
+    height: 36px;
     padding: 0 16px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 14px;
+    font-weight: 600;
   }
 
   /* 键盘聚焦环用品牌蓝，避免 DSH 默认的黑色描边在弹框里显得脏。 */
@@ -649,12 +650,13 @@ img.dsh-fnos-file-manager-icon {
 
   /* 取消：白底 + 描边 + 主文字色。 */
   .semi-modal-footer .dsh-fnos-create-cancel {
-    background: var(--dsw-alias-bg-layer-1) !important;
+    background: transparent !important;
     border: 1px solid var(--dsw-alias-border-l2) !important;
-    color: var(--dsw-alias-label-primary) !important;
+    color: var(--dsw-alias-label-secondary) !important;
 
     &:hover {
       background: var(--dsw-alias-interactive-bg-hover) !important;
+      color: var(--dsw-alias-label-primary) !important;
     }
   }
 
@@ -677,15 +679,25 @@ img.dsh-fnos-file-manager-icon {
 
   /* 输入框：白底 + 细描边，不用主题的浅灰填充（fnOS 弹框里是白底）。 */
   .dsh-fnos-create-form .semi-input-wrapper {
-    height: 40px;
+    height: 36px !important;
+    padding: 0 !important;
     background: var(--dsw-alias-bg-layer-1) !important;
     border: 1px solid var(--dsw-alias-border-l2) !important;
     border-radius: 6px !important;
 
-    /* 聚焦只换边框颜色，不叠 DSH 的粗黑描边。 */
+    /* 内层输入必须撑满容器：Semi 的 .semi-input 默认 30px 且贴顶，
+       40px 容器里会出现「上 1px、下 9px」的偏心。撑满后上下各约 1px。 */
+    .semi-input {
+      height: 100% !important;
+      line-height: 34px !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
+
+    /* 聚焦只换 1px 边框颜色（fnOS 原生就是这样），不叠 DSH 的粗黑描边。 */
     &:focus-within {
       border-color: var(--dsh-fnos-create-brand) !important;
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsh-fnos-create-brand) 18%, transparent) !important;
+      box-shadow: none !important;
     }
   }
 }

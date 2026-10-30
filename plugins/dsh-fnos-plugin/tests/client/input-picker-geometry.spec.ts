@@ -453,3 +453,46 @@ describe('FNOS-038 新建弹框的按钮色调只在本插件内覆盖', () => {
     }
   })
 })
+
+describe('FNOS-039 弹框与 fnOS 原生弹框的细节对齐', () => {
+  // describe 作用域各自取一次：上一个 describe 里的 `dialog` 不在本作用域内。
+  const dialog = ruleBody('.dsh-fnos-create-dialog')
+
+  // 基准值是直接量 fnOS「文件管理」新建文件夹弹框得到的：
+  // 弹框 454 宽、输入 36 高且内部上下各 1px、按钮 88×36 / radius 8 / 600、间距 12、
+  // 取消为透明底 + 描边、placeholder 与标题一致。
+  it('输入框 36 高，内层撑满保证文字上下对称', () => {
+    expect(dialog).toContain('height: 36px !important;')
+    // Semi 的 .semi-input 默认 30px 且贴顶，不撑满会出现「上 1、下 9」的偏心。
+    expect(dialog).toContain('.semi-input {')
+    expect(dialog).toContain('height: 100% !important;')
+    expect(dialog).toContain('line-height: 34px !important;')
+  })
+
+  it('按钮尺寸与字重对齐 fnOS（88×36 / radius 8 / 600），间距 12', () => {
+    expect(dialog).toContain('min-width: 88px;')
+    expect(dialog).toContain('height: 36px;')
+    expect(dialog).toContain('border-radius: 8px;')
+    expect(dialog).toContain('font-weight: 600;')
+    expect(dialog).toContain('gap: 12px;')
+    // Semi 自带相邻按钮 margin-left，必须归零，否则间距会变成 12 + 8。
+    expect(dialog).toContain('.semi-button + .semi-button {')
+    expect(dialog).toContain('margin-left: 0;')
+  })
+
+  it('取消按钮是透明底，不是填充色卡片', () => {
+    expect(dialog).toContain('background: transparent !important;')
+    expect(dialog).toContain('color: var(--dsw-alias-label-secondary) !important;')
+  })
+
+  it('弹框宽度对齐 fnOS 的 454', () => {
+    expect(PANEL.match(/width=\{454\}/gu)?.length ?? 0).toBe(2)
+  })
+
+  it('两个弹框都有 placeholder：新建用标题、重命名用原名', () => {
+    // 新建：占位与标题一致（fnOS 原生就是这样）。
+    expect(PANEL).toMatch(/placeholder=\{createTarget\?\.kind === 'file' \? t\('createDialogFileTitle'\) : t\('createDialogTitle'\)\}/u)
+    // 重命名：预填值清空后仍能看到原名。
+    expect(PANEL).toContain("placeholder={displayName(renameTarget?.semanticPath ?? '')}")
+  })
+})

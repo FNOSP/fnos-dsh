@@ -84,6 +84,7 @@ verifiedAt: 2026-10-30
 | BUG-039-02 | 全量测试曾出现 1 条失败（bundle 用例） | `client-bundle.spec.ts` 读的是上一次构建的 `lib/client.js` | 先 `tsdown` 再跑测试即通过；该用例本来就依赖产物，顺序问题不是回归 |
 | BUG-039-03 | 真机：确定按钮仍是 DSH 深色、取消浅灰、输入框灰底、上下空白过大 | 共享主题按钮规则特异性 (0,6,1) 且用固定 token；content 默认内边距叠加 | 改用显式按钮类名 + 作用域内 `!important` 落色，content 内边距归零，输入框白底细描边，宽度 440→420；守卫用例同步改为断言类名与 `!important` |
 | BUG-039-04 | 真机：弹框 326px 过高、关闭按钮有灰色方块、常驻说明行多出一行 | 主题给 header/footer 各加 24px margin；`.semi-modal-close` 底色取 `--semi-color-fill-0`；`createDialogHint` 常驻渲染 | margin 归零 + 三段内边距、关闭按钮去底色去边框、说明行改为仅出错时显示并把规则并入错误文案；真机注入构建产物 CSS 复测 196px |
+| BUG-039-05 | 真机：输入框文字偏心（上 1 / 下 9）、按钮偏小、新建弹框无 placeholder | 内层 `.semi-input` 默认 30px 且贴顶；按钮按 72×32 设定；JSX 未传 placeholder | 输入 36 高 + 内层撑满；按钮 88×36/r8/600、间距 12；两个弹框分别补标题式与原名式 placeholder；基准值取自 fnOS 原生弹框实测 |
 
 ## 最终结论
 

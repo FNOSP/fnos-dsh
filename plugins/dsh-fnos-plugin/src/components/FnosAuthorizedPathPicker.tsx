@@ -873,7 +873,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         cancelText={t('createDialogCancel')}
         confirmLoading={creating}
         centered
-        width={420}
+        width={454}
         className="dsh-fnos-create-dialog"
         okButtonProps={{ className: 'dsh-fnos-create-confirm' }}
         cancelButtonProps={{ className: 'dsh-fnos-create-cancel' }}
@@ -886,6 +886,8 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
           <Input
             id="dsh-fnos-create-name"
             autoFocus
+            // 占位文案与标题一致（fnOS 原生弹框就是这样：新建文件夹 / 新建文件）。
+            placeholder={createTarget?.kind === 'file' ? t('createDialogFileTitle') : t('createDialogTitle')}
             value={createName}
             onChange={(value: string) => { setCreateName(value) }}
             onEnterPress={() => { void submitCreate() }}
@@ -906,7 +908,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         cancelText={t('createDialogCancel')}
         confirmLoading={renaming}
         centered
-        width={420}
+        width={454}
         className="dsh-fnos-create-dialog"
         okButtonProps={{ className: 'dsh-fnos-create-confirm' }}
         cancelButtonProps={{ className: 'dsh-fnos-create-cancel' }}
@@ -919,6 +921,8 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
           <Input
             id="dsh-fnos-rename-name"
             autoFocus
+            // 清空后仍能看到原名字，便于对照着改。
+            placeholder={displayName(renameTarget?.semanticPath ?? '')}
             value={renameName}
             onChange={(value: string) => { setRenameName(value) }}
             onEnterPress={() => { void submitRename() }}
