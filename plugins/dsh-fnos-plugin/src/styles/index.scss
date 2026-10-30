@@ -578,9 +578,13 @@ img.dsh-fnos-file-manager-icon {
     padding: 0 !important;
   }
 
+  /* 共享主题给 header/footer 各加了 24px 上下外边距（实测 header 高 46 却占 94、
+     footer 高 72 却占 120），弹框因此显得过高。这里统一归零，改由三段自身的内边距
+     控制节奏。 */
   .semi-modal-header {
+    margin: 0 !important;
     padding: 20px 24px 0 !important;
-    border-bottom: 0;
+    border-bottom: 0 !important;
   }
 
   .semi-modal-header .semi-modal-title {
@@ -591,16 +595,36 @@ img.dsh-fnos-file-manager-icon {
     margin: 0;
   }
 
+  /* Semi 的关闭按钮带一层 `--semi-color-fill-0` 底色，在 DSH 主题里被映射成灰色
+     方块，和 fnOS 的无底色 × 差得很远。这里去掉底色，只留悬停反馈。 */
+  .semi-modal-header .semi-modal-close {
+    top: 18px !important;
+    right: 20px !important;
+    width: 24px !important;
+    height: 24px !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--dsw-alias-label-secondary) !important;
+
+    &:hover {
+      background: var(--dsw-alias-interactive-bg-hover) !important;
+      color: var(--dsw-alias-label-primary) !important;
+    }
+  }
+
   .semi-modal-body {
-    padding: 16px 24px 0 !important;
+    margin: 0 !important;
+    padding: 12px 24px 0 !important;
   }
 
   .semi-modal-footer {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    padding: 20px 24px !important;
-    border-top: 0;
+    margin: 0 !important;
+    padding: 16px 24px 20px !important;
+    border-top: 0 !important;
+    border-radius: 0;
   }
 
   /* 按钮尺寸统一；颜色在下面按类名单独落。 */
@@ -610,6 +634,12 @@ img.dsh-fnos-file-manager-icon {
     padding: 0 16px;
     border-radius: 6px;
     font-size: 14px;
+  }
+
+  /* 键盘聚焦环用品牌蓝，避免 DSH 默认的黑色描边在弹框里显得脏。 */
+  .semi-modal-footer .semi-button:focus-visible {
+    outline: 2px solid var(--dsh-fnos-create-brand) !important;
+    outline-offset: 1px;
   }
 
   /* Semi 用相邻兄弟选择器加间距，这里改由 footer 的 gap 统一控制。 */
@@ -652,8 +682,10 @@ img.dsh-fnos-file-manager-icon {
     border: 1px solid var(--dsw-alias-border-l2) !important;
     border-radius: 6px !important;
 
+    /* 聚焦只换边框颜色，不叠 DSH 的粗黑描边。 */
     &:focus-within {
-      border-color: var(--dsw-alias-state-business-primary) !important;
+      border-color: var(--dsh-fnos-create-brand) !important;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--dsh-fnos-create-brand) 18%, transparent) !important;
     }
   }
 }
@@ -671,19 +703,14 @@ img.dsh-fnos-file-manager-icon {
 }
 
 .dsh-fnos-create-required {
-  margin-left: 2px;
+  margin-left: 4px;
   color: var(--dsw-alias-state-error-primary);
 }
 
-.dsh-fnos-create-hint,
 .dsh-fnos-create-error {
   margin: 0;
   font-size: 12px;
   line-height: 18px;
-}
-
-.dsh-fnos-create-hint {
-  color: var(--dsw-alias-label-caption);
 }
 
 .dsh-fnos-create-error {

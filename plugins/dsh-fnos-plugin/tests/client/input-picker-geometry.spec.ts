@@ -17,6 +17,7 @@ const read = (relative: string): string => readFileSync(new URL(relative, import
 
 const STYLE = read('../../src/styles/index.scss')
 const PANEL = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+const DIALOG_LOCALES = read('../../src/client/locales.ts')
 
 /**
  * 取出某个类名的规则体。
@@ -420,9 +421,25 @@ describe('FNOS-038 新建弹框的按钮色调只在本插件内覆盖', () => {
     expect(PANEL).toContain("cancelButtonProps={{ className: 'dsh-fnos-create-cancel' }}")
   })
 
-  it('弹框本体不吃主题默认内边距，避免上下叠出大段空白', () => {
+  it('吃掉主题给 header/footer 的 24px 外边距，避免弹框被撑高', () => {
+    // 实测（真机页面注入同结构 DOM）：主题给 .semi-modal-header/.semi-modal-footer
+    // 各加 24px 上下 margin，弹框因此 326px 高；归零后收到 196px，接近 fnOS 版式。
     expect(dialog).toContain('padding: 0 !important;')
-    expect(dialog).toContain('padding: 20px 24px !important;')
+    expect(dialog.match(/margin: 0 !important;/gu)?.length ?? 0).toBeGreaterThanOrEqual(3)
+    expect(dialog).toContain('padding: 20px 24px 0 !important;')
+    expect(dialog).toContain('padding: 12px 24px 0 !important;')
+    expect(dialog).toContain('padding: 16px 24px 20px !important;')
+  })
+
+  it('关闭按钮去掉灰色底块，与 fnOS 的无底色 × 一致', () => {
+    expect(dialog).toContain('.semi-modal-header .semi-modal-close {')
+    expect(dialog).toContain('background: transparent !important;')
+  })
+
+  it('不再有常驻说明行（规则并进名称不可用的错误文案）', () => {
+    expect(PANEL).not.toContain('dsh-fnos-create-hint')
+    expect(DIALOG_LOCALES).not.toContain('createDialogHint')
+    expect(DIALOG_LOCALES).toContain('名称不能包含 : * ? " < > |，也不能带路径分隔符。')
   })
 
   it('共享包主题里没有混入 fnOS 品牌蓝', () => {

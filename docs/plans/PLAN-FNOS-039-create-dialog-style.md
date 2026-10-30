@@ -5,7 +5,7 @@ description: 用插件内作用域覆盖把新建弹框的排版与按钮配色�
 status: completed
 owner: tnnevol
 planDate: 2026-10-30
-targetVersion: 7.0.7
+targetVersion: 7.0.8
 lastVerified: 2026-10-30
 ---
 

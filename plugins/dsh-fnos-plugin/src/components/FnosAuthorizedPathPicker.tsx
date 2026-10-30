@@ -891,9 +891,9 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
             onEnterPress={() => { void submitCreate() }}
             {...(createError === undefined ? {} : { validateStatus: 'error' as const })}
           />
-          <p className={createError === undefined ? 'dsh-fnos-create-hint' : 'dsh-fnos-create-error'}>
-            {createError ?? t('createDialogHint')}
-          </p>
+          {/* 常驻说明行会让弹框比 fnOS 的高出一行，这里只在出错时出现；
+              名称规则并进错误文案本身（见 createDialogInvalid）。 */}
+          {createError === undefined ? null : <p className="dsh-fnos-create-error">{createError}</p>}
         </div>
       </Modal>
       {/* 重命名沿用同一套弹框样式与校验反馈，只是标题与初值不同。 */}
