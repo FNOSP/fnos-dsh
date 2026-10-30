@@ -44,6 +44,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-033 | [用量胶囊按当前选择即时显隐](/tests/FNOS-033-usage-capsule-selection) | [PLAN-FNOS-033](/plans/PLAN-FNOS-033-usage-capsule-selection) | 通过 | 6 条包级全部通过（opencode 208 条、zcode 169 条）；DSH Web 与 DSH Desktop 各两个切换方向均即时显隐（未发送消息）；BUG-01 已修复，BUG-02（线上 6.0.6 旧构建）按决定改本地打包交付 |
 | FNOS-034 | [fnOS 授权目录选择器改为输入卡片宽浮层](/tests/FNOS-034-fnos-input-dock-picker) | [PLAN-FNOS-034](/plans/PLAN-FNOS-034-fnos-input-dock-picker) | 通过 | 52 条用例：包级 36 条全过（369 条测试全绿，含层级、去搜索、新建条目校验、气泡省略判定、取消静默）；真机 2026-10-30 在真实 NAS 验收通过（6.1.15，提出人确认） |
 | FNOS-035 | [fnOS iframe 内拦截浏览器快捷键](/tests/FNOS-035-browser-shortcut-interception) | [PLAN-FNOS-035](/plans/PLAN-FNOS-035-browser-shortcut-interception) | 通过 | 11 条用例：包级 11 条全过（369 条测试全绿；含识别边界、只转发不自实现、重入保护）；真机 2026-10-30 在真实 NAS 验收通过（6.1.15，提出人确认） |
-| FNOS-036 | [DSH 0.2.1-rc.5 插件适配与基线迁移](/tests/FNOS-036-dsh-021-rc5-adaptation) | [PLAN-FNOS-036](/plans/PLAN-FNOS-036-dsh-021-rc5-adaptation) | 执行中 | 待回填 |
+| FNOS-036 | [DSH 0.2.1-rc.5 插件适配与基线迁移](/tests/FNOS-036-dsh-021-rc5-adaptation) | [PLAN-FNOS-036](/plans/PLAN-FNOS-036-dsh-021-rc5-adaptation) | 部分通过 | 23 条用例：包级与构建链路 7 条通过（catalog 三处 348 条同步、0 残留、门禁变异、29 个 turbo 任务全绿含七插件 1366 条单测）；DSH Web 运行时 `0.2.1-rc.5`、六个在范围内插件全部加载且插件管理页无异常；6 条部分通过（代表功能与输入区插槽未逐项走查）；Desktop 因检出要求 pnpm 11.28.5 未能启动，FPK 真机待验 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

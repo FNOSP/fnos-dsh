@@ -14,7 +14,7 @@ lastVerified: 2026-10-30
 | --- | --- |
 | 需求编号 | FNOS-036 |
 | 提出日期 | 2026-10-30 |
-| 需求状态 | 实施中 |
+| 需求状态 | 待完成（实现与包级验证完成；DSH Web 运行时已验；DSH Desktop 运行时与 FPK 真机待验） |
 | 关联计划 | [PLAN-FNOS-036 DSH 0.2.1-rc.5 插件适配与基线迁移](/plans/PLAN-FNOS-036-dsh-021-rc5-adaptation) |
 | 适用范围 | 七个入库 DSH 插件（codex-auth、fnos、failover-search、midscene、opencode、semi-ui-showcase、zcode）、仓库运行与构建基线、本地联调检出（`fork-pj/deepseek-harness`） |
 | 明确排除 | CodeBuddy 插件本地副本（[FNOS-025](/requirements/FNOS-025-codebuddy-plugin-delisting) 已下架，本次不随基线迁移） |
@@ -169,4 +169,5 @@ sequenceDiagram
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-10-30 | 实现与 DSH Web 验收完成 | 基线迁移、七插件锚定改写（统一 `catalog:dsh` + `engines.dsh`）、catalog 三处同步（348 条）与安装回调完成；`pnpm install` 重锁后运行时报告 `0.2.1-rc.5`，六个在范围内插件在插件管理页全部加载且无异常（CodeBuddy 按范围排除、显示「异常」）。需求状态转「待完成」：DSH Desktop 运行时回归因检出 pnpm 版本要求未能执行，FPK 真机验证按发布流程另行安排。测试证据见[测试用例文档](/tests/FNOS-036-dsh-021-rc5-adaptation)。 |
 | 2026-10-30 | 初始登记 | 建立 FNOS-036，范围覆盖基线迁移（catalog/基线校验/安装回调）、七个入库插件的锚定迁移、联调检出更新与双客户端验收；CodeBuddy 副本按提出人要求排除。rc.3→rc.5 契约差异已核实为一条插座 props 变化（不落在插件能力面上），8 条调研结论，关联 PLAN-FNOS-036。 |

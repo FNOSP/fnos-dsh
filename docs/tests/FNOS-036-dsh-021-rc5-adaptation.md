@@ -4,7 +4,7 @@ title: FNOS-036 测试用例
 description: FNOS-036 DSH 0.2.1-rc.5 插件适配与基线迁移的测试用例、执行结果与问题记录。
 requirement: /requirements/FNOS-036-dsh-021-rc5-adaptation
 plan: /plans/PLAN-FNOS-036-dsh-021-rc5-adaptation
-status: 执行中
+status: 部分通过
 lastVerified: 2026-10-30
 verifiedAt: 2026-10-30
 ---
@@ -103,13 +103,15 @@ CodeBuddy 插件按需求范围**排除**：不纳入本轮用例，其 `engines
 | TC-017 | FNOS-036-03 | 本地构建链路 | 通过 | 2026-10-30 | `dshmarket@1.66.47` peer `^0.2.1-rc.1` 按 semver 包含 `0.2.1-rc.5`；`published-dsh-plugins.json` 中 `dshmarket` 版本未变（仍 1.66.47） |
 | TC-018 | FNOS-036-03 | 本地构建链路 | 通过 | 2026-10-30 | `pnpm run check -- --packages --plugins --tooling`：29 个 turbo 任务全部成功，0 失败；单测合计 CLI 100、gateway 147、plugin-kit 12、semi-ui 11，七插件 1366（codex-auth 137、fnos 369、failover-search 233、midscene 211、opencode 208、semi-ui-showcase 39、zcode 169），CodeBuddy 副本 1022（按范围仅构建，未纳入验收） |
 | TC-014 | FNOS-036-02 | 本地构建链路 | 通过 | 2026-10-30 | 复核官方 `docs/upgrade-guide/v0.2.1-rc.4/reasoning-body-props`：`conversation.chat.reasoning.body` 的 `ReasoningBodyOwnerProps` 新增 `rawText`、`text` 改义为展示文本；插座目录 12 处改动中 11 处仅为 `source` 行号位移（`+6`），唯一契约变化即该插座；七插件未注册该插座、未依赖 `dsh-client-ui-chat` 或 `client-ui-cot-translation`，结论为无需适配 |
-| TC-003 | FNOS-036-01 | DSH Web | 待执行 | — | — |
-| TC-004 | FNOS-036-01 | DSH Web | 待执行 | — | — |
-| TC-005～TC-011 | FNOS-036-01 | DSH Web | 待执行 | — | — |
-| TC-012～TC-013 | FNOS-036-02 | DSH Web | 待执行 | — | — |
-| TC-016 | FNOS-036-03 | DSH Web | 待执行 | — | — |
-| TC-019～TC-020 | FNOS-036-04 | DSH Web | 待执行 | — | — |
-| TC-022～TC-023 | FNOS-036-05 | DSH Desktop | 待执行 | — | — |
+| TC-016 | FNOS-036-03 | DSH Web（仓库 profile） | 通过 | 2026-10-30 | 页面 boot 载荷报告 `release.version = 0.2.1-rc.5`（commit `d4db512`、rev `a25c3cad4553`）；服务端日志的兼容判定文案同为「incompatible with dsh 0.2.1-rc.5」 |
+| TC-003 | FNOS-036-01 | DSH Web（仓库 profile） | 通过 | 2026-10-30 | 插件管理页「已安装插件」列出 6 个在范围内插件（Codex、Failover Search、Midscene、OpenCode、Semi UI、ZCode）且无任何异常标记；页面唯一「异常」是 `@tnnevol/dsh-codebuddy`——按需求范围排除，与本轮结论无关 |
+| TC-004 | FNOS-036-01 | DSH Web（仓库 profile） | 通过 | 2026-10-30 | 启动日志中被跳过/禁用的只有 `@tnnevol/dsh-codebuddy`（范围外）、`agent-team` 与 `tool-agent-team`（profile 内官方实验性插件仍为 rc.2）；六个在范围内插件无模块未找到、插座未声明或行挂起记录 |
+| TC-005～TC-010 | FNOS-036-01 | DSH Web（仓库 profile） | 部分通过 | 2026-10-30 | 六个插件均已加载并注册进客户端运行时（boot `entries` 含 `@tnnevol/dsh-{codex-auth,failover-search,midscene,opencode,semi-ui-showcase,zcode}`，共 80 个入口），插件管理页可见；各插件的代表功能（账号登录态、用量、模型目录、搜索转移、桥接健康）未逐项交互走查，留待后续补测 |
+| TC-012 | FNOS-036-02 | DSH Web（仓库 profile） | 部分通过 | 2026-10-30 | 会话头部工具区可见「智能体团队、用访达打开、更多打开方式、更多操作、Semi UI、打开右侧边栏」六个区块（含仓库插件 Semi UI 的注册块），位置与 rc.3 基线一致；输入区左右插槽、侧栏底部动作与设置动作未逐项走查 |
+| TC-011 | FNOS-036-01 | DSH Web（仓库 profile） | 不适用 | 2026-10-30 | 本地 Web profile 的依赖清单未安装 `@tnnevol/dsh-fnos`（该插件面向真实 fnOS 宿主），本环境不具备验证条件；其加载与能力按真实 NAS 口径另验 |
+| TC-013 | FNOS-036-02 | DSH Web | 待执行 | — | 亮暗主题切换未走查 |
+| TC-019～TC-020 | FNOS-036-04 | DSH Web | 待执行 | — | 既有凭据/偏好在本次运行中可见但未做迁移前后比对取证 |
+| TC-022～TC-023 | FNOS-036-05 | DSH Desktop | 待执行 | — | 见下方遗留风险 |
 
 ## Bug 记录
 
@@ -119,18 +121,21 @@ CodeBuddy 插件按需求范围**排除**：不纳入本轮用例，其 `engines
 
 ## 测试结论
 
-**执行中（包级与构建链路已通过，运行时回归待执行）**：23 条用例中 7 条通过（TC-021、TC-015、TC-001、TC-002、TC-017、TC-018、TC-014），16 条待执行，0 失败、0 阻塞。
+**部分通过（DSH Web 已验，Desktop 运行时回归待执行）**：23 条用例中 10 条通过、7 条部分通过、1 条不适用、5 条待执行，0 失败、0 阻塞。
 
-- **执行统计**：执行 7 / 通过 7 / 失败 0 / 阻塞 0 / 待执行 16；遗留 Bug 0 个（BUG-01 已修复）。
+- **执行统计**：通过 10（TC-001、TC-002、TC-003、TC-004、TC-014、TC-015、TC-016、TC-017、TC-018、TC-021）/ 部分通过 7（TC-005～TC-010、TC-012）/ 不适用 1（TC-011）/ 待执行 5（TC-013、TC-019、TC-020、TC-022、TC-023）/ 失败 0 / 阻塞 0；遗留 Bug 0 个（BUG-01 已修复）。
 - **一句话结论**：DSH 基线已从 `0.2.1-rc.3` 迁移到 `0.2.1-rc.5`，catalog 三处、七插件兼容锚定与安装回调四处同源一致，仓库与全部插件包级验证全绿，rc.5 唯一面向插件作者的插座契约变化经复核不落在插件能力面上；双客户端运行时回归尚待执行。
 - **遗留风险**：
-  1. **DSH Web 与 DSH Desktop 运行时回归未执行**（TC-003～TC-013、TC-016、TC-019～TC-020、TC-022～TC-023）：包级验证只证明「能编译、单测通过、门禁放行」，不证明插件在新运行时上加载与界面位置正确，需按计划 T03 补做。
-  2. **FPK 真机安装与升级未执行**：安装回调 `DSH_VERSION` 已与 catalog 一致，但真实 fnOS NAS 上的安装/升级与 `dshmarket` 实装门禁需按发布流程验证。
-  3. **CodeBuddy 副本停在 rc.3**（按需求范围排除）：它在本地 profile 中会因兼容判定被拒；如需继续使用需单独迁移，本轮不处理。
-  4. **外部账号依赖**：Codex / OpenCode / ZCode 的登录态与额度显示依赖真实账号，运行时回归需沿用既有凭据。
+  1. **DSH Desktop 运行时回归未执行**（TC-022、TC-023）：开发态 Desktop 启动时被检出的 pnpm 版本要求拦下——`fork-pj/deepseek-harness` 的 `packageManager` 声明 `pnpm@11.28.5`，本地 corepack 提供的是 `11.16.0`，且启动链在 `runDepsStatusCheck` 阶段会触发检出内 `pnpm install`，两处都因版本不符失败（`--pm-on-fail=ignore` 未能传递到子进程）。**复跑前务必注意**：该启动链在准备运行时曾把本仓库 6 个插件的 `catalog:dsh` 原地改写为版本字面量（已用 `git checkout` 还原并复验 `catalog:dsh` 计数与 `engines.dsh`），重跑前应先核对工作区、失败后立即检查插件 manifest。需先用 corepack 准备 `pnpm@11.28.5` 并完成检出内安装后再重试；TC-021 已确认检出本身停在 `dsh-v0.2.1-rc.5`。
+  2. **DSH Web 的代表功能与其余界面面未逐项走查**（TC-005～TC-010、TC-012 部分通过，TC-013、TC-019～TC-020 待执行）：已取证的是插件加载（boot `entries` 80 项含六个仓库插件）、插件管理页无异常、会话头部工具区块在位；账号登录态、用量、模型目录、输入区插槽、亮暗主题与迁移前后数据比对仍需补测。
+  3. **FPK 真机安装与升级未执行**：安装回调 `DSH_VERSION` 已与 catalog 一致，但真实 fnOS NAS 上的安装/升级与 `dshmarket` 实装门禁需按发布流程验证。
+  4. **CodeBuddy 副本停在 rc.3**（按需求范围排除）：它在本地 profile 中被运行时跳过、插件管理页显示「异常」；如需继续使用需单独迁移，本轮不处理。
+  5. **profile 内官方实验性插件仍为 rc.2**（`agent-team`、`tool-agent-team`）：启动时被运行时禁用，属本地 profile 状态，需单独升级，不影响本需求插件。
+  6. **外部账号依赖**：Codex / OpenCode / ZCode 的登录态与额度显示依赖真实账号，运行时回归需沿用既有凭据。
 
 ## 变更记录
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
-| 2026-10-30 | 初始登记与包级结果回填 | 建立 FNOS-036 测试用例文档：23 条用例覆盖六项功能；回填包级与构建链路 7 条通过结果（检出 tag、基线多处一致、catalog 单一事实来源、门禁变异、三方插件判定、全插件包级验证、rc.5 插座契约复核）；登记并修复 BUG-01（变异脚本回退连带破坏锚定）。运行时回归待执行。 |
+| 2026-10-30 | 回填 DSH Web 运行时回归结果 | 启动仓库 profile 的 DSH Web（`pnpm run start -- --web`），页面 boot 载荷确认运行时 `0.2.1-rc.5`、80 个入口含六个仓库插件；插件管理页六个在范围内插件无异常，唯一「异常」为范围外的 CodeBuddy。回填 TC-003、TC-004、TC-016 通过，TC-005～TC-010、TC-012 部分通过，TC-011 记为不适用（本地 Web profile 未安装 fnos 插件）。DSH Desktop 因检出 pnpm 版本要求（11.28.5）未能启动，按实登记为遗留风险。 |
+| 2026-10-30 | 初始登记与包级结果回填 | 建立 FNOS-036 测试用例文档：23 条用例覆盖六项功能；回填包级与构建链路 7 条通过结果（检出 tag、基线多处一致、catalog 单一事实来源、门禁变异、三方插件判定、全插件包级验证、rc.5 插座契约复核）；登记并修复 BUG-01（变异脚本回退连带破坏锚定）。 |
