@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import {
   DshDropdown as Dropdown,
   DshIconButton as IconButton,
-  DshTooltip as Tooltip,
+  DshTypography as Typography,
   DshIconFolderOpen as IconFolderOpen,
 } from '@tnnevol/dsh-semi-ui'
 import type { AuthorizedDirectory } from '../../contracts/authorized-directories-contract.ts'
@@ -23,7 +23,7 @@ const SemiDropdown = Dropdown as unknown as ElementType
 const SemiDropdownItem = Dropdown.Item as unknown as ElementType
 const SemiDropdownMenu = Dropdown.Menu as unknown as ElementType
 const SemiIconButton = IconButton as unknown as ElementType
-const SemiTooltip = Tooltip as unknown as ElementType
+const SemiTypographyText = Typography.Text as unknown as ElementType
 
 const SHORTCUT_ATTRIBUTE = 'data-dsh-fnos-workspace-shortcut'
 
@@ -125,54 +125,37 @@ interface AuthorizedDirectoryDropdownProps {
   t: Translate
 }
 
-interface AuthorizedDirectoryMenuTextProps {
-  text: string
-  color: string
-}
-
 /**
- * Keep each directory item's tooltip independently controlled. Semi's hover
- * trigger can lose the later item when it is nested inside a Dropdown portal;
- * a custom trigger also lets the tooltip render above the dropdown layer.
+ * 目录名：省略与气泡都交给 Semi `Typography.Text` 的 `ellipsis`。
+ *
+ * `ellipsis.showTooltip` 的语义正是要的行为（semi-ui `typography/base.js`：
+ * `const show = noExpandText && overflowed && showTooltip`）：只有文本真的被
+ * 截断时才挂 tooltip，目录名放得下时不弹气泡，也不需要自己量 `scrollWidth`。
+ *
+ * 气泡沿用下拉浮层的既有约定：挂到 body、层级压住菜单（Dropdown 用 zIndex
+ * 10000），并放在左侧。`ellipsis` 只支持纯文本 children，因此这里只接受
+ * `string`。
  */
-function AuthorizedDirectoryMenuText({ text, color }: AuthorizedDirectoryMenuTextProps) {
-  const [visible, setVisible] = useState(false)
-  const show = useCallback(() => { setVisible(true) }, [])
-  const hide = useCallback(() => { setVisible(false) }, [])
-
-  return createElement(
-    SemiTooltip,
-    {
-      content: text,
-      trigger: 'custom',
-      visible,
-      onVisibleChange: setVisible,
-      position: 'left',
-      zIndex: 10001,
-      getPopupContainer: () => document.body,
-      showArrow: true,
-    },
-    createElement('span', {
-      title: text,
-      onMouseEnter: show,
-      onMouseLeave: hide,
-      onFocus: show,
-      onBlur: hide,
-      style: {
-        display: 'block',
-        width: '100%',
-        maxWidth: '220px',
-        overflow: 'hidden',
-        color,
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-      },
-    }, text),
-  )
-}
-
 function menuText(text: string, color = 'var(--dsw-alias-label-tertiary)') {
-  return createElement(AuthorizedDirectoryMenuText, { text, color })
+  return createElement(
+    SemiTypographyText,
+    {
+      ellipsis: {
+        rows: 1,
+        showTooltip: {
+          opts: { position: 'left', zIndex: 10001, getPopupContainer: () => document.body },
+        },
+      },
+      style: {
+        // flex 子项默认按最小内容宽度撑开，不置 0 时省略号永不出现，
+        // `showTooltip` 的溢出判定也就恒为假。
+        minWidth: 0,
+        maxWidth: '220px',
+        color,
+      },
+    },
+    text,
+  )
 }
 
 function AuthorizedDirectoryDropdown({ dialog, t }: AuthorizedDirectoryDropdownProps) {
@@ -206,13 +189,13 @@ function AuthorizedDirectoryDropdown({ dialog, t }: AuthorizedDirectoryDropdownP
             SemiDropdownItem,
             {
               key: directory.path,
-              title: directory.semanticPath,
               icon: createElement(IconFolderOpen, { size: 'small' }),
               // Keep DSH's path editor focused. Its card-level blur handler
               // treats focus moving into the dropdown portal as cancellation.
               onMouseDown: (event: MouseEvent) => { event.preventDefault() },
               onClick: () => { fillAfterOpening(dialog, directory.path) },
             },
+            // 不挂原生 `title`：气泡只在目录名被省略时出现，放得下的名字不该再弹系统提示。
             menuText(directory.semanticPath, 'var(--dsw-alias-label-primary)'),
           ))
 

@@ -76,5 +76,6 @@ flowchart TD
 | PLAN-FNOS-035 | [fnOS iframe 内拦截浏览器快捷键](/plans/PLAN-FNOS-035-browser-shortcut-interception) | 已完成（四阶段全部完成；真实 NAS 验收 2026-10-30 通过） |
 | PLAN-FNOS-036 | [DSH 0.2.1-rc.5 插件适配与基线迁移](/plans/PLAN-FNOS-036-dsh-021-rc5-adaptation) | 实施中（四阶段：基线改写 → 包级验证 → 双客户端回归 → 文档与版本） |
 | PLAN-FNOS-037 | [本地构建 FPK 改名定位到错误产物](/plans/PLAN-FNOS-037-local-fpk-rename-source) | 已完成（四阶段：实现改造 → 回归防护 → 构建验证 → 文档与版本） |
+| PLAN-FNOS-038 | [工作区快捷入口目录名气泡只在省略时出现](/plans/PLAN-FNOS-038-workspace-shortcut-tooltip) | 实施完成（五阶段：替换实现 → 去 title → 守卫用例 → 包级验证 → 真机验收待执行） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

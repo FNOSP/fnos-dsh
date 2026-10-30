@@ -387,6 +387,10 @@ const requirementsSidebar = [
         text: 'FNOS-037 本地构建 FPK 改名定位到错误产物',
         link: '/requirements/FNOS-037-local-fpk-rename-source'
       },
+      {
+        text: 'FNOS-038 工作区快捷入口目录名气泡只在省略时出现',
+        link: '/requirements/FNOS-038-workspace-shortcut-tooltip'
+      },
       ]
   }
 ]
@@ -544,6 +548,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-037 本地构建 FPK 改名定位到错误产物',
         link: '/plans/PLAN-FNOS-037-local-fpk-rename-source'
       },
+      {
+        text: 'PLAN-FNOS-038 工作区快捷入口目录名气泡只在省略时出现',
+        link: '/plans/PLAN-FNOS-038-workspace-shortcut-tooltip'
+      },
     ]
   }
 ]
@@ -669,6 +677,10 @@ const testsSidebar = [
       {
         text: 'FNOS-037 本地构建 FPK 改名定位到错误产物',
         link: '/tests/FNOS-037-local-fpk-rename-source'
+      },
+      {
+        text: 'FNOS-038 工作区快捷入口目录名气泡只在省略时出现',
+        link: '/tests/FNOS-038-workspace-shortcut-tooltip'
       },
     ]
   }
