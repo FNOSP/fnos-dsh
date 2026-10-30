@@ -254,6 +254,10 @@ git push origin main
 git push origin v<版本号>
 ```
 
+**先 `main` 后 Tag**：发布命令产出的 release 提交之后，通常还有「重新生成插件市场索引」的提交。先把 `main` 推上去，再确认 Tag 指向的是**含该索引提交**的那个提交——否则 Tag 上的索引落后一个版本，从该 Tag 检出后跑 `pnpm --filter @tnnevol/fnos-dsh-cli test`，会踩「每个插件的最高版本等于 npm 的 next 标签」这条用例而变红。历史上 `v6.0.0` 与 `v6.1.15` 都是把 Tag 指到索引提交（`v6.1.15` 甚至是补了 CI 修复之后重指的）才推的。
+
+若 Tag 已经推出去才发现指早了一个提交：改写已公开的 Tag 要 force push，并会重新触发构建。是否值得这么做由发布者决定——产物内容通常不受影响（索引是文档快照，不进 FPK）；不改写时应在发布记录里注明「从该 Tag 检出需先重跑 `market:index`」。`v7.0.1` 就是这种情况：Tag 停在 release 提交，索引提交在其后。
+
 构建完成后，在 GitHub Release 页面检查：
 
 - 每个应用是否都有对应 `.fpk`。
