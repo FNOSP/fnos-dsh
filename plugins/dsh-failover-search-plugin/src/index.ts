@@ -20,7 +20,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { DeepSeekSearchProvider } from '@deepseek-ai/dsh-web-search-deepseek'
 import { DEFAULT_USER_AGENT, HttpFetchProvider } from '@deepseek-ai/dsh-web-fetch-http'
-import type { ConnectionRpcHandler } from '@deepseek-ai/dsh-client-connection'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import type {} from '@deepseek-ai/dsh-web'
 import type {} from '@deepseek-ai/dsh-tools'
@@ -32,7 +31,7 @@ import type {} from '@deepseek-ai/dsh-settings'
 import { Config, readSettings } from './contracts/config.ts'
 import type { FailoverSearchConfig } from './contracts/config.ts'
 import { FAILOVER_PROVIDER_ID, OFFICIAL_SOURCE_ID, TAVILY_PLATFORM_ID, TINYFISH_PLATFORM_ID } from './contracts/constants.ts'
-import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_TOGGLE_ENDPOINT, FAILOVER_TOGGLE_SET_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
+import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_TOGGLE_ENDPOINT, FAILOVER_TOGGLE_SET_ENDPOINT, failoverRoutePath, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
 import type { AccountsSnapshot, RevealKeyRequest, RevealKeySnapshot, ToggleRequest, ToggleSnapshot, UsageSnapshot } from './contracts/usage-rpc.ts'
 import type { AccountConfig } from './contracts/config.ts'
 import type { AccountSummary } from './contracts/usage-rpc.ts'
@@ -53,7 +52,7 @@ import type { SettingsFormsLike } from './host/web-selection.ts'
 export { Config } from './contracts/config.ts'
 export type { FailoverSearchConfig, FailoverSearchSettings, AccountConfig } from './contracts/config.ts'
 export { FAILOVER_PROVIDER_ID, FAILOVER_ROW_ID, FAILOVER_SETTINGS_NAMESPACE } from './contracts/constants.ts'
-export { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_TOGGLE_ENDPOINT, FAILOVER_TOGGLE_SET_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
+export { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_TOGGLE_ENDPOINT, FAILOVER_TOGGLE_SET_ENDPOINT, FAILOVER_ROUTES_PREFIX, failoverRoutePath, FAILOVER_USAGE_ENDPOINT } from './contracts/usage-rpc.ts'
 export { SessionToggleStore } from './host/session-toggle.ts'
 export type { UsageSnapshot } from './contracts/usage-rpc.ts'
 export { FailoverSearchProvider } from './host/failover-provider.ts'
@@ -265,86 +264,132 @@ export function apply(ctx: Context, config: FailoverSearchConfig = Config({}) as
   // 处理函数返回 Connection 的结果信封（`{ ok: true, value }`）而不是裸值：传输层
   // 会原样转发这个信封，客户端按 `result.ok` 分支。抛出的异常由 Connection 折成
   // `{ ok: false, error }`，所以这里不需要自己构造失败分支。
+  // 自有 HTTP 端点。注册方式与官方插件一致（`open-in-app` 的 `/open-in-app/*`、
+  // fnos 插件的 `/plugins/dsh-fnos/*`）：直接用 webServer 注册 exact 路由，并在
+  // handler 里先过 Connection 的信任判定。
+  //
+  // 不用 `connection.rpc.handle()`：该接缝在 fnOS 部署下注册的频道没有进 web 路由
+  // 表，请求落到 frontend-static 兜底，非 GET 一律 405（实测详情页三个端点全 405）。
   ctx.inject(['connection', 'webServer'], connectionCtx => {
-    const injected = connectionCtx as unknown as { connection?: { rpc: { handle: (channel: string, handler: ConnectionRpcHandler) => () => Promise<void> } } }
-    if (injected.connection === undefined) return
-    injected.connection.rpc.handle(FAILOVER_USAGE_CHANNEL, async (endpoint, payload) => {
-      if (endpoint === FAILOVER_USAGE_ENDPOINT) {
-        const snapshot: UsageSnapshot = {
-          accounts: usage.snapshot(),
-          fresh: usage.isFresh(),
-          ...(refreshedAt === undefined ? {} : { fetchedAt: refreshedAt }),
-        }
-        return { ok: true, value: snapshot }
-      }
-      if (endpoint === FAILOVER_TOGGLE_ENDPOINT) {
-        // 会话级读取：请求必须带 sessionId（客户端从会话座位上下文取得）。
-        const request = (payload ?? {}) as Partial<ToggleRequest>
-        const value: ToggleSnapshot = { enabled: toggle.isEnabled(request.sessionId) }
-        return { ok: true, value }
-      }
-      if (endpoint === FAILOVER_TOGGLE_SET_ENDPOINT) {
-        // 会话级写入：写后立即生效（provider 每次调用现读状态，AC-04）。
-        const request = (payload ?? {}) as Partial<ToggleRequest>
-        if (request.sessionId === undefined) throw new Error('toggle-set requires a sessionId')
-        toggle.setEnabled(request.sessionId, request.enabled === true)
-        // 重新开启时顺带把接缝选择修回本插件：官方「网络搜索」设置页会把 `web` 行的
-        // searchProvider / fetchProvider 写成官方 id，接缝因此**固定选择**官方提供方，
-        // 本插件注册了也不会被走到（表现为插件正常但网页工具走官方端点）。
-        // 只在开启方向写：关闭是会话级偏好，不应改动其它会话的全局选择。
-        // 写失败只记日志——开关本身必须生效。
-        if (request.enabled === true) {
-          try {
-            const outcome = await ensureWebSelection(ctx.get('settings') as SettingsFormsLike | undefined)
-            if (outcome === 'updated') {
-              ctx.logger.info('[failover-search] 已把 web 接缝的搜索/抓取选择切回本插件')
-            }
-          } catch (error) {
-            ctx.logger.warn('[failover-search] 改写 web 接缝选择失败：%s', error instanceof Error ? error.message : String(error))
+    const injected = connectionCtx as unknown as {
+      connection?: { requestRejection: (request: unknown) => number | undefined }
+      webServer?: { register: (route: { kind: 'exact', path: string, handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void | Promise<void> }) => () => void }
+    }
+    if (injected.connection === undefined || injected.webServer === undefined) return
+
+    /** 统一出口：信任判定 → 解析请求体 → 业务处理 → `{ ok, value }` 信封。 */
+    const register = (
+      endpoint: string,
+      handle: (payload: Record<string, unknown>) => Promise<unknown> | unknown,
+    ): void => {
+      connectionCtx.effect(() => injected.webServer!.register({
+        kind: 'exact',
+        path: failoverRoutePath(endpoint),
+        handler: async (req, res) => {
+          const rejection = injected.connection!.requestRejection(req)
+          if (rejection !== undefined) { res.statusCode = rejection; res.end(); return }
+          if (req.method !== 'POST') {
+            res.statusCode = 405
+            res.setHeader('allow', 'POST')
+            res.end()
+            return
           }
+          let payload: Record<string, unknown> = {}
+          try {
+            const chunks: Buffer[] = []
+            for await (const chunk of req) chunks.push(chunk as Buffer)
+            const text = Buffer.concat(chunks).toString('utf8')
+            if (text.length > 0) payload = JSON.parse(text) as Record<string, unknown>
+          } catch {
+            res.statusCode = 400
+            res.setHeader('content-type', 'application/json; charset=utf-8')
+            res.end(JSON.stringify({ ok: false, error: { code: 'invalid-json', message: 'invalid JSON body' } }))
+            return
+          }
+          try {
+            const value = await handle(payload)
+            res.statusCode = 200
+            res.setHeader('content-type', 'application/json; charset=utf-8')
+            res.setHeader('cache-control', 'no-store')
+            res.end(JSON.stringify({ ok: true, value }))
+          } catch (error) {
+            ctx.logger.warn('[failover-search] %s 处理失败：%s', endpoint, error instanceof Error ? error.message : String(error))
+            res.statusCode = 500
+            res.setHeader('content-type', 'application/json; charset=utf-8')
+            res.end(JSON.stringify({
+              ok: false,
+              error: { code: 'failover-route-failed', message: error instanceof Error ? error.message : String(error) },
+            }))
+          }
+        },
+      }), `dsh-failover-search: POST ${failoverRoutePath(endpoint)}`)
+    }
+
+    register(FAILOVER_USAGE_ENDPOINT, () => {
+      const snapshot: UsageSnapshot = {
+        accounts: usage.snapshot(),
+        fresh: usage.isFresh(),
+        ...(refreshedAt === undefined ? {} : { fetchedAt: refreshedAt }),
+      }
+      return snapshot
+    })
+
+    register(FAILOVER_TOGGLE_ENDPOINT, payload => {
+      const request = payload as Partial<ToggleRequest>
+      const value: ToggleSnapshot = { enabled: toggle.isEnabled(request.sessionId) }
+      return value
+    })
+
+    register(FAILOVER_TOGGLE_SET_ENDPOINT, async payload => {
+      const request = payload as Partial<ToggleRequest>
+      if (request.sessionId === undefined) throw new Error('toggle-set requires a sessionId')
+      toggle.setEnabled(request.sessionId, request.enabled === true)
+      if (request.enabled === true) {
+        try {
+          const outcome = await ensureWebSelection(ctx.get('settings') as SettingsFormsLike | undefined)
+          if (outcome === 'updated') {
+            ctx.logger.info('[failover-search] 已把 web 接缝的搜索/抓取选择切回本插件')
+          }
+        } catch (error) {
+          ctx.logger.warn('[failover-search] 改写 web 接缝选择失败：%s', error instanceof Error ? error.message : String(error))
         }
-        const value: ToggleSnapshot = { enabled: toggle.isEnabled(request.sessionId) }
-        return { ok: true, value }
       }
-      if (endpoint === FAILOVER_REFRESH_ENDPOINT) {
-        // 手动刷新（FNOS-010-08-AC-04）：强制重查两个平台的用量端点，然后回送新快照。
-        // 复用后台刷新用的同一个 refreshUsage——它已把失败折成日志（单个账号查询失败
-        // 不影响其它账号），因此刷新端点不会因平台侧错误而整体失败。
-        await refreshUsage()
-        const snapshot: UsageSnapshot = {
-          accounts: usage.snapshot(),
-          fresh: usage.isFresh(),
-          ...(refreshedAt === undefined ? {} : { fetchedAt: refreshedAt }),
-        }
-        return { ok: true, value: snapshot }
+      const value: ToggleSnapshot = { enabled: toggle.isEnabled(request.sessionId) }
+      return value
+    })
+
+    register(FAILOVER_REFRESH_ENDPOINT, async () => {
+      await refreshUsage()
+      const snapshot: UsageSnapshot = {
+        accounts: usage.snapshot(),
+        fresh: usage.isFresh(),
+        ...(refreshedAt === undefined ? {} : { fetchedAt: refreshedAt }),
       }
-      if (endpoint === FAILOVER_REVEAL_ENDPOINT) {
-        // 只在用户点击「复制」时按单个账号取明文：取回后由客户端直接写剪贴板，
-        // 服务端不留存、不记录。账号不存在（并发删除、代号变更）时明确报错，
-        // 不回落成「随便返回一个 key」。
-        const request = (payload ?? {}) as Partial<RevealKeyRequest>
-        const current = readSettings(config)
-        const accounts = request.platform === TAVILY_PLATFORM_ID
-          ? current.tavilyAccounts
-          : request.platform === TINYFISH_PLATFORM_ID ? current.tinyfishAccounts : []
-        const pool = buildPool(request.platform === TAVILY_PLATFORM_ID ? 'tavily' : 'tinyfish', accounts)
-        const match = pool.find(account => account.label === request.label)
-        if (match === undefined) throw new Error(`unknown account: ${String(request.platform)}/${String(request.label)}`)
-        const revealed: RevealKeySnapshot = { key: match.key }
-        return { ok: true, value: revealed }
+      return snapshot
+    })
+
+    register(FAILOVER_REVEAL_ENDPOINT, payload => {
+      const request = payload as Partial<RevealKeyRequest>
+      const current = readSettings(config)
+      const accounts = request.platform === TAVILY_PLATFORM_ID
+        ? current.tavilyAccounts
+        : request.platform === TINYFISH_PLATFORM_ID ? current.tinyfishAccounts : []
+      const pool = buildPool(request.platform === TAVILY_PLATFORM_ID ? 'tavily' : 'tinyfish', accounts)
+      const match = pool.find(account => account.label === request.label)
+      if (match === undefined) throw new Error(`unknown account: ${String(request.platform)}/${String(request.label)}`)
+      const revealed: RevealKeySnapshot = { key: match.key }
+      return revealed
+    })
+
+    register(FAILOVER_ACCOUNTS_ENDPOINT, () => {
+      const current = readSettings(config)
+      const summary: AccountsSnapshot = {
+        accounts: [
+          ...collectAccounts(TINYFISH_PLATFORM_ID, current.tinyfishAccounts),
+          ...collectAccounts(TAVILY_PLATFORM_ID, current.tavilyAccounts),
+        ],
       }
-      if (endpoint === FAILOVER_ACCOUNTS_ENDPOINT) {
-        // key 明文不跨线：这里只送出不可还原的掩码，让用户能辨认「这一行是哪个 key」。
-        const current = readSettings(config)
-        const summary: AccountsSnapshot = {
-          accounts: [
-            ...collectAccounts(TINYFISH_PLATFORM_ID, current.tinyfishAccounts),
-            ...collectAccounts(TAVILY_PLATFORM_ID, current.tavilyAccounts),
-          ],
-        }
-        return { ok: true, value: summary }
-      }
-      throw new Error(`unknown endpoint: ${endpoint}`)
+      return summary
     })
   })
 }

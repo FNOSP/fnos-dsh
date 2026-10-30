@@ -20,7 +20,7 @@ import { installSemiDshTheme } from '@tnnevol/dsh-semi-ui'
 import { SettingsFormModel, settingsNumberField } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { FAILOVER_PACKAGE_NAME, FAILOVER_SETTINGS_NAMESPACE } from '../contracts/constants.ts'
-import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_TOGGLE_ENDPOINT, FAILOVER_TOGGLE_SET_ENDPOINT, FAILOVER_USAGE_CHANNEL, FAILOVER_USAGE_ENDPOINT } from '../contracts/usage-rpc.ts'
+import { FAILOVER_ACCOUNTS_ENDPOINT, FAILOVER_REFRESH_ENDPOINT, FAILOVER_REVEAL_ENDPOINT, FAILOVER_TOGGLE_ENDPOINT, FAILOVER_ROUTES_PREFIX, FAILOVER_TOGGLE_SET_ENDPOINT, failoverRoutePath, FAILOVER_USAGE_ENDPOINT } from '../contracts/usage-rpc.ts'
 import type { AccountsSnapshot, RevealKeySnapshot, ToggleSnapshot, UsageSnapshot } from '../contracts/usage-rpc.ts'
 import type { AccountSummaryView } from './account-list.ts'
 import { FailoverConfigSection } from './config-section.tsx'
@@ -59,7 +59,36 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-failover-search: locale')
   const t = ctx.locale.bind(NS) as (key: UsageLocaleKey) => string
 
-  const rpc = (ctx.get('connection') as unknown as { rpc: ConnectionRpc }).rpc
+  // 自有端点的传输：直接 POST 到插件自己的 HTTP 路由（与 host 侧 webServer 注册的
+  // 路径一致，也与 dsh-fnos、open-in-app 等内置插件同款）。
+  //
+  // 不再走 `connection.rpc`：该接缝在 fnOS 部署下注册的频道没有进 DSH 的 web 路由表，
+  // 请求落到 frontend-static 兜底——非 GET 一律 405，实测详情页三个端点全部 405，
+  // 用量、智能搜索开关与账号掩码都拿不到数据。
+  /** 传输层第一参数（频道）已不参与寻址；保留具名常量让调用点保持可读。 */
+  const FAILOVER_USAGE_CHANNEL = FAILOVER_ROUTES_PREFIX
+
+  const rpc: ConnectionRpc = {
+    async call<T>(_channel: string, endpoint: string, payload: unknown, signal?: AbortSignal) {
+      const failure = (code: string, message: string) => ({ ok: false as const, error: { code, message } })
+      try {
+        const response = await fetch(failoverRoutePath(endpoint), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload ?? {}),
+          credentials: 'same-origin',
+          ...(signal === undefined ? {} : { signal }),
+        })
+        const parsed: unknown = await response.json().catch(() => undefined)
+        if (typeof parsed === 'object' && parsed !== null && 'ok' in parsed) {
+          return parsed as { ok: true, value: T } | { ok: false, error: { code: string, message: string } }
+        }
+        return failure(`http-${String(response.status)}`, `unexpected response from ${endpoint}`)
+      } catch (error) {
+        return failure('transport-failed', error instanceof Error ? error.message : String(error))
+      }
+    },
+  }
 
   /**
    * 官方共享配置表单：按插件入口 id 取到，读写都在同一份配置文档上。

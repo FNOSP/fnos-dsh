@@ -6,8 +6,23 @@
  */
 import type { AccountUsage } from './types.ts'
 
-/** 客户端查询用量快照所用的 RPC 频道。 */
-export const FAILOVER_USAGE_CHANNEL = '/dsh-failover-search'
+/**
+ * 插件自有 HTTP 端点的路径前缀。
+ *
+ * 挂在 `/plugins/dsh-failover-search` 下，与官方插件注册自有路由的方式保持一致
+ * （`open-in-app` 用 `/open-in-app/*`，fnos 插件用 `/plugins/dsh-fnos/*`）。
+ *
+ * 不能自建其它顶层前缀：DSH 的 web 路由表里没有该前缀时，请求会落到
+ * frontend-static 的兜底——非 GET/HEAD 一律 405、GET 一律 404。实测
+ * `connection.rpc.handle()` 注册的频道在 fnOS 部署下没有进表，表现为详情页三个
+ * 端点全部 405，用量、开关与账号掩码都拿不到数据。
+ */
+export const FAILOVER_ROUTES_PREFIX = '/plugins/dsh-failover-search'
+
+/** 端点路径：前缀 + 端点段。 */
+export function failoverRoutePath(endpoint: string): string {
+  return `${FAILOVER_ROUTES_PREFIX}/${endpoint}`
+}
 
 /** 用量区块调用的端点：读取当前快照（只读，不触发刷新）。 */
 export const FAILOVER_USAGE_ENDPOINT = 'usage'
