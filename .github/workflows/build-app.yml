@@ -80,7 +80,12 @@ jobs:
           fi
 
           VERSIONED_FPK="fn-deepseek-harness-${RELEASE_TAG}-dsh-${DSH_BASELINE}.fpk"
-          mv "$ORIGINAL_FPK" "$VERSIONED_FPK"
+          # 构建命令自身会按当前 tag 把产物命名成带版本号的形态（构建目录里检出
+          # 的就是该 tag），因此这里可能已经是目标名。同名 `mv` 在 `set -e` 下会
+          # 报 "are the same file" 并让整次发布失败，所以先判名再改名，保证幂等。
+          if [ "$ORIGINAL_FPK" != "$VERSIONED_FPK" ]; then
+            mv "$ORIGINAL_FPK" "$VERSIONED_FPK"
+          fi
           echo "fpk=${VERSIONED_FPK}" >> "$GITHUB_OUTPUT"
 
       - name: Upload FPK to release
