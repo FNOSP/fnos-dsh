@@ -5,7 +5,7 @@ description: 用 MenuItem.submenu 把两种导出落点收进「下载 Session �
 status: completed
 owner: tnnevol
 planDate: 2026-10-30
-targetVersion: 7.0.12
+targetVersion: 7.0.13
 lastVerified: 2026-10-30
 ---
 

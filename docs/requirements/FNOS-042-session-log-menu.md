@@ -4,7 +4,7 @@ title: FNOS-042 Session 日志菜单对齐官方默认结构
 description: 会话头部菜单改为官方默认形态——「下载 Session 日志」为父项、导出到电脑/NAS 作为其子菜单，并新增指向本仓库的「反馈」入口；图标复用官方图标集。
 status: in-progress
 owner: tnnevol
-targetVersion: 7.0.12
+targetVersion: 7.0.13
 lastVerified: 2026-10-30
 ---
 
@@ -88,3 +88,4 @@ lastVerified: 2026-10-30
 | --- | --- | --- |
 | 2026-10-30 | 初始登记 | 建立 FNOS-042。提出人给出官方默认菜单截图，要求把「导出到电脑 / 导出到 NAS」收进「下载 Session 日志」子菜单，并新增指向本仓库的「反馈」。调研确认 `MenuItem.submenu` 是原语原生能力、子项走 `onSelect?.(sub.id)`，图标集内有纸飞机。4 条调研结论，关联 PLAN-FNOS-042。 |
 | 2026-10-30 | 二级菜单固定向左展开 | 提出人真机截图显示子菜单向右展开后被窗口右缘裁掉。核查官方 `Menu` 只有 `align`（start/end）与 `side`（bottom/top/right）两个方向 props，**没有子菜单边界判定或方向控制**；子菜单卡片固定在 `.submenu { left: calc(100% + 10px) }`。按提出人要求「没有 props 就固定到左侧」处理：用官方留给 portaled 列表的唯一样式钩子 `listClassName` 给本菜单挂 `dsh-fnos-session-log-menu`，在该作用域内把 `.submenu` 翻到 `right: calc(100% + 10px)`，指针命中桥 `.submenu::before` 同步翻到 `right: -10px`，避免悬停时子菜单闪退。覆盖不带本菜单前缀，不影响 DSH 其它菜单。<code>targetVersion</code> 更新为 7.0.12。 |
+| 2026-11-03 | 修正向左规则未生效（哈希类名） | 提出人反馈子菜单仍在右侧、溢出可视区。真机核查样式表：子菜单的真实选择器是 `._submenu_4ub78_8`——CSS Modules **把类名哈希掉了**，上一版写的 `.dsh-fnos-session-log-menu .submenu` 从头到尾没匹配到任何元素（规则确实注入了，只是打空），因此规则语法上存在、行为上从未生效。改为 `.dsh-fnos-session-log-menu [class*='submenu']`：属性包含匹配哈希后的类名，权重 (0,2,0) 高于原规则的单类选择器，且不绑定具体哈希值；`::before` 命中桥同规则翻转。真机注入产物 CSS + 真实哈希类名复刻验证：`left: auto` → 计算值 `left: -173px` / `right: 210px`，子菜单左边缘落在父菜单左边界之外（`isOnLeft: true`），命中桥 `right: -10px`。同时把守卫用例改为「反例守卫」：一旦有人写回 `.dsh-fnos-session-log-menu .submenu {` 或裸 `.submenu {`，用例直接变红。<code>targetVersion</code> 更新为 7.0.13。 |

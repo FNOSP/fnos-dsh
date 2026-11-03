@@ -105,15 +105,19 @@ img.dsh-fnos-file-manager-icon {
    `HeaderAction.module.css`。头部右侧的 28px 圆形图标按钮，15px 字形，
    透明无边框，hover 才出底色——它是个纯图标按钮，不带文案也不带边框。 */
 /* 官方 `Menu` 没有子菜单方向/边界的 props，而子菜单默认渲染在右侧
-   （`.submenu { left: calc(100% + 10px) }`）。会话头部菜单贴着窗口右缘，
-   右侧展开会被裁掉，这里固定改为向左展开；作用域收到本菜单的类名上，
-   不影响 DSH 其它菜单。::before 是原语的指针命中桥，方向要一起翻。 */
-.dsh-fnos-session-log-menu .submenu {
+   （类名形如 `._submenu_4ub78_8 { left: calc(100% + 10px) }`）。会话头部菜单
+   贴着窗口右缘，右侧展开会被裁掉，这里固定改为向左展开。
+
+   注意类名是 CSS Modules 哈希过的：写 `.submenu` 完全匹配不到（上一版就是这么
+   失效的）。这里用「属性包含 submenu」+ 本菜单的 `listClassName` 前缀定位，
+   既是 (0,2,0) 权重高于原规则的单类选择器，也不依赖具体哈希值。
+   `::before` 是原语的指针命中桥，方向必须一起翻，否则悬停到子菜单会闪退。 */
+.dsh-fnos-session-log-menu [class*='submenu'] {
   left: auto !important;
   right: calc(100% + 10px) !important;
 }
 
-.dsh-fnos-session-log-menu .submenu::before {
+.dsh-fnos-session-log-menu [class*='submenu']::before {
   left: auto !important;
   right: -10px !important;
 }

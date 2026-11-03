@@ -74,6 +74,7 @@ verifiedAt: 2026-10-30
 | 编号 | 现象 | 定位 | 处置 |
 | --- | --- | --- | --- |
 | BUG-042-02 | 真机：子菜单向右展开被窗口裁掉 | 官方 `Menu` 无子菜单方向 props，`.submenu` 固定 `left: calc(100% + 10px)` | 用 `listClassName` 作用域把 `.submenu` 及其 `::before` 命中桥翻到左侧；用例断言作用域前缀存在且无全局裸 `.submenu` 规则 |
+| BUG-042-03 | 真机：子菜单依旧向右、溢出可视区 | 子菜单类名被 CSS Modules 哈希为 `_submenu_4ub78_8`，上一版 `.submenu` 选择器匹配不到任何元素（静默失效） | 改用 `[class*='submenu']` 属性选择器 + 作用域前缀；真机复刻复测 `isOnLeft: true`；守卫用例加反例断言防止写回死选择器 |
 
 ## 最终结论
 

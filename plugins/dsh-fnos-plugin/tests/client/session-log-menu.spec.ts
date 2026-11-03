@@ -66,24 +66,30 @@ describe('FNOS-042 Session 日志菜单结构', () => {
 })
 
 describe('FNOS-042 二级菜单固定向左', () => {
-  // 官方 Menu 没有子菜单方向/边界的 props，子菜单默认渲染在右侧
-  // （`.submenu { left: calc(100% + 10px) }`）。会话头部菜单贴着窗口右缘，
-  // 右侧展开会被裁掉，因此固定改为向左；作用域收到本菜单的 listClassName 上。
+  // 官方 Menu 没有子菜单方向/边界的 props，子菜单默认渲染在右侧。而且它的类名
+  // 被 CSS Modules 哈希过（真机上是 `_submenu_4ub78_8`），**写 `.submenu` 完全
+  // 匹配不到**——上一版就是这样静默失效、子菜单依旧向右溢出。
+  // 因此这里断言「属性包含 submenu」+ 本菜单 `listClassName` 前缀的写法。
   const STYLE = read('../../src/styles/index.scss')
 
   it('给菜单挂了 listClassName 作为样式钩子', () => {
     expect(ACTION).toContain('listClassName="dsh-fnos-session-log-menu"')
   })
 
-  it('子菜单卡片翻到左侧，指针命中桥一起翻', () => {
-    expect(STYLE).toContain('.dsh-fnos-session-log-menu .submenu {')
+  it('用属性选择器定位哈希类名，翻到左侧', () => {
+    expect(STYLE).toContain(".dsh-fnos-session-log-menu [class*='submenu'] {")
     expect(STYLE).toContain('right: calc(100% + 10px) !important;')
-    expect(STYLE).toContain('.dsh-fnos-session-log-menu .submenu::before {')
+  })
+
+  it('指针命中桥一起翻，否则悬停子菜单会闪退', () => {
+    expect(STYLE).toContain(".dsh-fnos-session-log-menu [class*='submenu']::before {")
     expect(STYLE).toContain('right: -10px !important;')
   })
 
-  it('覆盖不写到全局，避免影响 DSH 其它菜单', () => {
-    // 不允许出现不带本菜单前缀的裸 `.submenu {` 规则。
+  it('不再依赖裸类名（哈希化后必然失效）', () => {
+    // 反例守卫：出现过 `.dsh-fnos-session-log-menu .submenu {` 就说明又写回了死选择器。
+    expect(STYLE).not.toContain('.dsh-fnos-session-log-menu .submenu {')
+    // 也不允许出现无作用域的裸 `.submenu {`，那会影响 DSH 其它菜单。
     expect(STYLE).not.toMatch(/^\.submenu \{/mu)
   })
 })
