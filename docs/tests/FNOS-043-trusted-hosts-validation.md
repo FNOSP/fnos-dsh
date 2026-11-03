@@ -71,7 +71,9 @@ verifiedAt: 2026-11-03
 | --- | --- | --- |
 | TC-001 ~ TC-005、TC-008、TC-012 | 通过 | `tests/trusted-hosts.spec.ts`（11 条）；`vitest run` 全量 166 条通过 |
 | TC-006、TC-007、TC-009、TC-010、TC-011 | 通过 | 用真实 helper 与真实函数体跑样本：非法 → exit 1 + 原因；合法 → exit 0 + accepted；空值 → 仅 info；启动侧非法 → 两行 ERROR |
-| 端到端安装向导 | 未执行 | 需构建 FPK 后在真实 fnOS NAS 安装验证 |
+| 真机：向导拦截非法值（TC 端到端） | 通过 | NAS 手动安装 7.0.14 → 升级向导填 `http://192.168.1.112` → 字段报「只能填 host 或 host:port（可多个…）：不要带 http:// 或 https://，不要带路径，端口 1-65535 且不能有前导零」，向导停在原页不进入安装 |
+| 真机：安装回调拦截（FNOS-043-02） | 通过 | 首轮 FPK 未含新向导时用同样非法值继续，安装被中止：`[install_callback] [ERROR] 「可信访问地址」填写有误："http://192.168.1.112"：带了 http:// 或 https:// 之类的协议头…`，应用保持 7.0.1 运行未受损 |
+| 真机：合法值不误拦 | 通过 | 同一向导用 `192.168.119.6,xiaomi-cn.fnos.net` 可进入安装流程（后续失败在插件未发布，与本需求无关） |
 
 构建与静态检查：
 
@@ -85,6 +87,7 @@ verifiedAt: 2026-11-03
 | --- | --- | --- | --- |
 | BUG-043-01 | `cmd/main` 里用了不存在的 `APP_DEST` | 该脚本用的是 `TRIM_APPDEST` | 改用 `${TRIM_APPDEST}/scripts/install-callback-helper.mjs` |
 | BUG-043-02 | 校验器触发 `regexp/prefer-d`、`prefer-includes` 等 lint 规则 | 规则要求 `\d` 与 `.includes` | `eslint --fix` 修正，语义等价；复跑用例仍全绿 |
+| BUG-043-03 | 真机：升级向导仍显示旧文案、`http://` 被放行 | 向导有 `config`/`install`/`upgrade` 三份，首版只改 `config` | 三份同步同一规则 + 新增一致性守卫用例；重建 FPK 后真机复验：新文案生效、非法值被向导拒绝 |
 
 ## 最终结论
 

@@ -157,3 +157,55 @@ describe('FNOS-043 安装与启动两侧都接上校验', () => {
     expect(mainScript).not.toContain('sed -e \'s#^[A-Za-z]')
   })
 })
+
+describe('FNOS-043 三份向导必须一致', () => {
+  // 真机教训：app 目录里有 wizard/{config,install,upgrade} 三份向导，装/升级各用一份。
+  // 首版只改了 config，结果升级走 upgrade —— 界面仍是旧规则，`http://` 照旧被放行。
+  // 这条用例把三份的 pattern 钉在一起，再漏就在测试阶段暴露。
+  const files = ['config', 'install', 'upgrade'] as const
+
+  function trustedHostPattern(path: string): string | undefined {
+    const data = JSON.parse(readFileSync(new URL(`../../../apps/fn-deepseek-harness/wizard/${path}`, import.meta.url), 'utf8')) as unknown
+    function walk(node: unknown): string | undefined {
+      if (Array.isArray(node)) {
+        for (const item of node) {
+          const found = walk(item)
+          if (found !== undefined) return found
+        }
+        return undefined
+      }
+      if (node !== null && typeof node === 'object') {
+        const record = node as Record<string, unknown>
+        if (record.field === 'wizard_trusted_hosts') {
+          const rules = record.rules as Array<{ pattern?: string }> | undefined
+          return rules?.find(rule => typeof rule.pattern === 'string')?.pattern
+        }
+        for (const value of Object.values(record)) {
+          const found = walk(value)
+          if (found !== undefined) return found
+        }
+      }
+      return undefined
+    }
+    return walk(data)
+  }
+
+  const patterns = files.map(file => ({ file, pattern: trustedHostPattern(file) }))
+
+  it('三份向导都存在可信地址字段', () => {
+    for (const entry of patterns) expect(entry.pattern, entry.file).toBeTypeOf('string')
+  })
+
+  it('三份的正则完全相同', () => {
+    const unique = new Set(patterns.map(entry => entry.pattern))
+    expect(unique.size, JSON.stringify(patterns.map(p => p.file))).toBe(1)
+  })
+
+  it('三份都拒绝带协议头的写法', () => {
+    for (const entry of patterns) {
+      const regex = new RegExp(entry.pattern ?? '', 'u')
+      expect(regex.test('http://192.168.1.112'), entry.file).toBe(false)
+      expect(regex.test('192.168.1.112:5666'), entry.file).toBe(true)
+    }
+  })
+})

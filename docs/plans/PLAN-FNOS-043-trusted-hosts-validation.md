@@ -5,7 +5,7 @@ description: 用同一套规则在三处落地：向导正则拦截、安装回�
 status: completed
 owner: tnnevol
 planDate: 2026-11-03
-targetVersion: 7.0.14
+targetVersion: 7.0.15
 lastVerified: 2026-11-03
 ---
 
