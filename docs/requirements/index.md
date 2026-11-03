@@ -95,5 +95,6 @@ flowchart TD
 | FNOS-040 | [面板右键打开与重命名、状态保持与入口文案](/requirements/FNOS-040-picker-entry-actions) | 实施中（包级用例、typecheck、lint 与 client 产物重建通过；真实 NAS 验收待执行） |
 | FNOS-041 | [内置 Skill 由 trim-cli 换成 fnos-cli](/requirements/FNOS-041-fnos-cli-skill) | 实施中（包级用例与产物冒烟通过；老用户 trim-cli skill 保留；真实 NAS 验收待执行） |
 | FNOS-042 | [Session 日志菜单对齐官方默认结构](/requirements/FNOS-042-session-log-menu) | 实施中（包级用例与产物构建通过；真实 NAS 验收待执行） |
+| FNOS-043 | [可信访问地址的校验与错误透出](/requirements/FNOS-043-trusted-hosts-validation) | 实施中（包级用例通过；真实 NAS 安装向导验收待执行） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

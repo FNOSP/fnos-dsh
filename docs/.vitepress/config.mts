@@ -407,6 +407,10 @@ const requirementsSidebar = [
         text: 'FNOS-042 Session 日志菜单对齐官方默认结构',
         link: '/requirements/FNOS-042-session-log-menu'
       },
+      {
+        text: 'FNOS-043 可信访问地址的校验与错误透出',
+        link: '/requirements/FNOS-043-trusted-hosts-validation'
+      },
       ]
   }
 ]
@@ -584,6 +588,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-042 Session 日志菜单对齐官方默认结构',
         link: '/plans/PLAN-FNOS-042-session-log-menu'
       },
+      {
+        text: 'PLAN-FNOS-043 可信访问地址的校验与错误透出',
+        link: '/plans/PLAN-FNOS-043-trusted-hosts-validation'
+      },
     ]
   }
 ]
@@ -729,6 +737,10 @@ const testsSidebar = [
       {
         text: 'FNOS-042 Session 日志菜单对齐官方默认结构',
         link: '/tests/FNOS-042-session-log-menu'
+      },
+      {
+        text: 'FNOS-043 可信访问地址的校验与错误透出',
+        link: '/tests/FNOS-043-trusted-hosts-validation'
       },
     ]
   }

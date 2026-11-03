@@ -18,6 +18,7 @@ import {
   staleReleaseAgeExclusions,
 } from './common.ts'
 import { patchDshAttachmentLocal } from './attachment-patch.ts'
+import { formatTrustedHostIssues, validateTrustedHosts } from './trusted-hosts.ts'
 import { migrateCwdPromptVariable } from './cwd-migration.ts'
 import { createLogger, InstallHelperError } from './logger.ts'
 import { prepareNodePty } from './node-pty.ts'
@@ -61,6 +62,19 @@ export function createProgram(): Command {
     .action(async (root, packageName) => {
       const directory = await findPackageDirectory(root, packageName)
       if (directory !== undefined) process.stdout.write(directory)
+    })
+
+  program
+    .command('validate-trusted-hosts')
+    .description('Validate the wizard trusted-host entries; print each problem to stderr and exit 1 when invalid')
+    .argument('<raw>')
+    .action((raw: string) => {
+      const result = validateTrustedHosts(raw)
+      if (result.ok) return
+      // 逐条写 stderr：安装回调与启动脚本都把它原样记进应用日志，
+      // 这样以后任何「说不清为什么起不来」的值都能在日志里看到具体原因。
+      for (const issue of result.issues) process.stderr.write(`trusted-hosts: ${formatTrustedHostIssues([issue])}\n`)
+      process.exitCode = 1
     })
 
   program

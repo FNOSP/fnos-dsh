@@ -419,6 +419,29 @@ read_package_version() {
     run_install_callback_helper package-version "${package_json}" 2>/dev/null || true
 }
 
+# 「可信访问地址」必须与 DSH 的判定一致：只接受裸 host 或 host:port。
+#
+# 这里**不改写**用户输入，只在安装阶段把它挡住：带 http:// 的值会让 DSH 的
+# `connection` 插件加载失败（required），`dsh web` 直接 exit 1，界面却报
+# 「请检查 Node.js 依赖」，用户既看不出原因也没法在应用中心里改。装不上比装完
+# 起不来更好。判定实现在 helper 里，与向导正则、启动日志共用同一套规则。
+validate_trusted_hosts() {
+    local raw="${wizard_trusted_hosts:-}"
+    local detail
+    local reason
+
+    [ -n "${raw}" ] || return 0
+
+    if detail="$(run_install_callback_helper validate-trusted-hosts "${raw}" 2>&1)"; then
+        log_info "Trusted access address accepted: ${raw}"
+        return 0
+    fi
+
+    reason="$(printf '%s' "${detail}" | tr '\n' ';' | sed -e 's/trusted-hosts: //g' -e 's/;;*/; /g' -e 's/; $//')"
+    log_error "Trusted access address is invalid: ${raw}"
+    fail_install "「可信访问地址」填写有误：${reason:-${raw}}。只填 host 或 host:port（可带端口），多个地址用英文逗号分隔；不要带 http:// 或 https://，也不要带路径。"
+}
+
 validate_install_configuration() {
     [ -f "${PROXY_SCRIPT}" ] ||
         fail_install "DeepSeek Harness gateway proxy is not available at ${PROXY_SCRIPT}"
@@ -428,6 +451,8 @@ validate_install_configuration() {
         [ -z "${wizard_trusted_hosts:-}" ]; then
         fail_install "No trusted NAS Web host configured; set the trusted access address to the NAS host or host:port"
     fi
+
+    validate_trusted_hosts
 }
 
 run_node_pty_script() {

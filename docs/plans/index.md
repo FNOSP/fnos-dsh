@@ -81,5 +81,6 @@ flowchart TD
 | PLAN-FNOS-040 | [面板右键打开与重命名、状态保持与入口文案](/plans/PLAN-FNOS-040-picker-entry-actions) | 实施完成（九阶段：契约 → 宿主 → 客户端 → 打开分流 → 菜单与弹框 → 状态保持 → 文案 → 包级验证 → 真机验收待执行） |
 | PLAN-FNOS-041 | [内置 Skill 由 trim-cli 换成 fnos-cli](/plans/PLAN-FNOS-041-fnos-cli-skill) | 实施完成（七阶段：随包内置 → 帮助器 → 安装回调 → 用例 → 产物冒烟 → 文档 → 真机验收待执行） |
 | PLAN-FNOS-042 | [Session 日志菜单对齐官方默认结构](/plans/PLAN-FNOS-042-session-log-menu) | 实施完成（六阶段：调研 → 菜单改造 → 文案 → 守卫用例 → 包级验证 → 真机验收待执行） |
+| PLAN-FNOS-043 | [可信访问地址的校验与错误透出](/plans/PLAN-FNOS-043-trusted-hosts-validation) | 实施完成（七阶段：校验器 → 子命令 → 向导正则 → 安装拦截 → 启动日志 → 用例 → 真机验收待执行） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

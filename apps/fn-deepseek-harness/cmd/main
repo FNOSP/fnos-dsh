@@ -40,6 +40,39 @@ log_error() {
     log_message ERROR "$@" >&2
 }
 
+# 启动前把「可信访问地址」过一遍校验，只记日志、不改写。
+#
+# DSH 的 connection 插件对 trustedsHosts 是严格校验且 required 的：值不合法时
+# `dsh web` 直接 exit 1，网关只会显示「DSH Web exited with code 1」，历史上把
+# 用户引向了「Node.js 没装好」这种完全错误的方向（issue #30）。安装回调已经会
+# 在装上之前拦住；这里是第二道：升级上来的旧配置、或有人手工改过环境变量时，
+# 日志里要能直接看到是哪个值、哪里不对。
+report_trusted_hosts_configuration() {
+    local raw="${TRUSTED_HOSTS}"
+    local helper="${TRIM_APPDEST}/scripts/install-callback-helper.mjs"
+    local detail
+
+    [ -n "${raw}" ] || {
+        log_info "No trusted access address configured; DSH will rely on its own defaults."
+        return 0
+    }
+
+    [ -x "${NODE_BIN}/node" ] && [ -f "${helper}" ] || return 0
+
+    if detail="$("${NODE_BIN}/node" "${helper}" validate-trusted-hosts "${raw}" 2>&1)"; then
+        return 0
+    fi
+
+    while IFS= read -r line; do
+        [ -n "${line}" ] || continue
+        log_error "[trusted-hosts] ${line#trusted-hosts: }"
+    done <<EOF
+${detail}
+EOF
+    log_error "[trusted-hosts] 该值会被 DSH 拒绝，dsh web 将以 code 1 退出（不是 Node.js 依赖问题）。请把它改成 host 或 host:port，不要带协议头或路径。"
+}
+report_trusted_hosts_configuration
+
 check_process() {
     local pid="$1"
     [ -n "$pid" ] || return 1
