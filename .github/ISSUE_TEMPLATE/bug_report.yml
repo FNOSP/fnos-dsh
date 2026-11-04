@@ -16,7 +16,7 @@ body:
     attributes:
       label: 问题标题
       description: 一句话说明"什么功能 + 什么异常"，例如"应用中心升级时报无法安装错误"
-      placeholder: 例：应用中心升级 5.4.3 时提示无法更新
+      placeholder: 例：应用中心升级到最新版时提示无法更新
     validations:
       required: true
 
@@ -26,9 +26,9 @@ body:
       label: 应用版本
       description: 在应用中心 → 已安装 → DeepSeek Harness 详情中查看
       options:
-        - 5.4.3
-        - 5.4.1
-        - 5.4.0 及更早
+        - 7.0.x（当前版本线）
+        - 6.x
+        - 5.x
         - 源码或手动部署
     validations:
       required: true
