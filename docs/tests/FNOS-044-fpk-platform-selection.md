@@ -63,6 +63,7 @@ verifiedAt: 2026-11-04
 | TC-016 | AC-02 | 保留生命周期脚本可执行位 | 0755 脚本 | 检查副本模式 | 副本仍为 755 | P0 |
 | TC-045 | AC-02 | 只选 arm 构建后仓库清单逐字节不变 | 记录 manifest md5 | 跑 `--platform arm` 后比对 md5 | md5 相同，`platform` 仍为 x86，`git diff` 无该文件 | P0 |
 | TC-046 | AC-04 | 不变量的形状守卫：清单改写只作用于副本 | — | 读 fpk-staging.ts / build.ts | `writeManifestPlatform(stage, …)`；build.ts 无 `writeFile`、无清单改写函数引用 | P0 |
+| TC-047 | AC-04 | 强杀 CLI 本体后仓库清单仍未被写入 | 占位 fnpack 挂住、`try` 块内 `kill -9` CLI | 比对 md5、查副本 | md5 不变、`platform` 仍 x86、副本内为 arm（改写只在副本） | P0 |
 | TC-017 | AC-03 | 实跑双平台：两份包内平台声明正确、名字对应 | 本地构建 | 解包读 manifest | x86 包声明 x86、arm 包声明 arm | P0 |
 | TC-018 | AC-02 | 实跑后仓库清单未被改动 | 本地构建 | `git status` | manifest 无改动 | P0 |
 | TC-019 | AC-03 | 双平台产物除平台行外内容一致 | 本地构建 | 比对成员清单与 app.tgz | 成员一致、app.tgz 内容一致 | P1 |
@@ -111,17 +112,20 @@ verifiedAt: 2026-11-04
 | TC-042 | 03 | 嵌套的运行时 dist 不被误排除 | `app/ui/dist/index.html` | 检查副本 | 该文件仍在副本内 | P1 |
 | TC-043 | 04-AC-01 | CI 核对与上传都在 dist 工作目录 | — | 读 workflow | 两处 `working-directory: apps/fn-deepseek-harness/dist` | P0 |
 | TC-044 | 04-AC-01 | CI 不做「固定名顺手改名」兜底 | — | 读 workflow | 无 `mv fn-deepseek-harness.fpk` | P1 |
+| TC-048 | 06-AC-04 | 带发布名的产物不可能是半份包 | 真实 fnpack 多个时点强杀 | 检查 dist 内容与 tar 完整性 | 带发布名的文件都是完整 tar；落成只在 fnpack 成功退出后发生，结构上排除「截断文件顶着发布名」 | P1 |
 
 ## 测试执行结果
 
 | 用例 | 结果 | 执行日期 | 证据 |
 | --- | --- | --- | --- |
-| TC-001～TC-006 | 通过 | 2026-11-04 | `tests/fpk-platform-selection.spec.ts`、`tests/prompts.spec.ts`；CLI 全量 144 条全绿 |
+| TC-001～TC-006 | 通过 | 2026-11-04 | `tests/fpk-platform-selection.spec.ts`、`tests/prompts.spec.ts`；末轮 CLI 全量 158 条全绿 |
 | TC-007 | 通过 | 2026-11-04 | 代码路径：`runBuild` 仅在 `selection.includes('fpk')` 时调用 `selectFpkPlatforms` |
 | TC-008、TC-009 | 通过 | 2026-11-04 | `tests/fpk-platform.spec.ts` → `resolveFpkPlatforms` 两条报错用例 |
 | TC-010～TC-013 | 通过 | 2026-11-04 | `tests/fpk-platform.spec.ts`；含「源清单不被写入」「失败也清理副本」 |
 | TC-045 | 通过 | 2026-11-04 | 实跑 `--platform arm`：构建前后 `apps/fn-deepseek-harness/manifest` md5 均为 `014df5e3…`，逐字节相同；仓库 `platform = x86` 未变，产出的 arm 包内 `platform = arm`；`git diff` 该文件为空 |
 | TC-046 | 通过 | 2026-11-04 | `tests/fpk-platform.spec.ts`「仓库清单不被写入这一不变量」两条形状断言；变异验证：把 `writeManifestPlatform(stage…)` 改成 `appDirectory` 并在 build.ts 引入该函数 → 5 条变红（含 3 条行为用例），还原后 158 条全绿 |
+| TC-047 | 通过 | 2026-11-04 | 受控强杀：用占位 fnpack 挂住，在 `try` 块内部 `kill -9` **CLI 本体**（`finally` 确认未执行）。结果 manifest md5 前后均为 `014df5e3…`、`platform = x86`、`git diff` 该文件为空；残留副本里的 `manifest` 为 `platform = arm`——证明改写只发生在副本。另用真实 fnpack 在 0.35/0.45/0.55/0.9s 四个时点强杀，仓库清单每次都逐字节不变 |
+| TC-048 | 通过 | 2026-11-04 | 真实 fnpack 在 0.35/0.45/0.55/0.9s 四个时点强杀：dist 为空时无残留；出现带发布名的文件时 `tar -tzf` 均校验为完整归档。结构上成立——落成只在 fnpack 成功退出后执行，截断文件只可能顶着固定名 `<app>.fpk`（下一次构建整目录清空） |
 | TC-014～TC-016 | 通过 | 2026-11-04 | 同上；TC-015 用嵌套 `tests/node_modules` 路径验证排除按相对路径判断 |
 | TC-017 | 通过 | 2026-11-04 | 实跑 `pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins --platform x86 --platform arm`；解包 `tar -xzOf <pkg> manifest` 得 x86 包 `platform = x86`、arm 包 `platform = arm` |
 | TC-018 | 通过 | 2026-11-04 | 构建后 `git status --porcelain` 无 manifest 条目；仓库清单仍为 `platform              = x86` |
@@ -152,7 +156,7 @@ verifiedAt: 2026-11-04
 
 ## 测试结论
 
-FNOS-044-01、02、03、05、06 的包级用例与本地实跑全部通过（46 条用例：45 通过 / 1 未执行）；FNOS-044-04 的 CI 脚本逻辑已在本地按同形数据干跑验证，线上实跑随下一次发布执行。
+FNOS-044-01、02、03、05、06 的包级用例与本地实跑全部通过（48 条用例：47 通过 / 1 未执行）；FNOS-044-04 的 CI 脚本逻辑已在本地按同形数据干跑验证，线上实跑随下一次发布执行。
 
 **遗留风险（不阻塞本轮合入，但阻塞「ARM 支持已完成」的结论）**：ARM 包未经任何真实 ARM64 设备验证。issue #28 列的三个待验证点里，`node-pty` 的 aarch64 预编译产物与网关侧原生依赖已在 2026-11-04 核实为不存在障碍（前者带 `linux-arm64`，后者 `koffi` 带 `@koromix/koffi-linux-arm64`、网关自身纯 JS 且产物无 `.node`）；运行时能否加载成功仍需设备反馈。剩下的硬前置是 **fnOS ARM64 是否提供 `nodejs_v24` 系统包**——应用不内置 Node，这一项不成立则 ARM 包在安装依赖阶段就失败。文档与应用页已把 ARM 包标注为社区自测，上架仍只交已验证的 x86 包。
 
@@ -163,3 +167,5 @@ FNOS-044-01、02、03、05、06 的包级用例与本地实跑全部通过（46 
 3. 清单不变量：把副本改写改成就地改仓库清单、并在构建命令层引入该改写函数 → 5 条变红，其中 3 条是既有行为用例、2 条是本轮新增的形状守卫（TC-046）。
 
 每轮还原后复跑，末轮 CLI 全量 158 条全绿。同一用例可在多轮重复变红，三轮的 8 / 4 / 5 不是去重计数。
+
+**已知限制（不改变结论）**：强杀 CLI 本体会跳过副本清理，在系统临时目录留下一个 `fpk-<app>-<平台>-*` 副本（实测约 1.8 MB）。它是纯垃圾——下次构建用 `mkdtemp` 新建目录、永不复用，且仓库清单与 `dist/` 都不受影响；系统临时目录由 OS 自行回收。构建不主动清扫历史副本，因为「按名字前缀删临时目录」在并发构建下会误删对方正在用的副本，代价高于留着这点磁盘垃圾。
