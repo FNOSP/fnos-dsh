@@ -170,7 +170,7 @@ stateDiagram-v2
 - **等价性验证**：暂存产物与既有直接打包产物比对（T03-01）。
 - **CI 验证**：Actions 上跑一次构建，确认 Release 附件同时出现 x86 与 arm 两份。
 - **文档**：`pnpm run check -- --sdd` 与 `pnpm run build -- --docs`。
-- **目标环境**：ARM 真机验收不在本计划能力范围内（无 ARM 设备），按需求登记为待社区反馈；x86 侧装机验证沿用[从电脑上传 FPK 到 NAS 并安装](/guide/nas-fpk-install)的流程。
+- **目标环境**：ARM 真机验收不在本计划能力范围内（无 ARM 设备），按需求登记为待社区反馈。issue #28 列的三个待验证点已核实两项：`node-pty` 带 `linux-arm64` 预编译产物、`koffi` 带 `@koromix/koffi-linux-arm64` 可选依赖，且网关自身纯 JS、产物内无 `.node` 二进制——原生依赖不构成障碍，运行时能否加载仍需设备反馈。剩余硬前置是 fnOS ARM64 是否提供 `nodejs_v24` 系统包。x86 侧装机验证沿用[从电脑上传 FPK 到 NAS 并安装](/guide/nas-fpk-install)的流程。
 - **发布**：功能改动与版本提交分两条；版本按 `minor` 推进（本会话首次交付新功能），由发布者执行。发布前按[版本管理](/build/versioning)确认 `manifest` 的 `desc` 与 `changelog` 补齐本轮可感知改动。
 - **回滚**：见「数据、权限和错误处理」末条。
 

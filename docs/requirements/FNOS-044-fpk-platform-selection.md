@@ -37,8 +37,11 @@ lastVerified: 2026-11-04
 | 打包工具 fnpack 1.2.3 的 `build` 子命令只有 `--directory` 一个选项，**没有**平台或架构参数；产物名恒为 `<appname>.fpk`，落在调用时的工作目录 | `fnpack build --help` 实测输出与 `docs/build/fnpack.md`（2026-11-04） | FNOS-044-02 | 已核实 |
 | 平台差异**只能**来自被打包的那份清单：实测把源清单的平台值改成 `arm` 后打包，包内清单与既有 x86 包逐行比对，只有平台声明一行和包自身的校验值不同，其余内容完全一致 | 2026-11-04 实测：临时副本改平台值后打包，解包比对两份包内清单 | FNOS-044-01、FNOS-044-02 | 已核实 |
 | 本应用不含随包分发的架构相关产物：运行时依赖 fnOS 的 `nodejs_v24` 系统包，终端能力用的 node-pty 走 npm 包自带的按平台预编译产物 | 安装脚本的 Node 可执行路径与 `packages/fnos-gateway/src/install-callback-helper/node-pty.ts` 的预编译加载顺序（2026-11-04） | FNOS-044-02 | 已核实 |
+| ARM 侧的**安装期**原生依赖有对应产物：`node-pty@1.2.0-beta.15` 的 `prebuilds/` 内含 `linux-arm64`，`koffi@3.1.1` 的 `optionalDependencies` 含 `@koromix/koffi-linux-arm64`。两者都在 NAS 上 `pnpm add` 时按平台解析，因此不需要 g++，与 x86 走同一条路径 | 2026-11-04 读取仓库内已安装包的 `prebuilds/` 目录与 `package.json` 的 `optionalDependencies`；与 `pnpm-workspace.yaml` 里「DSH ships fully prebuilt native helpers」的说明一致 | FNOS-044-02 | 已核实（静态）；**运行时是否真的加载成功仍需 ARM 设备反馈** |
+| 网关自身没有架构相关内容：依赖只有 `commander`、`connect`、`http-proxy-middleware`（均为纯 JS），构建产物内没有 `.node` 二进制 | 2026-11-04 读 `packages/fnos-gateway/package.json` 与 `apps/fn-deepseek-harness/app/` 产物扫描（`find -name '*.node'` 为空） | FNOS-044-02 | 已核实 |
+| 仍未核实的 ARM 前置条件只有 fnOS ARM64 是否提供 `nodejs_v24` 系统包——应用不内置 Node，这一项不成立则 ARM 包在安装依赖阶段就失败 | 2026-11-04 无 ARM 设备可查；issue #28 回复已把它列为待使用者反馈的第一项 | FNOS-044-04 | 待验证 |
 | 「双包」是发布方对 issue #28 已经给出的口径，且明确 ARM 包属未经真机验证、需社区自测 | issue #28 回复（2026-11-03，`dsh-agent-bot`）与任务看板记录 | FNOS-044-04 | 已核实 |
-| 上架表单的平台项按应用清单取值对应选择；产出双平台包后平台改选「x86和arm」，且两个包需同时上传 | [应用上架规范](/charter/app-listing-spec) 阶段三字段口径与自查表 | FNOS-044-04 | 已核实 |
+| 上架表单的平台项按应用清单取值对应选择，双平台包需同时上传两个文件；但官方自查规则 3 要求「`platform` 取值与提交前已在真实设备自测」，因此**只交已验证的 x86 包**，ARM 包仅走 GitHub Releases | [应用上架规范](/charter/app-listing-spec) 阶段三字段口径与 7 条自查规则（2026-11-04 按此修正原「产出双平台包后改选 x86和arm」的写法） | FNOS-044-04 | 已核实 |
 | 本地与 CI 的产物命名由一条守卫用例钉住同形，改命名必须两侧一起改，否则该用例变红 | `tooling/fnos-dsh-cli/tests/fpk-release-naming.spec.ts`（FNOS-037 引入） | FNOS-044-03 | 已核实 |
 
 ## 需求目标
@@ -129,3 +132,4 @@ stateDiagram-v2
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-11-04 | 初始登记 | 建立 FNOS-044。承接 issue #28 的 ARM 支持诉求与 2026-11-03 已给出的「Release 额外提供 ARM 包」口径；同时按提出人要求把构建任务选项里的 Harness 插件移到最后。7 条调研结论，含 fnpack 无平台参数与「包内清单只有平台行不同」两项实测。关联 PLAN-FNOS-044。 |
+| 2026-11-04 | 补充 ARM 前置条件的核实结果 | 建立 FNOS-044 时列的三个 ARM 待验证点，本轮核实掉两个：`node-pty@1.2.0-beta.15` 的 `prebuilds/` 含 `linux-arm64`、`koffi@3.1.1` 的 `optionalDependencies` 含 `@koromix/koffi-linux-arm64`（安装期原生依赖成立，运行时能否加载仍需设备反馈）；网关依赖为纯 JS 且产物内无 `.node` 二进制。调研结论由 7 条增至 10 条，剩余唯一未核实前置收敛为「fnOS ARM64 是否提供 `nodejs_v24` 系统包」一条。同时修正上架口径的调研结论：原写「产出双平台包后改选 x86和arm」与官方自查规则 3「提交前已在真实设备自测」冲突，改为只交已验证的 x86 包。 |
