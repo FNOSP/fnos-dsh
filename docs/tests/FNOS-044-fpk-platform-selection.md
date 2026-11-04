@@ -96,7 +96,7 @@ verifiedAt: 2026-11-04
 
 | 用例 | 结果 | 执行日期 | 证据 |
 | --- | --- | --- | --- |
-| TC-001～TC-006 | 通过 | 2026-11-04 | `tests/fpk-platform-selection.spec.ts`、`tests/prompts.spec.ts`；包级 143 条全绿 |
+| TC-001～TC-006 | 通过 | 2026-11-04 | `tests/fpk-platform-selection.spec.ts`、`tests/prompts.spec.ts`；CLI 全量 144 条全绿 |
 | TC-007 | 通过 | 2026-11-04 | 代码路径：`runBuild` 仅在 `selection.includes('fpk')` 时调用 `selectFpkPlatforms` |
 | TC-008、TC-009 | 通过 | 2026-11-04 | `tests/fpk-platform.spec.ts` → `resolveFpkPlatforms` 两条报错用例 |
 | TC-010～TC-013 | 通过 | 2026-11-04 | `tests/fpk-platform.spec.ts`；含「源清单不被写入」「失败也清理副本」 |
@@ -128,4 +128,4 @@ FNOS-044-01、02、03、05 的包级用例与本地实跑全部通过；FNOS-044
 
 **遗留风险（不阻塞本轮合入，但阻塞「ARM 支持已完成」的结论）**：ARM 包未经任何真实 ARM64 设备验证。issue #28 列的三个待验证点里，`node-pty` 的 aarch64 预编译产物与网关侧原生依赖已在 2026-11-04 核实为不存在障碍（前者带 `linux-arm64`，后者 `koffi` 带 `@koromix/koffi-linux-arm64`、网关自身纯 JS 且产物无 `.node`）；运行时能否加载成功仍需设备反馈。剩下的硬前置是 **fnOS ARM64 是否提供 `nodejs_v24` 系统包**——应用不内置 Node，这一项不成立则 ARM 包在安装依赖阶段就失败。文档与应用页已把 ARM 包标注为社区自测，上架仍只交已验证的 x86 包。
 
-变异验证：临时去掉命名模板的平台段、把副本改写换成不改写、把构建任务顺序改回原样，对应 8 条用例变红；还原后 143 条全绿。
+变异验证：临时去掉命名模板的平台段、把副本改写换成不改写、把构建任务顺序改回原样，对应 8 条用例变红；还原后 144 条全绿。
