@@ -13,7 +13,7 @@ verifiedAt: 2026-11-03
 
 ## 测试范围与需求分析
 
-被测对象是「可信访问地址」在三处的判定：向导正则、安装回调、启动日志。基准来自 DSH 的 `assertTrustedAuthority`。
+被测对象是「可信访问地址」在三处的判定：向导正则、安装回调、启动日志。基准来自 DSH 的 `assertTrustedAuthority`。执行任务见 [PLAN-FNOS-043](/plans/PLAN-FNOS-043-trusted-hosts-validation)。
 
 | 功能 | 覆盖点 | 关键风险 |
 | --- | --- | --- |
