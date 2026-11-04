@@ -22,6 +22,14 @@ import type { CodexAuthSectionProps, CodexAuthSubject } from '../components/Code
 import { CodexUsageStatus } from '../components/CodexUsageStatus.tsx'
 import type { CodexUsageStatusInjected } from '../components/CodexUsageStatus.tsx'
 import { en, zh } from './locales.ts'
+import { de } from './locales.de.ts'
+import { es } from './locales.es.ts'
+import { fr } from './locales.fr.ts'
+import { it } from './locales.it.ts'
+import { ja } from './locales.ja.ts'
+import { ko } from './locales.ko.ts'
+import { ru } from './locales.ru.ts'
+import { ensurePluginLanguages, registerPluginDictionaries } from './language-pack.ts'
 import type { CodexAuthLocaleKey } from './locales.ts'
 import { installSemiDshTheme } from '@tnnevol/dsh-semi-ui'
 import { installCodexModelDiscoveryBridge } from './services/model-discovery.ts'
@@ -54,6 +62,11 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => installSemiDshTheme(), 'dsh-codex-auth-plugin: Semi DSH theme')
   const namespace = 'settings.dsh-codex-auth'
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'dsh-codex-auth-plugin: locale')
+  ctx.effect(() => ensurePluginLanguages(ctx), 'dsh-codex-auth-plugin: language pack')
+  ctx.effect(
+    () => registerPluginDictionaries(ctx, namespace, { de, es, fr, it, ja, ko, ru }),
+    'dsh-codex-auth-plugin: locale dictionaries',
+  )
   const t = ctx.locale.bind(namespace) as CodexAuthSectionProps['t']
   const connection = ctx.get('connection') as ConnectionHandle
   // DSH exposes the merged Remote API on `ctx.remote`. Using `ctx.get('remote')`

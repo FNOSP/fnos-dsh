@@ -24,6 +24,14 @@ import { installSemiDshTheme } from '@tnnevol/dsh-semi-ui'
 import { MIDSCENE_PACKAGE_NAME, MIDSCENE_SETTINGS_STATUS_PATH, MIDSCENE_SETTINGS_UPDATE_PATH } from '../contracts/settings-rpc.ts'
 import type { MidsceneSettingsSnapshot } from '../contracts/settings-rpc.ts'
 import { en, zh } from './locales.ts'
+import { de } from './locales.de.ts'
+import { es } from './locales.es.ts'
+import { fr } from './locales.fr.ts'
+import { it } from './locales.it.ts'
+import { ja } from './locales.ja.ts'
+import { ko } from './locales.ko.ts'
+import { ru } from './locales.ru.ts'
+import { ensurePluginLanguages, registerPluginDictionaries } from './language-pack.ts'
 import type { MidsceneLocaleKey } from './locales.ts'
 import { MidsceneSettingsSection } from './settings-section.tsx'
 
@@ -66,6 +74,11 @@ async function requestSettings(path: string, init?: RequestInit): Promise<Midsce
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => installSemiDshTheme(), 'dsh-midscene: Semi DSH theme')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-midscene: locale')
+  ctx.effect(() => ensurePluginLanguages(ctx), 'dsh-midscene: language pack')
+  ctx.effect(
+    () => registerPluginDictionaries(ctx, NS, { de, es, fr, it, ja, ko, ru }),
+    'dsh-midscene: locale dictionaries',
+  )
   const t = ctx.locale.bind(NS) as (key: MidsceneLocaleKey) => string
 
   const load = (): Promise<MidsceneSettingsSnapshot> => requestSettings(MIDSCENE_SETTINGS_STATUS_PATH)

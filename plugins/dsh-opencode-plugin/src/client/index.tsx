@@ -19,6 +19,14 @@ import { OpenCodeSection } from '../components/OpenCodeSection.tsx'
 import { OpenCodeUsageStatus } from '../components/OpenCodeUsageStatus.tsx'
 import type { OpenCodeUsageStatusInjected } from '../components/OpenCodeUsageStatus.tsx'
 import { en, zh } from './locales.ts'
+import { de } from './locales.de.ts'
+import { es } from './locales.es.ts'
+import { fr } from './locales.fr.ts'
+import { it } from './locales.it.ts'
+import { ja } from './locales.ja.ts'
+import { ko } from './locales.ko.ts'
+import { ru } from './locales.ru.ts'
+import { ensurePluginLanguages, registerPluginDictionaries } from './language-pack.ts'
 import type { OpenCodeLocaleKey, OpenCodeTranslate } from './locales.ts'
 import type { TimerService } from './services/polling.ts'
 import { createPreferencesStore } from './services/preferences-data.ts'
@@ -58,6 +66,11 @@ export const inject = ['slots', 'locale', 'connection', 'remote', 'remote.llm', 
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => installSemiDshTheme(), 'dsh-opencode-plugin: Semi DSH theme')
   ctx.effect(() => ctx.locale.register(OPENCODE_LOCALE_NAMESPACE, { zh, en }), 'dsh-opencode-plugin: locale')
+  ctx.effect(() => ensurePluginLanguages(ctx), 'dsh-opencode-plugin: language pack')
+  ctx.effect(
+    () => registerPluginDictionaries(ctx, OPENCODE_LOCALE_NAMESPACE, { de, es, fr, it, ja, ko, ru }),
+    'dsh-opencode-plugin: locale dictionaries',
+  )
   const t = ctx.locale.bind(OPENCODE_LOCALE_NAMESPACE) as OpenCodeTranslate
   const timer = ctx.get('timer') as TimerService
   // 详情页与输入区胶囊是两个独立座位，共享同一个偏好 store：设置保存后胶囊

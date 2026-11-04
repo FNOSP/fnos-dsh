@@ -1,51 +1,51 @@
 [
     {
-        "stepTitle": "服务配置",
+        "stepTitle": "${config.stepTitle}",
         "items": [
             {
                 "type": "tips",
-                "helpText": "应用通过 fnOS 统一网关在 NAS Web 中打开，不需要对外开放端口。保存后应用会按新配置重启；应用未运行则下次启动生效。"
+                "helpText": "${config.gatewayHelpText}"
             },
             {
                 "type": "text",
                 "field": "wizard_port",
-                "label": "监听端口",
+                "label": "${config.portLabel}",
                 "initValue": "3080",
-                "helpText": "DSH Web 的监听端口。iframe 入口需要固定端口，不能填 0。",
+                "helpText": "${config.portHelpText}",
                 "rules": [
                     {
                         "required": true,
-                        "message": "请输入监听端口"
+                        "message": "${config.portRequiredMessage}"
                     },
                     {
                         "pattern": "^(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$",
-                        "message": "请输入 1-65535 之间的端口号"
+                        "message": "${config.portPatternMessage}"
                     }
                 ]
             },
             {
                 "type": "text",
                 "field": "wizard_trusted_hosts",
-                "label": "可信访问地址",
+                "label": "${config.trustedHostsLabel}",
                 "initValue": "",
-                "helpText": "填浏览器打开 NAS Web 时地址栏里的 host 或 host:port，例如 192.0.2.10:5666。不确定端口就只填 host；多个地址用英文逗号分隔。不要带 http:// 或 https://，也不要带路径（结尾的 /）；IPv6 要写方括号，如 [fd00::1]:5666。不要填 3080，那是 DSH 自己的端口。",
+                "helpText": "${config.trustedHostsHelpText}",
                 "rules": [
                     {
                         "required": true,
-                        "message": "请输入 NAS Web 的 host 或 host:port"
+                        "message": "${config.trustedHostsRequiredMessage}"
                     },
                     {
                         "pattern": "^(?:[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?(?:,(?:[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?|\\[[0-9A-Fa-f:.]+\\])(?::(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))?)*$",
-                        "message": "只能填 host 或 host:port（可多个，用英文逗号分隔）：不要带 http:// 或 https://，不要带路径，端口 1-65535 且不能有前导零"
+                        "message": "${config.trustedHostsPatternMessage}"
                     }
                 ]
             },
             {
                 "type": "select",
                 "field": "wizard_npm_registry",
-                "label": "npm 镜像源",
+                "label": "${config.npmRegistryLabel}",
                 "initValue": "",
-                "helpText": "留空使用 npm 官方源。安装失败不会自动换源，请按当前网络选一个后重试。",
+                "helpText": "${config.npmRegistryHelpText}",
                 "options": [
                     {
                         "label": "yarn",

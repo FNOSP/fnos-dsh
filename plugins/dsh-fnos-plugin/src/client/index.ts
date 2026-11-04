@@ -35,6 +35,15 @@ import { insertFnosReferences } from './input-references/input-reference-actions
 import { createFnosCommandContribution, createFnosDirectorySource } from './input-references/fnos-command-source.ts'
 import { FNOS_REFERENCE_SOURCE, fnosReferenceDisplayText, fnosReferencePromptText, type FnosInputReference, type InputSnapshotForReference } from './input-references/input-references.ts'
 import { en, zh } from './locales.ts'
+import { de } from './locales.de.ts'
+import { es } from './locales.es.ts'
+import { fr } from './locales.fr.ts'
+import { it } from './locales.it.ts'
+import { ja } from './locales.ja.ts'
+import { ko } from './locales.ko.ts'
+import { ru } from './locales.ru.ts'
+import { ensurePluginLanguages, registerPluginDictionaries } from './language-pack.ts'
+import { installFnosLanguageSync } from './services/language-sync.ts'
 import { installFnosRemotePathOpener } from './services/path-opener.ts'
 import { installFnosPresentedOpen } from './services/present-open.ts'
 import { FnosSettingsDocumentAction } from '../components/FnosSettingsDocumentAction.tsx'
@@ -103,6 +112,25 @@ export function apply(ctx: ClientContext): void {
 
   const namespace = 'settings.dsh-fnos'
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'dsh-fnos: locale')
+  // FNOS-045：先补齐可选语言（已存在则跳过，六个插件可能都想注册同一批 id），
+  // 再登记本插件命名空间的各语言字典。
+  ctx.effect(() => ensurePluginLanguages(ctx), 'dsh-fnos: language pack')
+  ctx.effect(
+    () => registerPluginDictionaries(ctx, namespace, { ja, ko, de, fr, es, it, ru }),
+    'dsh-fnos: locale dictionaries',
+  )
+  // 飞牛界面语言 → DSH 界面语言。SDK 不可用只记调试日志，不影响启动。
+  ctx.effect(() => {
+    let stop: (() => void | Promise<void>) | undefined
+    void installFnosLanguageSync(ctx, {
+      availableLocales: () => ctx.locale.getLocale().locales,
+      setLocale: id => { ctx.locale.setLocale(id) },
+      createSdk: createTrimApp,
+    }).then(dispose => { stop = dispose }).catch(error => {
+      console.debug('[dsh-fnos] unable to sync DSH locale from fnOS', error)
+    })
+    return () => { void stop?.() }
+  }, 'dsh-fnos: fnOS language sync')
   const t = ctx.locale.bind(namespace) as (key: FnosLocaleKey) => string
 
   ctx.effect(() => installFnosRemotePathOpener(ctx.remote.session, {

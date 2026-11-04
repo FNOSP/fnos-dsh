@@ -83,5 +83,6 @@ flowchart TD
 | PLAN-FNOS-042 | [Session 日志菜单对齐官方默认结构](/plans/PLAN-FNOS-042-session-log-menu) | 实施完成（六阶段：调研 → 菜单改造 → 文案 → 守卫用例 → 包级验证 → 真机验收待执行） |
 | PLAN-FNOS-043 | [可信访问地址的校验与错误透出](/plans/PLAN-FNOS-043-trusted-hosts-validation) | 实施完成（七阶段：校验器 → 子命令 → 向导正则 → 安装拦截 → 启动日志 → 用例 → 真机验收待执行） |
 | PLAN-FNOS-044 | [FPK 平台产物选择与双包发布](/plans/PLAN-FNOS-044-fpk-platform-selection) | 实施完成（七阶段：核心实现 → 交互与参数 → 构建与等价性验证 → CI 双包 → 用例与变异验证 → 文档与索引 → 产物目录 dist 化；ARM 真机验收无设备） |
+| PLAN-FNOS-045 | [应用与插件多语言支持](/plans/PLAN-FNOS-045-app-plugin-i18n) | 实施中（四阶段：应用包本地化 → 插件语言包 → 语言同步 → 文档与验证） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

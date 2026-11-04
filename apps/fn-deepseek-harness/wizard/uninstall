@@ -1,30 +1,30 @@
 [
     {
-        "stepTitle": "卸载设置",
+        "stepTitle": "${uninstall.stepTitle}",
         "items": [
             {
                 "type": "tips",
-                "helpText": "选择保留数据可在之后重新安装时继续使用；选择删除数据会卸载 @deepseek-ai/dsh，并删除 DeepSeek Harness 的配置、缓存和运行数据。"
+                "helpText": "${uninstall.dataHelpText}"
             },
             {
                 "type": "radio",
                 "field": "wizard_keep_data",
-                "label": "应用数据",
+                "label": "${uninstall.dataLabel}",
                 "initValue": "keep",
                 "options": [
                     {
-                        "label": "保留应用数据",
+                        "label": "${uninstall.keepDataLabel}",
                         "value": "keep"
                     },
                     {
-                        "label": "删除应用数据",
+                        "label": "${uninstall.removeDataLabel}",
                         "value": "remove"
                     }
                 ],
                 "rules": [
                     {
                         "required": true,
-                        "message": "请选择应用数据处理方式"
+                        "message": "${uninstall.dataRequiredMessage}"
                     }
                 ]
             }

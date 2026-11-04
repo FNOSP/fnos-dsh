@@ -27,6 +27,14 @@ import { FailoverConfigSection } from './config-section.tsx'
 import { SmartSearchToggle } from './smart-search-toggle.tsx'
 import type { PluginSettings } from './config-section.tsx'
 import { en, zh } from './locales.ts'
+import { de } from './locales.de.ts'
+import { es } from './locales.es.ts'
+import { fr } from './locales.fr.ts'
+import { it } from './locales.it.ts'
+import { ja } from './locales.ja.ts'
+import { ko } from './locales.ko.ts'
+import { ru } from './locales.ru.ts'
+import { ensurePluginLanguages, registerPluginDictionaries } from './language-pack.ts'
 import type { UsageLocaleKey } from './locales.ts'
 import { FailoverUsageSection } from './usage-section.tsx'
 
@@ -57,6 +65,11 @@ interface ConnectionRpc {
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => installSemiDshTheme(), 'dsh-failover-search: Semi DSH theme')
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-failover-search: locale')
+  ctx.effect(() => ensurePluginLanguages(ctx), 'dsh-failover-search: language pack')
+  ctx.effect(
+    () => registerPluginDictionaries(ctx, NS, { de, es, fr, it, ja, ko, ru }),
+    'dsh-failover-search: locale dictionaries',
+  )
   const t = ctx.locale.bind(NS) as (key: UsageLocaleKey) => string
 
   // 自有端点的传输：直接 POST 到插件自己的 HTTP 路由（与 host 侧 webServer 注册的

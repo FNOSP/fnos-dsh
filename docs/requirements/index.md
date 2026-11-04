@@ -97,5 +97,6 @@ flowchart TD
 | FNOS-042 | [Session 日志菜单对齐官方默认结构](/requirements/FNOS-042-session-log-menu) | 实施中（包级用例与产物构建通过；真实 NAS 验收待执行） |
 | FNOS-043 | [可信访问地址的校验与错误透出](/requirements/FNOS-043-trusted-hosts-validation) | 实施中（包级用例通过；真实 NAS 安装向导验收待执行） |
 | FNOS-044 | [FPK 平台产物选择与双包发布](/requirements/FNOS-044-fpk-platform-selection) | 实施中（包级 160 条与本地双平台实跑通过，产物落 `apps/<app>/dist/<主干>/`（一平台一子目录）并每次清空、仓库清单全程未被写入；ARM 真机验收无设备，待社区反馈） |
+| FNOS-045 | [应用与插件多语言支持](/requirements/FNOS-045-app-plugin-i18n) | 实施中（九种语言的应用元数据、入口与向导已落 `i18n/`，六个插件的七种新增语言字典齐全并通过键集合校验；真机语言切换待验证） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

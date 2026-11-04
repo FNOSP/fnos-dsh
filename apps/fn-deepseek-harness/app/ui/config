@@ -1,7 +1,7 @@
 {
     ".url": {
         "fn-deepseek-harness.Application": {
-            "title": "DeepSeek Harness",
+            "title": "${entry.title}",
             "icon": "images/icon_{0}.png",
             "type": "iframe",
             "protocol": "",

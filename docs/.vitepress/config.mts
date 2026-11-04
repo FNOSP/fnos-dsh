@@ -415,6 +415,10 @@ const requirementsSidebar = [
         text: 'FNOS-044 FPK 平台产物选择与双包发布',
         link: '/requirements/FNOS-044-fpk-platform-selection'
       },
+      {
+        text: 'FNOS-045 应用与插件多语言支持',
+        link: '/requirements/FNOS-045-app-plugin-i18n'
+      },
       ]
   }
 ]
@@ -600,6 +604,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-044 FPK 平台产物选择与双包发布',
         link: '/plans/PLAN-FNOS-044-fpk-platform-selection'
       },
+      {
+        text: 'PLAN-FNOS-045 应用与插件多语言支持',
+        link: '/plans/PLAN-FNOS-045-app-plugin-i18n'
+      },
     ]
   }
 ]
@@ -753,6 +761,10 @@ const testsSidebar = [
       {
         text: 'FNOS-044 FPK 平台产物选择与双包发布',
         link: '/tests/FNOS-044-fpk-platform-selection'
+      },
+      {
+        text: 'FNOS-045 应用与插件多语言支持',
+        link: '/tests/FNOS-045-app-plugin-i18n'
       },
     ]
   }

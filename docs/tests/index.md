@@ -53,5 +53,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-042 | [Session 日志菜单对齐官方默认结构](/tests/FNOS-042-session-log-menu) | [PLAN-FNOS-042](/plans/PLAN-FNOS-042-session-log-menu) | 部分通过 | 包级 6 条 + 全量 428 条通过；真机 2 条待装 FPK 后补测 |
 | FNOS-043 | [可信访问地址的校验与错误透出](/tests/FNOS-043-trusted-hosts-validation) | [PLAN-FNOS-043](/plans/PLAN-FNOS-043-trusted-hosts-validation) | 部分通过 | 包级 11 条 + shell 冒烟（安装拦截/启动日志）+ 全量 166 条通过；真实 NAS 安装向导待验 |
 | FNOS-044 | [FPK 平台产物选择与双包发布](/tests/FNOS-044-fpk-platform-selection) | [PLAN-FNOS-044](/plans/PLAN-FNOS-044-fpk-platform-selection) | 部分通过 | 50 条用例：49 通过 / 1 未执行（终端视觉呈现，由顺序守卫用例钉住）。包级 70 条 FPK 相关用例通过、CLI 全量 158 条全绿；本地实跑双平台：产物落 `apps/fn-deepseek-harness/dist/<主干>/<主干>.fpk`（一平台一子目录）、包内平台声明与名字对应、**只选 arm 构建后仓库清单 md5 逐字节不变**、两份包除平台行外内容一致；只选一个平台时另一平台目录从 dist 消失；根目录历史包被提示但不删；fnpack 校验失败不往产物目录写半份包；CI 核对脚本本地干跑（缺平台时退出码 1）；变异验证三轮分别 8 / 4 / 5 条变红。**ARM 真机装机未执行：无 ARM 设备，按 issue #28 口径交社区自测** |
+| FNOS-045 | [应用与插件多语言支持](/tests/FNOS-045-app-plugin-i18n) | [PLAN-FNOS-045](/plans/PLAN-FNOS-045-app-plugin-i18n) | 部分通过 | 19 条用例（结果后填）：应用侧 `check --i18n` 通过（9 种语言 × 46 键、占位符全部可解析）、构建产物含 `i18n/`；插件侧 42 份字典齐全且键集合由类型强制；语言同步 9 条单测、语言包 6 条单测全绿。真机语言切换未执行 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

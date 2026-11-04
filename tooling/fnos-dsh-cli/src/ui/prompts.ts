@@ -5,7 +5,7 @@ import { FPK_PLATFORMS, isFpkPlatform, parseFpkPlatforms, type FpkPlatform } fro
 
 export type BuildSelection = 'plugins' | 'fpk' | 'docs'
 export type StartSelection = 'docs' | 'plugins' | 'web'
-export type CheckSelection = 'sdd' | 'docs' | 'packages' | 'plugins' | 'tooling'
+export type CheckSelection = 'sdd' | 'i18n' | 'docs' | 'packages' | 'plugins' | 'tooling'
 
 export async function askPlugin(): Promise<PluginTarget[] | undefined> {
   const result = await multiselect({
@@ -44,6 +44,7 @@ export async function askCheckSelection(): Promise<CheckSelection[] | undefined>
     required: true,
     options: [
       { value: 'sdd', label: 'SDD 文档', hint: '校验需求、计划、编号和内部链接' },
+      { value: 'i18n', label: '多语言资源', hint: '校验应用语言文件与插件字典的键集合' },
       { value: 'docs', label: '项目文档', hint: '构建 VitePress 文档站点' },
       { value: 'packages', label: '共享包', hint: '通过 Turbo 执行共享包检查' },
       { value: 'plugins', label: 'Harness 插件', hint: '通过 Turbo 执行插件检查' },

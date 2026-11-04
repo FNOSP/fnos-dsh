@@ -19,6 +19,14 @@ import { ZCodeSection } from '../components/ZCodeSection.tsx'
 import { ZCodeUsageStatus } from '../components/ZCodeUsageStatus.tsx'
 import type { ZCodeUsageStatusInjected } from '../components/ZCodeUsageStatus.tsx'
 import { en, zh } from './locales.ts'
+import { de } from './locales.de.ts'
+import { es } from './locales.es.ts'
+import { fr } from './locales.fr.ts'
+import { it } from './locales.it.ts'
+import { ja } from './locales.ja.ts'
+import { ko } from './locales.ko.ts'
+import { ru } from './locales.ru.ts'
+import { ensurePluginLanguages, registerPluginDictionaries } from './language-pack.ts'
 import type { ZCodeLocaleKey, ZCodeTranslate } from './locales.ts'
 import type { TimerService } from './services/polling.ts'
 import { createPreferencesStore } from './services/preferences-data.ts'
@@ -60,6 +68,11 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(
     () => ctx.locale.register(ZCODE_LOCALE_NAMESPACE, { zh, en }),
     'dsh-zcode-plugin: locale',
+  )
+  ctx.effect(() => ensurePluginLanguages(ctx), 'dsh-zcode-plugin: language pack')
+  ctx.effect(
+    () => registerPluginDictionaries(ctx, ZCODE_LOCALE_NAMESPACE, { de, es, fr, it, ja, ko, ru }),
+    'dsh-zcode-plugin: locale dictionaries',
   )
   const t = ctx.locale.bind(ZCODE_LOCALE_NAMESPACE) as ZCodeTranslate
   const timer = ctx.get('timer') as TimerService
