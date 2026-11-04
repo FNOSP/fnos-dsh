@@ -1,4 +1,5 @@
 import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -24,6 +25,10 @@ import { optionValues } from '../src/core/args.js'
  * 1. **仓库里那份清单不能被改动**——它是受版本管理的事实来源；
  * 2. **改写只能动 platform 那一行**——多改一行就等于在构建里偷偷改应用配置。
  */
+
+// 源码形状守卫要读的文件：与 fpk-release-naming.spec.ts 同形，在模块顶层读一次。
+const STAGING = await readFile(new URL('../src/core/fpk-staging.ts', import.meta.url), 'utf8')
+const BUILD = await readFile(new URL('../src/commands/build.ts', import.meta.url), 'utf8')
 
 const dirs: string[] = []
 
@@ -260,6 +265,23 @@ describe('withStagedFpkPlatform', () => {
       const mode = (await stat(join(stage, 'cmd', 'install_callback'))).mode & 0o777
       expect(mode.toString(8)).toBe('755')
     })
+  })
+})
+
+describe('仓库清单不被写入这一不变量（FNOS-044-02-AC-02）', () => {
+  // 平台改写只发生在临时副本里，仓库那份 `manifest` 全程只读。行为用例已经证明
+  // 「副本改了、源没改」，但那只覆盖当前实现；这两条形状断言挡的是未来的「简化」：
+  // 有人把副本方案改回「就地改仓库清单再还原」时，行为用例可能仍全绿（还原成功），
+  // 而崩溃留下脏值、脏值被下次构建当原始值捕获的失败模式已经回来了。
+  it('清单改写只作用于副本目录', () => {
+    expect(STAGING).toMatch(/await writeManifestPlatform\(stage, platform\)/u)
+    expect(STAGING).not.toMatch(/writeManifestPlatform\(appDirectory/u)
+  })
+
+  it('构建命令层没有写仓库清单的能力', () => {
+    // build.ts 里出现这两个函数，就意味着存在绕过副本、直接改仓库文件的路径。
+    expect(BUILD).not.toMatch(/writeManifestPlatform|withManifestPlatform/u)
+    expect(BUILD).not.toMatch(/writeFile/u)
   })
 })
 
