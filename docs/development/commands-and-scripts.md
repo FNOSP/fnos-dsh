@@ -13,7 +13,7 @@
 | 命令 | 用途 | 交互 |
 | --- | --- | --- |
 | `pnpm run start` | 启动 harness 插件 watch、文档服务和/或本地 DSH Web | 可选 |
-| `pnpm run build` | 构建 harness 插件、FPK 应用和文档 | 可选 |
+| `pnpm run build` | 构建 FPK 应用、文档和 harness 插件（交互按此顺序询问；FPK 可再选 x86 / arm 平台，`--platform` 可重复指定） | 可选 |
 | `pnpm run check` | 检查 SDD、文档、共享包、harness 插件和构建工具 | 可选 |
 | `pnpm run version` | 统一维护项目与全部插件版本（同号，bumpp 档位 patch/minor/major） | 可选 |
 | `pnpm run publish` | 发布 DSH 插件到 npm（`next` dist-tag）：不带参数进入交互多选，`--plugin <名字>` 发单个，`--all` 发全部（非交互场景用）；发布收尾自动重新生成插件市场索引，`--skip-market-index` 可跳过 | 可选 |
@@ -30,6 +30,21 @@ pnpm exec fnos-dsh-cli build:gateway
 ```
 
 各命令的分支与调度细节见 [Turbo 任务](./turbo-tasks) 和 [CLI 命令参考](./cli-commands)。
+
+## 构建 FPK
+
+```bash
+# 交互：选构建任务 → 选应用 → 选平台（x86 / arm 可多选）→ 是否内置插件
+pnpm run build
+
+# 按 manifest 声明的平台出一份（非交互不会进询问）
+pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins
+
+# 两个平台各出一份
+pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins --platform x86 --platform arm
+```
+
+`--platform` 可重复给出，取值只有 `x86` 与 `arm`，非法值直接报错。产物名 `fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>.fpk`；`fnpack` 没有平台参数，包内平台声明由构建为每个平台准备的临时副本决定，仓库 `manifest` 不被写入。细节见[fnpack 打包](../build/fnpack)与[CI 构建](../build/ci)。
 
 ## 文档开发
 

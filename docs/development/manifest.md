@@ -43,7 +43,7 @@ install_dep_apps      = nodejs_v24
 | `display_name` | 应用中心显示名称 | 面向用户，避免包含内部构建信息 |
 | `desc` | 应用描述 | **支持富文本（HTML）**，随每次功能完成及时更新：说明用途、核心能力、快捷键和安装提示；用 `<br />`、`<strong>`、`<code>` 等标签组织版式，不写无法验证的承诺 |
 | `changelog` | 应用变更摘要 | **随每次功能完成及时更新**：概括本轮功能、修复与行为变化，与文档站对应需求的变更记录保持口径一致 |
-| `platform` | 目标架构 | 按实际 FPK 产物填写，例如 `x86`、`arm` 或 `all` |
+| `platform` | 目标架构 | 按实际 FPK 产物填写，例如 `x86`、`arm` 或 `all`。构建时它还是**默认平台**：`pnpm run build -- --fpk` 不带 `--platform` 时，产出的就是这一份声明的包；带 `--platform` 时构建会为每个平台准备临时副本、只改写副本里的这一行，仓库清单不被写入（见[FNOS-044 计划](/plans/PLAN-FNOS-044-fpk-platform-selection)） |
 | `source` | 应用来源 | 第三方应用通常使用 `thirdparty` |
 | `maintainer` / `maintainer_url` | 原始项目维护者和地址 | 指向真实上游项目 |
 | `distributor` / `distributor_url` | 当前分发者和仓库地址 | 与发布主体保持一致 |

@@ -7,13 +7,15 @@ import { repositoryRoot } from '../config/paths.js'
 import { findPluginTarget } from '../config/targets.js'
 import { readFpkApps, readGatewayName, type FpkApp } from '../config/workspace.js'
 import { runDocsBuild } from './docs.js'
-import { optionValue } from '../core/args.js'
+import { optionValue, optionValues } from '../core/args.js'
 import { requireDshBaseline } from '../core/dsh-baseline.js'
 import { fpkReleaseFileName, renameFpkToRelease } from '../core/fpk-artifacts.js'
-import { addBooleanArgs, addOptionalValueArg } from '../core/command-args.js'
+import { FPK_PLATFORMS, parseFpkPlatforms, resolveFpkPlatforms, type FpkPlatform } from '../core/fpk-platform.js'
+import { withStagedFpkPlatform } from '../core/fpk-staging.js'
+import { addBooleanArgs, addOptionalValueArg, addRepeatableValueArgs } from '../core/command-args.js'
 import { captureCommandOutput, runCommand } from '../core/process.js'
 import { runTurbo } from '../core/turbo.js'
-import { askBuildSelection, askBundleDshPlugins, askFpkApps, askPlugins } from '../ui/prompts.js'
+import { askBuildSelection, askBundleDshPlugins, askFpkApps, askFpkPlatforms, askPlugins } from '../ui/prompts.js'
 
 const DSH_PUBLISHED_PLUGIN_MANIFEST = 'app/published-dsh-plugins.json'
 const DSH_BUNDLED_PLUGIN_DIRECTORY = 'app/bundled-dsh-plugins'
@@ -365,7 +367,10 @@ function listFpkApps(): FpkApp[] {
   return readFpkApps()
 }
 
-async function buildFpkApps(apps: FpkApp[], options: { bundleDshPlugins?: boolean } = {}): Promise<void> {
+async function buildFpkApps(
+  apps: FpkApp[],
+  options: { bundleDshPlugins?: boolean, platforms?: FpkPlatform[] } = {},
+): Promise<void> {
   if (apps.some(app => app.requiresGateway)) {
     const gatewayName = readGatewayName()
     if (gatewayName === undefined) throw new Error('Unable to resolve the fnOS Gateway package')
@@ -374,22 +379,54 @@ async function buildFpkApps(apps: FpkApp[], options: { bundleDshPlugins?: boolea
   for (const app of apps) {
     await validateDshReleaseInputs(app)
     await prepareDshPluginBundle(app, options.bundleDshPlugins === true)
-    console.log(`\nBuilding FPK: ${app.name}`)
-    await runCommand('fnpack', ['build'], join(repositoryRoot, 'apps', app.name))
-    await renameFpkForRelease(app)
+    await buildFpkAppForPlatforms(app, options.platforms)
   }
 }
 
 /**
- * 把 `fnpack` 产出的固定名 FPK 改成发布用的带版本名。
+ * 按平台逐个打包一个应用。
  *
- * 与 `.github/workflows/build-app.yml` 的「Rename FPK with DSH version」保持一致：
+ * `fnpack` 没有平台参数：包内平台声明完全来自被打包的那份 `manifest`（实测见
+ * `core/fpk-staging.ts`）。所以每个平台各准备一份改写过的副本、各打一次包。
  *
- *   <appname>-<RELEASE_TAG>-dsh-<DSH_BASELINE>.fpk
+ * 版本串与基线在循环**之外**取一次：`resolveReleaseTag` 在没有精确 tag 时会读 manifest
+ * 兜底，循环内重复取会让「本次构建产出哪些文件名」这件事依赖每次读盘结果。
+ */
+async function buildFpkAppForPlatforms(app: FpkApp, requested?: FpkPlatform[]): Promise<void> {
+  const appDir = join(repositoryRoot, 'apps', app.name)
+  const platforms = resolveFpkPlatforms({ appName: app.name, declared: app.platform, requested })
+  const releaseTag = await resolveReleaseTag()
+  const baseline = requireDshBaseline()
+  // 本次构建将要产出的全部名字：多平台时先产出的那份不属于「可能拿错的旧包」。
+  // 平台与目标名配对成一条记录，避免后续按下标取名字取空。
+  const artifacts = platforms.map(platform => ({
+    platform,
+    target: fpkReleaseFileName(app.name, platform, releaseTag, baseline),
+  }))
+  const targets = artifacts.map(artifact => artifact.target)
+
+  for (const artifact of artifacts) {
+    console.log(`\nBuilding FPK: ${app.name} (${artifact.platform})`)
+    await withStagedFpkPlatform(appDir, artifact.platform, async stageDirectory => {
+      // 产物落在**调用时的工作目录**（实测：`--directory` 只指定源码目录），因此 cwd
+      // 用应用目录，包直接进发布目录，不需要跨设备搬运。
+      await runCommand('fnpack', ['build', '--directory', stageDirectory], appDir)
+    })
+    await renameFpkForRelease(app, artifact.target, targets)
+  }
+}
+
+/**
+ * 把 `fnpack` 产出的固定名 FPK 改成发布用的带平台、带版本名。
+ *
+ * 与 `.github/workflows/build-app.yml` 的「Verify versioned FPK artifacts」保持一致：
+ *
+ *   <appname>-<PLATFORM>-<RELEASE_TAG>-dsh-<DSH_BASELINE>.fpk
  *
  * 本地构建以前只留 `fn-deepseek-harness.fpk`，与 CI 产物同名不同款——装机时
  * 分不清手上这份来自哪次构建、对应哪个 DSH 基线。统一格式后，本地产物与
- * Release 附件可以直接对照。
+ * Release 附件可以直接对照。FNOS-044 起再加平台段：同一版本产出 x86 与 arm 两份
+ * 只差平台的包，名字不含平台时它们同名、后打的顶掉先打的。
  *
  * `RELEASE_TAG` 在 CI 由 `inputs.release_tag` 提供，本地没有那层输入，改取当前
  * 提交命中的 tag（等价）。没有精确 tag 时退回 manifest 版本补 `v` 前缀——那正是
@@ -399,10 +436,13 @@ async function buildFpkApps(apps: FpkApp[], options: { bundleDshPlugins?: boolea
  * 不能扫目录里「第一个 .fpk」：上一次构建残留的版本化产物会排在前面，导致旧包
  * 被改名成新名字、新包留在原名，产物名字与内容对不上。
  */
-async function renameFpkForRelease(app: FpkApp): Promise<void> {
+async function renameFpkForRelease(
+  app: FpkApp,
+  target: string,
+  currentBuild: readonly string[],
+): Promise<void> {
   const appDir = join(repositoryRoot, 'apps', app.name)
-  const target = fpkReleaseFileName(app.name, await resolveReleaseTag(), requireDshBaseline())
-  const result = await renameFpkToRelease(appDir, app.name, target)
+  const result = await renameFpkToRelease(appDir, app.name, target, currentBuild)
   console.log(`Release FPK: apps/${app.name}/${result.to}`)
   if (result.replacedStaleTarget) {
     console.log(`  已覆盖同名的上一轮产物（此前存在 ${result.to}）`)
@@ -443,15 +483,46 @@ async function selectFpkApps(app?: string): Promise<FpkApp[] | undefined> {
   return askFpkApps(apps)
 }
 
+/**
+ * 决定本次 FPK 构建的平台。三种结果必须可区分：
+ *
+ * - `platforms` 有值：使用者或参数指定的平台集合，逐个产出。
+ * - `platforms` 缺省：**没有做出选择**，交给每个应用按 `manifest` 声明的 `platform`
+ *   取默认值（非交互执行走这条，与加平台维度之前的行为等价）。
+ * - `cancelled`：使用者取消询问，本次不产出任何 FPK。
+ *
+ * 非交互执行**不进入询问**：clack 的 multiselect 在没有 TTY 时不会自己失败，它会画出
+ * 选项然后永远等一个不会来的回车（实测 exit code 13 的 unsettled top-level await）。
+ * 挂住比报错更难查——报错至少说清了卡在哪。
+ */
+async function selectFpkPlatforms(
+  apps: FpkApp[],
+  args: string[],
+  interactive: boolean = process.stdin.isTTY === true,
+): Promise<{ platforms?: FpkPlatform[], cancelled: boolean }> {
+  const requested = optionValues(args, '--platform')
+  if (requested.length > 0) return { platforms: parseFpkPlatforms(requested), cancelled: false }
+  if (!interactive) return { cancelled: false }
+  const platforms = await askFpkPlatforms(apps)
+  return platforms === undefined ? { cancelled: true } : { platforms, cancelled: false }
+}
+
 export async function runBuild(args: string[]): Promise<void> {
   const app = optionValue(args, '--app')
   const plugin = optionValue(args, '--plugin')
   if (args.includes('--fpk')) {
     const apps = await selectFpkApps(app)
     if (apps !== undefined) {
+      const platforms = await selectFpkPlatforms(apps, args)
+      if (platforms.cancelled) return
       const bundleDshPlugins = await selectDshPluginBundle(apps, args)
       if (bundleDshPlugins !== undefined) {
-        await buildFpkApps(apps, { bundleDshPlugins })
+        await buildFpkApps(apps, {
+          bundleDshPlugins,
+          // 没做出选择时**不传** platforms 而不是传 undefined：`exactOptionalPropertyTypes`
+          // 下这两者不同，不传才让 buildFpkApps 走「按 manifest 声明取默认」那条分支。
+          ...(platforms.platforms === undefined ? {} : { platforms: platforms.platforms }),
+        })
       }
     }
     return
@@ -471,19 +542,26 @@ export async function runBuild(args: string[]): Promise<void> {
 
   const pluginFilters = selection.includes('plugins') ? await selectPluginFilters() : undefined
   const fpkApps = selection.includes('fpk') ? await selectFpkApps() : undefined
-  const bundleDshPlugins = fpkApps === undefined ? false : await selectDshPluginBundle(fpkApps, args)
-  if (fpkApps !== undefined && bundleDshPlugins === undefined) return
+  const fpkPlatforms = fpkApps === undefined ? undefined : await selectFpkPlatforms(fpkApps, args)
+  const bundleDshPlugins = fpkApps === undefined || fpkPlatforms?.cancelled
+    ? false
+    : await selectDshPluginBundle(fpkApps, args)
+  if (fpkApps !== undefined && (fpkPlatforms?.cancelled || bundleDshPlugins === undefined)) return
 
   const tasks: Promise<void>[] = []
   if (pluginFilters !== undefined) tasks.push(runTurbo(['build'], pluginFilters))
-  if (fpkApps !== undefined && bundleDshPlugins !== undefined) {
-    tasks.push(buildFpkApps(fpkApps, { bundleDshPlugins }))
+  // 平台与内置开关都定下来了才构建 FPK：取消平台询问就不产出 FPK，也不去跑剩下那半套。
+  if (fpkApps !== undefined && fpkPlatforms !== undefined && !fpkPlatforms.cancelled && bundleDshPlugins !== undefined) {
+    tasks.push(buildFpkApps(fpkApps, {
+      bundleDshPlugins,
+      ...(fpkPlatforms.platforms === undefined ? {} : { platforms: fpkPlatforms.platforms }),
+    }))
   }
   if (selection.includes('docs')) tasks.push(runDocsBuild())
   await Promise.all(tasks)
 }
 
-export { listFpkApps, buildFpkApps, type FpkApp }
+export { listFpkApps, buildFpkApps, selectFpkPlatforms, type FpkApp }
 
 program
   .command('build')
@@ -491,6 +569,11 @@ program
   .option('--plugin [plugin]', 'build one plugin, or prompt for plugins')
   .option('--fpk', 'build FPK applications')
   .option('--app <app>', 'select one FPK application')
+  .option(
+    '--platform <platform>',
+    `FPK platform, repeatable (supported: ${FPK_PLATFORMS.join(', ')}); defaults to the manifest platform`,
+    (value: string, previous: string[] = []) => [...previous, value],
+  )
   .option('--bundle-dsh-plugins', 'include published DSH plugins in the FPK')
   .option('--skip-bundle-dsh-plugins', 'do not include published DSH plugins in the FPK')
   .option('--docs', 'build documentation')
@@ -498,6 +581,7 @@ program
     const args: string[] = []
     addOptionalValueArg(args, options, 'plugin')
     addBooleanArgs(args, options, ['fpk', 'docs'])
+    addRepeatableValueArgs(args, options, 'platform')
     if (options.bundleDshPlugins) args.push('--bundle-dsh-plugins')
     if (options.skipBundleDshPlugins) args.push('--skip-bundle-dsh-plugins')
     if (options.app !== undefined) args.push('--app', options.app)

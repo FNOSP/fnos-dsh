@@ -1,6 +1,7 @@
 import { cancel, confirm, isCancel, multiselect } from '@clack/prompts'
 import { pluginTargets, type PluginTarget } from '../config/targets.js'
 import type { FpkApp } from '../config/workspace.js'
+import { FPK_PLATFORMS, isFpkPlatform, parseFpkPlatforms, type FpkPlatform } from '../core/fpk-platform.js'
 
 export type BuildSelection = 'plugins' | 'fpk' | 'docs'
 export type StartSelection = 'docs' | 'plugins' | 'web'
@@ -60,10 +61,11 @@ export async function askBuildSelection(): Promise<BuildSelection[] | undefined>
   const result = await multiselect({
     message: '选择构建任务（可多选）',
     required: true,
+    // 顺序按日常使用频率排：FPK 最常构建，Harness 插件放最后一行。
     options: [
-      { value: 'plugins', label: 'Harness 插件', hint: '通过 Turbo 构建插件及其共享包依赖' },
-      { value: 'fpk', label: 'fnOS FPK', hint: '可继续多选应用，DSH 应用自动先构建网关' },
+      { value: 'fpk', label: 'fnOS FPK', hint: '可继续多选应用与目标平台，DSH 应用自动先构建网关' },
       { value: 'docs', label: '项目文档', hint: '构建 VitePress 文档站点' },
+      { value: 'plugins', label: 'Harness 插件', hint: '通过 Turbo 构建插件及其共享包依赖' },
     ],
   })
   if (isCancel(result)) {
@@ -71,6 +73,39 @@ export async function askBuildSelection(): Promise<BuildSelection[] | undefined>
     return undefined
   }
   return result as BuildSelection[]
+}
+
+/**
+ * 选择 FPK 的目标平台。
+ *
+ * 默认勾选各应用 `manifest` 自己声明的平台，也就是「不额外选择就得到与今天等价的
+ * 那一份包」。清单没声明平台时**不预勾任何值**：猜一个默认值会让交互路径凭空产出一
+ * 个包内没有依据的平台声明，而非交互路径同样情况是报错——两条路必须同判。
+ *
+ * 取消即取消本次 FPK 构建：平台是产物的必要属性，没有「一个平台都不出」这种中间态。
+ */
+export async function askFpkPlatforms(apps: FpkApp[]): Promise<FpkPlatform[] | undefined> {
+  // 只把「合法且可构建」的声明值作为预勾项。`all` 是清单合法值但不是构建目标，
+  // 预勾上一个不能构建的值只会让使用者选完再吃一次失败；那种情况由
+  // resolveFpkPlatforms 在真正要产出时报错，指名字段而不是指选项。
+  const declared = apps
+    .map(app => app.platform)
+    .filter((platform): platform is FpkPlatform => platform !== undefined && isFpkPlatform(platform))
+  const result = await multiselect({
+    message: '选择目标平台（可多选）',
+    required: true,
+    options: FPK_PLATFORMS.map(platform => ({
+      value: platform,
+      label: platform,
+      ...(declared.includes(platform) ? { hint: 'manifest 声明的平台' } : {}),
+    })),
+    initialValues: declared,
+  })
+  if (isCancel(result)) {
+    cancel('已取消 FPK 构建')
+    return undefined
+  }
+  return parseFpkPlatforms(result as string[])
 }
 
 export async function askStartSelection(): Promise<StartSelection[] | undefined> {

@@ -52,5 +52,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-041 | [内置 Skill 由 trim-cli 换成 fnos-cli](/tests/FNOS-041-fnos-cli-skill) | [PLAN-FNOS-041](/plans/PLAN-FNOS-041-fnos-cli-skill) | 部分通过 | 包级 10 条 + 产物冒烟（installed→skipped）+ 脚本契约 4 条通过；真机 3 条待装 FPK 后补测 |
 | FNOS-042 | [Session 日志菜单对齐官方默认结构](/tests/FNOS-042-session-log-menu) | [PLAN-FNOS-042](/plans/PLAN-FNOS-042-session-log-menu) | 部分通过 | 包级 6 条 + 全量 428 条通过；真机 2 条待装 FPK 后补测 |
 | FNOS-043 | [可信访问地址的校验与错误透出](/tests/FNOS-043-trusted-hosts-validation) | [PLAN-FNOS-043](/plans/PLAN-FNOS-043-trusted-hosts-validation) | 部分通过 | 包级 11 条 + shell 冒烟（安装拦截/启动日志）+ 全量 166 条通过；真实 NAS 安装向导待验 |
+| FNOS-044 | [FPK 平台产物选择与双包发布](/tests/FNOS-044-fpk-platform-selection) | [PLAN-FNOS-044](/plans/PLAN-FNOS-044-fpk-platform-selection) | 部分通过 | 32 条用例：31 通过 / 1 未执行（终端视觉呈现，由顺序守卫用例钉住）。包级 55 条相关用例通过、CLI 全量 143 条全绿；本地实跑双平台产物平台声明与命名正确、仓库清单未被改动、两份包除平台行外内容一致；CI 核对脚本本地干跑（缺平台时退出码 1）；变异验证 8 条变红。**ARM 真机装机未执行：无 ARM 设备，按 issue #28 口径交社区自测** |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

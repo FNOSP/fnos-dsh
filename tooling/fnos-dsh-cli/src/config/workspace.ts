@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { repositoryRoot } from './paths.js'
+import { readManifestPlatformValue } from '../core/fpk-platform.js'
 
 export type FpkApp = {
   /** 应用目录名，例如 fn-deepseek-harness。 */
@@ -9,6 +10,15 @@ export type FpkApp = {
   label: string
   /** manifest 版本号，用于校验与项目版本的一致性。 */
   version?: string
+  /**
+   * `manifest` 声明的 `platform` **原值**，即「这个应用默认给哪类设备装」。
+   *
+   * FNOS-044 起它同时充当构建的默认平台：不传 `--platform`、也不在交互里勾选时，
+   * 产出的就是清单声明的那一份。这里保留原值而不是解析成 `FpkPlatform`，因为
+   * `all` 是清单合法值但**不是**构建目标；把「合法但不可构建」压成 undefined 会让
+   * 报错说「没声明平台」，把读的人指向错的方向。
+   */
+  platform?: string
   /** 该应用是否需要先构建 fnOS Gateway。 */
   requiresGateway: boolean
 }
@@ -84,6 +94,7 @@ function readFpkApp(directoryName: string): FpkApp | undefined {
     return undefined
   }
   const version = manifestText.match(/^version\s*=\s*(.+)$/m)?.[1]?.trim()
+  const platform = readManifestPlatformValue(manifestText)
   const displayName = manifestText
     .match(/^display_name\s*=\s*(.+)$/m)?.[1]
     ?.trim()
@@ -92,6 +103,7 @@ function readFpkApp(directoryName: string): FpkApp | undefined {
     name: directoryName,
     label: displayName || directoryName,
     ...(version === undefined ? {} : { version }),
+    ...(platform === undefined ? {} : { platform }),
     requiresGateway: gatewayPackage?.targetApp === directoryName,
   }
 }

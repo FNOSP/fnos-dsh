@@ -52,3 +52,21 @@ export function optionValue(args: string[], option: string): string | undefined 
   const value = index < 0 ? undefined : args[index + 1]
   return value?.startsWith('-') ? undefined : value
 }
+
+/**
+ * 收集可重复选项的全部取值（`--platform x86 --platform arm`）。
+ *
+ * 与 `optionValue` 的「取最后一个」是本质区别：`optionValue` 面向只能出现一次的参数，
+ * 重复给出时后值覆盖前值；平台是一个**集合**，丢一次出现就等于少产一份包，而「构建
+ * 成功但产物少一份」不会有任何报错。
+ */
+export function optionValues(args: string[], option: string): string[] {
+  const values: string[] = []
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== option) continue
+    const value = args[index + 1]
+    if (value === undefined || value.startsWith('-')) continue
+    values.push(value)
+  }
+  return values
+}

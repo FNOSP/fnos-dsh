@@ -67,30 +67,37 @@ flowchart TD
 
 ### `build`
 
-交互模式先选择构建目标，插件、FPK 和文档可以多选；参数模式则直接进入对应分支：
+交互模式先选择构建目标，FPK、文档和插件可以多选（FPK 在最前、插件在最后一行）；选定 FPK 应用后会继续询问**目标平台**与是否内置插件。参数模式则直接进入对应分支：
 
 ```bash
 pnpm run build
 pnpm run build -- --plugin fnos
 pnpm run build -- --fpk --app fn-deepseek-harness
+pnpm run build -- --fpk --app fn-deepseek-harness --platform x86 --platform arm
 pnpm run build -- --docs
 ```
+
+`--platform` 可重复给出，取值只有 `x86` 和 `arm`；不传时使用应用 `manifest` 声明的 `platform`，因此「不加平台参数」得到的仍是与之前等价的那一份包。产物名为 `fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>.fpk`，规则见 [CI 构建](../build/ci)。
 
 ```mermaid
 flowchart TD
   command["pnpm run build"]
   cli["fnos-dsh-cli build"]
   select{"构建目标？"}
-  plugins["harness 插件：多选目标"]
   fpk["FPK：多选应用"]
   docs["文档：VitePress"]
+  plugins["harness 插件：多选目标"]
+  platform{"目标平台？<br/>（变更点：FNOS-044 新增）"}
+  bundle{"内置 DSH 插件？"}
   pluginFilter["turbo run build --filter=harness 插件..."]
   pluginDeps["^build：共享 UI 依赖"]
   pluginRun["执行 harness 插件 package.json build"]
   fpkStatus{"包含 DSH FPK？"}
   gateway["是：先执行 Gateway build:app"]
   fpkSkip["否：跳过 Gateway"]
-  fpkRun["每个应用执行 fnpack build"]
+  stage["变更点：每个平台各备一份临时副本<br/>只改写副本 manifest 的 platform 行"]
+  fpkRun["每个平台各执行一次 fnpack build"]
+  rename["变更点：产物改名带平台段"]
   docsRun["执行 vitepress build docs"]
   summary["汇总构建结果"]
   status{"构建成功？"}
@@ -98,16 +105,18 @@ flowchart TD
   fail["否：返回非零状态"]
 
   command --> cli --> select
-  select -->|harness 插件| plugins
   select -->|FPK| fpk
   select -->|文档| docs
+  select -->|harness 插件| plugins
   plugins --> pluginFilter --> pluginDeps --> pluginRun --> summary
-  fpk --> fpkStatus
+  fpk --> platform --> bundle
+  bundle -->|取消| fail
+  bundle --> fpkStatus
   fpkStatus -->|是| gateway
   fpkStatus -->|否| fpkSkip
-  gateway --> fpkRun
-  fpkSkip --> fpkRun
-  fpkRun --> summary
+  gateway --> stage
+  fpkSkip --> stage
+  stage --> fpkRun --> rename --> summary
   docs --> docsRun --> summary
   summary --> status
   status -->|是| result

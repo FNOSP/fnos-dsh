@@ -411,6 +411,10 @@ const requirementsSidebar = [
         text: 'FNOS-043 可信访问地址的校验与错误透出',
         link: '/requirements/FNOS-043-trusted-hosts-validation'
       },
+      {
+        text: 'FNOS-044 FPK 平台产物选择与双包发布',
+        link: '/requirements/FNOS-044-fpk-platform-selection'
+      },
       ]
   }
 ]
@@ -592,6 +596,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-043 可信访问地址的校验与错误透出',
         link: '/plans/PLAN-FNOS-043-trusted-hosts-validation'
       },
+      {
+        text: 'PLAN-FNOS-044 FPK 平台产物选择与双包发布',
+        link: '/plans/PLAN-FNOS-044-fpk-platform-selection'
+      },
     ]
   }
 ]
@@ -741,6 +749,10 @@ const testsSidebar = [
       {
         text: 'FNOS-043 可信访问地址的校验与错误透出',
         link: '/tests/FNOS-043-trusted-hosts-validation'
+      },
+      {
+        text: 'FNOS-044 FPK 平台产物选择与双包发布',
+        link: '/tests/FNOS-044-fpk-platform-selection'
       },
     ]
   }

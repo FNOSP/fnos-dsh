@@ -18,8 +18,10 @@ DSH 运行时基线（当前 `0.2.1-rc.2`）**不进入版本号**，由两处�
 
 | 承载处 | 形态 | 维护方式 |
 | --- | --- | --- |
-| FPK 附件命名 | `fn-deepseek-harness-v<项目版本>-dsh-<DSH 基线>.fpk` | CI 构建期从 `pnpm-workspace.yaml` catalog 派生 |
+| FPK 附件命名 | `fn-deepseek-harness-<平台>-v<项目版本>-dsh-<DSH 基线>.fpk` | CI 构建期从 `pnpm-workspace.yaml` catalog 派生；平台段见[FNOS-044](/requirements/FNOS-044-fpk-platform-selection) |
 | FPK `manifest` 描述 | 「运行基线为 DSH `<基线>`」字样 | 版本命令执行时对齐 catalog 当前值 |
+
+FPK 附件命名自 FNOS-044 起带平台段（`x86` / `arm`）。同一版本会产出两份只差平台声明的包，名字不含平台时它们完全同名、后打的顶掉先打的，装机时看不出哪份给哪类设备。
 
 ## 版本档位语义
 

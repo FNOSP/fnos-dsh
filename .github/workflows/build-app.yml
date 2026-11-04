@@ -53,13 +53,20 @@ jobs:
       # node-pty 使用随 npm 包发布的平台预编译产物，构建与安装都不再需要编译，
       # 因此 FPK 不再内置原生产物；`--skip-bundle-dsh-plugins` 禁止进入插件内置
       # 询问，保证 CI 非交互执行。
+      #
+      # 平台显式传两个（FNOS-044）：一次发布同时产出 x86 与 arm 两份包。这里不依赖
+      # 「缺省取 manifest 声明」——清单只声明 x86，缺省就只会得到一份 x86 包。
       - name: Build fn-deepseek-harness FPK
-        run: pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins
+        run: pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins --platform x86 --platform arm
 
-      # FPK 附件命名 = 项目版本（Tag）+ DSH 基线（构建期从 catalog 派生，不硬编码）。
+      # FPK 附件命名 = 平台 + 项目版本（Tag）+ DSH 基线（构建期从 catalog 派生，不硬编码）。
       # catalog 的 '@deepseek-ai/dsh' 是基线唯一事实来源；与 install_callback 中的
       # DSH_VERSION 由 fnos-dsh-cli 的构建校验保证一致。
-      - name: Rename FPK with DSH version
+      #
+      # 模板与 `tooling/fnos-dsh-cli/src/core/fpk-artifacts.ts` 的 `fpkReleaseFileName`
+      # 同形，由 `tests/fpk-release-naming.spec.ts` 钉住：任一侧改了模板而另一侧没跟上，
+      # 该用例即失败。
+      - name: Verify versioned FPK artifacts
         id: rename
         working-directory: apps/fn-deepseek-harness
         run: |
@@ -72,32 +79,42 @@ jobs:
             exit 1
           fi
 
-          ORIGINAL_FPK="$(find . -maxdepth 1 -type f -name '*.fpk' -print -quit)"
-          ORIGINAL_FPK="${ORIGINAL_FPK#./}"
-          if [ -z "$ORIGINAL_FPK" ]; then
-            echo "ERROR: no .fpk file generated" >&2
-            exit 1
-          fi
+          # 逐平台核对。旧写法用 `find . -maxdepth 1 -name '*.fpk' -print -quit` 取
+          # 「第一个」：目录里有两份平台包时只会挑到其中一份，另一份既不检查也不上传，
+          # 而步骤照样成功——Release 少一个平台的包是无声的。
+          FPK_FILES=()
+          for PLATFORM in x86 arm; do
+            VERSIONED_FPK="fn-deepseek-harness-${PLATFORM}-${RELEASE_TAG}-dsh-${DSH_BASELINE}.fpk"
+            if [ ! -f "$VERSIONED_FPK" ]; then
+              # 构建命令自身已按当前 tag 命名好产物（检出里就是该 tag），正常到这里即已
+              # 存在。兜底分支只在异常情况下生效，且必须按 fnpack 固定名取源——扫目录
+              # 取第一个正是 FNOS-037 修掉的错配来源。
+              if [ -f fn-deepseek-harness.fpk ]; then
+                mv fn-deepseek-harness.fpk "$VERSIONED_FPK"
+              else
+                echo "ERROR: ${VERSIONED_FPK} was not produced" >&2
+                ls -1 ./*.fpk >&2 2>/dev/null || echo "(no .fpk file in this directory)" >&2
+                exit 1
+              fi
+            fi
+            FPK_FILES+=("$VERSIONED_FPK")
+            echo "Prepared ${VERSIONED_FPK}"
+          done
 
-          VERSIONED_FPK="fn-deepseek-harness-${RELEASE_TAG}-dsh-${DSH_BASELINE}.fpk"
-          # 构建命令自身会按当前 tag 把产物命名成带版本号的形态（构建目录里检出
-          # 的就是该 tag），因此这里可能已经是目标名。同名 `mv` 在 `set -e` 下会
-          # 报 "are the same file" 并让整次发布失败，所以先判名再改名，保证幂等。
-          if [ "$ORIGINAL_FPK" != "$VERSIONED_FPK" ]; then
-            mv "$ORIGINAL_FPK" "$VERSIONED_FPK"
-          fi
-          echo "fpk=${VERSIONED_FPK}" >> "$GITHUB_OUTPUT"
+          printf 'fpk_files=%s\n' "${FPK_FILES[*]}" >> "$GITHUB_OUTPUT"
 
-      - name: Upload FPK to release
+      - name: Upload FPK assets to release
         working-directory: apps/fn-deepseek-harness
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FPK_FILES: ${{ steps.rename.outputs.fpk_files }}
         run: |
           set -euo pipefail
-          ASSET_PATH="${{ steps.rename.outputs.fpk }}"
-          ASSET_NAME="$(basename "$ASSET_PATH")"
 
           upload_asset() {
+            local ASSET_PATH="$1"
+            local ASSET_NAME
+            ASSET_NAME="$(basename "$ASSET_PATH")"
             local existing_asset_id
             existing_asset_id="$(
               gh api "repos/${REPOSITORY}/releases/${RELEASE_ID}/assets" --paginate 2>/dev/null \
@@ -115,15 +132,24 @@ jobs:
             echo "Uploaded ${ASSET_NAME} to Release ${RELEASE_TAG}."
           }
 
-          for ATTEMPT in 1 2 3 4 5; do
-            if upload_asset; then
-              exit 0
-            fi
-            if [ "$ATTEMPT" -eq 5 ]; then
-              echo "ERROR: unable to upload FPK after ${ATTEMPT} attempts" >&2
-              exit 1
-            fi
-            DELAY=$((ATTEMPT * 15))
-            echo "Release upload failed; retrying in ${DELAY}s (attempt ${ATTEMPT}/5)" >&2
-            sleep "$DELAY"
+          # 每个平台各自重试；任一平台最终传不上就整体失败，避免 Release 只有一半产物。
+          FAILED=""
+          for ASSET_PATH in $FPK_FILES; do
+            for ATTEMPT in 1 2 3 4 5; do
+              if upload_asset "$ASSET_PATH"; then
+                break
+              fi
+              if [ "$ATTEMPT" -eq 5 ]; then
+                FAILED="${FAILED:+${FAILED} }${ASSET_PATH}"
+              else
+                DELAY=$((ATTEMPT * 15))
+                echo "Release upload of ${ASSET_PATH} failed; retrying in ${DELAY}s (attempt ${ATTEMPT}/5)" >&2
+                sleep "$DELAY"
+              fi
+            done
           done
+
+          if [ -n "$FAILED" ]; then
+            echo "ERROR: unable to upload after 5 attempts: $FAILED" >&2
+            exit 1
+          fi

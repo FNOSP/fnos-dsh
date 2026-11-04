@@ -21,9 +21,9 @@ description: 把构建好的 .fpk 通过 fnOS 应用中心的「手动安装 →
 ## 0. 先看这一屏：最短路径
 
 ```bash
-# 1. 取得 FPK（二选一）
+# 1. 取得 FPK（二选一；按 NAS 的平台选那一份，x86 与 arm 是两个包）
 #    a) CI 产物（推荐，与线上同一份）
-gh release download v<版本号> --pattern "*.fpk" --dir tmp/fpk-upload
+gh release download v<版本号> --pattern "*-x86-*.fpk" --dir tmp/fpk-upload
 #    b) 本地构建
 pnpm run build -- --fpk --app fn-deepseek-harness
 
@@ -64,12 +64,27 @@ fnOS 的比较逻辑：**三段式** `x.y.z`，`x.y.z-m` 里的 `m` **只有数�
 
 | 来源 | 命令 | 用途 |
 | --- | --- | --- |
-| CI Release 附件 | `gh release download v<版本号> --pattern "*.fpk"` | **装机验证首选** —— 与线上分发的是同一份 |
+| CI Release 附件 | `gh release download v<版本号> --pattern "*-x86-*.fpk"` | **装机验证首选** —— 与线上分发的是同一份 |
 | 本地构建 | `pnpm run build -- --fpk --app fn-deepseek-harness` | 迭代快；产物落在 `apps/fn-deepseek-harness/*.fpk` |
 
-两种来源的产物**同名同格式**：`fn-deepseek-harness-<Tag>-dsh-<DSH 基线>.fpk`。本地构建在 `fnpack` 打完包后自己完成重命名，规则与 CI 的「Rename FPK with DSH version」一致，因此不必再手工改名，也不会出现同名的两份不同产物。注意 `dsh-` 段是 **DSH 运行时基线**、不是应用版本；应用版本以 Tag 为准。
+两种来源的产物**同名同格式**：`fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>.fpk`。本地构建在 `fnpack` 打完包后自己完成重命名，规则与 CI 的 `Verify versioned FPK artifacts` 步骤一致，因此不必再手工改名，也不会出现同名的两份不同产物。注意 `dsh-` 段是 **DSH 运行时基线**、不是应用版本；应用版本以 Tag 为准。
 
 本地没有 CI 那层 `release_tag` 输入，Tag 取当前提交命中的 git tag；没有精确 tag 时退回 manifest 版本并补 `v` 前缀（即 `pnpm run version` 打出的形态）。
+
+### 平台：x86 与 arm 是两个包
+
+FNOS-044 起一次发布同时提供 x86 与 arm 两份包，文件名里的平台段就是选包依据。`fnpack` 没有平台参数，包内平台声明来自被打包的那份 `manifest`；构建为每个平台各准备一份临时副本、只改写副本的 `platform` 行（见[fnpack 打包](../build/fnpack)）。
+
+```bash
+# 只打 x86（缺省，取 manifest 声明）
+pnpm run build -- --fpk --app fn-deepseek-harness
+# 两个平台都打
+pnpm run build -- --fpk --app fn-deepseek-harness --platform x86 --platform arm
+```
+
+装机前确认手上这份的平台与目标 NAS 一致；拿错平台的包会被应用中心按平台判定拒绝。
+
+**ARM 包是社区自测产物**：发布方没有 ARM 设备，未做 ARM 真机验收（issue #28）。ARM 侧的已知待验证点是 fnOS ARM 上是否提供 `nodejs_v24` 系统包、`node-pty` 的 aarch64 预编译产物是否可用、网关侧依赖在 ARM 上是否正常。
 
 ### 「瘦包」是设计，不是构建坏了
 
@@ -267,20 +282,23 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 ## 8. 一页速查
 
 ```bash
-# 取得 FPK
-gh release download v<版本号> --pattern "*.fpk" --dir tmp/fpk-upload
+# 取得 FPK（按平台选一个；两份都下时后面用 FPK 变量指代具体那一份）
+gh release download v<版本号> --pattern "*-x86-*.fpk" --dir tmp/fpk-upload
+FPK=tmp/fpk-upload/fn-deepseek-harness-x86-v<版本号>-dsh-<DSH 基线>.fpk
 
 # 确认版本确实变了（对比 NAS 上已装版本）
-tar -xzOf tmp/fpk-upload/*.fpk manifest | grep '^version'
+tar -xzOf "$FPK" manifest | grep '^version'
 
 # 桥与模型
 curl -s http://126.0.0.1:8787/v1/midscene-env
 lsof -iTCP:3766 -sTCP:LISTEN        # 只能有一个占用者
 
 # 装完核对
-tar -tzf tmp/fpk-upload/*.fpk | head          # 有没有 bundled-dsh-plugins/
-tar -xzOf tmp/fpk-upload/*.fpk manifest | grep -E '^(version|platform)'
+tar -tzf "$FPK" | head              # 有没有 bundled-dsh-plugins/
+tar -xzOf "$FPK" manifest | grep -E '^(version|platform)'
 ```
+
+`*.fpk` 的通配写法在只有一份包时可用，但 FNOS-044 之后一个 Release 有 x86 与 arm 两份。`tar -xzOf dir/*.fpk manifest` 展开成两个路径后，tar **把第一个当归档、其余参数一律当成员名**：实测得到 `Not found in archive` 两条、什么都不输出——第二份包根本没被读，而不是「读到错的那份」。核对包内容一律先确定具体那一份。
 
 | 记住这几句 | 为什么 |
 | --- | --- |

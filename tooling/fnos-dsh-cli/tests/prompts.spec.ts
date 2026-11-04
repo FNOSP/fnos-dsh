@@ -15,12 +15,20 @@ vi.mock('@clack/prompts', () => ({
   text: vi.fn(),
 }))
 
-const { askFpkApps, bumpBaseline } = await import('../src/ui/prompts.js')
+const { askBuildSelection, askFpkApps, askFpkPlatforms, bumpBaseline } = await import('../src/ui/prompts.js')
 
 const app: FpkApp = {
   name: 'fn-deepseek-harness',
   label: 'DeepSeek Harness',
+  platform: 'x86',
   requiresGateway: true,
+}
+
+/** 清单没写 `platform` 的应用：`exactOptionalPropertyTypes` 下不能靠传 undefined 构造。 */
+const appWithoutPlatform: FpkApp = {
+  name: 'fn-no-platform',
+  label: 'No Platform',
+  requiresGateway: false,
 }
 
 describe('FPK application prompts', () => {
@@ -29,6 +37,50 @@ describe('FPK application prompts', () => {
 
     expect(selected).toEqual([app])
     expect(mocks.multiselect).not.toHaveBeenCalled()
+  })
+})
+
+describe('构建任务选项顺序（FNOS-044-05）', () => {
+  it('fnOS FPK 在前、项目文档居中、Harness 插件最后一行', async () => {
+    mocks.multiselect.mockResolvedValueOnce(['fpk'])
+    await askBuildSelection()
+
+    const options = mocks.multiselect.mock.lastCall?.[0]?.options as Array<{ value: string }>
+    expect(options.map(option => option.value)).toEqual(['fpk', 'docs', 'plugins'])
+  })
+})
+
+describe('FPK 平台选择（FNOS-044-01）', () => {
+  it('默认勾选 manifest 声明的平台', async () => {
+    mocks.multiselect.mockResolvedValueOnce(['x86'])
+    const platforms = await askFpkPlatforms([app])
+
+    expect(platforms).toEqual(['x86'])
+    const config = mocks.multiselect.mock.lastCall?.[0] as { initialValues?: string[], options: Array<{ value: string }> }
+    expect(config.initialValues).toEqual(['x86'])
+    expect(config.options.map(option => option.value)).toEqual(['x86', 'arm'])
+  })
+
+  it('多选两个平台时按选择顺序返回', async () => {
+    mocks.multiselect.mockResolvedValueOnce(['arm', 'x86'])
+    expect(await askFpkPlatforms([app])).toEqual(['arm', 'x86'])
+  })
+
+  it('应用未声明平台时不预勾任何值，交回使用者选择', async () => {
+    // 猜一个默认值会让交互路径凭空产出「包内没有依据」的平台声明，
+    // 而非交互路径同样情况是报错——两条路必须同判。
+    mocks.multiselect.mockResolvedValueOnce(['x86'])
+    await askFpkPlatforms([appWithoutPlatform])
+
+    expect(mocks.multiselect.mock.lastCall?.[0]?.initialValues).toEqual([])
+  })
+
+  it('清单声明了不能作为构建目标的平台时不预勾', async () => {
+    // `all` 是 manifest 合法值，但不是构建目标；预勾上它等于让使用者选完再吃一次失败。
+    mocks.multiselect.mockResolvedValueOnce(['x86'])
+    await askFpkPlatforms([{ ...app, platform: 'all' }])
+
+    expect(mocks.multiselect.mock.lastCall?.[0]?.initialValues).toEqual([])
   })
 })
 

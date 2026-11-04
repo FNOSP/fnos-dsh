@@ -6,9 +6,17 @@ GitHub Actions 配置位于 `.github/workflows/build-release.yml`，由版本 Ta
 
 1. `prepare-release` 创建或重置草稿 Release。
 2. 下载并验证 `fnpack`。
-3. 通过根 `build` 任务的 FPK 模式构建应用：`pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins`（node-pty 使用上游 npm 包自带的平台预编译产物，构建不需要编译器，也不内置原生产物）。
-4. 将产物重命名为 `fn-deepseek-harness-<Tag>-dsh-<DSH 基线>.fpk`：Tag 段为项目版本（如 `v6.0.0`），DSH 基线段在构建期从 `pnpm-workspace.yaml` catalog 派生，不在 workflow 中硬编码。
-5. 上传构建产物并由根 `release:notes` 任务调用 `changelogithub` 生成 GitHub Release。
+3. 通过根 `build` 任务的 FPK 模式构建应用，**显式传两个平台**：`pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins --platform x86 --platform arm`（node-pty 使用上游 npm 包自带的平台预编译产物，构建不需要编译器，也不内置原生产物）。
+4. 逐平台核对产物名 `fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>.fpk`：平台段为 `x86` 或 `arm`，Tag 段为项目版本（如 `v7.1.0`），DSH 基线段在构建期从 `pnpm-workspace.yaml` catalog 派生，不在 workflow 中硬编码。任一平台的产物缺失都会让 `Verify versioned FPK artifacts` 步骤失败——不采用「取目录里第一个 `.fpk`」的写法，那种写法在两份平台包同时在目录里时只会处理其中一份，另一份既不核对也不上传，而步骤照样成功。
+5. 逐个上传两份产物（各自重试 5 次，任一最终失败即整体失败），再由根 `release:notes` 任务调用 `changelogithub` 生成 GitHub Release。
+
+命名模板与本地构建侧（`tooling/fnos-dsh-cli/src/core/fpk-artifacts.ts` 的 `fpkReleaseFileName`）由 `tests/fpk-release-naming.spec.ts` 钉成同形：任一侧改了模板而另一侧没跟上，该用例即失败。
+
+## 为什么是两份包而不是一份 `platform = all`
+
+`fnpack` 没有平台参数：包内的平台声明完全来自被打包的那份 `manifest`。构建因此为每个平台准备一份临时副本、只改写副本里的 `platform` 行再打包，仓库那份 `manifest` 全程不被写入。实测两份产物除平台声明外内容一致（`app.tgz` 成员与内容相同，包内 `manifest` 只差 `platform` 一行）。
+
+仓库 `manifest` 保持 `platform = x86`，不改成 `all`：发布方没有 ARM 设备，无法验证 ARM 装机结果。声明 `all` 会让全部既有用户在应用中心里看到「支持本机」并直接升级，一旦 ARM 侧有问题就是全量事故；双包方案下问题只影响主动选择 ARM 包的用户。ARM 包属**未经真机验证的社区自测产物**，issue #28 的回复与[应用上架规范](../charter/app-listing-spec)都按这个口径说明。
 
 ## 触发方式
 
