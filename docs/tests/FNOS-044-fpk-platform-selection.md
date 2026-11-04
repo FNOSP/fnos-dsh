@@ -128,7 +128,7 @@ verifiedAt: 2026-11-04
 | TC-046 | 通过 | 2026-11-04 | `tests/fpk-platform.spec.ts`「仓库清单不被写入这一不变量」两条形状断言；变异验证：把 `writeManifestPlatform(stage…)` 改成 `appDirectory` 并在 build.ts 引入该函数 → 5 条变红（含 3 条行为用例），还原后 158 条全绿 |
 | TC-047 | 通过 | 2026-11-04 | 受控强杀：用占位 fnpack 挂住，在 `try` 块内部 `kill -9` **CLI 本体**（`finally` 确认未执行）。结果 manifest md5 前后均为 `014df5e3…`、`platform = x86`、`git diff` 该文件为空；残留副本里的 `manifest` 为 `platform = arm`——证明改写只发生在副本。另用真实 fnpack 在 0.35/0.45/0.55/0.9s 四个时点强杀，仓库清单每次都逐字节不变 |
 | TC-048 | 通过 | 2026-11-04 | 真实 fnpack 在 0.35/0.45/0.55/0.9s 四个时点强杀：dist 为空时无残留；出现带发布名的文件时 `tar -tzf` 均校验为完整归档。结构上成立——落成只在 fnpack 成功退出后执行，截断文件只可能顶着固定名 `<app>.fpk`（下一次构建整目录清空） |
-| TC-049 | 通过 | 2026-11-04 | 实跑 `--platform x86 --platform arm`：产出 `dist/fn-deepseek-harness-x86-v7.0.16-dsh-0.2.1-rc.5/fn-deepseek-harness-x86-v7.0.16-dsh-0.2.1-rc.5.fpk` 与对应的 arm 目录，目录名与包名同主干；两份包解包后分别声明 `x86` / `arm`，`appname` 相同 |
+| TC-049 | 通过 | 2026-11-04 | 实跑 `--platform x86 --platform arm`（v7.0.17）：产出 `dist/fn-deepseek-harness-x86-v7.0.17-dsh-0.2.1-rc.5/fn-deepseek-harness-x86-v7.0.17-dsh-0.2.1-rc.5.fpk` 与对应的 arm 目录，目录名与包名同主干；两份包解包后分别声明 `x86` / `arm`，`appname` 相同；`dist/` 未被包进产物（成员内 `dist/` 命中 0） |
 | TC-050 | 通过 | 2026-11-04 | `tests/fpk-artifacts.spec.ts`「两个平台的产物目录互不相同」，断言两次 `prepareFpkArtifactDirectory` 返回值不同且 `dist/` 下同时列出两个主干目录 |
 | TC-014～TC-016 | 通过 | 2026-11-04 | 同上；TC-015 用嵌套 `tests/node_modules` 路径验证排除按相对路径判断 |
 | TC-017 | 通过 | 2026-11-04 | 实跑 `pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins --platform x86 --platform arm`；解包 `tar -xzOf <pkg> manifest` 得 x86 包 `platform = x86`、arm 包 `platform = arm` |
