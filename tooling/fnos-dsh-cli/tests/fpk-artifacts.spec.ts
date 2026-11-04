@@ -5,8 +5,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   FPK_DIST_DIRECTORY,
   finalizeFpkArtifact,
+  fpkReleaseBaseName,
   fpkReleaseFileName,
   listLegacyRootArtifacts,
+  prepareFpkArtifactDirectory,
   prepareFpkDistDirectory,
 } from '../src/core/fpk-artifacts.js'
 import { FPK_PLATFORMS } from '../src/core/fpk-platform.js'
@@ -90,17 +92,43 @@ describe('prepareFpkDistDirectory', () => {
   })
 })
 
+describe('prepareFpkArtifactDirectory', () => {
+  it('在 dist 下建出以产物主干命名的目录', async () => {
+    const app = await makeDir()
+    const dist = await prepareFpkDistDirectory(app)
+    const base = fpkReleaseBaseName('app', 'x86', 'v7.1.0', '0.2.1-rc.5')
+
+    const directory = await prepareFpkArtifactDirectory(dist, base)
+
+    expect(directory).toBe(join(dist, base))
+    expect(await readdir(directory)).toEqual([])
+  })
+
+  it('两个平台的产物目录互不相同，一份包只可能在一个目录里', async () => {
+    // 目录名带平台段：一旦两个平台共用目录，包名撞车就只能在事后看出来。
+    const app = await makeDir()
+    const dist = await prepareFpkDistDirectory(app)
+    const x86 = await prepareFpkArtifactDirectory(dist, fpkReleaseBaseName('app', 'x86', 'v7.1.0', '0.2.1-rc.5'))
+    const arm = await prepareFpkArtifactDirectory(dist, fpkReleaseBaseName('app', 'arm', 'v7.1.0', '0.2.1-rc.5'))
+
+    expect(x86).not.toBe(arm)
+    expect(await readdir(dist)).toEqual([
+      fpkReleaseBaseName('app', 'arm', 'v7.1.0', '0.2.1-rc.5'),
+      fpkReleaseBaseName('app', 'x86', 'v7.1.0', '0.2.1-rc.5'),
+    ])
+  })
+})
+
 describe('finalizeFpkArtifact', () => {
-  it('在 dist 内部把固定名落成发布名，不跨目录搬运', async () => {
+  it('在产物目录内部把固定名落成发布名，不跨目录搬运', async () => {
     const dist = await makeDir()
     const target = fpkReleaseFileName('app', 'x86', 'v7.0.0', '0.2.1-rc.5')
     await writeFile(join(dist, 'app.fpk'), 'fresh-build')
 
     const result = await finalizeFpkArtifact({
-      distDirectory: dist,
+      artifactDirectory: dist,
       appName: 'app',
       target,
-      currentBuild: [target],
     })
 
     expect(result.from).toBe('app.fpk')
@@ -110,55 +138,32 @@ describe('finalizeFpkArtifact', () => {
     expect(await readdir(dist)).toEqual([target])
   })
 
-  it('同一批多平台构建里先产出的那份不算外来产物', async () => {
-    // 打完 x86 再打 arm 时，x86 的产物已在 dist 里。它是本次构建的成果，报成
-    // 「不属于本次构建」会让每次双平台构建都无端告警，久而久之真问题也被忽略。
-    const dist = await makeDir()
-    const x86 = fpkReleaseFileName('app', 'x86', 'v7.1.0', '0.2.1-rc.5')
-    const arm = fpkReleaseFileName('app', 'arm', 'v7.1.0', '0.2.1-rc.5')
-    await writeFile(join(dist, x86), 'x86-build')
-    await writeFile(join(dist, 'app.fpk'), 'arm-build')
-
-    const result = await finalizeFpkArtifact({
-      distDirectory: dist,
-      appName: 'app',
-      target: arm,
-      currentBuild: [x86, arm],
-    })
-
-    expect(result.unexpected).toEqual([])
-    expect(await readFile(join(dist, arm), 'utf8')).toBe('arm-build')
-    expect(await readFile(join(dist, x86), 'utf8')).toBe('x86-build')
-  })
-
-  it('dist 里出现非本次产物时报出来', async () => {
-    // dist 每次构建都先清空，这里还能出现外来包，说明构建自身有问题，必须可见。
+  it('产物目录里出现别的 FPK 时报出来', async () => {
+    // 目录每次构建都是新建的，这里还能出现外来包，说明构建自身有问题，必须可见。
     const dist = await makeDir()
     const target = fpkReleaseFileName('app', 'x86', 'v7.1.0', '0.2.1-rc.5')
     await writeFile(join(dist, 'app-x86-v7.0.0-dsh-0.2.1-rc.3.fpk'), 'foreign')
     await writeFile(join(dist, 'app.fpk'), 'fresh')
 
     const result = await finalizeFpkArtifact({
-      distDirectory: dist,
+      artifactDirectory: dist,
       appName: 'app',
       target,
-      currentBuild: [target],
     })
 
     expect(result.unexpected).toEqual(['app-x86-v7.0.0-dsh-0.2.1-rc.3.fpk'])
   })
 
-  it('目标名在本次构建内被重复占用时报告（命名模板缺平台段的信号）', async () => {
+  it('目标名已存在时报告（命名模板缺平台段或目录被复用的信号）', async () => {
     const dist = await makeDir()
     const target = fpkReleaseFileName('app', 'x86', 'v7.1.0', '0.2.1-rc.5')
     await writeFile(join(dist, target), 'first')
     await writeFile(join(dist, 'app.fpk'), 'second')
 
     const result = await finalizeFpkArtifact({
-      distDirectory: dist,
+      artifactDirectory: dist,
       appName: 'app',
       target,
-      currentBuild: [target],
     })
 
     expect(result.replacedStaleTarget).toBe(true)
@@ -170,10 +175,9 @@ describe('finalizeFpkArtifact', () => {
     await writeFile(join(dist, 'some-old.fpk'), 'old')
 
     await expect(finalizeFpkArtifact({
-      distDirectory: dist,
+      artifactDirectory: dist,
       appName: 'app',
       target: 'app-x86-v7.0.0-dsh-0.2.1-rc.5.fpk',
-      currentBuild: [],
     })).rejects.toThrow(/fnpack produced no app\.fpk/u)
   })
 })

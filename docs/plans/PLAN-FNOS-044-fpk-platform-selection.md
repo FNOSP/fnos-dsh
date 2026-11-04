@@ -29,13 +29,13 @@ lastVerified: 2026-11-04
 | 领域 | 当前实现 | 目标实现 | 迁移影响 |
 | --- | --- | --- | --- |
 | 平台概念 | 无。包内平台声明恒取仓库 `apps/<app>/manifest` 的 `platform = x86` | 平台成为构建入参：`FpkPlatform = 'x86' \| 'arm'`，默认取清单声明值 | 不传平台参数时行为与今天一致，仅名字多一个平台段 |
-| 打包目录 | 直接在 `apps/<app>` 里执行 `fnpack build`（`runCommand` 的 cwd），产物落应用根目录 | 每个平台各建一份暂存副本、改写副本清单的 `platform` 行；`fnpack build --directory <副本>` 的 **cwd 改为 `apps/<app>/dist/`** | 仓库清单全程不被写入；产物不再路过应用根目录 |
-| 产物落点 | 应用根目录 `apps/<app>/`，与构建输入（`manifest`、`cmd/`、`app/`）平铺，历史包越攒越多 | `apps/<app>/dist/`，**每次构建先清空** | 目录内容就等于「这一次产出了什么」；迁移前遗留根目录的历史包不删，只提示 |
-| 产物命名 | `fpkReleaseFileName(app, tag, baseline)` → `<app>-<tag>-dsh-<baseline>.fpk` | 增加平台段：`<app>-<platform>-<tag>-dsh-<baseline>.fpk`，落在 `dist/` | 本地与 CI 同模板，守卫用例同步扩展 |
-| 落成发布名 | `renameFpkToRelease(appDir, app, target)`：在应用目录里改名 | `finalizeFpkArtifact({ distDirectory, … })`：源与目标都在 `dist/` 内，仍按 fnpack 固定名 `<app>.fpk` 取源 | FNOS-037 的「按固定名取源、同名原子覆盖」不变；`leftovers` 改为「`dist` 里不属于本次构建的产物」，另加 `listLegacyRootArtifacts` 报告根目录历史包 |
+| 打包目录 | 直接在 `apps/<app>` 里执行 `fnpack build`（`runCommand` 的 cwd），产物落应用根目录 | 每个平台各建一份暂存副本、改写副本清单的 `platform` 行；`fnpack build --directory <副本>` 的 **cwd 改为该平台的产物目录 `apps/<app>/dist/<主干>/`** | 仓库清单全程不被写入；产物不再路过应用根目录 |
+| 产物落点 | 应用根目录 `apps/<app>/`，与构建输入（`manifest`、`cmd/`、`app/`）平铺，历史包越攒越多 | `apps/<app>/dist/<主干>/`（一个平台一个子目录），`dist/` **每次构建先清空** | 目录内容就等于「这一次产出了什么」；路径即说明包给哪类设备；迁移前遗留根目录的历史包不删，只提示 |
+| 产物命名 | `fpkReleaseFileName(app, tag, baseline)` → `<app>-<tag>-dsh-<baseline>.fpk` | 拆成两段：`fpkReleaseBaseName(...)` → `<app>-<platform>-<tag>-dsh-<baseline>`（同时作目录名），`fpkReleaseFileName(...)` = 主干 + `.fpk` | 本地与 CI 同模板，守卫用例改为比较「主干」模板 |
+| 落成发布名 | `renameFpkToRelease(appDir, app, target)`：在应用目录里改名 | `finalizeFpkArtifact({ artifactDirectory, … })`：源与目标都在该平台子目录内，仍按 fnpack 固定名 `<app>.fpk` 取源 | FNOS-037 的「按固定名取源、同名原子覆盖」不变；`unexpected` 收窄为「该子目录里不属于本次的那份包」，另加 `listLegacyRootArtifacts` 报告根目录历史包 |
 | 构建交互 | `askBuildSelection` 顺序为 plugins、fpk、docs；选完应用只问是否内置插件 | 顺序改为 fpk、docs、plugins；选定应用后追加 `askFpkPlatforms` 平台多选 | 取消平台选择即不产出任何包 |
 | 非交互参数 | `--fpk --app <app> --skip-bundle-dsh-plugins` | 增加可重复的 `--platform <x86\|arm>`；非法值报错。三种结果必须可区分：**显式指定** / **没做选择**（按清单声明取默认）/ **取消** | CI 改为显式传两个平台；不带 `--platform` 的非交互执行不进询问（clack 在无 TTY 时不会自己失败，会画出选项永远等回车） |
-| CI 产物 | 单个 FPK：`find . -maxdepth 1 -name '*.fpk' -print -quit` 取第一个改名后上传 | 按平台列表逐个核对与上传；任一缺失即失败；核对与上传两步的 `working-directory` 改为 `apps/fn-deepseek-harness/dist` | 双包上传，`find` 取任意一个的写法必须移除，否则两份包只会传上其中一份 |
+| CI 产物 | 单个 FPK：`find . -maxdepth 1 -name '*.fpk' -print -quit` 取第一个改名后上传 | 按平台列表逐个核对与上传，路径为 `${PACKAGE_NAME}/${PACKAGE_NAME}.fpk`；任一缺失即失败；核对与上传两步的 `working-directory` 仍是 `apps/fn-deepseek-harness/dist` | 双包上传，`find` 取任意一个的写法必须移除，否则两份包只会传上其中一份 |
 
 平台差异的产生方式（这是本计划的核心事实，不是推断）：
 
@@ -43,14 +43,14 @@ lastVerified: 2026-11-04
 flowchart LR
   Repo["仓库 apps/&lt;app&gt;/manifest<br/>platform = x86"] -->|"变更点：按所选平台生成暂存副本"| Stage["暂存副本 manifest<br/>platform = x86 / arm"]
   Stage --> Fnpack["fnpack build --directory 副本<br/>（无平台参数、无输出名参数）"]
-  Fnpack --> Fixed["&lt;app&gt;.fpk（固定名）<br/>落在 cwd = apps/&lt;app&gt;/dist/"]
-  Fixed --> Finalize["变更点：在 dist 内落成发布名"]
-  Finalize --> Out["apps/&lt;app&gt;/dist/&lt;app&gt;-x86-…fpk<br/>apps/&lt;app&gt;/dist/&lt;app&gt;-arm-…fpk"]
+  Fnpack --> Fixed["&lt;app&gt;.fpk（固定名）<br/>落在 cwd = apps/&lt;app&gt;/dist/&lt;主干&gt;/"]
+  Fixed --> Finalize["变更点：在该子目录内落成发布名"]
+  Finalize --> Out["apps/&lt;app&gt;/dist/&lt;app&gt;-x86-…/&lt;app&gt;-x86-….fpk<br/>apps/&lt;app&gt;/dist/&lt;app&gt;-arm-…/&lt;app&gt;-arm-….fpk"]
 ```
 
 `fnpack build` 只有 `--directory`，没有平台参数；实测（2026-11-04）改暂存清单的平台值后打包，包内清单与既有 x86 包逐行比对**只有平台行和包自身校验值不同**。因此「出一个 ARM 包」= 换掉那一行再打包，不需要也不应该改动仓库里那份清单。
 
-**产物名无法由 fnpack 直接产出**：产物名恒为清单 `appname` 派生的 `<appname>.fpk`，实测把副本目录改名成目标文件名再打包，产物名仍是 `<appname>.fpk`。唯一伪造手段是改写副本的 `appname`——不可接受：`appname` 是 fnOS 识别已安装应用的身份，两份包给出不同 `appname` 会让 x86 与 ARM 被当成两个不同应用。所以落成步骤保留，但收在 `dist/` 内部完成——使用者在产物目录里只会看到最终文件名，不会看到「先有个怪名字再被改名」的中间状态，应用根目录也全程不出现产物。
+**产物名无法由 fnpack 直接产出**：产物名恒为清单 `appname` 派生的 `<appname>.fpk`，实测把副本目录改名成目标文件名再打包，产物名仍是 `<appname>.fpk`。唯一伪造手段是改写副本的 `appname`——不可接受：`appname` 是 fnOS 识别已安装应用的身份，两份包给出不同 `appname` 会让 x86 与 ARM 被当成两个不同应用。所以落成步骤保留，但收在**该平台自己的产物子目录**内完成——子目录名已经是最终主干，使用者在里面只会看到与目录同名的最终包，不会看到「先有个怪名字再被改名」的中间状态，应用根目录也全程不出现产物。
 
 构建一次 FPK 的交互与执行时序：
 
@@ -76,9 +76,10 @@ sequenceDiagram
   loop 变更点：每个平台各打一次包
     CLI->>S: 复制打包输入（排除 tests/、node_modules/、根下 dist/、*.fpk）
     CLI->>S: 改写 platform 行
-    CLI->>F: fnpack build --directory 副本（cwd = dist）
-    F-->>D: 固定名 fpk
-    CLI->>D: 在 dist 内落成带平台段的发布名
+    CLI->>D: 变更点：建该平台的产物子目录 dist/&lt;主干&gt;/
+    CLI->>F: fnpack build --directory 副本（cwd = dist/&lt;主干&gt;/）
+    F-->>D: 固定名 fpk，落进该子目录
+    CLI->>D: 在子目录内落成与目录同名的发布名
     CLI->>S: 删除暂存副本
   end
   CLI->>CLI: 变更点：报告应用根目录遗留的历史 .fpk（不删除）
@@ -93,7 +94,8 @@ stateDiagram-v2
     [*] --> RootMixed: 既有：产物落应用根目录，与构建输入平铺
     RootMixed --> Accumulate: 历史包越攒越多，装机要先猜哪个是本次的
     Accumulate --> DistOnly: 变更点：产物落 dist/，构建前先清空（FNOS-044-03、FNOS-044-06）
-    DistOnly --> PerPlatform: 变更点：每个平台各产一份、名字带平台段
+    DistOnly --> PerDirectory: 变更点：每个平台一个子目录 dist/&lt;主干&gt;/，目录名与包名同主干
+    PerDirectory --> PerPlatform: 子目录内一份包，名字带平台段
     PerPlatform --> SameNameConflict: 若名字不含平台
     SameNameConflict --> PerPlatform: 覆盖回去（后打的顶掉先打的）
     PerPlatform --> [*]
@@ -106,10 +108,10 @@ stateDiagram-v2
 | --- | --- | --- | --- | --- | --- |
 | FNOS-044-01 | `src/ui/prompts.ts`（`askFpkPlatforms`）、`src/commands/build.ts`（`--platform` 解析与询问时机） | 无用户数据 | `tests/fpk-platform.spec.ts`（新增）、`tests/prompts.spec.ts` | [命令与脚本](/development/commands-and-scripts)、[CLI 命令参考](/development/cli-commands) | 本地构建链路 |
 | FNOS-044-02 | `src/core/fpk-platform.ts`（新增）、`src/core/fpk-staging.ts`（新增，副本排除规则）、`src/commands/build.ts`（暂存打包）、`src/config/workspace.ts`（读清单平台值） | 仓库 `manifest` 不被写入；副本排除根下 `dist/`，产物不会被打进包里 | `tests/fpk-platform.spec.ts`（清单改写、默认平台、非法值、dist 排除与嵌套 dist 保留） | [fnpack 打包](/build/fnpack) | 本地构建链路 + 解包核对 |
-| FNOS-044-03 | `src/core/fpk-artifacts.ts`（模板加平台段、`prepareFpkDistDirectory`、`finalizeFpkArtifact`、`listLegacyRootArtifacts`）、`src/commands/build.ts`（cwd 改 dist）、`.gitignore`、`docs/charter/directory-structure.md` | 产物从 `apps/<app>/` 迁到 `apps/<app>/dist/`；根目录历史包保留不删 | `tests/fpk-artifacts.spec.ts`、`tests/fpk-release-naming.spec.ts`（模板同形、cwd 与清空顺序断言） | [版本管理](/build/versioning)、[从电脑上传 FPK](/guide/nas-fpk-install)、[目录结构规范](/charter/directory-structure) | 本地 + CI |
+| FNOS-044-03 | `src/core/fpk-artifacts.ts`（`fpkReleaseBaseName` 主干模板 + `prepareFpkDistDirectory`、`prepareFpkArtifactDirectory`、`finalizeFpkArtifact`、`listLegacyRootArtifacts`）、`src/commands/build.ts`（cwd 改为平台子目录）、`.gitignore`、`docs/charter/directory-structure.md` | 产物从 `apps/<app>/` 迁到 `apps/<app>/dist/<主干>/`；根目录历史包保留不删 | `tests/fpk-artifacts.spec.ts`、`tests/fpk-release-naming.spec.ts`（主干模板同形、cwd 与清空顺序断言） | [版本管理](/build/versioning)、[从电脑上传 FPK](/guide/nas-fpk-install)、[目录结构规范](/charter/directory-structure) | 本地 + CI |
 | FNOS-044-04 | `.github/workflows/build-app.yml`（显式双平台、dist 内逐个核对与上传） | Release 附件多一份 | `tests/fpk-release-naming.spec.ts` 读 workflow 模板与工作目录比对 | [CI 构建](/build/ci)、[应用上架规范](/charter/app-listing-spec) | GitHub Actions + Release |
 | FNOS-044-05 | `src/ui/prompts.ts`（`askBuildSelection` 选项顺序） | 无 | `tests/prompts.spec.ts` 断言顺序 | [命令与脚本](/development/commands-and-scripts) | 本地构建链路 |
-| FNOS-044-06 | `src/core/fpk-artifacts.ts`（`prepareFpkDistDirectory`）、`src/commands/build.ts`（清空在平台循环之外） | `dist/` 为 git 忽略的产物目录，每次构建重建 | `tests/fpk-artifacts.spec.ts`（清空、只清 dist 不越界）、`tests/fpk-release-naming.spec.ts`（清空顺序） | [fnpack 打包](/build/fnpack)、[目录结构规范](/charter/directory-structure) | 本地构建链路 |
+| FNOS-044-06 | `src/core/fpk-artifacts.ts`（`prepareFpkDistDirectory`）、`src/commands/build.ts`（清空在平台循环之外） | `dist/` 为 git 忽略的产物目录，每次构建重建（含各平台子目录） | `tests/fpk-artifacts.spec.ts`（清空、只清 dist 不越界）、`tests/fpk-release-naming.spec.ts`（清空顺序） | [fnpack 打包](/build/fnpack)、[目录结构规范](/charter/directory-structure) | 本地构建链路 |
 
 ## 分阶段任务
 
@@ -134,8 +136,12 @@ stateDiagram-v2
 | PLAN-FNOS-044-T07-04 | FNOS-044-03 | `.gitignore` 加 `apps/*/dist/`；`docs/charter/directory-structure.md` 登记产物目录 | T07-02 | `git check-ignore` 生效、无已追踪文件被新规则遮蔽 |
 | PLAN-FNOS-044-T07-05 | FNOS-044-04 | `build-app.yml`：核对与上传两步的 `working-directory` 改为 `apps/fn-deepseek-harness/dist`；移除「固定名顺手改名」的兜底 | T07-02 | 本地干跑核对脚本（缺平台时退出码 1）+ 守卫用例 |
 | PLAN-FNOS-044-T07-06 | FNOS-044-03、FNOS-044-06 | 实跑验证：双平台产物落 `dist/`、只选一个平台时另一个消失、应用根目录不出现产物、失败不留半份包 | T07-01~T07-05 | `ls dist/` + 解包核对平台声明 |
+| PLAN-FNOS-044-T08-01 | FNOS-044-03 | `core/fpk-artifacts.ts`：把命名拆成 `fpkReleaseBaseName`（主干，同时作目录名）与 `fpkReleaseFileName`（主干 + `.fpk`）；新增 `prepareFpkArtifactDirectory`；`finalizeFpkArtifact` 的入参由 `distDirectory + currentBuild` 收窄为单个 `artifactDirectory` | T07 | 单测：主干/文件名一致、两个平台的目录互不相同、固定名落成后目录内只剩发布名 |
+| PLAN-FNOS-044-T08-02 | FNOS-044-03 | `commands/build.ts`：每个平台先建 `dist/<主干>/`，fnpack 的 cwd 由 `dist/` 改为该子目录，落成也在子目录内完成 | T08-01 | 实跑双平台：产物路径为 `dist/<主干>/<主干>.fpk` |
+| PLAN-FNOS-044-T08-03 | FNOS-044-04 | `build-app.yml`：核对路径改为 `${PACKAGE_NAME}/${PACKAGE_NAME}.fpk`（变量名 `VERSIONED_FPK` → `PACKAGE_PATH`），上传沿用 basename 作为附件名 | T08-02 | 本地干跑核对脚本 + 守卫用例读 workflow |
+| PLAN-FNOS-044-T08-04 | 全部 | 同步 SDD 三份文档、两处索引与外围文档（fnpack、turbo-tasks、commands-and-scripts、github-workflows、nas-fpk-install、directory-structure） | T08-02 | `pnpm run check -- --sdd` + `docs` 构建 |
 
-任务依赖顺序：T01 → T02 → T03 → T04 → T05 → T06；T07 为提出人追加「产物落 `dist/`、不要重命名、每次清空」后的补充阶段，依赖 T01~T06 已完成。
+任务依赖顺序：T01 → T02 → T03 → T04 → T05 → T06；T07 为提出人追加「产物落 `dist/`、不要重命名、每次清空」后的补充阶段，依赖 T01~T06 已完成；T08 为提出人进一步指定「产物落 `dist/<主干>/` 子目录、包在产出后于该目录内改名」后的阶段，依赖 T07 已完成。
 
 ## 数据、权限和错误处理
 
@@ -146,11 +152,11 @@ stateDiagram-v2
 - `--platform` 取值不在 `x86`/`arm` 内时报错并列出允许值，不静默忽略；重复值去重后保持传入顺序。
 - 交互中取消平台选择 = 取消本次 FPK 构建，不产出任何包，与既有「取消 FPK 构建」一致。
 - 清单未声明 `platform`，或声明值不是 `x86`/`arm` 时，取默认平台报错并指明该改哪里；不猜。
-- **产物目录每次先清空**：`dist/` 里有的就等于这一次产出的；只选一个平台时不会留着上一次的另一个平台包。清空范围只有 `dist/` 本身，不越界到应用目录别处内容。
+- **产物目录每次先清空**：`dist/` 里有的就等于这一次产出的；只选一个平台时不会留着上一次的另一个平台目录。清空范围是 `dist/` 整个目录（含各平台子目录），不越界到应用目录别处内容。
 - 迁移前遗留在应用根目录的历史 `.fpk` **不删除**，只提示「它们已不在产物路径上」：删除不是构建的职权，那些包可能被用于回滚对照。
-- `dist` 里出现不属于本次构建的 `.fpk` 会被报出来。目录每次都被清空过，出现即说明构建自身有问题（例如落成步骤没跑成）。
-- fnpack 校验失败时**不会留下半份产物**（实测：`Packing failed` 后 cwd 仍为空），所以「清空后构建失败」不会让 `dist` 里出现名字与内容对不上的包。
-- 回滚：把命名模板去掉平台段、`fnpack` 的 cwd 从 `dist/` 改回应用目录、去掉构建开头的清空，即可回到现行为；CI 侧去掉 `--platform` 参数、把两步的 `working-directory` 改回 `apps/fn-deepseek-harness`。`.gitignore` 的 `apps/*/dist/` 可以留着，不影响回滚。
+- 该平台的产物子目录里出现不属于本次的那份 `.fpk` 会被报出来。子目录每次都是新建的，出现即说明构建自身有问题（例如落成步骤没跑成）。
+- fnpack 校验失败时**不会留下半份产物**（实测：`Packing failed` 后 cwd 仍为空），所以「清空后构建失败」不会让子目录里出现名字与内容对不上的包。
+- 回滚：把命名模板去掉平台段、把「一平台一子目录」退回 `dist/` 平铺（`prepareFpkArtifactDirectory` 的调用点去掉、cwd 与落成目标改回 `dist/`）、`fnpack` 的 cwd 从子目录改回应用目录、去掉构建开头的清空，即可回到更早的行为；CI 侧去掉 `--platform` 参数、把两步的 `working-directory` 改回 `apps/fn-deepseek-harness`。`.gitignore` 的 `apps/*/dist/` 可以留着，不影响回滚。
 
 ## 依赖、风险和决策
 
@@ -162,8 +168,9 @@ stateDiagram-v2
 | 单平台时是否带平台段 | 一律带 | 只多平台时带 | 两种命名形状并存会让 Release 对照与装机选包重新出现歧义，正是 FNOS-037 消灭的那类问题 |
 | CI 取产物方式 | 按平台列表逐个核对 | 继续 `find … -print -quit` | 目录里有两份包时「取第一个」只会传上其中一份且不报错 |
 | 暂存目录位置 | `os.tmpdir()` 下 `mkdtemp` | 仓库 `tmp/` | 构建中间产物不属于开发者脚本；`mkdtemp` 保证并发不冲突且用完即删 |
-| 产物落点 | `apps/<app>/dist/`，每次构建先清空 | 继续落应用根目录；或仓库根 `dist/` | 应用根目录是构建输入的位置，产物混在里面会让历史包与本次包平铺、装机拿错；仓库根 `dist/` 不在目录结构规范的根目录白名单里，且多应用会互相覆盖。产物目录归属各应用，清空也只清自己那一份 |
-| 「直接产出最终文件名」 | 保留一次落成，但收在 `dist/` 内部完成 | 改写副本 `appname` 让 fnpack 直接产出目标名 | 提出人要求「不要重命名，直接产出最终名」。实测 fnpack 做不到：产物名恒为 `appname` 派生，副本目录改名不影响它。伪造手段只有改 `appname`，而 `appname` 是 fnOS 识别已安装应用的身份，两份包给出不同 `appname` 会让 x86 与 ARM 被当成两个不同应用 |
+| 产物落点 | `apps/<app>/dist/<主干>/`（一平台一子目录），`dist/` 每次构建先清空 | 继续落应用根目录；`dist/` 根下平铺；仓库根 `dist/` | 应用根目录是构建输入的位置，产物混在里面会让历史包与本次包平铺、装机拿错；`dist/` 根下平铺则两份平台包挤在一个目录里，装了哪份只能靠文件名判断；仓库根 `dist/` 不在目录结构规范的根目录白名单里，且多应用会互相覆盖。目录名取产物主干，路径本身即说明给哪类设备 |
+| 「直接产出最终文件名」 | 保留一次落成，但收在该平台产物子目录内完成 | 改写副本 `appname` 让 fnpack 直接产出目标名 | 提出人要求「不要重命名，直接产出最终名」。实测 fnpack 做不到：产物名恒为 `appname` 派生，副本目录改名不影响它。伪造手段只有改 `appname`，而 `appname` 是 fnOS 识别已安装应用的身份，两份包给出不同 `appname` 会让 x86 与 ARM 被当成两个不同应用 |
+| 目录名与包名的关系 | 同主干（目录 `<主干>/`，包 `<主干>.fpk`） | 目录用短的平台名（如 `x86/`） | 提出人指定的目录名就是完整主干。同主干让目录与包一一对应，「目录里出现别的包」成为明确异常信号；短平台名会丢掉版本与基线信息，同一目录下多次构建的产物仍要靠文件名区分 |
 
 主要风险与处置：
 
@@ -186,6 +193,7 @@ stateDiagram-v2
 | `platform = all` 未单独考虑 | 报错点名「该取值不能作为构建目标」，与「没声明平台」分开 | `all` 是 manifest 合法值；把它压成「没声明」会把人指向错的修改方向（TC-009） |
 | 提出人要求「直接产出最终文件名」 | 做不到，改为「落成收在 `dist/` 内部」并登记工具边界 | 实测 fnpack 产物名恒为 `appname` 派生，副本目录改名无效；伪造只能改 `appname`，而那是 fnOS 识别应用的身份（需求文档「工具边界」） |
 | 未规划产物目录 | 新增 `apps/<app>/dist/`，每次构建先清空 | 提出人复核后追加；同时要求把 FNOS-037 的「历史产物只告警不删除」收窄为「`dist/` 内清空、根目录历史包仍不代删」 |
+| `dist/` 根下平铺两份平台包 | 改为**一平台一子目录** `dist/<主干>/`，目录名与包名同主干 | 提出人指定产物落 `dist/fn-deepseek-harness-<平台>-<版本>-dsh-<基线>/` 目录、包在产出后于该目录内改名。顺带把「本次构建产出哪些名字」这个跨平台上下文从 `finalizeFpkArtifact` 的入参里去掉——一个目录只服务一个平台后，`currentBuild` 这套排除逻辑不再需要 |
 
 ## 测试、打包、发布和回滚
 
@@ -212,6 +220,7 @@ stateDiagram-v2
 | T05 用例与变异验证 | 已完成 | 新增平台用例、扩展命名守卫、变异验证变红 |
 | T06 文档与索引 | 已完成 | 三份文档 + 索引/侧栏 + 相关主题文档同步，SDD 检查与文档构建通过 |
 | T07 产物目录 dist 化 | 已完成 | 产物落 `apps/<app>/dist/` 且每次构建先清空；fnpack 的 cwd 改到 dist、落成步骤收在 dist 内部；副本排除根下 dist；CI 核对与上传改在 dist；`.gitignore` 与目录结构规范登记 |
+| T08 一平台一子目录 | 已完成 | 产物落 `apps/<app>/dist/<主干>/`，包名与目录名同主干；`fpkReleaseBaseName` 成为目录名与包名的共同来源；`finalizeFpkArtifact` 入参收窄为单个 `artifactDirectory`；CI 核对路径改为 `${PACKAGE_NAME}/${PACKAGE_NAME}.fpk` |
 
 ## 变更记录
 
@@ -219,3 +228,4 @@ stateDiagram-v2
 | --- | --- | --- |
 | 2026-11-04 | 初始登记 | 建立 PLAN-FNOS-044：六阶段（核心实现 → 交互与参数 → 构建与等价性验证 → CI 双包 → 用例与变异验证 → 文档与索引）。关键技术决策是「暂存目录改写清单」而非就地改仓库清单，理由写在影响范围与决策表；CI 必须移除「取第一个 .fpk」的写法。 |
 | 2026-11-04 | 追加 T07：产物落 `dist/` 且每次构建先清空 | 提出人复核后追加三点：产物不要重命名、落 `dist/` 而非应用目录根、每次构建清空。实测确认 fnpack 无法直接产出目标文件名（产物名由 `appname` 决定，把副本目录改名成目标文件名无效），故「不重命名」落地为「落成步骤收在 `dist/` 内部、应用根目录全程不出现产物」，无法做到的部分与其替代方案写进需求文档的「工具边界」。同时修正 FNOS-037 的「历史产物只告警不删除」约定：`dist/` 每次清空，应用根目录的历史包仍不代删。新增 T07 六项任务、对应用例与变异验证。 |
+| 2026-11-04 | 追加 T08：一平台一产物子目录 | 提出人指定产物落 `dist/<app>-<平台>-<版本>-dsh-<基线>/` 目录，包在生产后于该目录内改名。据此把命名拆成 `fpkReleaseBaseName`（主干，同时作目录名）与 `fpkReleaseFileName`（主干 + `.fpk`），新增 `prepareFpkArtifactDirectory`，`finalizeFpkArtifact` 的入参从 `distDirectory + currentBuild` 收窄为单个 `artifactDirectory`（一个目录只服务一个平台，跨平台排除逻辑不再需要）。CI 核对路径改为 `${PACKAGE_NAME}/${PACKAGE_NAME}.fpk`。实测双平台产出 `dist/<主干>/<主干>.fpk`、只选一个平台时另一平台目录消失、仓库清单 md5 不变。 |

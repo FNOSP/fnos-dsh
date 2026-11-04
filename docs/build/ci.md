@@ -7,10 +7,10 @@ GitHub Actions 配置位于 `.github/workflows/build-release.yml`，由版本 Ta
 1. `prepare-release` 创建或重置草稿 Release。
 2. 下载并验证 `fnpack`。
 3. 通过根 `build` 任务的 FPK 模式构建应用，**显式传两个平台**：`pnpm exec fnos-dsh-cli build --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins --platform x86 --platform arm`（node-pty 使用上游 npm 包自带的平台预编译产物，构建不需要编译器，也不内置原生产物）。
-4. 逐平台核对产物名 `fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>.fpk`：平台段为 `x86` 或 `arm`，Tag 段为项目版本（如 `v7.1.0`），DSH 基线段在构建期从 `pnpm-workspace.yaml` catalog 派生，不在 workflow 中硬编码。核对与上传两步的工作目录都是 `apps/fn-deepseek-harness/dist`（FNOS-044 的产物目录）。任一平台的产物缺失都会让 `Verify versioned FPK artifacts` 步骤失败——不采用「取目录里第一个 `.fpk`」的写法，那种写法在两份平台包同时在目录里时只会处理其中一份，另一份既不核对也不上传，而步骤照样成功。
+4. 逐平台核对产物 `fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>/fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>.fpk`：每个平台一个子目录，子目录名与包名同主干（平台段为 `x86` 或 `arm`，Tag 段为项目版本（如 `v7.1.0`），DSH 基线段在构建期从 `pnpm-workspace.yaml` catalog 派生，不在 workflow 中硬编码）。核对与上传两步的工作目录仍是 `apps/fn-deepseek-harness/dist`（FNOS-044 的产物目录），按 `${PACKAGE_NAME}/${PACKAGE_NAME}.fpk` 逐平台取包。任一平台的产物缺失都会让 `Verify versioned FPK artifacts` 步骤失败——不采用「取目录里第一个 `.fpk`」的写法，那种写法在两份平台包同时在目录里时只会处理其中一份，另一份既不核对也不上传，而步骤照样成功。
 5. 逐个上传两份产物（各自重试 5 次，任一最终失败即整体失败），再由根 `release:notes` 任务调用 `changelogithub` 生成 GitHub Release。
 
-CI 不做「发现 fnpack 固定名就顺手改名」的兜底：`dist` 里出现固定名只可能是构建的落成步骤没跑成，CI 静默补一刀会把发布链路上的真缺陷藏起来，宁可失败退出。
+CI 不做「发现 fnpack 固定名就顺手改名」的兜底：产物子目录里出现固定名只可能是构建的落成步骤没跑成，CI 静默补一刀会把发布链路上的真缺陷藏起来，宁可失败退出。
 
 命名模板与本地构建侧（`tooling/fnos-dsh-cli/src/core/fpk-artifacts.ts` 的 `fpkReleaseFileName`）由 `tests/fpk-release-naming.spec.ts` 钉成同形：任一侧改了模板而另一侧没跟上，该用例即失败。
 

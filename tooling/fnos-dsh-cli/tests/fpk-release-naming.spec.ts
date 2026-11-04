@@ -49,8 +49,10 @@ function normalize(value: string): string {
 }
 
 describe('FPK 产物命名与 CI workflow 一致', () => {
-  const workflowTemplate = templateOf(WORKFLOW, /VERSIONED_FPK="([^"]+)"/u)
-  const buildTemplate = templateOf(ARTIFACTS, /return `([^`]*\.fpk)`/u)
+  // FNOS-044 起产物是 `dist/<主干>/<主干>.fpk`，两侧比较的是**主干**模板
+  // （`<app>-<platform>-<tag>-dsh-<baseline>`）；包名 = 主干 + `.fpk`。
+  const workflowBase = templateOf(WORKFLOW, /PACKAGE_NAME="([^"]+)"/u)
+  const buildBase = templateOf(ARTIFACTS, /export function fpkReleaseBaseName\([\s\S]*?return `([^`]*)`/u)
 
   it('workflow 侧读的是 catalog 基线，而不是写死版本', () => {
     expect(WORKFLOW).toContain('DSH_BASELINE="$(sed -nE')
@@ -63,16 +65,21 @@ describe('FPK 产物命名与 CI workflow 一致', () => {
   })
 
   it('两侧的占位符与分隔符完全一致', () => {
-    expect(normalize(buildTemplate)).toBe(normalize(workflowTemplate))
+    expect(normalize(buildBase)).toBe(normalize(workflowBase))
   })
 
-  it('两端都以 .fpk 结尾、以 -dsh- 分隔基线、并带平台段', () => {
-    for (const template of [workflowTemplate, buildTemplate]) {
-      expect(template.endsWith('.fpk')).toBe(true)
+  it('两端都以 -dsh- 分隔基线、并带平台段', () => {
+    for (const template of [workflowBase, buildBase]) {
       expect(template).toContain('-dsh-')
       // FNOS-044：少了平台段，同一版本的 x86 与 arm 两份包就同名，后打的静默顶掉先打的。
       expect(normalize(template)).toContain('<platform>')
     }
+  })
+
+  it('包名 = 主干 + .fpk，产物放在以主干命名的目录里', () => {
+    // 目录名与包名同主干：装上手的包属于哪类设备，从目录名就能看出来。
+    expect(ARTIFACTS).toMatch(/return `\$\{fpkReleaseBaseName\(appName, platform, releaseTag, baseline\)\}\.fpk`/u)
+    expect(WORKFLOW).toMatch(/\$\{PACKAGE_NAME\}\/\$\{PACKAGE_NAME\}\.fpk/u)
   })
 
   it('CI 为两个平台各产一份，且显式传平台而不是依赖清单缺省', () => {
@@ -87,7 +94,7 @@ describe('FPK 产物命名与 CI workflow 一致', () => {
     // 断言针对命令形状而不是关键词：注释里提到这个写法是说明原因，不该把用例判红。
     expect(WORKFLOW).not.toMatch(/find \. -maxdepth 1 -type f -name '\*\.fpk'/u)
     expect(WORKFLOW).not.toMatch(/ORIGINAL_FPK=/u)
-    expect(WORKFLOW).toMatch(/if \[ ! -f "\$VERSIONED_FPK" \]/u)
+    expect(WORKFLOW).toMatch(/if \[ ! -f "\$PACKAGE_PATH" \]/u)
     expect(WORKFLOW).toMatch(/was not produced/u)
   })
 
@@ -112,18 +119,25 @@ describe('FPK 产物命名与 CI workflow 一致', () => {
     expect(WORKFLOW).toMatch(/unable to upload after/u)
   })
 
-  it('构建流程在打包之后于 dist 内落成发布名', () => {
+  it('每个平台先建自己的产物目录，再在目录内打包并落成发布名', () => {
     // 只加函数不接线是最容易犯的错：产物仍是旧名，且没有任何报错。
     expect(BUILD).toMatch(
-      /await runCommand\('fnpack', \['build', '--directory', stageDirectory\], distDirectory\)[\s\S]{0,200}await finalizeFpkArtifactInDist\(app, distDirectory, artifact\.target, targets\)/u,
+      /await prepareFpkArtifactDirectory\(distDirectory, artifact\.base\)[\s\S]{0,400}await finalizeFpkArtifactInDirectory\(app, artifact, artifactDirectory\)/u,
     )
   })
 
-  it('fnpack 的 cwd 是 dist 目录，不是应用根目录', () => {
+  it('fnpack 的 cwd 是该平台的产物目录，不是应用根目录', () => {
     // 产物落点由调用时的工作目录决定。cwd 写成应用目录，产物就会先在根目录出现
     // 再搬进 dist——正是本次改动要消灭的「根目录堆产物」。
-    expect(BUILD).toMatch(/, distDirectory\)/u)
+    //
+    // 断言必须锁住 runCommand 这一行本身：只写 `, artifactDirectory)` 会被同一函数里
+    // 的 `finalizeFpkArtifactInDirectory(app, artifact, artifactDirectory)` 满足，
+    // 于是「cwd 改回 dist/」这种回归照样全绿（变异验证实测）。
+    expect(BUILD).toMatch(
+      /await runCommand\('fnpack', \['build', '--directory', stageDirectory\], artifactDirectory\)/u,
+    )
     expect(BUILD).not.toMatch(/'fnpack', \['build', '--directory', stageDirectory\], appDir\)/u)
+    expect(BUILD).not.toMatch(/'fnpack', \['build', '--directory', stageDirectory\], distDirectory\)/u)
   })
 
   it('dist 的清空在平台循环之外', () => {
@@ -136,9 +150,10 @@ describe('FPK 产物命名与 CI workflow 一致', () => {
     expect(prepare).toBeLessThan(loop)
   })
 
-  it('平台与目标名配对成一条记录，不按下标对齐两个数组', () => {
-    // 分两个数组按下标取名字，改动其中一个就会让产物顶着别的平台的名字。
-    expect(BUILD).toMatch(/platform,\s*\n?\s*target: fpkReleaseFileName\(/u)
+  it('平台、目录名与包名同源于一个主干，不按下标对齐两个数组', () => {
+    // 分开算目录名和包名，改动其中一个就会让产物顶着别的平台的名字。
+    expect(BUILD).toMatch(/const base = fpkReleaseBaseName\(app\.name, platform, releaseTag, baseline\)/u)
+    expect(BUILD).toMatch(/return \{ platform, base, target: `\$\{base\}\.fpk` \}/u)
     expect(BUILD).not.toMatch(/targets\[index\]/u)
   })
 

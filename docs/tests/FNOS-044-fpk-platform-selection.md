@@ -19,10 +19,10 @@ verifiedAt: 2026-11-04
 | --- | --- | --- |
 | [FNOS-044-01](/requirements/FNOS-044-fpk-platform-selection#fnos-044-01) | 构建时选择目标平台 | 非交互执行进询问会**挂住**而不是报错；取消被当成「没做选择」会绕过使用者意图 |
 | [FNOS-044-02](/requirements/FNOS-044-fpk-platform-selection#fnos-044-02) | 包内平台声明与所选一致 | 就地改仓库清单再还原：进程被杀留下脏值，下次构建把脏值当原始值捕获，永远还原不回 |
-| [FNOS-044-03](/requirements/FNOS-044-fpk-platform-selection#fnos-044-03) | 产物名带平台段 | 命名模板两侧（本地 / CI）不同形；多平台时把同批产物报成残留 |
+| [FNOS-044-03](/requirements/FNOS-044-fpk-platform-selection#fnos-044-03) | 产物名带平台段、一平台一子目录 | 命名模板两侧（本地 / CI）不同形；目录名与包名各算各的会指错包；多平台时把同批产物报成残留 |
 | [FNOS-044-04](/requirements/FNOS-044-fpk-platform-selection#fnos-044-04) | Release 分发双平台包 | `find … -print -quit` 取第一个：两份包只传上其中一份且步骤报成功 |
 | [FNOS-044-05](/requirements/FNOS-044-fpk-platform-selection#fnos-044-05) | 构建任务选项顺序 | 顺序改动无守卫，回退无人发现 |
-| [FNOS-044-06](/requirements/FNOS-044-fpk-platform-selection#fnos-044-06) | 产物落 `dist/` 且每次清空 | 清空放进平台循环里会删掉前一个平台的产物而构建仍报成功；排除规则按任意深度排 `dist` 会静默丢掉运行时内容 |
+| [FNOS-044-06](/requirements/FNOS-044-fpk-platform-selection#fnos-044-06) | 产物落 `dist/` 且每次清空 | 清空放进平台循环里会删掉前一个平台的产物而构建仍报成功；排除规则按任意深度排 `dist` 会静默丢掉运行时内容；清空若只删文件不删子目录，旧平台目录会留下来 |
 
 ❓ 未决：ARM 包在真实 ARM64 NAS 上能否安装（发布方无 ARM 设备，见第 2 节）。issue #28 列出的三个待验证点已核实两项：`node-pty` 带 `linux-arm64` 预编译产物、`koffi` 带 `@koromix/koffi-linux-arm64` 可选依赖（安装期原生依赖成立，运行时能否加载仍需设备反馈）；网关依赖为纯 JS 且产物内无 `.node` 二进制（成立）。**唯一剩余的硬前置**是 fnOS ARM64 是否提供 `nodejs_v24` 系统包——应用不内置 Node，这一项不成立则 ARM 包在安装依赖阶段就失败。
 
@@ -100,12 +100,12 @@ verifiedAt: 2026-11-04
 
 | 用例 ID | 覆盖 | 标题 | 前置 | 步骤 | 预期 | 优先级 |
 | --- | --- | --- | --- | --- | --- | --- |
-| TC-033 | 03-AC-04 | fnpack 的 cwd 是 dist 而非应用根目录 | — | 读 build.ts 接线 | `runCommand('fnpack', …, distDirectory)`；不残留 `…, appDir)` 形态 | P0 |
-| TC-034 | 03-AC-01 | 在 dist 内落成发布名，固定名不残留 | dist 目录含固定名 | 调用落成函数 | 目录里只剩最终文件名 | P0 |
-| TC-035 | 06-AC-01 | 构建前清空 dist 里上一次的产物 | dist 含旧包 | 调用清空函数 | 目录为空 | P0 |
+| TC-033 | 03-AC-04 | fnpack 的 cwd 是该平台的产物子目录，而非应用根目录 | — | 读 build.ts 接线 | `runCommand('fnpack', …, artifactDirectory)`；不残留 `…, appDir)` 形态 | P0 |
+| TC-034 | 03-AC-01 | 在产物子目录内落成发布名，固定名不残留 | 子目录含固定名 | 调用落成函数 | 目录里只剩与目录同名的包 | P0 |
+| TC-035 | 06-AC-01 | 构建前清空 dist 里上一次的产物与平台子目录 | dist 含旧包与旧子目录 | 调用清空函数 | 目录为空 | P0 |
 | TC-036 | 06-AC-03 | 清空只作用 dist，不越界删应用内容 | dist 有旧包、根有历史包、`app/` 有输入 | 调用清空函数 | `manifest`、`app/`、根目录历史包都在，只有 dist 被清 | P0 |
 | TC-037 | 06-AC-01 | 清空在平台循环之外 | — | 读 build.ts 语句顺序 | `prepareFpkDistDirectory` 的位置早于 `for (const artifact …)` | P0 |
-| TC-038 | 06-AC-02 | 只选一个平台时不留另一平台的包 | 双平台已构建 | 单平台再构建后列目录 | dist 里只有本次那一份 | P0 |
+| TC-038 | 06-AC-02 | 只选一个平台时不留另一平台的目录 | 双平台已构建 | 单平台再构建后列目录 | dist 下只有本次那个平台的子目录与包 | P0 |
 | TC-039 | 03-AC-04 | 根目录历史包被提示但不删除 | 根目录放一份历史 fpk | 实跑构建 | 输出提示且文件仍在 | P1 |
 | TC-040 | 06-AC-04 | fnpack 校验失败不往产物目录写半份包 | 缺必需文件的源 | 直接跑 fnpack | 失败退出且 cwd 目录为空 | P1 |
 | TC-041 | 03 | dist 不会被复制进暂存副本（产物不混进包里） | 应用含根下 dist | 检查副本 | 副本内无 dist | P0 |
@@ -113,6 +113,8 @@ verifiedAt: 2026-11-04
 | TC-043 | 04-AC-01 | CI 核对与上传都在 dist 工作目录 | — | 读 workflow | 两处 `working-directory: apps/fn-deepseek-harness/dist` | P0 |
 | TC-044 | 04-AC-01 | CI 不做「固定名顺手改名」兜底 | — | 读 workflow | 无 `mv fn-deepseek-harness.fpk` | P1 |
 | TC-048 | 06-AC-04 | 带发布名的产物不可能是半份包 | 真实 fnpack 多个时点强杀 | 检查 dist 内容与 tar 完整性 | 带发布名的文件都是完整 tar；落成只在 fnpack 成功退出后发生，结构上排除「截断文件顶着发布名」 | P1 |
+| TC-049 | 03-AC-01 | 产物路径为 `dist/<主干>/<主干>.fpk`，目录名与包名同主干 | 本地构建 | 实跑后列目录 | 两个平台各一个子目录，包名 = 子目录名 + `.fpk` | P0 |
+| TC-050 | 03-AC-02 | 两个平台的产物目录互不相同 | — | 调用目录准备函数 | 两个返回值不同，`dist/` 下同时出现两个目录 | P0 |
 
 ## 测试执行结果
 
@@ -126,6 +128,8 @@ verifiedAt: 2026-11-04
 | TC-046 | 通过 | 2026-11-04 | `tests/fpk-platform.spec.ts`「仓库清单不被写入这一不变量」两条形状断言；变异验证：把 `writeManifestPlatform(stage…)` 改成 `appDirectory` 并在 build.ts 引入该函数 → 5 条变红（含 3 条行为用例），还原后 158 条全绿 |
 | TC-047 | 通过 | 2026-11-04 | 受控强杀：用占位 fnpack 挂住，在 `try` 块内部 `kill -9` **CLI 本体**（`finally` 确认未执行）。结果 manifest md5 前后均为 `014df5e3…`、`platform = x86`、`git diff` 该文件为空；残留副本里的 `manifest` 为 `platform = arm`——证明改写只发生在副本。另用真实 fnpack 在 0.35/0.45/0.55/0.9s 四个时点强杀，仓库清单每次都逐字节不变 |
 | TC-048 | 通过 | 2026-11-04 | 真实 fnpack 在 0.35/0.45/0.55/0.9s 四个时点强杀：dist 为空时无残留；出现带发布名的文件时 `tar -tzf` 均校验为完整归档。结构上成立——落成只在 fnpack 成功退出后执行，截断文件只可能顶着固定名 `<app>.fpk`（下一次构建整目录清空） |
+| TC-049 | 通过 | 2026-11-04 | 实跑 `--platform x86 --platform arm`：产出 `dist/fn-deepseek-harness-x86-v7.0.16-dsh-0.2.1-rc.5/fn-deepseek-harness-x86-v7.0.16-dsh-0.2.1-rc.5.fpk` 与对应的 arm 目录，目录名与包名同主干；两份包解包后分别声明 `x86` / `arm`，`appname` 相同 |
+| TC-050 | 通过 | 2026-11-04 | `tests/fpk-artifacts.spec.ts`「两个平台的产物目录互不相同」，断言两次 `prepareFpkArtifactDirectory` 返回值不同且 `dist/` 下同时列出两个主干目录 |
 | TC-014～TC-016 | 通过 | 2026-11-04 | 同上；TC-015 用嵌套 `tests/node_modules` 路径验证排除按相对路径判断 |
 | TC-017 | 通过 | 2026-11-04 | 实跑 `pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins --platform x86 --platform arm`；解包 `tar -xzOf <pkg> manifest` 得 x86 包 `platform = x86`、arm 包 `platform = arm` |
 | TC-018 | 通过 | 2026-11-04 | 构建后 `git status --porcelain` 无 manifest 条目；仓库清单仍为 `platform              = x86` |
@@ -137,8 +141,8 @@ verifiedAt: 2026-11-04
 | TC-031 | 通过 | 2026-11-04 | `tests/prompts.spec.ts` 顺序断言 |
 | TC-032 | 未执行 | — | 需要人工在终端确认视觉呈现；顺序由 TC-031 的守卫用例钉住 |
 | TC-033、TC-034、TC-037、TC-041、TC-042、TC-043、TC-044 | 通过 | 2026-11-04 | `tests/fpk-release-naming.spec.ts`（cwd、清空顺序、落成接线、CI 工作目录与无兜底）、`tests/fpk-platform.spec.ts`（dist 排除与嵌套 dist 保留）；CLI 全量 158 条全绿 |
-| TC-035、TC-036 | 通过 | 2026-11-04 | `tests/fpk-artifacts.spec.ts`：清空上一次产物、只清 dist 不越界（`manifest`/`app/`/根目录历史包均保留） |
-| TC-038 | 通过 | 2026-11-04 | 实跑：双平台构建后 `dist/` 两份；再只选 x86 构建后 `dist/` 只剩 x86 一份 |
+| TC-035、TC-036 | 通过 | 2026-11-04 | `tests/fpk-artifacts.spec.ts`：清空上一次产物与子目录、只清 dist 不越界（`manifest`/`app/`/根目录历史包均保留） |
+| TC-038 | 通过 | 2026-11-04 | 实跑：双平台构建后 `dist/` 下两个平台目录各一份包；再只选 x86 构建后 `dist/` 下只剩 x86 那个目录 |
 | TC-039 | 通过 | 2026-11-04 | 实跑：根目录放一份历史 fpk 后构建，输出「根目录还有 1 份历史 FPK…本次产物不在那里」，文件仍在 |
 | TC-040 | 通过 | 2026-11-04 | 实测：缺 `cmd/main` 的源跑 `fnpack build`，`Packing failed` 且 cwd 目录为空 |
 | TC-041（实跑补充） | 通过 | 2026-11-04 | 双平台实跑后 `tar -tzf` 产物成员内无 `dist` 路径（0 命中），产物目录没有被打进包里 |
@@ -156,16 +160,19 @@ verifiedAt: 2026-11-04
 
 ## 测试结论
 
-FNOS-044-01、02、03、05、06 的包级用例与本地实跑全部通过（48 条用例：47 通过 / 1 未执行）；FNOS-044-04 的 CI 脚本逻辑已在本地按同形数据干跑验证，线上实跑随下一次发布执行。
+FNOS-044-01、02、03、05、06 的包级用例与本地实跑全部通过（50 条用例：49 通过 / 1 未执行）；FNOS-044-04 的 CI 脚本逻辑已在本地按同形数据干跑验证，线上实跑随下一次发布执行。
 
 **遗留风险（不阻塞本轮合入，但阻塞「ARM 支持已完成」的结论）**：ARM 包未经任何真实 ARM64 设备验证。issue #28 列的三个待验证点里，`node-pty` 的 aarch64 预编译产物与网关侧原生依赖已在 2026-11-04 核实为不存在障碍（前者带 `linux-arm64`，后者 `koffi` 带 `@koromix/koffi-linux-arm64`、网关自身纯 JS 且产物无 `.node`）；运行时能否加载成功仍需设备反馈。剩下的硬前置是 **fnOS ARM64 是否提供 `nodejs_v24` 系统包**——应用不内置 Node，这一项不成立则 ARM 包在安装依赖阶段就失败。文档与应用页已把 ARM 包标注为社区自测，上架仍只交已验证的 x86 包。
 
-变异验证（三轮）：
+变异验证（四轮）：
 
 1. 平台维度：去掉命名模板的平台段、把副本改写换成不改写、把构建任务顺序改回原样 → 8 条用例变红。
 2. 产物目录：把 `dist` 清空挪进平台循环、把 fnpack 的 cwd 改回应用根目录、去掉副本对根下 `dist/` 的排除 → 4 条用例变红（含「清空在循环之外」「cwd 是 dist」「排除根下 dist」三条专为此设计的行为/接线断言）。
 3. 清单不变量：把副本改写改成就地改仓库清单、并在构建命令层引入该改写函数 → 5 条变红，其中 3 条是既有行为用例、2 条是本轮新增的形状守卫（TC-046）。
+4. 一平台一子目录：把 fnpack 的 cwd 从 `artifactDirectory` 改回 `distDirectory` → 1 条变红；把 `prepareFpkArtifactDirectory` 改成忽略主干、直接返回 `dist/`（退化成平铺）→ 2 条变红（TC-049 的目录准备函数用例与 TC-050）。
 
-每轮还原后复跑，末轮 CLI 全量 158 条全绿。同一用例可在多轮重复变红，三轮的 8 / 4 / 5 不是去重计数。
+每轮还原后复跑，末轮 CLI 全量 160 条全绿。同一用例可在多轮重复变红，四轮的 8 / 4 / 5 / 1 / 2 不是去重计数。
+
+**第 4 轮的变异还暴露并修掉了一条过松的断言**：原「fnpack 的 cwd 是 dist 目录」用例只断言源码里出现 `, artifactDirectory)`，而同一函数里的 `finalizeFpkArtifactInDirectory(app, artifact, artifactDirectory)` 也满足它——cwd 改回 `dist/` 时该用例仍全绿。现改为锁住 `await runCommand('fnpack', …, artifactDirectory)` 这一行本身，并显式排除 `distDirectory` 形态。
 
 **已知限制（不改变结论）**：强杀 CLI 本体会跳过副本清理，在系统临时目录留下一个 `fpk-<app>-<平台>-*` 副本（实测约 1.8 MB）。它是纯垃圾——下次构建用 `mkdtemp` 新建目录、永不复用，且仓库清单与 `dist/` 都不受影响；系统临时目录由 OS 自行回收。构建不主动清扫历史副本，因为「按名字前缀删临时目录」在并发构建下会误删对方正在用的副本，代价高于留着这点磁盘垃圾。

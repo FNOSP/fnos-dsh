@@ -97,7 +97,7 @@ flowchart TD
   gateway["fnos-dsh-cli build:gateway"]
   fnpack["安装 fnpack 1.2.1"]
   build["fnos-dsh-cli build --fpk --app fn-deepseek-harness<br/>--platform x86 --platform arm"]
-  rename["在 apps/&lt;app&gt;/dist 逐平台核对产物名：平台 + Tag(项目版本) + catalog 派生 DSH 基线"]
+  rename["在 apps/&lt;app&gt;/dist 逐平台核对 &lt;主干&gt;/&lt;主干&gt;.fpk：平台 + Tag(项目版本) + catalog 派生 DSH 基线"]
   upload["逐个上传两份 FPK 到 Release"]
   status{"全部上传成功？"}
   done["是：构建完成"]
@@ -111,7 +111,7 @@ flowchart TD
 
 `build-app.yml` 只接受 `workflow_call`，不会自行响应 push；它必须由 `build-release.yml` 传入 `release_tag` 和 `release_id`。
 
-FNOS-044 起一次构建产出 **x86 与 arm 两份** FPK：`--platform` 必须显式传，因为仓库 `manifest` 只声明 `x86`，缺省会只得到一份 x86 包。产物落在 `apps/fn-deepseek-harness/dist/`，核对与上传两步的工作目录都是它。核对步骤按平台逐个检查产物是否存在，缺任一份即失败——不采用「取目录里第一个 `.fpk`」的写法，那种写法在两份包同时在目录里时只会处理其中一份，另一份既不核对也不上传，而步骤照样成功；也不做「发现 fnpack 固定名就顺手改名」的兜底，`dist` 里出现固定名只可能是构建的落成步骤没跑成，CI 静默补一刀会把发布链路上的真缺陷藏起来。命名模板与本地构建侧由 `tests/fpk-release-naming.spec.ts` 钉成同形，详见[CI 构建](../build/ci.md)。
+FNOS-044 起一次构建产出 **x86 与 arm 两份** FPK：`--platform` 必须显式传，因为仓库 `manifest` 只声明 `x86`，缺省会只得到一份 x86 包。产物落在 `apps/fn-deepseek-harness/dist/<主干>/` 下（`<主干>` 即 `<app>-<平台>-<Tag>-dsh-<DSH 基线>`，包名是 `<主干>.fpk`，与子目录同名），核对与上传两步的工作目录仍是 `apps/fn-deepseek-harness/dist`，按 `${PACKAGE_NAME}/${PACKAGE_NAME}.fpk` 逐平台取包。核对步骤按平台逐个检查产物是否存在，缺任一份即失败——不采用「取目录里第一个 `.fpk`」的写法，那种写法只会处理其中一份，另一份既不核对也不上传，而步骤照样成功；也不做「发现 fnpack 固定名就顺手改名」的兜底，`dist` 里出现固定名只可能是构建的落成步骤没跑成，CI 静默补一刀会把发布链路上的真缺陷藏起来。命名模板与本地构建侧由 `tests/fpk-release-naming.spec.ts` 钉成同形，详见[CI 构建](../build/ci.md)。
 
 ## 工作流与文件、包的依赖关系
 

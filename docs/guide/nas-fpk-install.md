@@ -65,11 +65,11 @@ fnOS 的比较逻辑：**三段式** `x.y.z`，`x.y.z-m` 里的 `m` **只有数�
 | 来源 | 命令 | 用途 |
 | --- | --- | --- |
 | CI Release 附件 | `gh release download v<版本号> --pattern "*-x86-*.fpk"` | **装机验证首选** —— 与线上分发的是同一份 |
-| 本地构建 | `pnpm run build -- --fpk --app fn-deepseek-harness` | 迭代快；产物落在 `apps/fn-deepseek-harness/dist/` |
+| 本地构建 | `pnpm run build -- --fpk --app fn-deepseek-harness` | 迭代快；产物落在 `apps/fn-deepseek-harness/dist/<平台子目录>/` |
 
 两种来源的产物**同名同格式**：`fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>.fpk`。本地构建在 `fnpack` 打完包后自己完成落名，规则与 CI 的 `Verify versioned FPK artifacts` 步骤一致，因此不必再手工改名，也不会出现同名的两份不同产物。注意 `dsh-` 段是 **DSH 运行时基线**、不是应用版本；应用版本以 Tag 为准。
 
-**去产物目录找包，不要去应用根目录**（FNOS-044）：产物一律落在 `apps/fn-deepseek-harness/dist/`，且每次构建先清空该目录——里面有的就是这一次产出的；只选一个平台时不会留着上一次的另一个平台包。迁移前遗留的历史 `.fpk` 若还在应用根目录，构建会提示它们的存在但**不代删**，那些不是本次产物。
+**去产物目录找包，不要去应用根目录**（FNOS-044）：产物一律落在 `apps/fn-deepseek-harness/dist/<平台子目录>/`，子目录名与包名同主干（`fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>`），包就在该子目录里、名字是子目录名加 `.fpk`。每次构建先清空 `dist/`——里面有的就是这一次产出的；只选一个平台时，另一个平台的子目录一并消失。迁移前遗留的历史 `.fpk` 若还在应用根目录，构建会提示它们的存在但**不代删**，那些不是本次产物。
 
 本地没有 CI 那层 `release_tag` 输入，Tag 取当前提交命中的 git tag；没有精确 tag 时退回 manifest 版本并补 `v` 前缀（即 `pnpm run version` 打出的形态）。
 

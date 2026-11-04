@@ -77,7 +77,7 @@ pnpm run build -- --fpk --app fn-deepseek-harness --platform x86 --platform arm
 pnpm run build -- --docs
 ```
 
-`--platform` 可重复给出，取值只有 `x86` 和 `arm`；不传时使用应用 `manifest` 声明的 `platform`，因此「不加平台参数」得到的仍是与之前等价的那一份包。产物名 `fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>.fpk`，落在 `apps/fn-deepseek-harness/dist/`，且每次构建先清空该目录——里面有的就是这一次产出的。规则见 [CI 构建](../build/ci) 与 [fnpack 打包](../build/fnpack)。
+`--platform` 可重复给出，取值只有 `x86` 和 `arm`；不传时使用应用 `manifest` 声明的 `platform`，因此「不加平台参数」得到的仍是与之前等价的那一份包。产物落在 `apps/fn-deepseek-harness/dist/fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>/`，包名是子目录名加 `.fpk`，且每次构建先清空 `dist/`——里面有的就是这一次产出的。规则见 [CI 构建](../build/ci) 与 [fnpack 打包](../build/fnpack)。
 
 ```mermaid
 flowchart TD
@@ -97,8 +97,8 @@ flowchart TD
   fpkSkip["否：跳过 Gateway"]
   clear["变更点：先清空 apps/&lt;app&gt;/dist/"]
   stage["变更点：每个平台各备一份临时副本<br/>只改写副本 manifest 的 platform 行"]
-  fpkRun["每个平台各执行一次 fnpack build<br/>（cwd = dist 目录）"]
-  finalize["变更点：在 dist 内落成带平台段的发布名"]
+  fpkRun["每个平台各执行一次 fnpack build<br/>（cwd = 该平台的 dist 子目录）"]
+  finalize["变更点：在平台子目录内落成带平台段的发布名"]
   docsRun["执行 vitepress build docs"]
   summary["汇总构建结果"]
   status{"构建成功？"}

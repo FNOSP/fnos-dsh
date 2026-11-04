@@ -45,10 +45,11 @@ fnpack build --directory <path>
 
 | 位置 | 内容 |
 | --- | --- |
-| `apps/<appname>/dist/` | 本次构建的产物，只有最终发布名（`<appname>-<平台>-<Tag>-dsh-<基线>.fpk`） |
+| `apps/<appname>/dist/` | 本次构建的产物目录，每次构建先整体清空 |
+| `apps/<appname>/dist/<appname>-<平台>-<Tag>-dsh-<基线>/` | 该平台的产物子目录，只放同名包 `<appname>-<平台>-<Tag>-dsh-<基线>.fpk` |
 | `apps/<appname>/` | 构建输入（Manifest、生命周期脚本、`app/` 运行时内容），**不放产物** |
 
-`dist/` 每次构建**先清空再产出**，所以目录里的东西就等于「这一次产出了什么」；只选一个平台时不会留着上一次的另一个平台包。清空范围只有 `dist/` 本身，迁移前遗留在应用根目录的历史包不会被删。
+一个平台一个子目录，子目录名与包名同主干（即包名去掉 `.fpk`），所以从目录名就能看出里面那份包给哪类设备。`dist/` 每次构建**先整体清空再产出**，所以目录里的东西就等于「这一次产出了什么」；只选一个平台时，另一个平台的子目录一并消失，不会留着上一次的包。清空范围只有 `dist/` 本身，迁移前遗留在应用根目录的历史包不会被删。
 
 打包输入复制到临时副本时按**相对应用目录**的路径排除 `tests/`、`node_modules/`、根下的 `dist/` 与 `*.fpk`：`dist` 只排应用根那一个，不排除任意深度——否则 `app/ui/dist/` 这类运行时内容会被静默丢掉。
 
@@ -60,7 +61,7 @@ fnpack build --directory <path>
 
 本仓库不在应用目录里就地改清单，而是由构建流程准备临时副本、只改写副本的那一行，打完即删——仓库那份 `manifest` 是受版本管理的事实来源，就地改写一旦被中途打断会把脏值留下。完整设计见[FNOS-044 实施计划](/plans/PLAN-FNOS-044-fpk-platform-selection)与[CI 构建](./ci)。
 
-`manifest` 的 `platform` 与产物名的平台段是**两件事**：前者是这一份包的属性，后者由构建按所选平台生成，所以 `pnpm run build -- --fpk` 一次可以在 `apps/<appname>/dist/` 里产出两份平台声明不同、名字也不同（`<appname>-x86-…fpk`、`<appname>-arm-…fpk`）的包。
+`manifest` 的 `platform` 与产物名的平台段是**两件事**：前者是这一份包的属性，后者由构建按所选平台生成，所以 `pnpm run build -- --fpk` 一次可以在 `apps/<appname>/dist/` 下按平台各建一个子目录，产出两份平台声明不同、名字也不同（`<appname>-x86-…fpk`、`<appname>-arm-…fpk`）的包。
 
 ## 构建包装脚本
 
