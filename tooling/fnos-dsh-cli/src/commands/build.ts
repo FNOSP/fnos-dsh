@@ -9,7 +9,7 @@ import { readFpkApps, readGatewayName, type FpkApp } from '../config/workspace.j
 import { runDocsBuild } from './docs.js'
 import { optionValue, optionValues } from '../core/args.js'
 import { requireDshBaseline } from '../core/dsh-baseline.js'
-import { fpkReleaseFileName, renameFpkToRelease } from '../core/fpk-artifacts.js'
+import { FPK_DIST_DIRECTORY, finalizeFpkArtifact, fpkReleaseFileName, listLegacyRootArtifacts, prepareFpkDistDirectory } from '../core/fpk-artifacts.js'
 import { FPK_PLATFORMS, parseFpkPlatforms, resolveFpkPlatforms, type FpkPlatform } from '../core/fpk-platform.js'
 import { withStagedFpkPlatform } from '../core/fpk-staging.js'
 import { addBooleanArgs, addOptionalValueArg, addRepeatableValueArgs } from '../core/command-args.js'
@@ -391,13 +391,17 @@ async function buildFpkApps(
  *
  * 版本串与基线在循环**之外**取一次：`resolveReleaseTag` 在没有精确 tag 时会读 manifest
  * 兜底，循环内重复取会让「本次构建产出哪些文件名」这件事依赖每次读盘结果。
+ *
+ * **`dist/` 的清空也在循环之外**：产物目录每次构建清一次。放进循环里，第二个平台开工
+ * 时会先把第一个平台刚产出的包删掉——双平台构建只会剩一份，而构建全程报成功。
  */
 async function buildFpkAppForPlatforms(app: FpkApp, requested?: FpkPlatform[]): Promise<void> {
   const appDir = join(repositoryRoot, 'apps', app.name)
   const platforms = resolveFpkPlatforms({ appName: app.name, declared: app.platform, requested })
   const releaseTag = await resolveReleaseTag()
   const baseline = requireDshBaseline()
-  // 本次构建将要产出的全部名字：多平台时先产出的那份不属于「可能拿错的旧包」。
+  const distDirectory = await prepareFpkDistDirectory(appDir)
+  // 本次构建将要产出的全部名字：多平台时先产出的那份属于本次构建，不该被报成外来产物。
   // 平台与目标名配对成一条记录，避免后续按下标取名字取空。
   const artifacts = platforms.map(platform => ({
     platform,
@@ -408,16 +412,23 @@ async function buildFpkAppForPlatforms(app: FpkApp, requested?: FpkPlatform[]): 
   for (const artifact of artifacts) {
     console.log(`\nBuilding FPK: ${app.name} (${artifact.platform})`)
     await withStagedFpkPlatform(appDir, artifact.platform, async stageDirectory => {
-      // 产物落在**调用时的工作目录**（实测：`--directory` 只指定源码目录），因此 cwd
-      // 用应用目录，包直接进发布目录，不需要跨设备搬运。
-      await runCommand('fnpack', ['build', '--directory', stageDirectory], appDir)
+      // fnpack 把产物写在**调用时的工作目录**（实测：`--directory` 只决定源码位置），
+      // 因此 cwd 用 dist 目录，固定名产物直接落进产物目录，不路过应用根目录。
+      await runCommand('fnpack', ['build', '--directory', stageDirectory], distDirectory)
     })
-    await renameFpkForRelease(app, artifact.target, targets)
+    await finalizeFpkArtifactInDist(app, distDirectory, artifact.target, targets)
+  }
+
+  // 迁移前遗留的历史产物不删（删除不是构建的职权），但要说清它们已不在产物路径上，
+  // 否则有人会继续去应用根目录找本次的包。
+  const legacy = await listLegacyRootArtifacts(appDir)
+  if (legacy.length > 0) {
+    console.warn(`  提示：apps/${app.name} 根目录还有 ${legacy.length} 份历史 FPK（FNOS-044 之前的产物落点），本次产物不在那里：${legacy.join('、')}`)
   }
 }
 
 /**
- * 把 `fnpack` 产出的固定名 FPK 改成发布用的带平台、带版本名。
+ * 把 `fnpack` 落在 `dist/` 的固定名产物落成发布名。
  *
  * 与 `.github/workflows/build-app.yml` 的「Verify versioned FPK artifacts」保持一致：
  *
@@ -433,22 +444,28 @@ async function buildFpkAppForPlatforms(app: FpkApp, requested?: FpkPlatform[]): 
  * `pnpm run version` 会打出的形态。
  *
  * 取源文件一律用 fnpack 的固定产物名 `<app>.fpk`（见 `core/fpk-artifacts.ts`），
- * 不能扫目录里「第一个 .fpk」：上一次构建残留的版本化产物会排在前面，导致旧包
- * 被改名成新名字、新包留在原名，产物名字与内容对不上。
+ * 不能扫目录里「第一个 .fpk」：残留的旧包会排在前面被选中，导致旧包被落成新名字、
+ * 新包留在原名，产物名字与内容对不上。
  */
-async function renameFpkForRelease(
+async function finalizeFpkArtifactInDist(
   app: FpkApp,
+  distDirectory: string,
   target: string,
   currentBuild: readonly string[],
 ): Promise<void> {
-  const appDir = join(repositoryRoot, 'apps', app.name)
-  const result = await renameFpkToRelease(appDir, app.name, target, currentBuild)
-  console.log(`Release FPK: apps/${app.name}/${result.to}`)
+  const result = await finalizeFpkArtifact({
+    distDirectory,
+    appName: app.name,
+    target,
+    currentBuild,
+  })
+  console.log(`Release FPK: apps/${app.name}/${FPK_DIST_DIRECTORY}/${result.file}`)
   if (result.replacedStaleTarget) {
-    console.log(`  已覆盖同名的上一轮产物（此前存在 ${result.to}）`)
+    // dist 每次构建都先清空，同一次构建里撞名只可能是命名模板不含平台段这类缺陷。
+    console.warn(`  警告：${result.file} 在本次构建内被重复产出，命名模板可能缺少平台段`)
   }
-  if (result.leftovers.length > 0) {
-    console.warn(`  警告：apps/${app.name} 下还有其它 FPK，装机时容易拿错：${result.leftovers.join('、')}`)
+  if (result.unexpected.length > 0) {
+    console.warn(`  警告：dist 目录里出现不属于本次构建的 FPK：${result.unexpected.join('、')}`)
   }
 }
 

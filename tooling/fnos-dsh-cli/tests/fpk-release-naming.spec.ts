@@ -91,16 +91,49 @@ describe('FPK 产物命名与 CI workflow 一致', () => {
     expect(WORKFLOW).toMatch(/was not produced/u)
   })
 
+  it('CI 核对与上传都在 dist 产物目录里进行', () => {
+    // FNOS-044：产物落 apps/<app>/dist/。CI 若仍指向应用目录，核对会因找不到文件而
+    // 失败——但那属于「路径没跟着改」，必须由用例先发现，而不是等 Actions 跑挂。
+    const workingDirectories = [...WORKFLOW.matchAll(/working-directory: (\S+)/gu)].map(match => match[1])
+    expect(workingDirectories).toContain('apps/fn-deepseek-harness/dist')
+    // 核对与上传两步都要在 dist；应用目录本身不再是产物位置。
+    expect(workingDirectories.filter(dir => dir === 'apps/fn-deepseek-harness/dist').length).toBe(2)
+    expect(workingDirectories).not.toContain('apps/fn-deepseek-harness')
+  })
+
+  it('CI 不做「固定名顺手改名」的兜底', () => {
+    // dist 里出现 fnpack 固定名只可能是构建的落成步骤没跑成。CI 静默补一刀会把
+    // 发布链路上的真缺陷藏起来，宁可失败退出。
+    expect(WORKFLOW).not.toMatch(/^\s*mv fn-deepseek-harness\.fpk/u)
+  })
+
   it('CI 上传全部平台的产物，任一失败即整体失败', () => {
     expect(WORKFLOW).toMatch(/for ASSET_PATH in \$FPK_FILES/u)
     expect(WORKFLOW).toMatch(/unable to upload after/u)
   })
 
-  it('构建流程在打包之后按平台改名', () => {
+  it('构建流程在打包之后于 dist 内落成发布名', () => {
     // 只加函数不接线是最容易犯的错：产物仍是旧名，且没有任何报错。
     expect(BUILD).toMatch(
-      /await runCommand\('fnpack', \['build', '--directory', stageDirectory\], appDir\)[\s\S]{0,200}await renameFpkForRelease\(app, artifact\.target, targets\)/u,
+      /await runCommand\('fnpack', \['build', '--directory', stageDirectory\], distDirectory\)[\s\S]{0,200}await finalizeFpkArtifactInDist\(app, distDirectory, artifact\.target, targets\)/u,
     )
+  })
+
+  it('fnpack 的 cwd 是 dist 目录，不是应用根目录', () => {
+    // 产物落点由调用时的工作目录决定。cwd 写成应用目录，产物就会先在根目录出现
+    // 再搬进 dist——正是本次改动要消灭的「根目录堆产物」。
+    expect(BUILD).toMatch(/, distDirectory\)/u)
+    expect(BUILD).not.toMatch(/'fnpack', \['build', '--directory', stageDirectory\], appDir\)/u)
+  })
+
+  it('dist 的清空在平台循环之外', () => {
+    // 放进循环里，第二个平台开工时会先把第一个平台刚产出的包删掉：双平台构建只剩
+    // 一份，而构建全程报成功。
+    const prepare = BUILD.indexOf('await prepareFpkDistDirectory(appDir)')
+    const loop = BUILD.indexOf('for (const artifact of artifacts)')
+    expect(prepare).toBeGreaterThan(-1)
+    expect(loop).toBeGreaterThan(-1)
+    expect(prepare).toBeLessThan(loop)
   })
 
   it('平台与目标名配对成一条记录，不按下标对齐两个数组', () => {

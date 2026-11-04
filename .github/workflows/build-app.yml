@@ -66,14 +66,18 @@ jobs:
       # 模板与 `tooling/fnos-dsh-cli/src/core/fpk-artifacts.ts` 的 `fpkReleaseFileName`
       # 同形，由 `tests/fpk-release-naming.spec.ts` 钉住：任一侧改了模板而另一侧没跟上，
       # 该用例即失败。
+      #
+      # 产物在 `dist/`（FNOS-044）：构建每次先清空该目录，所以里面有的就是本次产出的。
+      # 这里**不做**「发现 fnpack 固定名就顺手改名」的兜底——dist 里出现固定名只可能是
+      # 构建的落成步骤没跑成，CI 静默补一刀会把发布链路上的真缺陷藏起来。
       - name: Verify versioned FPK artifacts
         id: rename
-        working-directory: apps/fn-deepseek-harness
+        working-directory: apps/fn-deepseek-harness/dist
         run: |
           set -euo pipefail
 
           DSH_BASELINE="$(sed -nE "s/^  '@deepseek-ai\/dsh':[[:space:]]*([^[:space:]]+)[[:space:]]*$/\1/p" \
-            ../../pnpm-workspace.yaml | head -n 1)"
+            ../../../pnpm-workspace.yaml | head -n 1)"
           if [ -z "$DSH_BASELINE" ]; then
             echo "ERROR: DSH baseline not found in pnpm-workspace.yaml catalog" >&2
             exit 1
@@ -86,16 +90,9 @@ jobs:
           for PLATFORM in x86 arm; do
             VERSIONED_FPK="fn-deepseek-harness-${PLATFORM}-${RELEASE_TAG}-dsh-${DSH_BASELINE}.fpk"
             if [ ! -f "$VERSIONED_FPK" ]; then
-              # 构建命令自身已按当前 tag 命名好产物（检出里就是该 tag），正常到这里即已
-              # 存在。兜底分支只在异常情况下生效，且必须按 fnpack 固定名取源——扫目录
-              # 取第一个正是 FNOS-037 修掉的错配来源。
-              if [ -f fn-deepseek-harness.fpk ]; then
-                mv fn-deepseek-harness.fpk "$VERSIONED_FPK"
-              else
-                echo "ERROR: ${VERSIONED_FPK} was not produced" >&2
-                ls -1 ./*.fpk >&2 2>/dev/null || echo "(no .fpk file in this directory)" >&2
-                exit 1
-              fi
+              echo "ERROR: ${VERSIONED_FPK} was not produced in apps/fn-deepseek-harness/dist" >&2
+              ls -1 ./*.fpk 2>/dev/null || echo "(no .fpk file in this directory)" >&2
+              exit 1
             fi
             FPK_FILES+=("$VERSIONED_FPK")
             echo "Prepared ${VERSIONED_FPK}"
@@ -104,7 +101,7 @@ jobs:
           printf 'fpk_files=%s\n' "${FPK_FILES[*]}" >> "$GITHUB_OUTPUT"
 
       - name: Upload FPK assets to release
-        working-directory: apps/fn-deepseek-harness
+        working-directory: apps/fn-deepseek-harness/dist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FPK_FILES: ${{ steps.rename.outputs.fpk_files }}

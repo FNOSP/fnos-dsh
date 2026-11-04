@@ -1,5 +1,7 @@
 # fnOS 打包产物
 *.fpk
+# FPK 产物目录（FNOS-044）：每次构建先清空，只装本次产物
+apps/*/dist/
 
 # Claude Code 配置
 .claude/

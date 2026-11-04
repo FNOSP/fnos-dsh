@@ -206,6 +206,33 @@ describe('withStagedFpkPlatform', () => {
     })
   })
 
+  it('排除应用根下的 dist/ 产物目录', async () => {
+    // FNOS-044：dist 就在应用目录里。不排除会把上一次（乃至本次已产出的另一个平台）
+    // 的包复制进副本，打进新包里。
+    const source = await makeDir('fpk-src-')
+    await writeFile(join(source, 'manifest'), MANIFEST)
+    await mkdir(join(source, 'dist'))
+    await writeFile(join(source, 'dist', 'demo-x86-v1.0.0-dsh-0.1.0.fpk'), '上一次产物')
+
+    await withStagedFpkPlatform(source, 'arm', async stage => {
+      expect(existsSync(join(stage, 'dist'))).toBe(false)
+      expect(existsSync(join(stage, 'manifest'))).toBe(true)
+    })
+  })
+
+  it('只排应用根下的 dist，不误删运行时里的同名嵌套目录', async () => {
+    // 产物目录的位置是确定的（应用根下 dist/）。按任意深度排除会连 app/ui/dist/
+    // 这类运行时内容一起静默丢掉——那正是本需求要避免的「按方便写规则、漏项无人发现」。
+    const source = await makeDir('fpk-src-')
+    await writeFile(join(source, 'manifest'), MANIFEST)
+    await mkdir(join(source, 'app', 'ui', 'dist'), { recursive: true })
+    await writeFile(join(source, 'app', 'ui', 'dist', 'index.html'), '<!-- 入口页面 -->')
+
+    await withStagedFpkPlatform(source, 'x86', async stage => {
+      expect(await readFile(join(stage, 'app', 'ui', 'dist', 'index.html'), 'utf8')).toContain('入口页面')
+    })
+  })
+
   it('应用目录本身位于名为 tests 或 node_modules 的父路径下时仍完整复制', async () => {
     // filter 拿到的是绝对源路径。若按绝对路径匹配排除段，检出被放在
     // `…/tests/fnos-dsh/apps/demo` 这类位置时整个应用会被排除干净，产出一个空包。

@@ -44,7 +44,7 @@ pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins
 pnpm run build -- --fpk --app fn-deepseek-harness --skip-bundle-dsh-plugins --platform x86 --platform arm
 ```
 
-`--platform` 可重复给出，取值只有 `x86` 与 `arm`，非法值直接报错。产物名 `fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>.fpk`；`fnpack` 没有平台参数，包内平台声明由构建为每个平台准备的临时副本决定，仓库 `manifest` 不被写入。细节见[fnpack 打包](../build/fnpack)与[CI 构建](../build/ci)。
+`--platform` 可重复给出，取值只有 `x86` 与 `arm`，非法值直接报错。产物名 `fn-deepseek-harness-<平台>-<Tag>-dsh-<DSH 基线>.fpk`，落在 `apps/fn-deepseek-harness/dist/`（每次构建先清空，产物不落应用根目录）；`fnpack` 没有平台参数，包内平台声明由构建为每个平台准备的临时副本决定，仓库 `manifest` 不被写入。细节见[fnpack 打包](../build/fnpack)与[CI 构建](../build/ci)。
 
 ## 文档开发
 

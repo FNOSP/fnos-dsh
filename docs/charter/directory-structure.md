@@ -35,7 +35,7 @@ description: fnOS DSH Monorepo 的目录职责、文件归属、命名和新增�
 
 根目录中的 `package.json`、`pnpm-workspace.yaml`、`turbo.json`、TypeScript 配置、Lint 配置和 CI 配置属于仓库级入口，不应复制到功能子目录中。
 
-以下目录属于本地或构建产物，禁止提交业务源码和配置：`node_modules/`、`lib/`、`.turbo/`、`tmp/`、`data/`、`.dsh/`、`docs/.vitepress/dist/` 以及应用构建生成的 `app/native/`、插件归档等目录。
+以下目录属于本地或构建产物，禁止提交业务源码和配置：`node_modules/`、`lib/`、`.turbo/`、`tmp/`、`data/`、`.dsh/`、`docs/.vitepress/dist/`、`apps/*/dist/`（FPK 产物，约定见下文「fnOS 应用目录」）以及应用构建生成的 `app/native/`、插件归档等目录。
 
 ## 临时脚本目录：`tmp/`
 
@@ -75,6 +75,7 @@ apps/<app-name>/
 ├── cmd/                     # 安装、启动、升级、卸载等生命周期入口
 ├── config/                  # privilege、resource 等 fnOS 配置
 ├── wizard/                  # install、upgrade、config、uninstall 向导
+├── dist/                    # FPK 构建产物（git 忽略；每次构建先清空）
 ├── ICON.PNG                 # 平台要求的应用图标
 └── README.md                # 历史或实现参考，不作为现行用户文档入口
 ```
@@ -85,6 +86,7 @@ apps/<app-name>/
 - 生命周期脚本必须进入 `cmd/`，向导脚本必须进入 `wizard/`。
 - fnOS 平台要求的固定文件名（例如 `manifest`、`ICON.PNG`、`cmd/main`）保留平台命名，不套用通用文件命名规则。
 - 网关、native 文件和插件归档等构建生成物必须由构建脚本写入，并保持在 `.gitignore` 约定的目录内。
+- **FPK 产物只进 `apps/<app-name>/dist/`**（FNOS-044）：应用根目录是构建输入的位置，产物混在里面会让历史包与本次包平铺在一起、装机时容易拿错。`dist/` 每次构建先清空，因此目录里的内容就等于「这一次产出了什么」。产物目录归属各应用，不设跨应用共享的根级 `dist/`。
 
 ## workspace 包目录：`packages/`
 

@@ -11,13 +11,20 @@ import { writeManifestPlatform, type FpkPlatform } from './fpk-platform.js'
  *
  * - `tests`：真机取证产物，实测单目录 2.9 GB，fnpack 不打包。
  * - `node_modules`：依赖树，fnpack 不打包；网关产物在 `app/` 下，不受影响。
- * - `*.fpk`：历史产物，打进新包既无意义又把包体积翻倍。
+ * - 应用**根下**的 `dist`：FNOS-044 起的产物目录。不排除会把上一次（乃至本次已产出的
+ *   另一个平台）的包复制进副本。
+ * - `*.fpk`：迁移前遗留在应用根目录的历史产物，打进新包既无意义又把包体积翻倍。
+ *
+ * `dist` 只排**应用根那一个**，不排任意深度：产物目录的位置是确定的，而任意深度排除会
+ * 连 `app/ui/dist/` 这类运行时内容一起静默丢掉——那正是本需求在排除规则上要避免的
+ * 「按方便写规则、漏项无人发现」的错法。`tests` 与 `node_modules` 则任意深度都该排。
  *
  * 必须按相对路径判断：`cp` 的 filter 拿到的是绝对源路径，若检出本身位于某个
  * `node_modules` 或 `tests` 之下，按绝对路径匹配会把**整个应用**排除掉、产出一个
  * 空包。相对路径把判断范围钉在应用目录内。
  */
 const STAGE_EXCLUDED_SEGMENTS = new Set(['tests', 'node_modules'])
+const STAGE_EXCLUDED_ROOT_DIRECTORIES = new Set(['dist'])
 
 function stageFilter(sourceRoot: string) {
   return (source: string): boolean => {
@@ -25,6 +32,7 @@ function stageFilter(sourceRoot: string) {
     if (relativePath === '') return true
     const segments = relativePath.split(sep)
     if (segments.some(segment => STAGE_EXCLUDED_SEGMENTS.has(segment))) return false
+    if (segments.length === 1 && STAGE_EXCLUDED_ROOT_DIRECTORIES.has(segments[0]!)) return false
     return !source.endsWith('.fpk')
   }
 }
@@ -42,9 +50,9 @@ function stageFilter(sourceRoot: string) {
  * （2026-11-04 实测：改副本的 platform 值后打包，包内清单与既有产物逐行比对只有
  * 平台行与包自身校验值不同，成员清单完全一致）。
  *
- * `fnpack build --directory <副本>` 的产物落在**调用时的工作目录**（实测），因此
- * 调用方把 cwd 设为应用目录、`--directory` 设为这里给出的副本路径，产物就直接进发布
- * 目录，不需要跨设备搬运。
+ * `fnpack build --directory <副本>` 的产物落在**调用时的工作目录**（实测，与
+ * `--directory` 无关），因此调用方把 cwd 设为 `apps/<app>/dist/`，产物就直接进产物
+ * 目录，不需要跨设备搬运，也不会路过应用根目录。
  *
  * 复制保留文件模式（生命周期脚本的 0755 由 fnpack 带进包里），并用 `dereference`
  * 展开软链接，避免副本里的链接指向构建机上不可达的位置。

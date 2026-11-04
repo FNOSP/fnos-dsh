@@ -22,6 +22,7 @@ verifiedAt: 2026-11-04
 | [FNOS-044-03](/requirements/FNOS-044-fpk-platform-selection#fnos-044-03) | 产物名带平台段 | 命名模板两侧（本地 / CI）不同形；多平台时把同批产物报成残留 |
 | [FNOS-044-04](/requirements/FNOS-044-fpk-platform-selection#fnos-044-04) | Release 分发双平台包 | `find … -print -quit` 取第一个：两份包只传上其中一份且步骤报成功 |
 | [FNOS-044-05](/requirements/FNOS-044-fpk-platform-selection#fnos-044-05) | 构建任务选项顺序 | 顺序改动无守卫，回退无人发现 |
+| [FNOS-044-06](/requirements/FNOS-044-fpk-platform-selection#fnos-044-06) | 产物落 `dist/` 且每次清空 | 清空放进平台循环里会删掉前一个平台的产物而构建仍报成功；排除规则按任意深度排 `dist` 会静默丢掉运行时内容 |
 
 ❓ 未决：ARM 包在真实 ARM64 NAS 上能否安装（发布方无 ARM 设备，见第 2 节）。issue #28 列出的三个待验证点已核实两项：`node-pty` 带 `linux-arm64` 预编译产物、`koffi` 带 `@koromix/koffi-linux-arm64` 可选依赖（安装期原生依赖成立，运行时能否加载仍需设备反馈）；网关依赖为纯 JS 且产物内无 `.node` 二进制（成立）。**唯一剩余的硬前置**是 fnOS ARM64 是否提供 `nodejs_v24` 系统包——应用不内置 Node，这一项不成立则 ARM 包在安装依赖阶段就失败。
 
@@ -92,6 +93,23 @@ verifiedAt: 2026-11-04
 | TC-031 | AC-01 | 顺序为 fpk、docs、plugins | 交互 | mock 后调用 | options 值顺序为 `['fpk','docs','plugins']` | P2 |
 | TC-032 | AC-01 | 实跑确认界面呈现 | 终端 | `pnpm run build` | Harness 插件在最后一行 | P2 |
 
+### FNOS-044-03 产物落 dist（追加）与 FNOS-044-06 每次清空
+
+| 用例 ID | 覆盖 | 标题 | 前置 | 步骤 | 预期 | 优先级 |
+| --- | --- | --- | --- | --- | --- | --- |
+| TC-033 | 03-AC-04 | fnpack 的 cwd 是 dist 而非应用根目录 | — | 读 build.ts 接线 | `runCommand('fnpack', …, distDirectory)`；不残留 `…, appDir)` 形态 | P0 |
+| TC-034 | 03-AC-01 | 在 dist 内落成发布名，固定名不残留 | dist 目录含固定名 | 调用落成函数 | 目录里只剩最终文件名 | P0 |
+| TC-035 | 06-AC-01 | 构建前清空 dist 里上一次的产物 | dist 含旧包 | 调用清空函数 | 目录为空 | P0 |
+| TC-036 | 06-AC-03 | 清空只作用 dist，不越界删应用内容 | dist 有旧包、根有历史包、`app/` 有输入 | 调用清空函数 | `manifest`、`app/`、根目录历史包都在，只有 dist 被清 | P0 |
+| TC-037 | 06-AC-01 | 清空在平台循环之外 | — | 读 build.ts 语句顺序 | `prepareFpkDistDirectory` 的位置早于 `for (const artifact …)` | P0 |
+| TC-038 | 06-AC-02 | 只选一个平台时不留另一平台的包 | 双平台已构建 | 单平台再构建后列目录 | dist 里只有本次那一份 | P0 |
+| TC-039 | 03-AC-04 | 根目录历史包被提示但不删除 | 根目录放一份历史 fpk | 实跑构建 | 输出提示且文件仍在 | P1 |
+| TC-040 | 06-AC-04 | fnpack 校验失败不往产物目录写半份包 | 缺必需文件的源 | 直接跑 fnpack | 失败退出且 cwd 目录为空 | P1 |
+| TC-041 | 03 | dist 不会被复制进暂存副本（产物不混进包里） | 应用含根下 dist | 检查副本 | 副本内无 dist | P0 |
+| TC-042 | 03 | 嵌套的运行时 dist 不被误排除 | `app/ui/dist/index.html` | 检查副本 | 该文件仍在副本内 | P1 |
+| TC-043 | 04-AC-01 | CI 核对与上传都在 dist 工作目录 | — | 读 workflow | 两处 `working-directory: apps/fn-deepseek-harness/dist` | P0 |
+| TC-044 | 04-AC-01 | CI 不做「固定名顺手改名」兜底 | — | 读 workflow | 无 `mv fn-deepseek-harness.fpk` | P1 |
+
 ## 测试执行结果
 
 | 用例 | 结果 | 执行日期 | 证据 |
@@ -110,6 +128,12 @@ verifiedAt: 2026-11-04
 | TC-030 | 通过 | 2026-11-04 | `docs/build/ci.md`、`docs/apps/fn-deepseek-harness.md`、`docs/charter/app-listing-spec.md` 三处口径 |
 | TC-031 | 通过 | 2026-11-04 | `tests/prompts.spec.ts` 顺序断言 |
 | TC-032 | 未执行 | — | 需要人工在终端确认视觉呈现；顺序由 TC-031 的守卫用例钉住 |
+| TC-033、TC-034、TC-037、TC-041、TC-042、TC-043、TC-044 | 通过 | 2026-11-04 | `tests/fpk-release-naming.spec.ts`（cwd、清空顺序、落成接线、CI 工作目录与无兜底）、`tests/fpk-platform.spec.ts`（dist 排除与嵌套 dist 保留）；CLI 全量 156 条全绿 |
+| TC-035、TC-036 | 通过 | 2026-11-04 | `tests/fpk-artifacts.spec.ts`：清空上一次产物、只清 dist 不越界（`manifest`/`app/`/根目录历史包均保留） |
+| TC-038 | 通过 | 2026-11-04 | 实跑：双平台构建后 `dist/` 两份；再只选 x86 构建后 `dist/` 只剩 x86 一份 |
+| TC-039 | 通过 | 2026-11-04 | 实跑：根目录放一份历史 fpk 后构建，输出「根目录还有 1 份历史 FPK…本次产物不在那里」，文件仍在 |
+| TC-040 | 通过 | 2026-11-04 | 实测：缺 `cmd/main` 的源跑 `fnpack build`，`Packing failed` 且 cwd 目录为空 |
+| TC-041（实跑补充） | 通过 | 2026-11-04 | 双平台实跑后 `tar -tzf` 产物成员内无 `dist` 路径（0 命中），产物目录没有被打进包里 |
 | ARM 真机装机 | 未执行 | — | 发布方无 ARM64 设备。待社区反馈，见 Bug/风险记录 |
 
 **等价性补充验证**（暂存副本方案的决定性风险）：对同一份输入分别执行「直接打包」与「副本打包」，`app.tgz` 成员 63 项一致、解包后 `diff -rq` 无内容差异，包内 manifest 仅 `checksum` 一行不同（fnpack 自身的非确定性，与本次改动无关）。
@@ -124,8 +148,13 @@ verifiedAt: 2026-11-04
 
 ## 测试结论
 
-FNOS-044-01、02、03、05 的包级用例与本地实跑全部通过；FNOS-044-04 的 CI 脚本逻辑已在本地按同形数据干跑验证，线上实跑随下一次发布执行。
+FNOS-044-01、02、03、05、06 的包级用例与本地实跑全部通过（44 条用例：43 通过 / 1 未执行）；FNOS-044-04 的 CI 脚本逻辑已在本地按同形数据干跑验证，线上实跑随下一次发布执行。
 
 **遗留风险（不阻塞本轮合入，但阻塞「ARM 支持已完成」的结论）**：ARM 包未经任何真实 ARM64 设备验证。issue #28 列的三个待验证点里，`node-pty` 的 aarch64 预编译产物与网关侧原生依赖已在 2026-11-04 核实为不存在障碍（前者带 `linux-arm64`，后者 `koffi` 带 `@koromix/koffi-linux-arm64`、网关自身纯 JS 且产物无 `.node`）；运行时能否加载成功仍需设备反馈。剩下的硬前置是 **fnOS ARM64 是否提供 `nodejs_v24` 系统包**——应用不内置 Node，这一项不成立则 ARM 包在安装依赖阶段就失败。文档与应用页已把 ARM 包标注为社区自测，上架仍只交已验证的 x86 包。
 
-变异验证：临时去掉命名模板的平台段、把副本改写换成不改写、把构建任务顺序改回原样，对应 8 条用例变红；还原后 144 条全绿。
+变异验证（两轮）：
+
+1. 平台维度：去掉命名模板的平台段、把副本改写换成不改写、把构建任务顺序改回原样 → 8 条用例变红。
+2. 产物目录：把 `dist` 清空挪进平台循环、把 fnpack 的 cwd 改回应用根目录、去掉副本对根下 `dist/` 的排除 → 4 条用例变红（含「清空在循环之外」「cwd 是 dist」「排除根下 dist」三条专为此设计的行为/接线断言）。
+
+两轮还原后 CLI 全量 156 条全绿。
