@@ -119,7 +119,7 @@ Notes specific to RDP mode:
 - `--displayId` and `--headless` are **ignored** in RDP mode. A connected RDP session always exposes a single virtual display whose size is whatever the server negotiated.
 - Two display-listing commands exist and behave differently — pick the right one:
   - `list_displays` (with underscore, platform tool) — enumerates **local** physical displays only. Does not accept RDP flags. Useless after an RDP connect.
-  - `listdisplays` (no underscore, action tool) — accepts the same RDP flags as `connect`/`take_screenshot`/etc. In RDP mode it returns the negotiated virtual display, e.g. `[{ "id": "...", "name": "RDP 10.70.86.26:3389 (1280x720)", "primary": true }]`. Use this to verify the actual resolution.
+  - `listdisplays` (no underscore, action tool) — accepts the same RDP flags as `connect`/`take_screenshot`/etc. In RDP mode it returns the negotiated virtual display, e.g. `[{ "id": "...", "name": "RDP 192.0.2.30:3389 (1280x720)", "primary": true }]`. Use this to verify the actual resolution.
 - The RDP transport uses a native helper binary shipped inside `@midscene/computer`. If you see `RDP helper binary not found` errors, the optional `bin/<platform>/rdp-helper` was stripped from your install — reinstall the package or unpack a fresh tarball.
 - Treat RDP credentials as secrets: do not commit `.env` files containing `--password` to the repo; prefer `export RDP_PASSWORD=...` in the current shell and reference it as `--password "$RDP_PASSWORD"`.
 - **Latency expectations**: every CLI invocation is a fresh node process, so each command re-establishes the RDP session. Budget roughly:

@@ -5,7 +5,7 @@ import { formatTrustedHostIssues, validateTrustedHosts } from '../src/install-ca
 /**
  * FNOS-043：「可信访问地址」的校验（issue #30）。
  *
- * 事故链条：向导放行 `http://192.168.1.112` → DSH 的 `assertTrustedAuthority()`
+ * 事故链条：向导放行 `http://192.0.2.10` → DSH 的 `assertTrustedAuthority()`
  * 以「不是裸 host[:port]」拒绝 → `connection` 是 required 插件 → `dsh web`
  * exit 1 → 界面报「请检查 Node.js 依赖」，用户无法自救。
  *
@@ -14,8 +14,8 @@ import { formatTrustedHostIssues, validateTrustedHosts } from '../src/install-ca
  */
 
 const accepted = [
-  '192.168.1.112',
-  '192.168.1.112:5666',
+  '192.0.2.10',
+  '192.0.2.10:5666',
   'nas',
   'nas.local',
   'nas.local:5666',
@@ -27,9 +27,9 @@ const accepted = [
 ]
 
 const rejected: Array<[string, string]> = [
-  ['http://192.168.1.112', 'scheme'],
+  ['http://192.0.2.10', 'scheme'],
   ['https://nas', 'scheme'],
-  ['192.168.1.112/', 'path'],
+  ['192.0.2.10/', 'path'],
   ['nas/web', 'path'],
   ['user@nas', 'userinfo'],
   ['nas 5666', 'whitespace'],
@@ -79,8 +79,8 @@ describe('FNOS-043 单条目判定与 DSH 一致', () => {
   })
 
   it('日志文案带上条目原文与原因', () => {
-    const detail = formatTrustedHostIssues(validateTrustedHosts('http://192.168.1.112').issues)
-    expect(detail).toContain('http://192.168.1.112')
+    const detail = formatTrustedHostIssues(validateTrustedHosts('http://192.0.2.10').issues)
+    expect(detail).toContain('http://192.0.2.10')
     expect(detail).toContain('协议头')
   })
 })
@@ -204,8 +204,8 @@ describe('FNOS-043 三份向导必须一致', () => {
   it('三份都拒绝带协议头的写法', () => {
     for (const entry of patterns) {
       const regex = new RegExp(entry.pattern ?? '', 'u')
-      expect(regex.test('http://192.168.1.112'), entry.file).toBe(false)
-      expect(regex.test('192.168.1.112:5666'), entry.file).toBe(true)
+      expect(regex.test('http://192.0.2.10'), entry.file).toBe(false)
+      expect(regex.test('192.0.2.10:5666'), entry.file).toBe(true)
     }
   })
 })

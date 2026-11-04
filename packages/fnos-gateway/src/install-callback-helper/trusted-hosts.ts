@@ -1,7 +1,7 @@
 /**
  * 「可信访问地址」的校验：与 DSH `client-connection` 的接受条件保持一致。
  *
- * 背景（issue #30）：向导里填 `http://192.168.1.112` 能让安装完成，但 DSH 的
+ * 背景（issue #30）：向导里填 `http://192.0.2.10` 能让安装完成，但 DSH 的
  * `assertTrustedAuthority()` 只接受**规范化的裸 authority**（`host` 或
  * `host:port`，要经 WHATWG 解析后原样还原）。带 scheme、路径、`user@`、空白、
  * 悬空冒号或补零端口都会被它拒绝；`connection` 是 required 插件，于是
