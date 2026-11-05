@@ -2,7 +2,7 @@
 id: PLAN-FNOS-045
 title: PLAN-FNOS-045 应用与插件多语言支持
 description: 用 fnOS 包内 i18n 目录本地化元数据、入口与向导；用 DSH 客户端语言包为随包插件补齐九种语言；用飞牛 JS SDK 把系统语言同步到 DSH 语言。
-status: in-progress
+status: completed
 owner: tnnevol
 targetVersion: 7.1.0
 lastVerified: 2026-11-04
@@ -14,7 +14,7 @@ lastVerified: 2026-11-04
 | --- | --- |
 | 计划编号 | PLAN-FNOS-045 |
 | 关联需求 | [FNOS-045 应用与插件多语言支持](/requirements/FNOS-045-app-plugin-i18n) |
-| 计划状态 | 实施中 |
+| 计划状态 | 已完成（2026-11-05 真机验收通过） |
 | 适用范围 | 应用包 i18n 目录、向导与入口占位符、六个随包插件语言包、fnOS 语言同步 |
 
 ## 现状与目标
@@ -148,7 +148,7 @@ export const PLUGIN_LANGUAGES = [
 | T01 应用包本地化 | 已完成 | 九份 `i18n/<locale>`（46 键 × 9 + 六 section），`manifest` 三字段与入口标题占位符化，四个向导全部文本占位符化；`check --i18n` 通过，构建产物含 9 个语言文件 |
 | T02 插件语言包 | 已完成 | 六个插件各七份字典（42 个文件），`language-pack.ts` 统一注册，`index` 接线完成，`tsc` 与插件测试全绿 |
 | T03 语言同步 | 已完成 | `language-sync.ts`：`getPlatformConfig` + `$on('os/language')` + `setLocale`，未注册语言与未知语言均安全回退；15 条单测 |
-| T04 文档与验证 | 已完成 | 需求/计划/用例三份 + 三处索引与侧栏；`check --sdd`、`check --i18n`、`check --all` 与 docs 构建通过；真机语言切换待验证 |
+| T04 文档与验证 | 已完成 | 需求/计划/用例三份 + 三处索引与侧栏 + [真机验收记录](/validation/FNOS-045-nas-2026-11-05)；`check --sdd`、`check --i18n`、`check --all` 与 docs 构建通过；真机验收通过（x86_64，九种语言） |
 
 ## 变更记录
 

@@ -419,6 +419,10 @@ const requirementsSidebar = [
         text: 'FNOS-045 应用与插件多语言支持',
         link: '/requirements/FNOS-045-app-plugin-i18n'
       },
+      {
+        text: 'FNOS-046 DSH 0.2.2-rc.1 插件适配与基线升级',
+        link: '/requirements/FNOS-046-dsh-022-rc1-adaptation'
+      },
       ]
   }
 ]
@@ -607,6 +611,10 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-045 应用与插件多语言支持',
         link: '/plans/PLAN-FNOS-045-app-plugin-i18n'
+      },
+      {
+        text: 'PLAN-FNOS-046 DSH 0.2.2-rc.1 插件适配与基线升级',
+        link: '/plans/PLAN-FNOS-046-dsh-022-rc1-adaptation'
       },
     ]
   }
