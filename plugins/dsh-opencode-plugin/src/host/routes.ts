@@ -11,11 +11,20 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import type { OpenCodeCatalog } from '../contracts/catalog.ts'
+import type {
+  OpenCodeAccountEntitlement,
+  OpenCodeCatalog,
+  OpenCodeCatalogEntitlement,
+} from '../contracts/catalog.ts'
+import {
+  estimatesForPlan,
+  OPENCODE_ESTIMATES_FETCHED_AT,
+  OPENCODE_ESTIMATES_SOURCE_URL,
+} from '../contracts/estimates.ts'
 import type { OpenCodePlan } from '../contracts/identity.ts'
 import { OPENCODE_ROUTES } from '../contracts/routes.ts'
 import type { OpenCodeAuthService } from './auth.ts'
-import { applyCatalogView } from './catalog.ts'
+import { applyCatalogView, type CatalogViewOptions } from './catalog.ts'
 import type { OpenCodeCatalogService } from './catalog.ts'
 import type { OpenCodePreferencesStore } from './preferences.ts'
 import type { OpenCodeRouteStatus } from './provider.ts'
@@ -23,6 +32,13 @@ import type { OpenCodeUsageService } from './usage.ts'
 
 /** 请求体上限：只有少量表单字段。 */
 const REQUEST_BODY_LIMIT = 16 * 1024
+
+/** 未注入套餐服务时的保守快照：不整侧过滤、保持原生端点。 */
+const UNKNOWN_ENTITLEMENT: OpenCodeAccountEntitlement = {
+  plan: 'unknown',
+  source: 'none',
+  fetchedAt: 0,
+}
 
 /** 来源不受信任时的错误码（与客户端文案对应）。 */
 export const OPENCODE_ORIGIN_NOT_TRUSTED = 'remote-web-origin-not-trusted'
@@ -137,11 +153,12 @@ export interface OpenCodeRoutesOptions {
   /** 两组供应商路由的注册状态，供详情页诊断。 */
   readonly routes: () => readonly OpenCodeRouteStatus[]
   /**
-   * 账号套餐来源，用于去掉跨来源重复的模型条目。
+   * 账号套餐快照。
    *
-   * 同一模型在 zen 与 go 都出现时目录里只保留这一侧的条目；不传时保留全部。
+   * 详情页目录与模型选择器都按它做整侧过滤与额度排序；不传时按「套餐未知」
+   * 处理，保持合并列表与原生端点（等于未登录时的行为）。
    */
-  readonly ownedPlan?: () => Promise<OpenCodePlan>
+  readonly entitlement?: () => Promise<OpenCodeAccountEntitlement>
   /**
    * 当前生效的推理端点策略。
    *
@@ -151,24 +168,141 @@ export interface OpenCodeRoutesOptions {
   readonly endpointPlan?: () => Promise<OpenCodePlan | 'auto'>
 }
 
+/** 一次目录视图的结果：快照与被整侧过滤掉的条数。 */
+interface CatalogViewResult {
+  readonly catalog: OpenCodeCatalog | undefined
+  /** 因套餐归属被去掉的模型条数；未过滤时为 undefined。 */
+  readonly filteredModelCount: number | undefined
+}
+
+/**
+ * 目录响应的公共字段。
+ *
+ * `entitlement` 是本次目录视图的套餐口径（过滤与排序都按它），界面据此显示
+ * 套餐名、判定依据与过滤说明，不需要自己再推一次。
+ */
+interface CatalogResponseBody {
+  readonly catalog: OpenCodeCatalog | null
+  readonly consoleError?: string
+  readonly error?: string
+  readonly routes?: readonly OpenCodeRouteStatus[]
+  readonly entitlement?: OpenCodeCatalogEntitlement
+}
+
 /**
  * 注册全部插件路由；返回的清理函数由 `ctx.effect` 管理。
  */
 export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOptions): void {
   ctx.effect(() => {
+    /** 读取套餐快照；不传注入或注入实现抛错时按「未知」处理，响应不缺字段。 */
+    const readEntitlement = async (): Promise<OpenCodeAccountEntitlement> => {
+      if (options.entitlement === undefined) return UNKNOWN_ENTITLEMENT
+      try {
+        return await options.entitlement()
+      } catch {
+        return UNKNOWN_ENTITLEMENT
+      }
+    }
+
+    /** 当前端点策略；读取失败时退回 `auto`（不改写端点）。 */
+    const readEndpointPlan = async (): Promise<OpenCodePlan | 'auto'> => {
+      if (options.endpointPlan === undefined) return 'auto'
+      try {
+        return await options.endpointPlan()
+      } catch {
+        return 'auto'
+      }
+    }
+
+    /** 下发形状：契约字段 + 本次视图的过滤与端点口径。 */
+    const describeEntitlement = (
+      entitlement: OpenCodeAccountEntitlement,
+      endpointPlan: OpenCodePlan | 'auto',
+      filteredModelCount: number | undefined,
+    ): OpenCodeCatalogEntitlement => ({
+      plan: entitlement.plan,
+      source: entitlement.source,
+      fetchedAt: entitlement.fetchedAt,
+      ...(entitlement.error === undefined ? {} : { error: entitlement.error }),
+      endpointPlan,
+      scoped: entitlement.plan !== 'unknown',
+      // 只在真的过滤过时带上条数：界面据此显示「已隐藏 N 个」。
+      ...(filteredModelCount === undefined ? {} : { filteredModelCount }),
+      ...(estimatesForPlan(entitlement.plan) === undefined
+        ? {}
+        : { estimates: { fetchedAt: OPENCODE_ESTIMATES_FETCHED_AT, sourceUrl: OPENCODE_ESTIMATES_SOURCE_URL } }),
+    })
+
     /**
-     * 目录响应只影响展示：与模型选择器走同一条口径（按账号套餐去重 + 端点策略），
-     * 让详情页看到的模型与选择器里能选到的一致。
+     * 详情页目录：与模型选择器走同一条口径（按账号套餐整侧过滤 + 该档位额度
+     * 排序 + 端点策略），让详情页看到的模型与选择器里能选到的一致。
+     *
+     * 顺带数一遍被整侧过滤掉的条数，供界面说明「已隐藏 N 个」——这个数字只有
+     * 宿主知道（界面拿到的已经过滤后的列表）。
      */
     const displayCatalog = async (
       snapshot: OpenCodeCatalog | undefined,
-    ): Promise<OpenCodeCatalog | undefined> => {
-      if (snapshot === undefined) return snapshot
-      const ownedPlan = options.ownedPlan === undefined ? undefined : await options.ownedPlan()
-      const endpointPlan = options.endpointPlan === undefined ? undefined : await options.endpointPlan()
-      const models = applyCatalogView(snapshot.models, { ownedPlan, endpointPlan })
-      return models === snapshot.models ? snapshot : { ...snapshot, models }
+      entitlement: OpenCodeAccountEntitlement,
+      endpointPlan: OpenCodePlan | 'auto',
+    ): Promise<CatalogViewResult> => {
+      if (snapshot === undefined) return { catalog: snapshot, filteredModelCount: undefined }
+      const estimates = estimatesForPlan(entitlement.plan)
+      const scoped = entitlement.plan !== 'unknown'
+      const view: CatalogViewOptions = {
+        // 套餐读不出来时保持合并列表：只按 zen 侧去重同名条目，不做整侧过滤。
+        ...(scoped ? { accountPlan: entitlement.plan } : { ownedPlan: 'zen' as const }),
+        ...(estimates === undefined ? {} : { estimates }),
+        endpointPlan,
+      }
+      const models = applyCatalogView(snapshot.models, view)
+      // 只有整侧过滤才会让条目数下降；去重与排序都不改条数口径，这里按条数差计。
+      const filteredModelCount = scoped ? snapshot.models.length - models.length : undefined
+      return {
+        catalog: models === snapshot.models ? snapshot : { ...snapshot, models },
+        filteredModelCount,
+      }
     }
+
+    /** 路由注册状态；读取失败时返回空列表，诊断不应拖垮目录响应。 */
+    const safeRoutes = (): readonly OpenCodeRouteStatus[] => {
+      try {
+        return options.routes()
+      } catch {
+        return []
+      }
+    }
+
+    /**
+     * 组装一次目录响应的公共部分；套餐与端点各只读一次。
+     *
+     * 视图失败不拖垮整个响应：回落成未加工的快照并把原因写进 `error`，
+     * `entitlement` 字段照常下发，界面总能显示套餐口径。
+     */
+    const catalogBody = async (snapshot: OpenCodeCatalog | undefined): Promise<CatalogResponseBody> => {
+      const entitlement = await readEntitlement()
+      const endpointPlan = await readEndpointPlan()
+      const consoleError = options.catalog.consoleDiagnostic()
+      const lastError = options.catalog.error()
+      let catalogView: OpenCodeCatalog | null = snapshot ?? null
+      let filteredModelCount: number | undefined
+      let viewError: string | undefined
+      try {
+        const result = await displayCatalog(snapshot, entitlement, endpointPlan)
+        catalogView = result.catalog ?? null
+        filteredModelCount = result.filteredModelCount
+      } catch (error) {
+        viewError = safeMessage(error) || OPENCODE_CATALOG_UNAVAILABLE
+      }
+      return {
+        catalog: catalogView,
+        ...(consoleError === undefined ? {} : { consoleError }),
+        ...(lastError === undefined ? {} : { error: lastError }),
+        ...(viewError === undefined ? {} : { error: viewError }),
+        routes: safeRoutes(),
+        entitlement: describeEntitlement(entitlement, endpointPlan, filteredModelCount),
+      }
+    }
+
     const authorize = (req: IncomingMessage, res: ServerResponse): boolean => {
       if (trustedRequest(req)) return true
       json(res, 403, { error: OPENCODE_ORIGIN_NOT_TRUSTED })
@@ -278,21 +412,17 @@ export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOpti
         handler: async (req, res) => {
           if (req.method !== 'GET') return json(res, 405, { error: 'method not allowed' })
           if (!authorize(req, res)) return
+          let current: OpenCodeCatalog | undefined
           try {
-            const current = options.catalog.current() ?? await options.catalog.refreshIfStale()
-            json(res, 200, {
-              catalog: await displayCatalog(current),
-              ...(options.catalog.consoleDiagnostic() === undefined ? {} : { consoleError: options.catalog.consoleDiagnostic() }),
-              ...(options.catalog.error() === undefined ? {} : { error: options.catalog.error() }),
-              routes: options.routes(),
-            })
+            current = options.catalog.current() ?? await options.catalog.refreshIfStale()
           } catch (error) {
-            json(res, 200, {
-              catalog: null,
+            // 抓取失败不影响响应形状：`catalog` 为 null，套餐字段照常下发。
+            return json(res, 200, {
+              ...await catalogBody(undefined),
               error: safeMessage(error) || OPENCODE_CATALOG_UNAVAILABLE,
-              routes: options.routes(),
             })
           }
+          json(res, 200, await catalogBody(current))
         },
       }),
       ctx.webServer.register({
@@ -301,18 +431,16 @@ export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOpti
         handler: async (req, res) => {
           if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' })
           if (!authorize(req, res)) return
+          let failure: string | undefined
           try {
             await options.refresh(true)
-            const current = options.catalog.current()
-            json(res, 200, {
-              catalog: await displayCatalog(current),
-              ...(options.catalog.consoleDiagnostic() === undefined ? {} : { consoleError: options.catalog.consoleDiagnostic() }),
-              ...(options.catalog.error() === undefined ? {} : { error: options.catalog.error() }),
-              routes: options.routes(),
-            })
           } catch (error) {
-            json(res, 200, { catalog: await displayCatalog(options.catalog.current()) ?? null, error: safeMessage(error) || OPENCODE_CATALOG_UNAVAILABLE })
+            failure = safeMessage(error) || OPENCODE_CATALOG_UNAVAILABLE
           }
+          json(res, 200, {
+            ...await catalogBody(options.catalog.current()),
+            ...(failure === undefined ? {} : { error: failure }),
+          })
         },
       }),
       ctx.webServer.register({

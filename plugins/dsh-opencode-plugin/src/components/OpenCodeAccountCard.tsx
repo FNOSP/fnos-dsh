@@ -4,10 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { DshButton, DshIconCheckCircle, DshInput, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { OpenCodeAuthStatus, OpenCodeLoginChallenge } from '../contracts/auth.ts'
+import type { OpenCodeCatalogEntitlement } from '../contracts/catalog.ts'
 import type { OpenCodeTranslate } from '../client/locales.ts'
 import { cancelDeviceLogin, readAuthStatus, signInWithApiKey, signOutAccount, startDeviceLogin } from '../client/services/account-data.ts'
 import { apiKeyEntryVisible } from '../client/services/account-entry.ts'
 import { bumpAuthEpoch } from '../client/services/auth-events.ts'
+import { accountPlanLabelKey, accountPlanSourceKey } from '../client/services/catalog-data.ts'
 import { formatTimestamp } from '../client/services/format.ts'
 import { errorMessage, isOriginNotTrusted } from '../client/services/http.ts'
 import type { TimerService } from '../client/services/polling.ts'
@@ -26,6 +28,13 @@ type AccountState =
 export interface OpenCodeAccountCardProps {
   readonly t: OpenCodeTranslate
   readonly timer: TimerService
+  /**
+   * 账号套餐快照（由区块从 `/catalog` 响应传入）。
+   *
+   * 卡片自己不请求目录：套餐与目录卡必须读同一份响应，否则会出现「套餐 A、
+   * 列表 B」的错位。`undefined` 表示目录还没读回来，此时不渲染套餐行。
+   */
+  readonly entitlement?: OpenCodeCatalogEntitlement | undefined
 }
 
 /** 把宿主状态映射到内部状态机。 */
@@ -70,7 +79,7 @@ function AccountFact({ label, value }: { label: string, value: string }): ReactN
  * 账号卡片。
  * @returns 账号卡片元素。
  */
-export function OpenCodeAccountCard({ t, timer }: OpenCodeAccountCardProps): ReactNode {
+export function OpenCodeAccountCard({ t, timer, entitlement }: OpenCodeAccountCardProps): ReactNode {
   const [state, setState] = useState<AccountState>({ status: 'loading' })
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string>()
@@ -248,7 +257,22 @@ export function OpenCodeAccountCard({ t, timer }: OpenCodeAccountCardProps): Rea
           {organization === undefined ? null : <AccountFact label={t('accountOrganization')} value={organization} />}
           <AccountFact label={t('accountMethod')} value={account.method === 'oauth' ? t('accountMethodOauth') : t('accountMethodKey')} />
           <AccountFact label={t('accountExpiresAt')} value={expiresAt ?? t('accountUnknown')} />
+          {/* 套餐与判定依据来自目录响应：未登录或接口不可读时 plan 为 unknown。 */}
+          {entitlement === undefined ? null : (
+            <>
+              <AccountFact label={t('accountPlanLabel')} value={t(accountPlanLabelKey(entitlement.plan))} />
+              <AccountFact
+                label={t('accountPlanSourceLabel')}
+                value={t(accountPlanSourceKey(entitlement.source))}
+              />
+            </>
+          )}
         </dl>
+      )}
+
+      {/* 套餐读取失败的原因单独一行：它是账号级信息，不该被折叠进目录卡的提示里。 */}
+      {entitlement?.error === undefined ? null : (
+        <p className="dsh-opencode-muted" role="status">{entitlement.error}</p>
       )}
 
       {state.status === 'signing-in' ? (

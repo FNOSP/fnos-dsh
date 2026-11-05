@@ -85,5 +85,6 @@ flowchart TD
 | PLAN-FNOS-044 | [FPK 平台产物选择与双包发布](/plans/PLAN-FNOS-044-fpk-platform-selection) | 实施完成（七阶段：核心实现 → 交互与参数 → 构建与等价性验证 → CI 双包 → 用例与变异验证 → 文档与索引 → 产物目录 dist 化；ARM 真机验收无设备） |
 | PLAN-FNOS-045 | [应用与插件多语言支持](/plans/PLAN-FNOS-045-app-plugin-i18n) | 实施中（四阶段：应用包本地化 → 插件语言包 → 语言同步 → 文档与验证） |
 | PLAN-FNOS-046 | [DSH 0.2.2-rc.1 插件适配与基线升级](/plans/PLAN-FNOS-046-dsh-022-rc1-adaptation) | 待完成（五阶段 22 个任务全部完成：前置取证与契约比对 → 锚定改写 → 契约适配 → 验证 → 文档与版本；仅剩 FNOS-046 需求侧的用户确认收口） |
+| PLAN-FNOS-047 | [OpenCode 套餐归属过滤与额度排序](/plans/PLAN-FNOS-047-opencode-plan-entitlement) | 待完成（T1–T7 全部落地：估算契约 → 套餐服务 → 目录过滤与排序 → 装配与路由 → 界面与文案 → 测试与文档；仅剩界面目视与用户确认收口） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

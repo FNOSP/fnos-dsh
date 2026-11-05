@@ -6,6 +6,12 @@ import { describe, expect, it } from 'vitest'
 import type { OpenCodeModel } from '../../src/contracts/catalog.ts'
 import { selectableModels } from '../../src/contracts/catalog.ts'
 import {
+  OPENCODE_GO_ESTIMATES,
+  OPENCODE_GO_PLUS_ESTIMATES,
+  estimatesForPlan,
+  type OpenCodeEstimateTable,
+} from '../../src/contracts/estimates.ts'
+import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_MAX_TOKENS,
   apiFromUrl,
@@ -17,6 +23,7 @@ import {
   buildCatalogEntry,
   consoleScopesFromConsoleConfig,
   safeConsoleHeaders,
+  scopeToAccountPlan,
   sortCatalogModels,
   thinkingLevelMapFromReasoning,
 } from '../../src/host/catalog.ts'
@@ -550,5 +557,330 @@ describe('目录排序', () => {
     expect(view.slice(firstDisabled).every(m => m.disabled === true || m.clientOnly === true)).toBe(true)
     expect(view[0]?.disabled).not.toBe(true)
     expect(view[0]?.clientOnly).not.toBe(true)
+  })
+})
+
+/** 构造测试模型：默认是 Go 侧可用的付费模型。 */
+function scopedModel(id: string, plan: 'zen' | 'go', extra: Partial<OpenCodeModel> = {}): OpenCodeModel {
+  return {
+    id,
+    name: id,
+    api: 'openai-completions',
+    baseURL: baseURLFor(plan, 'openai-completions'),
+    reasoning: false,
+    input: ['text'],
+    contextWindow: 1000,
+    maxTokens: 100,
+    tools: true,
+    free: false,
+    plan,
+    ...extra,
+  }
+}
+
+describe('整侧归属过滤 scopeToAccountPlan', () => {
+  const models = [
+    scopedModel('shared', 'zen'),
+    scopedModel('shared', 'go'),
+    scopedModel('zen-only', 'zen'),
+    scopedModel('go-only', 'go'),
+  ]
+
+  it.each([['go'], ['go-plus'], ['go-teams']] as const)('%s 档只保留 go 侧条目', (plan) => {
+    const next = scopeToAccountPlan(models, plan)
+    expect(next.map(model => model.id)).toEqual(['shared', 'go-only'])
+    expect(next.every(model => model.plan === 'go')).toBe(true)
+  })
+
+  it('payg 只保留 zen 侧条目', () => {
+    const next = scopeToAccountPlan(models, 'payg')
+    expect(next.map(model => model.id)).toEqual(['shared', 'zen-only'])
+    expect(next.every(model => model.plan === 'zen')).toBe(true)
+  })
+
+  it('unknown 原样返回同一个数组引用', () => {
+    expect(scopeToAccountPlan(models, 'unknown')).toBe(models)
+  })
+
+  it('与 dedupeByPlan 的差别：单侧独有条目也会被整侧过滤', () => {
+    // 旧口径下 zen-only 会因为「go 侧没有同名条目」保留下来，新口径不会。
+    expect(dedupeByPlan(models, 'go').map(model => model.id)).toContain('zen-only')
+    expect(scopeToAccountPlan(models, 'go').map(model => model.id)).not.toContain('zen-only')
+  })
+
+  it('真实 roster 上 Go 账号目录不含任何 zen 条目', async () => {
+    const catalog = await publicCatalog()
+    const next = scopeToAccountPlan(catalog.models, 'go')
+    expect(next.length).toBeGreaterThan(0)
+    expect(next.every(model => model.plan === 'go')).toBe(true)
+    expect(next.map(model => model.id)).not.toContain('big-pickle')
+  })
+
+  it('真实 roster 上按量账号目录不含任何 go 条目', async () => {
+    const catalog = await publicCatalog()
+    const next = scopeToAccountPlan(catalog.models, 'payg')
+    expect(next.every(model => model.plan === 'zen')).toBe(true)
+  })
+})
+
+describe('按套餐额度排序', () => {
+  const goModel = (id: string, estimated: number | null | undefined, extra: Partial<OpenCodeModel> = {}): OpenCodeModel =>
+    scopedModel(id, 'go', {
+      ...(estimated === undefined ? {} : { estimatedRequestsPerMonth: estimated }),
+      ...extra,
+    })
+
+  it('Go 侧按每月预计请求数降序，null 不限量置顶，缺数据沉底', () => {
+    const models = [
+      goModel('missing-b', undefined),
+      goModel('small', 490),
+      goModel('unlimited-b', null),
+      goModel('large', 216_670),
+      goModel('missing-a', undefined),
+      goModel('unlimited-a', null),
+      goModel('medium', 21_130),
+    ]
+    const order = sortCatalogModels(models, OPENCODE_GO_ESTIMATES).map(model => model.id)
+    expect(order).toEqual([
+      'unlimited-a',
+      'unlimited-b',
+      'large',
+      'medium',
+      'small',
+      'missing-a',
+      'missing-b',
+    ])
+  })
+
+  it('同额度时按 id 升序稳定', () => {
+    const models = [goModel('zebra', 100), goModel('alpha', 100), goModel('beta', 100)]
+    expect(sortCatalogModels(models, OPENCODE_GO_ESTIMATES).map(model => model.id)).toEqual(['alpha', 'beta', 'zebra'])
+  })
+
+  it('禁用与仅官方客户端可用的条目仍然排在最后', () => {
+    const models = [
+      goModel('disabled', 999_999, { disabled: true }),
+      goModel('active', 10),
+      goModel('client-only', 999_999, { clientOnly: true }),
+      goModel('unlimited', null),
+    ]
+    const order = sortCatalogModels(models, OPENCODE_GO_ESTIMATES).map(model => model.id)
+    expect(order.slice(0, 2)).toEqual(['unlimited', 'active'])
+    expect(order.slice(2).sort()).toEqual(['client-only', 'disabled'])
+  })
+
+  it('不传估算表时保持老口径（免费优先 → 单价升序 → id）', () => {
+    const models = [
+      goModel('paid-expensive', 100, { cost: { input: 3, output: 9 } }),
+      goModel('free', null, { free: true, releasedAt: '2026-01-01' }),
+      goModel('paid-cheap', 50, { cost: { input: 0.1, output: 0.2 } }),
+    ]
+    expect(sortCatalogModels(models).map(model => model.id)).toEqual(['free', 'paid-cheap', 'paid-expensive'])
+  })
+
+  it('列表混入按量模型时回落到老口径，不把按量条目整体沉底', () => {
+    const models = [
+      scopedModel('zen-free', 'zen', { free: true, releasedAt: '2026-01-01' }),
+      goModel('go-huge', 216_670),
+      goModel('go-tiny', 490),
+    ]
+    const order = sortCatalogModels(models, OPENCODE_GO_ESTIMATES).map(model => model.id)
+    expect(order[0]).toBe('zen-free')
+  })
+
+  it('Go Plus 档用自己那份表排序', async () => {
+    const catalog = await publicCatalog()
+    const plus = estimatesForPlan('go-plus')
+    expect(plus).toBe(OPENCODE_GO_PLUS_ESTIMATES)
+    const scoped = scopeToAccountPlan(catalog.models, 'go-plus')
+    const order = sortCatalogModels(scoped, plus)
+    const estimated = order
+      .map(model => model.estimatedRequestsPerMonth)
+      .filter((value): value is number => typeof value === 'number')
+    expect(estimated).toEqual([...estimated].sort((left, right) => right - left))
+  })
+})
+
+describe('buildCatalog 写入预计请求数', () => {
+  it('Go 模型带上估算值，zen 模型不带', async () => {
+    const catalog = await buildCatalog({
+      catalog: await fixture('catalog.json'),
+      zenRoster: await fixture('zen-models.json'),
+      goRoster: await fixture('go-models.json'),
+      builtin,
+      estimates: OPENCODE_GO_ESTIMATES,
+      now: 1,
+    })
+    const goModel = catalog.models.find(model => model.plan === 'go' && model.id === 'deepseek-v4.1-flash')
+    expect(goModel?.estimatedRequestsPerMonth).toBe(216_670)
+    const unlimited = catalog.models.find(model => model.plan === 'go' && model.id === 'beam-free')
+    expect(unlimited?.estimatedRequestsPerMonth).toBeNull()
+    for (const model of catalog.models.filter(entry => entry.plan === 'zen')) {
+      expect(model.estimatedRequestsPerMonth).toBeUndefined()
+    }
+  })
+
+  it('表里有但 roster 没有的模型不凭空造条目', async () => {
+    const catalog = await buildCatalog({
+      catalog: await fixture('catalog.json'),
+      zenRoster: await fixture('zen-models.json'),
+      goRoster: await fixture('go-models.json'),
+      builtin,
+      estimates: OPENCODE_GO_ESTIMATES,
+      now: 1,
+    })
+    // 表里有些 id 不在 roster 内（如上架前的预留条目）：它们不会凭空变成模型。
+    const tableOnly = Object.keys(OPENCODE_GO_ESTIMATES)
+      .filter(id => !catalog.models.some(model => model.id === id))
+    expect(tableOnly.length).toBeGreaterThan(0)
+    for (const id of tableOnly) expect(catalog.models.map(model => model.id)).not.toContain(id)
+  })
+
+  it('不传估算表时字段缺省', async () => {
+    const catalog = await publicCatalog()
+    expect(catalog.models.every(model => model.estimatedRequestsPerMonth === undefined)).toBe(true)
+  })
+
+  it('自定义估算表按模型 id 精确匹配', () => {
+    const table: OpenCodeEstimateTable = { 'go-model': 12_345 }
+    const result = buildCatalogEntry({ id: 'go-model', plan: 'go', estimates: table })
+    expect(result.ok && result.model.estimatedRequestsPerMonth).toBe(12_345)
+
+    const missing = buildCatalogEntry({ id: 'other', plan: 'go', estimates: table })
+    expect(missing.ok && missing.model.estimatedRequestsPerMonth).toBeUndefined()
+  })
+})
+
+describe('applyCatalogView 组合新口径', () => {
+  const models = [
+    scopedModel('shared', 'zen'),
+    scopedModel('shared', 'go', { estimatedRequestsPerMonth: 500 }),
+    scopedModel('zen-only', 'zen'),
+    scopedModel('go-big', 'go', { estimatedRequestsPerMonth: 216_670 }),
+    scopedModel('go-none', 'go'),
+  ]
+
+  it('过滤 → 排序 → 端点三步都生效', () => {
+    const view = applyCatalogView(models, {
+      accountPlan: 'go',
+      estimates: OPENCODE_GO_ESTIMATES,
+      endpointPlan: 'go',
+    })
+    expect(view.map(model => `${model.plan}:${model.id}`)).toEqual(['go:go-big', 'go:shared', 'go:go-none'])
+    expect(view.every(model => model.baseURL === baseURLFor('go', model.api))).toBe(true)
+  })
+
+  it('unknown 套餐不过滤，回落到 ownedPlan 的旧口径', () => {
+    const view = applyCatalogView(models, { accountPlan: 'unknown', ownedPlan: 'go' })
+    const ids = view.map(model => model.id)
+    // 老口径只删同名重复项，zen-only 仍在。
+    expect(ids).toContain('zen-only')
+    expect(ids).not.toContain('zen:shared')
+    expect(view.filter(model => model.id === 'shared')).toHaveLength(1)
+  })
+
+  it('不传新字段时行为等于今天', () => {
+    const view = applyCatalogView(models, { ownedPlan: 'go', endpointPlan: 'auto' })
+    // 老口径：去重后按「免费优先 → 单价升序 → id」排序；这批模型都没有价格元数据，
+    // 因此保持去重后的原顺序（与今天的实现一致）。
+    expect(view.map(model => `${model.plan}:${model.id}`)).toEqual([
+      'go:shared',
+      'zen:zen-only',
+      'go:go-big',
+      'go:go-none',
+    ])
+    expect(view).toEqual(dedupeByPlan(models, 'go'))
+  })
+
+  it('payg 套餐只留按量侧，且按老口径排序', () => {
+    const view = applyCatalogView(models, { accountPlan: 'payg' })
+    expect(view.every(model => model.plan === 'zen')).toBe(true)
+    expect(view.map(model => model.id)).toEqual(['shared', 'zen-only'])
+  })
+
+  it('真实 roster 上 Go 账号视图只含 go 条目且按额度降序', async () => {
+    const catalog = await publicCatalog()
+    const withEstimates = await buildCatalog({
+      catalog: await fixture('catalog.json'),
+      zenRoster: await fixture('zen-models.json'),
+      goRoster: await fixture('go-models.json'),
+      builtin,
+      estimates: OPENCODE_GO_ESTIMATES,
+      now: 1,
+    })
+    const view = applyCatalogView(withEstimates.models, {
+      accountPlan: 'go',
+      estimates: OPENCODE_GO_ESTIMATES,
+      endpointPlan: 'auto',
+    })
+    expect(catalog.models.length).toBeGreaterThan(0)
+    expect(view.every(model => model.plan === 'go')).toBe(true)
+    const usable = view.filter(model => model.disabled !== true && model.clientOnly !== true)
+    const quotas = usable.map(model => model.estimatedRequestsPerMonth)
+    const known = quotas.filter((value): value is number => typeof value === 'number')
+    expect(known.length).toBeGreaterThan(0)
+    expect(known).toEqual([...known].sort((left, right) => right - left))
+    expect(quotas.slice(0, quotas.filter(value => value === null).length).every(value => value === null)).toBe(true)
+  })
+})
+
+describe('估算表与条目脱节时的降级', () => {
+  it('传了表但条目上没有估算值：回到老口径而不是只按 id 排', () => {
+    const models = [
+      scopedModel('go-paid-expensive', 'go', { cost: { input: 3, output: 9 } }),
+      scopedModel('go-first', 'go', { free: true, releasedAt: '2026-09-10' }),
+      scopedModel('go-paid-cheap', 'go', { cost: { input: 0.1, output: 0.2 } }),
+    ]
+    const order = sortCatalogModels(models, OPENCODE_GO_ESTIMATES).map(model => model.id)
+    expect(order).toEqual(['go-first', 'go-paid-cheap', 'go-paid-expensive'])
+    expect(order).toEqual(sortCatalogModels(models).map(model => model.id))
+  })
+})
+
+describe('额度口径下免费标记不再优先', () => {
+  const goModel = (id: string, estimated: number | null | undefined, extra: Partial<OpenCodeModel> = {}): OpenCodeModel =>
+    scopedModel(id, 'go', {
+      ...(estimated === undefined ? {} : { estimatedRequestsPerMonth: estimated }),
+      ...extra,
+    })
+
+  /** Lead 复核给出的复现输入：免费低额度、付费高额度、不限量、缺数据、禁用高额度。 */
+  function reviewInput(): OpenCodeModel[] {
+    return [
+      goModel('free-low', 10, { free: true }),
+      goModel('paid-high', 999),
+      goModel('b', null),
+      goModel('c', undefined),
+      goModel('disabled', 5000, { disabled: true }),
+    ]
+  }
+
+  it('免费但额度低的模型不得排在付费高额度模型之前', () => {
+    const order = sortCatalogModels(reviewInput(), OPENCODE_GO_ESTIMATES).map(model => model.id)
+    // null 最前 → 数值降序 → undefined 沉底；免费只影响没有估算表时的旧口径。
+    expect(order).toEqual(['b', 'paid-high', 'free-low', 'c', 'disabled'])
+    expect(order.indexOf('free-low')).toBeGreaterThan(order.indexOf('paid-high'))
+  })
+
+  it('禁用条目即使额度最高也沉底', () => {
+    const order = sortCatalogModels(reviewInput(), OPENCODE_GO_ESTIMATES).map(model => model.id)
+    expect(order.at(-1)).toBe('disabled')
+  })
+
+  it('仅官方客户端可用的条目同样沉底，且不按额度插队', () => {
+    const models = [
+      goModel('client-only-high', 9999, { clientOnly: true, free: true }),
+      goModel('normal', 100),
+    ]
+    const order = sortCatalogModels(models, OPENCODE_GO_ESTIMATES).map(model => model.id)
+    expect(order).toEqual(['normal', 'client-only-high'])
+  })
+
+  it('免费高额度模型可以排在付费低额度模型之前（只看额度）', () => {
+    const models = [
+      goModel('free-high', 900, { free: true }),
+      goModel('paid-low', 100),
+    ]
+    expect(sortCatalogModels(models, OPENCODE_GO_ESTIMATES).map(model => model.id)).toEqual(['free-high', 'paid-low'])
   })
 })

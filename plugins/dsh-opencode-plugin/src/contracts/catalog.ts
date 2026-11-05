@@ -93,6 +93,33 @@ export interface OpenCodeModel {
   readonly deprecated?: boolean
   /** Console 明确标记为未启用；仅当 Console 配置可读时出现。 */
   readonly disabled?: boolean
+  /**
+   * 套餐额度内的预计请求数（每月），来自官方 Go 文档的 Estimated requests 表。
+   *
+   * 只有 `plan` 为 `go` 且上游该档位有数据时出现；`null` 表示该模型在上游
+   * 表里标为 Unlimited（不限量）。目录按它降序排序，让额度最大的模型排在最前。
+   */
+  readonly estimatedRequestsPerMonth?: number | null
+}
+
+/**
+ * 账号套餐档位。
+ *
+ * - `payg`：只有按量（Console 余额），没有 Go 订阅；
+ * - `go` / `go-plus` / `go-teams`：三档 Go 订阅，额度与 Estimated requests 各不相同；
+ * - `unknown`：未登录或套餐接口不可读，调用方应保守处理（不做整侧过滤）。
+ */
+export type OpenCodeAccountPlan = 'payg' | 'go' | 'go-plus' | 'go-teams' | 'unknown'
+
+/** 账号套餐快照。 */
+export interface OpenCodeAccountEntitlement {
+  readonly plan: OpenCodeAccountPlan
+  /** 判定依据：`console` 读到了 Console 套餐接口；`usage` 只用用量接口兜底推断。 */
+  readonly source: 'console' | 'usage' | 'none'
+  /** 读取时间（epoch ms）。 */
+  readonly fetchedAt: number
+  /** 读取失败时的说明；成功时为 undefined。 */
+  readonly error?: string
 }
 
 /** 目录快照。 */
@@ -110,6 +137,37 @@ export interface OpenCodeCatalog {
   readonly models: readonly OpenCodeModel[]
   /** 解析期间的降级说明（未知协议、跳过图片模型等），用于界面提示。 */
   readonly warnings: readonly string[]
+}
+
+/** 估算表的来源标注，供界面说明数据口径。 */
+export interface OpenCodeEstimateProvenance {
+  /** 抓取日期（`YYYY-MM-DD`）。 */
+  readonly fetchedAt: string
+  /** 官方文档地址。 */
+  readonly sourceUrl: string
+}
+
+/**
+ * `/catalog` 与 `/catalog/refresh` 响应里的套餐字段。
+ *
+ * 它描述的是**本次目录视图**的口径：`catalog.models` 已经按 `plan` 整侧过滤、
+ * 按该档位的预计请求数排好序。界面据此显示套餐名、判定依据与过滤说明，
+ * 不要自己再过滤一遍。
+ */
+export interface OpenCodeCatalogEntitlement extends OpenCodeAccountEntitlement {
+  /** 本次视图实际生效的端点策略；`auto` 表示未改写各模型的原生端点。 */
+  readonly endpointPlan: OpenCodePlan | 'auto'
+  /** 是否做了整侧过滤：套餐可读（非 `unknown`）时为 true。 */
+  readonly scoped: boolean
+  /**
+   * 本次视图被整侧过滤掉的模型条数。
+   *
+   * 只在 `scoped` 为 true 时出现；界面用它显示「已隐藏 N 个不属于当前套餐的
+   * 模型」。未过滤时缺省，避免把「0」误读成「过滤过但一个都没删」。
+   */
+  readonly filteredModelCount?: number
+  /** 排序所用估算表的来源；按量或未知套餐没有额度口径，故缺省。 */
+  readonly estimates?: OpenCodeEstimateProvenance
 }
 
 /** 目录中可用于生成对话的模型；过滤掉图片生成、显式关闭与仅官方客户端可用的条目。 */

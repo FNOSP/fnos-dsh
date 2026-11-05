@@ -555,6 +555,24 @@
   padding-top: 2px;
 }
 
+/* 每月预计请求数：与容量事实同一行，用品牌色点出这是套餐额度而非模型规格。 */
+.dsh-opencode-model-estimate {
+  color: var(--dsw-alias-brand-primary);
+}
+
+/* 目录顶部的套餐口径说明：与常规提示同版式，但单独一类便于区分「视图口径」。 */
+.dsh-opencode-plan-scope {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-xs);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
 /* 设置行。 */
 .dsh-opencode-setting {
   display: flex;

@@ -99,5 +99,6 @@ flowchart TD
 | FNOS-044 | [FPK 平台产物选择与双包发布](/requirements/FNOS-044-fpk-platform-selection) | 实施中（包级 160 条与本地双平台实跑通过，产物落 `apps/<app>/dist/<主干>/`（一平台一子目录）并每次清空、仓库清单全程未被写入；ARM 侧按提出人定案不做真机验收，只要求发布产物包含） |
 | FNOS-045 | [应用与插件多语言支持](/requirements/FNOS-045-app-plugin-i18n) | 已完成（2026-11-05 真实 fnOS NAS 验收：九种语言在 DSH 与插件内显示与切换正常，安装向导文案随语言；应用中心名称与描述同步随语言变化；ARM64 只要求发布产物包含，不做真机验收） |
 | FNOS-046 | [DSH 0.2.2-rc.1 插件适配与基线升级](/requirements/FNOS-046-dsh-022-rc1-adaptation) | 待验收（27 条结论全部核实：26 已核实、1 部分核实；八轮提交已发布 8.0.0，DSH Web / Desktop / 真实 NAS 三端通过，插件已发 npm；剩用户确认收口） |
+| FNOS-047 | [OpenCode 套餐归属过滤与额度排序](/requirements/FNOS-047-opencode-plan-entitlement) | 待验收（上游 Zen→Console 更名、`/console/api/go/status` 套餐接口与 Estimated requests 数据面均已核实；整侧过滤 + 按档位额度降序已实现，325 条自动化用例全绿；待界面目视与用户确认） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

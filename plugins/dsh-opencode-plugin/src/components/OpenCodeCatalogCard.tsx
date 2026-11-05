@@ -1,6 +1,6 @@
-/** 插件详情页的模型目录卡片：合并列表、内部滚动、能力图标气泡与显隐开关。 */
+/** 插件详情页的模型目录卡片：套餐口径、额度列、内部滚动、能力图标气泡与显隐开关。 */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   DshButton,
@@ -14,10 +14,11 @@ import {
   DshTag,
   DshTooltip,
 } from '@tnnevol/dsh-semi-ui'
-import type { OpenCodeModel } from '../contracts/catalog.ts'
+import type { OpenCodeCatalogEntitlement, OpenCodeModel } from '../contracts/catalog.ts'
+import { OPENCODE_CONSOLE_ORIGIN } from '../contracts/identity.ts'
 import type { OpenCodeTranslate } from '../client/locales.ts'
 import type { OpenCodeCatalogResponse } from '../client/services/catalog-data.ts'
-import { readCatalog, refreshCatalog } from '../client/services/catalog-data.ts'
+import { accountPlanLabelKey, estimatedRequestsText } from '../client/services/catalog-data.ts'
 import {
   apiKindLabelKey,
   featureLabelKey,
@@ -30,26 +31,24 @@ import {
 } from '../client/services/catalog-search.ts'
 import { modelsWithToolLimit } from '../client/services/model-limits.ts'
 import type { OpenCodeFeatureId } from '../client/services/catalog-search.ts'
-import { modelKey } from '../contracts/identity.ts'
+import { modelDisplayName, modelKey } from '../contracts/identity.ts'
 import { formatTimestamp } from '../client/services/format.ts'
 import { errorMessage } from '../client/services/http.ts'
-import { autoRefreshIntervalMs, POLL_HEARTBEAT_MS, shouldPoll } from '../client/services/polling.ts'
-import type { TimerService } from '../client/services/polling.ts'
 import type { OpenCodePreferencesStore } from '../client/services/preferences-data.ts'
+import type { CatalogLoader, OpenCodeCatalogView } from './catalog-snapshot.ts'
 
 /** 目录卡片参数。 */
 export interface OpenCodeCatalogCardProps {
   readonly t: OpenCodeTranslate
-  readonly timer: TimerService
+  /** 目录视图；由区块统一读取，与账号卡共用同一份响应。 */
+  readonly view: OpenCodeCatalogView
+  /** 手动刷新入口（`force` 会打到上游）。 */
+  readonly load: CatalogLoader
   readonly preferences: OpenCodePreferencesStore
   /** 当前隐藏的模型键（`plan:id`，来自偏好快照）。 */
   readonly hiddenModels: readonly string[]
   /** 偏好是否已完成首次读取；未完成时开关保持禁用。 */
   readonly preferencesLoaded: boolean
-  /** 自动刷新间隔（分钟）。 */
-  readonly refreshMinutes: number
-  /** 登录代际；变化后重拉目录。 */
-  readonly revision: number
 }
 
 /** 图标统一属性：内联 SVG、`currentColor` 描边，亮暗主题随文字色反转。 */
@@ -161,76 +160,79 @@ function ModelFeatureBubble({ model, t }: { model: OpenCodeModel, t: OpenCodeTra
 }
 
 /**
+ * 目录顶部的套餐口径说明。
+ *
+ * 套餐可读时给出「只显示该套餐的模型」与隐藏条数；不可读时说明暂不过滤——
+ * 后者是保守降级，用户要能看出选择器为什么两侧都出现。
+ *
+ * `filteredModelCount` 只在 `scoped` 为 true 时下发，且为 0 时不下发那行说明：
+ * 「已隐藏 0 个」既没有信息量，也容易被读成过滤失败。
+ */
+function PlanScopeNotice({
+  entitlement,
+  t,
+}: {
+  readonly entitlement: OpenCodeCatalogEntitlement | undefined
+  readonly t: OpenCodeTranslate
+}): ReactNode {
+  if (entitlement === undefined) return null
+  const plan = entitlement.plan
+  if (entitlement.scoped && plan !== 'unknown') {
+    const hidden = entitlement.filteredModelCount
+    return (
+      <div className="dsh-opencode-plan-scope" role="status">
+        <DshIconInfoCircle className="dsh-opencode-notice-icon" />
+        <div className="dsh-opencode-notice-body">
+          <span>{t('catalogPlanScopeNotice', { plan: t(accountPlanLabelKey(plan)) })}</span>
+          {typeof hidden === 'number' && hidden > 0 ? (
+            <span className="dsh-opencode-muted">{t('catalogPlanScopeHidden', { count: hidden })}</span>
+          ) : null}
+          <span className="dsh-opencode-muted">
+            <a
+              className="dsh-opencode-link"
+              href={`${OPENCODE_CONSOLE_ORIGIN}/models`}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {t('catalogConsoleLink')}
+            </a>
+          </span>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="dsh-opencode-plan-scope" role="status">
+      <DshIconInfoCircle className="dsh-opencode-notice-icon" />
+      <div className="dsh-opencode-notice-body">
+        <span>{t('catalogPlanScopeUnknown')}</span>
+        {entitlement.error === undefined ? null : (
+          <span className="dsh-opencode-muted">{entitlement.error}</span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
  * 模型目录卡片。
  * @returns 目录卡片元素。
  */
 export function OpenCodeCatalogCard({
   t,
-  timer,
+  view,
+  load,
   preferences,
   hiddenModels,
   preferencesLoaded,
-  refreshMinutes,
-  revision,
 }: OpenCodeCatalogCardProps): ReactNode {
-  const [response, setResponse] = useState<OpenCodeCatalogResponse | undefined>(undefined)
-  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
-  const [message, setMessage] = useState<string>()
-  const [refreshing, setRefreshing] = useState(false)
   const [query, setQuery] = useState('')
   const [savingVisibility, setSavingVisibility] = useState(false)
   const [visibilityError, setVisibilityError] = useState<string>()
-  const sequenceRef = useRef(0)
-  const loadedCatalogRef = useRef<boolean>(false)
 
-  const load = useCallback(async (force: boolean, silent: boolean): Promise<void> => {
-    const seq = ++sequenceRef.current
-    if (!silent) {
-      setState('loading')
-      setRefreshing(force)
-    }
-    try {
-      const next = force ? await refreshCatalog() : await readCatalog()
-      if (seq !== sequenceRef.current) return
-      setResponse(next)
-      if (next.catalog === null) {
-        loadedCatalogRef.current = false
-        setState('error')
-        setMessage(next.error ?? t('catalogLoadFailed'))
-      } else {
-        loadedCatalogRef.current = true
-        setState('ready')
-        // 目录可能是一份旧快照：本次刷新失败仍然要把原因展示出来。
-        setMessage(next.error)
-      }
-    } catch (error) {
-      if (seq !== sequenceRef.current) return
-      setMessage(errorMessage(error, t('catalogLoadFailed')))
-      setState(loadedCatalogRef.current ? 'ready' : 'error')
-    } finally {
-      if (seq === sequenceRef.current) setRefreshing(false)
-    }
-  }, [t])
-
-  useEffect(() => {
-    void load(false, false)
-    return () => { sequenceRef.current += 1 }
-  }, [load, revision])
-
-  useEffect(() => {
-    const intervalMs = autoRefreshIntervalMs(refreshMinutes)
-    if (intervalMs <= 0) return
-    let lastPolledAt = Date.now()
-    const dispose = timer.interval(() => {
-      if (typeof document !== 'undefined' && document.hidden) return
-      if (!shouldPoll({ hidden: false, intervalMs, lastPolledAt, now: Date.now() })) return
-      lastPolledAt = Date.now()
-      void load(true, true)
-    }, POLL_HEARTBEAT_MS)
-    return dispose
-  }, [load, refreshMinutes, timer])
-
+  const response: OpenCodeCatalogResponse | undefined = view.response
   const catalog = response?.catalog ?? undefined
+  const entitlement = response?.entitlement
   const hiddenSet = new Set(hiddenModels)
   const models = catalog?.models ?? []
   const filtered = filterCatalogModels(models, query)
@@ -275,13 +277,15 @@ export function OpenCodeCatalogCard({
             type="tertiary"
             size="small"
             icon={<DshIconRefresh />}
-            loading={refreshing}
-            onClick={() => { void load(true, false) }}
+            loading={view.refreshing}
+            onClick={() => { load(true, false) }}
           >
             {t('catalogRefresh')}
           </DshButton>
         </div>
       </header>
+
+      <PlanScopeNotice entitlement={entitlement} t={t} />
 
       {unregisteredRoutes.length === 0 ? null : (
         <div className="dsh-opencode-notice dsh-opencode-notice--warning" role="status">
@@ -302,34 +306,34 @@ export function OpenCodeCatalogCard({
         </div>
       )}
 
-      {state === 'loading' ? (
+      {view.status === 'loading' ? (
         <div className="dsh-opencode-status-row" role="status">
           <DshSpin size="small" />
           <span>{t('catalogLoading')}</span>
         </div>
       ) : null}
 
-      {state === 'error' && catalog === undefined ? (
+      {view.status === 'error' && catalog === undefined ? (
         <div className="dsh-opencode-error-block">
-          <p className="dsh-opencode-error" role="alert">{message ?? t('catalogLoadFailed')}</p>
+          <p className="dsh-opencode-error" role="alert">{view.message ?? t('catalogLoadFailed')}</p>
           <DshButton
             htmlType="button"
             theme="borderless"
             type="tertiary"
             size="small"
             icon={<DshIconRefresh />}
-            loading={refreshing}
-            onClick={() => { void load(true, false) }}
+            loading={view.refreshing}
+            onClick={() => { load(true, false) }}
           >
             {t('catalogRetry')}
           </DshButton>
         </div>
       ) : null}
 
-      {state === 'ready' && message !== undefined ? (
+      {view.status === 'ready' && view.message !== undefined ? (
         <div className="dsh-opencode-notice" role="status">
           <DshIconAlertCircle className="dsh-opencode-notice-icon" />
-          <span>{message}</span>
+          <span>{view.message}</span>
         </div>
       ) : null}
 
@@ -405,6 +409,10 @@ export function OpenCodeCatalogCard({
                   const disabled = model.disabled === true || model.clientOnly === true
                   const icons = supportedFeatureIds(model)
                   const featureSummary = icons.map(id => t(featureLabelKey(id))).join(' · ')
+                  // 额度只在该模型属于当前套餐时才有意义；不可读时不猜。
+                  const estimate = model.plan === 'go'
+                    ? estimatedRequestsText(model, t('catalogEstimatedUnlimited'))
+                    : undefined
                   const className = [
                     'dsh-opencode-model',
                     disabled ? 'is-disabled' : '',
@@ -414,7 +422,7 @@ export function OpenCodeCatalogCard({
                     <li className={className} key={key}>
                       <div className="dsh-opencode-model-main">
                         <div className="dsh-opencode-model-heading">
-                          <span className="dsh-opencode-model-name">{`${model.name} · ${model.plan}`}</span>
+                          <span className="dsh-opencode-model-name">{modelDisplayName(model.name, model.plan)}</span>
                           {disabled ? <DshTag size="small" color="red">{t('catalogDisabledTag')}</DshTag> : null}
                           {model.deprecated === true ? <DshTag size="small" color="orange">{t('catalogDeprecatedTag')}</DshTag> : null}
                           {model.clientOnly === true ? <DshTag size="small" color="grey">{t('catalogFreeClientOnly')}</DshTag> : null}
@@ -447,6 +455,11 @@ export function OpenCodeCatalogCard({
                           <span className="dsh-opencode-model-id">{model.id}</span>
                           <span className="dsh-opencode-model-fact">{`${t('catalogContext')} ${formatTokenCount(model.contextWindow) ?? '—'}`}</span>
                           <span className="dsh-opencode-model-fact">{`${t('catalogMaxOutput')} ${formatTokenCount(model.maxTokens) ?? '—'}`}</span>
+                          {estimate === undefined ? null : (
+                            <span className="dsh-opencode-model-fact dsh-opencode-model-estimate">
+                              {`${t('catalogEstimatedRequests')} ${estimate}`}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="dsh-opencode-model-toggle">
@@ -463,6 +476,21 @@ export function OpenCodeCatalogCard({
                 })}
               </ul>
             </div>
+          )}
+          {/* 额度口径溯源：估算表是内置快照，注明抓取日期与官方表地址。 */}
+          {entitlement?.estimates === undefined ? null : (
+            <p className="dsh-opencode-muted">
+              {t('catalogEstimatedSource', { date: entitlement.estimates.fetchedAt })}
+              {' '}
+              <a
+                className="dsh-opencode-link"
+                href={entitlement.estimates.sourceUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                {t('catalogEstimatedSourceLink')}
+              </a>
+            </p>
           )}
         </>
       )}

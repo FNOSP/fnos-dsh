@@ -31,12 +31,14 @@ import {
 } from '../contracts/identity.ts'
 import {
   OPENCODE_REASONING_LEVELS,
+  type OpenCodeAccountPlan,
   type OpenCodeApiKind,
   type OpenCodeCatalog,
   type OpenCodeModel,
   type OpenCodeModelCost,
   type OpenCodeThinkingLevelMap,
 } from '../contracts/catalog.ts'
+import { estimateOf, type OpenCodeEstimateTable } from '../contracts/estimates.ts'
 
 /** 上游没有给容量时的保守兜底（与 DSH 的默认值一致）。 */
 export const DEFAULT_CONTEXT_WINDOW = 262_144
@@ -466,6 +468,8 @@ export interface CatalogEntryInput {
   readonly consoleProviderNpm?: string
   /** 活 roster 里该模型的创建时间（epoch 秒），用于免费模型的排序。 */
   readonly rosterCreatedAt?: number
+  /** 当前套餐档位的估算表；仅 `plan` 为 `go` 时写入预计请求数。 */
+  readonly estimates?: OpenCodeEstimateTable
 }
 
 /** 构建结果：成功模型（可带降级说明），或跳过原因。 */
@@ -613,6 +617,8 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
     ? consoleCaps.tools
     : catalogEntry?.tool_call !== false && fallbackCatalogEntry?.tool_call !== false
   const structuredOutput = catalogEntry?.structured_output === true || fallbackCatalogEntry?.structured_output === true
+  // 预计请求数只有 Go 档有口径；表里没有该模型时保持 undefined（排序沉底）。
+  const estimated = plan === 'go' ? estimateOf(entry.estimates, id) : undefined
 
   return {
     ok: true,
@@ -637,6 +643,7 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
       free,
       ...(clientOnly ? { clientOnly: true } : {}),
       ...(releasedAt === undefined ? {} : { releasedAt }),
+      ...(estimated === undefined ? {} : { estimatedRequestsPerMonth: estimated }),
       ...(catalogEntry?.status === 'deprecated' || fallbackCatalogEntry?.status === 'deprecated' ? { deprecated: true } : {}),
       ...(consoleEntry?.disabled === true ? { disabled: true } : {}),
     },
@@ -663,6 +670,13 @@ export interface BuildCatalogInput {
    * 另一端点，上游会直接返回 `Model is unavailable.`。
    */
   readonly endpointPlan?: OpenCodePlan | 'auto'
+  /**
+   * 当前套餐档位的每月预计请求数表；只写入 `plan` 为 `go` 的模型。
+   *
+   * 由调用方按套餐识别结果选表（见 `contracts/estimates.ts`）；缺省时不填该字段，
+   * 排序随之回到「免费优先、单价升序」的原口径。
+   */
+  readonly estimates?: OpenCodeEstimateTable
   readonly now?: number
 }
 
@@ -723,22 +737,82 @@ export function dedupeByPlan(
 }
 
 /**
- * 目录排序：可用的免费模型在最前（按时间降序），其次是可用的付费模型（按价格
- * 从低到高），被禁用的条目统一排到最后。
+ * 整侧归属过滤：只保留账号套餐真正能计费的那一侧。
  *
- * 排序只影响展示顺序，不改变条目本身；同一档内以模型 id 作稳定的次序兜底，
- * 避免刷新后顺序抖动。
+ * Go 订阅（含 Plus / Teams）账号只保留 `plan === 'go'` 的条目，只有按量余额的
+ * 账号只保留 `plan === 'zen'` 的条目。未知套餐返回原引用：读不出来时宁可保留
+ * 合并列表，也不能把选择器清空。
+ *
+ * @param models - 合并后的模型列表。
+ * @param plan - 账号套餐档位。
+ * @returns 过滤后的新列表；`unknown` 时是同一个数组引用。
+ */
+export function scopeToAccountPlan(
+  models: readonly OpenCodeModel[],
+  plan: OpenCodeAccountPlan,
+): readonly OpenCodeModel[] {
+  if (plan === 'unknown') return models
+  const keep: OpenCodePlan = plan === 'payg' ? 'zen' : 'go'
+  const next = models.filter(model => model.plan === keep)
+  return next.length === models.length ? models : next
+}
+
+/**
+ * 目录排序。
+ *
+ * 两种口径：
+ *
+ * - **提供估算表**（Go 档）：只按该档位的每月预计请求数排。`null` 是上游标为
+ *   Unlimited 的模型，置顶；有数值的降序；表里没有该模型（`undefined`）沉到
+ *   末尾；同值按 id 升序。「免费」在这一口径下**不构成优先档**——免费模型若
+ *   被标了较低额度，就应排在额度更高的付费模型之后。被禁用或仅官方客户端可用的
+ *   条目仍然统一排在最后，且不受额度影响。
+ * - **未提供估算表**：免费模型在最前（按时间降序），其次是可用的付费模型（按
+ *   单价从低到高），禁用条目排最后。
+ *
+ * 排序只影响展示顺序，不改变条目本身。
  *
  * @param models - 待排序的模型列表。
+ * @param estimates - 可选：当前套餐档位的预计请求数表。
  * @returns 排序后的新列表。
  */
-export function sortCatalogModels(models: readonly OpenCodeModel[]): readonly OpenCodeModel[] {
-  const rank = (model: OpenCodeModel): number => (model.disabled === true || model.clientOnly === true ? 2 : model.free ? 0 : 1)
+export function sortCatalogModels(
+  models: readonly OpenCodeModel[],
+  estimates?: OpenCodeEstimateTable,
+): readonly OpenCodeModel[] {
+  // 不可用（禁用或仅官方客户端可用）：两种口径下都沉底。
+  const unavailable = (model: OpenCodeModel): boolean => model.disabled === true || model.clientOnly === true
   // 没有价格元数据的模型不能当作「最便宜」排到前面，统一沉到付费档末尾。
   const price = (model: OpenCodeModel): number =>
     (model.cost === undefined ? Number.POSITIVE_INFINITY : model.cost.input + model.cost.output)
   const time = (model: OpenCodeModel): string => model.releasedAt ?? ''
+  // 估算表只对 Go 档有意义：按量模型按 token 计费，没有「每月预计请求数」口径。
+  // 列表不是纯 Go 侧（例如 unknown 套餐下的合并列表）、或条目上还没带估算值时
+  // 一律回落到老口径，避免整列退化成「只按 id 排」。
+  const byEstimate = estimates !== undefined
+    && models.every(model => model.plan === 'go')
+    && models.some(model => model.estimatedRequestsPerMonth !== undefined)
+  // 额度档位：2 = null（不限量，最前），1 = 有数值（降序），0 = 表里没有（沉底）。
+  const quotaRank = (model: OpenCodeModel): number =>
+    model.estimatedRequestsPerMonth === null ? 2 : model.estimatedRequestsPerMonth === undefined ? 0 : 1
   return [...models].sort((left, right) => {
+    if (byEstimate) {
+      // 只看「可用 / 不可用」两层：免费与付费在额度口径下同权，一起参与比较。
+      const byUnavailable = Number(unavailable(left)) - Number(unavailable(right))
+      if (byUnavailable !== 0) return byUnavailable
+      if (!unavailable(left)) {
+        const byQuotaRank = quotaRank(right) - quotaRank(left)
+        if (byQuotaRank !== 0) return byQuotaRank
+        const leftQuota = left.estimatedRequestsPerMonth
+        const rightQuota = right.estimatedRequestsPerMonth
+        if (typeof leftQuota === 'number' && typeof rightQuota === 'number' && leftQuota !== rightQuota) {
+          return rightQuota - leftQuota
+        }
+      }
+      return left.id.localeCompare(right.id)
+    }
+    // 老口径：免费 0 / 付费 1 / 不可用 2。
+    const rank = (model: OpenCodeModel): number => (unavailable(model) ? 2 : model.free ? 0 : 1)
     const byRank = rank(left) - rank(right)
     if (byRank !== 0) return byRank
     const bucket = rank(left)
@@ -756,24 +830,43 @@ export function sortCatalogModels(models: readonly OpenCodeModel[]): readonly Op
   })
 }
 
+/** `applyCatalogView` 的选项。 */
+export interface CatalogViewOptions {
+  /** 账号拥有的来源（旧口径）：只做跨来源同名去重，不过滤单侧独有条目。 */
+  readonly ownedPlan?: OpenCodePlan | undefined
+  /**
+   * 账号套餐档位（新口径）：非 `unknown` 时整侧过滤，取代跨来源去重。
+   *
+   * 与 `ownedPlan` 同时存在时以本字段为准；缺省或 `unknown` 时回落到
+   * `ownedPlan` 的旧行为，保证不传该字段时行为完全不变。
+   */
+  readonly accountPlan?: OpenCodeAccountPlan | undefined
+  /** 当前套餐档位的预计请求数表；缺省时排序保持老口径。 */
+  readonly estimates?: OpenCodeEstimateTable | undefined
+  /** 当前端点策略；缺省或 `auto` 时不改端点。 */
+  readonly endpointPlan?: OpenCodePlan | 'auto' | undefined
+}
+
 /**
- * 目录的统一展示口径：先按账号套餐去掉跨来源重复项，再按端点策略改写 `baseURL`。
+ * 目录的统一展示口径：按套餐过滤 → 排序 → 按端点策略改写 `baseURL`。
  *
  * 详情页目录卡片与模型选择器都走这一条，避免两处对同一个模型给出不同结论
  * （一处显示 `· zen` 条目、另一处已经把它去重掉）。
  *
  * @param models - 目录里的模型列表。
- * @param options - 账号套餐来源与当前端点策略；缺省时对应步骤跳过。
- * @param options.ownedPlan - 账号套餐来源，用于去掉跨来源重复项；缺省时不去重。
- * @param options.endpointPlan - 当前端点策略；缺省或 `auto` 时不改端点。
+ * @param options - 套餐、估算表与端点策略；缺省时对应步骤跳过。
  * @returns 处理并排好序的新列表。
  */
 export function applyCatalogView(
   models: readonly OpenCodeModel[],
-  options: { readonly ownedPlan?: OpenCodePlan | undefined, readonly endpointPlan?: OpenCodePlan | 'auto' | undefined },
+  options: CatalogViewOptions,
 ): readonly OpenCodeModel[] {
-  const deduped = options.ownedPlan === undefined ? models : dedupeByPlan(models, options.ownedPlan)
-  const ordered = sortCatalogModels(deduped)
+  // 新口径优先：账号套餐可读时整侧过滤，同名的另一侧条目自然一并消失。
+  // 读不出来（`unknown`）时回落到旧口径，保持合并列表可用而不是清空选择器。
+  const scoped = options.accountPlan === undefined || options.accountPlan === 'unknown'
+    ? (options.ownedPlan === undefined ? models : dedupeByPlan(models, options.ownedPlan))
+    : scopeToAccountPlan(models, options.accountPlan)
+  const ordered = sortCatalogModels(scoped, options.estimates)
   if (options.endpointPlan === undefined || options.endpointPlan === 'auto') return ordered
   return applyEndpointPlan(ordered, options.endpointPlan)
 }
@@ -842,6 +935,7 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
         ...(providerNpm === undefined ? {} : { providerNpm }),
         ...(scope?.packageName === undefined ? {} : { consoleProviderNpm: scope.packageName }),
         ...(rosterCreated.has(id) ? { rosterCreatedAt: rosterCreated.get(id) as number } : {}),
+        ...(input.estimates === undefined ? {} : { estimates: input.estimates }),
       })
       if (result.ok) {
         models.push(result.model)
@@ -971,6 +1065,8 @@ export interface CatalogServiceOptions {
   readonly fetchImpl?: typeof fetch
   readonly builtin?: () => { readonly zen?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
   readonly urls?: CatalogUrls
+  /** 构建目录时注入的估算表（按当前套餐档位），每次构建时求值。 */
+  readonly estimates?: () => OpenCodeEstimateTable | undefined
   readonly now?: () => number
 }
 
@@ -1107,12 +1203,14 @@ export class OpenCodeCatalogService {
     await Promise.all(tasks)
     if (rosterStale) this.rosterAt = now
 
+    const estimates = this.options.estimates?.()
     const next = buildCatalog({
       ...(consoleConfig === undefined ? {} : { consoleConfig }),
       ...(zenRoster === undefined ? {} : { zenRoster }),
       ...(goRoster === undefined ? {} : { goRoster }),
       ...(catalog === undefined ? {} : { catalog }),
       ...(this.options.builtin === undefined ? {} : { builtin: this.options.builtin() }),
+      ...(estimates === undefined ? {} : { estimates }),
       now,
     })
     this.snapshot = next

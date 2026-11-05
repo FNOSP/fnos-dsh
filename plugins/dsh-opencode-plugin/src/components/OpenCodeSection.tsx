@@ -9,6 +9,7 @@ import type { TimerService } from '../client/services/polling.ts'
 import type { OpenCodePreferencesStore } from '../client/services/preferences-data.ts'
 import { isOpenCodeBundleSubject } from '../client/services/registration.ts'
 import type { OpenCodePluginSubject } from '../client/services/registration.ts'
+import { useCatalogSnapshot } from './catalog-snapshot.ts'
 import { OpenCodeAccountCard } from './OpenCodeAccountCard.tsx'
 import { OpenCodeCatalogCard } from './OpenCodeCatalogCard.tsx'
 import { OpenCodeSettingsCard } from './OpenCodeSettingsCard.tsx'
@@ -39,7 +40,7 @@ export function OpenCodeSection({ t, preferences, timer, subject }: OpenCodeSect
   return <OpenCodeSectionContent t={t} preferences={preferences} timer={timer} />
 }
 
-/** 四张卡片的编排：共享偏好快照与登录代际。 */
+/** 四张卡片的编排：共享偏好快照、登录代际与目录快照。 */
 function OpenCodeSectionContent({ t, preferences, timer }: OpenCodeSectionInjected): ReactNode {
   const { value: preferenceValues, loaded } = useSyncExternalStore(
     preferences.subscribe,
@@ -48,6 +49,15 @@ function OpenCodeSectionContent({ t, preferences, timer }: OpenCodeSectionInject
   )
   const revision = useSyncExternalStore(subscribeAuthEpoch, authEpoch, authEpoch)
   const [preferencesError, setPreferencesError] = useState<string>()
+
+  // 目录只在这里读一次：账号卡（套餐）与目录卡（过滤说明、列表）共用同一份响应。
+  const { view, load } = useCatalogSnapshot({
+    timer,
+    refreshMinutes: preferenceValues.refreshMinutes,
+    revision,
+    fallbackMessage: t('catalogLoadFailed'),
+  })
+  const entitlement = view.response?.entitlement
 
   useEffect(() => {
     let live = true
@@ -63,7 +73,7 @@ function OpenCodeSectionContent({ t, preferences, timer }: OpenCodeSectionInject
         <h2 className="dsh-opencode-section-title">{t('title')}</h2>
         <p className="dsh-opencode-section-desc">{t('intro')}</p>
       </header>
-      <OpenCodeAccountCard t={t} timer={timer} />
+      <OpenCodeAccountCard t={t} timer={timer} entitlement={entitlement} />
       <OpenCodeUsageCard
         t={t}
         timer={timer}
@@ -72,12 +82,11 @@ function OpenCodeSectionContent({ t, preferences, timer }: OpenCodeSectionInject
       />
       <OpenCodeCatalogCard
         t={t}
-        timer={timer}
+        view={view}
+        load={load}
         preferences={preferences}
         hiddenModels={preferenceValues.hiddenModels}
         preferencesLoaded={loaded}
-        refreshMinutes={preferenceValues.refreshMinutes}
-        revision={revision}
       />
       <OpenCodeSettingsCard
         t={t}
