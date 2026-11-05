@@ -15,6 +15,10 @@ export const CODEX_STREAM_IDLE_TIMEOUT_MS = 300_000
 
 /** Match DSH alpha.4's default request-level image payload bound. */
 export const CODEX_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
+/** 单请求保留图片上限。0.2.2 起该字段必填；未核实提供方单请求上限前显式采用上游默认值 50。 */
+export const CODEX_MAX_REQUEST_IMAGES = 50
+/** 超限时每次省略的图片数，须不大于上限；同样采用上游默认值 10。 */
+export const CODEX_IMAGE_OFFLOAD_COUNT_QUANTUM = 10
 
 /** Match DSH alpha.4's default per-image total-pixel budget. */
 export const CODEX_REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
@@ -56,6 +60,8 @@ export function createCodexAdapter(
     displayName: 'OpenAI Codex',
     streamIdleTimeoutMs: CODEX_STREAM_IDLE_TIMEOUT_MS,
     maxRequestImageBytes: CODEX_MAX_REQUEST_IMAGE_BYTES,
+    maxRequestImages: CODEX_MAX_REQUEST_IMAGES,
+    imageOffloadCountQuantum: CODEX_IMAGE_OFFLOAD_COUNT_QUANTUM,
     requestImagePixelBudget: CODEX_REQUEST_IMAGE_PIXEL_BUDGET,
     requestImageMaxBytes: CODEX_REQUEST_IMAGE_MAX_BYTES,
     retryPolicy: resolveRetryPolicy(undefined, 'dsh-codex-auth-plugin retryPolicy'),

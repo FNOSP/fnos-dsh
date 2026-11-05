@@ -10,7 +10,12 @@ PNPM_STORE_FILE="${DSH_HOME}/.pnpm-store-dir"
 NPM_BIN="${NODE_BIN}/npm"
 DSH_BIN="${NPM_CONFIG_PREFIX}/bin/dsh"
 DSH_PACKAGE="@deepseek-ai/dsh"
-DSH_VERSION="0.2.1-rc.5"
+DSH_VERSION="0.2.2-rc.1"
+# DSH 0.2.2 起运行时要求 Node >= 24.9.0（上游 engines.node）。应用不内置 Node，
+# 用的是 fnOS 系统包 nodejs_v24，因此安装期必须显式校验：npm 对 engines 只告警，
+# 不校验会把失败推到启动阶段，表现为「装完起不来」。该值须与基线一致，
+# 由构建工具的基线守卫对照已安装 dsh 的 engines.node 断言。
+DSH_MIN_NODE_VERSION="24.9.0"
 TRIM_CLI_PACKAGE="@trimjs/trim-cli"
 # 随包内置的 Agent skill（来自 fnnas-labs/fnos-cli-skill，装在 ${APP_DEST}/skills 下）。
 FNOS_CLI_SKILL_NAME="fnos-cli"
@@ -485,6 +490,9 @@ main() {
     fi
     [ -f "${DSH_INSTALL_CALLBACK_HELPER}" ] ||
         fail_install "The install callback helper is not available at ${DSH_INSTALL_CALLBACK_HELPER}"
+
+    "${NODE_BIN}/node" "${DSH_INSTALL_CALLBACK_HELPER}" check-node "${DSH_MIN_NODE_VERSION}" ||
+        fail_install "nodejs_v24 is below the DSH runtime floor (>= ${DSH_MIN_NODE_VERSION}); upgrade the nodejs_v24 package in the fnOS app center and retry"
 
     remove_legacy_pnpm_store_config
     select_npm

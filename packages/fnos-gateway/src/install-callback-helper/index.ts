@@ -21,6 +21,7 @@ import { patchDshAttachmentLocal } from './attachment-patch.ts'
 import { formatTrustedHostIssues, validateTrustedHosts } from './trusted-hosts.ts'
 import { migrateCwdPromptVariable } from './cwd-migration.ts'
 import { createLogger, InstallHelperError } from './logger.ts'
+import { assertNodeFloor } from './node-version.ts'
 import { prepareNodePty } from './node-pty.ts'
 
 const logger = createLogger('install-callback-helper')
@@ -153,6 +154,12 @@ export function createProgram(): Command {
     .command('prepare-node-pty')
     .description('Prepare node-pty lifecycle scripts and native files')
     .action(prepareNodePty)
+
+  program
+    .command('check-node')
+    .description('Fail the install when the system Node runtime is below the DSH floor (FNOS-046)')
+    .argument('<required-version>', 'minimum Node version, e.g. 24.9.0')
+    .action((required: string) => assertNodeFloor(required))
 
   program
     .command('patch-attachment-local')

@@ -53,8 +53,8 @@
     "locale"
   ],
   "engines": {
-    "node": "^22.19.0 || >=24.0.0",
-    "dsh": "0.2.1-rc.5"
+    "node": ">=24.9.0",
+    "dsh": "0.2.2-rc.1"
   },
   "scripts": {
     "build": "tsdown",
@@ -93,7 +93,6 @@
     "@deepseek-ai/dsh-attachment": "catalog:dsh",
     "@deepseek-ai/dsh-client-locale": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-plugin-manager": "catalog:dsh",
-    "@deepseek-ai/dsh-client-ui-primitives": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-renderer": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-session": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-settings": "catalog:dsh",
@@ -116,7 +115,6 @@
     "@deepseek-ai/dsh-client-ui-conversation": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-model-selection": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-plugin-manager": "catalog:dsh",
-    "@deepseek-ai/dsh-client-ui-primitives": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-renderer": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-session": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-settings": "catalog:dsh",

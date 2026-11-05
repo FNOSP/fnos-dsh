@@ -54,6 +54,10 @@ import {
 export const OPENCODE_STREAM_IDLE_TIMEOUT_MS = 300_000
 /** 每个请求的 base64 图片总负载上限（与 DSH 默认一致）。 */
 export const OPENCODE_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
+/** 单请求保留图片上限。0.2.2 起该字段必填；未核实提供方单请求上限前显式采用上游默认值 50。 */
+export const OPENCODE_MAX_REQUEST_IMAGES = 50
+/** 超限时每次省略的图片数，须不大于上限；同样采用上游默认值 10。 */
+export const OPENCODE_IMAGE_OFFLOAD_COUNT_QUANTUM = 10
 /** 每张请求图片的像素预算（2048 × 2048）。 */
 export const OPENCODE_REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
 /** 每张请求图片的编码后字节目标。 */
@@ -229,6 +233,8 @@ export function createOpenCodeProfile(
     displayName: OPENCODE_PROVIDER_NAME,
     streamIdleTimeoutMs: OPENCODE_STREAM_IDLE_TIMEOUT_MS,
     maxRequestImageBytes: OPENCODE_MAX_REQUEST_IMAGE_BYTES,
+    maxRequestImages: OPENCODE_MAX_REQUEST_IMAGES,
+    imageOffloadCountQuantum: OPENCODE_IMAGE_OFFLOAD_COUNT_QUANTUM,
     requestImagePixelBudget: OPENCODE_REQUEST_IMAGE_PIXEL_BUDGET,
     requestImageMaxBytes: OPENCODE_REQUEST_IMAGE_MAX_BYTES,
     retryPolicy: resolveRetryPolicy(undefined, 'dsh-opencode retryPolicy'),

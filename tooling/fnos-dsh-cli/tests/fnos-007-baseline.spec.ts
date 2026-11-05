@@ -27,7 +27,9 @@ const pluginDirectories = [
   'dsh-failover-search-plugin',
   'dsh-fnos-plugin',
   'dsh-midscene-plugin',
+  'dsh-opencode-plugin',
   'dsh-semi-ui-showcase-plugin',
+  'dsh-zcode-plugin',
 ]
 
 /**
@@ -87,6 +89,34 @@ describe('FNOS-007 DSH baseline', () => {
       }
       expect(compatibility.dshPluginApi.version, directory).toBe(targetVersion)
     }
+  })
+
+  it('keeps every plugin Node floor at the runtime floor', async () => {
+    // 0.2.2 起运行时要求 Node >= 24.9.0。插件的 engines.node 比运行时更宽时，
+    // 安装期不会报错，问题会推到启动阶段（命令行自检或 Web 健康检查超时）才暴露。
+    // 这里与运行时自身声明比对：下限随基线自动更新，不在测试里重述具体版本。
+    const runtime = JSON.parse(await readFile(new URL('../../../node_modules/@deepseek-ai/dsh/package.json', import.meta.url), 'utf8')) as {
+      engines?: { node?: string }
+    }
+    const floor = runtime.engines?.node
+    expect(floor, 'installed @deepseek-ai/dsh must declare engines.node').toBeTruthy()
+    for (const directory of pluginDirectories) {
+      const manifest = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as {
+        engines?: { node?: string }
+      }
+      const compatibility = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/compatibility.json`, import.meta.url), 'utf8')) as {
+        engines?: { node?: string }
+      }
+      expect(manifest.engines?.node, `${directory}:engines.node`).toBe(floor)
+      expect(compatibility.engines?.node, `${directory}:compatibility engines.node`).toBe(floor)
+    }
+
+    // 安装期的门禁常量同样不能与运行时下限漂移：它是「装完起不来」的唯一前置拦截。
+    const callback = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/install_callback', import.meta.url), 'utf8')
+    const pinned = /DSH_MIN_NODE_VERSION="(\d+\.\d+\.\d+)"/u.exec(callback)?.[1]
+    expect(pinned, 'install_callback must pin DSH_MIN_NODE_VERSION').toBeTruthy()
+    const floorNumber = /(\d+\.\d+\.\d+)/u.exec(floor ?? '')?.[1]
+    expect(pinned, 'DSH_MIN_NODE_VERSION 应等于运行时 engines.node 的下限').toBe(floorNumber)
   })
 
   it('keeps every documented install command on the released plugin version', async () => {

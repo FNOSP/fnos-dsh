@@ -77,6 +77,25 @@ function settingsHarness(root: Context, home: string) {
         const write = typeof ref === 'object' && ref !== null ? ref[VOLATILE_WRITE] : undefined
         if (typeof write === 'function') write.call(ref, structuredClone(value))
       }
+      // DSH 0.2.2（cordis 4.1）起，`SettingsForms.describe()` 的 value 取自
+      // `fiber.effectiveConfig`，该字段由 loader 在编辑提交后重新解析写入。
+      // 本夹具顶替了 loader，必须同步写回，否则 describe() 仍返回编辑前快照。
+      // DSH 0.2.2（cordis 4.1）起，`SettingsForms.describe()` 的 value 取自
+      // `fiber.effectiveConfig`，该快照由 loader 在编辑提交后重新解析并写入。
+      // 它挂在**上层** fiber 上、且每个字段是 volatile 引用：这里按 loader 的
+      // 方式对引用写快照，否则 describe() 仍返回编辑前的值（旧夹具只更新了
+      // `fiber.config`，对新的读取路径无效）。
+      const ownerFiber = (target.fiber as unknown as { ctx?: { fiber?: unknown } } | undefined)?.ctx?.fiber as
+        | { _effectiveConfig?: Record<string, unknown> }
+        | undefined
+      const effective = ownerFiber?._effectiveConfig
+      if (effective !== undefined) {
+        for (const [key, value] of Object.entries(next)) {
+          const ref = effective[key] as Record<symbol, (snapshot: unknown) => void> | undefined
+          const write = typeof ref === 'object' && ref !== null ? ref[VOLATILE_WRITE] : undefined
+          if (typeof write === 'function') write.call(ref, structuredClone(value))
+        }
+      }
     },
   })
   return { entry, stored: () => stored }
