@@ -98,6 +98,6 @@ flowchart TD
 | FNOS-043 | [可信访问地址的校验与错误透出](/requirements/FNOS-043-trusted-hosts-validation) | 实施中（包级用例通过；真实 NAS 安装向导验收待执行） |
 | FNOS-044 | [FPK 平台产物选择与双包发布](/requirements/FNOS-044-fpk-platform-selection) | 实施中（包级 160 条与本地双平台实跑通过，产物落 `apps/<app>/dist/<主干>/`（一平台一子目录）并每次清空、仓库清单全程未被写入；ARM 侧按提出人定案不做真机验收，只要求发布产物包含） |
 | FNOS-045 | [应用与插件多语言支持](/requirements/FNOS-045-app-plugin-i18n) | 已完成（2026-11-05 真实 fnOS NAS 验收：九种语言在 DSH 与插件内显示与切换正常，安装向导文案随语言；应用中心名称与描述同步随语言变化；ARM64 只要求发布产物包含，不做真机验收） |
-| FNOS-046 | [DSH 0.2.2-rc.1 插件适配与基线升级](/requirements/FNOS-046-dsh-022-rc1-adaptation) | 规划中（调研完成：17 条结论中 15 条已核实、2 条待核实，含 Node 24.9.0 门禁与 pi-ai 图片上限；尚未进入实施） |
+| FNOS-046 | [DSH 0.2.2-rc.1 插件适配与基线升级](/requirements/FNOS-046-dsh-022-rc1-adaptation) | 规划中（调研收口：27 条结论中 25 条已核实、1 条部分核实、1 条待核实；含 Node 24.9.0 门禁缺失、三插件 provider 配置必填字段、定时任务存储单向升级与未声明接缝；尚未进入实施） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。
