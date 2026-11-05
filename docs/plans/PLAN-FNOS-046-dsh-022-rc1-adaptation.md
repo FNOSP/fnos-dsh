@@ -2,7 +2,7 @@
 id: PLAN-FNOS-046
 title: PLAN-FNOS-046 DSH 0.2.2-rc.1 插件适配与基线升级
 description: DSH 0.2.2-rc.1 基线升级的前置取证、三处锚定改写、插件侧契约适配、双客户端与真实 NAS 验证、文档与版本实施计划。
-status: planned
+status: in-review
 owner: tnnevol
 planDate: 2026-11-05
 targetVersion: 8.0.0
@@ -146,7 +146,7 @@ flowchart LR
 | PLAN-FNOS-046-T01-01 | FNOS-046-04 / AC-01 | 在真实 fnOS NAS 上只读取证系统 `nodejs_v24` 的版本（应用中心系统包信息或 `node --version`），记录到需求变更记录与测试用例文档 | NAS 可达、可只读登录 | 输出 Node 版本；`>= 24.9.0` 才继续 T02 |
 | PLAN-FNOS-046-T01-02 | FNOS-046-05 / AC-01 | 联调检出 `git fetch --tags` 后 checkout `dsh-v0.2.2-rc.1`，按需 `pnpm install` | 官方 tag 已发布（已核实） | `git describe --tags` 输出 `dsh-v0.2.2-rc.1` |
 | PLAN-FNOS-046-T01-03 | FNOS-046-02 / AC-04 | 逐条复核 13 条官方升级指南在本仓库的适用性（含已判定的 10 条不触及项），把结论与证据落到测试用例文档。注意指南是 `v0.2.2-alpha.2` 时点的快照，个别条目与最终 `rc.1` 源码不符，判定一律以 tag 源码为准 | T01-02 | 13 条各有结论与证据；「落在」项转为 T03 任务 |
-| PLAN-FNOS-046-T01-04 | FNOS-046-01、02 | 包级契约比对。已完成：插座目录（103 → 109，新增 6 个、无删除，本仓库 8 个注册插座的 `ownerProps`/`registerOptions` 零变化，`priority` 规则逐字未变）；命名 catalog 的 44 个依赖包（0 改名/0 删除，37 个仅版本变化，7 个实质变化，被删导出符号与本仓库导入交集为空）；语言键面（未收窄）。剩余：模型底座自身 `1.1.0 → 1.3.0` 的 API 差异（不在上游仓库内，需取 npm 包类型声明比对） | T01-02 | 输出比对清单；发现被删符号或改名时先更新需求再改代码 |
+| PLAN-FNOS-046-T01-04 | FNOS-046-01、02 | 包级契约比对（已完成）：插座目录（103 → 109，新增 6 个、无删除，本仓库 8 个注册插座的 `ownerProps`/`registerOptions` 零变化，`priority` 规则逐字未变）；命名 catalog 的 44 个依赖包（0 改名/0 删除，37 个仅版本变化，7 个实质变化，被删导出符号与本仓库导入交集为空）；语言键面（未收窄）；模型底座 `1.1.0 → 1.4.0` 类型声明比对（移除 25、新增 17，本仓库使用的 24 个根符号与 8 个子路径导出均保留，被移除符号零引用） | T01-02 | 输出比对清单；发现被删符号或改名时先更新需求再改代码 |
 | PLAN-FNOS-046-T01-05 | FNOS-046-01、FNOS-046-04、FNOS-046-02 | 在**装好的新基线产物**上校核两处字面量补丁：①安装期对附件本地化包的三处目标文本（失配即安装期硬失败且无回退）；②fnOS 插件对宿主首页内联脚本的主题偏好替换目标文本（失配为静默失效，不报错）。两者都不能只在上游源码里核对——目标文本只存在于构建产物 | T01-02 | 两处目标文本在新产物中各自恰好命中一次；失配时记录并转为适配任务 |
 | PLAN-FNOS-046-T02-01 | FNOS-046-03 / AC-01 | `pnpm-workspace.yaml` 三处基线同步（默认 catalog 1 条、命名 catalog 41 条、发布龄期豁免 306 条），并把 `cordis`、`schemastery`、`pi-ai` 的落点对齐上游 vendor 版本；同时把本轮被上游删除的包（`@deepseek-ai/dsh-client-ui-deepseek-model-label-1017`）从豁免清单移除，不给不存在的包留失效条目 | T01-01、T01-04 | `grep -c '0.2.1-rc.5' pnpm-workspace.yaml` 为 0；`cordis`/`schemastery`/`pi-ai` 取值与上游一致；豁免清单中每个包名在新基线仍存在 |
 | PLAN-FNOS-046-T02-02 | FNOS-046-01、03 / AC-01 | 七个插件 `engines.dsh` 与 `compatibility.json` 的 `dshPluginApi.version` 改为新基线；`engines.node` 与 `compatibility.json` 的 node 声明对齐 `>=24.9.0` | T02-01 | 逐文件核对无旧基线残留；CLI 基线用例通过 |
