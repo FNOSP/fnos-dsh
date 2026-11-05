@@ -2,7 +2,7 @@
 id: PLAN-FNOS-044
 title: PLAN-FNOS-044 FPK 平台产物选择与双包发布
 description: 构建链路引入 FPK 平台维度：暂存目录改写清单平台值、产物名带平台段、CI 双平台出包，并补齐守卫用例。
-status: in-progress
+status: completed
 owner: tnnevol
 planDate: 2026-11-04
 targetVersion: 7.1.0
