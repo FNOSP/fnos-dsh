@@ -172,19 +172,19 @@ describe('FNOS-007 DSH baseline', () => {
     // literal in the test rots exactly like one in the build guard: both said
     // 0.2.0-rc.2 after the plugins moved to 0.2.0-rc.2.0, so the test went red
     // while the release it was meant to protect still shipped a stale pin.
-    for (const name of ['@tnnevol/dsh-codex-auth', '@tnnevol/dsh-fnos'] as const) {
+    for (const name of ['@tnnevol/dsh-fnos'] as const) {
       const directory = bundledPluginDirectories[name]
       const source = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as { version: string }
       expect(published.plugins.find(plugin => plugin.name === name), name).toEqual({ name, version: source.version })
     }
-    // 两个自有插件（Codex Auth、fnOS）+ Failover Search（均随 FPK 安装）+ 三方 dshmarket。
-    // `@tnnevol/dsh-midscene` 不随 FPK 分发，由需要的人自行安装。
-    // CodeBuddy 已于 2026-10-22 下架，不再随 FPK 内置（见 FNOS-025）。
-    expect(published.plugins).toHaveLength(4)
+    // 只剩 fnOS 一个自有插件随 FPK 内置，加三方 dshmarket。
+    // Codex Auth 与 Failover Search 自 8.1.4 起不再内置（用户在插件市场自行安装），
+    // 与 `@tnnevol/dsh-midscene` 相同口径；CodeBuddy 已于 2026-10-22 下架（FNOS-025）。
+    expect(published.plugins).toHaveLength(2)
     // Third-party dshmarket has no local source, so its exact pin stays a
     // literal: the registry version is the contract, not a copy. 每次更新 DSH
     // 基线都要同步升级它，否则其 peer 范围可能不覆盖新基线而被兼容门禁拒绝。
-    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.66.47', source: 'thirdparty' })
+    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.73.12', source: 'thirdparty' })
     expect(published.registry).toBeUndefined()
     expect(published.bundled ?? []).toEqual([])
 

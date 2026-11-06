@@ -2,20 +2,12 @@
   "version": 1,
   "plugins": [
     {
-      "name": "@tnnevol/dsh-codex-auth",
-      "version": "8.1.3"
-    },
-    {
       "name": "@tnnevol/dsh-fnos",
       "version": "8.1.3"
     },
     {
-      "name": "@tnnevol/dsh-failover-search",
-      "version": "8.1.3"
-    },
-    {
       "name": "dshmarket",
-      "version": "1.66.47",
+      "version": "1.73.12",
       "source": "thirdparty"
     }
   ]

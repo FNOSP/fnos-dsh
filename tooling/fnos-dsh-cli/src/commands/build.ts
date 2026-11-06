@@ -45,7 +45,6 @@ const DSHMARKET_NAME = 'dshmarket'
 // 新增内置插件要在这里登记，而不是像「有源码就放行」那样自动通过；漏登记会在
 // 构建期报错并点名，避免清单被无意改动后无人发现。
 const FPK_REQUIRED_BUNDLED_PLUGIN_NAMES = [
-  '@tnnevol/dsh-codex-auth',
   '@tnnevol/dsh-fnos',
 ]
 
@@ -53,9 +52,7 @@ const FPK_REQUIRED_BUNDLED_PLUGIN_NAMES = [
 //
 // `@tnnevol/dsh-midscene` **刻意不在此列**：它面向浏览器自动化场景、用完即走的
 // 插件，不随 FPK 分发，由需要的人自行安装。
-const FPK_OPTIONAL_BUNDLED_PLUGIN_NAMES = [
-  '@tnnevol/dsh-failover-search',
-]
+const FPK_OPTIONAL_BUNDLED_PLUGIN_NAMES: string[] = []
 
 type PublishedDshPluginManifest = {
   plugins?: Array<{ name?: unknown, version?: unknown, source?: unknown }>
@@ -190,14 +187,15 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
       throw new Error(`The published DSH plugin manifest must agree with ${target.path}: expected ${name}@${source.version}, declared ${String(plugin.version)}`)
     }
   }
-  // Codex must stay bundled: the registry only carries builds whose DSH
-  // baseline predates 0.1.7-rc.2, and installing one of those breaks Web
-  // startup on the missing `settingsNamespace` export. Keep the removal
-  // guard inverted so a manifest edit cannot silently drop it again.
-  const codex = manifest.plugins.find(plugin => typeof plugin?.name === 'string' && plugin.name.includes('codex'))
-  if (codex === undefined) {
-    throw new Error(`The published DSH plugin manifest must bundle the Codex plugin: ${manifestPath}`)
-  }
+  // Codex 曾在此处有「必须内置」的守卫，理由是其 registry 版本基线过旧
+  // （低于 0.1.7-rc.2），安装后会因 `@deepseek-ai/dsh-settings` 不再导出
+  // `settingsNamespace` 而使 Web 启动失败。
+  //
+  // 该前提已消失：registry 上在售版本的 `engines.dsh` 都是当前基线，
+  // 两个插件源码中也已无 `settingsNamespace` 引用，从 npm 安装不会破坏启动。
+  // 守卫随之移除（FNOS-049）——保留它会让「把插件移出内置清单」这个合法决定
+  // 永远无法落地。与 CodeBuddy 下架时移除同名守卫是同一种处置。
+  //
   // CodeBuddy 曾在此处有「必须内置」的守卫。它已于 2026-10-22 下架：上游对非官方
   // 客户端通道收紧拦截，插件无法再稳定可用。守卫随之移除——保留它只会让清单
   // 永远无法合法地少一个插件。

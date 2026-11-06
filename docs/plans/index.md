@@ -87,5 +87,6 @@ flowchart TD
 | PLAN-FNOS-046 | [DSH 0.2.2-rc.1 插件适配与基线升级](/plans/PLAN-FNOS-046-dsh-022-rc1-adaptation) | 待完成（五阶段 22 个任务全部完成：前置取证与契约比对 → 锚定改写 → 契约适配 → 验证 → 文档与版本；仅剩 FNOS-046 需求侧的用户确认收口） |
 | PLAN-FNOS-047 | [OpenCode 套餐归属过滤与额度排序](/plans/PLAN-FNOS-047-opencode-plan-entitlement) | 待完成（T1–T7 全部落地；执行期间两次口径变更已回写需求与计划：未知套餐按 Go 处理、新上架免费模型按不限量置顶；43 条用例全绿，待用户确认收口） |
 | PLAN-FNOS-048 | [OpenCode 登录授权页自动打开](/plans/PLAN-FNOS-048-opencode-auto-authorize) | 待完成（T1–T6 全部落地：开窗编排 → 剪贴板 → 账号卡接线 → 复制兜底 → 九语言文案 → 测试与文档；仅剩双客户端界面目视与用户确认） |
+| PLAN-FNOS-049 | [把 Codex Auth 与 Failover Search 移出 FPK 内置清单](/plans/PLAN-FNOS-049-unbundle-plugins) | 待完成（T1–T5 全部落地：清单与白名单收敛 → 基线测试跟随 → 文档同步 → 用例登记；仅剩真机升级验证与用户确认） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。
