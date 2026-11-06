@@ -2,7 +2,7 @@
 id: PLAN-FNOS-047
 title: PLAN-FNOS-047 OpenCode 套餐归属过滤与额度排序
 description: 新增套餐识别服务、整侧归属过滤与额度降序排序的实施计划，含上游更名跟进、保守降级、验证与回滚。
-status: in-review
+status: accepted-pending-user
 owner: tnnevol
 planDate: 2026-11-05
 targetVersion: 8.1.0
@@ -16,7 +16,7 @@ lastVerified: 2026-11-05
 | 计划编号 | PLAN-FNOS-047 |
 | 计划日期 | 2026-11-05 |
 | 对应需求 | [FNOS-047 OpenCode 套餐归属过滤与额度排序](/requirements/FNOS-047-opencode-plan-entitlement) |
-| 计划状态 | 待验收（T1–T7 全部完成，自动化验证通过） |
+| 计划状态 | 待验收（T1–T7 全部完成；双客户端 33 条用例通过，待用户确认） |
 
 ## 计划目标
 

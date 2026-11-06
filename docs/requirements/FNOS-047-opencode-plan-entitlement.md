@@ -2,7 +2,7 @@
 id: FNOS-047
 title: FNOS-047 OpenCode 套餐归属过滤与额度排序
 description: 让 dsh-opencode 插件按当前账号的真实套餐（Go / Go Plus / Go Teams / 按量）决定展示与可用的模型：整侧过滤不属于账号套餐的条目，按官方 Estimated requests 表的每月预计请求数降序排列，并跟进上游 Zen → Console 的更名与套餐接口变更。
-status: in-review
+status: accepted-pending-user
 owner: tnnevol
 targetVersion: 8.1.0
 lastVerified: 2026-11-05
@@ -14,7 +14,7 @@ lastVerified: 2026-11-05
 | --- | --- |
 | 需求编号 | FNOS-047 |
 | 提出日期 | 2026-11-05 |
-| 需求状态 | 待验收（实现与自动化验证完成，待界面目视与用户确认） |
+| 需求状态 | 待验收（双客户端与自动化测试全部通过，待用户确认收口） |
 | 关联计划 | [PLAN-FNOS-047 OpenCode 套餐归属过滤与额度排序](/plans/PLAN-FNOS-047-opencode-plan-entitlement) |
 | 适用范围 | `plugins/dsh-opencode-plugin`（宿主目录、用量与套餐服务、Web 路由、目录卡片与设置区）、插件文档页 `docs/plugins/dsh-opencode.md` |
 | 明确排除 | 其它六个入库插件；按量余额与账单展示；上游 Console 的支付与订阅操作 |
@@ -48,15 +48,35 @@ lastVerified: 2026-11-05
 | FNOS-047-04 | 上游更名跟进 | 面向用户的文案把「Zen（按量）」改为「Console（按量）」口径，并给出官方新地址；内部契约字段名保持稳定 |
 | FNOS-047-05 | 未知套餐的保守处理 | 未登录或套餐接口不可读时不做整侧过滤，回落到原有合并列表并提示原因，避免选择器突然清空 |
 
+### FNOS-047-01 套餐识别
+
+插件按「Console 套餐接口优先、Go 用量接口兜底」的顺序判定账号套餐，区分 `go` / `go-plus` / `go-teams` / `payg` 四类结果。详情页账号卡显示套餐名与判定依据（Console 套餐接口 / 用量接口兜底 / 不可读）。
+
+### FNOS-047-02 归属过滤
+
+账号套餐可判定时**整侧过滤**：Go 订阅只保留 `· go` 条目，仅按量账号只保留 `· zen` 条目。只在另一侧存在的模型（如 `big-pickle`）同样不出现；模型选择器与详情页目录卡片口径一致。
+
+### FNOS-047-03 额度排序
+
+Go 侧模型按官方 Go 文档 Estimated requests 表的每月预计请求数降序排列，按套餐档位取对应的一份数据；文档标为 `Unlimited` 的模型置顶，表里没有的模型沉底。仅按量账号保持原有「免费优先、单价升序」口径。
+
+### FNOS-047-04 上游更名跟进
+
+面向用户的按量口径文案统一为「Console（按量）」，并给出官方新地址 `https://opencode.ai/console/models`；内部 `zen:` 前缀与 `· zen` 后缀保持不变，以免存量隐藏设置与历史会话失效。
+
+### FNOS-047-05 未知套餐的保守处理
+
+未登录、套餐接口不可读或响应无法识别时不做整侧过滤，回落合并列表并在详情页给出可读原因；错误文案经脱敏，不含凭据。
+
 ## 验收条件
 
 | 编号 | 验收条件 | 判定方式 |
 | --- | --- | --- |
-| FNOS-047-01 | 单元测试覆盖三种套餐返回值与两种失败路径，读到 `go-plus` 时估算表取 Go Plus 那份 | `tests/host/entitlement.spec.ts` |
-| FNOS-047-02 | 目录视图在 Go 账号下不含任何 `plan === 'zen'` 条目；按量账号下不含 `plan === 'go'`；未知套餐保留两侧 | `tests/host/catalog.spec.ts` |
-| FNOS-047-03 | 排序结果严格按估算表降序；`null`（不限量）在最前；表里没有的模型排在最后且顺序稳定 | `tests/host/catalog.spec.ts` |
-| FNOS-047-04 | 文档页与界面文案不再把按量口径称为 Zen，且给出 `console/models` 新地址 | 文档审阅 + 文案键检查 |
-| FNOS-047-05 | 套餐接口 404/超时时过滤开关不生效、目录仍可用，详情页给出可读原因 | `tests/host/entitlement.spec.ts`、`tests/host/routes.spec.ts` |
+| [AC-01](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-01-套餐识别) | 单元测试覆盖三种套餐返回值与两条失败路径，读到 `go-plus` 时估算表取 Go Plus 那份；两个客户端详情页能看到套餐名与判定依据 | `tests/host/entitlement.spec.ts`、DSH Web 与 DSH Desktop 走查 |
+| [AC-02](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-02-归属过滤) | 目录视图在 Go 账号下不含任何 `plan === 'zen'` 条目；按量账号下不含 `plan === 'go'`；未知套餐保留两侧 | `tests/host/catalog.spec.ts` |
+| [AC-03](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-03-额度排序) | 排序结果严格按估算表降序；`null`（不限量）在最前；表里没有的模型排在最后且顺序稳定 | `tests/host/catalog.spec.ts` |
+| [AC-04](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-04-上游更名跟进) | 文档页与界面文案不再把按量口径称为 Zen，且给出 `console/models` 新地址 | 文档审阅 + 文案键检查 |
+| [AC-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐的保守处理) | 套餐接口 404/超时时过滤开关不生效、目录仍可用，详情页给出可读原因 | `tests/host/entitlement.spec.ts`、`tests/host/routes.spec.ts` |
 
 ## 变更记录
 
@@ -64,3 +84,4 @@ lastVerified: 2026-11-05
 | --- | --- |
 | 2026-11-05 | 建立需求：调研确认上游 Zen → Console 更名、套餐接口与 Estimated requests 数据面，确定「整侧过滤 + 额度降序」口径 |
 | 2026-11-05 | 实现完成：套餐服务（Console 接口优先、用量兜底、未知保守降级）、整侧归属过滤、按档位额度降序、界面套餐与额度展示、九语言文案跟进；自动化验证 325 条全绿，转入待验收 |
+| 2026-11-06 | 按测试用例规范完成双客户端验收：DSH Web（0.2.2-rc.1 + 插件 8.1.0）与 DSH Desktop（开发态检出 0.2.2-rc.1 / Electron 44.7.0）各执行界面用例，33 条用例全部通过；亮/暗主题对比度达标；未登录降级与凭据恢复已复验。测试产物已清理，待用户确认收口 |
