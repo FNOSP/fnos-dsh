@@ -162,11 +162,12 @@ function ModelFeatureBubble({ model, t }: { model: OpenCodeModel, t: OpenCodeTra
 /**
  * 目录顶部的套餐口径说明。
  *
- * 套餐可读时给出「只显示该套餐的模型」与隐藏条数；不可读时说明暂不过滤——
- * 后者是保守降级，用户要能看出选择器为什么两侧都出现。
+ * 套餐可读时给出「只显示该套餐的模型」与隐藏条数；套餐判不出来时目录按 Go
+ * 口径过滤（OpenCode 的主力形态是 Go 订阅），这里说明是按 Go 展示并保留
+ * 宿主给出的失败原因，用户要能看出为什么显示的是 Go 而不是自己的套餐。
  *
- * `filteredModelCount` 只在 `scoped` 为 true 时下发，且为 0 时不下发那行说明：
- * 「已隐藏 0 个」既没有信息量，也容易被读成过滤失败。
+ * `filteredModelCount` 为 0 时不下发那行说明：「已隐藏 0 个」既没有信息量，
+ * 也容易被读成过滤失败。
  */
 function PlanScopeNotice({
   entitlement,
@@ -177,7 +178,7 @@ function PlanScopeNotice({
 }): ReactNode {
   if (entitlement === undefined) return null
   const plan = entitlement.plan
-  if (entitlement.scoped && plan !== 'unknown') {
+  if (plan !== 'unknown') {
     const hidden = entitlement.filteredModelCount
     return (
       <div className="dsh-opencode-plan-scope" role="status">
@@ -201,11 +202,15 @@ function PlanScopeNotice({
       </div>
     )
   }
+  const hidden = entitlement.filteredModelCount
   return (
     <div className="dsh-opencode-plan-scope" role="status">
       <DshIconInfoCircle className="dsh-opencode-notice-icon" />
       <div className="dsh-opencode-notice-body">
         <span>{t('catalogPlanScopeUnknown')}</span>
+        {typeof hidden === 'number' && hidden > 0 ? (
+          <span className="dsh-opencode-muted">{t('catalogPlanScopeHidden', { count: hidden })}</span>
+        ) : null}
         {entitlement.error === undefined ? null : (
           <span className="dsh-opencode-muted">{entitlement.error}</span>
         )}

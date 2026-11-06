@@ -72,7 +72,7 @@ export const ru: { [Key in OpenCodeLocaleKey]: string } = {
   catalogIntro: 'Модели, которые OpenCode публикует для этого аккаунта. Суффикс в названии показывает источник оплаты: go — подписка Go, zen — оплата по факту в Console. Отключите модель, чтобы скрыть её из списка выбора.',
   catalogConsoleLink: 'Модели в OpenCode Console',
   catalogPlanScopeNotice: 'Текущий тариф: {plan} · показаны только модели этого тарифа',
-  catalogPlanScopeUnknown: 'Тариф не определён, поэтому фильтрация пока не применяется и показаны модели обоих источников.',
+  catalogPlanScopeUnknown: 'Тариф не определён, поэтому пока показываются модели OpenCode Go.',
   catalogPlanScopeHidden: 'Скрыто моделей вне текущего тарифа: {count}',
   catalogEstimatedRequests: 'Ожидаемых запросов в месяц',
   catalogEstimatedUnlimited: 'Без ограничений',

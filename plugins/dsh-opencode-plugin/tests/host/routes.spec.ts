@@ -16,8 +16,8 @@ import { registerOpenCodeRoutes, type OpenCodeRoutesOptions } from '../../src/ho
  *
  * 1. `/catalog` 与 `/catalog/refresh` 的 `entitlement` 字段结构；
  * 2. 详情页目录与模型选择器同口径：Go 账号只出 `go` 条目、按量账号只出 `zen`
- *    条目、`unknown` 时保持合并列表；
- * 3. `auto` 端点策略的真值表——套餐读不出来时绝不改写端点。
+ *    条目、`unknown` 按 Go 口径过滤；
+ * 3. `auto` 端点策略的真值表——套餐读不出来时按 Go 端点走。
  */
 
 interface CapturedRoute {
@@ -174,7 +174,7 @@ describe('目录路由的套餐口径', () => {
       plan: 'go',
       source: 'console',
       endpointPlan: 'auto',
-      scoped: true,
+      filteredModelCount: 2,
     })
     expect(payload.entitlement?.estimates?.sourceUrl).toBe('https://opencode.ai/v2/docs/console/go/')
     // 夹具共 7 条，Go 侧 5 条（含跨侧同名 shared），被过滤的是 2 条 zen 独有/共享条目。
@@ -199,7 +199,7 @@ describe('目录路由的套餐口径', () => {
     const routes = harness({ entitlement: async () => entitlement('payg', { source: 'usage' }) })
     const payload = await invoke(routes, OPENCODE_ROUTES.catalog)
 
-    expect(payload.entitlement).toMatchObject({ plan: 'payg', source: 'usage', scoped: true })
+    expect(payload.entitlement).toMatchObject({ plan: 'payg', source: 'usage', endpointPlan: 'auto' })
     expect(payload.entitlement?.estimates).toBeUndefined()
     // 按量侧只留 2 条 zen（shared 与 zen-only），另 5 条 go 条目被隐藏。
     expect(payload.entitlement?.filteredModelCount).toBe(5)
@@ -209,27 +209,32 @@ describe('目录路由的套餐口径', () => {
     ])
   })
 
-  it('套餐未知：不过滤整侧，两侧独有条目都在，shared 保留 zen 侧', async () => {
+  it('套餐未知：按 Go 口径整侧过滤，zen 条目全部消失', async () => {
     const routes = harness({ entitlement: async () => entitlement('unknown') })
     const payload = await invoke(routes, OPENCODE_ROUTES.catalog)
 
-    expect(payload.entitlement).toMatchObject({ plan: 'unknown', source: 'none', scoped: false })
-    expect(payload.entitlement?.estimates).toBeUndefined()
-    // 未过滤时不带条数：界面据此退回不带数字的说明文案。
-    expect(payload.entitlement?.filteredModelCount).toBeUndefined()
+    expect(payload.entitlement).toMatchObject({ plan: 'unknown', source: 'none' })
+    // 未知按 Go 处理：估算表与 Go 档一致，条数为被去掉的 zen 侧条目数。
+    expect(payload.entitlement?.estimates?.fetchedAt).toBe('2026-11-05')
+    expect(payload.entitlement?.filteredModelCount).toBe(2)
     const keys = payload.catalog?.models.map(entry => `${entry.plan}:${entry.id}`)
-    expect(keys).toContain('zen:zen-only')
+    expect(keys).not.toContain('zen:zen-only')
+    expect(keys).not.toContain('zen:shared')
     expect(keys).toContain('go:go-missing')
-    // 同名共享条目按 zen 侧去重（与未登录时的合并列表一致）。
-    expect(keys).toContain('zen:shared')
-    expect(keys).not.toContain('go:shared')
+    expect(keys).toContain('go:shared')
+    // 与 Go 账号同一顺序：不限量置顶 → 额度降序 → 表外沉底。
+    expect(payload.catalog?.models.map(entry => entry.id)).toEqual([
+      'go-unlimited', 'go-big', 'go-small', 'shared', 'go-missing',
+    ])
   })
 
   it('没有注入套餐服务时按未知处理，目录仍然可用', async () => {
     const routes = harness({})
     const payload = await invoke(routes, OPENCODE_ROUTES.catalog)
-    expect(payload.entitlement).toMatchObject({ plan: 'unknown', scoped: false, endpointPlan: 'auto' })
+    expect(payload.entitlement).toMatchObject({ plan: 'unknown', endpointPlan: 'auto' })
+    // 没有注入套餐服务时仍按 Go 口径过滤：目录只出 go 条目。
     expect(payload.catalog?.models.length).toBeGreaterThan(0)
+    expect(payload.catalog?.models.every(entry => entry.plan === 'go')).toBe(true)
   })
 
   it('套餐读取失败时把可读错误透出，仍不过滤', async () => {
@@ -238,7 +243,8 @@ describe('目录路由的套餐口径', () => {
     })
     const payload = await invoke(routes, OPENCODE_ROUTES.catalog)
     expect(payload.entitlement?.error).toBe('Console 套餐接口不可用（HTTP 500）')
-    expect(payload.entitlement?.scoped).toBe(false)
+    expect(payload.entitlement?.plan).toBe('unknown')
+    expect(payload.catalog?.models.every(entry => entry.plan === 'go')).toBe(true)
   })
 
   it('Go Plus 也走整侧过滤，估算表来源与 Go 档一致', async () => {
@@ -249,19 +255,18 @@ describe('目录路由的套餐口径', () => {
     expect(new Set(payload.catalog?.models.map(entry => entry.plan))).toEqual(new Set(['go']))
   })
 
-  it('端点策略原样下发；跨侧同 id 条目已被过滤，因此不会误改 baseURL', async () => {
+  it('未知套餐 + 手选 go 端点：目录只剩 go 条目，端点原样下发', async () => {
     const routes = harness({
       entitlement: async () => entitlement('unknown'),
       endpointPlan: async () => 'go',
     })
     const payload = await invoke(routes, OPENCODE_ROUTES.catalog)
     expect(payload.entitlement?.endpointPlan).toBe('go')
-    // `applyEndpointPlan` 只在目标端点也有同名同协议模型时改写；合并列表里
-    // shared 已按 zen 侧去重，Go 侧没有对应条目，所以 zen 条目保持原生端点。
-    const shared = payload.catalog?.models.find(entry => entry.plan === 'zen' && entry.id === 'shared')
-    expect(shared?.baseURL).toBe(baseURLFor('zen', 'openai-completions'))
-    const zenOnly = payload.catalog?.models.find(entry => entry.id === 'zen-only')
-    expect(zenOnly?.baseURL).toBe(baseURLFor('zen', 'openai-completions'))
+    // 整侧过滤后没有 zen 条目；go 条目本来就走 go 端点，改写是幂等的。
+    expect(payload.catalog?.models.every(entry => entry.plan === 'go')).toBe(true)
+    for (const entry of payload.catalog?.models ?? []) {
+      expect(entry.baseURL, entry.id).toBe(baseURLFor('go', entry.api))
+    }
   })
 
   it('按量账号手选 go 端点也不会把模型打到空端点上', async () => {
@@ -296,7 +301,7 @@ describe('目录路由的套餐口径', () => {
       entitlement: async () => { throw new Error('boom') },
     })
     const payload = await invoke(routes, OPENCODE_ROUTES.catalog)
-    expect(payload.entitlement).toMatchObject({ plan: 'unknown', scoped: false, endpointPlan: 'auto' })
+    expect(payload.entitlement).toMatchObject({ plan: 'unknown', endpointPlan: 'auto' })
     expect(payload.catalog?.models.length).toBeGreaterThan(0)
   })
 
@@ -339,7 +344,7 @@ describe('auto 端点策略真值表', () => {
     expect(effectiveEndpointPlan('auto', 'payg')).toBe('zen')
   })
 
-  it('auto + 未知套餐保持 auto，绝不改写原生端点', () => {
-    expect(effectiveEndpointPlan('auto', 'unknown')).toBe('auto')
+  it('auto + 未知套餐按 Go 端点，与目录口径一致', () => {
+    expect(effectiveEndpointPlan('auto', 'unknown')).toBe('go')
   })
 })

@@ -76,7 +76,7 @@ export const ja: { [Key in OpenCodeLocaleKey]: string } = {
   catalogIntro: 'OpenCode がこのアカウント向けに公開しているモデルです。名前の後ろの接尾辞は課金元を示します（go は Go サブスクリプション、zen は Console の従量課金）。スイッチを切るとモデル選択画面に表示されなくなります。',
   catalogConsoleLink: 'OpenCode Console のモデル一覧',
   catalogPlanScopeNotice: '現在のプラン：{plan} · このプランに含まれるモデルのみ表示します',
-  catalogPlanScopeUnknown: 'プランを識別できないため、フィルタリングは行わず両方のモデルを表示しています。',
+  catalogPlanScopeUnknown: 'プランを識別できないため、当面は OpenCode Go のモデルを表示しています。',
   catalogPlanScopeHidden: '現在のプラン外のモデルを {count} 件非表示にしました',
   catalogEstimatedRequests: '推定リクエスト数/月',
   catalogEstimatedUnlimited: '無制限',

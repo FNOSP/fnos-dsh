@@ -73,7 +73,7 @@ export const fr: { [Key in OpenCodeLocaleKey]: string } = {
   catalogIntro: "Modèles publiés par OpenCode pour ce compte. Le suffixe indique la source de facturation : go pour l'abonnement Go, zen pour le paiement à l'usage de Console. Désactivez un modèle pour le masquer du sélecteur.",
   catalogConsoleLink: 'Modèles dans OpenCode Console',
   catalogPlanScopeNotice: 'Forfait actuel : {plan} · seuls les modèles de ce forfait sont affichés',
-  catalogPlanScopeUnknown: "Forfait non identifié : aucun filtrage pour l'instant, les modèles des deux sources sont listés.",
+  catalogPlanScopeUnknown: 'Forfait non identifié : les modèles OpenCode Go sont affichés pour le moment.',
   catalogPlanScopeHidden: '{count} modèles hors du forfait actuel sont masqués',
   catalogEstimatedRequests: 'Requêtes estimées/mois',
   catalogEstimatedUnlimited: 'Illimitées',

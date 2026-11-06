@@ -18,10 +18,10 @@ verifiedAt: 2026-11-06
 | 编号 | 功能 | 关键风险点 |
 | --- | --- | --- |
 | [FNOS-047-01](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-01-套餐识别) | 套餐识别 | Console 套餐接口是未公开接口；API Key 登录时该接口可能 401/404，误判会把 Go 账号的模型全过滤掉 |
-| [FNOS-047-02](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-02-归属过滤) | 归属过滤 | 从「同名去重」改成「整侧过滤」后，单侧独有模型的行为变化；未知套餐时不能清空选择器 |
+| [FNOS-047-02](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-02-归属过滤) | 归属过滤 | 从「同名去重」改成「整侧过滤」后，单侧独有模型的行为变化；未知套餐按 Go 口径时不得混列按量模型 |
 | [FNOS-047-03](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-03-额度排序) | 额度排序 | 估值缺失 / 不限量 / 表里有但 roster 没有的边界；按量侧不能受 Go 估算表影响 |
 | [FNOS-047-04](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-04-上游更名跟进) | 上游更名跟进 | 文案改动不能连带改掉内部 id 前缀与后缀（会破坏存量隐藏设置与历史会话） |
-| [FNOS-047-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐的保守处理) | 未知套餐降级 | 接口失败时选择器仍可用；错误文案不含凭据 |
+| [FNOS-047-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐按-go-口径处理) | 未知套餐按 Go 口径 | 判不出套餐时不得混列按量模型；仍可用并说明原因；错误文案不含凭据 |
 | [FNOS-047-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) | 账号卡按值渲染 | 空字段必须整项隐藏；API Key 场景组织名来源只有 `v2/config`，不能凭空造名字 |
 
 **兼容基线**：本插件属于「其他 DSH 插件」，按[测试用例文档规范](/charter/tests-spec#测试环境执行方式)必须同时覆盖 **DSH Web** 与 **DSH Desktop**，只记录单一客户端不构成完成结论。
@@ -73,7 +73,7 @@ verifiedAt: 2026-11-06
 | TC-013 | [FNOS-047-02](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-02-归属过滤) | Go 账号整侧过滤 | [AC-02](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-02-归属过滤) | 目录含两侧 | `scopeToAccountPlan(models,'go')` | 只剩 `plan='go'`，零 `zen` 条目 | P0 | 基线：[FNOS-026](/requirements/FNOS-026-dsh-opencode-plugin) 同名去重行为，本次改为整侧过滤 |
 | TC-014 | 同上 | Go Plus / Teams 同属订阅侧 | AC-02 | 同上 | plan 为 `go-plus` / `go-teams` | 与 `go` 相同 | P0 | 新增行为，无回归基线 |
 | TC-015 | 同上 | 仅按量账号过滤 | AC-02 | 同上 | `scopeToAccountPlan(models,'payg')` | 只剩 `plan='zen'` 条目 | P0 | 新增行为，无回归基线 |
-| TC-016 | 同上 | 未知套餐不过滤 | AC-02 | 同上 | `scopeToAccountPlan(models,'unknown')` | 返回**同一引用**，两侧都在 | P0 | 基线：改造前合并列表行为 |
+| TC-016 | 同上 | 未知套餐按 Go 口径过滤 | AC-02 | 同上 | `scopeToAccountPlan(models,'unknown')` | 与 `go` 档结果一致：只保留 go 侧条目 | P0 | 口径变更：原「不过滤、两侧都在」，见 FNOS-047-05 变更记录 |
 | TC-017 | 同上 | 单侧独有模型在 Go 账号下消失 | AC-02 | Go 账号 | 查看目录与选择器中的 `big-pickle` | 不出现（旧的同名去重会保留它） | P1 | 基线：改造前保留单侧独有条目 |
 | TC-018 | 同上 | 模型选择器与目录卡口径一致 | AC-02 | Go 账号，打开插件详情页 | 对比目录卡列表与模型选择器 | 两者模型集合完全一致 | P0 | 新增行为，无回归基线 |
 
@@ -99,13 +99,18 @@ verifiedAt: 2026-11-06
 | TC-029 | 同上 | 内部标识保持稳定 | AC-04 | — | 检查 `src/contracts/identity.ts` | `zen:` / `go:` 前缀与 `· zen` / `· go` 后缀未改 | P0 | 基线：FNOS-026 标识约定 |
 | TC-030 | 同上 | 九语言键集合一致 | AC-04 | — | 比较八种语言与 en 的键集合 | 完全一致，无缺键 | P0 | 基线：FNOS-045 语言包键集合约束 |
 
-### FNOS-047-05 未知套餐降级
+### FNOS-047-05 未知套餐按 Go 口径处理
+
+> 口径变更：本节用例定义原按「不过滤、两侧合并列出」编写。2026-11-06 用真实账号验证时发现合并列表会把按量模型摆到 Go 用户面前，与 [FNOS-047-02](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-02-归属过滤) 冲突，需求改为「未知套餐按 Go 口径处理」，用例定义随本次变更同步重写（详见需求文档变更记录）。
 
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TC-031 | [FNOS-047-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐的保守处理) | 套餐不可读时选择器仍可用 | [AC-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐的保守处理) | 套餐接口全失败 | 查看模型选择器 | 合并列表照常可用，不被清空 | P0 | 基线：改造前合并列表行为 |
-| TC-032 | 同上 | 原因可见 | AC-05 | 同上 | 查看详情页 | 给出「未识别到套餐，暂不过滤」说明 | P1 | 新增行为，无回归基线 |
+| TC-031 | [FNOS-047-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐按-go-口径处理) | 套餐不可读时目录按 Go 过滤且仍可用 | [AC-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐按-go-口径处理) | 套餐接口全失败 | 查看模型选择器与目录卡 | 只列 go 条目，zen 条目不出现；列表非空 | P0 | 口径变更：原「合并列表两侧都在」 |
+| TC-032 | 同上 | 说明可见且措辞正确 | AC-05 | 同上 | 查看详情页 | 显示「未识别到套餐，暂按 OpenCode Go 套餐展示模型」+ 隐藏条数 + 宿主原因 | P1 | 口径变更：原「暂不过滤」措辞 |
 | TC-033 | 同上 | 错误文案脱敏 | AC-05 | 同上，注入含凭据的异常 | 检查错误文案 | 不含 token / Bearer / API Key 原文 | P0 | 基线：FNOS-011 凭据可诊断性约定 |
+| TC-039 | 同上 | `auto` 端点策略随未知套餐走 Go | AC-05 | 偏好 `auto`、套餐 unknown | 调用 `effectiveEndpointPlan` | 返回 `go`，与目录口径一致 | P0 | 口径变更：原返回 `auto` |
+| TC-040 | 同上 | 未知套餐取 Go 档估算表 | AC-05 | 套餐 unknown | 调用 `estimatesForPlan('unknown')` | 等于 Go 档表（与 `estimatesForPlan('go')` 同一引用） | P0 | 新增行为，无回归基线 |
+| TC-041 | 同上 | `/catalog` 恒下发 `filteredModelCount` | AC-05 | 任意套餐（含 unknown） | 请求目录路由 | 字段为数字且随套餐出现；恒为 true 的 `scoped` 已移除 | P1 | 新增行为，无回归基线 |
 
 ### FNOS-047-06 账号卡按值渲染
 
@@ -141,7 +146,7 @@ verifiedAt: 2026-11-06
 | TC-013 | [FNOS-047-02](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-02-归属过滤) | 单元测试 | 通过 | 2026-11-06 | Go 视图零 `zen` 条目 |
 | TC-014 | FNOS-047-02 | 单元测试 | 通过 | 2026-11-06 | `go-plus` / `go-teams` 与 `go` 同侧 |
 | TC-015 | FNOS-047-02 | 单元测试 | 通过 | 2026-11-06 | `payg` 视图零 `go` 条目 |
-| TC-016 | FNOS-047-02 | 单元测试 | 通过 | 2026-11-06 | `unknown` 返回同一数组引用 |
+| TC-016 | FNOS-047-02 | 单元测试 | 通过 | 2026-11-06 | `unknown` 与 `go` 档结果一致，只保留 go 侧条目 |
 | TC-017 | FNOS-047-02 | 单元测试 | 通过 | 2026-11-06 | `big-pickle`（仅按量侧）在 Go 账号下不出现 |
 | TC-018 | FNOS-047-02 | DSH Web | 通过 | 2026-11-06 | 目录卡 29 条与选择器 29 条完全一致，均 0 个 `· zen` |
 | TC-018 | FNOS-047-02 | DSH Desktop | 通过 | 2026-11-06 | 同上（CDP 计数：go=29 / zen=0） |
@@ -159,9 +164,12 @@ verifiedAt: 2026-11-06
 | TC-028 | FNOS-047-04 | DSH Desktop | 通过 | 2026-11-06 | 同上 |
 | TC-029 | FNOS-047-04 | 代码审阅 | 通过 | 2026-11-06 | `src/contracts/identity.ts` 零改动，`zen:` / `· zen` 原样保留 |
 | TC-030 | FNOS-047-04 | 单元测试 | 通过 | 2026-11-06 | en 147 键；de/es/fr/it/ja/ko/ru 八语言键集合完全一致 |
-| TC-031 | [FNOS-047-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐的保守处理) | DSH Desktop | 通过 | 2026-11-06 | 移除凭据后 `plan=unknown`、`scoped=false`，目录 93 条两侧都在，选择器未被清空 |
-| TC-032 | FNOS-047-05 | DSH Desktop | 通过 | 2026-11-06 | 套餐未识别时不渲染「当前套餐/已隐藏 N 个」说明 |
+| TC-031 | [FNOS-047-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐按-go-口径处理) | DSH Desktop | 通过 | 2026-11-06 | 凭据移除后 `plan=unknown`，目录按 Go 口径过滤，选择器非空 |
+| TC-032 | FNOS-047-05 | DSH Web | 通过 | 2026-11-06 | 文案改为「未识别到套餐，暂按 OpenCode Go 套餐展示模型」，并显示隐藏条数与宿主原因 |
 | TC-033 | FNOS-047-05 | DSH Desktop | 通过 | 2026-11-06 | 目录响应全文扫描 `eyJ…` / `st_…` / `oc_sk_` 无命中 |
+| TC-039 | FNOS-047-05 | 单元测试 | 通过 | 2026-11-06 | `effectiveEndpointPlan('auto','unknown')` → `go` |
+| TC-040 | FNOS-047-05 | 单元测试 | 通过 | 2026-11-06 | `estimatesForPlan('unknown')` 与 Go 档同一引用；`payg` 仍无表 |
+| TC-041 | FNOS-047-05 | 单元测试 | 通过 | 2026-11-06 | `/catalog` 的 `entitlement` 键为 plan/source/fetchedAt/endpointPlan/filteredModelCount/estimates，无 `scoped` |
 | TC-034 | [FNOS-047-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) | DSH Web | 通过 | 2026-11-06 | OAuth 账号：邮箱 `tnnevol@gmail.com`、组织 `tnnevol` 均正常显示 |
 | TC-035 | FNOS-047-06 | DSH Web | 通过 | 2026-11-06 | 真实 API Key 登录后账号卡字段为「组织 / 登录方式 / 过期时间 / 套餐 / 判定依据」，**无「邮箱」标签、全文无「未知」** |
 | TC-036 | FNOS-047-06 | DSH Web | 通过 | 2026-11-06 | 该 Key 得到 `organizationName: "Default"`、`organizationId: wrk_01KZ8VYYN81PXS76AG03939AAA`；登录响应体本身也不含 `email` 字段 |
@@ -190,7 +198,8 @@ verifiedAt: 2026-11-06
 | 主题复原 | 暗色用例后切回浅色（`data-ds-theme-source=light`），与测试前一致 |
 | Desktop 进程 | 以检出路径精确匹配关闭（`pkill -f "fork-pj/deepseek-harness"`）；未触碰 `/Applications/DeepSeek Harness.app` 发行版实例（实测其进程仍在正常运行），也未使用 `~/.dsh/profiles/desktop` |
 | 工作区副作用 | `pnpm run start -- --web` 启动时把六个插件的 `peerDependencies` 由 `catalog:dsh` 改写为具体版本（09:17:20 时间戳）；已 `git checkout` 全部还原，`git status` 现仅剩本次文档改动 |
-| 探针脚本 | `tmp/probe/`、`tmp/web-logs/` 已删除；`.dsh` 与 `tmp/` 均被 git 忽略 |
+| 探针脚本 | `tmp/probe/`、`tmp/web-logs/`、`tests/tmp-probe/` 已删除；`.dsh` 与 `tmp/` 均被 git 忽略 |
+| 口径变更后的复验 | 真实账号（Go 订阅）`plan=go`、目录 30 条全为 go 侧、29 条带 Go 档额度并降序；模拟 newblue（`go/status` 响应非对象 + 用量 403）得 `unknown` 并落 Go 档表 |
 
 ## Bug 记录
 
@@ -202,13 +211,13 @@ verifiedAt: 2026-11-06
 
 ## 测试结论
 
-**结论：通过。** 38 条用例全部通过（0 失败 / 0 阻塞 / 0 未执行），其中 TC-012、TC-018、TC-027、TC-028 在两个客户端各执行一次并分别登记。
+**结论：通过。** 41 条用例全部通过（0 失败 / 0 阻塞 / 0 未执行），其中 TC-012、TC-018、TC-027、TC-028 在两个客户端各执行一次并分别登记。
 
 [FNOS-047-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) 为执行期间按实测发现追加的功能：上游对 API Key 的会话接口一律 401/403，邮箱确实取不到；组织名可改从 `v2/config` 取（真实 Key 实测得到 `Default`）。账号卡据此改为「有值才显示」，空字段整项隐藏，「未知」占位文案已从九种语言中删除。
 
 覆盖情况：
 
-- **需求侧**：[FNOS-047-01](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-01-套餐识别) 至 [FNOS-047-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐的保守处理) 五个功能点与 [AC-01](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-01-套餐识别) 至 [AC-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐的保守处理) 五条验收条件全部有对应用例且通过。
+- **需求侧**：[FNOS-047-01](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-01-套餐识别) 至 [FNOS-047-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) 六个功能点与 [AC-01](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-01-套餐识别) 至 [AC-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) 六条验收条件全部有对应用例且通过。
 - **客户端侧**：按规范同时覆盖 DSH Web（`0.2.2-rc.1` + 插件 `8.1.0`）与 DSH Desktop（开发态检出 `fork-pj/deepseek-harness`，Desktop `0.2.2-rc.1` / Electron 44.7.0），两个客户端的套餐识别、整侧过滤、额度排序与文案完全一致。
 - **UI 侧**：亮色与暗色主题均核对，暗色下关键文本对比度 9.25:1 与 13.34:1，未发现硬编码颜色与模糊叠加问题。
 - **上游侧**：真实账号实测套餐接口返回 `product=go`，目录排序与官方 Estimated requests 表逐项一致。
@@ -218,4 +227,5 @@ verifiedAt: 2026-11-06
 1. **整侧过滤属于有意的行为变更**：Go 账号不再看到任何按量模型（含只在按量侧存在的 `big-pickle` 等）。这是本需求的核心目标，但对用户是可见变化，发版时应写入变更说明。
 2. **估算表为内置快照**（抓取日期 2026-11-05）：上游调整额度后，排序会滞后到下一次插件版本更新；界面已标注快照日期与官方来源链接，便于用户判断。
 3. **API Key 登录只能拿到组织名，拿不到邮箱**：`/api/user` 与 `/api/orgs` 对 Key 返回 401，Console 也不存在可用的身份端点（已探测 v1/v2 共 20 余个候选路径）。组织名依赖 `v2/config` 的 `<工作空间名> / OpenCode` 命名约定，上游改这个格式会让组织名退回隐藏（不会显示错名字）。
-4. **Console 套餐接口是未公开接口**：若上游改版或对服务账号 Key 收紧权限，三档判定会退化为「按量/未知」，此时列表回落到合并口径而非清空——该降级路径已由 TC-031~033 覆盖。
+4. **Console 套餐接口是未公开接口**：若上游改版或对服务账号 Key 收紧权限，判定会退化为 `unknown`。此时目录按 Go 口径过滤（不再混列两侧），确实只有按量余额的用户会看不到按量模型——需要把「推理端点」显式设为 Zen 端点。该降级路径由 TC-031~033、TC-039~041 覆盖。
+5. **额度表快照滞后**：上游新增模型（如本次实测到的 `crouton-alpha-free` 出现在 Go roster）在内置表里没有条目，会沉到列表末尾；不影响可用性，随版本更新补齐。

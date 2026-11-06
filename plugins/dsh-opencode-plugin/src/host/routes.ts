@@ -171,8 +171,8 @@ export interface OpenCodeRoutesOptions {
 /** 一次目录视图的结果：快照与被整侧过滤掉的条数。 */
 interface CatalogViewResult {
   readonly catalog: OpenCodeCatalog | undefined
-  /** 因套餐归属被去掉的模型条数；未过滤时为 undefined。 */
-  readonly filteredModelCount: number | undefined
+  /** 因套餐归属被去掉的模型条数；没有快照时为 0。 */
+  readonly filteredModelCount: number
 }
 
 /**
@@ -218,16 +218,14 @@ export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOpti
     const describeEntitlement = (
       entitlement: OpenCodeAccountEntitlement,
       endpointPlan: OpenCodePlan | 'auto',
-      filteredModelCount: number | undefined,
+      filteredModelCount: number,
     ): OpenCodeCatalogEntitlement => ({
       plan: entitlement.plan,
       source: entitlement.source,
       fetchedAt: entitlement.fetchedAt,
       ...(entitlement.error === undefined ? {} : { error: entitlement.error }),
       endpointPlan,
-      scoped: entitlement.plan !== 'unknown',
-      // 只在真的过滤过时带上条数：界面据此显示「已隐藏 N 个」。
-      ...(filteredModelCount === undefined ? {} : { filteredModelCount }),
+      filteredModelCount,
       ...(estimatesForPlan(entitlement.plan) === undefined
         ? {}
         : { estimates: { fetchedAt: OPENCODE_ESTIMATES_FETCHED_AT, sourceUrl: OPENCODE_ESTIMATES_SOURCE_URL } }),
@@ -245,18 +243,17 @@ export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOpti
       entitlement: OpenCodeAccountEntitlement,
       endpointPlan: OpenCodePlan | 'auto',
     ): Promise<CatalogViewResult> => {
-      if (snapshot === undefined) return { catalog: snapshot, filteredModelCount: undefined }
+      if (snapshot === undefined) return { catalog: snapshot, filteredModelCount: 0 }
       const estimates = estimatesForPlan(entitlement.plan)
-      const scoped = entitlement.plan !== 'unknown'
       const view: CatalogViewOptions = {
-        // 套餐读不出来时保持合并列表：只按 zen 侧去重同名条目，不做整侧过滤。
-        ...(scoped ? { accountPlan: entitlement.plan } : { ownedPlan: 'zen' as const }),
+        // 未知套餐同样整侧过滤（按 Go 口径），与模型选择器共用一条规则。
+        accountPlan: entitlement.plan,
         ...(estimates === undefined ? {} : { estimates }),
         endpointPlan,
       }
       const models = applyCatalogView(snapshot.models, view)
-      // 只有整侧过滤才会让条目数下降；去重与排序都不改条数口径，这里按条数差计。
-      const filteredModelCount = scoped ? snapshot.models.length - models.length : undefined
+      // 被整侧过滤去掉的条数按条数差计；为 0 时界面不显示那行说明。
+      const filteredModelCount = snapshot.models.length - models.length
       return {
         catalog: models === snapshot.models ? snapshot : { ...snapshot, models },
         filteredModelCount,
@@ -284,7 +281,8 @@ export function registerOpenCodeRoutes(ctx: Context, options: OpenCodeRoutesOpti
       const consoleError = options.catalog.consoleDiagnostic()
       const lastError = options.catalog.error()
       let catalogView: OpenCodeCatalog | null = snapshot ?? null
-      let filteredModelCount: number | undefined
+      // 视图失败时拿不到真实条数，按 0 下发：界面只在正数时显示说明，不会误导。
+      let filteredModelCount = 0
       let viewError: string | undefined
       try {
         const result = await displayCatalog(snapshot, entitlement, endpointPlan)

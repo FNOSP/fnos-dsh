@@ -139,15 +139,18 @@ export const OPENCODE_GO_TEAMS_ESTIMATES: OpenCodeEstimateTable = {
 /**
  * 按套餐档位取预计请求数表。
  *
- * `payg` 与 `unknown` 没有对应的 Go 额度表：按量模型按 token 计费，不存在
- * 「每月预计请求数」这一口径，返回 undefined 让调用方回落到不按额度排序。
+ * `unknown` 按 Go 档处理：套餐判不出来时目录按 Go 口径展示（见
+ * `scopeToAccountPlan`），排序必须用同一档的表，否则「展示 Go 侧、按老口径
+ * 排序」会让两处口径分叉。`payg` 没有对应额度表：按量模型按 token 计费，
+ * 不存在「每月预计请求数」这一口径，返回 undefined 让调用方回落不按额度排序。
  *
  * @param plan - 账号套餐档位。
- * @returns 该档位的估算表；按量或未知时为 undefined。
+ * @returns 该档位的估算表；按量时为 undefined。
  */
 export function estimatesForPlan(plan: OpenCodeAccountPlan): OpenCodeEstimateTable | undefined {
   switch (plan) {
     case 'go':
+    case 'unknown':
       return OPENCODE_GO_ESTIMATES
     case 'go-plus':
       return OPENCODE_GO_PLUS_ESTIMATES

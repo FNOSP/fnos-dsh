@@ -46,7 +46,7 @@ lastVerified: 2026-11-05
 | FNOS-047-02 | 归属过滤 | Go 账号的目录与选择器只出现 `· go` 条目；按量账号只出现 `· zen` 条目；整侧过滤，不再只做同名去重 |
 | FNOS-047-03 | 额度排序 | Go 侧模型按该档位的每月预计请求数降序排列；不限量模型置顶；按量侧保持原有「免费优先、单价升序」口径 |
 | FNOS-047-04 | 上游更名跟进 | 面向用户的文案把「Zen（按量）」改为「Console（按量）」口径，并给出官方新地址；内部契约字段名保持稳定 |
-| FNOS-047-05 | 未知套餐的保守处理 | 未登录或套餐接口不可读时不做整侧过滤，回落到原有合并列表并提示原因，避免选择器突然清空 |
+| FNOS-047-05 | 未知套餐按 Go 口径处理 | 未登录或套餐接口不可读时按 OpenCode Go 展示：只列 `· go` 条目、按 Go 档额度排序、共用模型走 Go 端点，并说明未能识别套餐的原因 |
 | FNOS-047-06 | 账号卡按值渲染 | 账号卡只显示有值的字段：邮箱、组织等取不到时整项不显示，不再出现「未知」占位；API Key 登录时组织名尽量补全 |
 
 ### FNOS-047-01 套餐识别
@@ -65,9 +65,11 @@ Go 侧模型按官方 Go 文档 Estimated requests 表的每月预计请求数�
 
 面向用户的按量口径文案统一为「Console（按量）」，并给出官方新地址 `https://opencode.ai/console/models`；内部 `zen:` 前缀与 `· zen` 后缀保持不变，以免存量隐藏设置与历史会话失效。
 
-### FNOS-047-05 未知套餐的保守处理
+### FNOS-047-05 未知套餐按 Go 口径处理
 
-未登录、套餐接口不可读或响应无法识别时不做整侧过滤，回落合并列表并在详情页给出可读原因；错误文案经脱敏，不含凭据。
+未登录、套餐接口不可读或响应无法识别时，**按 OpenCode Go 处理**：整侧过滤只保留 `· go` 条目、排序取 Go 档的预计请求数表、`auto` 端点策略走 Go 端点，同时在详情页说明「未识别到套餐，暂按 OpenCode Go 套餐展示模型」并保留宿主给出的失败原因。
+
+口径变更说明：本功能最初的设计是「读不出来就不过滤、两侧合并列出」。2026-11-06 用真实账号验证时发现，合并列表会把大量按量模型（需要 Console 余额才能调用）摆到 Go 用户面前，与 FNOS-047-02「只展示属于账号套餐的模型」的初衷直接冲突。OpenCode 的主力付费形态是 Go 订阅，按 Go 口径比两侧混列更接近用户真实可用的集合；确实只有按量余额的用户可以把「推理端点」显式设为 Zen 端点。
 
 ### FNOS-047-06 账号卡按值渲染
 
@@ -80,10 +82,10 @@ API Key 登录拿不到邮箱（`/api/user` 与 `/api/orgs` 对 Key 返回 401/4
 | 编号 | 验收条件 | 判定方式 |
 | --- | --- | --- |
 | [AC-01](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-01-套餐识别) | 单元测试覆盖三种套餐返回值与两条失败路径，读到 `go-plus` 时估算表取 Go Plus 那份；两个客户端详情页能看到套餐名与判定依据 | `tests/host/entitlement.spec.ts`、DSH Web 与 DSH Desktop 走查 |
-| [AC-02](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-02-归属过滤) | 目录视图在 Go 账号下不含任何 `plan === 'zen'` 条目；按量账号下不含 `plan === 'go'`；未知套餐保留两侧 | `tests/host/catalog.spec.ts` |
+| [AC-02](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-02-归属过滤) | 目录视图在 Go 账号下不含任何 `plan === 'zen'` 条目；按量账号下不含 `plan === 'go'`；未知套餐按 Go 口径过滤 | `tests/host/catalog.spec.ts` |
 | [AC-03](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-03-额度排序) | 排序结果严格按估算表降序；`null`（不限量）在最前；表里没有的模型排在最后且顺序稳定 | `tests/host/catalog.spec.ts` |
 | [AC-04](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-04-上游更名跟进) | 文档页与界面文案不再把按量口径称为 Zen，且给出 `console/models` 新地址 | 文档审阅 + 文案键检查 |
-| [AC-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐的保守处理) | 套餐接口 404/超时时过滤开关不生效、目录仍可用，详情页给出可读原因 | `tests/host/entitlement.spec.ts`、`tests/host/routes.spec.ts` |
+| [AC-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐按-go-口径处理) | 套餐接口不可用时目录按 Go 口径过滤且仍可用，详情页给出「暂按 Go 展示」说明与可读原因；`/catalog` 的 `filteredModelCount` 恒为数字 | `tests/host/entitlement.spec.ts`、`tests/host/routes.spec.ts` |
 | [AC-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) | 账号卡不渲染值为空的字段；API Key 登录时组织名取自工作空间配置，取不到则不留占位 | `tests/host/auth.spec.ts`、双客户端走查 |
 
 ## 变更记录
@@ -92,5 +94,6 @@ API Key 登录拿不到邮箱（`/api/user` 与 `/api/orgs` 对 Key 返回 401/4
 | --- | --- |
 | 2026-11-05 | 建立需求：调研确认上游 Zen → Console 更名、套餐接口与 Estimated requests 数据面，确定「整侧过滤 + 额度降序」口径 |
 | 2026-11-05 | 实现完成：套餐服务（Console 接口优先、用量兜底、未知保守降级）、整侧归属过滤、按档位额度降序、界面套餐与额度展示、九语言文案跟进；自动化验证 325 条全绿，转入待验收 |
+| 2026-11-06 | FNOS-047-05 口径变更：未知套餐从「不过滤、两侧合并」改为「按 Go 口径过滤」（整侧只留 `· go`、Go 档额度排序、`auto` 走 Go 端点）。真实账号验证发现合并列表会把按量模型摆到 Go 用户面前，与 FNOS-047-02 初衷冲突。`/catalog` 响应移除恒为 true 的 `scoped` 字段，`filteredModelCount` 改为恒有值 |
 | 2026-11-06 | 补充 FNOS-047-06：API Key 登录无法从 Console 会话接口取得邮箱与组织（401/403），改为从 `v2/config` 补组织名；账号卡改为「有值才显示」，空字段整项隐藏，移除 `accountUnknown` 占位文案 |
 | 2026-11-06 | 按测试用例规范完成双客户端验收：DSH Web（0.2.2-rc.1 + 插件 8.1.0）与 DSH Desktop（开发态检出 0.2.2-rc.1 / Electron 44.7.0）各执行界面用例，33 条用例全部通过；亮/暗主题对比度达标；未登录降级与凭据恢复已复验。测试产物已清理，待用户确认收口 |

@@ -73,7 +73,7 @@ export const de: { [Key in OpenCodeLocaleKey]: string } = {
   catalogIntro: 'Modelle, die OpenCode für dieses Konto bereitstellt. Das Suffix zeigt die Abrechnungsquelle: go ist das Go-Abonnement, zen ist Console Pay-as-you-go. Ein Modell ausschalten, um es aus der Modellauswahl auszublenden.',
   catalogConsoleLink: 'Modelle in der OpenCode Console',
   catalogPlanScopeNotice: 'Aktueller Tarif: {plan} · es werden nur Modelle dieses Tarifs angezeigt',
-  catalogPlanScopeUnknown: 'Tarif nicht erkannt, daher wird vorerst nicht gefiltert; Modelle beider Quellen erscheinen.',
+  catalogPlanScopeUnknown: 'Tarif nicht erkannt, daher werden vorerst die OpenCode-Go-Modelle angezeigt.',
   catalogPlanScopeHidden: '{count} Modelle außerhalb des aktuellen Tarifs ausgeblendet',
   catalogEstimatedRequests: 'Erwartete Anfragen/Monat',
   catalogEstimatedUnlimited: 'Unbegrenzt',

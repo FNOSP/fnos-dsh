@@ -598,8 +598,10 @@ describe('整侧归属过滤 scopeToAccountPlan', () => {
     expect(next.every(model => model.plan === 'zen')).toBe(true)
   })
 
-  it('unknown 原样返回同一个数组引用', () => {
-    expect(scopeToAccountPlan(models, 'unknown')).toBe(models)
+  it('unknown 按 Go 口径过滤（与 go 档结果一致）', () => {
+    const next = scopeToAccountPlan(models, 'unknown')
+    expect(next.map(model => model.id)).toEqual(['shared', 'go-only'])
+    expect(next.every(model => model.plan === 'go')).toBe(true)
   })
 
   it('与 dedupeByPlan 的差别：单侧独有条目也会被整侧过滤', () => {
@@ -688,6 +690,13 @@ describe('按套餐额度排序', () => {
     expect(order[0]).toBe('zen-free')
   })
 
+  it('未知套餐取 Go 档表（与目录口径同源）', () => {
+    expect(estimatesForPlan('unknown')).toBe(OPENCODE_GO_ESTIMATES)
+    expect(estimatesForPlan('unknown')).toBe(estimatesForPlan('go'))
+    // 按量没有额度口径：不返回表，排序回落老口径。
+    expect(estimatesForPlan('payg')).toBeUndefined()
+  })
+
   it('Go Plus 档用自己那份表排序', async () => {
     const catalog = await publicCatalog()
     const plus = estimatesForPlan('go-plus')
@@ -770,13 +779,20 @@ describe('applyCatalogView 组合新口径', () => {
     expect(view.every(model => model.baseURL === baseURLFor('go', model.api))).toBe(true)
   })
 
-  it('unknown 套餐不过滤，回落到 ownedPlan 的旧口径', () => {
+  it('unknown 套餐按 Go 口径过滤，accountPlan 优先于 ownedPlan', () => {
     const view = applyCatalogView(models, { accountPlan: 'unknown', ownedPlan: 'go' })
-    const ids = view.map(model => model.id)
-    // 老口径只删同名重复项，zen-only 仍在。
-    expect(ids).toContain('zen-only')
+    const ids = view.map(model => `${model.plan}:${model.id}`)
+    // 整侧过滤：zen 侧条目（含单侧独有的 zen-only）全部消失。
+    expect(ids).not.toContain('zen:zen-only')
     expect(ids).not.toContain('zen:shared')
-    expect(view.filter(model => model.id === 'shared')).toHaveLength(1)
+    expect(view.every(model => model.plan === 'go')).toBe(true)
+  })
+
+  it('unknown 套餐用 Go 档估算表排序，不回落老口径', () => {
+    const table: OpenCodeEstimateTable = { 'go-big': 216_670 }
+    const view = applyCatalogView(models, { accountPlan: 'unknown', estimates: table })
+    // 额度降序：go-big(216,670) → shared(500) → go-none（无估算值，沉底）。
+    expect(view.map(model => model.id)).toEqual(['go-big', 'shared', 'go-none'])
   })
 
   it('不传新字段时行为等于今天', () => {

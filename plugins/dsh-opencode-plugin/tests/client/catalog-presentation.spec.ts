@@ -178,7 +178,7 @@ describe('目录视图降级', () => {
     source: 'console',
     fetchedAt: 1_762_345_678_901,
     endpointPlan: 'auto',
-    scoped: true,
+    filteredModelCount: 0,
   }
 
   it('有快照时进入 ready，并把本次错误留作提示', () => {
@@ -220,36 +220,26 @@ describe('目录视图降级', () => {
 })
 
 describe('套餐过滤说明的显示条件', () => {
-  /** 契约里 `filteredModelCount` 只在 scoped 时出现，且 0 表示「另一侧一条都没删」。 */
-  const scope = (value?: number): OpenCodeCatalogEntitlement => ({
-    plan: 'go',
-    source: 'console',
+  /** 契约里 `filteredModelCount` 恒为数字，0 表示「另一侧一条都没删」。 */
+  const scope = (value: number, plan: OpenCodeCatalogEntitlement['plan'] = 'go'): OpenCodeCatalogEntitlement => ({
+    plan,
+    source: plan === 'unknown' ? 'none' : 'console',
     fetchedAt: 1,
-    endpointPlan: 'auto',
-    scoped: true,
-    ...(value === undefined ? {} : { filteredModelCount: value }),
+    endpointPlan: plan === 'unknown' ? 'go' : 'auto',
+    filteredModelCount: value,
   })
 
-  it('缺省与 0 都不该显示「已隐藏 N 个」', () => {
-    const hiddenOf = (value?: number): number | undefined => {
-      const count = scope(value).filteredModelCount
-      return typeof count === 'number' && count > 0 ? count : undefined
-    }
-    expect(hiddenOf()).toBeUndefined()
-    expect(hiddenOf(0)).toBeUndefined()
-    expect(hiddenOf(2)).toBe(2)
+  it('条数是契约字段：0 与正数都原样下发，由界面决定只在正数时说明', () => {
+    // 界面侧的判定（只在正数时渲染）由「卡片接线」用例按源码断言，这里只钉契约。
+    expect(scope(0).filteredModelCount).toBe(0)
+    expect(scope(2).filteredModelCount).toBe(2)
   })
 
-  it('未知套餐时不下发条数，界面走「暂不过滤」提示', () => {
-    const unknown: OpenCodeCatalogEntitlement = {
-      plan: 'unknown',
-      source: 'none',
-      fetchedAt: 1,
-      endpointPlan: 'auto',
-      scoped: false,
-    }
-    expect(unknown.filteredModelCount).toBeUndefined()
-    expect(unknown.scoped).toBe(false)
+  it('未知套餐也下发条数：目录按 Go 口径过滤，端点同样是 go', () => {
+    const unknown = scope(64, 'unknown')
+    expect(unknown.filteredModelCount).toBe(64)
+    expect(unknown.endpointPlan).toBe('go')
+    expect(unknown.source).toBe('none')
   })
 })
 
@@ -290,10 +280,19 @@ describe('卡片接线（源码级）', () => {
     expect(catalog).toContain('estimate === undefined ? null')
   })
 
-  it('过滤说明按 scoped 与正数条数显示，不用 ?? 0', async () => {
+  it('过滤说明按正数条数显示，不用 ?? 0，也不再依赖已删除的 scoped', async () => {
     const catalog = await readSource('components/OpenCodeCatalogCard.tsx')
     expect(catalog).toContain("typeof hidden === 'number' && hidden > 0")
     expect(catalog).not.toContain('filteredModelCount ?? 0')
+    expect(catalog).not.toContain('entitlement.scoped')
+  })
+
+  it('未知套餐分支也显示隐藏条数与宿主原因（按 Go 口径过滤）', async () => {
+    const catalog = await readSource('components/OpenCodeCatalogCard.tsx')
+    const unknownBranch = catalog.slice(catalog.indexOf("const hidden = entitlement.filteredModelCount"))
+    expect(unknownBranch).toContain("t('catalogPlanScopeUnknown')")
+    expect(unknownBranch).toContain("t('catalogPlanScopeHidden', { count: hidden })")
+    expect(unknownBranch).toContain('entitlement.error')
   })
 
   it('Console 新地址来自契约常量，不在组件里硬编码', async () => {

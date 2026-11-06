@@ -73,15 +73,15 @@ export function effectiveEndpointPlan(
   accountPlan: OpenCodeAccountPlan,
 ): OpenCodePlan | 'auto' {
   if (prefs === 'zen' || prefs === 'go') return prefs
+  // 与目录口径一致：套餐判不出来时按 Go 处理（主力形态是 Go 订阅）。
   switch (accountPlan) {
     case 'go':
     case 'go-plus':
     case 'go-teams':
+    case 'unknown':
       return 'go'
-    case 'payg':
-      return 'zen'
     default:
-      return 'auto'
+      return 'zen'
   }
 }
 
@@ -130,7 +130,7 @@ export function apply(ctx: Context): void {
   })
   // 先用 pi-ai 内置目录建立一份同步可用的快照：headless/tui 在插件挂载后
   // 立即开始第一轮对话，等网络目录会让首轮直接落到一个空 provider 上。
-  // 真实目录随后台刷新替换它。此刻还没有套餐，只排序（`unknown` 不过滤）。
+  // 真实目录随后台刷新替换它。此刻还没有套餐，按 unknown（= Go 口径）过滤与排序。
   runtime.update(applyCatalogView(buildCatalog({ builtin: builtinModels }).models, { accountPlan: 'unknown' }))
   runtime.register(ctx)
 
@@ -173,14 +173,12 @@ export function apply(ctx: Context): void {
       model.disabled !== true
       && model.clientOnly !== true
       && !hidden.has(modelKey(model.plan, model.id)))
-    // 套餐未知时不做整侧过滤：回落到按 zen 去重的合并列表，等于未登录时的样子。
-    const models = plan === 'unknown'
-      ? applyCatalogView(visible, { ownedPlan: 'zen', endpointPlan: endpoint })
-      : applyCatalogView(visible, {
-          accountPlan: plan,
-          estimates: estimatesForPlan(plan),
-          endpointPlan: endpoint,
-        })
+    // 套餐未知也走整侧过滤（按 Go 口径），与详情页目录同一规则。
+    const models = applyCatalogView(visible, {
+      accountPlan: plan,
+      estimates: estimatesForPlan(plan),
+      endpointPlan: endpoint,
+    })
     runtime.update(models, {
       ...(catalog.requestHeaders('zen') ?? {}),
       ...(catalog.requestHeaders('go') ?? {}),

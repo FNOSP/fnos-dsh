@@ -157,16 +157,14 @@ export interface OpenCodeEstimateProvenance {
 export interface OpenCodeCatalogEntitlement extends OpenCodeAccountEntitlement {
   /** 本次视图实际生效的端点策略；`auto` 表示未改写各模型的原生端点。 */
   readonly endpointPlan: OpenCodePlan | 'auto'
-  /** 是否做了整侧过滤：套餐可读（非 `unknown`）时为 true。 */
-  readonly scoped: boolean
   /**
    * 本次视图被整侧过滤掉的模型条数。
    *
-   * 只在 `scoped` 为 true 时出现；界面用它显示「已隐藏 N 个不属于当前套餐的
-   * 模型」。未过滤时缺省，避免把「0」误读成「过滤过但一个都没删」。
+   * 目录视图始终按套餐整侧过滤（未知套餐按 Go 口径），因此该字段始终出现。
+   * 界面只在它大于 0 时显示「已隐藏 N 个」——0 表示另一侧本来就没有条目。
    */
-  readonly filteredModelCount?: number
-  /** 排序所用估算表的来源；按量或未知套餐没有额度口径，故缺省。 */
+  readonly filteredModelCount: number
+  /** 排序所用估算表的来源；按量（`payg`）没有额度口径，故缺省。 */
   readonly estimates?: OpenCodeEstimateProvenance
 }
 

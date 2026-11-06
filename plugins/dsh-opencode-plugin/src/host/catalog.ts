@@ -740,18 +740,19 @@ export function dedupeByPlan(
  * 整侧归属过滤：只保留账号套餐真正能计费的那一侧。
  *
  * Go 订阅（含 Plus / Teams）账号只保留 `plan === 'go'` 的条目，只有按量余额的
- * 账号只保留 `plan === 'zen'` 的条目。未知套餐返回原引用：读不出来时宁可保留
- * 合并列表，也不能把选择器清空。
+ * 账号只保留 `plan === 'zen'` 的条目。**未知套餐按 Go 口径处理**：OpenCode 的
+ * 主力形态是 Go 订阅，套餐判不出来时（未公开的套餐接口改版、Key 权限不足）
+ * 按 Go 侧展示比两侧混列更接近用户真实可用的集合；zen 条目依旧可以通过
+ * 「推理端点」偏好显式切到 zen 端点后保留可见性判断。
  *
  * @param models - 合并后的模型列表。
  * @param plan - 账号套餐档位。
- * @returns 过滤后的新列表；`unknown` 时是同一个数组引用。
+ * @returns 过滤后的新列表；结果与输入等价时是同一个数组引用。
  */
 export function scopeToAccountPlan(
   models: readonly OpenCodeModel[],
   plan: OpenCodeAccountPlan,
 ): readonly OpenCodeModel[] {
-  if (plan === 'unknown') return models
   const keep: OpenCodePlan = plan === 'payg' ? 'zen' : 'go'
   const next = models.filter(model => model.plan === keep)
   return next.length === models.length ? models : next
@@ -861,9 +862,9 @@ export function applyCatalogView(
   models: readonly OpenCodeModel[],
   options: CatalogViewOptions,
 ): readonly OpenCodeModel[] {
-  // 新口径优先：账号套餐可读时整侧过滤，同名的另一侧条目自然一并消失。
-  // 读不出来（`unknown`）时回落到旧口径，保持合并列表可用而不是清空选择器。
-  const scoped = options.accountPlan === undefined || options.accountPlan === 'unknown'
+  // 账号套餐已知或未知都走整侧过滤（未知按 Go 口径）；只有调用方完全没传
+  // accountPlan 时才回落到旧的 ownedPlan 去重口径，保证既有调用方行为不变。
+  const scoped = options.accountPlan === undefined
     ? (options.ownedPlan === undefined ? models : dedupeByPlan(models, options.ownedPlan))
     : scopeToAccountPlan(models, options.accountPlan)
   const ordered = sortCatalogModels(scoped, options.estimates)

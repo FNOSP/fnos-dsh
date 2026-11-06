@@ -24,15 +24,17 @@ lastVerified: 2026-11-05
 
 技术边界：只改 `plugins/dsh-opencode-plugin` 与它的文档页；不改其它插件；不改上游 Console、不发起支付或订阅动作；不新增网络依赖（估算表内置）。
 
+口径变更记录：FNOS-047-05 原设计为「套餐判不出时不过滤、两侧合并列出」，2026-11-06 真实账号验证发现合并列表会把按量模型摆到 Go 用户面前，与 FNOS-047-02 冲突，改为「按 Go 口径处理」；`/catalog` 响应随之移除恒为 true 的 `scoped` 字段，`filteredModelCount` 改为恒有值。
+
 ## 当前实现与目标设计
 
 | 领域 | 当前实现 | 目标实现 | 迁移影响 |
 | --- | --- | --- | --- |
 | 套餐判定 | `ownedPlan()`（`src/index.ts`）：能读到 `/inference/go/v1/usage` 即 `go`，否则 `zen`。二值、无法区分三档 | 新增 `OpenCodeEntitlementService`：先读 `GET /console/api/go/status` 取 `product`，失败回退用量接口，再失败为 `unknown` | 三档套餐都能区分；调用方拿到 `payg` / `go` / `go-plus` / `go-teams` / `unknown` |
-| 归属过滤 | `dedupeByPlan`：只删「另一侧有同名条目」的重复项 | `scopeToAccountPlan`：账号有 Go 订阅就只保留 `plan === 'go'` 的条目，按量账号只保留 `zen`；`unknown` 时不过滤 | 单侧独有模型（如 `big-pickle`）在 Go 账号下也会消失 |
+| 归属过滤 | `dedupeByPlan`：只删「另一侧有同名条目」的重复项 | `scopeToAccountPlan`：Go 订阅只保留 `plan === 'go'`，按量账号只保留 `zen`；**`unknown` 按 Go 口径过滤**（2026-11-06 变更，原设计不过滤） | 单侧独有模型（如 `big-pickle`）在 Go 账号下也会消失 |
 | 排序 | `sortCatalogModels`：免费优先 → 付费按 `input+output` 单价升序 → id 兜底 | `sortCatalogModels(models, estimates)`：有估算表时按 `estimatedRequestsPerMonth` 降序（`null` 不限量最前，缺数据最后）；无估算表时保持原口径 | 目录卡片与选择器顺序同时改变 |
 | 估算数据 | 无 | 新增 `src/contracts/estimates.ts`：三档内置表 + `estimatesForPlan` / `estimateOf` | 纯数据，无网络 |
-| 端点策略 | `endpointPlan: auto` 时用「是否读到 Go 用量」决定打哪组端点 | 跟随新的套餐判定：Go 订阅走 Go 端点，`payg` 走按量端点，`unknown` 保持原生 | `auto` 不再依赖用量接口成功 |
+| 端点策略 | `endpointPlan: auto` 时用「是否读到 Go 用量」决定打哪组端点 | 跟随套餐判定：Go 订阅走 Go 端点，`payg` 走按量端点，`unknown` 走 Go 端点（与目录口径一致） | `auto` 不再依赖用量接口成功 |
 | 目录响应 | `/catalog` 只下发 `catalog` 与诊断 | 追加 `entitlement`（套餐与判定来源），供卡片显示套餐与过滤原因 | 浏览器侧新增只读字段 |
 | 用户文案 | 大量使用 `Zen` / `zen` 描述按量口径 | 面向用户的按量口径改为「Console（按量）」，并给出 `https://opencode.ai/console/models`；内部 `plan: 'zen'` 字段名保持稳定 | 九个语言文件同步改文案 |
 

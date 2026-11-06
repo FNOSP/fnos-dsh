@@ -76,7 +76,7 @@ export const ko: { [Key in OpenCodeLocaleKey]: string } = {
   catalogIntro: 'OpenCode가 이 계정에 제공하는 모델입니다. 이름 뒤의 접미사는 과금 출처를 나타냅니다(go는 Go 구독, zen은 Console 종량제). 스위치를 끄면 모델 선택기에서 숨겨집니다.',
   catalogConsoleLink: 'OpenCode Console 모델 목록',
   catalogPlanScopeNotice: '현재 플랜: {plan} · 이 플랜에 포함된 모델만 표시합니다',
-  catalogPlanScopeUnknown: '플랜을 식별하지 못해 필터링하지 않고 양쪽 모델을 모두 표시합니다.',
+  catalogPlanScopeUnknown: '플랜을 식별하지 못해 당분간 OpenCode Go 모델을 표시합니다.',
   catalogPlanScopeHidden: '현재 플랜에 속하지 않는 모델 {count}개를 숨겼습니다',
   catalogEstimatedRequests: '월 예상 요청 수',
   catalogEstimatedUnlimited: '무제한',
