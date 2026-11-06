@@ -7,6 +7,13 @@ import type { OpenCodeAuthStatus, OpenCodeLoginChallenge } from '../contracts/au
 import type { OpenCodeCatalogEntitlement } from '../contracts/catalog.ts'
 import type { OpenCodeTranslate } from '../client/locales.ts'
 import { cancelDeviceLogin, readAuthStatus, signInWithApiKey, signOutAccount, startDeviceLogin } from '../client/services/account-data.ts'
+import {
+  closeAuthorizationPlaceholder,
+  navigateAuthorizationPlaceholder,
+  openAuthorizationPlaceholder,
+  openAuthorizationUrl,
+} from '../client/services/authorization-window.ts'
+import { copyToClipboard } from '../client/services/clipboard.ts'
 import { apiKeyEntryVisible } from '../client/services/account-entry.ts'
 import { bumpAuthEpoch } from '../client/services/auth-events.ts'
 import { accountPlanLabelKey, accountPlanSourceKey } from '../client/services/catalog-data.ts'
@@ -100,6 +107,12 @@ export function OpenCodeAccountCard({ t, timer, entitlement }: OpenCodeAccountCa
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string>()
   const [copyFailed, setCopyFailed] = useState(false)
+  // 授权地址复制的成功反馈与失败提示：与验证码的 copyFailed 分开，
+  // 两者的补救动作不同（验证码可选中重抄，地址要显示出来才能手动复制）。
+  const [urlCopied, setUrlCopied] = useState(false)
+  const [urlCopyFailed, setUrlCopyFailed] = useState(false)
+  // 本次登录开出的占位标签页：取消或失败时收回，避免留下空白页。
+  const placeholderRef = useRef<Window | null>(null)
   const [keyOpen, setKeyOpen] = useState(false)
   const [apiKey, setApiKey] = useState('')
   const [keyError, setKeyError] = useState<string>()
@@ -157,13 +170,30 @@ export function OpenCodeAccountCard({ t, timer, entitlement }: OpenCodeAccountCa
   }, [delayMs, refresh, signingIn, timer])
 
   const signIn = async (): Promise<void> => {
+    // 占位页必须在任何 `await` 之前打开：那时已经脱离用户手势，浏览器会拦截弹窗。
+    // Desktop 壳会 deny 掉 `about:blank`（只放行 http/https），拿到句柄为 null，
+    // 后续改用直接开真实地址。
+    placeholderRef.current = openAuthorizationPlaceholder()
     setBusy(true)
     setActionError(undefined)
     setCopyFailed(false)
+    setUrlCopied(false)
+    setUrlCopyFailed(false)
     try {
       const challenge = await startDeviceLogin()
+      // 占位页不可用（Desktop 壳 deny 掉 about:blank，或用户已关掉它）时直接开
+      // 真实地址：壳的开窗在原生层进行，不受浏览器的手势限制。两条路都失败
+      // 也不阻断登录——设备码照常轮询，界面还有「复制授权地址」兜底。
+      if (!navigateAuthorizationPlaceholder(placeholderRef.current, challenge.verificationUri)) {
+        // 占位页不可用才直接开：Desktop 壳接管时拿不到句柄，取消也就无从关窗。
+        openAuthorizationUrl(challenge.verificationUri)
+        placeholderRef.current = null
+      }
+      // 句柄保留到取消/退出：用户中途关掉它没关系，close 内部已处理。
       setState({ status: 'signing-in', challenge })
     } catch (error) {
+      closeAuthorizationPlaceholder(placeholderRef.current)
+      placeholderRef.current = null
       setActionError(failureText(error))
     } finally {
       setBusy(false)
@@ -174,6 +204,8 @@ export function OpenCodeAccountCard({ t, timer, entitlement }: OpenCodeAccountCa
     setBusy(true)
     setActionError(undefined)
     setCopyFailed(false)
+    closeAuthorizationPlaceholder(placeholderRef.current)
+    placeholderRef.current = null
     try {
       applyStatus(await cancelDeviceLogin())
     } catch (error) {
@@ -194,6 +226,13 @@ export function OpenCodeAccountCard({ t, timer, entitlement }: OpenCodeAccountCa
     } finally {
       setBusy(false)
     }
+  }
+
+  const copyUrl = async (url: string): Promise<void> => {
+    const ok = await copyToClipboard(url)
+    setUrlCopyFailed(!ok)
+    setUrlCopied(ok)
+    if (ok) window.setTimeout(() => { setUrlCopied(false) }, 2000)
   }
 
   const submitKey = async (): Promise<void> => {
@@ -311,16 +350,26 @@ export function OpenCodeAccountCard({ t, timer, entitlement }: OpenCodeAccountCa
                 >
                   {challenge.userCode}
                 </DshTypography.Text>
-                <a
-                  className="dsh-opencode-link"
-                  href={challenge.verificationUri}
-                  target="_blank"
-                  rel="noreferrer noopener"
+                <DshButton
+                  htmlType="button"
+                  theme="outline"
+                  type="secondary"
+                  size="small"
+                  onClick={() => { void copyUrl(challenge.verificationUri) }}
                 >
-                  {t('accountOpenVerification')}
-                </a>
+                  {urlCopied ? t('accountCodeCopied') : t('accountCopyUrl')}
+                </DshButton>
               </div>
               {copyFailed ? <p className="dsh-opencode-error">{t('accountCodeCopyFailed')}</p> : null}
+              {/* 地址复制失败时把地址本身显示出来：授权页没自动打开、又复制不了时，
+                  用户至少能选中它手动复制——只报「复制失败」等于把人堵死。 */}
+              {urlCopyFailed ? (
+                <div className="dsh-opencode-url-fallback">
+                  <p className="dsh-opencode-error">{t('accountCopyUrlFailed')}</p>
+                  {/* 可选中：复制被拦截时用户仍能手动选中这段地址。 */}
+                  <span className="dsh-opencode-url">{challenge.verificationUri}</span>
+                </div>
+              ) : null}
             </>
           )}
         </div>

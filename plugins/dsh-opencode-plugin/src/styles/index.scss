@@ -219,6 +219,26 @@
   letter-spacing: 0.08em;
 }
 
+.dsh-opencode-url-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 复制失败时兜底显示的授权地址：可选中、等宽、长地址换行不溢出。 */
+.dsh-opencode-url {
+  padding: 8px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
 .dsh-opencode-key {
   display: flex;
   flex-direction: column;

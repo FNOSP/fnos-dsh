@@ -295,6 +295,34 @@ describe('卡片接线（源码级）', () => {
     expect(unknownBranch).toContain('entitlement.error')
   })
 
+  it('登录按钮在点击手势内自动打开授权页，不再提供「打开验证页面」链接', async () => {
+    const account = await readSource('components/OpenCodeAccountCard.tsx')
+    // 手势内先开占位页：必须出现在 startDeviceLogin 之前，否则会被弹窗拦截。
+    const placeholderAt = account.indexOf('openAuthorizationPlaceholder()')
+    const requestAt = account.indexOf('await startDeviceLogin()')
+    expect(placeholderAt).toBeGreaterThan(-1)
+    expect(requestAt).toBeGreaterThan(-1)
+    expect(placeholderAt).toBeLessThan(requestAt)
+    // 占位页不可用（Desktop 壳 deny about:）时改用直接开真实地址。
+    expect(account).toContain('navigateAuthorizationPlaceholder(')
+    expect(account).toContain('openAuthorizationUrl(challenge.verificationUri)')
+    // 旧的「打开验证页面」链接已移除，改为复制授权地址按钮。
+    expect(account).not.toContain('accountOpenVerification')
+    expect(account).toContain("t('accountCopyUrl')")
+    // 复制按钮把验证地址交给 copyUrl，内部用 copyToClipboard（含 execCommand 回落）。
+    expect(account).toContain('copyUrl(challenge.verificationUri)')
+    expect(account).toContain('copyToClipboard(')
+  })
+
+  it('授权地址复制失败时把地址本身显示出来供手动复制', async () => {
+    const account = await readSource('components/OpenCodeAccountCard.tsx')
+    const failedBranch = account.slice(account.indexOf('urlCopyFailed ?'))
+    expect(failedBranch).toContain("t('accountCopyUrlFailed')")
+    // 地址必须可见：只报「复制失败」而没有地址等于把人堵死。
+    expect(failedBranch).toContain('challenge.verificationUri')
+    expect(failedBranch).toContain('dsh-opencode-url')
+  })
+
   it('Console 新地址来自契约常量，不在组件里硬编码', async () => {
     const catalog = await readSource('components/OpenCodeCatalogCard.tsx')
     expect(catalog).toContain('OPENCODE_CONSOLE_ORIGIN')
