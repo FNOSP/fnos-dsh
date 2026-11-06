@@ -107,7 +107,8 @@ export interface OpenCodeModel {
  *
  * - `payg`：只有按量（Console 余额），没有 Go 订阅；
  * - `go` / `go-plus` / `go-teams`：三档 Go 订阅，额度与 Estimated requests 各不相同；
- * - `unknown`：未登录或套餐接口不可读，调用方应保守处理（不做整侧过滤）。
+ * - `unknown`：未登录或套餐接口不可读；目录与端点都按 Go 口径处理（主力形态是
+ *   Go 订阅），不猜成 `payg`。
  */
 export type OpenCodeAccountPlan = 'payg' | 'go' | 'go-plus' | 'go-teams' | 'unknown'
 

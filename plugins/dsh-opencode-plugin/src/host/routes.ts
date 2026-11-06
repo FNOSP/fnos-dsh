@@ -33,7 +33,7 @@ import type { OpenCodeUsageService } from './usage.ts'
 /** 请求体上限：只有少量表单字段。 */
 const REQUEST_BODY_LIMIT = 16 * 1024
 
-/** 未注入套餐服务时的保守快照：不整侧过滤、保持原生端点。 */
+/** 未注入套餐服务时的兜底快照：按 `unknown` 走，与套餐读不出来时同一口径。 */
 const UNKNOWN_ENTITLEMENT: OpenCodeAccountEntitlement = {
   plan: 'unknown',
   source: 'none',

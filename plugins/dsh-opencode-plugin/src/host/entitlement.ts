@@ -11,8 +11,10 @@
  * 4. 用量也读不到时，只有「套餐接口干净 404」才判 `payg`，其它（401/403/5xx/
  *    网络/超时/JSON 非法/套餐名不可识别）一律 `unknown`。
  *
- * `unknown` 的语义是「读不出来」：上层不做整侧过滤、保持合并目录，绝不猜成
- * `payg`。错误文案只描述失败位置，绝不包含 token。
+ * `unknown` 的语义是「读不出来」：绝不猜成 `payg`，也不因为读不出就把两侧模型
+ * 混列出来。上层按 OpenCode Go 口径处理（见 `scopeToAccountPlan`）——OpenCode
+ * 的主力付费形态是 Go 订阅，按 Go 展示比混列更接近用户真实可用的集合。错误文案
+ * 只描述失败位置，绝不包含 token。
  *
  * @module dsh-opencode/entitlement
  */
