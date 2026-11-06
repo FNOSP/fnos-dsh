@@ -30,7 +30,6 @@ export const es: { [Key in OpenCodeLocaleKey]: string } = {
   accountMethodKey: 'Clave de API',
   accountExpiresAt: 'Caduca',
   accountExpiresNever: 'No caduca',
-  accountUnknown: 'Desconocido',
   accountApiKeyToggle: 'Iniciar sesión con clave de API',
   accountApiKeyCollapse: 'Ocultar el inicio de sesión con clave de API',
   accountApiKeyLabel: 'Clave de API',

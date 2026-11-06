@@ -3,6 +3,7 @@ import {
   OpenCodeConsoleClient,
   OpenCodeConsoleError,
   OPENCODE_CONSOLE_MAX_RESPONSE_BYTES,
+  organizationNameFromProvider,
   redactMessage,
 } from '../../src/host/console-client.ts'
 
@@ -295,5 +296,22 @@ describe('OpenCode Console 错误与安全边界', () => {
   it('拒绝非 http(s) 的 Console 地址', () => {
     expect(() => new OpenCodeConsoleClient({ server: 'ftp://opencode.ai/console' })).toThrow(TypeError)
     expect(() => new OpenCodeConsoleClient({ server: 'not a url' })).toThrow(TypeError)
+  })
+})
+
+describe('organizationNameFromProvider', () => {
+  it('取出 <工作空间名> / OpenCode 里的工作空间名', () => {
+    expect(organizationNameFromProvider('Default / OpenCode')).toBe('Default')
+    expect(organizationNameFromProvider('tnnevol / OpenCode')).toBe('tnnevol')
+    expect(organizationNameFromProvider('  Team One  /  OpenCode ')).toBe('Team One')
+  })
+
+  it('不符合形态时返回 undefined，不把产品名当组织', () => {
+    expect(organizationNameFromProvider('OpenCode Go')).toBeUndefined()
+    expect(organizationNameFromProvider('OpenCode')).toBeUndefined()
+    expect(organizationNameFromProvider('/ OpenCode')).toBeUndefined()
+    expect(organizationNameFromProvider('')).toBeUndefined()
+    expect(organizationNameFromProvider(undefined)).toBeUndefined()
+    expect(organizationNameFromProvider(42)).toBeUndefined()
   })
 })

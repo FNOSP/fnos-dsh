@@ -26,6 +26,10 @@ const DEVICE_CODE_PATH = '/auth/device/code'
 const DEVICE_TOKEN_PATH = '/auth/device/token'
 const USER_PATH = '/api/user'
 const ORGS_PATH = '/api/orgs'
+/** 工作空间配置：API Key 也可读，是 Key 登录下唯一的身份来源。 */
+const CONFIG_PATH = '/api/v2/config'
+/** provider 名里工作空间名与产品名的分隔写法：`<工作空间名> / OpenCode`。 */
+const PROVIDER_NAME_SUFFIX = /^(.+?)\s*\/\s*OpenCode$/u
 
 /** RFC 8628 的设备码授权类型。 */
 const DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
@@ -233,6 +237,24 @@ function parseTokenSet(value: unknown, now: number, fallbackRefresh?: string): O
   }
 }
 
+/**
+ * 从 provider 名里取出工作空间名。
+ *
+ * Console 把按量 provider 命名成 `<工作空间名> / OpenCode`；不符合这个形态
+ * （缺失、没有后缀、前缀为空）时返回 undefined，避免把「OpenCode Go」这类
+ * 产品名当成组织展示给用户。
+ *
+ * @param value - `providers.opencode.name` 的原始值。
+ * @returns 工作空间名；形态不符时为 undefined。
+ */
+export function organizationNameFromProvider(value: unknown): string | undefined {
+  const raw = nonEmptyString(value)
+  if (raw === undefined) return undefined
+  const matched = PROVIDER_NAME_SUFFIX.exec(raw.trim())
+  const name = matched?.[1]?.trim()
+  return name !== undefined && name.length > 0 ? name : undefined
+}
+
 function requireAccessToken(access: string): string {
   const token = access.trim()
   if (token.length === 0) throw new TypeError('OpenCode access token 不能为空')
@@ -401,6 +423,42 @@ export class OpenCodeConsoleClient {
     if (id === undefined) throw new OpenCodeConsoleError('OpenCode Console 账号响应缺少 id')
     const email = nonEmptyString(body.email)
     return email === undefined ? { id } : { id, email }
+  }
+
+  /**
+   * 从工作空间配置里读取身份信息（API Key 登录场景的组织来源）。
+   *
+   * Console 的会话接口（`/api/user`、`/api/orgs`）只接受浏览器会话，API Key
+   * 一律得到 401/403，因此 Key 登录拿不到账号与组织列表。但 `v2/config` 对 Key
+   * 可用，它的 provider 名形如 `<工作空间名> / OpenCode`（OAuth 账号实测与组织名
+   * 一致），组织 id 则在 `headers['x-opencode-org-id']` 里。两者都缺失或形态不符时
+   * 返回 undefined，绝不猜名字。
+   *
+   * @param access - Console 凭据（OAuth token 或 API Key）。
+   * @returns 工作空间名与 id；读不到时为 undefined。
+   */
+  async workspaceIdentity(access: string): Promise<OpenCodeConsoleOrganization | undefined> {
+    let payload: unknown
+    try {
+      const { status, value } = await this.requestJson(CONFIG_PATH, {
+        method: 'GET',
+        access: requireAccessToken(access),
+      })
+      if (status < 200 || status >= 300) return undefined
+      payload = value
+    } catch {
+      // 身份是展示信息：任何失败都只是「没有这项」，不向上抛。
+      return undefined
+    }
+    const providers = wireRecord(wireRecord(payload)?.providers)
+    if (providers === undefined) return undefined
+    // 只认 `opencode`（按量）这一条：Go 侧的 name 是字面量「OpenCode Go」，不是工作空间名。
+    const provider = wireRecord(providers.opencode)
+    if (provider === undefined) return undefined
+    const name = organizationNameFromProvider(provider.name)
+    const id = nonEmptyString(wireRecord(provider.headers)?.['x-opencode-org-id'])
+    if (name === undefined) return undefined
+    return { id: id ?? name, name }
   }
 
   /** 读取 Console 组织列表；无法识别的条目跳过，不伪造组织名。 */

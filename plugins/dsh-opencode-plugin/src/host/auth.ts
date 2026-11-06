@@ -202,9 +202,17 @@ export class OpenCodeAuthService {
       this.warn('读取 OpenCode 组织列表失败', error)
       return undefined
     })
+    // Console 的会话接口不接受 API Key（`/api/user`、`/api/orgs` 对 Key 返回
+    // 401/403），因此 Key 登录的组织只能从工作空间配置里取；取不到就留空，
+    // 界面按「没有该字段」整项隐藏，不显示占位文案。
     const organization = organizations !== undefined && organizations.length === 1
       ? organizations[0]
-      : undefined
+      : organizations === undefined
+        ? await this.client.workspaceIdentity(key).catch((error: unknown) => {
+          this.warn('读取 OpenCode 工作空间信息失败', error)
+          return undefined
+        })
+        : undefined
 
     // 探测通过后才结束进行中的设备码登录，避免一次失败的 Key 登录打断它。
     await this.cancel()

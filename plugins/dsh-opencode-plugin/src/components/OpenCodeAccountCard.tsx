@@ -65,6 +65,22 @@ function pollDelayMs(challenge: OpenCodeLoginChallenge | undefined): number {
   return Math.max(1_000, Math.min(10_000, Math.round(seconds * 1_000)))
 }
 
+/**
+ * 取第一个非空的字符串。
+ *
+ * 账号卡按「有值才显示该字段」渲染，因此不能把空串或纯空白当作有效值——
+ * 否则会渲染出一个有标签没有内容的空行。
+ *
+ * @param values - 候选值，按优先级排列。
+ * @returns 第一个非空值；都没有时为 undefined。
+ */
+function firstNonEmpty(...values: readonly (string | undefined)[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim().length > 0) return value
+  }
+  return undefined
+}
+
 /** 一行「标签 + 值」。 */
 function AccountFact({ label, value }: { label: string, value: string }): ReactNode {
   return (
@@ -202,14 +218,15 @@ export function OpenCodeAccountCard({ t, timer, entitlement }: OpenCodeAccountCa
 
   const account = state.status === 'signed-in' ? state.account : undefined
   const challenge = state.status === 'signing-in' ? state.challenge : undefined
-  const organization = account === undefined
-    ? undefined
-    : account.organizationName ?? account.organizationId
+  // 值为空的字段整项不渲染：上游拿不到邮箱（API Key 登录）时显示「邮箱」加
+  // 「未知」会让用户以为插件读到了什么，其实什么都没读到。
+  const email = firstNonEmpty(account?.email, account?.accountId)
+  const organization = firstNonEmpty(account?.organizationName, account?.organizationId)
   const expiresAt = account === undefined
     ? undefined
     : account.method === 'key'
       ? t('accountExpiresNever')
-      : formatTimestamp(account.expiresAt) ?? t('accountUnknown')
+      : formatTimestamp(account.expiresAt)
 
   let action: ReactNode = null
   if (state.status === 'signed-in') {
@@ -253,10 +270,10 @@ export function OpenCodeAccountCard({ t, timer, entitlement }: OpenCodeAccountCa
 
       {account === undefined ? null : (
         <dl className="dsh-opencode-facts">
-          <AccountFact label={t('accountEmail')} value={account.email ?? account.accountId ?? t('accountUnknown')} />
+          {email === undefined ? null : <AccountFact label={t('accountEmail')} value={email} />}
           {organization === undefined ? null : <AccountFact label={t('accountOrganization')} value={organization} />}
           <AccountFact label={t('accountMethod')} value={account.method === 'oauth' ? t('accountMethodOauth') : t('accountMethodKey')} />
-          <AccountFact label={t('accountExpiresAt')} value={expiresAt ?? t('accountUnknown')} />
+          {expiresAt === undefined ? null : <AccountFact label={t('accountExpiresAt')} value={expiresAt} />}
           {/* 套餐与判定依据来自目录响应：未登录或接口不可读时 plan 为 unknown。 */}
           {entitlement === undefined ? null : (
             <>

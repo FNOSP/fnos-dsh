@@ -34,7 +34,6 @@ export const ko: { [Key in OpenCodeLocaleKey]: string } = {
   accountMethodKey: 'API Key',
   accountExpiresAt: '만료 시간',
   accountExpiresNever: '만료 없음',
-  accountUnknown: '알 수 없음',
   accountApiKeyToggle: 'API Key로 로그인',
   accountApiKeyCollapse: 'API Key 로그인 접기',
   accountApiKeyLabel: 'API Key',

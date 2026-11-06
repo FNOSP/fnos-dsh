@@ -34,7 +34,6 @@ export const ja: { [Key in OpenCodeLocaleKey]: string } = {
   accountMethodKey: 'API キー',
   accountExpiresAt: '有効期限',
   accountExpiresNever: '無期限',
-  accountUnknown: '不明',
   accountApiKeyToggle: 'API キーでログイン',
   accountApiKeyCollapse: 'API キーでのログインを閉じる',
   accountApiKeyLabel: 'API キー',

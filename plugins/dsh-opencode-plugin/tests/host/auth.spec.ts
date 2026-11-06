@@ -43,6 +43,7 @@ interface ConsoleRoutes {
   user?: () => Response
   organizations?: () => Response
   usage?: () => Response
+  config?: () => Response
 }
 
 function json(body: unknown, status = 200): Response {
@@ -100,6 +101,11 @@ function consoleFetch(routes: ConsoleRoutes = {}): {
       return routes.organizations === undefined
         ? json([{ id: 'org-1', name: 'Team One' }])
         : routes.organizations()
+    }
+    if (url.endsWith('/api/v2/config')) {
+      return routes.config === undefined
+        ? json({ providers: { opencode: { name: 'Team One / OpenCode', headers: { 'x-opencode-org-id': 'wrk-1' } } } })
+        : routes.config()
     }
     throw new Error(`未预期的请求：${url}`)
   }
@@ -364,6 +370,70 @@ describe('OpenCode API Key 登录', () => {
       'OpenCode API Key 用量探测失败，按有效处理',
       expect.anything(),
     )
+  })
+
+  it('会话接口 401 时从工作空间配置补组织名', async () => {
+    // 真实上游行为：API Key 访问 /api/user 与 /api/orgs 一律 401，但 v2/config 可读。
+    const store = await temporaryStore()
+    const { fetchImpl } = consoleFetch({
+      user: () => json({ _tag: 'Unauthorized' }, 401),
+      organizations: () => json({ _tag: 'Unauthorized' }, 401),
+      config: () => json({
+        providers: {
+          opencode: { name: 'Default / OpenCode', headers: { 'x-opencode-org-id': 'wrk-9' } },
+          'opencode-go': { name: 'OpenCode Go' },
+        },
+      }),
+    })
+    const auth = new OpenCodeAuthService({
+      store,
+      client: new OpenCodeConsoleClient({ fetchImpl }),
+    })
+
+    const status = await auth.signInWithKey('oc_sk_key')
+
+    expect(status).toMatchObject({ status: 'signed-in', method: 'key' })
+    const record = await store.read()
+    expect(record?.orgName).toBe('Default')
+    expect(record?.orgId).toBe('wrk-9')
+    // 邮箱拿不到就不写该字段，界面按「没有该字段」整项隐藏。
+    expect(record?.accountEmail).toBeUndefined()
+  })
+
+  it('工作空间配置也读不到时组织留空，不伪造', async () => {
+    const store = await temporaryStore()
+    const logger = { warn: vi.fn() }
+    const { fetchImpl } = consoleFetch({
+      user: () => json({ _tag: 'Unauthorized' }, 401),
+      organizations: () => json({ _tag: 'Forbidden' }, 403),
+      config: () => json({ _tag: 'Forbidden' }, 403),
+    })
+    const auth = new OpenCodeAuthService({
+      store,
+      client: new OpenCodeConsoleClient({ fetchImpl }),
+      logger,
+    })
+
+    const status = await auth.signInWithKey('oc_sk_key')
+
+    expect(status.status).toBe('signed-in')
+    const record = await store.read()
+    expect(record?.orgName).toBeUndefined()
+    expect(record?.orgId).toBeUndefined()
+  })
+
+  it('组织列表可读时优先用它，不再读工作空间配置', async () => {
+    const store = await temporaryStore()
+    const { fetchImpl, urls } = consoleFetch()
+    const auth = new OpenCodeAuthService({
+      store,
+      client: new OpenCodeConsoleClient({ fetchImpl }),
+    })
+
+    await auth.signInWithKey('oc_sk_key')
+
+    expect((await store.read())?.orgName).toBe('Team One')
+    expect(urls.some(url => url.endsWith('/api/v2/config'))).toBe(false)
   })
 
   it('探测 5xx 仍允许落盘，只记录诊断', async () => {

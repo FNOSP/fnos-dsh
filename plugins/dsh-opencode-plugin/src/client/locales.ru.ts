@@ -30,7 +30,6 @@ export const ru: { [Key in OpenCodeLocaleKey]: string } = {
   accountMethodKey: 'API-ключ',
   accountExpiresAt: 'Истекает',
   accountExpiresNever: 'Бессрочно',
-  accountUnknown: 'Неизвестно',
   accountApiKeyToggle: 'Войти по API-ключу',
   accountApiKeyCollapse: 'Скрыть вход по API-ключу',
   accountApiKeyLabel: 'API-ключ',

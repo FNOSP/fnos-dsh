@@ -22,6 +22,7 @@ verifiedAt: 2026-11-06
 | [FNOS-047-03](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-03-额度排序) | 额度排序 | 估值缺失 / 不限量 / 表里有但 roster 没有的边界；按量侧不能受 Go 估算表影响 |
 | [FNOS-047-04](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-04-上游更名跟进) | 上游更名跟进 | 文案改动不能连带改掉内部 id 前缀与后缀（会破坏存量隐藏设置与历史会话） |
 | [FNOS-047-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐的保守处理) | 未知套餐降级 | 接口失败时选择器仍可用；错误文案不含凭据 |
+| [FNOS-047-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) | 账号卡按值渲染 | 空字段必须整项隐藏；API Key 场景组织名来源只有 `v2/config`，不能凭空造名字 |
 
 **兼容基线**：本插件属于「其他 DSH 插件」，按[测试用例文档规范](/charter/tests-spec#测试环境执行方式)必须同时覆盖 **DSH Web** 与 **DSH Desktop**，只记录单一客户端不构成完成结论。
 
@@ -106,6 +107,16 @@ verifiedAt: 2026-11-06
 | TC-032 | 同上 | 原因可见 | AC-05 | 同上 | 查看详情页 | 给出「未识别到套餐，暂不过滤」说明 | P1 | 新增行为，无回归基线 |
 | TC-033 | 同上 | 错误文案脱敏 | AC-05 | 同上，注入含凭据的异常 | 检查错误文案 | 不含 token / Bearer / API Key 原文 | P0 | 基线：FNOS-011 凭据可诊断性约定 |
 
+### FNOS-047-06 账号卡按值渲染
+
+| 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-034 | [FNOS-047-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) | 邮箱有值时正常显示 | [AC-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) | OAuth 账号已登录 | 查看账号卡 | 显示「邮箱 + 地址」 | P1 | 基线：FNOS-026 账号卡展示 |
+| TC-035 | FNOS-047-06 | 邮箱无值时整项隐藏 | AC-06 | API Key 登录（上游会话接口 401） | 查看账号卡 | 不出现「邮箱」标签，也不出现「未知」文案 | P0 | 新增行为，无回归基线 |
+| TC-036 | FNOS-047-06 | API Key 下组织名从工作空间配置补全 | AC-06 | API Key 可读 `v2/config` | 登录后查看账号卡 | 「组织」显示工作空间名（如 `Default`） | P0 | 新增行为，无回归基线 |
+| TC-037 | FNOS-047-06 | 工作空间配置也读不到时组织隐藏 | AC-06 | `v2/config` 返回 403 | 登录后查看账号卡 | 不出现「组织」标签，不伪造名字 | P0 | 新增行为，无回归基线 |
+| TC-038 | FNOS-047-06 | provider 名形态不符不误判 | AC-06 | provider 名为 `OpenCode Go` 等 | 调用解析函数 | 返回 undefined，不把产品名当组织 | P1 | 新增行为，无回归基线 |
+
 ## 测试执行结果
 
 执行时间 2026-11-06。两个客户端均使用 `<repo>/.dsh` 作为 `DSH_HOME`；按规范先测 Web、退出后再测 Desktop，避免同一 profile 被两个实例同时持有。
@@ -151,6 +162,11 @@ verifiedAt: 2026-11-06
 | TC-031 | [FNOS-047-05](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-05-未知套餐的保守处理) | DSH Desktop | 通过 | 2026-11-06 | 移除凭据后 `plan=unknown`、`scoped=false`，目录 93 条两侧都在，选择器未被清空 |
 | TC-032 | FNOS-047-05 | DSH Desktop | 通过 | 2026-11-06 | 套餐未识别时不渲染「当前套餐/已隐藏 N 个」说明 |
 | TC-033 | FNOS-047-05 | DSH Desktop | 通过 | 2026-11-06 | 目录响应全文扫描 `eyJ…` / `st_…` / `oc_sk_` 无命中 |
+| TC-034 | [FNOS-047-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) | DSH Web | 通过 | 2026-11-06 | OAuth 账号：邮箱 `tnnevol@gmail.com`、组织 `tnnevol` 均正常显示 |
+| TC-035 | FNOS-047-06 | DSH Web | 通过 | 2026-11-06 | 真实 API Key 登录后账号卡字段为「组织 / 登录方式 / 过期时间 / 套餐 / 判定依据」，**无「邮箱」标签、全文无「未知」** |
+| TC-036 | FNOS-047-06 | DSH Web | 通过 | 2026-11-06 | 该 Key 得到 `organizationName: "Default"`、`organizationId: wrk_01KZ8VYYN81PXS76AG03939AAA`；登录响应体本身也不含 `email` 字段 |
+| TC-037 | FNOS-047-06 | 单元测试 | 通过 | 2026-11-06 | `v2/config` 403 时 `orgName` / `orgId` 均 undefined，仍登录成功 |
+| TC-038 | FNOS-047-06 | 单元测试 | 通过 | 2026-11-06 | `OpenCode Go`、`OpenCode`、`/ OpenCode`、空串、数字均返回 undefined |
 
 ### UI 视觉与样式核对（规范「UI 测试」清单）
 
@@ -186,7 +202,9 @@ verifiedAt: 2026-11-06
 
 ## 测试结论
 
-**结论：通过。** 33 条用例全部通过（0 失败 / 0 阻塞 / 0 未执行），其中 TC-012、TC-018、TC-027、TC-028 在两个客户端各执行一次并分别登记。
+**结论：通过。** 38 条用例全部通过（0 失败 / 0 阻塞 / 0 未执行），其中 TC-012、TC-018、TC-027、TC-028 在两个客户端各执行一次并分别登记。
+
+[FNOS-047-06](/requirements/FNOS-047-opencode-plan-entitlement#fnos-047-06-账号卡按值渲染) 为执行期间按实测发现追加的功能：上游对 API Key 的会话接口一律 401/403，邮箱确实取不到；组织名可改从 `v2/config` 取（真实 Key 实测得到 `Default`）。账号卡据此改为「有值才显示」，空字段整项隐藏，「未知」占位文案已从九种语言中删除。
 
 覆盖情况：
 
@@ -199,4 +217,5 @@ verifiedAt: 2026-11-06
 
 1. **整侧过滤属于有意的行为变更**：Go 账号不再看到任何按量模型（含只在按量侧存在的 `big-pickle` 等）。这是本需求的核心目标，但对用户是可见变化，发版时应写入变更说明。
 2. **估算表为内置快照**（抓取日期 2026-11-05）：上游调整额度后，排序会滞后到下一次插件版本更新；界面已标注快照日期与官方来源链接，便于用户判断。
-3. **Console 套餐接口是未公开接口**：若上游改版或对服务账号 Key 收紧权限，三档判定会退化为「按量/未知」，此时列表回落到合并口径而非清空——该降级路径已由 TC-031~033 覆盖。
+3. **API Key 登录只能拿到组织名，拿不到邮箱**：`/api/user` 与 `/api/orgs` 对 Key 返回 401，Console 也不存在可用的身份端点（已探测 v1/v2 共 20 余个候选路径）。组织名依赖 `v2/config` 的 `<工作空间名> / OpenCode` 命名约定，上游改这个格式会让组织名退回隐藏（不会显示错名字）。
+4. **Console 套餐接口是未公开接口**：若上游改版或对服务账号 Key 收紧权限，三档判定会退化为「按量/未知」，此时列表回落到合并口径而非清空——该降级路径已由 TC-031~033 覆盖。
