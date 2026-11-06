@@ -205,6 +205,56 @@ export function modelCreatedAtFrom(payload: unknown): Map<string, number> {
   return result
 }
 
+/**
+ * 把活 roster 的 `cost` 归一成 models.dev 的扁平形态。
+ *
+ * roster 按模态分层（`cost.text.input.price`），还带 `multipliers`（峰谷时段与
+ * 长上下文加价）；加价不参与展示，只取基价。缓存读写单价都在 `input.cache` 下。
+ *
+ * @param value - roster 条目的 `cost`。
+ * @returns 扁平成本；形态不符或单价缺失时 undefined。
+ */
+function rosterCostShape(value: unknown): unknown {
+  const text = record(record(value)?.text)
+  if (text === undefined) return undefined
+  const input = record(text.input)
+  const output = record(text.output)
+  const cache = record(input?.cache)
+  return {
+    input: input?.price,
+    output: output?.price,
+    cache_read: cache?.read,
+    cache_write: cache?.write,
+  }
+}
+
+/**
+ * 从活 roster 提取「模型 id → token 单价」。
+ *
+ * models.dev 目录可能落后于 roster：上游新上架的模型（如 2026-11-03 的
+ * `crouton-alpha-free`）当时只出现在 `opencode` 段，`opencode-go` 段没有条目。
+ * roster 是网关当前真正在计费的来源，用它兜底才能让「是否免费」判对，
+ * 进而让免费模型的额度口径与排序正确。
+ *
+ * @param payload - roster 响应体。
+ * @returns id 到成本的映射；读不到单价的条目不写入。
+ */
+export function modelCostFrom(payload: unknown): Map<string, OpenCodeModelCost> {
+  const result = new Map<string, OpenCodeModelCost>()
+  const source = record(payload)
+  const entries = Array.isArray(source?.data)
+    ? source.data
+    : Array.isArray(source?.models) ? source.models : []
+  for (const entry of entries) {
+    const row = record(entry)
+    const id = nonEmptyString(row?.id)
+    if (id === undefined) continue
+    const cost = costFrom(rosterCostShape(row?.cost))
+    if (cost !== undefined) result.set(id, cost)
+  }
+  return result
+}
+
 /** 只保留 DSH 能发送的输入模态：text 与 image。 */
 export function normalizeInputModalities(value: unknown): ('text' | 'image')[] {
   const entries = Array.isArray(value) ? value : []
@@ -468,6 +518,8 @@ export interface CatalogEntryInput {
   readonly consoleProviderNpm?: string
   /** 活 roster 里该模型的创建时间（epoch 秒），用于免费模型的排序。 */
   readonly rosterCreatedAt?: number
+  /** 活 roster 给出的 token 单价；公开目录落后于 roster 时兜底。 */
+  readonly rosterCost?: OpenCodeModelCost
   /** 当前套餐档位的估算表；仅 `plan` 为 `go` 时写入预计请求数。 */
   readonly estimates?: OpenCodeEstimateTable
 }
@@ -484,7 +536,7 @@ export type CatalogEntryResult =
  * 内置目录保留经过验证的 wire 兼容开关。
  */
 export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult {
-  const { id, plan, consoleEntry, catalogEntry, fallbackCatalogEntry, builtin, fallbackBuiltin, rosterCreatedAt } = entry
+  const { id, plan, consoleEntry, catalogEntry, fallbackCatalogEntry, builtin, fallbackBuiltin, rosterCreatedAt, rosterCost } = entry
   const warnings: string[] = []
   const consoleCaps = record(consoleEntry?.capabilities)
   const consoleReasoning = consoleCaps !== undefined && 'reasoning' in consoleCaps
@@ -577,6 +629,8 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
     ?? fallbackBuiltin?.maxTokens
     ?? DEFAULT_MAX_TOKENS
 
+  // 兜底顺序：Console 覆盖 → 本段公开目录 → 另一段公开目录 → pi-ai 内置 → 活 roster。
+  // roster 放最后：它只在前面几个来源都没给出价格时才参与，不改动既有模型的展示价。
   const cost = costFrom(consoleEntry?.cost)
     ?? costFrom(catalogEntry?.cost)
     ?? costFrom(fallbackCatalogEntry?.cost)
@@ -588,6 +642,7 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
         cache_read: builtin.cost.cacheRead,
         cache_write: builtin.cost.cacheWrite,
       }))
+    ?? rosterCost
   const free = cost !== undefined && cost.input === 0 && cost.output === 0
   // 排序用的时间：优先公开目录的发布日（稳定），其次 roster 的创建时间。
   const releasedAt = nonEmptyString(catalogEntry?.release_date)
@@ -617,8 +672,19 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
     ? consoleCaps.tools
     : catalogEntry?.tool_call !== false && fallbackCatalogEntry?.tool_call !== false
   const structuredOutput = catalogEntry?.structured_output === true || fallbackCatalogEntry?.structured_output === true
-  // 预计请求数只有 Go 档有口径；表里没有该模型时保持 undefined（排序沉底）。
-  const estimated = plan === 'go' ? estimateOf(entry.estimates, id) : undefined
+  // 预计请求数只有 Go 档有口径：没传额度表（按量账号）时一律不带该字段。
+  // 表里没有该模型分两种情况：
+  // - 免费模型按不限量（`null`）处理。官方 Go 额度表里标 `Unlimited` 的恰好只有
+  //   免费模型，FAQ 也写明「达到 Go 限制后可以继续使用免费模型」，所以「Go 侧免费
+  //   ⇒ 不限量」是上游的确定规则而非推测；上游新上架的免费模型（如 2026-11-03 的
+  //   `crouton-alpha-free`）在内置快照更新前也能正确置顶，不会被当成「额度未知」沉底。
+  // - 付费模型保持 undefined（排序沉底）：没有数据就不编造额度。
+  const tableValue = estimateOf(entry.estimates, id)
+  const estimated = plan !== 'go' || entry.estimates === undefined
+    ? undefined
+    : tableValue === undefined
+      ? (free ? null : undefined)
+      : tableValue
 
   return {
     ok: true,
@@ -897,6 +963,7 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
     const fallback = catalogSection(input.catalog, plan === 'zen' ? 'go' : 'zen')
     const rosterIds = modelIdsFrom(rosters[plan])
     const rosterCreated = modelCreatedAtFrom(rosters[plan])
+    const rosterCosts = modelCostFrom(rosters[plan])
     const consoleEntries = new Map<string, JsonRecord>()
     for (const entry of scope?.models ?? []) consoleEntries.set(entry.id, entry.entry)
 
@@ -936,6 +1003,7 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
         ...(providerNpm === undefined ? {} : { providerNpm }),
         ...(scope?.packageName === undefined ? {} : { consoleProviderNpm: scope.packageName }),
         ...(rosterCreated.has(id) ? { rosterCreatedAt: rosterCreated.get(id) as number } : {}),
+        ...(rosterCosts.has(id) ? { rosterCost: rosterCosts.get(id) as OpenCodeModelCost } : {}),
         ...(input.estimates === undefined ? {} : { estimates: input.estimates }),
       })
       if (result.ok) {

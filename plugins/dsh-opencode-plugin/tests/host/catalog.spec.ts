@@ -20,6 +20,7 @@ import {
   baseURLFor,
   buildCatalog,
   dedupeByPlan,
+  modelCostFrom,
   buildCatalogEntry,
   consoleScopesFromConsoleConfig,
   safeConsoleHeaders,
@@ -750,6 +751,69 @@ describe('buildCatalog 写入预计请求数', () => {
     expect(catalog.models.every(model => model.estimatedRequestsPerMonth === undefined)).toBe(true)
   })
 
+  it('Go 侧免费模型不在表里时按不限量置顶（上游新上架的免费模型）', () => {
+    // 官方 Go 额度表里标 `Unlimited` 的恰好只有免费模型，FAQ 也写明「达到 Go 限制后
+    // 可以继续使用免费模型」，因此上游新上架的免费模型在快照更新前就该按不限量处理，
+    // 不能被当成「额度未知」沉到列表末尾。
+    const freeEntry = {
+      provider: { npm: '@ai-sdk/openai-compatible' },
+      cost: { input: 0, output: 0 },
+    }
+    const result = buildCatalogEntry({
+      id: 'crouton-alpha-free',
+      plan: 'go',
+      catalogEntry: freeEntry,
+      estimates: { 'known-go': 1_000 },
+    })
+    expect(result.ok && result.model.free).toBe(true)
+    expect(result.ok && result.model.estimatedRequestsPerMonth).toBeNull()
+  })
+
+  it('Go 侧付费模型不在表里时仍保持 undefined（不编造额度）', () => {
+    const paidEntry = {
+      provider: { npm: '@ai-sdk/openai-compatible' },
+      cost: { input: 0.3, output: 1.2 },
+    }
+    const result = buildCatalogEntry({
+      id: 'brand-new-paid',
+      plan: 'go',
+      catalogEntry: paidEntry,
+      estimates: { 'known-go': 1_000 },
+    })
+    expect(result.ok && result.model.free).toBe(false)
+    expect(result.ok && result.model.estimatedRequestsPerMonth).toBeUndefined()
+  })
+
+  it('表里明确标不限量时不被免费判定覆盖成数值', () => {
+    // 回归：`??` 会把表里的 null 当作「没有数据」穿透掉，导致 beam-free 反而丢额度口径。
+    const freeEntry = {
+      provider: { npm: '@ai-sdk/openai-compatible' },
+      cost: { input: 0, output: 0 },
+    }
+    const result = buildCatalogEntry({
+      id: 'beam-free',
+      plan: 'go',
+      catalogEntry: freeEntry,
+      estimates: { 'beam-free': null },
+    })
+    expect(result.ok && result.model.estimatedRequestsPerMonth).toBeNull()
+  })
+
+  it('按量侧免费模型不写预计请求数（没有 Go 额度口径）', () => {
+    const freeEntry = {
+      provider: { npm: '@ai-sdk/openai-compatible' },
+      cost: { input: 0, output: 0 },
+    }
+    const result = buildCatalogEntry({
+      id: 'big-pickle',
+      plan: 'zen',
+      catalogEntry: freeEntry,
+      estimates: OPENCODE_GO_ESTIMATES,
+    })
+    expect(result.ok && result.model.free).toBe(true)
+    expect(result.ok && result.model.estimatedRequestsPerMonth).toBeUndefined()
+  })
+
   it('自定义估算表按模型 id 精确匹配', () => {
     const table: OpenCodeEstimateTable = { 'go-model': 12_345 }
     const result = buildCatalogEntry({ id: 'go-model', plan: 'go', estimates: table })
@@ -853,6 +917,68 @@ describe('估算表与条目脱节时的降级', () => {
   })
 })
 
+describe('活 roster 价格提取 modelCostFrom', () => {
+  it('解析 roster 的分层 cost 形态并取基价', () => {
+    const costs = modelCostFrom({
+      data: [
+        { id: 'paid', cost: { text: { input: { price: 0.14, cache: { read: 0.0028 } }, output: { price: 0.28 } }, multipliers: [{ factor: 2 }] } },
+        { id: 'free', cost: { text: { input: { price: 0, cache: { read: 0 } }, output: { price: 0 } } } },
+      ],
+    })
+    expect(costs.get('paid')).toEqual({ input: 0.14, output: 0.28, cacheRead: 0.0028 })
+    expect(costs.get('free')).toEqual({ input: 0, output: 0, cacheRead: 0 })
+  })
+
+  it('形态不符、缺价或缺 id 时不写入', () => {
+    const priced = { text: { input: { price: 1 }, output: { price: 1 } } }
+    const costs = modelCostFrom({
+      data: [
+        { id: 'no-cost' },
+        // roster 的分层形态缺失（扁平写法不认）：不写入
+        { id: 'no-text', cost: { input: 1, output: 1 } },
+        // 只有 input 价：不写入
+        { id: 'half', cost: { text: { input: { price: 1 } } } },
+        // id 缺失或为空串：不写入
+        { cost: priced },
+        { id: '', cost: priced },
+        // 唯一合法条目
+        { id: 'ok', cost: priced },
+      ],
+    })
+    expect([...costs.keys()]).toEqual(['ok'])
+  })
+
+  it('响应不是列表形态时返回空表', () => {
+    expect(modelCostFrom(undefined).size).toBe(0)
+    expect(modelCostFrom([]).size).toBe(0)
+    expect(modelCostFrom({ models: 'oops' }).size).toBe(0)
+  })
+
+  it('roster 价格排在兜底链尾，不覆盖公开目录', () => {
+    const catalogEntry = { provider: { npm: '@ai-sdk/openai-compatible' }, cost: { input: 0.3, output: 1.2 } }
+    const rosterCost = { input: 0.9, output: 3.6 }
+    const withBoth = buildCatalogEntry({ id: 'm', plan: 'go', catalogEntry, estimates: {}, rosterCost })
+    expect(withBoth.ok && withBoth.model.cost).toEqual({ input: 0.3, output: 1.2 })
+
+    // 公开目录没有该模型时才用 roster
+    const onlyRoster = buildCatalogEntry({ id: 'm', plan: 'go', estimates: {}, rosterCost })
+    expect(onlyRoster.ok && onlyRoster.model.cost).toEqual(rosterCost)
+    expect(onlyRoster.ok && onlyRoster.model.free).toBe(false)
+  })
+
+  it('models.dev 落后时靠 roster 价格把新免费模型判为免费', () => {
+    // 复现线上场景：roster 有该模型且单价为 0，公开目录两段都没有条目。
+    const goRoster = {
+      data: [{ id: 'brand-new-free', created: 2, cost: { text: { input: { price: 0 }, output: { price: 0 } } } }],
+    }
+    const catalog = buildCatalog({ goRoster, estimates: {} })
+    const model = catalog.models.find(entry => entry.id === 'brand-new-free')
+    expect(model?.cost).toEqual({ input: 0, output: 0 })
+    expect(model?.free).toBe(true)
+    expect(model?.estimatedRequestsPerMonth).toBeNull()
+  })
+})
+
 describe('额度口径下免费标记不再优先', () => {
   const goModel = (id: string, estimated: number | null | undefined, extra: Partial<OpenCodeModel> = {}): OpenCodeModel =>
     scopedModel(id, 'go', {
@@ -890,6 +1016,25 @@ describe('额度口径下免费标记不再优先', () => {
     ]
     const order = sortCatalogModels(models, OPENCODE_GO_ESTIMATES).map(model => model.id)
     expect(order).toEqual(['normal', 'client-only-high'])
+  })
+
+  it('上游新上架的免费模型排在最前，不被当成额度未知沉底', () => {
+    // 线上现象：Go 额度表更新前新模型会追加到列表末尾。走 buildCatalog 全链路，
+    // 保证「免费 ⇒ 不限量」的推导在目录构建与排序两步之间不丢失。
+    const goRoster = {
+      object: 'list',
+      data: [
+        { id: 'known-paid', created: 1, cost: { text: { input: { price: 0.14 }, output: { price: 0.28 } } } },
+        { id: 'brand-new-free', created: 2, cost: { text: { input: { price: 0 }, output: { price: 0 } } } },
+      ],
+    }
+    const table: OpenCodeEstimateTable = { 'known-paid': 150_400 }
+    const catalog = buildCatalog({ goRoster, estimates: table })
+    const go = catalog.models.filter(model => model.plan === 'go')
+    const newFree = go.find(model => model.id === 'brand-new-free')
+    expect(newFree?.free).toBe(true)
+    expect(newFree?.estimatedRequestsPerMonth).toBeNull()
+    expect(sortCatalogModels(go, table).map(model => model.id)).toEqual(['brand-new-free', 'known-paid'])
   })
 
   it('免费高额度模型可以排在付费低额度模型之前（只看额度）', () => {
