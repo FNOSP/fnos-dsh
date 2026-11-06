@@ -201,6 +201,42 @@ export async function profileStoreDir(path: string): Promise<void> {
   }
 }
 
+/**
+ * 列出 `minimumReleaseAgeExclude` 中含有 `||` 联合范围的条目。
+ *
+ * 历史豁免多版本曾用 `||` 合并成单行规避 pnpm 的 First-Match-Wins 短路；
+ * 现在安装回调已统一加 `--config.minimum-release-age=0` 放行发布冷静期，
+ * 该字段的豁免职责已被取代，含 `||` 的合并条目只会让后续 `pnpm add`
+ * 解析异常——出现即视为格式残留，调用方应走 `pnpm clean --lockfile`
+ * 重建依赖而非静默继续。
+ * @param workspacePath - profile 的 pnpm-workspace.yaml。
+ * @returns 含 `||` 的原始条目文本；空数组表示无需重建。
+ */
+export async function pipeLinkedReleaseAgeExclusions(workspacePath: string): Promise<string[]> {
+  let text: string
+  try {
+    text = await readFile(workspacePath, 'utf8')
+  } catch {
+    return []
+  }
+  const linked: string[] = []
+  let inSection = false
+  for (const line of text.split(/\r?\n/)) {
+    if (/^minimumReleaseAgeExclude:\s*$/.test(line)) {
+      inSection = true
+      continue
+    }
+    if (!inSection) continue
+    if (/^[^\s#-]/.test(line)) break
+    const entry = line.match(/^\s+-\s*(.+?)\s*$/)
+    if (entry === null) continue
+    const raw = entry[1]!.replace(/^['"]|['"]$/g, '')
+    // 只看版本段是否含 ||（包名段不会出现该字符）。
+    if (raw.includes('||')) linked.push(raw)
+  }
+  return linked
+}
+
 /** One parsed `minimumReleaseAgeExclude` entry: `@scope/name@range`. */
 type ReleaseAgeExclusion = {
   /** Package name without the version suffix. */

@@ -44,7 +44,7 @@ DSH 运行时和七个运行时插件的发布版本与兼容性基线统一为 
 ```sh
 dsh plugin --profile web add @tnnevol/dsh-fnos@8.1.3
 dsh plugin --profile web add @tnnevol/dsh-failover-search@8.1.3
-dsh plugin --profile web add dshmarket@1.66.47
+dsh plugin --profile web add dshmarket@1.73.12
 dsh --profile web --dump-config
 ```
 

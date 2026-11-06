@@ -13,6 +13,7 @@ import {
   publishedPluginVersions,
   orphanOwnPlugins,
   publishedPlugins,
+  pipeLinkedReleaseAgeExclusions,
   removeLegacyPnpmStoreConfig,
   removeProfileBuildArtifacts,
   staleReleaseAgeExclusions,
@@ -113,6 +114,16 @@ export function createProgram(): Command {
         : await publishedPluginVersions(publishedManifestPath)
       for (const stale of await staleReleaseAgeExclusions(workspacePath, manifestPath, installedVersions)) {
         process.stdout.write(`${stale}\n`)
+      }
+    })
+
+  program
+    .command('pipe-linked-release-age-exclusions')
+    .description('Print minimumReleaseAgeExclude entries containing a || union, one per line')
+    .argument('<workspace-path>')
+    .action(async (workspacePath: string) => {
+      for (const entry of await pipeLinkedReleaseAgeExclusions(workspacePath)) {
+        process.stdout.write(`${entry}\n`)
       }
     })
 

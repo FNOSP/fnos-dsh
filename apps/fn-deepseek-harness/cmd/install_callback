@@ -90,32 +90,54 @@ run_install_callback_helper() {
 }
 
 # Rebuild the Web profile's dependencies when a minimumReleaseAgeExclude entry
-# anchors a version the profile manifest no longer pins.
+# carries a || union (legacy merged exclusions) or anchors a superseded version.
 #
-# pnpm resolves each exclusion First-Match-Wins, so an entry pinned to a
-# superseded version silently stops exempting anything and freezes a lockfile
-# built around it; installs then fail with NO_MATURE_MATCHING_VERSION even
-# though the manifest versions are installable. The field itself stays (it is
-# what lets fresh plugin releases bypass the publication cooldown); only the
-# rebuildable artifacts — pnpm-lock.yaml and node_modules — are removed, and
-# the plugin installs below then re-resolve them against the live manifest.
-# User configuration and credentials live elsewhere in DSH_HOME and are never
-# touched. When nothing is stale this prints nothing and removes nothing.
+# History: pnpm's First-Match-Wins made multi-version entries need a single ||-joined
+# line, and the field itself let fresh plugin releases bypass the publication cooldown.
+# The install callback now passes --config.minimum-release-age=0 on every plugin call,
+# so the field's exemption job is redundant: any entry containing || is treated as
+# legacy-format residue regardless of whether it still matches the manifest, and any
+# other stale entry (version no longer matching the manifest) also forces a rebuild.
+# The rebuildable artifacts — pnpm-lock.yaml and node_modules — are cleaned via
+# `pnpm clean --lockfile` (falling back to helper removal when pnpm's wrapper reports
+# the cleanup failed), then reinstalled against the live manifest. Only rebuildable
+# artifacts are touched; user configuration and credentials live elsewhere in DSH_HOME
+# and are never modified. When neither condition matches, prints nothing and removes nothing.
 heal_profile_release_age_exclusions() {
+    local linked
+    linked="$(run_install_callback_helper pipe-linked-release-age-exclusions \
+        "${DSH_PROFILE_DIRECTORY}/pnpm-workspace.yaml" 2>/dev/null || true)"
     local stale
     stale="$(run_install_callback_helper stale-release-age-exclusions \
         "${DSH_PROFILE_DIRECTORY}/pnpm-workspace.yaml" \
         "${DSH_PROFILE_DIRECTORY}/package.json" \
         "${DSH_PUBLISHED_PLUGIN_MANIFEST}" 2>/dev/null || true)"
-    [ -n "${stale}" ] || return 0
-    log_info "Detected stale minimumReleaseAgeExclude entries in the Web profile; rebuilding dependencies:"
-    printf '%s\n' "${stale}" | while IFS= read -r entry; do
-        [ -n "${entry}" ] || continue
-        log_info "  stale exclusion: ${entry}"
-    done
-    run_install_callback_helper remove-profile-build-artifacts \
-        "${DSH_PROFILE_DIRECTORY}/pnpm-lock.yaml" "${DSH_PROFILE_DIRECTORY}/node_modules" ||
-        fail_install "Unable to remove the Web profile lockfile and node_modules for the dependency rebuild"
+    if [ -z "${linked}" ] && [ -z "${stale}" ]; then
+        return 0
+    fi
+    if [ -n "${linked}" ]; then
+        log_info "Detected ||-joined minimumReleaseAgeExclude entries in the Web profile; rebuilding dependencies:"
+        printf '%s\n' "${linked}" | while IFS= read -r entry; do
+            [ -n "${entry}" ] || continue
+            log_info "  pipe-linked exclusion: ${entry}"
+        done
+    fi
+    if [ -n "${stale}" ]; then
+        log_info "Detected stale minimumReleaseAgeExclude entries in the Web profile; rebuilding dependencies:"
+        printf '%s\n' "${stale}" | while IFS= read -r entry; do
+            [ -n "${entry}" ] || continue
+            log_info "  stale exclusion: ${entry}"
+        done
+    fi
+    log_info "Cleaning Web profile lockfile and node_modules via pnpm clean --lockfile..."
+    if ! (cd "${DSH_PROFILE_DIRECTORY}" && "${PNPM_BIN}" clean --lockfile --config.minimum-release-age=0); then
+        # pnpm clean may fail when the profile lockfile is unreadable; the helper's
+        # basename-verified removal is the safe fallback for the same two artifacts.
+        log_info "pnpm clean --lockfile reported a failure; removing lockfile and node_modules directly."
+        run_install_callback_helper remove-profile-build-artifacts \
+            "${DSH_PROFILE_DIRECTORY}/pnpm-lock.yaml" "${DSH_PROFILE_DIRECTORY}/node_modules" ||
+            fail_install "Unable to remove the Web profile lockfile and node_modules for the dependency rebuild"
+    fi
     log_info "Reinstalling the Web profile dependencies from the current manifest..."
     (cd "${DSH_PROFILE_DIRECTORY}" && "${PNPM_BIN}" install --config.minimum-release-age=0) ||
         fail_install "Unable to reinstall the Web profile dependencies after the release-age rebuild"

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   parseReleaseAgeExclusion,
+  pipeLinkedReleaseAgeExclusions,
   rangeAdmitsVersion,
   removeProfileBuildArtifacts,
   staleReleaseAgeExclusions,
@@ -98,6 +99,46 @@ nodeLinker: hoisted
       .toEqual({ name: '@tnnevol/dsh-codebuddy', range: '0.1.7-rc.2' })
     expect(parseReleaseAgeExclusion('react@^18')).toEqual({ name: 'react', range: '^18' })
     expect(parseReleaseAgeExclusion('react')).toBeUndefined()
+  })
+
+  describe('pipeLinkedReleaseAgeExclusions（|| 联合残留）', () => {
+    const WORKSPACE_WITH_PIPE = `packages:
+  - .
+
+nodeLinker: hoisted
+autoInstallPeers: false
+minimumReleaseAgeExclude:
+  - '@deepseek-ai/dsh-brand@0.2.2-rc.1 || 0.2.1-rc.3'
+  - '@tnnevol/dsh-codebuddy@0.1.7-rc.2'
+`
+
+    it('含 || 的条目被报告，普通精确条目不报告', async () => {
+      const profile = await createProfile(WORKSPACE_WITH_PIPE, {})
+      expect(await pipeLinkedReleaseAgeExclusions(profile.workspace))
+        .toEqual(['@deepseek-ai/dsh-brand@0.2.2-rc.1 || 0.2.1-rc.3'])
+    })
+
+    it('无 || 时不报告（精确钉版均放行）', async () => {
+      const profile = await createProfile(WORKSPACE_WITH_CURRENT, {})
+      expect(await pipeLinkedReleaseAgeExclusions(profile.workspace)).toEqual([])
+    })
+
+    it('无 minimumReleaseAgeExclude 字段时不报告', async () => {
+      const profile = await createProfile(`packages:\n  - .\n\nnodeLinker: hoisted\n`, {})
+      expect(await pipeLinkedReleaseAgeExclusions(profile.workspace)).toEqual([])
+    })
+
+    it('workspace 文件缺失时不报告', async () => {
+      const profile = await createProfile(undefined, {})
+      expect(await pipeLinkedReleaseAgeExclusions(join(profile.workspace, '.missing'))).toEqual([])
+    })
+
+    it('引号包裹的 || 条目同样被报告', async () => {
+      const workspace = WORKSPACE_WITH_PIPE.replace(`- '@deepseek-ai/dsh-brand`, `- "@deepseek-ai/dsh-brand`)
+      const profile = await createProfile(workspace, {})
+      expect(await pipeLinkedReleaseAgeExclusions(profile.workspace))
+        .toEqual(['@deepseek-ai/dsh-brand@0.2.2-rc.1 || 0.2.1-rc.3'])
+    })
   })
 
   it('removeProfileBuildArtifacts 只删两个重建产物，路径名不符即拒绝', async () => {
