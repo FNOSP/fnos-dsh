@@ -3,7 +3,7 @@
   "plugins": [
     {
       "name": "@tnnevol/dsh-fnos",
-      "version": "8.1.3"
+      "version": "8.1.4"
     },
     {
       "name": "dshmarket",
