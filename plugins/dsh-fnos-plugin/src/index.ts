@@ -9,6 +9,7 @@ import { cachedFnosThemeFromConfig, injectCachedFnosTheme, type DshThemePreferen
 import { FNOS_SYSTEM_THEME_FIELD, volatileValue, type FnosConfig, type FnosTheme } from './contracts/theme-contract.ts'
 import { FnosSettingsSchema } from './contracts/theme-schema.ts'
 import { registerGatewayProxyRoutes } from './host/gateway-proxy-routes.ts'
+import { registerDependencyRepairRoutes } from './host/dependency-repair-routes.ts'
 import { registerStaticAssetRoute } from './host/static-assets.ts'
 import { registerPresentedPathRoute } from './host/presented-open.ts'
 
@@ -48,6 +49,7 @@ export function apply(ctx: Context, config?: FnosConfig): void {
   })
   registerAuthorizedDirectoryRoutes(ctx, { settingsNamespace: DSH_SETTINGS_ENTRY_ID })
   registerGatewayProxyRoutes(ctx, DSH_SETTINGS_ENTRY_ID)
+  registerDependencyRepairRoutes(ctx)
   registerStaticAssetRoute(ctx)
   registerPresentedPathRoute(ctx)
   ctx.inject(['webServer'], httpCtx => {

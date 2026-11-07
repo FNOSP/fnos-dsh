@@ -57,5 +57,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-047 | [OpenCode 套餐归属过滤与额度排序](/tests/FNOS-047-opencode-plan-entitlement) | [PLAN-FNOS-047](/plans/PLAN-FNOS-047-opencode-plan-entitlement) | 通过（双客户端） | 43 条用例全部通过（0 失败 / 0 阻塞 / 0 未执行），TC-012/018/027/028 在 DSH Web 与 DSH Desktop 各执行一次：套餐识别「Go · Console 套餐接口」、整侧过滤后 30 条纯 go 侧且选择器一致、额度降序与官方表逐项一致、未知套餐按 Go 口径；亮/暗主题对比度 9.25:1 与 13.34:1 达标。BUG-01（免费压过额度）为评审期修复，BUG-02（上游新上架免费模型沉底）为线上验收后发现并修复，两者均有回归用例锁定 |
 | FNOS-048 | [OpenCode 登录授权页自动打开](/tests/FNOS-048-opencode-auto-authorize) | [PLAN-FNOS-048](/plans/PLAN-FNOS-048-opencode-auto-authorize) | 通过（待界面目视） | 15 条用例全部通过（0 失败 / 0 阻塞 / 0 未执行）：浏览器与 Desktop 两条开窗路径各有用例，Desktop 的 `null` 句柄语义单独钉住；真实上游实测授权地址自带 `user_code`；BUG-01（开窗未防御抛错）、BUG-02（复制失败文案错配）均为执行期发现并修复 |
 | FNOS-049 | [把 Codex Auth 与 Failover Search 移出 FPK 内置清单](/tests/FNOS-049-unbundle-plugins) | [PLAN-FNOS-049](/plans/PLAN-FNOS-049-unbundle-plugins) | 通过（待真机升级验证） | 10 条用例全部通过：清单只含 fnos 与 dshmarket、白名单收敛、FPK 产物不再内置两个插件；两插件仍在 npm 与市场索引；升级不卸载清单外插件由代码语义与既有用例保证 |
+| FNOS-050 | [fnOS 插件「依赖修复」](/tests/FNOS-050-dependency-repair) | [PLAN-FNOS-050](/plans/PLAN-FNOS-050-dependency-repair) | 部分通过（待真机） | 21 条用例 19 条通过、2 条真机写操作待执行：诊断只读性、清单外包不误判、可重建产物守卫、同源校验均已覆盖；BUG-01（断言用 filter 迁就实现）已修复 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

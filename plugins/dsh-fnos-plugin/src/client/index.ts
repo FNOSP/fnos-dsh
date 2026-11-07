@@ -23,7 +23,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import { AuthorizedDirectoriesDetailSection } from '../components/AuthorizedDirectoriesCard.tsx'
+import { AuthorizedDirectoriesDetailSection, FNOS_PACKAGE_NAME } from '../components/AuthorizedDirectoriesCard.tsx'
+import { DependencyRepairCard } from '../components/DependencyRepairCard.tsx'
 import type { FnosDetailSubject } from '../components/AuthorizedDirectoriesCard.tsx'
 import { FnosInputPickerButton } from '../components/FnosInputPickerButton.tsx'
 import { FnosAuthorizedPathPanel } from '../components/FnosAuthorizedPathPicker.tsx'
@@ -234,6 +235,21 @@ export function apply(ctx: ClientContext): void {
   }, (props: { subject?: FnosDetailSubject | undefined }) =>
     // 本文件是 `.ts`（无 JSX），因此用调用而不是元素字面量表达。
     AuthorizedDirectoriesDetailSection({ t, subject: props.subject })))
+  /**
+   * 依赖修复卡片：同样挂在组合包详情页，排在授权目录之后。
+   *
+   * 与授权目录共用 list 座位的约束——组件自己看 `subject`，不是本插件就返回
+   * `null`，所以这里再包一层过滤。
+   */
+  ctx.slots.inject('plugins.detail.section', () => ctx.slots.register({
+    name: 'plugins.detail.section',
+    id: 'dsh-fnos-dependency-repair',
+    order: 50,
+    locale: namespace,
+  }, (props: { subject?: FnosDetailSubject | undefined }) =>
+    props.subject?.kind === 'bundle' && props.subject.pkg?.name === FNOS_PACKAGE_NAME
+      ? DependencyRepairCard({ t })
+      : null))
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
     name: 'sidebar.footer.action',
     id: 'dsh-fnos-web-restart',

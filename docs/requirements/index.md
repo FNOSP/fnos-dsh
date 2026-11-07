@@ -102,5 +102,6 @@ flowchart TD
 | FNOS-047 | [OpenCode 套餐归属过滤与额度排序](/requirements/FNOS-047-opencode-plan-entitlement) | 待验收（上游 Zen→Console 更名与 `/console/api/go/status` 套餐接口均已核实；整侧过滤 + 按档位额度降序 + 未知套餐按 Go 口径已实现；**双客户端验收通过**：43 条用例全绿，亮/暗主题达标；线上发现的免费模型沉底缺陷已修复并补回归用例） |
 | FNOS-048 | [OpenCode 登录授权页自动打开](/requirements/FNOS-048-opencode-auto-authorize) | 待验收（点登录即自动打开授权页并预填验证码；移除「打开验证页面」链接，改为复制授权地址与失败兜底；15 条用例全绿） |
 | FNOS-049 | [把 Codex Auth 与 Failover Search 移出 FPK 内置清单](/requirements/FNOS-049-unbundle-plugins) | 待验收（两个插件不再随 FPK 内置，改为从插件市场自行安装；仍发布到 npm 并保留市场索引；CLI 161 条与 gateway 179 条用例通过） |
+| FNOS-050 | [fnOS 插件增加「依赖修复」](/requirements/FNOS-050-dependency-repair) | 待验收（插件详情页提供只读检查与一键修复，清理失效的发布龄期豁免并重建 profile 依赖；含 tip 气泡说明用途与安全边界；467 条插件用例通过） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。
