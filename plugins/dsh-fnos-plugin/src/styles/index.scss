@@ -1032,12 +1032,27 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
     尺寸与官方设置面板一致（实测 800×800、圆角 28、无描边）。
     用 flex 纵向布局让 body 自己填满剩余空间——硬编码 body 高度会因 header
     实际高度变化而溢出（实测溢出 18px，底部按钮被裁掉）。
+
+    **高度要能被视口压缩**：`.semi-modal` 自带 `margin: 80px 0`，800 + 160 = 960
+    已超过 859 高的视口，`.semi-modal-wrap`（overflow: auto）于是长出滚动条。
+    因此给 max-height 兜住，并把 modal 的纵向 margin 一起收紧。
   */
   height: 800px;
+  max-height: calc(100vh - 48px);
   border-radius: 28px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+/*
+ * `.semi-modal` 的纵向 margin 是滚动条的成因之一：默认 80px 上下 + 800 高
+ * 必然超出视口。收到 24px 后 800 + 48 = 848 < 859，视口够高时完全不滚动；
+ * 视口更矮时由 content 的 max-height 兜住，仍然不出滚动条。
+ */
+body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal {
+  margin-top: 24px !important;
+  margin-bottom: 24px !important;
 }
 
 /*
