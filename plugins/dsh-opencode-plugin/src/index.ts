@@ -6,7 +6,7 @@
  * - `OpenCodeEntitlementService` 判定账号套餐（Go / Go Plus / Go Teams / 按量）；
  * - `OpenCodeCatalogService` 用 Auth token 读取工作空间模型，合并公开目录；
  * - `OpenCodeProviderRuntime` 把目录投影成唯一的 `dsh-opencode` 路由，
- *   同名模型用 `zen:` / `go:` 前缀与 `· zen` / `· go` 后缀区分；
+ *   同名模型用 `console:` / `go:` 前缀与 `· console` / `· go` 后缀区分；
  * - `OpenCodeUsageService` 读取 Go 套餐额度；
  * - `registerOpenCodeRoutes` 暴露同源 Web 路由给插件详情页与用量胶囊。
  *
@@ -59,7 +59,7 @@ const MIN_REFRESH_INTERVAL_MS = 60_000
 /**
  * 当前生效的推理端点策略。
  *
- * 手选 `zen` / `go` 原样生效；`auto` 跟随账号套餐——有 Go 订阅（含 Plus / Teams）
+ * 手选 `console` / `go` 原样生效；`auto` 跟随账号套餐——有 Go 订阅（含 Plus / Teams）
  * 就把共用模型统一打到 Go 端点，只有按量余额就打按量端点。套餐读不出来
  * （`unknown`）时保持 `auto`，让各模型留在原生端点：把本来能用的模型改到
  * 不可用的端点上，比不做优化更糟。
@@ -72,7 +72,7 @@ export function effectiveEndpointPlan(
   prefs: OpenCodeEndpointPlan,
   accountPlan: OpenCodeAccountPlan,
 ): OpenCodePlan | 'auto' {
-  if (prefs === 'zen' || prefs === 'go') return prefs
+  if (prefs === 'console' || prefs === 'go') return prefs
   // 与目录口径一致：套餐判不出来时按 Go 处理（主力形态是 Go 订阅）。
   switch (accountPlan) {
     case 'go':
@@ -81,7 +81,7 @@ export function effectiveEndpointPlan(
     case 'unknown':
       return 'go'
     default:
-      return 'zen'
+      return 'console'
   }
 }
 
@@ -120,7 +120,7 @@ export function apply(ctx: Context): void {
   }
 
   const builtinModels = {
-    zen: opencodeProvider().getModels(),
+    console: opencodeProvider().getModels(),
     go: opencodeGoProvider().getModels(),
   }
   const runtime = new OpenCodeProviderRuntime({
@@ -180,7 +180,7 @@ export function apply(ctx: Context): void {
       endpointPlan: endpoint,
     })
     runtime.update(models, {
-      ...(catalog.requestHeaders('zen') ?? {}),
+      ...(catalog.requestHeaders('console') ?? {}),
       ...(catalog.requestHeaders('go') ?? {}),
     })
   }

@@ -30,16 +30,16 @@ const VISIBILITY_OPTIONS: readonly { readonly value: OpenCodeUsageVisibility, re
 ]
 
 /** 端点策略选项 → 文案键。 */
-const ENDPOINT_OPTIONS: readonly { readonly value: OpenCodeEndpointPlan, readonly key: 'settingsEndpointAuto' | 'settingsEndpointGo' | 'settingsEndpointZen' }[] = [
+const ENDPOINT_OPTIONS: readonly { readonly value: OpenCodeEndpointPlan, readonly key: 'settingsEndpointAuto' | 'settingsEndpointGo' | 'settingsEndpointConsole' }[] = [
   { value: 'auto', key: 'settingsEndpointAuto' },
   { value: 'go', key: 'settingsEndpointGo' },
-  { value: 'zen', key: 'settingsEndpointZen' },
+  { value: 'console', key: 'settingsEndpointConsole' },
 ]
 
 /** 把 Select 的原始值收敛到三个合法端点策略；未知值按 `auto` 处理。 */
 function normalizeEndpointPlan(value: unknown): OpenCodeEndpointPlan {
   if (value === 'go') return 'go'
-  if (value === 'zen') return 'zen'
+  if (value === 'console') return 'console'
   return 'auto'
 }
 

@@ -8,7 +8,7 @@
  *
  * 数据来源：<https://opencode.ai/v2/docs/console/go/> 的 Estimated requests 表，
  * 抓取时间为 {@link OPENCODE_ESTIMATES_FETCHED_AT}。模型键是网关真实模型 id
- * （不带 `zen:` / `go:` 前缀），与文档表的 Model ID 列一一对应。
+ * （不带 `console:` / `go:` 前缀），与文档表的 Model ID 列一一对应。
  *
  * `null` 表示文档在该档位把模型标为 `Unlimited`（当前是 Beam Free 与
  * Iceman Contributor Free 两个限时免费模型），排序时按最高档处理。

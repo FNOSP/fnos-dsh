@@ -89,5 +89,6 @@ flowchart TD
 | PLAN-FNOS-048 | [OpenCode 登录授权页自动打开](/plans/PLAN-FNOS-048-opencode-auto-authorize) | 待完成（T1–T6 全部落地：开窗编排 → 剪贴板 → 账号卡接线 → 复制兜底 → 九语言文案 → 测试与文档；仅剩双客户端界面目视与用户确认） |
 | PLAN-FNOS-049 | [把 Codex Auth 与 Failover Search 移出 FPK 内置清单](/plans/PLAN-FNOS-049-unbundle-plugins) | 待完成（T1–T5 全部落地：清单与白名单收敛 → 基线测试跟随 → 文档同步 → 用例登记；仅剩真机升级验证与用户确认） |
 | PLAN-FNOS-050 | [fnOS 插件「依赖修复」](/plans/PLAN-FNOS-050-dependency-repair) | 待完成（T1–T8 全部落地：契约 → 宿主诊断与修复 → 路由 → 客户端 → 卡片与 tip → 九语言 → 用例 → Manifest 文案；仅剩真机写操作验收与用户确认） |
+| PLAN-FNOS-051 | [模型思考能力与上下文对齐真实接口](/plans/PLAN-FNOS-051-opencode-capability-alignment) | 待完成（T1–T7 全部落地：账号清单解析 → 回落链调整 → toggle 语义 → 命名统一 → 测试；仅剩界面目视与用户确认） |
 
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

@@ -153,7 +153,7 @@ function ModelFeatureBubble({ model, t }: { model: OpenCodeModel, t: OpenCodeTra
       ))}
       <span className="dsh-opencode-model-tip-footer">{t(apiKindLabelKey(model.api))}</span>
       <span className="dsh-opencode-model-tip-note">
-        {model.plan === 'zen' ? t('catalogPlanZenHint') : t('catalogPlanGoHint')}
+        {model.plan === 'console' ? t('catalogPlanConsoleHint') : t('catalogPlanGoHint')}
       </span>
     </span>
   )

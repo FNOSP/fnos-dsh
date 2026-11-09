@@ -27,7 +27,7 @@ function model(overrides: Partial<OpenCodeModel> & Pick<OpenCodeModel, 'id' | 'n
     input: ['text'],
     contextWindow: 128_000,
     maxTokens: 8_192,
-    plan: 'zen',
+    plan: 'console',
     tools: false,
     free: false,
     ...overrides,

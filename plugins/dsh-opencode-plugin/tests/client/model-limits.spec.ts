@@ -14,14 +14,14 @@ describe('模型工具数量上限', () => {
 
   it('带 plan 前缀的模型键也能查到', () => {
     expect(toolLimitOf('go:beam-free')).toBe(128)
-    expect(toolLimitOf('zen:beam-free')).toBe(128)
+    expect(toolLimitOf('console:beam-free')).toBe(128)
     expect(toolLimitOf('go:deepseek-v4.1-flash')).toBeUndefined()
   })
 
   it('只挑可用模型：停用与仅官方客户端可用的条目不算', () => {
     const hits = modelsWithToolLimit([
       model('go', 'beam-free'),
-      model('zen', 'beam-free', { clientOnly: true }),
+      model('console', 'beam-free', { clientOnly: true }),
       model('go', 'deepseek-v4.1-flash'),
       model('go', 'glm-5.3-flash', { disabled: true }),
     ])

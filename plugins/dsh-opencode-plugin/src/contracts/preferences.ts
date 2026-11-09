@@ -17,12 +17,12 @@ export type OpenCodeUsageVisibility = 'auto' | 'always' | 'off'
  *
  * - `auto`（默认）：跟随账号套餐——读到 Go 套餐额度就用 Go 端点，否则用按量端点；
  * - `go`：统一走 Go 端点（消耗套餐额度）；
- * - `zen`：统一走按量端点（消耗 Console 余额）。
+ * - `console`：统一走按量端点（消耗 Console 余额）。
  *
  * 只有目标端点的模型清单里也存在该模型时才会改写端点；只存在于单一来源的模型
  * 保持原生端点，否则会直接把模型打成不可用。
  */
-export type OpenCodeEndpointPlan = 'auto' | 'zen' | 'go'
+export type OpenCodeEndpointPlan = 'auto' | 'console' | 'go'
 
 /** 持久化的插件偏好。 */
 export interface OpenCodePreferences {
@@ -60,7 +60,7 @@ export function normalizePreferences(value: unknown): OpenCodePreferences {
     ? Math.max(OPENCODE_REFRESH_MINUTES.min, Math.min(OPENCODE_REFRESH_MINUTES.max, Math.round(rawMinutes)))
     : DEFAULT_OPENCODE_PREFERENCES.refreshMinutes
   const endpoint = source.endpointPlan
-  const endpointPlan: OpenCodeEndpointPlan = endpoint === 'zen' || endpoint === 'go'
+  const endpointPlan: OpenCodeEndpointPlan = endpoint === 'console' || endpoint === 'go'
     ? endpoint
     : DEFAULT_OPENCODE_PREFERENCES.endpointPlan
   const hiddenModels = Array.isArray(source.hiddenModels)

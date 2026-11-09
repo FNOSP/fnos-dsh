@@ -1,5 +1,5 @@
 /**
- * OpenCode 模型目录归一化（Zen 按量与 Go 套餐两组）。
+ * OpenCode 模型目录归一化（Console 按量与 Go 套餐两组）。
  *
  * 输入有三个来源，优先级从高到低：
  *
@@ -13,7 +13,7 @@
  *    提供经过上游验证的 wire 兼容开关与兜底的思考等级映射。
  *
  * 两个来源各注册一组供应商（见 `contracts/identity.ts`），因此同名模型可以
- * 同时存在于两组：Zen 走 `/inference/...`，Go 走 `/inference/go/...`。
+ * 同时存在于两组：Console 走 `/inference/...`，Go 走 `/inference/go/...`。
  * 图片生成模型（输出含 `image`）与无法识别协议的条目会被跳过并记入
  * `warnings`，不会静默变成一个发不出去的模型。
  *
@@ -61,7 +61,7 @@ const NPM_TO_API: Readonly<Record<string, OpenCodeApiKind>> = {
 
 /** 各 plan 的协议端点前缀（anthropic 由 SDK 追加 `/v1/messages`）。 */
 const API_PATHS: Readonly<Record<OpenCodePlan, Readonly<Record<OpenCodeApiKind, string>>>> = {
-  zen: {
+  console: {
     'anthropic-messages': '/anthropic',
     'google-generative-ai': '/google/v1beta',
     'openai-completions': '/openai/v1',
@@ -77,22 +77,22 @@ const API_PATHS: Readonly<Record<OpenCodePlan, Readonly<Record<OpenCodeApiKind, 
 
 /** 目录分组在警告文案里的显示名。 */
 const PLAN_LABELS: Readonly<Record<OpenCodePlan, string>> = {
-  zen: 'OpenCode Zen',
+  console: 'OpenCode Console',
   go: 'OpenCode Go',
 }
 
 /** 目录构建时遍历的 plan 顺序。 */
-const PLANS: readonly OpenCodePlan[] = ['zen', 'go']
+const PLANS: readonly OpenCodePlan[] = ['console', 'go']
 
 /** Console provider id 到 plan 的映射。 */
 const CONSOLE_PROVIDER_PLANS: Readonly<Record<string, OpenCodePlan>> = {
-  'opencode': 'zen',
+  'opencode': 'console',
   'opencode-go': 'go',
 }
 
 /** models.dev 目录段到 plan 的映射。 */
 const CATALOG_SECTION_PLANS: Readonly<Record<string, OpenCodePlan>> = {
-  'opencode': 'zen',
+  'opencode': 'console',
   'opencode-go': 'go',
 }
 
@@ -147,7 +147,7 @@ export function apiFromPackage(value: unknown): OpenCodeApiKind | undefined {
 /**
  * 从完整端点 URL 解析协议族。
  *
- * 目录里有些模型只给了端点、没给 npm 包名（例如 Zen 的 `minimax-m3` 是
+ * 目录里有些模型只给了端点、没给 npm 包名（例如 Console 的 `minimax-m3` 是
  * `…/inference/openai/v1` + Chat Completions）。这里只认带方法段的完整端点；
  * 只有前缀（`…/openai/v1`）时无法区分 Responses 与 Chat Completions，返回
  * undefined 交给下一级规则。
@@ -644,7 +644,7 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
   //   4. pi-ai 内置目录；
   //   5. 兜底按 Chat Completions 推断并给出告警。
   //
-  // 关键点：同一模型在 Zen 与 Go 两段可能是不同协议（Zen 的 `minimax-m3` 是
+  // 关键点：同一模型在 Console 与 Go 两段可能是不同协议（Console 的 `minimax-m3` 是
   // Chat Completions，Go 的 `minimax-m3` 是 Anthropic Messages）；把另一段的
   // 逐模型声明也当成高优先级来源，会覆盖本段真实协议，DSH 端就报
   // `ModelProtocolUnsupported`。所以跨段只在「本段完全没有该模型」时生效。
@@ -753,9 +753,9 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
     ?? (rosterCreatedAt === undefined
       ? undefined
       : new Date(rosterCreatedAt * 1000).toISOString().slice(0, 10))
-  // Zen 的免费额度由网关按键客户端身份校验，第三方客户端调用只会得到
+  // Console 的免费额度由网关按键客户端身份校验，第三方客户端调用只会得到
   // `FreeTierError`；Go 套餐内含的免费模型（beam-free 等）用订阅凭据正常调用。
-  const clientOnly = free && plan === 'zen'
+  const clientOnly = free && plan === 'console'
 
   const name = nonEmptyString(consoleEntry?.name)
     ?? nonEmptyString(catalogEntry?.name)
@@ -825,13 +825,13 @@ export interface BuildCatalogInput {
   /** `GET /console/api/v2/config` 的响应体。 */
   readonly consoleConfig?: unknown
   /** `GET /inference/v1/models` 的响应体。 */
-  readonly zenRoster?: unknown
+  readonly consoleRoster?: unknown
   /** `GET /inference/go/v1/models` 的响应体。 */
   readonly goRoster?: unknown
   /** `models.opencode.ai/api.json` 的响应体。 */
   readonly catalog?: unknown
   /** pi-ai 内置的 OpenCode 模型，按 plan 分组。 */
-  readonly builtin?: { readonly zen?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
+  readonly builtin?: { readonly console?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
   /**
    * 端点策略：统一使用某一来源的端点（`auto` 或缺省表示保持各模型原生端点）。
    *
@@ -884,13 +884,13 @@ export function applyEndpointPlan(
 }
 
 /**
- * 跨来源去重：同一模型 id 在 zen 与 go 都出现时，只保留账号套餐对应的一份。
+ * 跨来源去重：同一模型 id 在 console 与 go 都出现时，只保留账号套餐对应的一份。
  *
  * 合并供应商把两组来源放在同一个列表里，同一个模型因此会出现两条（如
- * `beam-free` 的 zen 与 go 条目）。账号实际能计费的是自己套餐那一侧，重复的
+ * `beam-free` 的 console 与 go 条目）。账号实际能计费的是自己套餐那一侧，重复的
  * 另一侧既占位又容易误选，所以按 `plan` 收掉：`plan` 侧的条目始终保留，另一侧
  * 只删除 id 在 `plan` 侧也存在的重复项；只存在于另一侧的模型（如 `big-pickle`
- * 仅在 zen）不属于重复，照常保留。
+ * 仅在 console）不属于重复，照常保留。
  *
  * @param models - 合并后的模型列表。
  * @param plan - 账号套餐来源，保留该侧条目。
@@ -909,10 +909,10 @@ export function dedupeByPlan(
  * 整侧归属过滤：只保留账号套餐真正能计费的那一侧。
  *
  * Go 订阅（含 Plus / Teams）账号只保留 `plan === 'go'` 的条目，只有按量余额的
- * 账号只保留 `plan === 'zen'` 的条目。**未知套餐按 Go 口径处理**：OpenCode 的
+ * 账号只保留 `plan === 'console'` 的条目。**未知套餐按 Go 口径处理**：OpenCode 的
  * 主力形态是 Go 订阅，套餐判不出来时（未公开的套餐接口改版、Key 权限不足）
- * 按 Go 侧展示比两侧混列更接近用户真实可用的集合；zen 条目依旧可以通过
- * 「推理端点」偏好显式切到 zen 端点后保留可见性判断。
+ * 按 Go 侧展示比两侧混列更接近用户真实可用的集合；console 条目依旧可以通过
+ * 「推理端点」偏好显式切到 console 端点后保留可见性判断。
  *
  * @param models - 合并后的模型列表。
  * @param plan - 账号套餐档位。
@@ -922,7 +922,7 @@ export function scopeToAccountPlan(
   models: readonly OpenCodeModel[],
   plan: OpenCodeAccountPlan,
 ): readonly OpenCodeModel[] {
-  const keep: OpenCodePlan = plan === 'payg' ? 'zen' : 'go'
+  const keep: OpenCodePlan = plan === 'payg' ? 'console' : 'go'
   const next = models.filter(model => model.plan === keep)
   return next.length === models.length ? models : next
 }
@@ -1021,7 +1021,7 @@ export interface CatalogViewOptions {
  * 目录的统一展示口径：按套餐过滤 → 排序 → 按端点策略改写 `baseURL`。
  *
  * 详情页目录卡片与模型选择器都走这一条，避免两处对同一个模型给出不同结论
- * （一处显示 `· zen` 条目、另一处已经把它去重掉）。
+ * （一处显示 `· console` 条目、另一处已经把它去重掉）。
  *
  * @param models - 目录里的模型列表。
  * @param options - 套餐、估算表与端点策略；缺省时对应步骤跳过。
@@ -1053,9 +1053,9 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
   const consoleScopes = consoleScopesFromConsoleConfig(input.consoleConfig)
   const warnings: string[] = []
   const models: OpenCodeModel[] = []
-  const rosters: Record<OpenCodePlan, unknown> = { zen: input.zenRoster, go: input.goRoster }
+  const rosters: Record<OpenCodePlan, unknown> = { console: input.consoleRoster, go: input.goRoster }
   const builtinByPlan: Record<OpenCodePlan, Map<string, Model<Api>>> = {
-    zen: builtinModelIndex(input.builtin?.zen ?? []),
+    console: builtinModelIndex(input.builtin?.console ?? []),
     go: builtinModelIndex(input.builtin?.go ?? []),
   }
 
@@ -1063,7 +1063,7 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
     const label = PLAN_LABELS[plan]
     const scope = consoleScopes.get(plan)
     const primary = catalogSection(input.catalog, plan)
-    const fallback = catalogSection(input.catalog, plan === 'zen' ? 'go' : 'zen')
+    const fallback = catalogSection(input.catalog, plan === 'console' ? 'go' : 'console')
     const rosterIds = modelIdsFrom(rosters[plan])
     const rosterCreated = modelCreatedAtFrom(rosters[plan])
     const rosterCosts = modelCostFrom(rosters[plan])
@@ -1098,7 +1098,7 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
       const catalogEntry = primary.models.get(id)
       const fallbackCatalogEntry = fallback.models.get(id)
       const builtin = builtinByPlan[plan].get(id)
-      const fallbackBuiltin = builtinByPlan[plan === 'zen' ? 'go' : 'zen'].get(id)
+      const fallbackBuiltin = builtinByPlan[plan === 'console' ? 'go' : 'console'].get(id)
       const result = buildCatalogEntry({
         id,
         plan,
@@ -1134,14 +1134,14 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
 
 /** 目录可能来自的 URL：供服务层与测试共用。 */
 export interface CatalogUrls {
-  readonly zenRoster: string
+  readonly consoleRoster: string
   readonly goRoster: string
   readonly catalog: string
 }
 
 /** 默认的公开数据源地址。 */
 export const DEFAULT_CATALOG_URLS: CatalogUrls = {
-  zenRoster: OPENCODE_MODELS_URL,
+  consoleRoster: OPENCODE_MODELS_URL,
   goRoster: OPENCODE_GO_MODELS_URL,
   catalog: OPENCODE_MODEL_CATALOG_URL,
 } satisfies CatalogUrls
@@ -1167,12 +1167,12 @@ export interface FetchCatalogInput {
   readonly orgId?: string
   readonly server?: string
   readonly signal?: AbortSignal
-  readonly builtin?: { readonly zen?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
+  readonly builtin?: { readonly console?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
   readonly urls?: CatalogUrls
   readonly now?: number
   /** 跳过公开目录的抓取（调用方已有缓存）。 */
   readonly catalog?: unknown
-  readonly zenRoster?: unknown
+  readonly consoleRoster?: unknown
   readonly goRoster?: unknown
 }
 
@@ -1213,8 +1213,8 @@ export async function fetchOpenCodeCatalog(input: FetchCatalogInput): Promise<Fe
     }
   }
 
-  const [zenRoster, goRoster, catalog] = await Promise.all([
-    input.zenRoster !== undefined ? Promise.resolve(input.zenRoster) : json(urls.zenRoster, true).catch(() => undefined),
+  const [consoleRoster, goRoster, catalog] = await Promise.all([
+    input.consoleRoster !== undefined ? Promise.resolve(input.consoleRoster) : json(urls.consoleRoster, true).catch(() => undefined),
     input.goRoster !== undefined ? Promise.resolve(input.goRoster) : json(urls.goRoster, true).catch(() => undefined),
     input.catalog !== undefined ? Promise.resolve(input.catalog) : json(urls.catalog).catch(() => undefined),
   ])
@@ -1222,7 +1222,7 @@ export async function fetchOpenCodeCatalog(input: FetchCatalogInput): Promise<Fe
   return {
     catalog: buildCatalog({
       ...(consoleConfig === undefined ? {} : { consoleConfig }),
-      ...(zenRoster === undefined ? {} : { zenRoster }),
+      ...(consoleRoster === undefined ? {} : { consoleRoster }),
       ...(goRoster === undefined ? {} : { goRoster }),
       ...(catalog === undefined ? {} : { catalog }),
       ...(input.builtin === undefined ? {} : { builtin: input.builtin }),
@@ -1241,7 +1241,7 @@ export interface CatalogServiceOptions {
     readonly server?: string
   } | undefined>
   readonly fetchImpl?: typeof fetch
-  readonly builtin?: () => { readonly zen?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
+  readonly builtin?: () => { readonly console?: readonly Model<Api>[]; readonly go?: readonly Model<Api>[] }
   readonly urls?: CatalogUrls
   /** 构建目录时注入的估算表（按当前套餐档位），每次构建时求值。 */
   readonly estimates?: () => OpenCodeEstimateTable | undefined
@@ -1260,7 +1260,7 @@ export class OpenCodeCatalogService {
   private consoleError: string | undefined
   private lastError: string | undefined
   private inflight: Promise<OpenCodeCatalog | undefined> | undefined
-  private zenRoster: unknown
+  private consoleRoster: unknown
   private goRoster: unknown
   private rosterAt = 0
   private metadata: unknown
@@ -1323,7 +1323,7 @@ export class OpenCodeCatalogService {
     const urls = this.options.urls ?? DEFAULT_CATALOG_URLS
     const signal = AbortSignal.timeout(20_000)
 
-    let zenRoster = this.zenRoster
+    let consoleRoster = this.consoleRoster
     let goRoster = this.goRoster
     let catalog = this.metadata
     let consoleConfig = this.consoleConfig
@@ -1343,8 +1343,8 @@ export class OpenCodeCatalogService {
 
     const tasks: Promise<void>[] = []
     if (rosterStale) {
-      tasks.push(fetchJson(urls.zenRoster, { headers: authHeaders(), signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
-        .then((value) => { zenRoster = value; this.zenRoster = value })
+      tasks.push(fetchJson(urls.consoleRoster, { headers: authHeaders(), signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
+        .then((value) => { consoleRoster = value; this.consoleRoster = value })
         .catch((error: unknown) => { this.lastError = describe(error) }))
       tasks.push(fetchJson(urls.goRoster, { headers: authHeaders(), signal }, CATALOG_RESPONSE_MAX_BYTES, fetchImpl)
         .then((value) => { goRoster = value; this.goRoster = value })
@@ -1384,7 +1384,7 @@ export class OpenCodeCatalogService {
     const estimates = this.options.estimates?.()
     const next = buildCatalog({
       ...(consoleConfig === undefined ? {} : { consoleConfig }),
-      ...(zenRoster === undefined ? {} : { zenRoster }),
+      ...(consoleRoster === undefined ? {} : { consoleRoster }),
       ...(goRoster === undefined ? {} : { goRoster }),
       ...(catalog === undefined ? {} : { catalog }),
       ...(this.options.builtin === undefined ? {} : { builtin: this.options.builtin() }),

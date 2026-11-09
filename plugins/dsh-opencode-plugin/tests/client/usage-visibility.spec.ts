@@ -3,12 +3,12 @@ import { modelKey, OPENCODE_PROVIDER } from '../../src/contracts/identity.ts'
 import { readSelectedModel, readSelectedProvider, usageCapsuleVisible } from '../../src/client/services/usage-visibility.ts'
 
 const goModel = modelKey('go', 'deepseek-v4.1-flash')
-const zenModel = modelKey('zen', 'deepseek-v4.1-flash')
+const zenModel = modelKey('console', 'deepseek-v4.1-flash')
 
 /**
  * 胶囊显隐的真值表。
  *
- * 合并后的供应商只有一个路由，模型用 `go:` / `zen:` 前缀区分；两者都是本插件
+ * 合并后的供应商只有一个路由，模型用 `go:` / `console:` 前缀区分；两者都是本插件
  * 模型，`auto` 下供应商匹配即挂出（不再按套餐区分），别家供应商不挂出。
  */
 describe('OpenCode 用量胶囊显隐', () => {
@@ -16,7 +16,7 @@ describe('OpenCode 用量胶囊显隐', () => {
     expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_PROVIDER })).toBe(true)
   })
 
-  it('auto：选中 zen: 模型时也显示（不再区分套餐）', () => {
+  it('auto：选中 console: 模型时也显示（不再区分套餐）', () => {
     expect(usageCapsuleVisible({ visibility: 'auto', provider: OPENCODE_PROVIDER })).toBe(true)
   })
 

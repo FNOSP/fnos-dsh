@@ -26,7 +26,7 @@ function model(overrides: Partial<OpenCodeModel> = {}): OpenCodeModel {
     input: ['text', 'image'],
     contextWindow: 100,
     maxTokens: 10,
-    plan: 'zen',
+    plan: 'console',
     tools: true,
     free: false,
     ...overrides,
@@ -34,11 +34,11 @@ function model(overrides: Partial<OpenCodeModel> = {}): OpenCodeModel {
 }
 
 describe('合并供应商的模型投影', () => {
-  it('模型 id 带 plan 前缀，显示名带 · zen / · go 小尾巴', () => {
+  it('模型 id 带 plan 前缀，显示名带 · console / · go 小尾巴', () => {
     const zen = toPiModel(model())
     const go = toPiModel(model({ plan: 'go' }))
-    expect(zen.id).toBe('zen:demo')
-    expect(zen.name).toBe('Demo · zen')
+    expect(zen.id).toBe('console:demo')
+    expect(zen.name).toBe('Demo · console')
     expect(go.id).toBe('go:demo')
     expect(go.name).toBe('Demo · go')
     expect(zen.provider).toBe(OPENCODE_PROVIDER)
@@ -53,7 +53,7 @@ describe('合并供应商的模型投影', () => {
   })
 
   it('发请求前剥离 plan 前缀，还原网关模型 id', () => {
-    expect(wireModelId('zen:deepseek-v4.1-flash')).toBe('deepseek-v4.1-flash')
+    expect(wireModelId('console:deepseek-v4.1-flash')).toBe('deepseek-v4.1-flash')
     expect(wireModelId('go:deepseek-v4.1-flash')).toBe('deepseek-v4.1-flash')
     expect(wireModelId('gpt-5.6-luna')).toBe('gpt-5.6-luna')
     expect(modelKey('go', 'x')).toBe('go:x')
@@ -66,7 +66,7 @@ describe('合并供应商的模型投影', () => {
     )
     expect(provider.id).toBe(OPENCODE_PROVIDER)
     expect(provider.name).toBe('OpenCode Console')
-    expect(provider.getModels().map(entry => entry.id)).toEqual(['zen:on'])
+    expect(provider.getModels().map(entry => entry.id)).toEqual(['console:on'])
   })
 
   it('混合协议可以同时出现在同一个 provider 中', () => {
@@ -77,10 +77,10 @@ describe('合并供应商的模型投影', () => {
       model({ id: 'google', api: 'google-generative-ai', baseURL: 'https://opencode.ai/inference/google/v1beta' }),
     ], async () => 'token')
     expect(provider.getModels().map(entry => [entry.id, entry.api])).toEqual([
-      ['zen:chat', 'openai-completions'],
-      ['zen:responses', 'openai-responses'],
-      ['zen:anthropic', 'anthropic-messages'],
-      ['zen:google', 'google-generative-ai'],
+      ['console:chat', 'openai-completions'],
+      ['console:responses', 'openai-responses'],
+      ['console:anthropic', 'anthropic-messages'],
+      ['console:google', 'google-generative-ai'],
     ])
   })
 
@@ -98,7 +98,7 @@ describe('合并供应商的模型投影', () => {
 
   it('两组内置目录都能被投影（协议与端点自洽）', () => {
     for (const [plan, entries] of [
-      ['zen', opencodeProvider().getModels()],
+      ['console', opencodeProvider().getModels()],
       ['go', opencodeGoProvider().getModels()],
     ] as const) {
       for (const entry of entries) {
@@ -135,7 +135,7 @@ describe('pi-ai 适配器集成', () => {
     })
     expect(await adapter.listModels(OPENCODE_PROVIDER)).toEqual([])
     token = 'token'
-    expect((await adapter.listModels(OPENCODE_PROVIDER)).map(entry => entry.id)).toEqual(['zen:a', 'go:b'])
+    expect((await adapter.listModels(OPENCODE_PROVIDER)).map(entry => entry.id)).toEqual(['console:a', 'go:b'])
     expect(adapter.providerInfo(OPENCODE_PROVIDER).name).toBe('OpenCode Console')
   })
 
@@ -153,9 +153,9 @@ describe('pi-ai 适配器集成', () => {
       profiles: () => new Map([[OPENCODE_PROVIDER, profile]]),
       resolveAccessToken: async () => 'token',
     })
-    const info = await adapter.resolveModel(OPENCODE_PROVIDER, 'zen:thinking')
+    const info = await adapter.resolveModel(OPENCODE_PROVIDER, 'console:thinking')
     expect(info.provider).toBe(OPENCODE_PROVIDER)
-    expect(info.name).toBe('Demo · zen')
+    expect(info.name).toBe('Demo · console')
     expect(info.context?.contextWindow).toBe(1_000_000)
     expect(info.inputModalities).toEqual(['text', 'image'])
     expect(info.reasoning?.efforts.map(effort => effort.id)).toEqual(['off', 'low', 'medium', 'high', 'max'])
@@ -167,15 +167,15 @@ describe('pi-ai 适配器集成', () => {
       [OPENCODE_PROVIDER, createOpenCodeProfile([model({ id: mode })], async () => 'token')],
     ])
     const adapter = createOpenCodePiAdapter({ profiles, resolveAccessToken: async () => 'token' })
-    expect((await adapter.listModels(OPENCODE_PROVIDER)).map(entry => entry.id)).toEqual(['zen:a'])
+    expect((await adapter.listModels(OPENCODE_PROVIDER)).map(entry => entry.id)).toEqual(['console:a'])
     mode = 'b'
-    expect((await adapter.listModels(OPENCODE_PROVIDER)).map(entry => entry.id)).toEqual(['zen:b'])
+    expect((await adapter.listModels(OPENCODE_PROVIDER)).map(entry => entry.id)).toEqual(['console:b'])
   })
 })
 
 describe('目录变化广播', () => {
   /** 最小可用的模型条目。 */
-  const model = (id: string, plan: 'zen' | 'go'): OpenCodeModel => ({
+  const model = (id: string, plan: 'console' | 'go'): OpenCodeModel => ({
     id,
     name: id,
     api: 'openai-completions',
@@ -228,12 +228,12 @@ describe('目录变化广播', () => {
     const { ctx, calls } = makeCtx()
     const instance = runtime()
     instance.register(ctx as never)
-    const models = [model('a', 'go'), model('b', 'zen')]
+    const models = [model('a', 'go'), model('b', 'console')]
     instance.update(models)
     instance.update(models)
     expect(calls.replace.length).toBe(1)
 
-    instance.update([model('b', 'zen'), model('a', 'go')])
+    instance.update([model('b', 'console'), model('a', 'go')])
     expect(calls.replace.length).toBe(2)
   })
 

@@ -1,10 +1,10 @@
 /**
  * OpenCode 供应商身份与网关地址：host 与 client 共用的契约。
  *
- * 模型目录同时包含 OpenCode Zen（按量）与 OpenCode Go（套餐）两类来源，
+ * 模型目录同时包含 OpenCode Console（按量）与 OpenCode Go（套餐）两类来源，
  * 但**只注册一个** DSH 供应商 `OpenCode`：同名模型在两组里都存在，
- * 合并成一个列表时用模型 id 的 `zen:` / `go:` 前缀区分，显示名追加
- * `· zen` / `· go` 小尾巴。发请求前前缀会被剥掉，网关看到的仍是原始 id。
+ * 合并成一个列表时用模型 id 的 `console:` / `go:` 前缀区分，显示名追加
+ * `· console` / `· go` 小尾巴。发请求前前缀会被剥掉，网关看到的仍是原始 id。
  *
  * 路由 id 带 `dsh-` 前缀是刻意的：`opencode` 是 pi-ai 内置目录里的路由名，
  * 用户可能已在 `llm-pi-ai` 设置里手工声明（实测会与本插件的
@@ -13,8 +13,8 @@
  * @module dsh-opencode/identity
  */
 
-/** 两类模型来源：Zen 按量 与 Go 套餐。 */
-export type OpenCodePlan = 'zen' | 'go'
+/** 两类模型来源：Console 按量 与 Go 套餐。 */
+export type OpenCodePlan = 'console' | 'go'
 
 /** 本插件注册的唯一供应商路由。 */
 export const OPENCODE_PROVIDER = 'dsh-opencode'
@@ -27,14 +27,14 @@ export const OPENCODE_PROVIDER = 'dsh-opencode'
  * 混淆，用户看不出它对应 Console 账号。
  *
  * 注意：这里只改**显示名**。provider id 仍是 `dsh-opencode`、plan 标识仍是
- * `zen` / `go`、模型 id 前缀与 `· zen` 后缀都不变——那些是用户已保存的隐藏模型
+ * `console` / `go`、模型 id 前缀与 `· console` 后缀统一命名，不再保留 zen 字样。
  * 偏好与历史会话的键，改名会让旧记录失配。
  */
 export const OPENCODE_PROVIDER_NAME = 'OpenCode Console'
 
 /** 模型 id 的 plan 前缀：保证合并后同一模型的两组条目 id 唯一。 */
 export const OPENCODE_PLAN_PREFIXES: Readonly<Record<OpenCodePlan, string>> = {
-  zen: 'zen:',
+  console: 'console:',
   go: 'go:',
 }
 
@@ -45,7 +45,7 @@ export function modelKey(plan: OpenCodePlan, id: string): string {
 
 /** 从模型键解析 plan；不是本插件格式时返回 undefined。 */
 export function planOfModelKey(key: string): OpenCodePlan | undefined {
-  for (const plan of ['zen', 'go'] as const) {
+  for (const plan of ['console', 'go'] as const) {
     if (key.startsWith(OPENCODE_PLAN_PREFIXES[plan])) return plan
   }
   return undefined
@@ -57,7 +57,7 @@ export function wireModelId(key: string): string {
   return plan === undefined ? key : key.slice(OPENCODE_PLAN_PREFIXES[plan].length)
 }
 
-/** 合并列表里的显示名：在原名后追加 `· zen` / `· go`。 */
+/** 合并列表里的显示名：在原名后追加 `· console` / `· go`。 */
 export function modelDisplayName(name: string, plan: OpenCodePlan): string {
   return `${name} · ${plan}`
 }
@@ -68,7 +68,7 @@ export const OPENCODE_CONSOLE_ORIGIN = 'https://opencode.ai/console'
 /** 推理网关根地址；各协议族在其下分路径。 */
 export const OPENCODE_INFERENCE_ORIGIN = 'https://opencode.ai/inference'
 
-/** 按量（Zen）模型清单。 */
+/** 按量（Console）模型清单。 */
 export const OPENCODE_MODELS_URL = `${OPENCODE_INFERENCE_ORIGIN}/v1/models`
 
 /** Go 套餐模型清单。 */

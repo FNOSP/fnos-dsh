@@ -116,7 +116,7 @@ describe('九语言文案完整性', () => {
 
   it('按量口径在九语言里都指向 Console，不再以 Zen 作为用户可见名称', () => {
     // 上游 2026-11-05 更名：功能名是 Console（pay-as-you-go），zen 只留作模型键后缀。
-    const paygKeys = ['accountPlanPayg', 'catalogPlanZenHint', 'settingsEndpointZen'] as const
+    const paygKeys = ['accountPlanPayg', 'catalogPlanConsoleHint', 'settingsEndpointConsole'] as const
     for (const key of paygKeys) {
       for (const [lang, dict] of Object.entries({ en, zh, ...LOCALES })) {
         expect(dict[key], `${lang}.${key} 应含 Console`).toContain('Console')

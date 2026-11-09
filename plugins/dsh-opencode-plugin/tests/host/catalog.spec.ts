@@ -36,14 +36,14 @@ async function fixture<T>(name: string): Promise<T> {
 }
 
 const builtin = {
-  zen: opencodeProvider().getModels(),
+  console: opencodeProvider().getModels(),
   go: opencodeGoProvider().getModels(),
 }
 
 async function publicCatalog() {
   return buildCatalog({
     catalog: await fixture('catalog.json'),
-    zenRoster: await fixture('zen-models.json'),
+    consoleRoster: await fixture('zen-models.json'),
     goRoster: await fixture('go-models.json'),
     builtin,
     now: 1,
@@ -55,7 +55,7 @@ describe('OpenCode 模型目录归一化', () => {
     const catalog = await publicCatalog()
     expect(catalog.source).toBe('public')
     expect(catalog.fetchedAt).toBe(1)
-    const zen = catalog.models.filter(model => model.plan === 'zen')
+    const zen = catalog.models.filter(model => model.plan === 'console')
     const go = catalog.models.filter(model => model.plan === 'go')
     expect(go.length).toBe(36)
     expect(zen.length).toBe(85)
@@ -71,11 +71,11 @@ describe('OpenCode 模型目录归一化', () => {
 
   it('同名模型分属两组时端点不同（Go 走 /go，Zen 走按量网关）', async () => {
     const catalog = await publicCatalog()
-    const zen = catalog.models.find(model => model.plan === 'zen' && model.id === 'deepseek-v4.1-flash')
+    const zen = catalog.models.find(model => model.plan === 'console' && model.id === 'deepseek-v4.1-flash')
     const go = catalog.models.find(model => model.plan === 'go' && model.id === 'deepseek-v4.1-flash')
     expect(zen?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
     expect(go?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
-    expect(zen?.plan).toBe('zen')
+    expect(zen?.plan).toBe('console')
     expect(go?.plan).toBe('go')
   })
 
@@ -102,7 +102,7 @@ describe('OpenCode 模型目录归一化', () => {
 
   it('Zen 按量模型按 AI SDK 包名分流三种协议', async () => {
     const catalog = await publicCatalog()
-    const byId = new Map(catalog.models.filter(model => model.plan === 'zen').map(model => [model.id, model]))
+    const byId = new Map(catalog.models.filter(model => model.plan === 'console').map(model => [model.id, model]))
     expect(byId.get('glm-5')?.api).toBe('openai-completions')
     expect(byId.get('glm-5')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
     expect(byId.get('gpt-5')?.api).toBe('openai-responses')
@@ -124,17 +124,17 @@ describe('OpenCode 模型目录归一化', () => {
 
   it('免费模型被标记（价格全为 0）', async () => {
     const catalog = await publicCatalog()
-    expect(catalog.models.find(model => model.id === 'big-pickle' && model.plan === 'zen')?.free).toBe(true)
+    expect(catalog.models.find(model => model.id === 'big-pickle' && model.plan === 'console')?.free).toBe(true)
     expect(catalog.models.find(model => model.id === 'deepseek-v4.1-flash' && model.plan === 'go')?.free).toBe(false)
   })
 
   it('Zen 免费模型标为仅官方客户端可用，Go 免费模型不受限', async () => {
     const catalog = await publicCatalog()
-    const zenFree = catalog.models.filter(model => model.plan === 'zen' && model.free)
+    const zenFree = catalog.models.filter(model => model.plan === 'console' && model.free)
     expect(zenFree.length).toBeGreaterThan(0)
     for (const model of zenFree) expect(model.clientOnly).toBe(true)
     // 同一个 beam-free 在两段都出现：zen 段禁用，go 段可用，各走自身端点。
-    const beamZen = catalog.models.find(model => model.id === 'beam-free' && model.plan === 'zen')
+    const beamZen = catalog.models.find(model => model.id === 'beam-free' && model.plan === 'console')
     const beamGo = catalog.models.find(model => model.id === 'beam-free' && model.plan === 'go')
     expect(beamZen?.clientOnly).toBe(true)
     expect(beamGo?.free).toBe(true)
@@ -170,12 +170,12 @@ describe('OpenCode 模型目录归一化', () => {
     }
     const catalog = buildCatalog({
       consoleConfig,
-      zenRoster: { data: [{ id: 'glm-5' }] },
+      consoleRoster: { data: [{ id: 'glm-5' }] },
       goRoster: { data: [{ id: 'glm-5.3' }, { id: 'kimi-k3' }] },
       builtin,
     })
     expect(catalog.source).toBe('console')
-    const zen = catalog.models.filter(model => model.plan === 'zen').map(model => model.id)
+    const zen = catalog.models.filter(model => model.plan === 'console').map(model => model.id)
     const go = catalog.models.filter(model => model.plan === 'go')
     expect(zen).toEqual(['glm-5', 'grok-build-0.1'])
     expect(go.map(model => model.id)).toEqual(['glm-5.3', 'kimi-k3'])
@@ -190,7 +190,7 @@ describe('OpenCode 模型目录归一化', () => {
       max: 'max',
     })
     const scopes = consoleScopesFromConsoleConfig(consoleConfig)
-    expect(scopes.get('zen')?.headers).toEqual({ 'x-opencode-org-id': 'wrk_zen' })
+    expect(scopes.get('console')?.headers).toEqual({ 'x-opencode-org-id': 'wrk_zen' })
     expect(scopes.get('go')?.headers).toEqual({ 'x-opencode-org-id': 'wrk_go' })
   })
 
@@ -208,7 +208,7 @@ describe('OpenCode 模型目录归一化', () => {
   it('图片生成模型被排除并给出说明', () => {
     const result = buildCatalogEntry({
       id: 'image-model',
-      plan: 'zen',
+      plan: 'console',
       catalogEntry: {
         name: 'Image',
         modalities: { input: ['text'], output: ['image'] },
@@ -234,7 +234,7 @@ describe('OpenCode 模型目录归一化', () => {
   it('显式声明了未知协议时跳过而不是伪造端点', () => {
     const result = buildCatalogEntry({
       id: 'mystery',
-      plan: 'zen',
+      plan: 'console',
       catalogEntry: { name: 'Mystery', modalities: { input: ['text'], output: ['text'] }, reasoning: false },
       providerNpm: '@ai-sdk/mystery',
     })
@@ -245,7 +245,7 @@ describe('OpenCode 模型目录归一化', () => {
   it('缺少容量时使用保守兜底', () => {
     const result = buildCatalogEntry({
       id: 'fresh',
-      plan: 'zen',
+      plan: 'console',
       catalogEntry: {
         name: 'Fresh',
         modalities: { input: ['text'], output: ['text'] },
@@ -257,7 +257,7 @@ describe('OpenCode 模型目录归一化', () => {
     if (result.ok) {
       expect(result.model.contextWindow).toBe(DEFAULT_CONTEXT_WINDOW)
       expect(result.model.maxTokens).toBe(DEFAULT_MAX_TOKENS)
-      expect(result.model.plan).toBe('zen')
+      expect(result.model.plan).toBe('console')
     }
   })
 
@@ -313,7 +313,7 @@ describe('协议按 plan 独立解析', () => {
   it('同段只给端点、没有 npm 时按端点方法判定协议', () => {
     const result = buildCatalogEntry({
       id: 'minimax-m3',
-      plan: 'zen',
+      plan: 'console',
       catalogEntry: { provider: { api: 'https://opencode.ai/inference/openai/v1' } },
       fallbackCatalogEntry: { provider: { npm: '@ai-sdk/anthropic' } },
       providerNpm: '@ai-sdk/openai-compatible',
@@ -325,7 +325,7 @@ describe('协议按 plan 独立解析', () => {
   it('同段 npm 优先于跨段 npm', () => {
     const result = buildCatalogEntry({
       id: 'claude-haiku-5-5',
-      plan: 'zen',
+      plan: 'console',
       catalogEntry: { provider: { npm: '@ai-sdk/anthropic' } },
       fallbackCatalogEntry: { provider: { npm: '@ai-sdk/openai-compatible' } },
     })
@@ -347,7 +347,7 @@ describe('协议按 plan 独立解析', () => {
   it('本段有该模型且没声明协议时，用本 plan 的 provider 缺省，不跨段取', () => {
     const result = buildCatalogEntry({
       id: 'minimax-m3',
-      plan: 'zen',
+      plan: 'console',
       catalogEntry: { name: 'MiniMax-M3' },
       fallbackCatalogEntry: { provider: { npm: '@ai-sdk/anthropic' } },
       providerNpm: '@ai-sdk/openai-compatible',
@@ -375,14 +375,14 @@ describe('协议按 plan 独立解析', () => {
  */
 describe('端点策略', () => {
   const models: readonly OpenCodeModel[] = [
-    { id: 'shared', api: 'openai-completions', plan: 'zen' },
+    { id: 'shared', api: 'openai-completions', plan: 'console' },
     { id: 'shared', api: 'openai-completions', plan: 'go' },
-    { id: 'zen-only', api: 'openai-completions', plan: 'zen' },
+    { id: 'zen-only', api: 'openai-completions', plan: 'console' },
     { id: 'go-only', api: 'openai-completions', plan: 'go' },
   ].map(entry => ({
     ...entry,
     name: entry.id,
-    baseURL: baseURLFor(entry.plan as 'zen' | 'go', 'openai-completions'),
+    baseURL: baseURLFor(entry.plan as 'console' | 'go', 'openai-completions'),
     reasoning: false,
     input: ['text'] as ('text' | 'image')[],
     contextWindow: 1000,
@@ -396,13 +396,13 @@ describe('端点策略', () => {
   it('go：共用模型改到 Go 端点，Zen 独有模型不动', () => {
     const next = applyEndpointPlan(models, 'go')
     const find = (plan: string, id: string) => next.find(model => model.plan === plan && model.id === id)
-    expect(find('zen', 'shared')?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
+    expect(find('console', 'shared')?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
     expect(find('go', 'shared')?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
-    expect(find('zen', 'zen-only')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
+    expect(find('console', 'zen-only')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
   })
 
   it('zen：共用模型改到按量端点，Go 独有模型不动', () => {
-    const next = applyEndpointPlan(models, 'zen')
+    const next = applyEndpointPlan(models, 'console')
     const find = (plan: string, id: string) => next.find(model => model.plan === plan && model.id === id)
     expect(find('go', 'shared')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
     expect(find('go', 'go-only')?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
@@ -418,12 +418,12 @@ describe('端点策略', () => {
 
   it('协议不同则不切换：端点按协议族固定，换了就是错端点', () => {
     const mixed: readonly OpenCodeModel[] = [
-      { id: 'dual', api: 'openai-completions', plan: 'zen' },
+      { id: 'dual', api: 'openai-completions', plan: 'console' },
       { id: 'dual', api: 'anthropic-messages', plan: 'go' },
     ].map(entry => ({
       ...entry,
       name: entry.id,
-      baseURL: baseURLFor(entry.plan as 'zen' | 'go', entry.api as 'openai-completions' | 'anthropic-messages'),
+      baseURL: baseURLFor(entry.plan as 'console' | 'go', entry.api as 'openai-completions' | 'anthropic-messages'),
       reasoning: false,
       input: ['text'] as ('text' | 'image')[],
       contextWindow: 1000,
@@ -439,7 +439,7 @@ describe('端点策略', () => {
 })
 
 describe('跨来源去重', () => {
-  const model = (id: string, plan: 'zen' | 'go'): OpenCodeModel => ({
+  const model = (id: string, plan: 'console' | 'go'): OpenCodeModel => ({
     id,
     name: id,
     api: 'openai-completions',
@@ -454,20 +454,20 @@ describe('跨来源去重', () => {
   })
 
   it('账号有 Go 时同一模型只保留 go 条目，zen 重复项被去掉', () => {
-    const models = [model('beam-free', 'zen'), model('beam-free', 'go'), model('big-pickle', 'zen')]
+    const models = [model('beam-free', 'console'), model('beam-free', 'go'), model('big-pickle', 'console')]
     const next = dedupeByPlan(models, 'go')
-    expect(next.map(m => `${m.plan}:${m.id}`)).toEqual(['go:beam-free', 'zen:big-pickle'])
+    expect(next.map(m => `${m.plan}:${m.id}`)).toEqual(['go:beam-free', 'console:big-pickle'])
   })
 
   it('账号只有 Zen 时保留 zen 条目，去掉 go 重复项', () => {
-    const models = [model('beam-free', 'zen'), model('beam-free', 'go'), model('deepseek-v4-pro', 'go')]
-    const next = dedupeByPlan(models, 'zen')
-    expect(next.map(m => `${m.plan}:${m.id}`)).toEqual(['zen:beam-free', 'go:deepseek-v4-pro'])
+    const models = [model('beam-free', 'console'), model('beam-free', 'go'), model('deepseek-v4-pro', 'go')]
+    const next = dedupeByPlan(models, 'console')
+    expect(next.map(m => `${m.plan}:${m.id}`)).toEqual(['console:beam-free', 'go:deepseek-v4-pro'])
   })
 
   it('真实 roster 上按 Go 去重后只去掉两段共享的模型', async () => {
     const catalog = await publicCatalog()
-    const zenIds = new Set(catalog.models.filter(m => m.plan === 'zen').map(m => m.id))
+    const zenIds = new Set(catalog.models.filter(m => m.plan === 'console').map(m => m.id))
     const shared = new Set(catalog.models.filter(m => m.plan === 'go' && zenIds.has(m.id)).map(m => m.id))
     expect(shared.size).toBeGreaterThan(0)
     const deduped = dedupeByPlan(catalog.models, 'go')
@@ -475,21 +475,21 @@ describe('跨来源去重', () => {
     const keys = deduped.map(m => `${m.plan}:${m.id}`)
     for (const id of shared) {
       expect(keys).toContain(`go:${id}`)
-      expect(keys).not.toContain(`zen:${id}`)
+      expect(keys).not.toContain(`console:${id}`)
     }
     // 单一来源模型照常保留。
-    expect(keys).toContain('zen:big-pickle')
+    expect(keys).toContain('console:big-pickle')
     expect(keys).toContain('go:deepseek-v4-pro')
   })
 
   it('没有重复项时原样返回同一个数组引用', () => {
-    const models = [model('big-pickle', 'zen'), model('deepseek-v4-pro', 'go')]
+    const models = [model('big-pickle', 'console'), model('deepseek-v4-pro', 'go')]
     expect(dedupeByPlan(models, 'go')).toBe(models)
   })
 })
 
 describe('目录统一口径 applyCatalogView', () => {
-  const model = (id: string, plan: 'zen' | 'go'): OpenCodeModel => ({
+  const model = (id: string, plan: 'console' | 'go'): OpenCodeModel => ({
     id,
     name: id,
     api: 'openai-completions',
@@ -504,24 +504,24 @@ describe('目录统一口径 applyCatalogView', () => {
   })
 
   it('同时应用去重与端点策略：共享模型只剩 go 条目且走 go 端点', () => {
-    const models = [model('shared', 'zen'), model('shared', 'go'), model('zen-only', 'zen')]
+    const models = [model('shared', 'console'), model('shared', 'go'), model('zen-only', 'console')]
     const view = applyCatalogView(models, { ownedPlan: 'go', endpointPlan: 'go' })
-    expect(view.map(m => `${m.plan}:${m.id}`)).toEqual(['go:shared', 'zen:zen-only'])
+    expect(view.map(m => `${m.plan}:${m.id}`)).toEqual(['go:shared', 'console:zen-only'])
     expect(view.find(m => m.id === 'shared')?.baseURL).toBe('https://opencode.ai/inference/go/openai/v1')
   })
 
   it('端点策略为 auto 时只去重，不改端点', () => {
-    const models = [model('shared', 'zen'), model('shared', 'go')]
+    const models = [model('shared', 'console'), model('shared', 'go')]
     const view = applyCatalogView(models, { ownedPlan: 'go', endpointPlan: 'auto' })
     expect(view.map(m => `${m.plan}:${m.id}`)).toEqual(['go:shared'])
   })
 
   it('缺省两个选项时只排序，不去重也不改端点', () => {
-    const models = [model('shared', 'zen'), model('shared', 'go')]
+    const models = [model('shared', 'console'), model('shared', 'go')]
     const view = applyCatalogView(models, {})
     // 同价同 id 时排序稳定，保持入参顺序。
-    expect(view.map(m => `${m.plan}:${m.id}`)).toEqual(['zen:shared', 'go:shared'])
-    expect(view.find(m => m.plan === 'zen')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
+    expect(view.map(m => `${m.plan}:${m.id}`)).toEqual(['console:shared', 'go:shared'])
+    expect(view.find(m => m.plan === 'console')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
   })
 })
 
@@ -589,7 +589,7 @@ describe('目录排序', () => {
 })
 
 /** 构造测试模型：默认是 Go 侧可用的付费模型。 */
-function scopedModel(id: string, plan: 'zen' | 'go', extra: Partial<OpenCodeModel> = {}): OpenCodeModel {
+function scopedModel(id: string, plan: 'console' | 'go', extra: Partial<OpenCodeModel> = {}): OpenCodeModel {
   return {
     id,
     name: id,
@@ -608,9 +608,9 @@ function scopedModel(id: string, plan: 'zen' | 'go', extra: Partial<OpenCodeMode
 
 describe('整侧归属过滤 scopeToAccountPlan', () => {
   const models = [
-    scopedModel('shared', 'zen'),
+    scopedModel('shared', 'console'),
     scopedModel('shared', 'go'),
-    scopedModel('zen-only', 'zen'),
+    scopedModel('zen-only', 'console'),
     scopedModel('go-only', 'go'),
   ]
 
@@ -623,7 +623,7 @@ describe('整侧归属过滤 scopeToAccountPlan', () => {
   it('payg 只保留 zen 侧条目', () => {
     const next = scopeToAccountPlan(models, 'payg')
     expect(next.map(model => model.id)).toEqual(['shared', 'zen-only'])
-    expect(next.every(model => model.plan === 'zen')).toBe(true)
+    expect(next.every(model => model.plan === 'console')).toBe(true)
   })
 
   it('unknown 按 Go 口径过滤（与 go 档结果一致）', () => {
@@ -649,7 +649,7 @@ describe('整侧归属过滤 scopeToAccountPlan', () => {
   it('真实 roster 上按量账号目录不含任何 go 条目', async () => {
     const catalog = await publicCatalog()
     const next = scopeToAccountPlan(catalog.models, 'payg')
-    expect(next.every(model => model.plan === 'zen')).toBe(true)
+    expect(next.every(model => model.plan === 'console')).toBe(true)
   })
 })
 
@@ -710,7 +710,7 @@ describe('按套餐额度排序', () => {
 
   it('列表混入按量模型时回落到老口径，不把按量条目整体沉底', () => {
     const models = [
-      scopedModel('zen-free', 'zen', { free: true, releasedAt: '2026-01-01' }),
+      scopedModel('zen-free', 'console', { free: true, releasedAt: '2026-01-01' }),
       goModel('go-huge', 216_670),
       goModel('go-tiny', 490),
     ]
@@ -742,7 +742,7 @@ describe('buildCatalog 写入预计请求数', () => {
   it('Go 模型带上估算值，zen 模型不带', async () => {
     const catalog = await buildCatalog({
       catalog: await fixture('catalog.json'),
-      zenRoster: await fixture('zen-models.json'),
+      consoleRoster: await fixture('zen-models.json'),
       goRoster: await fixture('go-models.json'),
       builtin,
       estimates: OPENCODE_GO_ESTIMATES,
@@ -752,7 +752,7 @@ describe('buildCatalog 写入预计请求数', () => {
     expect(goModel?.estimatedRequestsPerMonth).toBe(216_670)
     const unlimited = catalog.models.find(model => model.plan === 'go' && model.id === 'beam-free')
     expect(unlimited?.estimatedRequestsPerMonth).toBeNull()
-    for (const model of catalog.models.filter(entry => entry.plan === 'zen')) {
+    for (const model of catalog.models.filter(entry => entry.plan === 'console')) {
       expect(model.estimatedRequestsPerMonth).toBeUndefined()
     }
   })
@@ -760,7 +760,7 @@ describe('buildCatalog 写入预计请求数', () => {
   it('表里有但 roster 没有的模型不凭空造条目', async () => {
     const catalog = await buildCatalog({
       catalog: await fixture('catalog.json'),
-      zenRoster: await fixture('zen-models.json'),
+      consoleRoster: await fixture('zen-models.json'),
       goRoster: await fixture('go-models.json'),
       builtin,
       estimates: OPENCODE_GO_ESTIMATES,
@@ -833,7 +833,7 @@ describe('buildCatalog 写入预计请求数', () => {
     }
     const result = buildCatalogEntry({
       id: 'big-pickle',
-      plan: 'zen',
+      plan: 'console',
       catalogEntry: freeEntry,
       estimates: OPENCODE_GO_ESTIMATES,
     })
@@ -853,9 +853,9 @@ describe('buildCatalog 写入预计请求数', () => {
 
 describe('applyCatalogView 组合新口径', () => {
   const models = [
-    scopedModel('shared', 'zen'),
+    scopedModel('shared', 'console'),
     scopedModel('shared', 'go', { estimatedRequestsPerMonth: 500 }),
-    scopedModel('zen-only', 'zen'),
+    scopedModel('zen-only', 'console'),
     scopedModel('go-big', 'go', { estimatedRequestsPerMonth: 216_670 }),
     scopedModel('go-none', 'go'),
   ]
@@ -874,8 +874,8 @@ describe('applyCatalogView 组合新口径', () => {
     const view = applyCatalogView(models, { accountPlan: 'unknown', ownedPlan: 'go' })
     const ids = view.map(model => `${model.plan}:${model.id}`)
     // 整侧过滤：zen 侧条目（含单侧独有的 zen-only）全部消失。
-    expect(ids).not.toContain('zen:zen-only')
-    expect(ids).not.toContain('zen:shared')
+    expect(ids).not.toContain('console:zen-only')
+    expect(ids).not.toContain('console:shared')
     expect(view.every(model => model.plan === 'go')).toBe(true)
   })
 
@@ -892,7 +892,7 @@ describe('applyCatalogView 组合新口径', () => {
     // 因此保持去重后的原顺序（与今天的实现一致）。
     expect(view.map(model => `${model.plan}:${model.id}`)).toEqual([
       'go:shared',
-      'zen:zen-only',
+      'console:zen-only',
       'go:go-big',
       'go:go-none',
     ])
@@ -901,7 +901,7 @@ describe('applyCatalogView 组合新口径', () => {
 
   it('payg 套餐只留按量侧，且按老口径排序', () => {
     const view = applyCatalogView(models, { accountPlan: 'payg' })
-    expect(view.every(model => model.plan === 'zen')).toBe(true)
+    expect(view.every(model => model.plan === 'console')).toBe(true)
     expect(view.map(model => model.id)).toEqual(['shared', 'zen-only'])
   })
 
@@ -909,7 +909,7 @@ describe('applyCatalogView 组合新口径', () => {
     const catalog = await publicCatalog()
     const withEstimates = await buildCatalog({
       catalog: await fixture('catalog.json'),
-      zenRoster: await fixture('zen-models.json'),
+      consoleRoster: await fixture('zen-models.json'),
       goRoster: await fixture('go-models.json'),
       builtin,
       estimates: OPENCODE_GO_ESTIMATES,
@@ -1127,7 +1127,7 @@ describe('FNOS-051 账号清单优先', () => {
   it('清单优先于公开目录：文档缺失的模型也能拿到真实能力', () => {
     // 公开目录完全没有 kimi-k3.1-pro（实测），之前的回落会落到默认 262,144。
     const models = buildCatalog({
-      builtin: { zen: [], go: [] },
+      builtin: { console: [], go: [] },
       goRoster: roster,
     }).models
     const kimi = models.find(model => model.id === 'kimi-k3.1-pro' && model.plan === 'go')
@@ -1138,7 +1138,7 @@ describe('FNOS-051 账号清单优先', () => {
 
   it('清单优先于公开目录：上下文不被低估', () => {
     const models = buildCatalog({
-      builtin: { zen: [], go: [] },
+      builtin: { console: [], go: [] },
       goRoster: roster,
       catalog: {
         opencode: {

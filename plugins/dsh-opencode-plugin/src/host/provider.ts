@@ -1,9 +1,9 @@
 /**
- * 动态 OpenCode provider（Zen 与 Go 合并为一个供应商）。
+ * 动态 OpenCode provider（Console 与 Go 合并为一个供应商）。
  *
- * 目录同时包含 OpenCode Zen（按量）与 OpenCode Go（套餐）两类模型，但只注册
- * 一个 DSH 供应商：同名模型用 `zen:` / `go:` 前缀保证 id 唯一，显示名追加
- * `· zen` / `· go` 小尾巴。发请求前前缀会被剥掉（{@link wireModelId}），
+ * 目录同时包含 OpenCode Console（按量）与 OpenCode Go（套餐）两类模型，但只注册
+ * 一个 DSH 供应商：同名模型用 `console:` / `go:` 前缀保证 id 唯一，显示名追加
+ * `· console` / `· go` 小尾巴。发请求前前缀会被剥掉（{@link wireModelId}），
  * 网关看到的仍是原始模型 id。
  *
  * 与 `llm-pi-ai` 的静态路由不同，这里每次目录刷新都会重建 pi-ai `Provider`：
@@ -75,7 +75,7 @@ function costOf(cost: OpenCodeModelCost | undefined): Model<Api>['cost'] {
 /**
  * 把目录条目投影为 pi-ai 模型。
  *
- * `id` 带 plan 前缀以保证合并列表内唯一，`name` 追加 `· zen` / `· go`；
+ * `id` 带 plan 前缀以保证合并列表内唯一，`name` 追加 `· console` / `· go`；
  * `compat` 与 `inputLimits` 是不透明 JSON，原样交给 pi-ai。
  */
 export function toPiModel(model: OpenCodeModel): Model<Api> {

@@ -52,7 +52,7 @@ function fakeResponse(): FakeResponse {
   return res
 }
 
-function model(id: string, plan: 'zen' | 'go', extra: Partial<OpenCodeModel> = {}): OpenCodeModel {
+function model(id: string, plan: 'console' | 'go', extra: Partial<OpenCodeModel> = {}): OpenCodeModel {
   return {
     id,
     name: id,
@@ -81,8 +81,8 @@ const MODELS: readonly OpenCodeModel[] = [
   model('go-small', 'go', { estimatedRequestsPerMonth: 100 }),
   model('go-unlimited', 'go', { estimatedRequestsPerMonth: null }),
   model('go-missing', 'go'),
-  model('zen-only', 'zen'),
-  model('shared', 'zen'),
+  model('zen-only', 'console'),
+  model('shared', 'console'),
   model('shared', 'go', { estimatedRequestsPerMonth: 42 }),
 ]
 
@@ -105,7 +105,7 @@ function entitlement(
 /** 只记录注册的路由，别的宿主能力都不需要。 */
 function harness(options: Partial<OpenCodeRoutesOptions> & {
   entitlement?: () => Promise<OpenCodeAccountEntitlement>
-  endpointPlan?: () => Promise<'go' | 'zen' | 'auto'>
+  endpointPlan?: () => Promise<'go' | 'console' | 'auto'>
   snapshot?: OpenCodeCatalog | undefined
 }): Map<string, CapturedRoute> {
   const captured = new Map<string, CapturedRoute>()
@@ -204,8 +204,8 @@ describe('目录路由的套餐口径', () => {
     // 按量侧只留 2 条 zen（shared 与 zen-only），另 5 条 go 条目被隐藏。
     expect(payload.entitlement?.filteredModelCount).toBe(5)
     expect(payload.catalog?.models.map(entry => `${entry.plan}:${entry.id}`)).toEqual([
-      'zen:shared',
-      'zen:zen-only',
+      'console:shared',
+      'console:zen-only',
     ])
   })
 
@@ -218,8 +218,8 @@ describe('目录路由的套餐口径', () => {
     expect(payload.entitlement?.estimates?.fetchedAt).toBe('2026-11-05')
     expect(payload.entitlement?.filteredModelCount).toBe(2)
     const keys = payload.catalog?.models.map(entry => `${entry.plan}:${entry.id}`)
-    expect(keys).not.toContain('zen:zen-only')
-    expect(keys).not.toContain('zen:shared')
+    expect(keys).not.toContain('console:zen-only')
+    expect(keys).not.toContain('console:shared')
     expect(keys).toContain('go:go-missing')
     expect(keys).toContain('go:shared')
     // 与 Go 账号同一顺序：不限量置顶 → 额度降序 → 表外沉底。
@@ -332,7 +332,7 @@ describe('目录路由的套餐口径', () => {
 describe('auto 端点策略真值表', () => {
   it('手选 zen / go 原样生效，与套餐无关', () => {
     for (const plan of ['payg', 'go', 'go-plus', 'go-teams', 'unknown'] as const) {
-      expect(effectiveEndpointPlan('zen', plan), plan).toBe('zen')
+      expect(effectiveEndpointPlan('console', plan), plan).toBe('console')
       expect(effectiveEndpointPlan('go', plan), plan).toBe('go')
     }
   })
@@ -341,7 +341,7 @@ describe('auto 端点策略真值表', () => {
     expect(effectiveEndpointPlan('auto', 'go')).toBe('go')
     expect(effectiveEndpointPlan('auto', 'go-plus')).toBe('go')
     expect(effectiveEndpointPlan('auto', 'go-teams')).toBe('go')
-    expect(effectiveEndpointPlan('auto', 'payg')).toBe('zen')
+    expect(effectiveEndpointPlan('auto', 'payg')).toBe('console')
   })
 
   it('auto + 未知套餐按 Go 端点，与目录口径一致', () => {

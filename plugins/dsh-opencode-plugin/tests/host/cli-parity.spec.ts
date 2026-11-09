@@ -11,14 +11,14 @@ import { apiFromPackage } from '../../src/host/catalog.ts'
  * 模型选出的协议族与官方一致，并覆盖「同一模型在两个 plan 协议不同」的场景。
  */
 const CLI_REFERENCE: ReadonlyArray<readonly [string, string, string]> = [
-  ['zen', 'grok-build-0.1', 'openai-responses'],
-  ['zen', 'grok-4.6', 'openai-responses'],
-  ['zen', 'claude-haiku-5-5', 'anthropic-messages'],
-  ['zen', 'qwen3.6-plus', 'anthropic-messages'],
-  ['zen', 'big-pickle', 'openai-completions'],
-  ['zen', 'minimax-m3', 'openai-completions'],
-  ['zen', 'minimax-m2.7', 'openai-completions'],
-  ['zen', 'qwen3.8-max', 'openai-completions'],
+  ['console', 'grok-build-0.1', 'openai-responses'],
+  ['console', 'grok-4.6', 'openai-responses'],
+  ['console', 'claude-haiku-5-5', 'anthropic-messages'],
+  ['console', 'qwen3.6-plus', 'anthropic-messages'],
+  ['console', 'big-pickle', 'openai-completions'],
+  ['console', 'minimax-m3', 'openai-completions'],
+  ['console', 'minimax-m2.7', 'openai-completions'],
+  ['console', 'qwen3.8-max', 'openai-completions'],
   ['go', 'grok-4.6', 'openai-responses'],
   ['go', 'claude-haiku-5-5', 'anthropic-messages'],
   ['go', 'minimax-m3', 'anthropic-messages'],
@@ -36,8 +36,8 @@ async function fixture(name: string): Promise<unknown> {
 describe('与官方 CLI 的协议映射对齐', () => {
   it('同一模型在两个 plan 的协议可以不同，各自独立解析', async () => {
     const catalog = await fixture('catalog.json')
-    const [zenRoster, goRoster] = await Promise.all([fixture('zen-models.json'), fixture('go-models.json')])
-    const models = buildCatalog({ catalog, zenRoster, goRoster }).models
+    const [consoleRoster, goRoster] = await Promise.all([fixture('zen-models.json'), fixture('go-models.json')])
+    const models = buildCatalog({ catalog, consoleRoster, goRoster }).models
     const pick = (plan: string, id: string): string | undefined =>
       models.find(model => model.plan === plan && model.id === id)?.api
     for (const [plan, id, api] of CLI_REFERENCE) {
@@ -47,17 +47,17 @@ describe('与官方 CLI 的协议映射对齐', () => {
 
   it('同一模型跨 plan 协议不同时，端点也各自正确', async () => {
     const catalog = await fixture('catalog.json')
-    const [zenRoster, goRoster] = await Promise.all([fixture('zen-models.json'), fixture('go-models.json')])
-    const models = buildCatalog({ catalog, zenRoster, goRoster }).models
+    const [consoleRoster, goRoster] = await Promise.all([fixture('zen-models.json'), fixture('go-models.json')])
+    const models = buildCatalog({ catalog, consoleRoster, goRoster }).models
     const find = (plan: string, id: string): (typeof models)[number] | undefined =>
       models.find(model => model.plan === plan && model.id === id)
-    expect(find('zen', 'minimax-m3')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
+    expect(find('console', 'minimax-m3')?.baseURL).toBe('https://opencode.ai/inference/openai/v1')
     expect(find('go', 'minimax-m3')?.baseURL).toBe('https://opencode.ai/inference/go/anthropic')
   })
 
   it('Console 的 aisdk 包名不会覆盖公开目录的逐模型 npm', async () => {
     const catalog = await fixture('catalog.json')
-    const [zenRoster, goRoster] = await Promise.all([fixture('zen-models.json'), fixture('go-models.json')])
+    const [consoleRoster, goRoster] = await Promise.all([fixture('zen-models.json'), fixture('go-models.json')])
     const consoleConfig = {
       providers: {
         opencode: {
@@ -67,8 +67,8 @@ describe('与官方 CLI 的协议映射对齐', () => {
         },
       },
     }
-    const models = buildCatalog({ catalog, consoleConfig, zenRoster, goRoster }).models
-    expect(models.find(model => model.plan === 'zen' && model.id === 'grok-build-0.1')?.api).toBe('openai-responses')
+    const models = buildCatalog({ catalog, consoleConfig, consoleRoster, goRoster }).models
+    expect(models.find(model => model.plan === 'console' && model.id === 'grok-build-0.1')?.api).toBe('openai-responses')
   })
 
   it('AI SDK 包名映射覆盖四种协议', () => {

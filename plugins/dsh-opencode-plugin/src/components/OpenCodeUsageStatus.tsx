@@ -176,7 +176,7 @@ export function OpenCodeUsageStatus({ t, timer, preferences, useProjection }: Op
 
   // 只显示与当前选中模型供应商匹配的图标。会话作用域座位的标准套件由渲染器
   // 保证存在，因此这里无条件调用 hook；投影缺失时判定按「读不到」处理。
-  // zen 与 go 都是本插件的模型，显隐只看供应商，不再按套餐前缀区分。
+  // console 与 go 都是本插件的模型，显隐只看供应商，不再按套餐前缀区分。
   const selected = useProjection('modelSelection') as ModelSelectionProjectionLike | undefined
   const provider = readSelectedProvider(selected)
   const wanted = usageCapsuleVisible({ visibility: preferenceValues.usageVisibility, provider })

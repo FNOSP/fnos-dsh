@@ -58,5 +58,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-048 | [OpenCode 登录授权页自动打开](/tests/FNOS-048-opencode-auto-authorize) | [PLAN-FNOS-048](/plans/PLAN-FNOS-048-opencode-auto-authorize) | 通过（待界面目视） | 15 条用例全部通过（0 失败 / 0 阻塞 / 0 未执行）：浏览器与 Desktop 两条开窗路径各有用例，Desktop 的 `null` 句柄语义单独钉住；真实上游实测授权地址自带 `user_code`；BUG-01（开窗未防御抛错）、BUG-02（复制失败文案错配）均为执行期发现并修复 |
 | FNOS-049 | [把 Codex Auth 与 Failover Search 移出 FPK 内置清单](/tests/FNOS-049-unbundle-plugins) | [PLAN-FNOS-049](/plans/PLAN-FNOS-049-unbundle-plugins) | 通过（待真机升级验证） | 10 条用例全部通过：清单只含 fnos 与 dshmarket、白名单收敛、FPK 产物不再内置两个插件；两插件仍在 npm 与市场索引；升级不卸载清单外插件由代码语义与既有用例保证 |
 | FNOS-050 | [fnOS 插件「依赖修复」](/tests/FNOS-050-dependency-repair) | [PLAN-FNOS-050](/plans/PLAN-FNOS-050-dependency-repair) | 部分通过（待真机） | 21 条用例 19 条通过、2 条真机写操作待执行：诊断只读性、清单外包不误判、可重建产物守卫、同源校验均已覆盖；BUG-01（断言用 filter 迁就实现）已修复 |
+| FNOS-051 | [模型思考能力与上下文对齐真实接口](/tests/FNOS-051-opencode-capability-alignment) | [PLAN-FNOS-051](/plans/PLAN-FNOS-051-opencode-capability-alignment) | 通过（待界面目视） | 11 条用例全部通过：账号清单 30/30 覆盖、`kimi-k3.1-pro` 实测 310,093 tokens、三档 reasoning 长度递增、toggle 型全 null；BUG-01（supported:false 误判）、BUG-02（测试取错 plan 条目）均修复 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

@@ -70,7 +70,7 @@ export interface OpenCodeModel {
   readonly compat?: Readonly<Record<string, unknown>>
   /** 图片输入的预处理限制（来自 pi-ai 内置目录；不透明透传）。 */
   readonly inputLimits?: Readonly<Record<string, unknown>>
-  /** 模型来源：`zen` 按量 或 `go` 套餐。 */
+  /** 模型来源：`console` 按量 或 `go` 套餐。 */
   readonly plan: OpenCodePlan
   /** 是否支持工具调用。 */
   readonly tools: boolean
@@ -84,7 +84,7 @@ export interface OpenCodeModel {
    */
   readonly releasedAt?: string
   /**
-   * 上游只允许官方 OpenCode 客户端调用的免费模型（Zen 免费额度走客户端身份校验，
+   * 上游只允许官方 OpenCode 客户端调用的免费模型（Console 免费额度走客户端身份校验，
    * 第三方客户端调用会得到 `FreeTierError`）。这类模型在目录里保留展示，
    * 但不进入模型选择器；Go 套餐内含的免费模型不受此限制。
    */
