@@ -258,6 +258,26 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
     expect(REPAIR_CARD).toContain('dependencyRepairHealthy')
   })
 
+  it('诊断在确认框之前：健康 profile 不该先看到破坏性警告', () => {
+    // 真机实测到的缺陷：原实现按钮直接 setConfirmOpen(true)，确认后才诊断，
+    // 于是健康 profile 也先弹「将清理依赖」，确认后又说「无需修复」。
+    // 现在按钮走 requestRepair（先诊断），确认框只在判出失效条目后才开。
+    const onClick = /onClick=\{\(\) => \{ void (\w+)\(\) \}\}/.exec(REPAIR_CARD)
+    expect(onClick?.[1]).toBe('requestRepair')
+    // 确认框的开合只由 requestRepair 内部（判出条目后）与取消/确认控制。
+    expect(REPAIR_CARD).toContain('setConfirmOpen(true)')
+    const requestBlock = REPAIR_CARD.slice(
+      REPAIR_CARD.indexOf('const requestRepair'),
+      REPAIR_CARD.indexOf('const repair ='),
+    )
+    expect(requestBlock).toContain('diagnoseDependencyRepair')
+    // 健康分支必须在 setConfirmOpen(true) 之前 return。
+    const healthyReturn = requestBlock.indexOf('entries.length === 0')
+    const openConfirm = requestBlock.indexOf('setConfirmOpen(true)')
+    expect(healthyReturn).toBeGreaterThan(-1)
+    expect(openConfirm).toBeGreaterThan(healthyReturn)
+  })
+
   it('中文文案里「检查」两键已随按钮一起移除', () => {
     const start = LOCALES.indexOf('export const zh')
     const zhBlock = LOCALES.slice(start)

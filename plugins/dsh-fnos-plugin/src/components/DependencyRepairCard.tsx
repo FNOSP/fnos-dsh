@@ -59,12 +59,18 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
   const [entries, setEntries] = useState<readonly DependencyRepairEntry[]>([])
   const [unavailable, setUnavailable] = useState(false)
 
-  const repair = useCallback(async () => {
-    setConfirmOpen(false)
+  /**
+   * 点「修复依赖」：先诊断，再决定要不要弹确认框。
+   *
+   * **顺序是关键**：确认框必须在诊断之后。反过来的话，健康的 profile 也会先看到
+   * 「将清理依赖」的破坏性警告，点确认后才被告知「无需修复」——用户被无谓地吓了
+   * 一次，还会怀疑按钮到底做了什么。
+   */
+  const requestRepair = useCallback(async () => {
     setPhase({ kind: 'running' })
     try {
-      // 先诊断：没有失效条目就不重建依赖——重建会清 lockfile 与 node_modules，
-      // 对一个本来就健康的 profile 做这件事纯属破坏。
+      // 诊断决定「要不要重建」：重建会清 lockfile 与 node_modules，对一个本来就
+      // 健康的 profile 做这件事纯属破坏。
       const diagnosis: DependencyRepairDiagnosis = await diagnoseDependencyRepair()
       if (!diagnosis.available) {
         setUnavailable(true)
@@ -78,8 +84,21 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
         setPhase({ kind: 'done', result: { ok: true, steps: [], removed: [], durationMs: 0 } })
         return
       }
+      // 确实有失效条目：展示出来并请用户确认。
       setUnavailable(false)
       setEntries(diagnosis.entries)
+      setPhase({ kind: 'idle' })
+      setConfirmOpen(true)
+    } catch (error) {
+      setPhase({ kind: 'error', message: describe(error) })
+    }
+  }, [])
+
+  /** 确认框点了「修复依赖」：执行重建。 */
+  const repair = useCallback(async () => {
+    setConfirmOpen(false)
+    setPhase({ kind: 'running' })
+    try {
       setPhase({ kind: 'done', result: await runDependencyRepair() })
     } catch (error) {
       setPhase({ kind: 'error', message: describe(error) })
@@ -118,7 +137,7 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
             type="primary"
             disabled={busy}
             loading={busy}
-            onClick={() => setConfirmOpen(true)}
+            onClick={() => { void requestRepair() }}
           >
             {busy ? t('dependencyRepairRunning') : t('dependencyRepairRun')}
           </DshButton>

@@ -87,6 +87,13 @@ export function registerDependencyRepairRoutes(ctx: Context): void {
             result: { ok: false, steps: [], removed: [], durationMs: 0, message: diagnosis.reason },
           })
         }
+        // 第二道防线：没有任何失效条目时不做重建。界面已经拦过一次，但这条
+        // 路由也可能被直接调用；对一个健康的 profile 清 lockfile 与 node_modules
+        // 是纯破坏，代价高且没有收益。
+        if (diagnosis.entries.length === 0) {
+          console.log('[dsh-fnos][dependency-repair] 无失效条目，跳过重建')
+          return send(res, 200, { ok: true, steps: [], removed: [], durationMs: 0 })
+        }
         const result = await runDependencyRepair(environment, diagnosis)
         console.log(`[dsh-fnos][dependency-repair] 修复结束 ok=${String(result.ok)} 步骤=${result.steps.map(step => `${step.id}:${step.status}`).join(',') || '无'}`)
         send(res, 200, result)
