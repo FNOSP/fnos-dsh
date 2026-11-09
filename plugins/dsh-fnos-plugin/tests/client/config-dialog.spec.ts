@@ -278,10 +278,14 @@ describe('fnOS 配置弹框', () => {
     expect(head).toMatch(/margin: 0;/)
   })
 
-  it('八种语言都有四个新文案键', () => {
+  it('两种语言都有四个新文案键', () => {
     expect(LOCALES).toContain("configDialogTitle: 'fnOS settings'")
     expect(LOCALES).toContain("configDialogTitle: '飞牛 OS 设置'")
     expect(LOCALES).toContain("configSectionDirectories: '授权目录'")
-    expect(LOCALES).toContain("configSectionRepair: '依赖修复'")
+    // 导航分组名与卡片标题统一到「插件安装」语境，不再叫「依赖修复」——
+    // 用户遇到的是「插件装不上」，不是「依赖坏了」。
+    expect(LOCALES).toContain("configSectionRepair: '插件安装修复'")
+    expect(LOCALES).toContain("dependencyRepairTitle: '修复插件安装异常'")
+    expect(LOCALES).toContain("dependencyRepairRun: '修复'")
   })
 })
