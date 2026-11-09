@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, IconRefreshOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DshIconFolder, DshModal, DshTree } from '@tnnevol/dsh-semi-ui'
+import { IconifyIcon } from './IconifyIcon.tsx'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { exportSessionLogToNas } from '../client/services/session-log-export-client.ts'
 import type { AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
@@ -188,15 +189,17 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
   // 在侧栏底部，占掉两个按钮位——都是低频动作，收进这里更划算。
   // 重启失败时把该行文案换成失败提示：菜单里不弹窗，否则会打断用户操作，
   // 但静默失败又等于没做——所以借这一行的标签承载结果。
+  // 重启用电源图标（lucide:power）：与「刷新」的循环箭头一眼可分。官方 primitives
+  // 里没有电源字形，Semi 的 IconRestart 实为「跳过/重播」，语义不符。
   const restartItem: MenuItem = restarting
-    ? { id: 'restart', label: t('webRestarting'), icon: <IconRefreshOutlineRegular />, disabled: true }
+    ? { id: 'restart', label: t('webRestarting'), icon: <IconifyIcon name="lucide:power" />, disabled: true }
     : {
         id: 'restart',
         label: restartFailed ? t('webRestartFailed') : t('webRestart'),
-        icon: <IconRefreshOutlineRegular />,
+        icon: <IconifyIcon name="lucide:power" />,
       }
   const menuItems: MenuItem[] = [
-    { id: 'refresh', label: t('refresh'), icon: <IconRefreshOutlineRegular /> },
+    { id: 'refresh', label: t('refresh'), icon: <IconifyIcon name="lucide:refresh-cw" /> },
     {
       id: 'download',
       label: t('sessionLogDownload'),

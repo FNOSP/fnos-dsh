@@ -131,6 +131,7 @@
     "@deepseek-ai/dsh-session-log-export": "catalog:dsh",
     "@deepseek-ai/dsh-settings": "catalog:dsh",
     "@deepseek-ai/schemastery": "catalog:",
+    "@iconify-json/lucide": "catalog:",
     "@tnnevol/dsh-semi-ui": "workspace:*",
     "@trimjs/web-app": "catalog:",
     "@tsdown/css": "catalog:",
