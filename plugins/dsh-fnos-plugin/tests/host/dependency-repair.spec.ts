@@ -1,4 +1,5 @@
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -202,5 +203,43 @@ describe('可重建产物守卫', () => {
     expect(isRebuildableArtifact('/x/node_modules')).toBe(true)
     expect(isRebuildableArtifact('/x/.dsh-opencode-auth.json')).toBe(false)
     expect(isRebuildableArtifact('/x/sessions')).toBe(false)
+  })
+})
+
+/**
+ * 日志可观测性。
+ *
+ * 这个功能会删 `node_modules` 并重装依赖，用户报「点了没反应」时只能靠日志区分
+ * 三种情况：请求没到、到了但判定为健康、命令执行失败。因此诊断判定与每步命令
+ * 都必须留痕，且前缀统一，便于在宿主输出里检索。
+ */
+describe('依赖修复日志', () => {
+  // 源码断言用同步读取：describe 回调不是 async，不能在里面 await。
+  const source = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
+  const HOST = source('../../src/host/dependency-repair.ts')
+  const ROUTES = source('../../src/host/dependency-repair-routes.ts')
+
+  it('统一前缀，可被检索', () => {
+    expect(HOST).toContain("const LOG_PREFIX = '[dsh-fnos][dependency-repair]'")
+  })
+
+  it('诊断输出判定依据（豁免条数、清单目标、失效条数）', () => {
+    expect(HOST).toMatch(/diagnose: profile=.*豁免=.*条.*清单目标=.*个.*失效=.*条/s)
+  })
+
+  it('每条失效条目单独一行，含原因与目标版本', () => {
+    expect(HOST).toContain('diagnose: 失效')
+    expect(HOST).toContain('entry.reason')
+  })
+
+  it('修复的每一步都记录命令与退出码', () => {
+    expect(HOST).toContain('repair: clean 退出码=')
+    expect(HOST).toContain('repair: install 退出码=')
+    expect(HOST).toContain('repair: reinstall 退出码=')
+  })
+
+  it('路由入口记录请求到达，区分「没触发」与「判定为健康」', () => {
+    expect(ROUTES).toContain('请求到达')
+    expect(ROUTES).toContain('修复结束')
   })
 })

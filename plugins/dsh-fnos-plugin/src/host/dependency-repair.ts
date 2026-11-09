@@ -213,6 +213,20 @@ async function readJsonIfExists(path: string): Promise<unknown> {
   }
 }
 
+/** 诊断/修复的统一日志前缀，便于在 `pnpm.log` 与宿主输出里检索。 */
+const LOG_PREFIX = '[dsh-fnos][dependency-repair]'
+
+/**
+ * 输出一条诊断日志。
+ *
+ * 这个功能会删 `node_modules` 并重装依赖，出问题时只能靠日志还原「它到底做了
+ * 什么」。因此诊断的判定依据、命中的条目、每步命令与退出码都要留痕——用户报
+ * 「点了没反应」时，日志能区分「没触发」「判定为健康」「命令失败」三种情况。
+ */
+function log(message: string): void {
+  console.log(`${LOG_PREFIX} ${message}`)
+}
+
 /**
  * 只读诊断：列出失效的豁免条目。
  *
@@ -225,18 +239,25 @@ export async function diagnoseDependencyRepair(
   environment: DependencyRepairEnvironment | undefined,
 ): Promise<DependencyRepairDiagnosis> {
   if (environment === undefined) {
+    log('diagnose: fnos-host-unavailable（未读到 DSH_HOME/应用目录）')
     return { available: false, reason: 'fnos-host-unavailable', entries: [] }
   }
   const workspacePath = join(environment.profileDirectory, 'pnpm-workspace.yaml')
   const text = await readTextIfExists(workspacePath)
   if (text === undefined) {
+    log(`diagnose: profile-missing（无 ${workspacePath}）`)
     return { available: false, reason: 'profile-missing', entries: [], profileDirectory: environment.profileDirectory }
   }
   const manifest = environment.manifestPath === undefined
     ? undefined
     : await readJsonIfExists(environment.manifestPath)
   const exclusions = parseExclusions(text)
-  const entries = findStaleExclusions(exclusions, targetVersionsFromManifest(manifest))
+  const targets = targetVersionsFromManifest(manifest)
+  const entries = findStaleExclusions(exclusions, targets)
+  log(`diagnose: profile=${environment.profileDirectory} 豁免=${exclusions.length} 条 清单目标=${Object.keys(targets).length} 个 失效=${entries.length} 条`)
+  for (const entry of entries) {
+    log(`diagnose: 失效 ${entry.name}@${entry.range}（${entry.reason}${entry.targetVersion === undefined ? '' : ` → ${entry.targetVersion}`}）`)
+  }
   return { available: true, entries, profileDirectory: environment.profileDirectory }
 }
 
@@ -328,6 +349,7 @@ export async function runDependencyRepair(
 ): Promise<DependencyRepairResult> {
   const startedAt = Date.now()
   if (environment === undefined || !diagnosis.available) {
+    log(`repair: 跳过（${diagnosis.reason ?? 'fnos-host-unavailable'}）`)
     return {
       ok: false,
       steps: [],
@@ -338,43 +360,55 @@ export async function runDependencyRepair(
   }
   const steps: DependencyRepairStep[] = []
   const workspacePath = join(environment.profileDirectory, 'pnpm-workspace.yaml')
+  log(`repair: 开始 profile=${environment.profileDirectory} 待清=${diagnosis.entries.length} 条`)
 
   // 第一步：清失效条目。
   let removed: readonly DependencyRepairEntry[] = []
   try {
     const text = await readTextIfExists(workspacePath)
     if (text === undefined) {
+      log('repair: clear-exclusions 失败（profile-missing）')
       steps.push({ id: 'clear-exclusions', status: 'failed', detail: 'profile-missing' })
       return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: 'profile-missing' }
     }
     const result = removeExclusionLines(text, diagnosis.entries)
     removed = diagnosis.entries
     if (result.removedLines > 0) await writeFileAtomic(workspacePath, result.text)
+    log(`repair: clear-exclusions 完成，删除 ${result.removedLines} 行`)
     steps.push({ id: 'clear-exclusions', status: 'ok', detail: `${result.removedLines}` })
   } catch (error) {
+    log(`repair: clear-exclusions 失败 ${describe(error)}`)
     steps.push({ id: 'clear-exclusions', status: 'failed', detail: describe(error) })
     return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: describe(error) }
   }
 
   const pnpmBin = environment.pnpmBin
   if (pnpmBin === undefined) {
+    log('repair: rebuild 失败（pnpm-missing）')
     steps.push({ id: 'rebuild', status: 'failed', detail: 'pnpm-missing' })
     return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: 'pnpm-missing' }
   }
 
   // 第二步：重建依赖。`pnpm clean --lockfile` 负责删两个可重建产物，
   // 它自带 basename 校验，比本模块自己删更安全。
+  log(`repair: rebuild 开始 ${pnpmBin} clean --lockfile`)
   const clean = await run(pnpmBin, ['clean', '--lockfile', '--config.minimum-release-age=0'], environment.profileDirectory, DEPENDENCY_REPAIR_COMMAND_TIMEOUT_MS)
+  log(`repair: clean 退出码=${clean.code}`)
   if (clean.code !== 0) {
+    log(`repair: rebuild 失败（clean=${clean.code}）${clean.output.slice(-300)}`)
     steps.push({ id: 'rebuild', status: 'failed', detail: clean.output.slice(-500) })
     return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: 'rebuild-failed' }
   }
+  log(`repair: rebuild 开始 ${pnpmBin} install`)
   const install = await run(pnpmBin, ['install', '--config.minimum-release-age=0'], environment.profileDirectory, DEPENDENCY_REPAIR_COMMAND_TIMEOUT_MS)
+  log(`repair: install 退出码=${install.code}`)
   if (install.code !== 0) {
+    log(`repair: rebuild 失败（install=${install.code}）${install.output.slice(-300)}`)
     steps.push({ id: 'rebuild', status: 'failed', detail: install.output.slice(-500) })
     return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: 'rebuild-failed' }
   }
   steps.push({ id: 'rebuild', status: 'ok' })
+  log('repair: rebuild 完成')
 
   // 第三步：把发布清单里的插件装回来。清单外的插件不碰——那是用户自己的选择。
   const targets = environment.manifestPath === undefined
@@ -382,21 +416,27 @@ export async function runDependencyRepair(
     : targetVersionsFromManifest(await readJsonIfExists(environment.manifestPath))
   const packages = Object.entries(targets)
   if (environment.dshBin === undefined || packages.length === 0) {
-    steps.push({ id: 'reinstall', status: 'skipped', detail: environment.dshBin === undefined ? 'dsh-missing' : 'no-managed-plugins' })
+    const detail = environment.dshBin === undefined ? 'dsh-missing' : 'no-managed-plugins'
+    log(`repair: reinstall 跳过（${detail}）`)
+    steps.push({ id: 'reinstall', status: 'skipped', detail })
     return { ok: true, steps, removed, durationMs: Date.now() - startedAt }
   }
   const specs = packages.map(([name, version]) => `${name}@${version}`)
+  log(`repair: reinstall 开始 ${specs.join(' ')}`)
   const add = await run(
     environment.dshBin,
     ['plugin', '--profile', 'web', 'add', ...specs, '--config.minimum-release-age=0'],
     environment.profileDirectory,
     DEPENDENCY_REPAIR_COMMAND_TIMEOUT_MS,
   )
+  log(`repair: reinstall 退出码=${add.code}`)
   if (add.code !== 0) {
+    log(`repair: reinstall 失败 ${add.output.slice(-300)}`)
     steps.push({ id: 'reinstall', status: 'failed', detail: add.output.slice(-500) })
     return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: 'reinstall-failed' }
   }
   steps.push({ id: 'reinstall', status: 'ok', detail: specs.join(' ') })
+  log(`repair: 完成，耗时 ${Date.now() - startedAt}ms`)
   return { ok: true, steps, removed, durationMs: Date.now() - startedAt }
 }
 

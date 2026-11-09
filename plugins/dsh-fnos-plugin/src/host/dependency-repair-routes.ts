@@ -57,8 +57,13 @@ export function registerDependencyRepairRoutes(ctx: Context): void {
       if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
       if (req.method !== 'POST' && req.method !== 'GET') return send(res, 405, { error: 'method-not-allowed' })
       try {
-        send(res, 200, await diagnoseDependencyRepair(resolveRepairEnvironment()))
+        const diagnosis = await diagnoseDependencyRepair(resolveRepairEnvironment())
+        // 入口日志：用户报「点了没反应」时，先由这一行区分「请求没到」与「到了但
+        // 判定为健康」。判定明细在 diagnoseDependencyRepair 内部输出。
+        console.log(`[dsh-fnos][dependency-repair] ${FNOS_DEPENDENCY_REPAIR_DIAGNOSE_ROUTE} available=${String(diagnosis.available)} stale=${diagnosis.entries.length}`)
+        send(res, 200, diagnosis)
       } catch (error) {
+        console.warn('[dsh-fnos][dependency-repair] diagnose 失败', error)
         send(res, 500, { error: 'fnos-dependency-repair-diagnose-failed', message: describe(error) })
       }
     },
@@ -75,14 +80,18 @@ export function registerDependencyRepairRoutes(ctx: Context): void {
         // 修复前先重跑一次诊断：界面上的结果可能已经过期（用户在这期间装过插件，
         // 或清单更新过）。以当下的失效条目为准，避免删掉仍然有效的豁免。
         const diagnosis = await diagnoseDependencyRepair(environment)
+        console.log(`[dsh-fnos][dependency-repair] ${FNOS_DEPENDENCY_REPAIR_RUN_ROUTE} 请求到达 available=${String(diagnosis.available)} stale=${diagnosis.entries.length}`)
         if (!diagnosis.available) {
           return send(res, 503, {
             error: diagnosis.reason ?? 'fnos-host-unavailable',
             result: { ok: false, steps: [], removed: [], durationMs: 0, message: diagnosis.reason },
           })
         }
-        send(res, 200, await runDependencyRepair(environment, diagnosis))
+        const result = await runDependencyRepair(environment, diagnosis)
+        console.log(`[dsh-fnos][dependency-repair] 修复结束 ok=${String(result.ok)} 步骤=${result.steps.map(step => `${step.id}:${step.status}`).join(',') || '无'}`)
+        send(res, 200, result)
       } catch (error) {
+        console.warn('[dsh-fnos][dependency-repair] 修复失败', error)
         send(res, 500, { error: 'fnos-dependency-repair-failed', message: describe(error) })
       }
     },
