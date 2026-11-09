@@ -28,7 +28,25 @@ describe('fnOS 配置弹框', () => {
   it('先关菜单再开弹框（避免 portaled 浮层抢焦点）', () => {
     const open = ENTRY.slice(ENTRY.indexOf('const openConfig'), ENTRY.indexOf('return ('))
     expect(open).toContain('onDismiss?.()')
-    expect(open.indexOf('onDismiss?.()')).toBeLessThan(open.indexOf('setOpen(true)'))
+    expect(open.indexOf('onDismiss?.()')).toBeLessThan(open.indexOf('configDialogStore.set(true)'))
+  })
+
+  it('弹框挂在 shell.overlay，不在菜单子树里', () => {
+    // 实测踩过：菜单选中后会关闭并卸载整棵子树，弹框若挂在那里面，打开状态
+    // 会随卸载一起丢失——DOM 无新增、也不报错，最难查的那种失败。
+    expect(ENTRY).not.toContain('FnosConfigDialog')
+    const INDEX = read('../../src/client/index.ts')
+    expect(INDEX).toContain("ctx.slots.inject('shell.overlay'")
+    expect(INDEX).toContain("id: 'dsh-fnos-config-dialog'")
+    expect(INDEX).toContain('FnosConfigOverlay')
+  })
+
+  it('开关状态走模块级 store，与菜单生命周期无关', () => {
+    const STORE = read('../../src/client/config-dialog-store.ts')
+    expect(STORE).toContain('createConfigDialogStore')
+    expect(STORE).toContain('useSyncExternalStore')
+    // 不引入额外 store 依赖：仓库已有 useSyncExternalStore 先例。
+    expect(STORE).not.toContain("@deepseek-ai/dsh-client-store")
   })
 
   it('左侧菜单 + 右侧主体，两个分组', () => {

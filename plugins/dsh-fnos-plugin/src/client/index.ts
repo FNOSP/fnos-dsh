@@ -28,6 +28,7 @@ import { FnosAuthorizedPathPanel } from '../components/FnosAuthorizedPathPicker.
 import { FnosOpenInHeaderAction } from '../components/FnosOpenInHeaderAction.tsx'
 import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAction.tsx'
 import { FnosConfigMenuEntry } from '../components/FnosConfigMenuEntry.tsx'
+import { FnosConfigOverlay } from '../components/FnosConfigOverlay.tsx'
 import { FNOS_OPEN_IN_APP_SEAT, FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
 import { createPickerOpenStore } from './input-references/picker-store.ts'
 import { insertFnosReferences } from './input-references/input-reference-actions.ts'
@@ -247,6 +248,16 @@ export function apply(ctx: ClientContext): void {
     locale: namespace,
     inject: () => ({ t }),
   }, (props: { onDismiss?: () => void }) => FnosConfigMenuEntry({ ...props, t })))
+  /**
+   * 配置弹框本体挂在 `shell.overlay`（官方挂 portal 弹框的槽位），不挂在菜单项的
+   * 子树里：菜单选中后会关闭并卸载整棵子树，弹框的可见状态会随之丢失。
+   */
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'dsh-fnos-config-dialog',
+    locale: namespace,
+    inject: () => ({ t }),
+  }, FnosConfigOverlay))
 
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left',

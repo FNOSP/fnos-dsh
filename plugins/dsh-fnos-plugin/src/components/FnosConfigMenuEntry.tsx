@@ -12,11 +12,11 @@
  * @module dsh-fnos/components/FnosConfigMenuEntry
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { FnosLocaleKey } from '../client/locales.ts'
+import { configDialogStore } from '../client/config-dialog-store.ts'
 import { IconifyIcon } from './IconifyIcon.tsx'
-import { FnosConfigDialog } from './FnosConfigDialog.tsx'
 
 type Translate = (key: FnosLocaleKey) => string
 
@@ -35,24 +35,21 @@ export interface FnosConfigMenuEntryProps {
  * @returns 一行菜单项 + 配置弹框。
  */
 export function FnosConfigMenuEntry({ onDismiss, t }: FnosConfigMenuEntryProps): React.ReactNode {
-  const [open, setOpen] = useState(false)
-
   const openConfig = useCallback(() => {
     // 先关菜单再开弹框：菜单是 portaled 浮层，留着会和弹框抢焦点。
+    // 弹框本身挂在 shell.overlay（见 config-dialog-store 的说明），不在这棵子树里，
+    // 因此菜单卸载不会连带它的可见状态。
     onDismiss?.()
-    setOpen(true)
+    configDialogStore.set(true)
   }, [onDismiss])
 
   return (
-    <>
-      <MenuItemButton
-        separatorBefore
-        icon={<IconifyIcon name="lucide:settings-2" />}
-        onSelect={openConfig}
-      >
-        {t('configMenuEntry')}
-      </MenuItemButton>
-      <FnosConfigDialog visible={open} onClose={() => { setOpen(false) }} t={t} />
-    </>
+    <MenuItemButton
+      separatorBefore
+      icon={<IconifyIcon name="lucide:settings-2" />}
+      onSelect={openConfig}
+    >
+      {t('configMenuEntry')}
+    </MenuItemButton>
   )
 }
