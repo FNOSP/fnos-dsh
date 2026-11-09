@@ -24,6 +24,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   sessionLogDownload: 'セッションログをダウンロード',
   sessionLogExportComputer: 'コンピューターにエクスポート',
   sessionLogExportNas: 'NAS にエクスポート',
+  sessionLogCopyMarkdown: 'セッションを Markdown としてコピー',
   sessionLogFeedback: 'フィードバック',
   openInFnos: 'fnOS で開く',
   openInFnosMenu: 'fnOS のファイル操作',

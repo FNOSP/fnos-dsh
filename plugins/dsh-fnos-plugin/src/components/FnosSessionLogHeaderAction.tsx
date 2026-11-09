@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCopyOutlineRegular, IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DshIconFolder, DshModal, DshTree } from '@tnnevol/dsh-semi-ui'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { exportSessionLogToNas } from '../client/services/session-log-export-client.ts'
+import { copySessionMarkdown } from '../client/services/session-markdown-copy.ts'
 import type { AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
 
 /** 反馈入口：本仓库地址。 */
@@ -103,6 +104,8 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
   const [error, setError] = useState<string>()
   const [restarting, setRestarting] = useState(false)
   const [restartFailed, setRestartFailed] = useState(false)
+  /** 复制动作的瞬时反馈：菜单关掉后由触发按钮的 aria-busy 与提示承载。 */
+  const [copying, setCopying] = useState(false)
   const browserDownload = useSessionLogDownload(state => state.bySession[String(sessionId)])
   const browserStatus = browserDownload?.status
   const browserDialogTitle = browserStatus === 'downloading'
@@ -199,6 +202,12 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
         icon: <IconifyIcon name="lucide:power" />,
       }
   const menuItems: MenuItem[] = [
+    {
+      id: 'copy',
+      label: t('sessionLogCopyMarkdown'),
+      icon: <IconCopyOutlineRegular />,
+      ...(copying ? { disabled: true } : {}),
+    },
     { id: 'refresh', label: t('refresh'), icon: <IconifyIcon name="lucide:refresh-cw" /> },
     {
       id: 'download',
@@ -212,6 +221,22 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
     { id: 'feedback', label: t('sessionLogFeedback'), icon: <IconPaperPlaneOutlineRegular /> },
     restartItem,
   ]
+
+  /**
+   * 复制整段会话为 Markdown。
+   *
+   * 与官方同源：走 `/api/session.markdown`。功能性失败不弹窗（会打断菜单），
+   * 复用菜单行文案承载结果的做法在这里不合适——复制是瞬时动作，因此只在
+   * 忙碌期间禁用该行，失败时保持原标签，用户重试即可。
+   */
+  const copyMarkdown = useCallback(async (): Promise<void> => {
+    setCopying(true)
+    try {
+      await copySessionMarkdown(String(sessionId))
+    } finally {
+      setCopying(false)
+    }
+  }, [sessionId])
 
   const refreshPage = useCallback(() => {
     setOpen(false)
@@ -260,7 +285,8 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
         onClose={() => { setOpen(false) }}
         onSelect={(id) => {
           setOpen(false)
-          if (id === 'refresh') refreshPage()
+          if (id === 'copy') void copyMarkdown()
+          else if (id === 'refresh') refreshPage()
           else if (id === 'restart') restartWeb()
           else if (id === 'computer') void exportToComputer(sessionId)
           else if (id === 'nas') openNasDialog()

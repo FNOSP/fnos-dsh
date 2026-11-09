@@ -24,6 +24,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   sessionLogDownload: '세션 로그 다운로드',
   sessionLogExportComputer: '컴퓨터로 내보내기',
   sessionLogExportNas: 'NAS로 내보내기',
+  sessionLogCopyMarkdown: '세션을 Markdown으로 복사',
   sessionLogFeedback: '피드백',
   openInFnos: 'fnOS에서 열기',
   openInFnosMenu: 'fnOS 파일 작업',

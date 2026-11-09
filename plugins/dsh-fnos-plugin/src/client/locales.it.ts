@@ -20,6 +20,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   sessionLogDownload: 'Scarica log di sessione',
   sessionLogExportComputer: 'Esporta sul computer',
   sessionLogExportNas: 'Esporta sul NAS',
+  sessionLogCopyMarkdown: 'Copia la sessione come Markdown',
   sessionLogFeedback: 'Feedback',
   openInFnos: 'Apri in fnOS',
   openInFnosMenu: 'Azioni sui file di fnOS',
