@@ -65,7 +65,7 @@ describe('合并供应商的模型投影', () => {
       async () => 'token',
     )
     expect(provider.id).toBe(OPENCODE_PROVIDER)
-    expect(provider.name).toBe('OpenCode')
+    expect(provider.name).toBe('OpenCode Console')
     expect(provider.getModels().map(entry => entry.id)).toEqual(['zen:on'])
   })
 
@@ -136,7 +136,7 @@ describe('pi-ai 适配器集成', () => {
     expect(await adapter.listModels(OPENCODE_PROVIDER)).toEqual([])
     token = 'token'
     expect((await adapter.listModels(OPENCODE_PROVIDER)).map(entry => entry.id)).toEqual(['zen:a', 'go:b'])
-    expect(adapter.providerInfo(OPENCODE_PROVIDER).name).toBe('OpenCode')
+    expect(adapter.providerInfo(OPENCODE_PROVIDER).name).toBe('OpenCode Console')
   })
 
   it('resolveModelInfo 暴露思考等级、图片输入与上下文窗口', async () => {

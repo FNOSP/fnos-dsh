@@ -18,8 +18,19 @@ export type OpenCodePlan = 'zen' | 'go'
 
 /** 本插件注册的唯一供应商路由。 */
 export const OPENCODE_PROVIDER = 'dsh-opencode'
-/** 模型选择器与设置页显示的供应商名称。 */
-export const OPENCODE_PROVIDER_NAME = 'OpenCode'
+/**
+ * 模型选择器与设置页显示的供应商名称。
+ *
+ * 用 `OpenCode Console` 而不是 `OpenCode`：OpenCode 官方已把按量通道并入 Console
+ * 品牌（`opencode.ai/zen` 与 `/docs/zen` 均 302 到 `/console/models`），而 DSH 内置
+ * 的两个 provider 分别叫 `OpenCode Zen` 与 `OpenCode Go`。叫 `OpenCode` 会与这两个
+ * 混淆，用户看不出它对应 Console 账号。
+ *
+ * 注意：这里只改**显示名**。provider id 仍是 `dsh-opencode`、plan 标识仍是
+ * `zen` / `go`、模型 id 前缀与 `· zen` 后缀都不变——那些是用户已保存的隐藏模型
+ * 偏好与历史会话的键，改名会让旧记录失配。
+ */
+export const OPENCODE_PROVIDER_NAME = 'OpenCode Console'
 
 /** 模型 id 的 plan 前缀：保证合并后同一模型的两组条目 id 唯一。 */
 export const OPENCODE_PLAN_PREFIXES: Readonly<Record<OpenCodePlan, string>> = {
