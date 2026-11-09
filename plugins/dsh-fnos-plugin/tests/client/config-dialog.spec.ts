@@ -93,8 +93,9 @@ describe('fnOS 配置弹框', () => {
     expect(block).toContain('--dsw-alias-interactive-bg-hover')
     expect(block).toContain('--dsw-alias-label-primary')
     // 右侧独立滚动，不把弹框撑到视口外。
-    expect(block).toContain('max-height')
     expect(block).toContain('overflow-y: auto')
+    // 高度上限在弹框本体上（max-height 由 content 承担）。
+    expect(SCSS).toContain('max-height: calc(100vh - 48px)')
   })
 
   it('蒙层是暗色，且用 !important 压过 Semi 的规则', () => {
@@ -108,12 +109,19 @@ describe('fnOS 配置弹框', () => {
     expect(mask).toContain('--semi-color-overlay-bg')
   })
 
-  it('左右间距收窄，且不再用竖线分隔', () => {
-    const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body'), SCSS.indexOf('.dsh-fnos-config-nav {'))
-    expect(body).toContain('gap: 10px')
+  it('左右间距对齐官方：菜单 188 + 右列 24 内边距，不用竖线分隔', () => {
     const nav = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-nav {'), SCSS.indexOf('.dsh-fnos-config-nav-item'))
+    // 官方 nav 实测 `10px 12px 0`，12 让菜单项盒子从 12 起算。
+    expect(nav).toContain('flex: 0 0 188px')
+    expect(nav).toContain('padding: 10px 12px 0')
+    // 官方相邻项间距 4。
+    expect(nav).toContain('gap: 4px')
     expect(nav).not.toContain('border-right')
-    expect(nav).not.toContain('margin-right')
+    const panel = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-panel {'))
+    const panelRule = panel.slice(0, panel.indexOf('}'))
+    // 右列内容左沿 = 188 + 24 = 212，与官方 options 的 padding-left 一致；
+    // 下 24 同官方；右 24 不把滚动条推到中间（滚动条画在本元素右边缘＝弹框右沿）。
+    expect(panelRule).toContain('padding: 0 24px 24px')
   })
 
   it('左侧菜单项带图标，图标与文字横排居中', () => {
@@ -167,33 +175,34 @@ describe('fnOS 配置弹框', () => {
     expect(panel.slice(0, panel.indexOf('}'))).toContain('scrollbar-gutter: stable')
   })
 
-  it('垂直留白只在 semi-modal-body 上设置一次', () => {
+  it('semi-modal-body 不留内边距，高度全部交给两列', () => {
     const shellBody = SCSS.slice(
       SCSS.indexOf('.semi-modal-content.dsh-fnos-config-dialog .semi-modal-body {'),
       SCSS.indexOf('.semi-modal-content.dsh-fnos-config-dialog .semi-modal-body {') + 400,
     )
-    // 弹框内的上下留白由这一层统一提供；左 0 让标题与左列导航共用 content 的 24px，
-    // 右 0 让右列滚动条贴边。
-    expect(shellBody).toContain('padding: 10px 0')
+    // Semi 默认给 body 24px 上下外边距，会让内容收缩；归零后 746 全部分给两列，
+    // 左右缩进分别由 header（标题 24）与 nav（12+12）自己提供。
+    expect(shellBody).toContain('padding: 0')
+    expect(shellBody).toContain('margin: 0')
     expect(shellBody).toContain('flex: 1 1 auto')
     expect(shellBody).toContain('min-height: 0')
   })
 
-  it('header 高度可由「上内边距 + 标题行高 + 下内边距」加出，无幻影空隙', () => {
+  it('header 54 高，标题左沿 24 与官方一致', () => {
     const headerRule = SCSS.slice(
       SCSS.indexOf('.semi-modal-content.dsh-fnos-config-dialog .semi-modal-header {'),
     )
     const rule = headerRule.slice(0, headerRule.indexOf('}'))
-    // 20 + 24（标题行高 18px/24）+ 10 = 54，与官方 header 等高，
-    // 内容盒正好等于标题行高，不再有 2px 无主空隙。
-    expect(rule).toContain('padding: 20px 24px 10px 0')
-    expect(rule).toContain('min-height: 54px')
-    // 用 min-height 而非固定 height：标题换行时 header 可以长高，
-    // 由 body 的 flex 收缩吸收，而不是把标题裁掉。
-    // 用 `\n  height:` 定位，避免把 `min-height: 54px` 误判成固定高度。
-    expect(rule).not.toMatch(/^\s*height:/m)
+    // 22 + 24（标题行高）+ 8 = 54，内容盒正好等于行高，无幻影空隙。
+    expect(rule).toContain('padding: 22px 12px 8px 24px')
+    expect(rule).toContain('height: 54px')
     // Semi 默认给 header 24px 外边距，归零才能让标题从顶部内边距开始。
     expect(rule).toContain('margin: 0')
+    // 标题字号取官方 navTitle 实测值 16/24，此前用了 18。
+    const title = SCSS.slice(SCSS.indexOf('.semi-modal-content.dsh-fnos-config-dialog .semi-modal-title {'))
+    const titleRule = title.slice(0, title.indexOf('}'))
+    expect(titleRule).toContain('font-size: 16px')
+    expect(titleRule).toContain('line-height: 24px')
   })
 
   it('弹框在视口里垂直居中（Semi 默认只给固定 80px 顶距）', () => {

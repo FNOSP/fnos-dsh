@@ -983,50 +983,71 @@ body[data-dsh-semi-theme] .semi-modal {
 }
 
 /*
- * fnOS 配置弹框：左侧菜单 + 右侧主体。
+ * fnOS 配置弹框：左侧菜单 + 右侧主体，尺寸与间距全部对齐官方设置面板。
  *
- * 形态与尺寸对齐官方设置弹框（实测 800×800、内容区 padding 0 24px）。用 DSH
- * 语义变量而不是写死颜色：亮暗主题都要能读，且宿主换肤后不用改这里。
+ * ## 各项数值的来源
  *
- * **宽高固定**：切换分组时两个面板的内容高度不同（授权目录长、依赖修复短），
- * 用 `min-height` 会让弹框跟着内容跳——实测从 360px 跳到内容高度，观感上像
- * 弹框在抖。这里给主体一个固定高度，内容多的由右侧自己滚动。
+ * 官方设置面板（`[class*=VOzbGW_panel]`）实测是 **2×2 grid**：
  *
- * **本层不带内边距**：弹框内的垂直留白统一由 `.semi-modal-body` 提供（上下 10），
- * 左右由 `.semi-modal-content` 的 24px 提供。此前的 `padding: 10px 0` 与父层叠加
- * 会把 10px 算两遍，标题下方实际得到 20px，与按 padding 推算的 10px 不符。
- * 去掉后高度只剩「弹框高 − header」，本层内容盒与右列同一尺寸，位置可纯靠加法推出。
+ * ```
+ * grid-template: "188px 612px" / "54px 746px"
+ * ┌───────────────┬──────────────────────────┐
+ * │ 标题 188×54    │ 头部（关闭按钮）612×54      │
+ * ├───────────────┼──────────────────────────┤
+ * │ 菜单 188×746   │ 内容 612×746              │
+ * └───────────────┴──────────────────────────┘
+ * ```
+ *
+ * Semi 的 DOM 是 `header` 上、`body` 下两段，没有「标题只占左列」这个结构，所以
+ * 这里不去复刻 grid，而是用内边距把**每条边对齐到同一个数**——结果等价，且不必
+ * 自己接管 Semi 的 header/body 渲染：
+ *
+ * | 位置 | 官方值 | 本实现 |
+ * | --- | --- | --- |
+ * | 标题文字左沿 | 24（navTitle padding-left 24） | 24（header padding-left 24） |
+ * | 菜单项图标左沿 | 24（nav 12 + item 12） | 24（nav 12 + item 12） |
+ * | 菜单项盒子左沿 | 12 | 12 |
+ * | 右列内容左沿 | 188 + 24 = 212 | 188 + 24 = 212 |
+ * | 菜单项高 | 40（padding 9/16/9/12，圆角 12） | 同 |
+ * | 菜单项间距 | 4（94→138） | 4 |
+ *
+ * 三条关键对齐关系（此前都没对上）：
+ *
+ * 1. **标题与菜单图标同为 24**：标题走 header 的 padding-left，菜单走
+ *    「nav 12 + item 12」。之前菜单项从 24 起算再叠 10px 内边距，图标落在 34，
+ *    比标题右移 10px。
+ * 2. **菜单项盒子从 12 起算**：官方 navCell 的 x 是面板 x + 12，盒子宽 164；
+ *    之前是贴着 24 起算、宽 183，观感上整列偏右且过宽。
+ * 3. **右列内容左沿 212**：由「菜单 188 + 右列 padding 24」加出，与官方 options
+ *    的 padding-left 24 一致。
+ *
+ * 高度累加（弹框 800）：header 54 + body 746 = 800；body 不留内边距，菜单与右列
+ * 直接吃满 746，切换分组时高度不变。
  */
-.dsh-fnos-config-body {
-  display: flex;
-  gap: 10px;
-  /*
-    高度由父级 flex 撑开（800 − 54 − 上下 20 = 726）。
-    切换分组时高度不变，因为容器高度固定、内容在右侧自己滚动。
-    `min-height: 0` 是 flex 子项能收缩并触发内部滚动的必要条件。
-  */
-  height: 100%;
-  min-height: 0;
-  max-height: none;
-  box-sizing: border-box;
-}
 
-/*
- * 右侧主体自己滚动，不把弹框撑高。
- *
- * `scrollbar-gutter: stable` 让无滚动内容时也预留滚动条槽位，切换分组时右缘
- * 不会因为「有没有滚动条」而左右跳 15px。
- */
-.dsh-fnos-config-panel {
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+/* 弹框内容：去掉给 header/body 的内边距，左右缩进改由各段自己控制。 */
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
+  border: none;
+  box-shadow:
+    0 12px 32px rgb(0 0 0 / 14%),
+    0 32px 80px rgb(0 0 0 / 18%);
+  /* 左右内边距归零：标题与菜单各自的 24 由 header / nav 的内边距提供。
+     之前这里给 24，再叠 nav 与 item 的缩进，整列被推右。 */
+  padding: 0;
+  height: 800px;
+  max-height: calc(100vh - 48px);
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 /*
  * 宽度固定，但在窄屏上不溢出。
  *
- * `width={880}` 是行内样式，Semi 给到 `.semi-modal`；视口不够时会横向溢出，
- * 用 `max-width` 兜住。`contentClassName` 让本类直接落在 `.semi-modal-content`
+ * `width={800}` 是行内样式，Semi 给到 `.semi-modal`；视口不够时会横向溢出，
+ * 用 `max-width` 兜住。`modalContentClass` 让本类直接落在 `.semi-modal-content`
  * 上，因此这里用复合选择器而不是后代选择器。
  */
 .semi-modal-content.dsh-fnos-config-dialog {
@@ -1034,71 +1055,18 @@ body[data-dsh-semi-theme] .semi-modal {
 }
 
 /*
- * 弹框表面：去掉 1px 描边，阴影放大。
- *
- * 原本是「1px 边框 + lv3 阴影」：阴影偏移太小，贴着边线看起来像又描了一遍边，
- * 反而把边框衬得更重。去掉描边后把阴影改成大范围低透明度，靠柔和的外扩区分
- * 层级，而不是靠硬边。
- *
- * 只作用于本插件自己的弹框 class，不动全局 `.semi-modal-content`——其它 Semi
- * 弹框的观感不属于这里该改的范围。
- */
-/*
- * 弹框表面：去描边、换阴影、定尺寸。
- *
- * `contentClassName` 让 `.dsh-fnos-config-dialog` 与 `.semi-modal-content` 是
- * **同一个元素**，因此用复合选择器。带上 `body[data-dsh-semi-theme]` 前缀是为了
- * 压过共享主题层里同名的 (0,2,0) 规则——它在本样式表之后加载。
- *
- * 尺寸取官方设置弹框的实测值 880×532：532 = header 24 + body 460 + 上下留白 48，
- * 与 `.dsh-fnos-config-body` 的固定 460 相加正好对齐。
- *
- * 内边距：左 24（对齐官方）、上下 0、**右 0**。右 0 是刻意的——右侧主体是滚动区，
- * 右内边距会把滚动条推到中间，看起来像悬空的分隔线。
- */
-body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
-  border: none;
-  box-shadow:
-    0 12px 32px rgb(0 0 0 / 14%),
-    0 32px 80px rgb(0 0 0 / 18%);
-  /*
-    `padding-left: 24px` 是左列内容的唯一起点：标题与左侧导航都从这条线上开始，
-    因此两者天然对齐（官方实测标题与导航项同在 panel+24 处）。
-  */
-  padding: 0 0 0 24px;
-  /*
-    尺寸与官方设置面板一致（实测 800×800、圆角 28、无描边）。
-    用 flex 纵向布局让 body 自己填满剩余空间——硬编码 body 高度会因 header
-    实际高度变化而溢出（实测溢出 18px，底部按钮被裁掉）。
-
-    **高度要能被视口压缩**：`.semi-modal` 自带 `margin: 80px 0`，800 + 160 = 960
-    已超过 859 高的视口，`.semi-modal-wrap`（overflow: auto）于是长出滚动条。
-    因此给 max-height 兜住，并把 modal 的纵向 margin 一起收紧。
-  */
-  height: 800px;
-  max-height: calc(100vh - 48px);
-  border-radius: 28px;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-/*
- * `.semi-modal` 的纵向 margin 是滚动条的成因之一：默认 80px 上下 + 800 高
- * 必然超出视口，`.semi-modal-wrap`（overflow: auto）于是长出滚动条。
+ * `.semi-modal` 的纵向 margin 属于滚动条成因：默认 80px 上下 + 800 高 = 960，
+ * 超过 859 的视口，`.semi-modal-wrap`（overflow: auto）于是长出滚动条。
  *
  * **选择器方向要反过来**：`.dsh-fnos-config-dialog` 挂在 `.semi-modal-content`
- * 上，而 `.semi-modal` 是它的**祖先**（`.semi-modal > .semi-modal-content`）。
- * 写成 `.dsh-fnos-config-dialog .semi-modal` 是找后代，永远匹配不到——实测
- * margin 仍是 80px。
+ * 上，而 `.semi-modal` 是它的**祖先**，后代选择器永远匹配不到（实测 margin 仍是
+ * 80px）。用 `:has()` 反向选。
  *
- * `:has()` 把「含有本弹框的 modal」选出来。这里同样用 `auto` 而不是固定值：
- * 视口高于 800 时上下均分剩余空间（真居中）；视口更矮时 `auto` 归零，配合
- * content 的 `max-height: calc(100vh - 48px)` 仍不出滚动条。
+ * 用 `auto` 而不是固定值：视口高于 800 时上下均分剩余空间（真居中）；视口更矮时
+ * auto 归零，配合 content 的 max-height 仍然不出滚动条。
  *
- * 注意本条与上面 `.semi-modal` 的通用规则都是 `!important`，但本条带 `:has()`
- * 使特异性更高——所以必须在这里也写 `auto`，否则配置弹框会被固定成某个数值，
- * 与确认框的居中表现不一致。
+ * 本条与上面的通用 `.semi-modal` 规则都是 `!important`，但 `:has()` 让它特异性
+ * 更高——所以这里也必须写 auto，否则本弹框会被固定住、与确认框的居中不一致。
  */
 body[data-dsh-semi-theme] .semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog) {
   margin-top: auto !important;
@@ -1106,87 +1074,132 @@ body[data-dsh-semi-theme] .semi-modal:has(> .semi-modal-content.dsh-fnos-config-
 }
 
 /*
- * header：顶部距离由「标题行高 + 上下内边距」推导，不再硬编码一个会和内容打架的高度。
+ * header：54 高，标题左沿 24（与官方 navTitle 的 padding-left 同值）。
  *
- * 之前写的是 `height: 54px` + `padding: 20px 24px 8px 0`：内部内容盒 = 54 − 20 − 8 = 26，
- * 而标题行高实测 24（字号 18、行高 24），于是标题下方多出 2px 无主空隙——这 2px 既不是
- * 内边距也不是内容，任何按 padding 推算位置的改动都会与实物差 2px。改成下面这组后
- * 内容盒正好 24 = 标题行高，空隙归零：
- *
- * | 组成 | 值 | 说明 |
- * | --- | --- | --- |
- * | 上内边距 | 20 | 标题距弹框顶部的实际留白，与官方设置弹框同值 |
- * | 标题行高 | 24 | 字号 18 / 行高 24 |
- * | 下内边距 | 10 | 与 `.semi-modal-body` 的 10 相加，标题底到内容首行共 20 |
- * | **合计** | **54** | 与官方 header 等高 |
- *
- * 用 `min-height` 而不是 `height`：正常只有一行标题时高度就是这 54；万一某个语种的
- * 标题换行，header 可以长高而不是把标题裁掉——此时由 body 的 flex 收缩吸收，body
- * 高度自然变成 800 − 新 header 高，不会溢出。
- *
- * 左内边距归零：content 已有 24px，再叠加会让标题比左列导航右移，两者就不齐了。
+ * 22 + 24 + 8 = 54：22 是标题上留白，24 是标题行高，8 是下留白。内容盒正好等于
+ * 行高，没有无主空隙——之前写成「固定高 54 + padding 20/8」，内容盒 26 与行高 24
+ * 差 2px，按 padding 推算位置就会与实物差 2。
  */
 body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal-header {
   flex: 0 0 auto;
   box-sizing: border-box;
-  min-height: 54px;
+  height: 54px;
   /* Semi 默认给 header 24px 外边距，会让标题整体下沉；归零后靠内边距定位。 */
   margin: 0;
-  padding: 20px 24px 10px 0;
+  /* 左 24 对齐官方；右 12 给关闭按钮留位（按钮自身再定位到 right 14）。 */
+  padding: 22px 12px 8px 24px;
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
+}
+
+/* 标题字号与行高取官方 navTitle 实测值（16 / 24），此前用了 18 偏大。 */
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  margin: 0;
 }
 
 /*
- * body 自己填满剩余高度，内容滚动由右侧主体承担。
+ * 关闭按钮：官方实测 28×28、圆角 8、距顶 20、距右 14。
  *
- * **弹框内的垂直留白只在这一层设置**：上下 10、左右 0。左右留 0 有两个原因——
- * 左侧缩进统一由 content 的 24px 提供（header 与本层都不再补左内边距，标题与左列
- * 导航因此落在同一条竖线上）；右侧主体是滚动区，任何右内边距都会把滚动条推到
- * 中间，看起来像一条悬空的分隔线。
+ * Semi 默认把它绝对定位到 header 的右上角，但 header 给了 padding，定位基准仍是
+ * padding box 的外沿，需要显式写回官方数值。去掉 Semi 默认的灰底方块，只留悬停反馈。
+ */
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal-close {
+  top: 20px !important;
+  right: 14px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border: 0 !important;
+  border-radius: 8px;
+  background: transparent !important;
+  color: var(--dsw-alias-label-secondary) !important;
+
+  &:hover {
+    background: var(--dsw-alias-interactive-bg-hover) !important;
+    color: var(--dsw-alias-label-primary) !important;
+  }
+}
+
+/*
+ * body：吃掉 header 之外的全部高度（800 − 54 = 746），本层不留内边距。
  *
- * 高度累加（弹框总高 800）：
- *
- * | 元素 | 高度 | 说明 |
- * | --- | --- | --- |
- * | header | 54 | 20 + 24 + 10，见上一条规则 |
- * | 本层 | 746 | `flex: 1` 吃掉 800 − 54 |
- * | 本层内容盒 | 726 | 746 − 上下各 10 |
- *
- * 因此 `.dsh-fnos-config-body` 的 `height: 100%` 拿到的是 **726**，与右列主体实测
- * 高度一致；它自己不再设内边距，避免这 10px 被算两遍。
+ * Semi 默认给 body 24px 上下外边距，会让内容整体收缩；归零后高度完全由 flex 分配。
  */
 body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal-body {
   flex: 1 1 auto;
   min-height: 0;
   box-sizing: border-box;
-  padding: 10px 0;
+  margin: 0;
+  padding: 0;
 }
 
+/* 两列容器：高度 746（= body），切换分组时不变。 */
+.dsh-fnos-config-body {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+/*
+ * 右侧主体自己滚动，不把弹框撑高。
+ *
+ * 左右内边距取官方 options 的 24（上 0、下 24）。右 24 不会把滚动条推到中间——
+ * 滚动条画在元素自身的右边缘，而该边缘正是弹框右沿，因此仍然贴边。
+ *
+ * `scrollbar-gutter: stable` 让无滚动内容时也预留槽位，切换分组时右缘不会因为
+ * 「有没有滚动条」而左右跳。
+ */
+.dsh-fnos-config-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 24px 24px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/*
+ * 左列菜单：188 宽、746 高，内边距对齐官方 nav 的 `10px 12px 0`。
+ *
+ * 12 的作用是让菜单项的**盒子**从 12 起算（官方 navCell 的 x = 面板 x + 12），
+ * 项内再 12 的左内边距，图标才落在 24 —— 与标题左沿同一条竖线。
+ */
 .dsh-fnos-config-nav {
   display: flex;
   /* 与官方设置面板的左侧导航同宽（实测 188）。 */
   flex: 0 0 188px;
   flex-direction: column;
-  gap: 2px;
+  /* 官方相邻项间距 4（94→138，项高 40 含 padding）。 */
+  gap: 4px;
+  padding: 10px 12px 0;
+  box-sizing: border-box;
   /* 不用竖线分隔：靠留白区分左右，细线在窄间距下反而更挤。 */
   overflow-y: auto;
-  scrollbar-gutter: stable;
 }
 
+/*
+ * 菜单项：官方实测高 40、圆角 12、内边距 `9px 16px 9px 12px`、字号 14、图标间距 8。
+ *
+ * 盒子宽 = 188 − 左右各 12 = 164，与官方 navCell 同宽；左内边距 12 让图标落在
+ * 12 + 12 = 24，与标题左沿对齐。
+ */
 .dsh-fnos-config-nav-item {
   box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 9px 16px 9px 12px;
   border: none;
-  border-radius: 6px;
+  border-radius: 12px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: 14px;
+  line-height: 22px;
   text-align: left;
   cursor: pointer;
 
@@ -1204,10 +1217,4 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     background: var(--dsw-alias-interactive-bg-selected, var(--dsw-alias-interactive-bg-hover));
     font-weight: 600;
   }
-}
-
-.dsh-fnos-config-panel {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-y: auto;
 }
