@@ -947,15 +947,51 @@ img.dsh-fnos-file-manager-icon {
  * 形态对齐官方设置弹框（左列固定宽度导航、右侧内容区独立滚动）。用 DSH 语义
  * 变量而不是写死颜色：亮暗主题都要能读，且宿主换肤后不用改这里。
  *
- * 高度上用 `min-height` 而不是固定高度：内容少的页（如依赖修复）不该留一大片
- * 空白；内容多的页（授权目录列表）由右侧自己滚动，弹框不会被撑到视口之外。
+ * **宽高固定**：切换分组时两个面板的内容高度不同（授权目录长、依赖修复短），
+ * 用 `min-height` 会让弹框跟着内容跳——实测从 360px 跳到内容高度，观感上像
+ * 弹框在抖。这里给主体一个固定高度，内容多的由右侧自己滚动。
  */
 .dsh-fnos-config-body {
   display: flex;
   /* 左右两侧留白收窄：原来 nav 与 panel 各让 16px、实际空出 32px，太散。 */
   gap: 10px;
-  min-height: 360px;
-  max-height: 60vh;
+  /* 固定高度而不是 min/max 区间：见上，切换分组时高度必须稳定。 */
+  height: 460px;
+  min-height: 0;
+  max-height: none;
+}
+
+/* 右侧主体自己滚动，不把弹框撑高。 */
+.dsh-fnos-config-panel {
+  overflow-y: auto;
+}
+
+/*
+ * 宽度固定，但在窄屏上不溢出。
+ *
+ * `width={880}` 是行内样式，Semi 会把它给到 `.semi-modal`；视口不够时就会横向
+ * 溢出，因此用 `max-width` 兜住下限。
+ */
+.dsh-fnos-config-dialog {
+  max-width: calc(100vw - 32px);
+}
+
+/*
+ * 弹框表面：去掉 1px 描边，阴影放大。
+ *
+ * 原本是「1px 边框 + lv3 阴影」：阴影偏移太小，贴着边线看起来像又描了一遍边，
+ * 反而把边框衬得更重。去掉描边后把阴影改成大范围低透明度，靠柔和的外扩区分
+ * 层级，而不是靠硬边。
+ *
+ * 只作用于本插件自己的弹框 class，不动全局 `.semi-modal-content`——其它 Semi
+ * 弹框的观感不属于这里该改的范围。
+ */
+.dsh-fnos-config-dialog .semi-modal-content,
+.dsh-fnos-config-dialog .semi-modal-inner {
+  border: none;
+  box-shadow:
+    0 12px 32px rgb(0 0 0 / 14%),
+    0 32px 80px rgb(0 0 0 / 18%);
 }
 
 .dsh-fnos-config-nav {

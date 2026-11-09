@@ -114,6 +114,30 @@ describe('fnOS 配置弹框', () => {
     expect(CARD).not.toContain('dsh-fnos-authorized-card-description')
   })
 
+  it('弹框宽高固定，切换分组不跳动', () => {
+    const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
+    // 用固定 height：min/max 区间会让弹框跟着内容高度变，切换分组时像在抖。
+    expect(body).toContain('height: 460px')
+    expect(body).not.toMatch(/min-height:\s*\d+px/)
+    // 内容多的分组由右侧自己滚动。
+    expect(SCSS).toContain('.dsh-fnos-config-panel {')
+    // 宽度固定但窄屏不溢出。
+    expect(SCSS).toContain('max-width: calc(100vw - 32px)')
+    expect(DIALOG).toContain('width={880}')
+  })
+
+  it('弹框去掉 1px 描边，阴影改为大范围低透明度', () => {
+    const surface = SCSS.slice(
+      SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-content'),
+      SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-content') + 400,
+    )
+    expect(surface).toContain('border: none')
+    // 阴影外扩：贴近的窄阴影会看起来像又描了一遍边。
+    expect(surface).toMatch(/0 32px 80px/)
+    // 只作用于本插件弹框，不动全局 Semi 弹框。
+    expect(surface).toContain('.dsh-fnos-config-dialog')
+  })
+
   it('tip 图标与标题垂直居中（包装层也是 flex）', () => {
     const head = SCSS.slice(SCSS.indexOf('.dsh-fnos-authorized-gateway-head'))
     // DshTooltip 会包一层，那一层才是 flex 子项；不拉成 flex 图标就偏。
