@@ -155,15 +155,45 @@ describe('fnOS 配置弹框', () => {
     expect(DIALOG).toContain('width={800}')
   })
 
-  it('左侧对齐：body 左内边距归零，起点只由 content 的 24px 提供', () => {
+  it('左侧对齐：body 不带内边距，起点只由 content 的 24px 提供', () => {
     const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
-    // 之前这里给 12px，导航因此比标题右移 12px——两者都没对齐。
-    expect(body).toContain('padding: 10px 0')
-    expect(body).not.toMatch(/padding:\s*10px 0 10px 12px/)
+    // 之前这里给 12px，导航因此比标题右移 12px——两者都没对齐；后来改成
+    // `padding: 10px 0`，又与父层 `.semi-modal-body` 的上下 10 叠加，
+    // 标题下方实际变成 20。现在本层完全不设内边距，避免任何重复计算。
+    expect(body).not.toMatch(/^\s*padding:/m)
     expect(body).toContain('box-sizing: border-box')
     // 切换分组时右缘不能因为有无滚动条而左右跳。
     const panel = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-panel {'))
     expect(panel.slice(0, panel.indexOf('}'))).toContain('scrollbar-gutter: stable')
+  })
+
+  it('垂直留白只在 semi-modal-body 上设置一次', () => {
+    const shellBody = SCSS.slice(
+      SCSS.indexOf('.semi-modal-content.dsh-fnos-config-dialog .semi-modal-body {'),
+      SCSS.indexOf('.semi-modal-content.dsh-fnos-config-dialog .semi-modal-body {') + 400,
+    )
+    // 弹框内的上下留白由这一层统一提供；左 0 让标题与左列导航共用 content 的 24px，
+    // 右 0 让右列滚动条贴边。
+    expect(shellBody).toContain('padding: 10px 0')
+    expect(shellBody).toContain('flex: 1 1 auto')
+    expect(shellBody).toContain('min-height: 0')
+  })
+
+  it('header 高度可由「上内边距 + 标题行高 + 下内边距」加出，无幻影空隙', () => {
+    const headerRule = SCSS.slice(
+      SCSS.indexOf('.semi-modal-content.dsh-fnos-config-dialog .semi-modal-header {'),
+    )
+    const rule = headerRule.slice(0, headerRule.indexOf('}'))
+    // 20 + 24（标题行高 18px/24）+ 10 = 54，与官方 header 等高，
+    // 内容盒正好等于标题行高，不再有 2px 无主空隙。
+    expect(rule).toContain('padding: 20px 24px 10px 0')
+    expect(rule).toContain('min-height: 54px')
+    // 用 min-height 而非固定 height：标题换行时 header 可以长高，
+    // 由 body 的 flex 收缩吸收，而不是把标题裁掉。
+    // 用 `\n  height:` 定位，避免把 `min-height: 54px` 误判成固定高度。
+    expect(rule).not.toMatch(/^\s*height:/m)
+    // Semi 默认给 header 24px 外边距，归零才能让标题从顶部内边距开始。
+    expect(rule).toContain('margin: 0')
   })
 
   it('弹框不产生外层滚动条（modal 的 margin + 固定高会超出视口）', () => {
@@ -185,12 +215,7 @@ describe('fnOS 配置弹框', () => {
     expect(body).toContain('min-height: 0')
     // content 是 flex 纵向容器，body 占满剩余高度。
     expect(SCSS).toContain('flex-direction: column')
-    const headerRule = SCSS.slice(
-      SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-header {'),
-      SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-header {') + 400,
-    )
-    // Semi 默认给 header 24px 外边距，归零才能让标题从 54px 区域顶部开始。
-    expect(headerRule).toContain('margin: 0')
+    // header 的 margin 归零在「header 高度可加出」那条用例里断言。
   })
 
   it('类名用 modalContentClass，才会落在 semi-modal-content 上', () => {

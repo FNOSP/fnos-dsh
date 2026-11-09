@@ -944,32 +944,29 @@ img.dsh-fnos-file-manager-icon {
 /*
  * fnOS 配置弹框：左侧菜单 + 右侧主体。
  *
- * 形态与尺寸对齐官方设置弹框（实测 880×532、内容区 padding 0 24px）。用 DSH
+ * 形态与尺寸对齐官方设置弹框（实测 800×800、内容区 padding 0 24px）。用 DSH
  * 语义变量而不是写死颜色：亮暗主题都要能读，且宿主换肤后不用改这里。
  *
  * **宽高固定**：切换分组时两个面板的内容高度不同（授权目录长、依赖修复短），
  * 用 `min-height` 会让弹框跟着内容跳——实测从 360px 跳到内容高度，观感上像
  * 弹框在抖。这里给主体一个固定高度，内容多的由右侧自己滚动。
  *
- * 内边距按实机反馈收紧：整体左侧 12px、上下 10px。右侧不留右内边距——滚动条
- * 要贴到弹框边缘（贴边 0），留白会把它推到中间，看起来像一条悬空的分隔线。
+ * **本层不带内边距**：弹框内的垂直留白统一由 `.semi-modal-body` 提供（上下 10），
+ * 左右由 `.semi-modal-content` 的 24px 提供。此前的 `padding: 10px 0` 与父层叠加
+ * 会把 10px 算两遍，标题下方实际得到 20px，与按 padding 推算的 10px 不符。
+ * 去掉后高度只剩「弹框高 − header」，本层内容盒与右列同一尺寸，位置可纯靠加法推出。
  */
 .dsh-fnos-config-body {
   display: flex;
   gap: 10px;
   /*
-    高度由父级 flex 撑开（800 − 54 = 746，与官方内部高度一致）。
+    高度由父级 flex 撑开（800 − 54 − 上下 20 = 726）。
     切换分组时高度不变，因为容器高度固定、内容在右侧自己滚动。
     `min-height: 0` 是 flex 子项能收缩并触发内部滚动的必要条件。
   */
   height: 100%;
   min-height: 0;
   max-height: none;
-  /*
-    **左内边距归零**：左列起点由 content 的 24px 提供。之前这里再给 12px，
-    导航就比标题右移 12px，实测两都没对齐。
-  */
-  padding: 10px 0;
   box-sizing: border-box;
 }
 
@@ -1064,25 +1061,61 @@ body[data-dsh-semi-theme] .semi-modal:has(> .semi-modal-content.dsh-fnos-config-
 }
 
 /*
- * header 对齐官方比例（实测 54 高、标题 20px 上留白）。
- * 左内边距归零：content 已有 24px，再叠加会让标题比导航右移。
+ * header：顶部距离由「标题行高 + 上下内边距」推导，不再硬编码一个会和内容打架的高度。
+ *
+ * 之前写的是 `height: 54px` + `padding: 20px 24px 8px 0`：内部内容盒 = 54 − 20 − 8 = 26，
+ * 而标题行高实测 24（字号 18、行高 24），于是标题下方多出 2px 无主空隙——这 2px 既不是
+ * 内边距也不是内容，任何按 padding 推算位置的改动都会与实物差 2px。改成下面这组后
+ * 内容盒正好 24 = 标题行高，空隙归零：
+ *
+ * | 组成 | 值 | 说明 |
+ * | --- | --- | --- |
+ * | 上内边距 | 20 | 标题距弹框顶部的实际留白，与官方设置弹框同值 |
+ * | 标题行高 | 24 | 字号 18 / 行高 24 |
+ * | 下内边距 | 10 | 与 `.semi-modal-body` 的 10 相加，标题底到内容首行共 20 |
+ * | **合计** | **54** | 与官方 header 等高 |
+ *
+ * 用 `min-height` 而不是 `height`：正常只有一行标题时高度就是这 54；万一某个语种的
+ * 标题换行，header 可以长高而不是把标题裁掉——此时由 body 的 flex 收缩吸收，body
+ * 高度自然变成 800 − 新 header 高，不会溢出。
+ *
+ * 左内边距归零：content 已有 24px，再叠加会让标题比左列导航右移，两者就不齐了。
  */
 body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal-header {
   flex: 0 0 auto;
   box-sizing: border-box;
-  height: 54px;
+  min-height: 54px;
   /* Semi 默认给 header 24px 外边距，会让标题整体下沉；归零后靠内边距定位。 */
   margin: 0;
-  padding: 20px 24px 8px 0;
+  padding: 20px 24px 10px 0;
   display: flex;
   align-items: flex-start;
 }
 
-/* body 自己填满剩余高度，内容滚动由右侧主体承担。 */
+/*
+ * body 自己填满剩余高度，内容滚动由右侧主体承担。
+ *
+ * **弹框内的垂直留白只在这一层设置**：上下 10、左右 0。左右留 0 有两个原因——
+ * 左侧缩进统一由 content 的 24px 提供（header 与本层都不再补左内边距，标题与左列
+ * 导航因此落在同一条竖线上）；右侧主体是滚动区，任何右内边距都会把滚动条推到
+ * 中间，看起来像一条悬空的分隔线。
+ *
+ * 高度累加（弹框总高 800）：
+ *
+ * | 元素 | 高度 | 说明 |
+ * | --- | --- | --- |
+ * | header | 54 | 20 + 24 + 10，见上一条规则 |
+ * | 本层 | 746 | `flex: 1` 吃掉 800 − 54 |
+ * | 本层内容盒 | 726 | 746 − 上下各 10 |
+ *
+ * 因此 `.dsh-fnos-config-body` 的 `height: 100%` 拿到的是 **726**，与右列主体实测
+ * 高度一致；它自己不再设内边距，避免这 10px 被算两遍。
+ */
 body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal-body {
   flex: 1 1 auto;
   min-height: 0;
   box-sizing: border-box;
+  padding: 10px 0;
 }
 
 .dsh-fnos-config-nav {
