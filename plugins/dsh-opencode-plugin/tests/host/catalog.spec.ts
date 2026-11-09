@@ -261,23 +261,12 @@ describe('OpenCode 模型目录归一化', () => {
     }
   })
 
-  it('思考等级映射：toggle 型关闭全部等级，显式 none 时发送 none', () => {
-    // toggle 型（只有开关、没有档位）不接受档位参数：返回全 null 让选择器不出现
-    // 档位切换，而不是返回 undefined 交给 pi-ai 默认等级（那会列出无效档位）。
-    expect(thinkingLevelMapFromReasoning({ supported: true, toggle: true })).toEqual({
-      minimal: null,
-      low: null,
-      medium: null,
-      high: null,
-      xhigh: null,
-      max: null,
-    })
-    // toggle 型不写 off 键：保留协议原生的「关闭思考」（缺省即支持关闭）。
-    expect(thinkingLevelMapFromReasoning({ supported: true, toggle: true }))
-      .not.toHaveProperty('off')
-    // budget 型连关闭也不由通用开关表达，显式标 null。
-    expect(thinkingLevelMapFromReasoning({ supported: true, budget: true }))
-      .toMatchObject({ off: null })
+  it('思考等级映射：toggle 型不声明档位，显式 none 时发送 none', () => {
+    // toggle 型（只有开关、没有档位）返回 undefined：不声明任何档位。
+    // 不能返回全 null —— DSH 要求「支持思考就必须至少有一个可用档位」，
+    // 全 null 会让该模型解析抛 INVALID_MODEL_REASONING，整个供应商列表加载失败。
+    expect(thinkingLevelMapFromReasoning({ supported: true, toggle: true })).toBeUndefined()
+    expect(thinkingLevelMapFromReasoning({ supported: true, budget: true })).toBeUndefined()
     // 单档模型沿用 pi-ai 内置口径：只把该档标为可用，其余不受支持。
     expect(thinkingLevelMapFromReasoning({ supported: true, effort: ['max'] })).toEqual({
       minimal: null,
@@ -1114,10 +1103,14 @@ describe('FNOS-051 账号清单优先', () => {
     expect(map).toMatchObject({ low: 'low', high: 'high', max: 'max', minimal: null })
   })
 
-  it('只有开关的模型不提供任何档位', () => {
-    const map = modelReasoningFrom(roster).get('mimo-v2.6-pro')
-    expect(map).toEqual({ minimal: null, low: null, medium: null, high: null, xhigh: null, max: null })
-    expect(map).not.toHaveProperty('off')
+  it('只有开关的模型记为 null（无档位），且 reasoning 判为 false', () => {
+    // null 与「清单没提到该模型」的 undefined 必须区分：前者要判 reasoning=false。
+    expect(modelReasoningFrom(roster).get('mimo-v2.6-pro')).toBeNull()
+    const models = buildCatalog({ builtin: { console: [], go: [] }, goRoster: roster }).models
+    const mimo = models.find(model => model.id === 'mimo-v2.6-pro' && model.plan === 'go')
+    // 报 false 而非 true：DSH 要求支持思考就必须有可用档位，否则整体解析失败。
+    expect(mimo?.reasoning).toBe(false)
+    expect(mimo?.thinkingLevelMap).toBeUndefined()
   })
 
   it('声明不支持的模型不进映射表', () => {

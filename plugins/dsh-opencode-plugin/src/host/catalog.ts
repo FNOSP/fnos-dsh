@@ -292,18 +292,22 @@ export function modelLimitFrom(payload: unknown): Map<string, { context?: number
  * 直接复用 {@link thinkingLevelMapFromReasoning} 的映射规则，保持与公开目录、
  * Console 两条来源完全同一套语义，不新增解释。
  *
+ * 声明支持思考但没有任何档位的条目（toggle 型）存为 `null`，与「清单没提到
+ * 这个模型」（不写入 Map）区分开：前者要把模型的 `reasoning` 判为 false。
+ *
  * @param payload - 模型清单响应。
- * @returns id → 思考等级映射；声明不支持的条目不进结果。
+ * @returns id → 思考等级映射或 `null`；声明不支持的条目不进结果。
  */
-export function modelReasoningFrom(payload: unknown): Map<string, OpenCodeThinkingLevelMap | undefined> {
-  const result = new Map<string, OpenCodeThinkingLevelMap | undefined>()
+export function modelReasoningFrom(payload: unknown): Map<string, OpenCodeThinkingLevelMap | null> {
+  const result = new Map<string, OpenCodeThinkingLevelMap | null>()
   for (const [id, row] of rosterRows(payload)) {
     const capabilities = record(row.capabilities)
     const reasoning = capabilities?.reasoning
     if (reasoning === undefined || reasoning === false) continue
     // `supported: false` 明确表示不支持，交给上层判 false，不写进映射表。
     if (record(reasoning)?.supported === false) continue
-    result.set(id, thinkingLevelMapFromReasoning(reasoning))
+    // 有档位时是映射对象；只有开关时是 `null`——调用方据此把 reasoning 判为 false。
+    result.set(id, thinkingLevelMapFromReasoning(reasoning) ?? null)
   }
   return result
 }
@@ -383,13 +387,13 @@ export function readReasoning(value: unknown): ReasoningShape | undefined {
  * - `off: 'none'` 表示关闭时显式发送 `none`。
  *
  * 上游没有给出任何 effort 列表时（`toggle` / `budget` 型：只有开关，没有档位）
- * **把所有档位标为不支持**，而不是返回 `undefined`。pi-ai 的语义里 `undefined`
- * 等于「按 provider 默认等级」，选择器会列出整套档位；但这些模型根本不接受档位
- * 参数，用户选了也不生效。标 `null` 才能让选择器不出现档位切换。
+ * 返回 `undefined`，表示「没有可声明的档位」。
  *
- * 例外：`off` 维持协议原生的关闭表达（`toggle` 型本来就该能关思考），因此
- * 这里不清空 `off`，只把有档位含义的等级标 null——这与 pi-ai 内置目录对单档
- * 模型（如 `kimi-k3` 只有 `max`）的处理口径一致。
+ * **不能把全部档位标 `null`**：DSH 的 `llm` 校验要求「声明支持思考的模型必须
+ * 至少有一个可用档位」（`INVALID_MODEL_REASONING`），全 null 会让该模型的
+ * 解析直接抛错，整个供应商的模型列表都加载失败。因此这类模型由调用方把
+ * `reasoning` 判为 false（见 {@link buildCatalogEntry}），`thinkingLevelMap`
+ * 保持缺失，DSH 侧就不会提供思考设置——这正是「只有开关、没有档位」的期望表现。
  */
 export function thinkingLevelMapFromReasoning(value: unknown): OpenCodeThinkingLevelMap | undefined {
   // 明确声明不支持思考时返回 undefined：调用方据此不给该模型任何思考设置。
@@ -401,16 +405,8 @@ export function thinkingLevelMapFromReasoning(value: unknown): OpenCodeThinkingL
   const reasoning = readReasoning(value)
   if (reasoning === undefined) return undefined
   const offered = new Set(reasoning.effort)
-  if (reasoning.effort.length === 0) {
-    // 只有开关、没有档位：显式关闭全部等级，保留协议原生的「关闭思考」。
-    const map: OpenCodeThinkingLevelMap = {}
-    for (const level of OPENCODE_REASONING_LEVELS) {
-      if (level === 'off') continue
-      map[level] = null
-    }
-    if (!reasoning.toggle && !reasoning.budget) map.off = null
-    return map
-  }
+  // 没有档位列表：不声明任何档位（调用方据此把 reasoning 判为 false）。
+  if (reasoning.effort.length === 0) return undefined
   const map: OpenCodeThinkingLevelMap = {}
   for (const level of OPENCODE_REASONING_LEVELS) {
     if (level === 'off') continue
@@ -611,8 +607,14 @@ export interface CatalogEntryInput {
   readonly rosterCost?: OpenCodeModelCost
   /** 活 roster 给出的上下文与输出上限；账号实时数据，优先于静态目录。 */
   readonly rosterLimit?: { context?: number; output?: number }
-  /** 活 roster 给出的思考等级映射；`undefined` 表示只有开关、没有档位。 */
-  readonly rosterReasoning?: OpenCodeThinkingLevelMap | undefined
+  /**
+   * 活 roster 给出的思考等级映射。
+   *
+   * 对象 = 有档位；`null` = 声明支持思考但无档位（toggle 型）；`undefined` =
+   * 清单没声明该模型（退回静态目录）。`null` 与 `undefined` 必须区分，前者要
+   * 把模型的 `reasoning` 判为 false。
+   */
+  readonly rosterReasoning?: OpenCodeThinkingLevelMap | null | undefined
   /** 当前套餐档位的估算表；仅 `plan` 为 `go` 时写入预计请求数。 */
   readonly estimates?: OpenCodeEstimateTable
 }
@@ -695,9 +697,19 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
   const input: ('text' | 'image')[] = inputModalities.includes('image') ? ['text', 'image'] : ['text']
 
   // 账号清单最权威：它按当前账号真实可用集声明能力；没声明时才退回静态目录。
-  const reasoning = rosterReasoning !== undefined
-    ? true
-    : consoleReasoning !== undefined
+  //
+  // `null` = 清单声明支持思考但没有任何档位（toggle 型）；对象 = 有档位；
+  // `undefined` = 清单没声明该模型，退回静态目录。
+  //
+  // toggle 型必须报 false：DSH 要求「支持思考就必须至少有一个可用档位」，
+  // 报 true 而档位为空会让整个供应商的模型列表解析失败
+  // （INVALID_MODEL_REASONING）。报 false 后 DSH 不提供思考设置，正是
+  // 「只有开关、没有档位」的期望表现。
+  const reasoning = rosterReasoning === null
+    ? false
+    : rosterReasoning !== undefined
+      ? true
+      : consoleReasoning !== undefined
       ? readReasoning(consoleReasoning) !== undefined && record(consoleReasoning)?.supported !== false
         && consoleReasoning !== false
       : catalogEntry?.reasoning === true
