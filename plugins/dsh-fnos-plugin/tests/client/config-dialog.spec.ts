@@ -144,8 +144,8 @@ describe('fnOS 配置弹框', () => {
 
   it('尺寸对齐官方设置弹框（实测 880×532）', () => {
     const surface = SCSS.slice(
-      SCSS.indexOf('body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-content {'),
-      SCSS.indexOf('/* header 右侧要留出关闭按钮的位置'),
+      SCSS.indexOf('body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {'),
+      SCSS.indexOf('/* header 右侧留出关闭按钮的位置'),
     )
     expect(surface).toContain('height: 532px')
     // 532 = header 24 + body 460 + 上下留白 48，与固定的 body 高度相加要对得上。
@@ -162,23 +162,28 @@ describe('fnOS 配置弹框', () => {
     expect(panel.slice(0, panel.indexOf('}'))).toContain('scrollbar-gutter: stable')
   })
 
+  it('类名用 contentClassName，挂在 semi-modal-content 本身上', () => {
+    // `className` 会落到最外层 `.semi-modal-wrap`，所有 content 规则全部落空；
+    // 实测两者混用时 content 的 class 里还会出现字面量 `undefined`。
+    expect(DIALOG).toContain('contentClassName="dsh-fnos-config-dialog"')
+    expect(DIALOG).not.toMatch(/^\s+className="dsh-fnos-config-dialog"$/m)
+    // 样式侧用同元素复合选择器，不再是后代选择器。
+    expect(SCSS).toContain('.semi-modal-content.dsh-fnos-config-dialog')
+    expect(SCSS).not.toContain('.dsh-fnos-config-dialog .semi-modal-content')
+  })
+
   it('弹框去掉 1px 描边，阴影改为大范围低透明度', () => {
-    const at = SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-content')
-    const surface = SCSS.slice(at, at + 400)
-    expect(surface).toContain('border: none')
+    // 按整条规则定位：同类选择器出现两次（窄屏兜底 + 表面样式），只取带边框的那条。
+    const surface = SCSS.slice(SCSS.indexOf('body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {'))
+    expect(surface.slice(0, 300)).toContain('border: none')
     // 阴影外扩：贴近的窄阴影会看起来像又描了一遍边。
-    expect(surface).toMatch(/0 32px 80px/)
-    // 只作用于本插件弹框，不动全局 Semi 弹框。
-    expect(surface).toContain('.dsh-fnos-config-dialog')
+    expect(surface.slice(0, 300)).toMatch(/0 32px 80px/)
   })
 
   it('阴影规则用 body[data-dsh-semi-theme] 前缀压过共享主题层', () => {
-    // 实测：只写 `.dsh-fnos-config-dialog .semi-modal-content` 与共享主题层的
-    // `body[data-dsh-semi-theme] .semi-modal-content` 同为 (0,2,0)，而后者在样式
-    // 表里更靠后——边框与旧阴影都没被覆盖。前缀对齐后才能稳定生效。
-    const at = SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-content')
-    const head = SCSS.slice(Math.max(0, at - 200), at)
-    expect(head).toContain('body[data-dsh-semi-theme]')
+    // 共享主题层有一条 (0,2,0) 的同名规则，且在本样式表之后加载；前缀对齐后
+    // 权重更高才稳定生效。
+    expect(SCSS).toContain('body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {')
   })
 
   it('tip 图标与标题垂直居中（包装层也是 flex）', () => {

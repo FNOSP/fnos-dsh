@@ -980,10 +980,11 @@ img.dsh-fnos-file-manager-icon {
 /*
  * 宽度固定，但在窄屏上不溢出。
  *
- * `width={880}` 是行内样式，Semi 会把它给到 `.semi-modal`；视口不够时就会横向
- * 溢出，因此用 `max-width` 兜住下限。
+ * `width={880}` 是行内样式，Semi 给到 `.semi-modal`；视口不够时会横向溢出，
+ * 用 `max-width` 兜住。`contentClassName` 让本类直接落在 `.semi-modal-content`
+ * 上，因此这里用复合选择器而不是后代选择器。
  */
-.dsh-fnos-config-dialog {
+.semi-modal-content.dsh-fnos-config-dialog {
   max-width: calc(100vw - 32px);
 }
 
@@ -998,34 +999,29 @@ img.dsh-fnos-file-manager-icon {
  * 弹框的观感不属于这里该改的范围。
  */
 /*
- * 选择器必须带上 `body[data-dsh-semi-theme]`：共享主题层里有一条
- * `body[data-dsh-semi-theme] .semi-modal-content` 加 border 与 lv3 阴影，权重
- * (0,2,0)。只写 `.dsh-fnos-config-dialog .semi-modal-content` 同为 (0,2,0)，而
- * 共享主题层在样式表里更靠后——实测边框与旧阴影都还在。前缀对齐后权重更高，
- * 才能稳定覆盖。
+ * 弹框表面：去描边、换阴影、定尺寸。
+ *
+ * `contentClassName` 让 `.dsh-fnos-config-dialog` 与 `.semi-modal-content` 是
+ * **同一个元素**，因此用复合选择器。带上 `body[data-dsh-semi-theme]` 前缀是为了
+ * 压过共享主题层里同名的 (0,2,0) 规则——它在本样式表之后加载。
+ *
+ * 尺寸取官方设置弹框的实测值 880×532：532 = header 24 + body 460 + 上下留白 48，
+ * 与 `.dsh-fnos-config-body` 的固定 460 相加正好对齐。
+ *
+ * 内边距：左 24（对齐官方）、上下 0、**右 0**。右 0 是刻意的——右侧主体是滚动区，
+ * 右内边距会把滚动条推到中间，看起来像悬空的分隔线。
  */
-body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-content,
-body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-inner {
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
   border: none;
   box-shadow:
     0 12px 32px rgb(0 0 0 / 14%),
     0 32px 80px rgb(0 0 0 / 18%);
-}
-
-/*
- * 弹框内边距与官方设置弹框一致（实测 `0 24px`），但**右内边距归零**：
- * 右侧主体是滚动区，右 24px 会把滚动条推到中间；贴边才和官方设置弹框一样。
- *
- * 尺寸取官方实测值：880×532。高度 532 = header 24 + body 460 + 上下留白 48，
- * 与下方 `.dsh-fnos-config-body` 的固定 460 相加后正好对齐。
- */
-body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-content {
   padding: 0 0 0 24px;
   height: 532px;
 }
 
-/* header 右侧要留出关闭按钮的位置，否则标题贴到按钮下方。 */
-body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-header {
+/* header 右侧留出关闭按钮的位置，否则标题会贴到按钮下方。 */
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal-header {
   padding-right: 24px;
 }
 

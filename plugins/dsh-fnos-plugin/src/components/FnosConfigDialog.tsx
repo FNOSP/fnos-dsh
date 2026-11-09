@@ -62,7 +62,14 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
       onCancel={onClose}
       footer={null}
       width={880}
-      className="dsh-fnos-config-dialog"
+      /*
+        必须用 `contentClassName` 而不是 `className`：
+        - `className` 落到最外层的 `.semi-modal-wrap`（Semi 把它拼在 wrap 上），
+          于是所有 `.dsh-fnos-config-dialog .semi-modal-content` 规则全部落空；
+        - `contentClassName` 才是拼到 `.semi-modal-content` 上的那个 prop。
+        实测两者混用还会让 content 的 class 里出现字面量 `undefined`。
+      */
+      contentClassName="dsh-fnos-config-dialog"
     >
       <div className="dsh-fnos-config-body">
         {/*
