@@ -958,15 +958,18 @@ img.dsh-fnos-file-manager-icon {
   display: flex;
   gap: 10px;
   /*
-    固定 746px，与官方设置面板的内部高度一致：
-    800（面板总高）− 54（header）= 746，官方 nav / options 实测都是 746。
-    切换分组时高度必须稳定，因此用固定值而不是 min/max 区间。
+    高度由父级 flex 撑开（800 − 54 = 746，与官方内部高度一致）。
+    切换分组时高度不变，因为容器高度固定、内容在右侧自己滚动。
+    `min-height: 0` 是 flex 子项能收缩并触发内部滚动的必要条件。
   */
-  height: 746px;
+  height: 100%;
   min-height: 0;
   max-height: none;
-  /* 左 12 / 上 10 / 右 0 / 下 10：右 0 让滚动条贴边。 */
-  padding: 10px 0 10px 12px;
+  /*
+    **左内边距归零**：左列起点由 content 的 24px 提供。之前这里再给 12px，
+    导航就比标题右移 12px，实测两都没对齐。
+  */
+  padding: 10px 0;
   box-sizing: border-box;
 }
 
@@ -1020,18 +1023,43 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
   box-shadow:
     0 12px 32px rgb(0 0 0 / 14%),
     0 32px 80px rgb(0 0 0 / 18%);
+  /*
+    `padding-left: 24px` 是左列内容的唯一起点：标题与左侧导航都从这条线上开始，
+    因此两者天然对齐（官方实测标题与导航项同在 panel+24 处）。
+  */
   padding: 0 0 0 24px;
   /*
     尺寸与官方设置面板一致（实测 800×800、圆角 28、无描边）。
-    header 54 + body 746 = 800，与下方 `.dsh-fnos-config-body` 的固定高对得上。
+    用 flex 纵向布局让 body 自己填满剩余空间——硬编码 body 高度会因 header
+    实际高度变化而溢出（实测溢出 18px，底部按钮被裁掉）。
   */
   height: 800px;
   border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
-/* header 右侧留出关闭按钮的位置，否则标题会贴到按钮下方。 */
+/*
+ * header 对齐官方比例（实测 54 高、标题 20px 上留白）。
+ * 左内边距归零：content 已有 24px，再叠加会让标题比导航右移。
+ */
 body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal-header {
-  padding-right: 24px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  height: 54px;
+  /* Semi 默认给 header 24px 外边距，会让标题整体下沉；归零后靠内边距定位。 */
+  margin: 0;
+  padding: 20px 24px 8px 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+/* body 自己填满剩余高度，内容滚动由右侧主体承担。 */
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 .dsh-fnos-config-nav {

@@ -132,8 +132,8 @@ describe('fnOS 配置弹框', () => {
 
   it('弹框宽高固定，切换分组不跳动', () => {
     const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
-    // 用固定 height：min/max 区间会让弹框跟着内容高度变，切换分组时像在抖。
-    expect(body).toContain('height: 746px')
+    // 高度由 flex 撑开（容器固定 800），切换分组时不变。
+    expect(body).toContain('height: 100%')
     expect(body).not.toMatch(/min-height:\s*\d+px/)
     // 内容多的分组由右侧自己滚动。
     expect(SCSS).toContain('.dsh-fnos-config-panel {')
@@ -150,19 +150,34 @@ describe('fnOS 配置弹框', () => {
     // 官方设置面板实测 800×800、圆角 28、无描边。
     expect(surface).toContain('height: 800px')
     expect(surface).toContain('border-radius: 28px')
-    // 800 = header 54 + 内容 746，与固定的 body 高度相加要对得上。
-    expect(SCSS).toContain('height: 746px')
+    // header 固定 54，内容区由 flex 占满剩余（800 − 54 = 746，与官方一致）。
+    expect(SCSS).toContain('height: 54px')
     expect(DIALOG).toContain('width={800}')
   })
 
-  it('内边距：左侧 12、上下 10、右侧 0（滚动条贴边）', () => {
+  it('左侧对齐：body 左内边距归零，起点只由 content 的 24px 提供', () => {
     const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
-    // 右 0 是刻意的：右内边距会把滚动条推到中间，看起来像悬空的分隔线。
-    expect(body).toContain('padding: 10px 0 10px 12px')
+    // 之前这里给 12px，导航因此比标题右移 12px——两者都没对齐。
+    expect(body).toContain('padding: 10px 0')
+    expect(body).not.toMatch(/padding:\s*10px 0 10px 12px/)
     expect(body).toContain('box-sizing: border-box')
     // 切换分组时右缘不能因为有无滚动条而左右跳。
     const panel = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-panel {'))
     expect(panel.slice(0, panel.indexOf('}'))).toContain('scrollbar-gutter: stable')
+  })
+
+  it('高度由 flex 撑开，不硬编码 body 高度（否则底部被裁）', () => {
+    const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
+    expect(body).toContain('height: 100%')
+    expect(body).toContain('min-height: 0')
+    // content 是 flex 纵向容器，body 占满剩余高度。
+    expect(SCSS).toContain('flex-direction: column')
+    const headerRule = SCSS.slice(
+      SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-header {'),
+      SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-header {') + 400,
+    )
+    // Semi 默认给 header 24px 外边距，归零才能让标题从 54px 区域顶部开始。
+    expect(headerRule).toContain('margin: 0')
   })
 
   it('类名用 modalContentClass，才会落在 semi-modal-content 上', () => {
