@@ -731,7 +731,7 @@ importers:
         specifier: catalog:dsh
         version: 0.2.2-rc.1(252f4bf5706cbf4e3cf87b1bf774dfde)
       '@iconify-json/lucide':
-        specifier: 1.2.152
+        specifier: 'catalog:'
         version: 1.2.152
       '@tnnevol/dsh-semi-ui':
         specifier: workspace:*
