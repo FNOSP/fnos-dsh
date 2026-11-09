@@ -1,90 +1,58 @@
 /**
- * fnOS 配置弹框：左侧菜单 + 右侧主体。
+ * 「更多」下拉菜单里的「飞牛 OS」入口。
  *
- * ## 为什么自建而不是复用官方设置弹框
+ * 点开此菜单项会打开 fnOS 配置弹框（左侧菜单 + 右侧主体），把原先挂在插件详情页
+ * 里的两段配置收进来。详情页因此不再保留这些配置块——同一份设置只出现在一个
+ * 地方，不会出现两处都能改、状态却不同步的情况。
  *
- * 官方那个「左菜单 + 右主体」的容器占用 `settings.shell` 槽位，且是 **single**
- * ——它自己就是那个弹框，插件没有位置往它的菜单里加一条「飞牛 OS」。因此这里按
- * 同样的视觉形态自建一个：左侧是配置分组，右侧渲染该组的内容。
+ * 承载它的槽位是 `sidebar.panellist.actions`：官方把它定义为「面板列表的更多
+ * 菜单行」，且官方 entry-customization 也往这里放非面板动作（浏览其他插件 /
+ * 创建你的插件），因此放一个「打开配置」的入口与该槽位的语义一致。
  *
- * ## 为什么配置从详情页搬过来
- *
- * 详情页里的两段配置（授权目录、依赖修复）随详情页滚动，找一条路径要翻很长；
- * 用户也习惯「配置在设置里」。搬到弹框后详情页不再保留这两块——同一份配置只
- * 出现在一个地方，避免两处都能改、状态却不一致。
- *
- * @module dsh-fnos/components/FnosConfigDialog
+ * @module dsh-fnos/components/FnosConfigMenuEntry
  */
 
-import { useState } from 'react'
-import { DshModal } from '@tnnevol/dsh-semi-ui'
+import { useCallback, useState } from 'react'
+import { MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { FnosLocaleKey } from '../client/locales.ts'
-import { AuthorizedDirectoriesCard } from './AuthorizedDirectoriesCard.tsx'
-import { DependencyRepairCard } from './DependencyRepairCard.tsx'
+import { IconifyIcon } from './IconifyIcon.tsx'
+import { FnosConfigDialog } from './FnosConfigDialog.tsx'
 
 type Translate = (key: FnosLocaleKey) => string
 
-/** 弹框里的一级分组；新增配置项时在这里登记。 */
-type SectionId = 'directories' | 'repair'
-
-export interface FnosConfigDialogProps {
-  /** 是否可见。 */
-  readonly visible: boolean
-  /** 关闭回调。 */
-  readonly onClose: () => void
-  /** 翻译函数。 */
+export interface FnosConfigMenuEntryProps {
+  /** 关闭「更多」菜单（由槽位 owner 提供）。 */
+  readonly onDismiss?: () => void
+  /** 翻译函数（注册处经 `inject` 提供）。 */
   readonly t: Translate
 }
 
 /**
- * fnOS 配置弹框。
+ * 「更多」菜单里的「飞牛 OS」入口。
  * @param props - 组合后的 props。
- * @param props.visible - 是否可见。
- * @param props.onClose - 关闭回调。
+ * @param props.onDismiss - 关闭「更多」菜单（槽位 owner 提供）。
  * @param props.t - 翻译函数。
- * @returns 配置弹框。
+ * @returns 一行菜单项 + 配置弹框。
  */
-export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps): React.ReactNode {
-  const [section, setSection] = useState<SectionId>('directories')
+export function FnosConfigMenuEntry({ onDismiss, t }: FnosConfigMenuEntryProps): React.ReactNode {
+  const [open, setOpen] = useState(false)
 
-  const sections: readonly { id: SectionId, label: string }[] = [
-    { id: 'directories', label: t('configSectionDirectories') },
-    { id: 'repair', label: t('configSectionRepair') },
-  ]
+  const openConfig = useCallback(() => {
+    // 先关菜单再开弹框：菜单是 portaled 浮层，留着会和弹框抢焦点。
+    onDismiss?.()
+    setOpen(true)
+  }, [onDismiss])
 
   return (
-    <DshModal
-      visible={visible}
-      title={t('configDialogTitle')}
-      onCancel={onClose}
-      footer={null}
-      width={880}
-      className="dsh-fnos-config-dialog"
-    >
-      <div className="dsh-fnos-config-body">
-        {/*
-          左侧菜单用原生 button + aria-current，而不是 Semi 的 Menu：这里是「切换
-          页面」而不是「选择一个值」，原生 button 的语义与键盘行为已经够用，也避免
-          再引入一套菜单状态。
-        */}
-        <nav className="dsh-fnos-config-nav" aria-label={t('configDialogTitle')}>
-          {sections.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              className={`dsh-fnos-config-nav-item${item.id === section ? ' dsh-fnos-config-nav-item--active' : ''}`}
-              aria-current={item.id === section ? 'page' : undefined}
-              onClick={() => { setSection(item.id) }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="dsh-fnos-config-panel">
-          {section === 'directories' ? <AuthorizedDirectoriesCard t={t} /> : null}
-          {section === 'repair' ? <DependencyRepairCard t={t} /> : null}
-        </div>
-      </div>
-    </DshModal>
+    <>
+      <MenuItemButton
+        separatorBefore
+        icon={<IconifyIcon name="lucide:settings-2" />}
+        onSelect={openConfig}
+      >
+        {t('configMenuEntry')}
+      </MenuItemButton>
+      <FnosConfigDialog visible={open} onClose={() => { setOpen(false) }} t={t} />
+    </>
   )
 }
