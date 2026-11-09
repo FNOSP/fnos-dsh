@@ -318,10 +318,15 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         * 先点一下才看得到。但这一页只有这一块内容，折叠不承担任何信息架构作用，
         * 只多出一次点击——实机截图里第一眼看到的就是一排折叠标题而不是设置项。
         */}
+      {/*
+        只留标题，去掉下方那段描述。
+        这段说明在弹框里是冗余的：分组名「授权目录」已经说清楚这是什么，而它
+        占掉两行高度、把首屏的路径列表往下推——实机截图里第一眼看到的是解释
+        文字而不是要操作的目录。
+      */}
       <div className="dsh-fnos-authorized-card-header">
         <span className="dsh-fnos-authorized-card-head-text">
           <span className="dsh-fnos-authorized-card-name">{t('title')}</span>
-          <span className="dsh-fnos-authorized-card-description">{t('intro')}</span>
         </span>
       </div>
       <DshModal

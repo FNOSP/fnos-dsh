@@ -17,7 +17,9 @@
  */
 
 import { useState } from 'react'
+import type { UsedIconName } from './IconifyIcon.tsx'
 import { DshModal } from '@tnnevol/dsh-semi-ui'
+import { IconifyIcon } from './IconifyIcon.tsx'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { AuthorizedDirectoriesCard } from './AuthorizedDirectoriesCard.tsx'
 import { DependencyRepairCard } from './DependencyRepairCard.tsx'
@@ -47,9 +49,10 @@ export interface FnosConfigDialogProps {
 export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps): React.ReactNode {
   const [section, setSection] = useState<SectionId>('directories')
 
-  const sections: readonly { id: SectionId, label: string }[] = [
-    { id: 'directories', label: t('configSectionDirectories') },
-    { id: 'repair', label: t('configSectionRepair') },
+  // 每项配一个图标：纯文字分组在窄列里不易扫读，图标给一眼可辨的锚点。
+  const sections: readonly { id: SectionId, label: string, icon: UsedIconName }[] = [
+    { id: 'directories', label: t('configSectionDirectories'), icon: 'lucide:folder' },
+    { id: 'repair', label: t('configSectionRepair'), icon: 'lucide:wrench' },
   ]
 
   return (
@@ -76,7 +79,8 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
               aria-current={item.id === section ? 'page' : undefined}
               onClick={() => { setSection(item.id) }}
             >
-              {item.label}
+              <IconifyIcon name={item.icon} />
+              <span>{item.label}</span>
             </button>
           ))}
         </nav>

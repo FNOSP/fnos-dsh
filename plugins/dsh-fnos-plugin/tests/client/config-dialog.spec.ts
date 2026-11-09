@@ -74,11 +74,49 @@ describe('fnOS 配置弹框', () => {
 
   it('样式用 DSH 语义变量，亮暗主题都可读', () => {
     const block = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body'))
-    expect(block).toContain('--dsw-alias-border-l2')
     expect(block).toContain('--dsw-alias-interactive-bg-hover')
+    expect(block).toContain('--dsw-alias-label-primary')
     // 右侧独立滚动，不把弹框撑到视口外。
     expect(block).toContain('max-height')
     expect(block).toContain('overflow-y: auto')
+  })
+
+  it('蒙层是暗色，不是 Semi 默认的浅色半透明', () => {
+    const mask = SCSS.slice(SCSS.indexOf('.semi-modal-mask'), SCSS.indexOf('.dsh-fnos-config-body'))
+    expect(mask).toContain('background-color')
+    // 深色遮罩：亮色主题下也读得出「背后已禁用」。
+    expect(mask).toMatch(/rgb\(0 0 0/)
+  })
+
+  it('左右间距收窄，且不再用竖线分隔', () => {
+    const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body'), SCSS.indexOf('.dsh-fnos-config-nav {'))
+    expect(body).toContain('gap: 10px')
+    const nav = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-nav {'), SCSS.indexOf('.dsh-fnos-config-nav-item'))
+    expect(nav).not.toContain('border-right')
+    expect(nav).not.toContain('margin-right')
+  })
+
+  it('左侧菜单项带图标，图标与文字横排居中', () => {
+    expect(DIALOG).toContain('<IconifyIcon name={item.icon} />')
+    expect(DIALOG).toContain("icon: 'lucide:folder'")
+    expect(DIALOG).toContain("icon: 'lucide:wrench'")
+    const item = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-nav-item {'))
+    expect(item.slice(0, item.indexOf('}'))).toContain('align-items: center')
+    expect(item.slice(0, item.indexOf('}'))).toContain('gap: 8px')
+  })
+
+  it('授权目录卡片不再渲染那段描述', () => {
+    const CARD = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+    expect(CARD).not.toContain('dsh-fnos-authorized-card-description')
+  })
+
+  it('tip 图标与标题垂直居中（包装层也是 flex）', () => {
+    const head = SCSS.slice(SCSS.indexOf('.dsh-fnos-authorized-gateway-head'))
+    // DshTooltip 会包一层，那一层才是 flex 子项；不拉成 flex 图标就偏。
+    expect(head).toContain('.dsh-fnos-authorized-gateway-head > *')
+    expect(head).toContain('align-items: center')
+    // 行内基线对齐的负边距在 flex 里会把图标顶高。
+    expect(head).toMatch(/margin: 0;/)
   })
 
   it('八种语言都有四个新文案键', () => {

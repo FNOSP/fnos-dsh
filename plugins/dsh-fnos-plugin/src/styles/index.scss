@@ -366,10 +366,27 @@ img.dsh-fnos-file-manager-icon {
   margin-bottom: 8px;
 }
 
-.dsh-fnos-authorized-gateway-title { font-size: 13px; }
+/*
+ * tip 图标与标题垂直居中。
+ *
+ * `DshTooltip` 会在图标外面再包一层元素，那一层才是 flex 的直接子项——它默认按
+ * 内容行高撑开，图标于是偏上/偏下（实机截图里就是没对齐）。因此把包装层也拉成
+ * flex 并居中，图标与文字才按同一条中线对齐。
+ */
+.dsh-fnos-authorized-gateway-head > * {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dsh-fnos-authorized-gateway-title {
+  font-size: 13px;
+  /* 用行高盒而不是基线：图标是 14px 的固定盒子，靠 line-height 对齐才稳。 */
+  line-height: 20px;
+}
+
 .dsh-fnos-authorized-gateway-message { margin-top: 6px; }
 
-/* tip 图标：可聚焦、可悬浮，尺寸与命中区对齐行高。 */
+/* tip 图标：可聚焦、可悬浮，尺寸与命中区对齐标题行高。 */
 .dsh-fnos-authorized-gateway-tip {
   display: inline-flex;
   align-items: center;
@@ -377,7 +394,8 @@ img.dsh-fnos-file-manager-icon {
   box-sizing: content-box;
   width: 14px;
   height: 14px;
-  margin: -1px;
+  /* 行内基线对齐用的负边距在 flex 容器里反而会把图标顶高，这里清零。 */
+  margin: 0;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
 
@@ -903,6 +921,17 @@ img.dsh-fnos-file-manager-icon {
 }
 
 /*
+ * 配置弹框的蒙层改成暗色。
+ *
+ * Semi 默认是浅色半透明遮罩，配白色弹框时几乎看不出「背后已禁用」——看起来像
+ * 弹框悬在页面上，而不是盖住了页面。改成深色遮罩后才读得出层级。
+ */
+.semi-modal-mask,
+.semi-modal-wrap {
+  background-color: rgb(0 0 0 / 45%);
+}
+
+/*
  * fnOS 配置弹框：左侧菜单 + 右侧主体。
  *
  * 形态对齐官方设置弹框（左列固定宽度导航、右侧内容区独立滚动）。用 DSH 语义
@@ -913,24 +942,26 @@ img.dsh-fnos-file-manager-icon {
  */
 .dsh-fnos-config-body {
   display: flex;
-  gap: 0;
+  /* 左右两侧留白收窄：原来 nav 与 panel 各让 16px、实际空出 32px，太散。 */
+  gap: 10px;
   min-height: 360px;
   max-height: 60vh;
 }
 
 .dsh-fnos-config-nav {
   display: flex;
-  flex: 0 0 168px;
+  flex: 0 0 152px;
   flex-direction: column;
   gap: 2px;
-  padding-right: 16px;
-  margin-right: 16px;
-  border-right: 1px solid var(--dsw-alias-border-l2);
+  /* 不用竖线分隔：靠留白区分左右，细线在窄间距下反而更挤。 */
   overflow-y: auto;
 }
 
 .dsh-fnos-config-nav-item {
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   padding: 7px 10px;
   border: none;
