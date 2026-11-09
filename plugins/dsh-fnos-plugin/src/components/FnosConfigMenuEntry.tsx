@@ -16,7 +16,7 @@ import { useCallback } from 'react'
 import { MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { configDialogStore } from '../client/config-dialog-store.ts'
-import { IconifyIcon } from './IconifyIcon.tsx'
+import { FnosMonoLogo } from './FnosLogo.tsx'
 
 type Translate = (key: FnosLocaleKey) => string
 
@@ -46,7 +46,14 @@ export function FnosConfigMenuEntry({ onDismiss, t }: FnosConfigMenuEntryProps):
   return (
     <MenuItemButton
       separatorBefore
-      icon={<IconifyIcon name="lucide:settings-2" />}
+      /*
+        用项目里已有的飞牛标记，而不是通用设置齿轮：这个入口代表「飞牛 OS」这个
+        整体，齿轮会把「打开的是 fnOS 设置」误读成「应用设置」。
+
+        取 mono 版本：它用 `filter: brightness(0)` + 暗色主题反转成白色，
+        亮暗主题下都读得清；彩色版本在灰底菜单行里会显脏。
+      */
+      icon={<FnosMonoLogo size={16} />}
       onSelect={openConfig}
     >
       {t('configMenuEntry')}

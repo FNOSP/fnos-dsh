@@ -33,7 +33,6 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
     // 构建清单与组件里的名字必须一致，否则打包的 body 与调用处对不上。
     expect(BUILD).toContain("'lucide:power'")
     expect(BUILD).toContain("'lucide:refresh-cw'")
-    expect(BUILD).toContain("'lucide:settings-2'")
     expect(BUILD).toContain("'lucide:folder'")
     expect(BUILD).toContain("'lucide:wrench'")
     // 生成物里确实只有这些（多一个就说明有没登记的图标被打进去了）。
@@ -41,7 +40,6 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
       'lucide:folder',
       'lucide:power',
       'lucide:refresh-cw',
-      'lucide:settings-2',
       'lucide:wrench',
     ])
   })

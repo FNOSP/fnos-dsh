@@ -40,7 +40,6 @@ import { ICON_BODIES, ICON_BOX } from '../generated/icons.ts'
 export type UsedIconName =
   | 'lucide:power'
   | 'lucide:refresh-cw'
-  | 'lucide:settings-2'
   | 'lucide:folder'
   | 'lucide:wrench'
 

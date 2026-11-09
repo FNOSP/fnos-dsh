@@ -25,6 +25,22 @@ describe('fnOS 配置弹框', () => {
     expect(ENTRY).toContain('separatorBefore')
   })
 
+  it('入口用飞牛标记而不是通用设置齿轮', () => {
+    // 这个入口代表「飞牛 OS」整体，齿轮会被误读成「应用设置」。
+    expect(ENTRY).toContain('FnosMonoLogo')
+    expect(ENTRY).not.toContain('lucide:settings-2')
+  })
+
+  it('飞牛标记自带黑白主题适配', () => {
+    // mono 版本用 brightness(0) 变黑、暗色主题反转成白，亮暗下都读得清。
+    const LOGO = read('../../src/components/FnosLogo.tsx')
+    expect(LOGO).toContain('FnosMonoLogo')
+    const css = SCSS.slice(SCSS.indexOf('.dsh-fnos-mono-logo'), SCSS.indexOf('.dsh-fnos-session-log-tree-label'))
+    expect(css).toContain('brightness(0)')
+    expect(css).toContain('data-ds-dark-theme')
+    expect(css).toContain('invert(1)')
+  })
+
   it('先关菜单再开弹框（避免 portaled 浮层抢焦点）', () => {
     const open = ENTRY.slice(ENTRY.indexOf('const openConfig'), ENTRY.indexOf('return ('))
     expect(open).toContain('onDismiss?.()')
