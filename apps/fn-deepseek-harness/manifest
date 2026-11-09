@@ -1,5 +1,5 @@
 appname               = fn-deepseek-harness
-version               = 8.1.14
+version               = 8.1.15
 display_name          = ${common.displayName}
 desc                  = ${common.desc}
 changelog             = ${common.changelog}
