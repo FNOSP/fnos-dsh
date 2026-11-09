@@ -142,6 +142,26 @@ describe('fnOS 配置弹框', () => {
     expect(DIALOG).toContain('width={880}')
   })
 
+  it('尺寸对齐官方设置弹框（实测 880×532）', () => {
+    const surface = SCSS.slice(
+      SCSS.indexOf('body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-content {'),
+      SCSS.indexOf('/* header 右侧要留出关闭按钮的位置'),
+    )
+    expect(surface).toContain('height: 532px')
+    // 532 = header 24 + body 460 + 上下留白 48，与固定的 body 高度相加要对得上。
+    expect(SCSS).toContain('height: 460px')
+  })
+
+  it('内边距：左侧 12、上下 10、右侧 0（滚动条贴边）', () => {
+    const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
+    // 右 0 是刻意的：右内边距会把滚动条推到中间，看起来像悬空的分隔线。
+    expect(body).toContain('padding: 10px 0 10px 12px')
+    expect(body).toContain('box-sizing: border-box')
+    // 切换分组时右缘不能因为有无滚动条而左右跳。
+    const panel = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-panel {'))
+    expect(panel.slice(0, panel.indexOf('}'))).toContain('scrollbar-gutter: stable')
+  })
+
   it('弹框去掉 1px 描边，阴影改为大范围低透明度', () => {
     const at = SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-content')
     const surface = SCSS.slice(at, at + 400)

@@ -944,26 +944,37 @@ img.dsh-fnos-file-manager-icon {
 /*
  * fnOS 配置弹框：左侧菜单 + 右侧主体。
  *
- * 形态对齐官方设置弹框（左列固定宽度导航、右侧内容区独立滚动）。用 DSH 语义
- * 变量而不是写死颜色：亮暗主题都要能读，且宿主换肤后不用改这里。
+ * 形态与尺寸对齐官方设置弹框（实测 880×532、内容区 padding 0 24px）。用 DSH
+ * 语义变量而不是写死颜色：亮暗主题都要能读，且宿主换肤后不用改这里。
  *
  * **宽高固定**：切换分组时两个面板的内容高度不同（授权目录长、依赖修复短），
  * 用 `min-height` 会让弹框跟着内容跳——实测从 360px 跳到内容高度，观感上像
  * 弹框在抖。这里给主体一个固定高度，内容多的由右侧自己滚动。
+ *
+ * 内边距按实机反馈收紧：整体左侧 12px、上下 10px。右侧不留右内边距——滚动条
+ * 要贴到弹框边缘（贴边 0），留白会把它推到中间，看起来像一条悬空的分隔线。
  */
 .dsh-fnos-config-body {
   display: flex;
-  /* 左右两侧留白收窄：原来 nav 与 panel 各让 16px、实际空出 32px，太散。 */
   gap: 10px;
   /* 固定高度而不是 min/max 区间：见上，切换分组时高度必须稳定。 */
   height: 460px;
   min-height: 0;
   max-height: none;
+  /* 左 12 / 上 10 / 右 0 / 下 10：右 0 让滚动条贴边。 */
+  padding: 10px 0 10px 12px;
+  box-sizing: border-box;
 }
 
-/* 右侧主体自己滚动，不把弹框撑高。 */
+/*
+ * 右侧主体自己滚动，不把弹框撑高。
+ *
+ * `scrollbar-gutter: stable` 让无滚动内容时也预留滚动条槽位，切换分组时右缘
+ * 不会因为「有没有滚动条」而左右跳 15px。
+ */
 .dsh-fnos-config-panel {
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 /*
@@ -1001,6 +1012,23 @@ body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-inner {
     0 32px 80px rgb(0 0 0 / 18%);
 }
 
+/*
+ * 弹框内边距与官方设置弹框一致（实测 `0 24px`），但**右内边距归零**：
+ * 右侧主体是滚动区，右 24px 会把滚动条推到中间；贴边才和官方设置弹框一样。
+ *
+ * 尺寸取官方实测值：880×532。高度 532 = header 24 + body 460 + 上下留白 48，
+ * 与下方 `.dsh-fnos-config-body` 的固定 460 相加后正好对齐。
+ */
+body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-content {
+  padding: 0 0 0 24px;
+  height: 532px;
+}
+
+/* header 右侧要留出关闭按钮的位置，否则标题贴到按钮下方。 */
+body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-header {
+  padding-right: 24px;
+}
+
 .dsh-fnos-config-nav {
   display: flex;
   flex: 0 0 152px;
@@ -1008,6 +1036,7 @@ body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-inner {
   gap: 2px;
   /* 不用竖线分隔：靠留白区分左右，细线在窄间距下反而更挤。 */
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .dsh-fnos-config-nav-item {
