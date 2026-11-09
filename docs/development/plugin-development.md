@@ -17,6 +17,18 @@ pnpx skills add tnnevol/skills --skill dsh -g
 
 :::
 
+### 遮蔽官方条目要配守卫
+
+插件可以用「同 `name` + 同 `id` + 更低 `priority`」覆盖官方槽位条目（先例：`@tnnevol/dsh-fnos` 遮蔽 `session-log-download` 与 `open-in-app`）。**遮蔽是整条替换**：官方该条目里新加的功能会一起消失，界面不报错、控制台也没有警告。
+
+真实事故：DSH 上游给会话头部菜单加了「复制会话为 Markdown」，被上述遮蔽挡掉，直到用户截图才发现。
+
+因此**遮蔽官方条目时必须同时写一条守卫测试**：从已安装的上游产物里抽出官方实现的功能清单（菜单项 id、导出名等），与本地实现比对，缺项即报红并点名。参考 `plugins/dsh-fnos-plugin/tests/client/official-entry-shadow-guard.spec.ts`。
+
+守卫要能真正失败：写完先临时删掉本地对应实现，确认它报出具体缺项，再恢复。永远为真的断言不叫守卫。
+
+上游产物缺失时守卫应**跳过而不是失败**（`it.skipIf`），否则干净环境会出假红。
+
 ## 基础检查
 
 ```bash

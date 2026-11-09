@@ -34,6 +34,22 @@ export const FNOS_OPEN_IN_APP_SEAT: HeaderUtilitySeat = {
 
 /**
  * Session log：遮蔽官方 `session-log-download`，保持默认 order 0 排在右侧。
+ *
+ * :::danger 遮蔽是整条替换，上游新增功能会静默消失
+ *
+ * 官方那个条目渲染的是一个**菜单**（复制会话为 Markdown / 下载日志 / 反馈）。
+ * 同 id 覆盖后由本插件的 `FnosSessionLogHeaderAction` 接手，因此**上游在该菜单
+ * 里加的任何一项都不会出现**，而界面不报错、控制台也没有警告——用户只会发现
+ * 「少了一项」。
+ *
+ * 这不是假设：DSH 上游加了「复制会话为 Markdown」，被这条遮挡挡掉，直到用户
+ * 截图才被发现。
+ *
+ * 因此改上游菜单相关代码前，先跑
+ * `tests/client/official-entry-shadow-guard.spec.ts`：它从已安装的上游产物里
+ * 抽出菜单项 id 与本地实现比对，缺一项就报红并点名。
+ *
+ * :::
  */
 export const FNOS_SESSION_LOG_SEAT: HeaderUtilitySeat = {
   name: 'conversation.session.header.utilities',
