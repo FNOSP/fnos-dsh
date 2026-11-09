@@ -5,8 +5,8 @@ description: fnOS 插件「依赖修复」的用例设计、执行结果与问�
 requirement: /requirements/FNOS-050-dependency-repair
 plan: /plans/PLAN-FNOS-050-dependency-repair
 status: 部分通过
-lastVerified: 2026-11-07
-verifiedAt: 2026-11-07
+lastVerified: 2026-11-09
+verifiedAt: 2026-11-09
 ---
 
 # FNOS-050 测试用例
@@ -110,6 +110,26 @@ verifiedAt: 2026-11-07
 
 此外全量回归：插件单元测试 **467 条通过**，`typecheck` 与 `build` 均通过。
 
+### 真机安装与只读诊断（2026-11-09 补测）
+
+在真实 fnOS NAS（`xiaomi-cn.fnos.net`，`TRIM_SYS_ARCH=x86`）上以应用中心「手动安装 → 从电脑上传」安装 `fn-deepseek-harness-x86-v8.1.4-dsh-0.2.2-rc.1.fpk`，补齐「8.1.4 新构建确实装上去」与只读诊断的真机证据。
+
+| 判据 | 实测值 | 结论 |
+| --- | --- | --- |
+| 应用中心详情页版本 | `8.1.4`，来源「手动安装」 | 本次构建已覆盖安装 |
+| DSH 运行时 `__DSH_BOOT__.release` | `0.2.2-rc.1`（commit `c59d10a`） | 运行时基线正确 |
+| 客户端模块图自有插件 | 仅 `@tnnevol/dsh-fnos`、`dshmarket` | **`codex-auth`、`failover-search` 均不在图中**，证明是 8.1.4 的「移出内置」新构建 |
+| 模块图条目总数 | 82 | — |
+| 插件页异常 / 不兼容 | 均为 0 | 加载正常 |
+| 依赖修复卡片 | 已渲染，tip、`检查`、`修复依赖` 三处齐全 | TC-001/TC-002 在真机成立 |
+| 真机诊断结果 | 「依赖状态正常，无需修复」 | 见下方核对 |
+
+对「依赖状态正常」做了独立核对，确认是正确判定而非漏报：NAS 上 `/vol2/@apphome/fn-deepseek-harness/profiles/web/pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` 实际只有三条干净条目（`dshmarket@1.73.12`、`@tnnevol/dsh-opencode@8.1.3`、`@tnnevol/dsh-midscene@8.1.3`），不含 `||` 联合，也不含历史上那些 `@6.0.0` 残留——它们已在本次安装的依赖重建中被收敛掉。
+
+安装回调日志同样干净：`dsh-fnos` 走 `file:` 归档安装成功、`dshmarket@1.73.12` 因精确版本已存在被跳过（`Keeping installed dshmarket@1.73.12; exact version already matches.`），`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` 出现 **0 次**。
+
+因此 TC-006 至 TC-012 的**判定逻辑**仍以单元测试为准；本次真机得到的是「干净 profile 下不误报」这一侧的实证，故障侧（真正失效的条目）仍需构造失效现场后才能覆盖。
+
 ## Bug 记录
 
 | Bug ID | 关联用例 | 标题 | 严重级别 | 状态 | 修复说明 |
@@ -129,3 +149,4 @@ verifiedAt: 2026-11-07
 
 1. **真机修复未执行**：`pnpm clean --lockfile` 与 `pnpm install` 在真实 NAS 上耗时未知，重建期间应用不可用的时长也无实测。建议按 [测试用例文档规范](/charter/tests-spec) 走一次完整验收。
 2. **`pnpm clean` 的可用性依赖 pnpm 版本**：本实现按 pnpm 11.x 的 `clean --lockfile` 编写。若目标设备 pnpm 版本更低，该子命令可能不存在——失败时会记录在 `rebuild` 步骤并给出输出尾部，不会误删其它内容。
+3. **故障侧现场未构造**：2026-11-09 的真机验证发生在 profile 已经干净的设备上，只证明了「无误报」。TC-006/TC-007 描述的失效条目（版本不匹配、`||` 联合）与 TC-017 的修复动作，仍需在测试 profile 内构造失效现场后用应用内界面验证。
