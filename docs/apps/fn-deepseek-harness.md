@@ -19,7 +19,7 @@
 
 | 项目 | 值 |
 | --- | --- |
-| 应用版本 | `8.1.12` |
+| 应用版本 | `8.1.13` |
 | 目标平台 | x86（已真机验证）；arm（Releases 提供，社区自测） |
 | 运行依赖 | `nodejs_v24` |
 | DSH 基线 | `0.2.2-rc.1` |
@@ -89,7 +89,7 @@ FPK 安装和升级时会按发布清单以精确版本准备插件：
 | [`@tnnevol/dsh-failover-search`](/plugins/dsh-failover-search) | 三方网页搜索与网页抓取兜底、平台用量展示 | `dsh plugin --profile web add @tnnevol/dsh-failover-search` |
 | [`@tnnevol/dsh-midscene`](/plugins/dsh-midscene) | 浏览器自动化桥接 | `dsh plugin --profile web add @tnnevol/dsh-midscene` |
 
-Codex Auth 与 Failover Search 自 8.1.12 起不再随 FPK 内置：早前内置是因为其 registry 版本在 DSH `0.2.0-rc.2` 上会因 `@deepseek-ai/dsh-settings` 不再导出 `settingsNamespace` 而使 DSH Web 启动失败；该依赖现已不存在，两个插件可正常从 registry 安装。升级老用户时既有的凭据、模型配置和 profile bundle 不会被卸载或覆盖。
+Codex Auth 与 Failover Search 自 8.1.13 起不再随 FPK 内置：早前内置是因为其 registry 版本在 DSH `0.2.0-rc.2` 上会因 `@deepseek-ai/dsh-settings` 不再导出 `settingsNamespace` 而使 DSH Web 启动失败；该依赖现已不存在，两个插件可正常从 registry 安装。升级老用户时既有的凭据、模型配置和 profile bundle 不会被卸载或覆盖。
 
 `dshmarket`（三方插件市场）不进入 FPK，安装阶段由 DSH CLI 单独安装，已安装时不会覆盖用户版本。
 
