@@ -107,11 +107,11 @@ verifiedAt: 2026-11-09
 | TC-014 | FNOS-050-03 | 源码断言 | 通过 | 2026-11-09 | 诊断为空时直接报 healthy 并 return，不调 `runDependencyRepair` |
 | TC-015 | FNOS-050-03 | 单元测试 | 通过 | 2026-11-07 | 只删失效行，其余行与注释保留 |
 | TC-016 | FNOS-050-03 | 源码断言 | 通过 | 2026-11-07 | 每步失败即 `return`，不继续下一步 |
-| TC-017 | FNOS-050-03 | 真实 fnOS NAS | **待执行** | — | 写操作，须构建 FPK 后走应用中心安装并在界面内触发 |
+| TC-017 | FNOS-050-03 | 真实 fnOS NAS | **通过** | 2026-11-09 | v8.1.9：三步全 ok，10 条清除、6 条保留、依赖完好（首次在 v8.1.8 暴露 BUG-03，已修复） |
 | TC-018 | FNOS-050-04 | 单元测试 | 通过 | 2026-11-07 | 凭据、会话路径均判为否 |
 | TC-019 | FNOS-050-04 | 单元测试 | 通过 | 2026-11-07 | 缺变量时不编造 pnpm/dsh 路径 |
 | TC-020 | FNOS-050-04 | 源码断言 | 通过 | 2026-11-07 | 两条路由均先判 `trusted(req)` |
-| TC-021 | FNOS-050-04 | 真实 fnOS NAS | **待执行** | — | 需与 TC-017 同批执行 |
+| TC-021 | FNOS-050-04 | 真实 fnOS NAS | **通过** | 2026-11-09 | 修复前后 profile 依赖与凭据未变；测试后按哈希还原 workspace |
 
 此外全量回归：插件单元测试 **467 条通过**，`typecheck` 与 `build` 均通过。
 
@@ -193,16 +193,59 @@ POST /plugins/dsh-fnos/dependency-repair/run
 
 **结论：BUG-02 在 8.1.8 上未复现，修复有效。**
 
+### 真实失效现场真机验证（2026-11-09，v8.1.8 / v8.1.9）
+
+用户提供了从真机抄下的 16 条豁免（10 条 `||` 历史累积 + 6 条干净精确钉版），并授权直接写入 NAS 测试。操作前备份原文件（`008601bf…`），测试后按哈希还原。
+
+**第一次（v8.1.8）：暴露 BUG-03。**
+
+前两步完全正确——诊断报出 10 条、全部 `pipe-union`，清条目删 10 行、恰好保留 6 条，`pnpm clean` 与 `install` 退出码均 0。但第三步失败：
+
+```
+repair: reinstall 失败  run "pnpm view @tnnevol/dsh-fnos versions"
+Command failed with exit code 1: pnpm add '@tnnevol/dsh-fnos@8.1.8' ...
+修复结束 ok=false 步骤=clear-exclusions:ok,rebuild:ok,reinstall:failed
+```
+
+根因：重装无条件按 `<name>@<version>` 去 registry 拉，而本应用插件实际是 FPK 内置 `file:` 归档安装的；本地构建的 8.1.8 未发布到 npm。**应用内自愈不该依赖一个可能不存在的 registry 版本**。
+
+**第二次（v8.1.9，修复后）：全部通过。**
+
+| 步骤 | 日志 | 结果 |
+| --- | --- | --- |
+| clear-exclusions | `删除 10 行` | ok |
+| rebuild | `clean 退出码=0` / `install 退出码=0` | ok |
+| reinstall | `使用内置归档 @tnnevol/dsh-fnos → …/dsh-fnos.tgz`<br>`无内置归档，改用 registry dshmarket@1.73.12` | ok |
+
+`修复结束 ok=true 步骤=clear-exclusions:ok,rebuild:ok,reinstall:ok`，耗时 9202ms。
+
+最终文件与离线预期逐项吻合：
+
+```
+minimumReleaseAgeExclude:
+  - '@tnnevol/dsh-semi-ui-showcase@0.2.0-rc.2.0'
+  - dsh-connect-trae@4.5.2
+  - '@deepseek-ai/dsh-brand@0.2.1-rc.5'
+  - '@deepseek-ai/dsh-sdk-protocol@0.2.1-rc.5'
+  - '@deepseek-ai/dsh-subagent-codex@0.2.1-rc.5'
+  - '@deepseek-ai/dsh-tool-subagent@0.2.1-rc.5'
+```
+
+10 条失效清除、6 条保留、profile 依赖保持 `file:` 归档不变。`dshmarket` 没有被内置归档覆盖，正确回退 registry。
+
+测试后已用备份还原，哈希与原始一致。同一现场已固化为回归用例（30+5 条断言）。
+
 ## Bug 记录
 
 | Bug ID | 关联用例 | 标题 | 严重级别 | 状态 | 修复说明 |
 | --- | --- | --- | --- | --- | --- |
+| BUG-03 | TC-017 | 重装步骤硬拉 registry 版本，本地构建未发布时整次修复报 ok=false（前两步已成功） | P1 | 已修复 | 环境推导带上 `bundled-dsh-plugins`，有内置归档走 `file:`（与 FPK 安装路径一致），缺失才回退 registry；回退不阻断修复 |
 | BUG-02 | TC-022 | 健康 profile 点「修复依赖」也先弹破坏性确认框，确认后才告知「无需修复」 | P1 | 已修复 | 按钮改为先诊断：健康则直接报「状态正常」并返回，判出失效条目才开确认框；路由侧补第二道防线，诊断为空时不进入重建 |
 | BUG-01 | TC-015 | 测试断言用 `.filter()` 掩盖了真实判定 | P2 | 已修复 | 初版断言先构造三元素期望值再用 `.filter()` 剔除 codex-auth，等于让期望值迁就实现。改为直接断言两元素，并在用例注释里说明 codex-auth 已移出清单、其豁免不归本应用维护 |
 
 ## 测试结论
 
-**结论：部分通过。** 23 条用例中 21 条通过，2 条（TC-017、TC-021）为真机写操作用例，待构建 FPK 并在应用内验收后回填。2026-11-09 新增 TC-022（单一动作按钮）与 TC-023（标题与图标对齐），并因去掉「检查」按钮把 TC-014 的判据从「按钮禁用」改为「点修复不重建」。
+**结论：通过（真机写操作已补验）。** 23 条用例全部有结论，TC-017、TC-021 已于 2026-11-09 在真实 NAS 上补验通过，并因此抓出并修复 BUG-03。2026-11-09 新增 TC-022（单一动作按钮）与 TC-023（标题与图标对齐），并因去掉「检查」按钮把 TC-014 的判据从「按钮禁用」改为「点修复不重建」。
 
 覆盖情况：
 
@@ -213,4 +256,4 @@ POST /plugins/dsh-fnos/dependency-repair/run
 
 1. **真机修复未执行**：`pnpm clean --lockfile` 与 `pnpm install` 在真实 NAS 上耗时未知，重建期间应用不可用的时长也无实测。建议按 [测试用例文档规范](/charter/tests-spec) 走一次完整验收。
 2. **`pnpm clean` 的可用性依赖 pnpm 版本**：本实现按 pnpm 11.x 的 `clean --lockfile` 编写。若目标设备 pnpm 版本更低，该子命令可能不存在——失败时会记录在 `rebuild` 步骤并给出输出尾部，不会误删其它内容。
-3. **故障侧现场未构造**：2026-11-09 的真机验证发生在 profile 已经干净的设备上，只证明了「无误报」。TC-006/TC-007 描述的失效条目（版本不匹配、`||` 联合）与 TC-017 的修复动作，仍需在测试 profile 内构造失效现场后用应用内界面验证。
+3. **已补验（2026-11-09）**：故障侧现场已用真机数据构造并验证通过——16 条（10 条 `||` 联合 + 6 条精确钉版）写入 NAS profile，修复后 10 条清除、6 条保留，三步全 ok。该现场已固化为回归用例。
