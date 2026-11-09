@@ -48,7 +48,6 @@ import { installFnosLanguageSync } from './services/language-sync.ts'
 import { installFnosRemotePathOpener } from './services/path-opener.ts'
 import { installFnosPresentedOpen } from './services/present-open.ts'
 import { FnosSettingsDocumentAction } from '../components/FnosSettingsDocumentAction.tsx'
-import { FnosWebRestartAction } from '../components/FnosWebRestartAction.tsx'
 import { installFnosBrowserRefreshShortcut } from './shortcuts/browser-refresh-shortcut.ts'
 import { installFnosSettingsShortcut } from './shortcuts/settings-shortcut.ts'
 import { isEmbeddedFnosFrame } from './services/sdk-carrier.ts'
@@ -250,14 +249,10 @@ export function apply(ctx: ClientContext): void {
     props.subject?.kind === 'bundle' && props.subject.pkg?.name === FNOS_PACKAGE_NAME
       ? DependencyRepairCard({ t })
       : null))
-  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-    name: 'sidebar.footer.action',
-    id: 'dsh-fnos-web-restart',
-    order: 0,
-    priority: -1,
-    locale: namespace,
-    inject: () => ({ t }),
-  }, FnosWebRestartAction))
+  /*
+   * 刷新 / 重启不再挂在侧栏底部：它们已并入会话头部的「…」菜单
+   * （`FnosSessionLogHeaderAction`）。两个都是低频动作，常驻两个按钮位不划算。
+   */
 
   /**
    * 授权目录选择器拆成两个槽位条目，共享一个会话级开关 store：

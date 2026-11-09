@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, IconRefreshOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DshIconFolder, DshModal, DshTree } from '@tnnevol/dsh-semi-ui'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
@@ -42,6 +42,21 @@ interface DirectoryTreeNode {
   label: ReactNode
   isLeaf: boolean
   children?: DirectoryTreeNode[]
+}
+
+/**
+ * 网关控制接口的绝对地址。
+ *
+ * 相对 `<base>` 解析：DSH 在 fnOS 里跑在 iframe 中，`/__fnos-gateway/...` 需要带上
+ * 宿主前缀才命中网关。
+ */
+function gatewayControlUrl(path: string): string {
+  if (typeof document === 'undefined') return path
+  const base = document.querySelector('base')?.href
+  if (base !== undefined) {
+    try { return new URL(path.slice(1), base).toString() } catch {}
+  }
+  return path
 }
 
 function displayName(path: string): string {
@@ -85,6 +100,8 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string>()
+  const [restarting, setRestarting] = useState(false)
+  const [restartFailed, setRestartFailed] = useState(false)
   const browserDownload = useSessionLogDownload(state => state.bySession[String(sessionId)])
   const browserStatus = browserDownload?.status
   const browserDialogTitle = browserStatus === 'downloading'
@@ -165,7 +182,21 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
   // 与官方 session-log-export 一致：菜单项自带图标，触发按钮不带文字。
   // 结构也对齐官方：第一项是「下载 Session 日志」，本插件额外提供的两种落点
   // （电脑 / NAS）挂在它的子菜单里，而不是平铺成两个同级项；第二项是反馈。
+  //
+  // 刷新与重启也在这个菜单里，按用户指定排序：**刷新在最上面**（最常用、最轻，
+  // 一次重载即可），**重启在反馈下面**（动作最重，需要二次确认）。两者原先常驻
+  // 在侧栏底部，占掉两个按钮位——都是低频动作，收进这里更划算。
+  // 重启失败时把该行文案换成失败提示：菜单里不弹窗，否则会打断用户操作，
+  // 但静默失败又等于没做——所以借这一行的标签承载结果。
+  const restartItem: MenuItem = restarting
+    ? { id: 'restart', label: t('webRestarting'), icon: <IconRefreshOutlineRegular />, disabled: true }
+    : {
+        id: 'restart',
+        label: restartFailed ? t('webRestartFailed') : t('webRestart'),
+        icon: <IconRefreshOutlineRegular />,
+      }
   const menuItems: MenuItem[] = [
+    { id: 'refresh', label: t('refresh'), icon: <IconRefreshOutlineRegular /> },
     {
       id: 'download',
       label: t('sessionLogDownload'),
@@ -176,7 +207,42 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
       ],
     },
     { id: 'feedback', label: t('sessionLogFeedback'), icon: <IconPaperPlaneOutlineRegular /> },
+    restartItem,
   ]
+
+  const refreshPage = useCallback(() => {
+    setOpen(false)
+    window.location.reload()
+  }, [])
+
+  const restartWeb = useCallback(() => {
+    setOpen(false)
+    setRestarting(true)
+    setRestartFailed(false)
+    void (async () => {
+      try {
+        const response = await fetch(gatewayControlUrl('/__fnos-gateway/control/web/restart'), {
+          method: 'POST',
+          headers: { 'x-requested-with': 'fetch' },
+          credentials: 'same-origin',
+        })
+        const value: unknown = await response.json().catch(() => undefined)
+        if (!response.ok) {
+          throw new Error(
+            typeof value === 'object' && value !== null && 'error' in value && typeof value.error === 'string'
+              ? value.error
+              : `HTTP ${response.status}`,
+          )
+        }
+        // 重启会断开当前连接，重载放在断连前，避免界面停在忙碌态。
+        window.setTimeout(() => { window.location.reload() }, 300)
+      } catch {
+        setRestartFailed(true)
+      } finally {
+        setRestarting(false)
+      }
+    })()
+  }, [])
 
   return (
     <>
@@ -191,7 +257,9 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
         onClose={() => { setOpen(false) }}
         onSelect={(id) => {
           setOpen(false)
-          if (id === 'computer') void exportToComputer(sessionId)
+          if (id === 'refresh') refreshPage()
+          else if (id === 'restart') restartWeb()
+          else if (id === 'computer') void exportToComputer(sessionId)
           else if (id === 'nas') openNasDialog()
           else if (id === 'feedback') openFeedbackPage()
         }}

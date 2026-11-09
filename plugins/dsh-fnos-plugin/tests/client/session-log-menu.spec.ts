@@ -29,10 +29,32 @@ describe('FNOS-042 Session 日志菜单结构', () => {
   })
 
   it('不再把两个导出项平铺成同级条目', () => {
-    // 顶层只允许 download 与 feedback 两项：断言顶层数组里没有并列的 computer/nas。
-    const topLevel = ACTION.slice(ACTION.indexOf('const menuItems: MenuItem[] = ['), ACTION.indexOf(']\n\n  return ('))
+    // 顶层允许 refresh / download / feedback / restart 四项；computer 与 nas 必须
+    // 留在 download 的 submenu 里，不能成为并列的顶层项。
+    const topLevel = ACTION.slice(ACTION.indexOf('const menuItems: MenuItem[] = ['), ACTION.indexOf(']\n\n  const refreshPage'))
     const topIds = Array.from(topLevel.matchAll(/^\s{4}\{ id: '([a-z]+)'/gmu)).map(m => m[1])
-    expect(topIds).toEqual(['feedback'])
+    expect(topIds).toEqual(['refresh', 'feedback'])
+    expect(topIds).not.toContain('computer')
+    expect(topIds).not.toContain('nas')
+  })
+
+  it('刷新在最上面、重启在反馈下面（用户指定顺序）', () => {
+    const start = ACTION.indexOf('const menuItems: MenuItem[] = [')
+    const block = ACTION.slice(start, ACTION.indexOf('const refreshPage'))
+    // 用出现位置比较，避免受跨行排版影响。
+    const at = (id: string): number => block.indexOf(`id: '${id}'`)
+    expect(at('refresh')).toBeGreaterThan(-1)
+    expect(at('download')).toBeGreaterThan(-1)
+    expect(at('feedback')).toBeGreaterThan(-1)
+    // 刷新在最上面。
+    expect(at('refresh')).toBeLessThan(at('download'))
+    expect(at('refresh')).toBeLessThan(at('feedback'))
+    // 重启在反馈下面。
+    expect(block).toContain('restartItem')
+    const restartDecl = ACTION.indexOf('const restartItem: MenuItem =')
+    expect(restartDecl).toBeGreaterThan(-1)
+    // 数组里 restart 排在 feedback 之后。
+    expect(block.indexOf('restartItem,')).toBeGreaterThan(at('feedback'))
   })
 
   it('第二项是反馈，指向本仓库', () => {
