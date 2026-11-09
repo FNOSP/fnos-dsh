@@ -81,11 +81,15 @@ describe('fnOS 配置弹框', () => {
     expect(block).toContain('overflow-y: auto')
   })
 
-  it('蒙层是暗色，不是 Semi 默认的浅色半透明', () => {
+  it('蒙层是暗色，且用 !important 压过 Semi 的规则', () => {
     const mask = SCSS.slice(SCSS.indexOf('.semi-modal-mask'), SCSS.indexOf('.dsh-fnos-config-body'))
-    expect(mask).toContain('background-color')
     // 深色遮罩：亮色主题下也读得出「背后已禁用」。
     expect(mask).toMatch(/rgb\(0 0 0/)
+    // 实测：普通声明会被 Semi 的另一条规则压掉（变量已解析成 #00000073，
+    // 计算值仍是白色），只有 !important 能稳定生效。
+    expect(mask).toContain('!important')
+    // 同时覆盖变量，避免别处复用该变量时又回退成白色。
+    expect(mask).toContain('--semi-color-overlay-bg')
   })
 
   it('左右间距收窄，且不再用竖线分隔', () => {

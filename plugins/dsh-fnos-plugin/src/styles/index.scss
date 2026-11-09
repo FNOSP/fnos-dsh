@@ -935,7 +935,10 @@ img.dsh-fnos-file-manager-icon {
 .semi-modal-mask,
 .semi-modal-wrap {
   --semi-color-overlay-bg: rgb(0 0 0 / 45%);
-  background-color: rgb(0 0 0 / 45%);
+  /* `!important` 在这里是必须的：实测 Semi 另有一条规则压过本类选择器，普通
+     声明的 `background-color` 与变量覆盖都不生效（变量已解析成 #00000073，
+     计算值却仍是白色）。遮罩是纯表现层，不会因覆盖而破坏语义。 */
+  background-color: rgb(0 0 0 / 45%) !important;
 }
 
 /*
