@@ -255,6 +255,74 @@ export function modelCostFrom(payload: unknown): Map<string, OpenCodeModelCost> 
   return result
 }
 
+/**
+ * 从账号模型清单读上下文与输出上限。
+ *
+ * 清单（`/inference/go/v1/models`）是**账号维度实时返回**的：它覆盖当前账号真实
+ * 可用的全部模型，而公开目录是全局静态快照，会漏掉刚上架或未收录的模型。实测
+ * 2026-11-09：Go 侧 30 个模型里公开目录只收录 26 个，且对 `minimax-m3`、
+ * `qwen3.8-max` 给出的上下文明显低于清单。
+ *
+ * @param payload - 模型清单响应。
+ * @returns id → 上限；没有 `limit` 的条目不进结果。
+ */
+export function modelLimitFrom(payload: unknown): Map<string, { context?: number; output?: number }> {
+  const result = new Map<string, { context?: number; output?: number }>()
+  for (const [id, row] of rosterRows(payload)) {
+    const limit = record(row.limit)
+    const context = positiveInteger(limit?.context)
+    const output = positiveInteger(limit?.output)
+    if (context === undefined && output === undefined) continue
+    result.set(id, {
+      ...(context === undefined ? {} : { context }),
+      ...(output === undefined ? {} : { output }),
+    })
+  }
+  return result
+}
+
+/**
+ * 从账号模型清单读思考能力声明。
+ *
+ * 清单的 `capabilities.reasoning` 是两种形态之一：
+ *
+ * - `{ supported: true, effort: ['low','high','max'] }` —— 有档位分级；
+ * - `{ supported: true }` —— 只有开关，没有档位（`toggle` 型）。
+ *
+ * 直接复用 {@link thinkingLevelMapFromReasoning} 的映射规则，保持与公开目录、
+ * Console 两条来源完全同一套语义，不新增解释。
+ *
+ * @param payload - 模型清单响应。
+ * @returns id → 思考等级映射；声明不支持的条目不进结果。
+ */
+export function modelReasoningFrom(payload: unknown): Map<string, OpenCodeThinkingLevelMap | undefined> {
+  const result = new Map<string, OpenCodeThinkingLevelMap | undefined>()
+  for (const [id, row] of rosterRows(payload)) {
+    const capabilities = record(row.capabilities)
+    const reasoning = capabilities?.reasoning
+    if (reasoning === undefined || reasoning === false) continue
+    // `supported: false` 明确表示不支持，交给上层判 false，不写进映射表。
+    if (record(reasoning)?.supported === false) continue
+    result.set(id, thinkingLevelMapFromReasoning(reasoning))
+  }
+  return result
+}
+
+/** 逐条产出清单里的 `[id, 原始条目]`；两种响应形态都接受。 */
+function* rosterRows(payload: unknown): Generator<[string, JsonRecord]> {
+  const source = record(payload)
+  const entries = Array.isArray(source?.data)
+    ? source.data
+    : Array.isArray(source?.models) ? source.models : []
+  for (const entry of entries) {
+    const row = record(entry)
+    if (row === undefined) continue
+    const id = nonEmptyString(row.id)
+    if (id === undefined) continue
+    yield [id, row]
+  }
+}
+
 /** 只保留 DSH 能发送的输入模态：text 与 image。 */
 export function normalizeInputModalities(value: unknown): ('text' | 'image')[] {
   const entries = Array.isArray(value) ? value : []
@@ -314,14 +382,35 @@ export function readReasoning(value: unknown): ReasoningShape | undefined {
  * - 缺省 `off` 表示「关闭思考」受支持、且协议按缺省方式表达（发送 disabled）；
  * - `off: 'none'` 表示关闭时显式发送 `none`。
  *
- * 上游没有给出任何 effort 列表时返回 `undefined`，让 pi-ai 使用自己的缺省等级
- * （这是上游对 toggle/budget 型模型的既有处理方式），而不是凭空造出等级。
+ * 上游没有给出任何 effort 列表时（`toggle` / `budget` 型：只有开关，没有档位）
+ * **把所有档位标为不支持**，而不是返回 `undefined`。pi-ai 的语义里 `undefined`
+ * 等于「按 provider 默认等级」，选择器会列出整套档位；但这些模型根本不接受档位
+ * 参数，用户选了也不生效。标 `null` 才能让选择器不出现档位切换。
+ *
+ * 例外：`off` 维持协议原生的关闭表达（`toggle` 型本来就该能关思考），因此
+ * 这里不清空 `off`，只把有档位含义的等级标 null——这与 pi-ai 内置目录对单档
+ * 模型（如 `kimi-k3` 只有 `max`）的处理口径一致。
  */
 export function thinkingLevelMapFromReasoning(value: unknown): OpenCodeThinkingLevelMap | undefined {
+  // 明确声明不支持思考时返回 undefined：调用方据此不给该模型任何思考设置。
+  // 必须在这里拦，因为 `readReasoning` 把 `supported: false` 与「只有开关」
+  // 都规约成 `effort: []`，两者在下游无法区分。
+  if (value === false) return undefined
+  const source = record(value)
+  if (source?.supported === false) return undefined
   const reasoning = readReasoning(value)
   if (reasoning === undefined) return undefined
   const offered = new Set(reasoning.effort)
-  if (reasoning.effort.length === 0) return undefined
+  if (reasoning.effort.length === 0) {
+    // 只有开关、没有档位：显式关闭全部等级，保留协议原生的「关闭思考」。
+    const map: OpenCodeThinkingLevelMap = {}
+    for (const level of OPENCODE_REASONING_LEVELS) {
+      if (level === 'off') continue
+      map[level] = null
+    }
+    if (!reasoning.toggle && !reasoning.budget) map.off = null
+    return map
+  }
   const map: OpenCodeThinkingLevelMap = {}
   for (const level of OPENCODE_REASONING_LEVELS) {
     if (level === 'off') continue
@@ -520,6 +609,10 @@ export interface CatalogEntryInput {
   readonly rosterCreatedAt?: number
   /** 活 roster 给出的 token 单价；公开目录落后于 roster 时兜底。 */
   readonly rosterCost?: OpenCodeModelCost
+  /** 活 roster 给出的上下文与输出上限；账号实时数据，优先于静态目录。 */
+  readonly rosterLimit?: { context?: number; output?: number }
+  /** 活 roster 给出的思考等级映射；`undefined` 表示只有开关、没有档位。 */
+  readonly rosterReasoning?: OpenCodeThinkingLevelMap | undefined
   /** 当前套餐档位的估算表；仅 `plan` 为 `go` 时写入预计请求数。 */
   readonly estimates?: OpenCodeEstimateTable
 }
@@ -536,7 +629,7 @@ export type CatalogEntryResult =
  * 内置目录保留经过验证的 wire 兼容开关。
  */
 export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult {
-  const { id, plan, consoleEntry, catalogEntry, fallbackCatalogEntry, builtin, fallbackBuiltin, rosterCreatedAt, rosterCost } = entry
+  const { id, plan, consoleEntry, catalogEntry, fallbackCatalogEntry, builtin, fallbackBuiltin, rosterCreatedAt, rosterCost, rosterLimit, rosterReasoning } = entry
   const warnings: string[] = []
   const consoleCaps = record(consoleEntry?.capabilities)
   const consoleReasoning = consoleCaps !== undefined && 'reasoning' in consoleCaps
@@ -601,15 +694,21 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
   if (inputModalities.length === 0) warnings.push(`${id}: 上游没有输入模态元数据，按纯文本处理`)
   const input: ('text' | 'image')[] = inputModalities.includes('image') ? ['text', 'image'] : ['text']
 
-  const reasoning = consoleReasoning !== undefined
-    ? readReasoning(consoleReasoning) !== undefined && record(consoleReasoning)?.supported !== false
-      && consoleReasoning !== false
-    : catalogEntry?.reasoning === true
+  // 账号清单最权威：它按当前账号真实可用集声明能力；没声明时才退回静态目录。
+  const reasoning = rosterReasoning !== undefined
+    ? true
+    : consoleReasoning !== undefined
+      ? readReasoning(consoleReasoning) !== undefined && record(consoleReasoning)?.supported !== false
+        && consoleReasoning !== false
+      : catalogEntry?.reasoning === true
       || (catalogEntry?.reasoning === undefined && (fallbackCatalogEntry?.reasoning === true
         || (fallbackCatalogEntry?.reasoning === undefined && (builtin?.reasoning === true || fallbackBuiltin?.reasoning === true))))
 
+  // 顺序：账号清单 → Console → 公开目录（本段→另一段）→ pi-ai 内置。
+  // 账号清单排第一，因为它是唯一覆盖当前账号全部可用模型、且反映真实档位的源。
   const thinkingLevelMap = reasoning
-    ? thinkingLevelMapFromReasoning(consoleReasoning)
+    ? rosterReasoning
+      ?? thinkingLevelMapFromReasoning(consoleReasoning)
       ?? thinkingLevelMapFromReasoning(catalogEntry?.reasoning_options)
       ?? thinkingLevelMapFromReasoning(fallbackCatalogEntry?.reasoning_options)
       ?? builtin?.thinkingLevelMap
@@ -618,12 +717,16 @@ export function buildCatalogEntry(entry: CatalogEntryInput): CatalogEntryResult 
 
   const consoleLimit = record(consoleEntry?.limit)
   const catalogLimit = record(catalogEntry?.limit) ?? record(fallbackCatalogEntry?.limit)
-  const contextWindow = positiveInteger(consoleLimit?.context)
+  // 账号清单优先：实测公开目录对 minimax-m3（512K vs 1M）、qwen3.8-max
+  // （262K vs 1M）明显低估，且完全缺失 kimi-k3.1-pro 等 4 个模型。
+  const contextWindow = rosterLimit?.context
+    ?? positiveInteger(consoleLimit?.context)
     ?? positiveInteger(catalogLimit?.context)
     ?? builtin?.contextWindow
     ?? fallbackBuiltin?.contextWindow
     ?? DEFAULT_CONTEXT_WINDOW
-  const maxTokens = positiveInteger(consoleLimit?.output)
+  const maxTokens = rosterLimit?.output
+    ?? positiveInteger(consoleLimit?.output)
     ?? positiveInteger(catalogLimit?.output)
     ?? builtin?.maxTokens
     ?? fallbackBuiltin?.maxTokens
@@ -964,6 +1067,10 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
     const rosterIds = modelIdsFrom(rosters[plan])
     const rosterCreated = modelCreatedAtFrom(rosters[plan])
     const rosterCosts = modelCostFrom(rosters[plan])
+    // 账号清单是**实时**的：它覆盖当前账号真实可用的全部模型，优先级高于
+    // 全局静态目录与随包内置目录（实测公开目录漏掉 4 个模型、并低估 3 个上下文）。
+    const rosterLimits = modelLimitFrom(rosters[plan])
+    const rosterReasoning = modelReasoningFrom(rosters[plan])
     const consoleEntries = new Map<string, JsonRecord>()
     for (const entry of scope?.models ?? []) consoleEntries.set(entry.id, entry.entry)
 
@@ -1004,6 +1111,8 @@ export function buildCatalog(input: BuildCatalogInput): OpenCodeCatalog {
         ...(scope?.packageName === undefined ? {} : { consoleProviderNpm: scope.packageName }),
         ...(rosterCreated.has(id) ? { rosterCreatedAt: rosterCreated.get(id) as number } : {}),
         ...(rosterCosts.has(id) ? { rosterCost: rosterCosts.get(id) as OpenCodeModelCost } : {}),
+        ...(rosterLimits.has(id) ? { rosterLimit: rosterLimits.get(id) as { context?: number; output?: number } } : {}),
+        ...(rosterReasoning.has(id) ? { rosterReasoning: rosterReasoning.get(id) } : {}),
         ...(input.estimates === undefined ? {} : { estimates: input.estimates }),
       })
       if (result.ok) {

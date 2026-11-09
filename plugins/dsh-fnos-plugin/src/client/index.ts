@@ -48,7 +48,7 @@ import { installFnosLanguageSync } from './services/language-sync.ts'
 import { installFnosRemotePathOpener } from './services/path-opener.ts'
 import { installFnosPresentedOpen } from './services/present-open.ts'
 import { FnosSettingsDocumentAction } from '../components/FnosSettingsDocumentAction.tsx'
-import { FnosWebRestartAction } from '../components/FnosWebRestartAction.tsx'
+import { FnosWebActionsMenu } from '../components/FnosWebActionsMenu.tsx'
 import { installFnosBrowserRefreshShortcut } from './shortcuts/browser-refresh-shortcut.ts'
 import { installFnosSettingsShortcut } from './shortcuts/settings-shortcut.ts'
 import { isEmbeddedFnosFrame } from './services/sdk-carrier.ts'
@@ -250,14 +250,20 @@ export function apply(ctx: ClientContext): void {
     props.subject?.kind === 'bundle' && props.subject.pkg?.name === FNOS_PACKAGE_NAME
       ? DependencyRepairCard({ t })
       : null))
-  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-    name: 'sidebar.footer.action',
-    id: 'dsh-fnos-web-restart',
-    order: 0,
-    priority: -1,
+  /**
+   * 刷新 / 重启移进「更多」菜单。
+   *
+   * 原因是这两个低频动作在侧栏底部常驻占位，而「更多」菜单本就承担「更多操作」
+   * 的语义（官方 entry-customization 也往这里放非面板动作）。改挂
+   * `sidebar.panellist.actions` 后，`sidebar.footer.action` 上不再有本插件条目。
+   */
+  ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register({
+    name: 'sidebar.panellist.actions',
+    id: 'dsh-fnos-web-actions',
+    order: 90,
     locale: namespace,
     inject: () => ({ t }),
-  }, FnosWebRestartAction))
+  }, (props: { onDismiss?: () => void }) => FnosWebActionsMenu({ ...props, t })))
 
   /**
    * 授权目录选择器拆成两个槽位条目，共享一个会话级开关 store：

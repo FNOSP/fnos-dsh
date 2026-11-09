@@ -21,6 +21,8 @@ import {
   buildCatalog,
   dedupeByPlan,
   modelCostFrom,
+  modelLimitFrom,
+  modelReasoningFrom,
   buildCatalogEntry,
   consoleScopesFromConsoleConfig,
   safeConsoleHeaders,
@@ -259,8 +261,33 @@ describe('OpenCode 模型目录归一化', () => {
     }
   })
 
-  it('思考等级映射：toggle 且无 none 时保留 Off，显式 none 时发送 none', () => {
-    expect(thinkingLevelMapFromReasoning({ supported: true, toggle: true })).toBeUndefined()
+  it('思考等级映射：toggle 型关闭全部等级，显式 none 时发送 none', () => {
+    // toggle 型（只有开关、没有档位）不接受档位参数：返回全 null 让选择器不出现
+    // 档位切换，而不是返回 undefined 交给 pi-ai 默认等级（那会列出无效档位）。
+    expect(thinkingLevelMapFromReasoning({ supported: true, toggle: true })).toEqual({
+      minimal: null,
+      low: null,
+      medium: null,
+      high: null,
+      xhigh: null,
+      max: null,
+    })
+    // toggle 型不写 off 键：保留协议原生的「关闭思考」（缺省即支持关闭）。
+    expect(thinkingLevelMapFromReasoning({ supported: true, toggle: true }))
+      .not.toHaveProperty('off')
+    // budget 型连关闭也不由通用开关表达，显式标 null。
+    expect(thinkingLevelMapFromReasoning({ supported: true, budget: true }))
+      .toMatchObject({ off: null })
+    // 单档模型沿用 pi-ai 内置口径：只把该档标为可用，其余不受支持。
+    expect(thinkingLevelMapFromReasoning({ supported: true, effort: ['max'] })).toEqual({
+      minimal: null,
+      low: null,
+      medium: null,
+      high: null,
+      xhigh: null,
+      max: 'max',
+      off: null,
+    })
     expect(thinkingLevelMapFromReasoning({ supported: true, effort: ['none', 'high'] })).toEqual({
       minimal: null,
       low: null,
@@ -1043,5 +1070,85 @@ describe('额度口径下免费标记不再优先', () => {
       goModel('paid-low', 100),
     ]
     expect(sortCatalogModels(models, OPENCODE_GO_ESTIMATES).map(model => model.id)).toEqual(['free-high', 'paid-low'])
+  })
+})
+
+/**
+ * FNOS-051：账号清单（`/go/v1/models`）优先于静态目录与内置目录。
+ *
+ * 实测依据（2026-11-09，Go 订阅账号）：公开目录只收录 Go 侧 30 个模型中的 26 个，
+ * 且对 minimax-m3、qwen3.8-max 给出的上下文低于账号清单；kimi-k3.1-pro 实测能
+ * 处理 310,093 prompt tokens，远超默认 262,144。
+ */
+describe('FNOS-051 账号清单优先', () => {
+  const roster = {
+    data: [
+      {
+        id: 'kimi-k3.1-pro',
+        limit: { context: 1_048_576, output: 131_072 },
+        capabilities: { reasoning: { supported: true, effort: ['low', 'high', 'max'] } },
+      },
+      {
+        id: 'mimo-v2.6-pro',
+        limit: { context: 1_048_576, output: 131_072 },
+        capabilities: { reasoning: { supported: true, toggle: true } },
+      },
+      {
+        id: 'no-reasoning',
+        limit: { context: 200_000, output: 8_192 },
+        capabilities: { reasoning: { supported: false } },
+      },
+    ],
+  }
+
+  it('读出上下文与输出上限', () => {
+    expect(modelLimitFrom(roster)).toEqual(new Map([
+      ['kimi-k3.1-pro', { context: 1_048_576, output: 131_072 }],
+      ['mimo-v2.6-pro', { context: 1_048_576, output: 131_072 }],
+      ['no-reasoning', { context: 200_000, output: 8_192 }],
+    ]))
+  })
+
+  it('有档位的模型读出真实档位', () => {
+    const map = modelReasoningFrom(roster).get('kimi-k3.1-pro')
+    expect(map).toMatchObject({ low: 'low', high: 'high', max: 'max', minimal: null })
+  })
+
+  it('只有开关的模型不提供任何档位', () => {
+    const map = modelReasoningFrom(roster).get('mimo-v2.6-pro')
+    expect(map).toEqual({ minimal: null, low: null, medium: null, high: null, xhigh: null, max: null })
+    expect(map).not.toHaveProperty('off')
+  })
+
+  it('声明不支持的模型不进映射表', () => {
+    expect(modelReasoningFrom(roster).has('no-reasoning')).toBe(false)
+  })
+
+  it('清单优先于公开目录：文档缺失的模型也能拿到真实能力', () => {
+    // 公开目录完全没有 kimi-k3.1-pro（实测），之前的回落会落到默认 262,144。
+    const models = buildCatalog({
+      builtin: { zen: [], go: [] },
+      goRoster: roster,
+    }).models
+    const kimi = models.find(model => model.id === 'kimi-k3.1-pro' && model.plan === 'go')
+    expect(kimi?.contextWindow).toBe(1_048_576)
+    expect(kimi?.reasoning).toBe(true)
+    expect(kimi?.thinkingLevelMap).toMatchObject({ low: 'low', high: 'high', max: 'max' })
+  })
+
+  it('清单优先于公开目录：上下文不被低估', () => {
+    const models = buildCatalog({
+      builtin: { zen: [], go: [] },
+      goRoster: roster,
+      catalog: {
+        opencode: {
+          models: { 'kimi-k3.1-pro': { limit: { context: 262_144 }, reasoning: true } },
+        },
+      },
+    }).models
+    // 同名模型在 zen 与 go 两段各生成一条：取 go 段那条才对（清单属于 go）。
+    const kimi = models.find(model => model.id === 'kimi-k3.1-pro' && model.plan === 'go')
+    // 目录说 262,144，清单说 1,048,576 —— 采信清单。
+    expect(kimi?.contextWindow).toBe(1_048_576)
   })
 })
