@@ -61,7 +61,7 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
       title={t('configDialogTitle')}
       onCancel={onClose}
       footer={null}
-      width={880}
+      width={800}
       /*
         Semi Modal 有三个容易搞混的 class prop，只有第三个能用：
         - `className` → 拼到最外层 `.semi-modal-wrap`；

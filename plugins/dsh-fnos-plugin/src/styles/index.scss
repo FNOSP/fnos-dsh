@@ -957,8 +957,12 @@ img.dsh-fnos-file-manager-icon {
 .dsh-fnos-config-body {
   display: flex;
   gap: 10px;
-  /* 固定高度而不是 min/max 区间：见上，切换分组时高度必须稳定。 */
-  height: 460px;
+  /*
+    固定 746px，与官方设置面板的内部高度一致：
+    800（面板总高）− 54（header）= 746，官方 nav / options 实测都是 746。
+    切换分组时高度必须稳定，因此用固定值而不是 min/max 区间。
+  */
+  height: 746px;
   min-height: 0;
   max-height: none;
   /* 左 12 / 上 10 / 右 0 / 下 10：右 0 让滚动条贴边。 */
@@ -1017,7 +1021,12 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
     0 12px 32px rgb(0 0 0 / 14%),
     0 32px 80px rgb(0 0 0 / 18%);
   padding: 0 0 0 24px;
-  height: 532px;
+  /*
+    尺寸与官方设置面板一致（实测 800×800、圆角 28、无描边）。
+    header 54 + body 746 = 800，与下方 `.dsh-fnos-config-body` 的固定高对得上。
+  */
+  height: 800px;
+  border-radius: 28px;
 }
 
 /* header 右侧留出关闭按钮的位置，否则标题会贴到按钮下方。 */
@@ -1027,7 +1036,8 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 
 .dsh-fnos-config-nav {
   display: flex;
-  flex: 0 0 152px;
+  /* 与官方设置面板的左侧导航同宽（实测 188）。 */
+  flex: 0 0 188px;
   flex-direction: column;
   gap: 2px;
   /* 不用竖线分隔：靠留白区分左右，细线在窄间距下反而更挤。 */

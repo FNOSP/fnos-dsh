@@ -133,23 +133,26 @@ describe('fnOS 配置弹框', () => {
   it('弹框宽高固定，切换分组不跳动', () => {
     const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
     // 用固定 height：min/max 区间会让弹框跟着内容高度变，切换分组时像在抖。
-    expect(body).toContain('height: 460px')
+    expect(body).toContain('height: 746px')
     expect(body).not.toMatch(/min-height:\s*\d+px/)
     // 内容多的分组由右侧自己滚动。
     expect(SCSS).toContain('.dsh-fnos-config-panel {')
     // 宽度固定但窄屏不溢出。
     expect(SCSS).toContain('max-width: calc(100vw - 32px)')
-    expect(DIALOG).toContain('width={880}')
+    expect(DIALOG).toContain('width={800}')
   })
 
-  it('尺寸对齐官方设置弹框（实测 880×532）', () => {
+  it('尺寸对齐官方设置面板（实测 800×800）', () => {
     const surface = SCSS.slice(
       SCSS.indexOf('body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {'),
       SCSS.indexOf('/* header 右侧留出关闭按钮的位置'),
     )
-    expect(surface).toContain('height: 532px')
-    // 532 = header 24 + body 460 + 上下留白 48，与固定的 body 高度相加要对得上。
-    expect(SCSS).toContain('height: 460px')
+    // 官方设置面板实测 800×800、圆角 28、无描边。
+    expect(surface).toContain('height: 800px')
+    expect(surface).toContain('border-radius: 28px')
+    // 800 = header 54 + 内容 746，与固定的 body 高度相加要对得上。
+    expect(SCSS).toContain('height: 746px')
+    expect(DIALOG).toContain('width={800}')
   })
 
   it('内边距：左侧 12、上下 10、右侧 0（滚动条贴边）', () => {
