@@ -169,8 +169,10 @@ describe('fnOS 配置弹框', () => {
   it('弹框不产生外层滚动条（modal 的 margin + 固定高会超出视口）', () => {
     // 实测：`.semi-modal` 自带 margin 80px，800 + 160 = 960 > 859 视口高，
     // `.semi-modal-wrap`（overflow: auto）于是长出滚动条。
+    // `.semi-modal` 是 content 的**祖先**，选择器必须用 :has() 反向选，
+    // 写成后代选择器实测命中不了（margin 仍是 80px）。
     expect(SCSS).toContain('max-height: calc(100vh - 48px)')
-    const modalRule = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal {'))
+    const modalRule = SCSS.slice(SCSS.indexOf('.semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog) {'))
     expect(modalRule.slice(0, 300)).toContain('margin-top: 24px')
     expect(modalRule.slice(0, 300)).toContain('margin-bottom: 24px')
     // Semi 把 margin 写在内联样式里，必须 !important 才压得过。

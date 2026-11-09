@@ -1049,8 +1049,16 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
  * `.semi-modal` 的纵向 margin 是滚动条的成因之一：默认 80px 上下 + 800 高
  * 必然超出视口。收到 24px 后 800 + 48 = 848 < 859，视口够高时完全不滚动；
  * 视口更矮时由 content 的 max-height 兜住，仍然不出滚动条。
+ *
+ * **选择器方向要反过来**：`.dsh-fnos-config-dialog` 挂在 `.semi-modal-content`
+ * 上，而 `.semi-modal` 是它的**祖先**（`.semi-modal > .semi-modal-content`）。
+ * 写成 `.dsh-fnos-config-dialog .semi-modal` 是找后代，永远匹配不到——实测
+ * margin 仍是 80px。
+ *
+ * `:has()` 把「含有本弹框的 modal」选出来；不支持时退回 `margin: 24px` 的
+ * 通用规则也无法只影响本弹框，因此这里以 `:has()` 为准（DSH 目标浏览器均支持）。
  */
-body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal {
+body[data-dsh-semi-theme] .semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog) {
   margin-top: 24px !important;
   margin-bottom: 24px !important;
 }
