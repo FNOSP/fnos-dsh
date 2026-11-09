@@ -288,6 +288,53 @@ body[data-dsh-semi-theme] .semi-button.semi-button-tertiary.semi-button-borderle
   color: var(--dsw-alias-label-primary);
 }
 
+/* Keep the fnOS refresh action transparent while using the same DSH
+   interaction color on hover. Its size comes from Semi's size prop. */
+body[data-dsh-semi-theme] .semi-button.dsh-fnos-web-refresh,
+body[data-dsh-semi-theme] .semi-button.dsh-fnos-web-refresh:not(.semi-button-borderless):not(.semi-button-disabled) {
+  background: transparent;
+}
+
+body[data-dsh-semi-theme] .semi-button.dsh-fnos-web-refresh:not(.semi-button-disabled):hover,
+body[data-dsh-semi-theme] .semi-button.dsh-fnos-web-refresh:not(.semi-button-borderless):not(.semi-button-disabled):hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* The fnOS footer is a compact toolbar, not a filled button group. Give both
+   actions the same borderless surface and keep the two equal-width targets
+   easy to hit in the narrow sidebar. */
+body[data-dsh-semi-theme] .dsh-fnos-web-actions {
+  width: 100%;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--semi-border-radius-large);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+body[data-dsh-semi-theme] .dsh-fnos-web-actions > .semi-button {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: var(--semi-border-radius-large);
+}
+
+body[data-dsh-semi-theme] .dsh-fnos-web-actions > .semi-button-group-line {
+  display: none;
+}
+
+/* The collapsed sidebar still renders the two actions as one group. Keep the
+   official small-button dimensions and center the group within the narrow
+   footer without applying a second size override. */
+body[data-dsh-semi-theme] .dsh-fnos-web-actions--collapsed {
+  justify-content: center;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+}
+
+body[data-dsh-semi-theme] .dsh-fnos-web-actions--collapsed > .semi-button {
+  flex: 0 0 auto;
+}
+
 body[data-dsh-semi-theme] .semi-dropdown-wrapper {
   background: var(--dsw-alias-bg-layer-3);
   border: 1px solid var(--dsw-alias-border-l2);

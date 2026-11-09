@@ -7,7 +7,7 @@
 在 fnOS 上使用 DSH 时，插件随应用安装或升级自动安装。其他 DSH 环境可执行：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-fnos@8.1.10
+dsh plugin --profile web add @tnnevol/dsh-fnos@8.1.9
 ```
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。
@@ -73,17 +73,6 @@ flowchart TD
 ## 主题
 
 DSH 主题设为「跟随系统」时会跟随 fnOS 当前主题；如果在 DSH 中明确选择浅色或深色，则以该选择为准。
-
-## 刷新与重启
-
-DSH 页面刷新与上游进程重启收在侧栏底部的**「更多」菜单**里（与「浏览更多插件」「创建你的插件」同处），侧栏底部只保留「设置」。
-
-| 菜单项 | 作用 |
-| --- | --- |
-| 刷新 | 重载 iframe 里的 DSH 页面 |
-| 重启 | 重启上游 DSH Web 进程；失败时该行直接显示原因 |
-
-收进菜单是因为这两个动作低频，常驻占按钮位不划算。键盘的 `F5` / `Ctrl+R` / `⌘R` 仍然只刷新 iframe，见下方快捷键。
 
 ## 依赖修复
 
