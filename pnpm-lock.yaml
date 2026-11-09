@@ -49,6 +49,9 @@ catalogs:
     '@eslint-react/eslint-plugin':
       specifier: ^5.19.0
       version: 5.19.0
+    '@iconify-json/lucide':
+      specifier: 1.2.152
+      version: 1.2.152
     '@midscene/test':
       specifier: 1.16.5
       version: 1.16.5
