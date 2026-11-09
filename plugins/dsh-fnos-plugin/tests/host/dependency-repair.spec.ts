@@ -243,3 +243,118 @@ describe('依赖修复日志', () => {
     expect(ROUTES).toContain('修复结束')
   })
 })
+
+/**
+ * 真机带回来的真实失效现场（2026-11-09，用户提供）。
+ *
+ * 这是从 NAS profile 里抄下来的**原始形态**：16 条豁免，其中 10 条是历史累积的
+ * `||` 联合写法，6 条是干净的精确钉版。它的价值在于覆盖了真实世界的两种分布：
+ *
+ * - 多数条目是 `||` 联合（历史上为绕开 pnpm 的 First-Match-Wins 而合并）；
+ * - 只有 2 个包出现在发布清单里（`dsh-fnos`、`dshmarket`），其余 14 个是用户自己
+ *   装的插件——按设计它们的版本不归本应用判定，但 `||` 格式残留仍要清。
+ *
+ * 期望值不是手写的：`||` 一律判 `pipe-union`（与版本是否匹配无关），清单内的包
+ * 再看版本。因此 10 条失效、6 条保留是规则推出来的，不是猜的。
+ */
+const REAL_WORKSPACE = `packages:
+  - .
+
+nodeLinker: hoisted
+autoInstallPeers: false
+minimumReleaseAgeExclude:
+  - '@tnnevol/dsh-codebuddy@0.2.0-rc.2.0 || 0.2.1-rc.2.12 || 0.2.1-rc.2.16 || 0.2.1-rc.2.17 || 0.2.1-rc.2.18 || 0.2.1-rc.2.27 || 6.0.0'
+  - '@tnnevol/dsh-codex-auth@0.2.0-rc.2.0 || 6.0.0 || 6.0.6 || 7.0.1 || 8.0.0 || 8.1.1'
+  - dshmarket@1.66.14 || 1.66.45 || 1.73.12
+  - '@tnnevol/dsh-semi-ui-showcase@0.2.0-rc.2.0'
+  - '@tnnevol/dsh-failover-search@0.2.0-rc.2.1 || 0.2.1-rc.2.17 || 6.0.0 || 6.0.6 || 7.0.1 || 8.0.0 || 8.1.1 || 8.1.3'
+  - '@tnnevol/dsh-midscene@0.2.1-rc.2.19 || 6.0.0 || 6.0.6 || 7.0.1 || 8.0.0 || 8.1.1'
+  - '@tnnevol/dsh-opencode@0.2.1-rc.2.38 || 0.2.1-rc.2.41 || 6.0.0 || 6.0.6 || 7.0.1 || 8.0.0 || 8.1.1 || 8.1.3'
+  - dsh-connect-trae@4.5.2
+  - '@tnnevol/dsh-zcode@6.0.0 || 6.0.6 || 7.0.1 || 8.0.0 || 8.1.1'
+  - '@dmh2002/dsh-connect-qoder@1.15.0 || 1.16.1 || 1.17.4 || 1.19.0'
+  - '@deepseek-ai/dsh-brand@0.2.1-rc.5'
+  - '@deepseek-ai/dsh-sdk-protocol@0.2.1-rc.5'
+  - '@deepseek-ai/dsh-subagent-codex@0.2.1-rc.5'
+  - '@deepseek-ai/dsh-tool-subagent@0.2.1-rc.5'
+  - dsh-offwork-countdown@1.0.1 || 1.1.0 || 1.2.0
+  - dsh-pet@0.4.4 || 0.4.5
+`
+
+/** 该现场对应的发布清单：只有两个包受本应用管理。 */
+const REAL_TARGETS = { '@tnnevol/dsh-fnos': '8.1.8', dshmarket: '1.73.12' }
+
+describe('真实失效现场（16 条，含历史 || 累积）', () => {
+  it('16 条全部解析出来', () => {
+    expect(parseExclusions(REAL_WORKSPACE)).toHaveLength(16)
+  })
+
+  it('10 条判失效，全部是 pipe-union', () => {
+    const stale = findStaleExclusions(parseExclusions(REAL_WORKSPACE), REAL_TARGETS)
+    expect(stale).toHaveLength(10)
+    expect(stale.every(entry => entry.reason === 'pipe-union')).toBe(true)
+    expect(stale.map(entry => entry.name)).toEqual([
+      '@tnnevol/dsh-codebuddy',
+      '@tnnevol/dsh-codex-auth',
+      'dshmarket',
+      '@tnnevol/dsh-failover-search',
+      '@tnnevol/dsh-midscene',
+      '@tnnevol/dsh-opencode',
+      '@tnnevol/dsh-zcode',
+      '@dmh2002/dsh-connect-qoder',
+      'dsh-offwork-countdown',
+      'dsh-pet',
+    ])
+  })
+
+  it('6 条精确钉版且不带 || 的条目保留', () => {
+    const exclusions = parseExclusions(REAL_WORKSPACE)
+    const stale = findStaleExclusions(exclusions, REAL_TARGETS)
+    const staleKeys = new Set(stale.map(entry => `${entry.name}@${entry.range}`))
+    const kept = exclusions.filter(entry => !staleKeys.has(`${entry.name}@${entry.range}`))
+    expect(kept.map(entry => entry.name)).toEqual([
+      '@tnnevol/dsh-semi-ui-showcase',
+      'dsh-connect-trae',
+      '@deepseek-ai/dsh-brand',
+      '@deepseek-ai/dsh-sdk-protocol',
+      '@deepseek-ai/dsh-subagent-codex',
+      '@deepseek-ai/dsh-tool-subagent',
+    ])
+  })
+
+  it('按行删除后只少 10 行，保留行逐字不变', () => {
+    const exclusions = parseExclusions(REAL_WORKSPACE)
+    const stale = findStaleExclusions(exclusions, REAL_TARGETS)
+    const result = removeExclusionLines(REAL_WORKSPACE, stale)
+
+    expect(result.removedLines).toBe(10)
+    const before = REAL_WORKSPACE.split('\n')
+    const after = result.text.split('\n')
+    expect(before.length - after.length).toBe(10)
+
+    // 保留的每条原始行必须原样存在于输出中（排版与缩进都不能被重写）。
+    const staleKeys = new Set(stale.map(entry => `${entry.name}@${entry.range}`))
+    for (const entry of exclusions) {
+      if (staleKeys.has(`${entry.name}@${entry.range}`)) continue
+      expect(after).toContain(entry.line)
+    }
+    // 段头（packages / nodeLinker / autoInstallPeers）整体不变。
+    const head = REAL_WORKSPACE.slice(0, REAL_WORKSPACE.indexOf('minimumReleaseAgeExclude:'))
+    expect(result.text.startsWith(head)).toBe(true)
+    // 被删的条目一条都不能残留。
+    for (const entry of stale) {
+      expect(result.text).not.toContain(`${entry.name}@${entry.range}`)
+    }
+  })
+
+  it('清单外的包不因版本不匹配被判失效（只管格式残留）', () => {
+    // dsh-codebuddy 等 14 个包不在清单里：它们的精确钉版不参与版本判定。
+    // 用一份只含精确钉版、不含 || 的变体验证这一点。
+    const exactOnly = REAL_WORKSPACE.replace(
+      "  - '@tnnevol/dsh-codebuddy@0.2.0-rc.2.0 || 0.2.1-rc.2.12 || 0.2.1-rc.2.16 || 0.2.1-rc.2.17 || 0.2.1-rc.2.18 || 0.2.1-rc.2.27 || 6.0.0'",
+      "  - '@tnnevol/dsh-codebuddy@0.2.0-rc.2.0'",
+    )
+    const stale = findStaleExclusions(parseExclusions(exactOnly), REAL_TARGETS)
+    expect(stale.some(entry => entry.name === '@tnnevol/dsh-codebuddy')).toBe(false)
+  })
+})
