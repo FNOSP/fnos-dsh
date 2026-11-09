@@ -1,13 +1,15 @@
 /**
  * 「依赖修复」卡片：应用内装不上插件时的自助修复入口。
  *
- * 交互刻意分成两步：「检查」只读、先让用户看到到底哪几条豁免失效；「修复依赖」
- * 才动手，且需要二次确认。合并成一步会让排障变成一个盲目的破坏性按钮。
+ * 只有一个动作按钮：点它就修复。曾经拆成「检查 / 修复」两步，但这一步的收益
+ * 不成立——检查结果对用户没有第二种用法（看到失效条目也还是要点修复），
+ * 却让排障多一次点击。诊断改为修复的执行前置：进入修复时先算一次，没有失效
+ * 条目就直接报「状态正常」，不白重建依赖。
  *
  * @module dsh-fnos/components/DependencyRepairCard
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { DshButton, DshIconInfoCircle, DshModal, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
@@ -29,8 +31,6 @@ export interface DependencyRepairCardProps {
 
 type Phase =
   | { readonly kind: 'idle' }
-  | { readonly kind: 'checking' }
-  | { readonly kind: 'checked'; readonly diagnosis: DependencyRepairDiagnosis }
   | { readonly kind: 'running' }
   | { readonly kind: 'done'; readonly result: DependencyRepairResult }
   | { readonly kind: 'error'; readonly message: string }
@@ -56,45 +56,38 @@ function entryReason(entry: DependencyRepairEntry, t: Translate): string {
 export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.ReactNode {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
   const [confirmOpen, setConfirmOpen] = useState(false)
-
-  // 进入页面先做一次只读诊断：用户还没点任何按钮就知道状态，不必先点「检查」。
-  useEffect(() => {
-    let active = true
-    void (async () => {
-      setPhase({ kind: 'checking' })
-      try {
-        const diagnosis = await diagnoseDependencyRepair()
-        if (active) setPhase({ kind: 'checked', diagnosis })
-      } catch (error) {
-        if (active) setPhase({ kind: 'error', message: describe(error) })
-      }
-    })()
-    return () => { active = false }
-  }, [])
-
-  const check = useCallback(async () => {
-    setPhase({ kind: 'checking' })
-    try {
-      setPhase({ kind: 'checked', diagnosis: await diagnoseDependencyRepair() })
-    } catch (error) {
-      setPhase({ kind: 'error', message: describe(error) })
-    }
-  }, [])
+  const [entries, setEntries] = useState<readonly DependencyRepairEntry[]>([])
+  const [unavailable, setUnavailable] = useState(false)
 
   const repair = useCallback(async () => {
     setConfirmOpen(false)
     setPhase({ kind: 'running' })
     try {
+      // 先诊断：没有失效条目就不重建依赖——重建会清 lockfile 与 node_modules，
+      // 对一个本来就健康的 profile 做这件事纯属破坏。
+      const diagnosis: DependencyRepairDiagnosis = await diagnoseDependencyRepair()
+      if (!diagnosis.available) {
+        setUnavailable(true)
+        setEntries([])
+        setPhase({ kind: 'idle' })
+        return
+      }
+      if (diagnosis.entries.length === 0) {
+        setUnavailable(false)
+        setEntries([])
+        setPhase({ kind: 'done', result: { ok: true, steps: [], removed: [], durationMs: 0 } })
+        return
+      }
+      setUnavailable(false)
+      setEntries(diagnosis.entries)
       setPhase({ kind: 'done', result: await runDependencyRepair() })
     } catch (error) {
       setPhase({ kind: 'error', message: describe(error) })
     }
   }, [])
 
-  const diagnosis = phase.kind === 'checked' ? phase.diagnosis : undefined
-  const entries = diagnosis?.entries ?? []
-  const unavailable = diagnosis !== undefined && !diagnosis.available
-  const busy = phase.kind === 'checking' || phase.kind === 'running'
+  const healthy = phase.kind === 'done' && phase.result.ok && phase.result.steps.length === 0
+  const busy = phase.kind === 'running'
 
   return (
     <section className="dsh-fnos-authorized-card" aria-labelledby="dsh-fnos-dependency-repair-title">
@@ -119,18 +112,15 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
           <p className="dsh-fnos-authorized-card-description">{t('dependencyRepairDescription')}</p>
         </div>
         <div className="dsh-fnos-repair-actions">
-          <DshButton htmlType="button" theme="borderless" type="tertiary" disabled={busy} onClick={() => { void check() }}>
-            {phase.kind === 'checking' ? t('dependencyRepairChecking') : t('dependencyRepairCheck')}
-          </DshButton>
           <DshButton
             htmlType="button"
             theme="solid"
             type="primary"
-            disabled={busy || entries.length === 0}
-            loading={phase.kind === 'running'}
+            disabled={busy}
+            loading={busy}
             onClick={() => setConfirmOpen(true)}
           >
-            {phase.kind === 'running' ? t('dependencyRepairRunning') : t('dependencyRepairRun')}
+            {busy ? t('dependencyRepairRunning') : t('dependencyRepairRun')}
           </DshButton>
         </div>
       </header>
@@ -144,7 +134,7 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
           <p className="dsh-fnos-repair-muted">{t('dependencyRepairUnavailable')}</p>
         ) : null}
 
-        {diagnosis !== undefined && diagnosis.available && entries.length === 0 ? (
+        {healthy ? (
           <p className="dsh-fnos-repair-ok">{t('dependencyRepairHealthy')}</p>
         ) : null}
 
@@ -162,7 +152,7 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
           </>
         ) : null}
 
-        {phase.kind === 'done' ? (
+        {phase.kind === 'done' && phase.result.steps.length > 0 ? (
           <div className="dsh-fnos-repair-result" role="status">
             <p className={phase.result.ok ? 'dsh-fnos-repair-ok' : 'dsh-fnos-repair-error'}>
               {phase.result.ok

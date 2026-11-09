@@ -147,8 +147,6 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   dependencyRepairTitle: '依存関係を修復',
   dependencyRepairTip: 'アプリ内でプラグインのインストールに失敗したときは、まずこれを試してください。Web プロファイルの依存関係を再構築します。削除するのは再生成可能なキャッシュとロックファイルのみで、認証情報・セッション・設定には触れません。',
   dependencyRepairDescription: 'アプリ内でのプラグイン導入を妨げるプロファイル状態（公開年齢の除外設定の失効、依存ツリーの不整合）を修復します。',
-  dependencyRepairCheck: '確認',
-  dependencyRepairChecking: '確認しています…',
   dependencyRepairRun: '修復',
   dependencyRepairRunning: '修復しています…',
   dependencyRepairCancel: 'キャンセル',

@@ -139,8 +139,6 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   dependencyRepairTitle: 'Abhängigkeiten reparieren',
   dependencyRepairTip: 'Wenn die Installation eines Plugins in der App fehlschlägt, versuchen Sie dies zuerst: Es baut die Abhängigkeiten des Web-Profils neu auf. Nur reproduzierbare Caches und Lockdateien werden gelöscht; Anmeldedaten, Sitzungen und Einstellungen bleiben unberührt.',
   dependencyRepairDescription: 'Behebt den Profilzustand, der die Plugin-Installation in der App blockiert (veraltete Ausnahmen der Veröffentlichungsfrist, inkonsistenter Abhängigkeitsbaum).',
-  dependencyRepairCheck: 'Prüfen',
-  dependencyRepairChecking: 'Wird geprüft…',
   dependencyRepairRun: 'Reparieren',
   dependencyRepairRunning: 'Wird repariert…',
   dependencyRepairCancel: 'Abbrechen',

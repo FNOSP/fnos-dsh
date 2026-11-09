@@ -147,8 +147,6 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   dependencyRepairTitle: '의존성 복구',
   dependencyRepairTip: '앱 안에서 플러그인 설치가 실패하면 먼저 이것을 시도하세요. 웹 프로필의 의존성을 다시 빌드합니다. 재생성 가능한 캐시와 잠금 파일만 지우며 자격 증명, 세션, 설정은 건드리지 않습니다.',
   dependencyRepairDescription: '앱 안에서 플러그인 설치를 막는 프로필 상태(게시 연령 예외 만료, 의존성 트리 불일치)를 복구합니다.',
-  dependencyRepairCheck: '확인',
-  dependencyRepairChecking: '확인 중…',
   dependencyRepairRun: '복구',
   dependencyRepairRunning: '복구 중…',
   dependencyRepairCancel: '취소',

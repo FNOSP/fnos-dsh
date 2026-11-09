@@ -223,10 +223,30 @@ img.dsh-fnos-file-manager-icon {
   gap: 4px;
 }
 
+/*
+ * 标题与 tip 图标：同一基线上垂直居中，间距 10px。
+ *
+ * 这里是 flex 而不是「文本 + 内联图标」：内联元素的垂直对齐取决于图标自身
+ * 行框，字号变化时图标会跟着偏上/偏下，实机截图里就出现了标题与图标不齐。
+ * 用 flex + `align-items: center` 后两者按盒子中线对齐，不再受体形影响。
+ */
 .dsh-fnos-authorized-card-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 15px;
   line-height: 1.4;
   font-weight: 600;
+}
+
+/*
+ * 卡片标题里的 tip 图标归位。
+ *
+ * 那个 `-1px` 上边距是给行内文本基线对齐用的；标题改成 flex 居中后它会把图标
+ * 顶高 1px，反而破坏对齐，因此这里清零。
+ */
+.dsh-fnos-authorized-card-name .dsh-fnos-authorized-gateway-tip {
+  margin: 0;
 }
 
 .dsh-fnos-authorized-card-description {

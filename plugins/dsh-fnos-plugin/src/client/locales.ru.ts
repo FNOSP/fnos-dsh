@@ -138,8 +138,6 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   dependencyRepairTitle: 'Восстановление зависимостей',
   dependencyRepairTip: 'Если установка плагина внутри приложения завершается ошибкой, сначала попробуйте это: пересоберутся зависимости веб-профиля. Удаляются только восстанавливаемые кэши и файлы блокировки; учётные данные, сеансы и настройки не затрагиваются.',
   dependencyRepairDescription: 'Исправляет состояние профиля, мешающее установке плагинов внутри приложения (устаревшие исключения возраста публикации, несогласованное дерево зависимостей).',
-  dependencyRepairCheck: 'Проверить',
-  dependencyRepairChecking: 'Проверка…',
   dependencyRepairRun: 'Восстановить',
   dependencyRepairRunning: 'Восстановление…',
   dependencyRepairCancel: 'Отмена',

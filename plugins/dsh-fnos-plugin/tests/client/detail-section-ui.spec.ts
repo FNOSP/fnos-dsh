@@ -225,3 +225,63 @@ describe('详情页区块不再自带外层面板', () => {
     expect(body).toContain('border-top')
   })
 })
+
+/**
+ * 「依赖修复」卡片的交互与对齐约束。
+ *
+ * 两条来自实机截图反馈：一是**检查按钮多余**——检查结果对用户没有第二种用法
+ * （看到失效条目也还是要点修复），却让排障多一次点击，因此只留「修复依赖」，
+ * 点它直接修复；二是标题与 tip 图标**没有垂直居中**，内联图标的基线对齐在字号
+ * 变化时会偏，改用 flex 居中并固定 10px 间距。
+ */
+describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
+  const REPAIR_CARD = read('../../src/components/DependencyRepairCard.tsx')
+
+  it('只有一个动作按钮，不再有「检查」', () => {
+    expect(REPAIR_CARD).not.toContain('dependencyRepairCheck')
+    expect(REPAIR_CARD).toContain('dependencyRepairRun')
+    // 「检查」按钮曾用 borderless 样式；它没了，剩下的动作按钮应是主按钮。
+    expect(REPAIR_CARD).toContain('theme="solid"')
+  })
+
+  it('不再在挂载时自动诊断（诊断改为修复的前置步骤）', () => {
+    // 旧实现用 useEffect 在进入页面时就发一次诊断请求。现在诊断在点击修复后
+    // 执行：没有失效条目就不重建依赖。
+    expect(REPAIR_CARD).not.toContain('useEffect')
+    expect(REPAIR_CARD).toMatch(/const repair = useCallback\(/)
+    expect(REPAIR_CARD).toContain('diagnoseDependencyRepair')
+  })
+
+  it('点击修复先诊断：健康时直接报「状态正常」而不重建', () => {
+    // 这是「去掉检查」后仍然安全的关键——不能因为少了一步就变成盲目删依赖。
+    expect(REPAIR_CARD).toContain('diagnosis.entries.length === 0')
+    expect(REPAIR_CARD).toContain('dependencyRepairHealthy')
+  })
+
+  it('中文文案里「检查」两键已随按钮一起移除', () => {
+    const start = LOCALES.indexOf('export const zh')
+    const zhBlock = LOCALES.slice(start)
+    expect(zhBlock).not.toContain('dependencyRepairCheck:')
+    expect(REPAIR_CARD).not.toContain('Checking')
+  })
+
+  it('标题是 flex 容器，图标与文本按中线对齐', () => {
+    const i = SCSS.indexOf('.dsh-fnos-authorized-card-name {')
+    const rule = SCSS.slice(i, SCSS.indexOf('}', i))
+    expect(rule).toContain('display: flex')
+    expect(rule).toContain('align-items: center')
+  })
+
+  it('图标与文本间距 10px', () => {
+    const i = SCSS.indexOf('.dsh-fnos-authorized-card-name {')
+    const rule = SCSS.slice(i, SCSS.indexOf('}', i))
+    expect(rule).toContain('gap: 10px')
+  })
+
+  it('标题内的图标清掉行内基线的负边距，否则会顶高 1px', () => {
+    const i = SCSS.indexOf('.dsh-fnos-authorized-card-name .dsh-fnos-authorized-gateway-tip')
+    expect(i).toBeGreaterThan(-1)
+    const rule = SCSS.slice(i, SCSS.indexOf('}', i))
+    expect(rule).toContain('margin: 0')
+  })
+})

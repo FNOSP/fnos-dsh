@@ -139,8 +139,6 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   dependencyRepairTitle: 'Réparer les dépendances',
   dependencyRepairTip: "Si l'installation d'un plugin dans l'application échoue, essayez ceci d'abord : cela reconstruit les dépendances du profil web. Seuls les caches et fichiers de verrouillage reconstructibles sont supprimés ; les identifiants, sessions et réglages ne sont pas touchés.",
   dependencyRepairDescription: "Corrige l'état du profil qui empêche l'installation de plugins dans l'application (exemptions d'ancienneté obsolètes, arbre de dépendances incohérent).",
-  dependencyRepairCheck: 'Vérifier',
-  dependencyRepairChecking: 'Vérification…',
   dependencyRepairRun: 'Réparer',
   dependencyRepairRunning: 'Réparation…',
   dependencyRepairCancel: 'Annuler',
