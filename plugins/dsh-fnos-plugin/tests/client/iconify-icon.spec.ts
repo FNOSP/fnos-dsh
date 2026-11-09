@@ -34,8 +34,16 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
     expect(BUILD).toContain("'lucide:power'")
     expect(BUILD).toContain("'lucide:refresh-cw'")
     expect(BUILD).toContain("'lucide:settings-2'")
+    expect(BUILD).toContain("'lucide:folder'")
+    expect(BUILD).toContain("'lucide:wrench'")
     // 生成物里确实只有这些（多一个就说明有没登记的图标被打进去了）。
-    expect(Object.keys(ICON_BODIES).sort()).toEqual(['lucide:power', 'lucide:refresh-cw', 'lucide:settings-2'])
+    expect(Object.keys(ICON_BODIES).sort()).toEqual([
+      'lucide:folder',
+      'lucide:power',
+      'lucide:refresh-cw',
+      'lucide:settings-2',
+      'lucide:wrench',
+    ])
   })
 
   it('两个图标 body 都是有效 SVG 片段', () => {

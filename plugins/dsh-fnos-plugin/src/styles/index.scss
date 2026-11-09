@@ -923,11 +923,18 @@ img.dsh-fnos-file-manager-icon {
 /*
  * 配置弹框的蒙层改成暗色。
  *
- * Semi 默认是浅色半透明遮罩，配白色弹框时几乎看不出「背后已禁用」——看起来像
- * 弹框悬在页面上，而不是盖住了页面。改成深色遮罩后才读得出层级。
+ * Semi 默认用 `--semi-color-overlay-bg`（白色 72%），配白色弹框时几乎看不出
+ * 「背后已禁用」——看起来像弹框悬在页面上，而不是盖住了页面。改成深色遮罩后
+ * 才读得出层级。
+ *
+ * **必须覆盖变量而不是直接写 background**：Semi 自己有一条
+ * `.semi-modal-mask { background: var(--semi-color-overlay-bg) }`，与直接写
+ * background 的选择器同为 (0,1,0)，谁的规则靠后谁赢——实测直接写会被它盖掉，
+ * 蒙层仍是白色。改在变量这一层才稳定。
  */
 .semi-modal-mask,
 .semi-modal-wrap {
+  --semi-color-overlay-bg: rgb(0 0 0 / 45%);
   background-color: rgb(0 0 0 / 45%);
 }
 
