@@ -37,7 +37,7 @@ import { ICON_BODIES, ICON_BOX } from '../generated/icons.ts'
  * 这份清单与构建配置里的 `ICON_NAMES` 必须一致：前者决定类型，后者决定打包进
  * 产物的 body。两者不一致时测试会报错（见 `tests/client/iconify-icon.spec.ts`）。
  */
-export type UsedIconName = 'lucide:power' | 'lucide:refresh-cw'
+export type UsedIconName = 'lucide:power' | 'lucide:refresh-cw' | 'lucide:settings-2'
 
 /** 默认尺寸（px）；菜单行图标按官方 16px 对齐。 */
 const DEFAULT_SIZE = 16

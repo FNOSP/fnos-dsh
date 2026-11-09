@@ -23,13 +23,11 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import { AuthorizedDirectoriesDetailSection, FNOS_PACKAGE_NAME } from '../components/AuthorizedDirectoriesCard.tsx'
-import { DependencyRepairCard } from '../components/DependencyRepairCard.tsx'
-import type { FnosDetailSubject } from '../components/AuthorizedDirectoriesCard.tsx'
 import { FnosInputPickerButton } from '../components/FnosInputPickerButton.tsx'
 import { FnosAuthorizedPathPanel } from '../components/FnosAuthorizedPathPicker.tsx'
 import { FnosOpenInHeaderAction } from '../components/FnosOpenInHeaderAction.tsx'
 import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAction.tsx'
+import { FnosConfigMenuEntry } from '../components/FnosConfigMenuEntry.tsx'
 import { FNOS_OPEN_IN_APP_SEAT, FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
 import { createPickerOpenStore } from './input-references/picker-store.ts'
 import { insertFnosReferences } from './input-references/input-reference-actions.ts'
@@ -209,46 +207,11 @@ export function apply(ctx: ClientContext): void {
       inject: () => ({ t }),
     }, FnosSettingsDocumentAction))
   }
-  /**
-   * 授权目录配置块挂在插件管理页的 fnOS 组合包详情页。
-   *
-   * 座位选 `plugins.detail.section` 而不是官方的 `plugins.bundle.config`：上游
-   * `PackageDetail` 的固定顺序是
-   *
-   *   1. `plugins.bundle.config`（组合包自己的配置）
-   *   2. 「包含的组件」（`RowsSection`）
-   *   3. `plugins.detail.section`（本座位）
-   *
-   * 需求要求配置块在「包含的组件」**之后**，只有 3 满足。
-   *
-   * 代价是该座位是 **list**（非 keyed）：页面会给打开的每个详情页渲染它，因此
-   * 组件必须自己看 `subject`——不是本插件就返回 `null`（见
-   * `AuthorizedDirectoriesDetailSection`）。list 座位要求 `id`，且不能声明
-   * `inject`（owner props 由页面传入）。
+  /*
+   * 详情页不再挂配置块：授权目录与依赖修复已收进「更多」菜单打开的配置弹框
+   * （`FnosConfigMenuEntry`）。同一份设置只保留一个入口，避免两处都能改。
    */
-  ctx.slots.inject('plugins.detail.section', () => ctx.slots.register({
-    name: 'plugins.detail.section',
-    id: 'dsh-fnos-authorized-directories',
-    order: 40,
-    locale: namespace,
-  }, (props: { subject?: FnosDetailSubject | undefined }) =>
-    // 本文件是 `.ts`（无 JSX），因此用调用而不是元素字面量表达。
-    AuthorizedDirectoriesDetailSection({ t, subject: props.subject })))
-  /**
-   * 依赖修复卡片：同样挂在组合包详情页，排在授权目录之后。
-   *
-   * 与授权目录共用 list 座位的约束——组件自己看 `subject`，不是本插件就返回
-   * `null`，所以这里再包一层过滤。
-   */
-  ctx.slots.inject('plugins.detail.section', () => ctx.slots.register({
-    name: 'plugins.detail.section',
-    id: 'dsh-fnos-dependency-repair',
-    order: 50,
-    locale: namespace,
-  }, (props: { subject?: FnosDetailSubject | undefined }) =>
-    props.subject?.kind === 'bundle' && props.subject.pkg?.name === FNOS_PACKAGE_NAME
-      ? DependencyRepairCard({ t })
-      : null))
+
   /*
    * 刷新 / 重启不再挂在侧栏底部：它们已并入会话头部的「…」菜单
    * （`FnosSessionLogHeaderAction`）。两个都是低频动作，常驻两个按钮位不划算。
@@ -267,6 +230,24 @@ export function apply(ctx: ClientContext): void {
    */
   const pickerStore = createPickerOpenStore()
   ctx.effect(() => () => { pickerStore.closeAll() }, 'dsh-fnos: picker store')
+  /**
+   * 「更多」下拉菜单里的「飞牛 OS」入口。
+   *
+   * 原先授权目录与依赖修复两块配置挂在插件详情页（`plugins.detail.section`），
+   * 随页面滚动、要找一条路径得翻很长。改为收进这里打开的配置弹框（左侧菜单 +
+   * 右侧主体），详情页不再保留这两块——同一份设置只出现在一个地方。
+   *
+   * 槽位语义对照：`sidebar.panellist.actions` 是「面板列表的更多菜单行」，官方
+   * entry-customization 也往这里放非面板动作，因此一个「打开配置」入口不越界。
+   */
+  ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register({
+    name: 'sidebar.panellist.actions',
+    id: 'dsh-fnos-config-entry',
+    order: 90,
+    locale: namespace,
+    inject: () => ({ t }),
+  }, (props: { onDismiss?: () => void }) => FnosConfigMenuEntry({ ...props, t })))
+
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left',
     id: 'dsh-fnos-input-picker',

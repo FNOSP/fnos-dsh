@@ -188,12 +188,13 @@ describe('dsh-fnos package contract', () => {
     expect(patch).not.toContain('@deepseek-ai/dsh-host-directory-picker-browse')
   })
 
-  it('keeps the fnOS authorization card on the plugin detail page', async () => {
+  it('配置收进「更多」菜单打开的弹框，详情页不再挂配置块', async () => {
     const source = await readFile(new URL('../../src/client/index.ts', import.meta.url), 'utf8')
-    expect(source).toMatch(/id:\s*'dsh-fnos-authorized-directories'[\s\S]{0,220}order:\s*40/u)
-    // 座位从 `settings.plugins.tab` 换到 `plugins.detail.section`：需求要求配置块
-    // 排在「包含的组件」之后，而 `plugins.bundle.config` 被上游固定在它之前。
-    expect(source).toContain("ctx.slots.inject('plugins.detail.section'")
+    // 配置从详情页搬到「更多」菜单的入口：同一份设置只保留一个入口，避免两处
+    // 都能改却状态不同步。
+    expect(source).toContain("ctx.slots.inject('sidebar.panellist.actions'")
+    expect(source).toContain("id: 'dsh-fnos-config-entry'")
+    expect(source).not.toContain("ctx.slots.inject('plugins.detail.section'")
     expect(source).not.toContain("ctx.slots.inject('settings.plugins.tab'")
     // 刷新 / 重启已从侧栏底部移入会话头部的「…」菜单（FNOS-042 那个菜单）。
     expect(source).not.toContain("ctx.slots.inject('sidebar.footer.action'")

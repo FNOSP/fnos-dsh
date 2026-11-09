@@ -113,7 +113,7 @@ function errorMessage(error: unknown, t: Translate, action: 'load' | 'pick' | 'd
 }
 
 /** Render the fnOS authorization card for the plugin detail page. */
-function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
+export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
   const [state, setState] = useState<LoadState>({ status: 'idle', directories: [] })
   const [busy, setBusy] = useState(false)
   const [savedProxyPaths, setSavedProxyPaths] = useState('')
