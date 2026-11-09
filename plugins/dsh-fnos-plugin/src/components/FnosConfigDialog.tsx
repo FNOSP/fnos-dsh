@@ -63,13 +63,14 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
       footer={null}
       width={880}
       /*
-        必须用 `contentClassName` 而不是 `className`：
-        - `className` 落到最外层的 `.semi-modal-wrap`（Semi 把它拼在 wrap 上），
-          于是所有 `.dsh-fnos-config-dialog .semi-modal-content` 规则全部落空；
-        - `contentClassName` 才是拼到 `.semi-modal-content` 上的那个 prop。
-        实测两者混用还会让 content 的 class 里出现字面量 `undefined`。
+        Semi Modal 有三个容易搞混的 class prop，只有第三个能用：
+        - `className` → 拼到最外层 `.semi-modal-wrap`；
+        - `contentClassName` → **被 Modal 内部覆盖**成 `${animationClassName} ${modalContentClass}`，
+          调用方传的值直接丢弃（实测 content 的 class 变成
+          `"semi-modal-content  undefined"`，两个空格正是动画类为空）；
+        - `modalContentClass` → 唯一会被拼进 `.semi-modal-content` 的入口。
       */
-      contentClassName="dsh-fnos-config-dialog"
+      modalContentClass="dsh-fnos-config-dialog"
     >
       <div className="dsh-fnos-config-body">
         {/*

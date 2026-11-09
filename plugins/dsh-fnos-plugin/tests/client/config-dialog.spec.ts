@@ -162,10 +162,15 @@ describe('fnOS 配置弹框', () => {
     expect(panel.slice(0, panel.indexOf('}'))).toContain('scrollbar-gutter: stable')
   })
 
-  it('类名用 contentClassName，挂在 semi-modal-content 本身上', () => {
-    // `className` 会落到最外层 `.semi-modal-wrap`，所有 content 规则全部落空；
-    // 实测两者混用时 content 的 class 里还会出现字面量 `undefined`。
-    expect(DIALOG).toContain('contentClassName="dsh-fnos-config-dialog"')
+  it('类名用 modalContentClass，才会落在 semi-modal-content 上', () => {
+    // 三个 class prop 只有第三个能用：
+    // - className → 外层 .semi-modal-wrap；
+    // - contentClassName → 被 Modal 内部覆盖成 `${animationClassName} ${modalContentClass}`，
+    //   调用方传的值直接丢弃（实测 content 的 class 变成
+    //   `"semi-modal-content  undefined"`）；
+    // - modalContentClass → 唯一拼进 .semi-modal-content 的入口。
+    expect(DIALOG).toContain('modalContentClass="dsh-fnos-config-dialog"')
+    expect(DIALOG).not.toContain('contentClassName="dsh-fnos-config-dialog"')
     expect(DIALOG).not.toMatch(/^\s+className="dsh-fnos-config-dialog"$/m)
     // 样式侧用同元素复合选择器，不再是后代选择器。
     expect(SCSS).toContain('.semi-modal-content.dsh-fnos-config-dialog')
