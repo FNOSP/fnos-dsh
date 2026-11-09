@@ -986,8 +986,15 @@ img.dsh-fnos-file-manager-icon {
  * 只作用于本插件自己的弹框 class，不动全局 `.semi-modal-content`——其它 Semi
  * 弹框的观感不属于这里该改的范围。
  */
-.dsh-fnos-config-dialog .semi-modal-content,
-.dsh-fnos-config-dialog .semi-modal-inner {
+/*
+ * 选择器必须带上 `body[data-dsh-semi-theme]`：共享主题层里有一条
+ * `body[data-dsh-semi-theme] .semi-modal-content` 加 border 与 lv3 阴影，权重
+ * (0,2,0)。只写 `.dsh-fnos-config-dialog .semi-modal-content` 同为 (0,2,0)，而
+ * 共享主题层在样式表里更靠后——实测边框与旧阴影都还在。前缀对齐后权重更高，
+ * 才能稳定覆盖。
+ */
+body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-content,
+body[data-dsh-semi-theme] .dsh-fnos-config-dialog .semi-modal-inner {
   border: none;
   box-shadow:
     0 12px 32px rgb(0 0 0 / 14%),

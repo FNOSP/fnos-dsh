@@ -143,15 +143,22 @@ describe('fnOS 配置弹框', () => {
   })
 
   it('弹框去掉 1px 描边，阴影改为大范围低透明度', () => {
-    const surface = SCSS.slice(
-      SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-content'),
-      SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-content') + 400,
-    )
+    const at = SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-content')
+    const surface = SCSS.slice(at, at + 400)
     expect(surface).toContain('border: none')
     // 阴影外扩：贴近的窄阴影会看起来像又描了一遍边。
     expect(surface).toMatch(/0 32px 80px/)
     // 只作用于本插件弹框，不动全局 Semi 弹框。
     expect(surface).toContain('.dsh-fnos-config-dialog')
+  })
+
+  it('阴影规则用 body[data-dsh-semi-theme] 前缀压过共享主题层', () => {
+    // 实测：只写 `.dsh-fnos-config-dialog .semi-modal-content` 与共享主题层的
+    // `body[data-dsh-semi-theme] .semi-modal-content` 同为 (0,2,0)，而后者在样式
+    // 表里更靠后——边框与旧阴影都没被覆盖。前缀对齐后才能稳定生效。
+    const at = SCSS.indexOf('.dsh-fnos-config-dialog .semi-modal-content')
+    const head = SCSS.slice(Math.max(0, at - 200), at)
+    expect(head).toContain('body[data-dsh-semi-theme]')
   })
 
   it('tip 图标与标题垂直居中（包装层也是 flex）', () => {
