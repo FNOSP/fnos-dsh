@@ -942,6 +942,47 @@ img.dsh-fnos-file-manager-icon {
 }
 
 /*
+ * 弹框在视口里垂直居中（本插件所有弹框，含配置弹框与确认框）。
+ *
+ * Semi 的居中方式是 `.semi-modal { margin: 80px auto }` —— 顶部固定 80px，**不随
+ * 弹框高度变化**。于是高弹框（800）看着接近居中，矮弹框（确认框 310）就明显偏上：
+ * 实测视口 859、确认框高 310 时顶部在 80，而居中应在 (859 − 310) / 2 ≈ 274，
+ * 差了近 195px。
+ *
+ * 改成让 wrap 做 flex 容器、由 `margin: auto` 吃掉剩余空间，才是真正的居中：
+ *
+ * - `align-items: center` 让不到一屏的弹框居中；
+ * - 弹框比视口高时**不能**用 `center`——那样上下会同时溢出且顶部被裁掉，
+ *   滚到顶也看不到标题。`margin: auto` 配合 `overflow: auto` 的解法是：
+ *   内容超高时 margin 归零，从顶边开始排，仍可滚动（见下面 modal 的规则）；
+ * - `flex-direction: column` 保证竖向分布。
+ *
+ * 只在 `min-height` 允许时生效：`justify-content` 交给 margin auto，不用 `center`，
+ * 因为 `center` 在溢出场景会裁掉头部。
+ */
+body[data-dsh-semi-theme] .semi-modal-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/*
+ * 弹框本体的纵向 margin 交给 wrap 的剩余空间分配。
+ *
+ * 把固定 80px 改成 `margin-block: auto` 后：视口够高时上下各吃一半剩余空间
+ * （垂直居中）；内容超出视口时 auto 解析为 0，弹框贴顶排列、照常滚动，
+ * 不会出现「顶部被裁、滚不到标题」的情况。
+ *
+ * 需要 `!important`：Semi 在 `.semi-modal` 上写的就是普通 margin，
+ * 但它的选择器与本条同为单类，靠加载顺序决定胜负——本样式表在 Semi 之后加载，
+ * 仍加上 `!important` 以免将来加载顺序变化时静默回退成贴顶 80px。
+ */
+body[data-dsh-semi-theme] .semi-modal {
+  margin-top: auto !important;
+  margin-bottom: auto !important;
+}
+
+/*
  * fnOS 配置弹框：左侧菜单 + 右侧主体。
  *
  * 形态与尺寸对齐官方设置弹框（实测 800×800、内容区 padding 0 24px）。用 DSH
@@ -1044,20 +1085,24 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
 
 /*
  * `.semi-modal` 的纵向 margin 是滚动条的成因之一：默认 80px 上下 + 800 高
- * 必然超出视口。收到 24px 后 800 + 48 = 848 < 859，视口够高时完全不滚动；
- * 视口更矮时由 content 的 max-height 兜住，仍然不出滚动条。
+ * 必然超出视口，`.semi-modal-wrap`（overflow: auto）于是长出滚动条。
  *
  * **选择器方向要反过来**：`.dsh-fnos-config-dialog` 挂在 `.semi-modal-content`
  * 上，而 `.semi-modal` 是它的**祖先**（`.semi-modal > .semi-modal-content`）。
  * 写成 `.dsh-fnos-config-dialog .semi-modal` 是找后代，永远匹配不到——实测
  * margin 仍是 80px。
  *
- * `:has()` 把「含有本弹框的 modal」选出来；不支持时退回 `margin: 24px` 的
- * 通用规则也无法只影响本弹框，因此这里以 `:has()` 为准（DSH 目标浏览器均支持）。
+ * `:has()` 把「含有本弹框的 modal」选出来。这里同样用 `auto` 而不是固定值：
+ * 视口高于 800 时上下均分剩余空间（真居中）；视口更矮时 `auto` 归零，配合
+ * content 的 `max-height: calc(100vh - 48px)` 仍不出滚动条。
+ *
+ * 注意本条与上面 `.semi-modal` 的通用规则都是 `!important`，但本条带 `:has()`
+ * 使特异性更高——所以必须在这里也写 `auto`，否则配置弹框会被固定成某个数值，
+ * 与确认框的居中表现不一致。
  */
 body[data-dsh-semi-theme] .semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog) {
-  margin-top: 24px !important;
-  margin-bottom: 24px !important;
+  margin-top: auto !important;
+  margin-bottom: auto !important;
 }
 
 /*

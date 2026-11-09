@@ -196,6 +196,26 @@ describe('fnOS 配置弹框', () => {
     expect(rule).toContain('margin: 0')
   })
 
+  it('弹框在视口里垂直居中（Semi 默认只给固定 80px 顶距）', () => {
+    // Semi 的居中是 `.semi-modal { margin: 80px auto }`——顶部固定 80px，不随高度
+    // 变化。于是矮弹框明显偏上：实测视口 859、确认框高 310 时顶部在 80，而居中
+    // 应在 (859 − 310) / 2 ≈ 274。
+    const wrap = SCSS.slice(
+      SCSS.indexOf('body[data-dsh-semi-theme] .semi-modal-wrap {'),
+      SCSS.indexOf('body[data-dsh-semi-theme] .semi-modal-wrap {') + 400,
+    )
+    expect(wrap).toContain('display: flex')
+    expect(wrap).toContain('flex-direction: column')
+    expect(wrap).toContain('align-items: center')
+    // 用 margin auto 而不是 justify-content: center——center 在内容超高时会裁掉
+    // 头部，滚到顶也看不到标题。
+    const modal = SCSS.slice(SCSS.indexOf('body[data-dsh-semi-theme] .semi-modal {'))
+    const modalRule = modal.slice(0, modal.indexOf('}'))
+    expect(modalRule).toContain('margin-top: auto')
+    expect(modalRule).toContain('margin-bottom: auto')
+    expect(wrap).not.toContain('justify-content: center')
+  })
+
   it('弹框不产生外层滚动条（modal 的 margin + 固定高会超出视口）', () => {
     // 实测：`.semi-modal` 自带 margin 80px，800 + 160 = 960 > 859 视口高，
     // `.semi-modal-wrap`（overflow: auto）于是长出滚动条。
@@ -203,8 +223,10 @@ describe('fnOS 配置弹框', () => {
     // 写成后代选择器实测命中不了（margin 仍是 80px）。
     expect(SCSS).toContain('max-height: calc(100vh - 48px)')
     const modalRule = SCSS.slice(SCSS.indexOf('.semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog) {'))
-    expect(modalRule.slice(0, 300)).toContain('margin-top: 24px')
-    expect(modalRule.slice(0, 300)).toContain('margin-bottom: 24px')
+    // 与通用规则一致用 auto：视口高时均分剩余空间（居中），矮时归零配合
+    // max-height 仍不出滚动条。写成固定数值会让两种弹框的居中表现不一致。
+    expect(modalRule.slice(0, 300)).toContain('margin-top: auto')
+    expect(modalRule.slice(0, 300)).toContain('margin-bottom: auto')
     // Semi 把 margin 写在内联样式里，必须 !important 才压得过。
     expect(modalRule.slice(0, 300)).toContain('!important')
   })

@@ -245,37 +245,32 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
   })
 
   it('不再在挂载时自动诊断（诊断改为修复的前置步骤）', () => {
-    // 旧实现用 useEffect 在进入页面时就发一次诊断请求。现在诊断在点击修复后
-    // 执行：没有失效条目就不重建依赖。
+    // 旧实现用 useEffect 在进入页面时就发一次诊断请求。诊断后来改为「修复的
+    // 前置步骤」，再后来整个检测都去掉了（见下一条用例）。
     expect(REPAIR_CARD).not.toContain('useEffect')
     expect(REPAIR_CARD).toMatch(/const repair = useCallback\(/)
-    expect(REPAIR_CARD).toContain('diagnoseDependencyRepair')
   })
 
-  it('点击修复先诊断：健康时直接报「状态正常」而不重建', () => {
-    // 这是「去掉检查」后仍然安全的关键——不能因为少了一步就变成盲目删依赖。
-    expect(REPAIR_CARD).toContain('diagnosis.entries.length === 0')
-    expect(REPAIR_CARD).toContain('dependencyRepairHealthy')
+  it('强制修复：卡片不检测、不列匹配项', () => {
+    // 这是强制动作，不是需要用户判断的业务流程。列出 `name@range` 这类内部标识
+    // 对「我要不要修」没有任何帮助，只会把实现细节摊给用户。
+    expect(REPAIR_CARD).not.toContain('diagnoseDependencyRepair')
+    expect(REPAIR_CARD).not.toContain('entries')
+    expect(REPAIR_CARD).not.toContain('dependencyRepairStaleCount')
+    expect(REPAIR_CARD).not.toContain('dependencyRepairHealthy')
+    expect(REPAIR_CARD).not.toContain('dependencyRepairReason')
+    // 唯一的数据来源是执行修复。
+    expect(REPAIR_CARD).toContain('runDependencyRepair')
   })
 
-  it('诊断在确认框之前：健康 profile 不该先看到破坏性警告', () => {
-    // 真机实测到的缺陷：原实现按钮直接 setConfirmOpen(true)，确认后才诊断，
-    // 于是健康 profile 也先弹「将清理依赖」，确认后又说「无需修复」。
-    // 现在按钮走 requestRepair（先诊断），确认框只在判出失效条目后才开。
-    const onClick = /onClick=\{\(\) => \{ void (\w+)\(\) \}\}/.exec(REPAIR_CARD)
-    expect(onClick?.[1]).toBe('requestRepair')
-    // 确认框的开合只由 requestRepair 内部（判出条目后）与取消/确认控制。
-    expect(REPAIR_CARD).toContain('setConfirmOpen(true)')
-    const requestBlock = REPAIR_CARD.slice(
-      REPAIR_CARD.indexOf('const requestRepair'),
-      REPAIR_CARD.indexOf('const repair ='),
-    )
-    expect(requestBlock).toContain('diagnoseDependencyRepair')
-    // 健康分支必须在 setConfirmOpen(true) 之前 return。
-    const healthyReturn = requestBlock.indexOf('entries.length === 0')
-    const openConfirm = requestBlock.indexOf('setConfirmOpen(true)')
-    expect(healthyReturn).toBeGreaterThan(-1)
-    expect(openConfirm).toBeGreaterThan(healthyReturn)
+  it('按钮直接弹确认框，确认后执行修复', () => {
+    // 按钮不再走「先诊断」的 requestRepair，直接开确认框。
+    const onClick = /onClick=\{\(\) => \{ (setConfirmOpen\(true\)) \}\}/.exec(REPAIR_CARD)
+    expect(onClick?.[1]).toBe('setConfirmOpen(true)')
+    // 确认动作直接调 repair，中间没有诊断分叉。
+    expect(REPAIR_CARD).toContain('void repair()')
+    const repairBlock = REPAIR_CARD.slice(REPAIR_CARD.indexOf('const repair = useCallback('))
+    expect(repairBlock.slice(0, 600)).toContain('runDependencyRepair')
   })
 
   it('中文文案里「检查」两键已随按钮一起移除', () => {

@@ -1,10 +1,20 @@
 /**
- * 「依赖修复」卡片：应用内装不上插件时的自助修复入口。
+ * 「修复插件安装异常」卡片：应用内装不上插件时的自助修复入口。
  *
- * 只有一个动作按钮：点它就修复。曾经拆成「检查 / 修复」两步，但这一步的收益
- * 不成立——检查结果对用户没有第二种用法（看到失效条目也还是要点修复），
- * 却让排障多一次点击。诊断改为修复的执行前置：进入修复时先算一次，没有失效
- * 条目就直接报「状态正常」，不白重建依赖。
+ * ## 为什么是一个动作、没有「检查」
+ *
+ * 检查结果对用户没有第二种用法（看到失效条目也还是要点修复），却让排障多一次
+ * 点击，因此只留「修复」，点它就执行。
+ *
+ * ## 为什么不再检测、也不再列出匹配到的条目
+ *
+ * 这里曾先诊断、再按「有没有失效条目」分叉：健康就报「状态正常」，有条目才弹确认
+ * 并逐条列出。但这是**强制修复**动作，不是需要用户判断的业务流程——列出
+ * `name@range` 这类内部标识只是把实现细节摊给用户看，对「我要不要修」这个决定
+ * 没有任何帮助。现在直接执行，界面只说明「会重建什么、不会动什么」。
+ *
+ * 宿主侧仍然保留「无失效条目则跳过重建」的保护（见 dependency-repair-routes.ts）：
+ * 那是防止对健康 profile 做无谓破坏的安全网，不是给用户看的判断分支。
  *
  * @module dsh-fnos/components/DependencyRepairCard
  */
@@ -12,15 +22,8 @@
 import { useCallback, useState } from 'react'
 import { DshButton, DshIconInfoCircle, DshModal, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
-import {
-  diagnoseDependencyRepair,
-  runDependencyRepair,
-} from '../client/services/dependency-repair-client.ts'
-import type {
-  DependencyRepairDiagnosis,
-  DependencyRepairEntry,
-  DependencyRepairResult,
-} from '../contracts/dependency-repair-contract.ts'
+import { runDependencyRepair } from '../client/services/dependency-repair-client.ts'
+import type { DependencyRepairResult } from '../contracts/dependency-repair-contract.ts'
 
 type Translate = (key: FnosLocaleKey) => string
 
@@ -36,65 +39,14 @@ type Phase =
   | { readonly kind: 'error'; readonly message: string }
 
 /**
- * 一条失效条目的人话说明。
- *
- * 目标版本不拼进句子：本插件的翻译函数只做静态键查表，没有占位符替换。把版本
- * 作为独立片段放在说明后面，既避免了引入一套参数机制，也让长版本号不必挤在
- * 一句中文里读。
- */
-function entryReason(entry: DependencyRepairEntry, t: Translate): string {
-  if (entry.reason === 'pipe-union') return t('dependencyRepairReasonPipe')
-  return entry.targetVersion === undefined
-    ? t('dependencyRepairReasonStale')
-    : `${t('dependencyRepairReasonStale')} → ${entry.targetVersion}`
-}
-
-/**
- * 依赖修复卡片。
+ * 修复插件安装异常卡片。
  * @returns 卡片元素。
  */
 export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.ReactNode {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [entries, setEntries] = useState<readonly DependencyRepairEntry[]>([])
-  const [unavailable, setUnavailable] = useState(false)
 
-  /**
-   * 点「修复依赖」：先诊断，再决定要不要弹确认框。
-   *
-   * **顺序是关键**：确认框必须在诊断之后。反过来的话，健康的 profile 也会先看到
-   * 「将清理依赖」的破坏性警告，点确认后才被告知「无需修复」——用户被无谓地吓了
-   * 一次，还会怀疑按钮到底做了什么。
-   */
-  const requestRepair = useCallback(async () => {
-    setPhase({ kind: 'running' })
-    try {
-      // 诊断决定「要不要重建」：重建会清 lockfile 与 node_modules，对一个本来就
-      // 健康的 profile 做这件事纯属破坏。
-      const diagnosis: DependencyRepairDiagnosis = await diagnoseDependencyRepair()
-      if (!diagnosis.available) {
-        setUnavailable(true)
-        setEntries([])
-        setPhase({ kind: 'idle' })
-        return
-      }
-      if (diagnosis.entries.length === 0) {
-        setUnavailable(false)
-        setEntries([])
-        setPhase({ kind: 'done', result: { ok: true, steps: [], removed: [], durationMs: 0 } })
-        return
-      }
-      // 确实有失效条目：展示出来并请用户确认。
-      setUnavailable(false)
-      setEntries(diagnosis.entries)
-      setPhase({ kind: 'idle' })
-      setConfirmOpen(true)
-    } catch (error) {
-      setPhase({ kind: 'error', message: describe(error) })
-    }
-  }, [])
-
-  /** 确认框点了「修复依赖」：执行重建。 */
+  /** 执行修复。 */
   const repair = useCallback(async () => {
     setConfirmOpen(false)
     setPhase({ kind: 'running' })
@@ -105,7 +57,6 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
     }
   }, [])
 
-  const healthy = phase.kind === 'done' && phase.result.ok && phase.result.steps.length === 0
   const busy = phase.kind === 'running'
 
   return (
@@ -137,7 +88,7 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
             type="primary"
             disabled={busy}
             loading={busy}
-            onClick={() => { void requestRepair() }}
+            onClick={() => { setConfirmOpen(true) }}
           >
             {busy ? t('dependencyRepairRunning') : t('dependencyRepairRun')}
           </DshButton>
@@ -149,28 +100,11 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
           <p className="dsh-fnos-repair-error" role="alert">{`${t('dependencyRepairFailed')}${phase.message}`}</p>
         ) : null}
 
-        {unavailable ? (
-          <p className="dsh-fnos-repair-muted">{t('dependencyRepairUnavailable')}</p>
-        ) : null}
-
-        {healthy ? (
-          <p className="dsh-fnos-repair-ok">{t('dependencyRepairHealthy')}</p>
-        ) : null}
-
-        {entries.length > 0 ? (
-          <>
-            <p className="dsh-fnos-repair-muted">{t('dependencyRepairStaleCount')}</p>
-            <ul className="dsh-fnos-repair-list">
-              {entries.map(entry => (
-                <li key={`${entry.name}@${entry.range}`} className="dsh-fnos-repair-entry">
-                  <code className="dsh-fnos-repair-code">{`${entry.name}@${entry.range}`}</code>
-                  <span className="dsh-fnos-repair-muted">{entryReason(entry, t)}</span>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
-
+        {/*
+          结果按步骤逐条展示：用户点过「修复」之后，比较关心的就是「到底做了什么、
+          哪一步没成」。这里展示的是**已执行的动作**，与之前那种「检测到的内部
+          标识」不是一回事。
+        */}
         {phase.kind === 'done' && phase.result.steps.length > 0 ? (
           <div className="dsh-fnos-repair-result" role="status">
             <p className={phase.result.ok ? 'dsh-fnos-repair-ok' : 'dsh-fnos-repair-error'}>
