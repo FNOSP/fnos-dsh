@@ -21,7 +21,7 @@
  */
 
 import { execFile } from 'node:child_process'
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import type {
   DependencyRepairDiagnosis,
@@ -48,6 +48,8 @@ export interface DependencyRepairEnvironment {
   readonly profileDirectory: string
   /** 发布清单路径（决定「目标版本」）。 */
   readonly manifestPath?: string
+  /** 随 FPK 内置的插件归档目录（`bundled-dsh-plugins/`）。 */
+  readonly bundledDirectory?: string
   /** `dsh` 可执行文件（重装插件走它）。 */
   readonly dshBin?: string
   /** `pnpm` 可执行文件。 */
@@ -71,7 +73,12 @@ export function resolveRepairEnvironment(env: NodeJS.ProcessEnv = process.env): 
   const appDest = nonEmpty(env.TRIM_APPDEST)
   return {
     profileDirectory: join(home, 'profiles', 'web'),
-    ...(appDest === undefined ? {} : { manifestPath: join(appDest, 'published-dsh-plugins.json') }),
+    ...(appDest === undefined
+      ? {}
+      : {
+          manifestPath: join(appDest, 'published-dsh-plugins.json'),
+          bundledDirectory: join(appDest, 'bundled-dsh-plugins'),
+        }),
     ...(prefix === undefined ? {} : { pnpmBin: join(prefix, 'bin', 'pnpm'), dshBin: join(prefix, 'bin', 'dsh') }),
   }
 }
@@ -411,6 +418,12 @@ export async function runDependencyRepair(
   log('repair: rebuild 完成')
 
   // 第三步：把发布清单里的插件装回来。清单外的插件不碰——那是用户自己的选择。
+  //
+  // 装法必须与应用自己的安装路径一致：能随 FPK 内置的插件走 `file:` 归档，
+  // 而不是 `<name>@<version>` 去 registry 拉。实测踩过——本地构建的版本
+  // （8.1.8）尚未发布到 npm，按 registry 装立刻失败并让整次修复报错，尽管
+  // 前两步（清条目、重建依赖）已经完全成功。应用内自愈不该依赖一个可能
+  // 不存在的 registry 版本。
   const targets = environment.manifestPath === undefined
     ? {}
     : targetVersionsFromManifest(await readJsonIfExists(environment.manifestPath))
@@ -421,7 +434,20 @@ export async function runDependencyRepair(
     steps.push({ id: 'reinstall', status: 'skipped', detail })
     return { ok: true, steps, removed, durationMs: Date.now() - startedAt }
   }
-  const specs = packages.map(([name, version]) => `${name}@${version}`)
+  const specs: string[] = []
+  for (const [name, version] of packages) {
+    const archive = environment.bundledDirectory === undefined
+      ? undefined
+      : bundledArchivePath(environment.bundledDirectory, name)
+    // 归档存在就用它；不存在（瘦包发布，或该插件本就不内置）才退回 registry。
+    if (archive !== undefined && await pathExists(archive)) {
+      specs.push(`file:${archive}`)
+      log(`repair: reinstall 使用内置归档 ${name} → ${archive}`)
+    } else {
+      specs.push(`${name}@${version}`)
+      log(`repair: reinstall 无内置归档，改用 registry ${name}@${version}`)
+    }
+  }
   log(`repair: reinstall 开始 ${specs.join(' ')}`)
   const add = await run(
     environment.dshBin,
@@ -438,6 +464,31 @@ export async function runDependencyRepair(
   steps.push({ id: 'reinstall', status: 'ok', detail: specs.join(' ') })
   log(`repair: 完成，耗时 ${Date.now() - startedAt}ms`)
   return { ok: true, steps, removed, durationMs: Date.now() - startedAt }
+}
+
+/**
+ * 随 FPK 内置的插件归档路径。
+ *
+ * 目录布局是 `bundled-dsh-plugins/@scope/name.tgz`（见构建脚本）：`@scope/name`
+ * 展开成两级目录，文件名取自包名最后一段。
+ */
+function bundledArchivePath(directory: string, packageName: string): string {
+  const [scope, bare] = packageName.includes('/')
+    ? packageName.split('/', 2) as [string, string]
+    : [undefined, packageName] as const
+  return scope === undefined
+    ? join(directory, `${bare}.tgz`)
+    : join(directory, scope, `${bare}.tgz`)
+}
+
+/** 路径是否存在（读不到即视为不存在）。 */
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await stat(path)
+    return true
+  } catch {
+    return false
+  }
 }
 
 function describe(error: unknown): string {

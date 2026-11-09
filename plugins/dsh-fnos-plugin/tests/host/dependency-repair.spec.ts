@@ -66,6 +66,8 @@ describe('环境推导', () => {
     expect(environment).toEqual({
       profileDirectory: '/vol4/@apphome/fn-deepseek-harness/profiles/web',
       manifestPath: '/vol4/@appcenter/fn-deepseek-harness/published-dsh-plugins.json',
+      // 内置归档目录用于重装步骤走 file: 规格（不是 registry）。
+      bundledDirectory: '/vol4/@appcenter/fn-deepseek-harness/bundled-dsh-plugins',
       pnpmBin: '/vol4/@apphome/fn-deepseek-harness/.npm-global/bin/pnpm',
       dshBin: '/vol4/@apphome/fn-deepseek-harness/.npm-global/bin/dsh',
     })
@@ -356,5 +358,46 @@ describe('真实失效现场（16 条，含历史 || 累积）', () => {
     )
     const stale = findStaleExclusions(parseExclusions(exactOnly), REAL_TARGETS)
     expect(stale.some(entry => entry.name === '@tnnevol/dsh-codebuddy')).toBe(false)
+  })
+})
+
+/**
+ * 重装步骤必须优先用随 FPK 内置的归档（2026-11-09 真机暴露）。
+ *
+ * 实测：本地构建的 `@tnnevol/dsh-fnos@8.1.8` 尚未发布到 npm，第三步按
+ * `<name>@<version>` 去 registry 拉立刻失败，整次修复报 `ok=false`——尽管
+ * 前两步（清条目、重建依赖）已经完全成功。应用内自愈不该依赖一个可能不存在的
+ * registry 版本：能内置的插件就走 `file:` 归档，与 FPK 安装路径一致。
+ */
+describe('重装插件：内置归档优先', () => {
+  const source = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
+  const HOST = source('../../src/host/dependency-repair.ts')
+
+  it('环境推导带上内置归档目录', () => {
+    expect(HOST).toContain('bundledDirectory')
+    expect(HOST).toMatch(/bundledDirectory: join\(appDest, 'bundled-dsh-plugins'\)/)
+  })
+
+  it('归档存在时用 file: 规格，缺失才退回 registry', () => {
+    expect(HOST).toContain('bundledArchivePath')
+    expect(HOST).toContain('pathExists(archive)')
+    // 源码里的模板串字面量用正则断言：直接写 ${...} 会被 no-template-curly-in-string 判为误写。
+    expect(HOST).toMatch(/`file:\$\{archive\}`/)
+    expect(HOST).toMatch(/`\$\{name\}@\$\{version\}`/)
+    // 两种分支都要留日志，排障时能看出走的是哪条。
+    expect(HOST).toContain('使用内置归档')
+    expect(HOST).toContain('无内置归档，改用 registry')
+  })
+
+  it('归档路径按 @scope/name 展开为两级目录', () => {
+    // 目录布局是 bundled-dsh-plugins/@scope/name.tgz（见构建脚本）。
+    expect(HOST).toMatch(/join\(directory, scope, `\$\{bare\}\.tgz`\)/)
+    expect(HOST).toMatch(/join\(directory, `\$\{bare\}\.tgz`\)/)
+  })
+
+  it('缺失归档不阻断修复（回退而不是报错）', () => {
+    // 瘦包发布时没有内置归档，此时必须回退到 registry，不能直接 fail。
+    const block = HOST.slice(HOST.indexOf('const specs: string[] = []'), HOST.indexOf('log(`repair: reinstall 开始'))
+    expect(block).not.toContain('return { ok: false')
   })
 })
