@@ -1200,21 +1200,17 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 .dsh-fnos-config-body {
   display: flex;
   /*
-    `flex: 1 1 0%`（而不是 `1 1 auto` 或 `height: 100%`）。
+    **`height: 100%` 是这里唯一有效的写法**。
 
-    `height: 100%` 会把父容器的 content-box 高度全占满，**忽略父层的 padding-bottom**
-    ——内容因此溢出到那 15px 里，表现是最后一个元素贴住弹框底沿。
-    `1 1 auto` 仍然按内容高度起算，同样吸收不掉 padding。
+    父层 `.semi-modal-body` 是 `display: block`（Semi 的实现），不是 flex 容器——
+    所以在这一层写 `flex: 1 1 0%` / `flex: 1 1 auto` 都不起作用，高度完全由内容
+    撑开，于是比父层高出 15px、越过 semiBody 边界吃掉弹框的 padding-bottom
+    （实测：semiBody 731，本层 746）。
 
-    `1 1 0%` 让基准高度为 0 再按可用空间伸展：可用空间本身已经扣掉了 padding-bottom，
-    所以底部那 15px 是真空出来的。
+    `height: 100%` 让它严格等于父层的内容高度（731，已扣掉 padding-bottom 15），
+    配合 `overflow: hidden` 把内部溢出的部分裁掉。
   */
-  flex: 1 1 0%;
-  /*
-    `min-height: 0` 让这一层能被压缩（flex 项默认 min-height: auto，会被内容撑开）；
-    `overflow: hidden` 则兜底：即使内部某层算大了，也不会越过 semiBody 的边界
-    去吃弹框的 padding-bottom。
-  */
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
