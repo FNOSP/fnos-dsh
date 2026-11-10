@@ -80,14 +80,18 @@ describe('授权目录列表：不单独限高，滚动交给面板', () => {
     expect(rule).not.toMatch(/^\s*overflow-y\s*:/m)
   })
 
-  it('滚动下沉到 tab 内容区，右列本身不再滚', () => {
+  it('右列默认自己滚，仅「插件管理」交给 tab 内容区', () => {
     /*
-      原来整个右列是滚动容器，tab 栏在它内部——滚动时 tab 栏会一起滚走，
-      切 tab 得先滚回顶部。现在由 Semi 的 tab 内容容器承担滚动，tab 栏常驻。
+      右列是授权目录 / 运行 / 日志三个视图的滚动容器——真机踩到过：把它的
+      overflow 一律改成 visible 后，「授权目录」滚不到底（滚动条消失，底部内容
+      被裁）。
+
+      只有「插件管理」例外：那个视图内部有 tab 栏，若由右列滚动，tab 栏会跟着
+      滚走。用 `:has()` 反向选择把它排除。
     */
     const panel = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-panel {'))
-    expect(panel.slice(0, panel.indexOf('}'))).not.toContain('overflow-y: auto')
-    expect(SCSS).toContain('.dsh-fnos-plugins-tabs .semi-tabs-content')
+    expect(panel.slice(0, panel.indexOf('}'))).toContain('overflow-y: auto')
+    expect(SCSS).toContain('.dsh-fnos-config-panel:has(.dsh-fnos-plugins-tabs)')
     const contentRule = SCSS.slice(SCSS.indexOf('.dsh-fnos-plugins-tabs .semi-tabs-content {'))
     expect(contentRule.slice(0, contentRule.indexOf('}'))).toContain('overflow-y: auto')
   })

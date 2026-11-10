@@ -1247,18 +1247,32 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     需要这个留白把内容与滚动条分开。
   */
   /*
-    **右列不再自己滚动**，滚动下沉到 tab 内容区（见 .dsh-fnos-plugins-scroll）。
+    **默认自己滚动**——授权目录、运行、日志三个视图都靠它。
 
-    原来整个右列是一个滚动容器：tab 栏在它内部，滚动时 tab 栏会一起滚走。而
-    tab 栏应当是常驻的——用户切 tab 不该先滚回顶部。
+    只有「插件管理」例外：那个视图内部有 tab 栏，若由本层滚动，tab 栏会跟着滚走
+    （用户切 tab 得先滚回顶部）。因此那里改由 tab 内容区承担滚动，见下方
+    `.dsh-fnos-plugins-scrolls-in-tabs` 的说明。
 
-    底部内边距改为 0：留白统一由弹框的 padding-bottom 给，这里再写一份会翻倍。
+    底部内边距 0：留白统一由弹框的 padding-bottom 给，这里再写一份会翻倍。
   */
   padding: 0 24px 0 4px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/*
+ * 「插件管理」视图：本层不滚，交给 tab 内容区。
+ *
+ * 用 `:has()` 反向选择：这个视图的标志是内部有 tab 栏。比在 JS 里加类更省——
+ * 视图切换不触发重渲染，样式是纯声明式的。
+ */
+.dsh-fnos-config-panel:has(.dsh-fnos-plugins-tabs) {
+  overflow-y: visible;
+  scrollbar-gutter: auto;
 }
 
 /*
