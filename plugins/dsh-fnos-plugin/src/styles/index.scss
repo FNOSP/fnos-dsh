@@ -2101,3 +2101,83 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/*
+ * 「已安装的插件」卡片列表。
+ *
+ * 每张卡片承载「是什么 + 能对它做什么」。表格行放不下开关、更新按钮与桥梁警示，
+ * 挤在一行会读不出来。
+ */
+.dsh-fnos-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-fnos-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+/* 禁用态：整体降饱和 + 左侧灰条，一眼区分「在但不生效」。 */
+.dsh-fnos-card--off {
+  border-left: 3px solid var(--dsw-alias-label-dimmed);
+  opacity: 0.72;
+}
+
+.dsh-fnos-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsh-fnos-card-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsh-fnos-card-version {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dsh-fnos-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 桥梁警示：橙色，但不做成整块背景（会盖过其它信息）。 */
+.dsh-fnos-card-note {
+  margin: 0;
+  color: var(--dsw-alias-state-warn-primary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.dsh-fnos-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsh-fnos-installed-badge--off {
+  background: color-mix(in srgb, var(--dsw-alias-label-dimmed) 18%, transparent);
+  color: var(--dsw-alias-label-tertiary);
+}

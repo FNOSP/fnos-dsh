@@ -19,6 +19,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { InstalledPlugin, InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
 import { checkAllPluginUpdates } from './plugin-updates.ts'
+import { readPackageEntries } from './plugin-toggle.ts'
 
 /** profile `package.json` 里关心的字段。 */
 interface ProfileManifest {
@@ -95,15 +96,26 @@ export async function readInstalledPlugins(
   }
 
   const base = await Promise.all(names.map(name => readPlugin(profileDirectory, name, bundledNames)))
-  if (!checkUpdates) return { available: true, plugins: base }
+
+  /*
+    启用状态来自 profile 的 patch（`disabled: true`）。一个包可能对应多条组合条目
+    （服务端与客户端分开挂载），因此**全部条目都 disabled 才算这个包被禁用**。
+  */
+  const withEnabled = await Promise.all(base.map(async plugin => {
+    const entries = await readPackageEntries(plugin.name)
+    if (entries.length === 0) return plugin
+    return { ...plugin, enabled: entries.some(entry => entry.enabled) }
+  }))
+
+  if (!checkUpdates) return { available: true, plugins: withEnabled }
 
   /*
     更新检测放在这里统一做（而不是客户端逐包查）：兼容性判据要拿 DSH 运行时版本，
     那是宿主侧才知道的东西；放客户端就得把版本号传下来，规则会漂到两处。
   */
-  const updates = await checkAllPluginUpdates(profileDirectory, base)
+  const updates = await checkAllPluginUpdates(profileDirectory, withEnabled)
   const byName = new Map(updates.map(update => [update.name, update]))
-  const plugins = base.map(plugin => {
+  const plugins = withEnabled.map(plugin => {
     const update = byName.get(plugin.name)
     if (update === undefined) return plugin
     return {

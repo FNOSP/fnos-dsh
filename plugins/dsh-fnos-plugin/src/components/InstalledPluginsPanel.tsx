@@ -15,9 +15,9 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshButton } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshModal, DshSwitch } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
-import { fetchInstalledPlugins } from '../client/services/gateway-proxy-client.ts'
+import { fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
 import { PluginInstallDialog } from './PluginInstallDialog.tsx'
 import type { InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
 
@@ -39,6 +39,10 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   const [refreshing, setRefreshing] = useState(false)
   /** 正在安装的包名；undefined 表示弹框关闭。 */
   const [installing, setInstalling] = useState<string>()
+  /** 正在切换启用状态的包名（期间禁用该卡片的按钮，避免连点）。 */
+  const [toggling, setToggling] = useState<string>()
+  /** 待确认卸载的包名；undefined 表示确认框关闭。 */
+  const [removing, setRemoving] = useState<string>()
   const [error, setError] = useState<string>()
 
   const load = useCallback(async () => {
@@ -60,6 +64,35 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
     }
   }, [load])
 
+  /** 切换启用状态：改 profile patch 的 disabled，不删文件。 */
+  const toggleEnabled = useCallback(async (name: string, enabled: boolean) => {
+    setToggling(name)
+    try {
+      await togglePlugin(name, enabled)
+      await load()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setToggling(undefined)
+    }
+  }, [load])
+
+  /** 确认卸载。 */
+  const confirmRemove = useCallback(async () => {
+    const name = removing
+    if (name === undefined) return
+    setToggling(name)
+    try {
+      await removePluginByName(name)
+      setRemoving(undefined)
+      await load()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setToggling(undefined)
+    }
+  }, [removing, load])
+
   useEffect(() => { void load() }, [load])
 
   if (error !== undefined) {
@@ -76,10 +109,6 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
 
   return (
     <>
-      {/*
-        刷新：重新检测上游是否有新版本。
-        放在列表上方而不是页头——它是这个列表的动作，作用域只有这一块。
-      */}
       <div className="dsh-fnos-installed-toolbar">
         <DshButton
           htmlType="button"
@@ -92,63 +121,106 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
           {t('refresh')}
         </DshButton>
       </div>
-      <ul className="dsh-fnos-installed">
-      {snapshot.plugins.map(plugin => (
-        <li key={plugin.name} className="dsh-fnos-installed-item">
-          <div className="dsh-fnos-installed-main">
-          <code className="dsh-fnos-installed-name">{plugin.name}</code>
-          {/*
-            本插件是飞牛应用与 DSH 之间的**桥梁**：授权目录、文件打开、网关反代、
-            进程管理全靠它。卸载后应用仍能启动，但这些能力全部消失，用户会以为
-            「应用坏了」。这里必须直说，而不是只标一个「内置」。
-          */}
-          {plugin.bundled ? (
-            <span className="dsh-fnos-installed-note" role="note">
-              {t('installedBundledWarning')}
-            </span>
-          ) : null}
-          </div>
-          <span className="dsh-fnos-installed-version">{plugin.version}</span>
-          {/*
-            更新提示有三态，且**不兼容时不提示更新**：装上去起不来比「没更新」更糟。
-            不兼容单独标出来，用户才知道该去升 DSH 而不是升插件。
-          */}
-          {plugin.incompatible === true ? (
-            <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--warn" title={JSON.stringify(plugin.requirements ?? {})}>
-              {t('installedIncompatible')}
-            </span>
-          ) : plugin.updateAvailable === true ? (
-            <>
-              <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">
-                {`${t('installedUpdateAvailable')} ${plugin.latestVersion ?? ''}`}
-              </span>
+
+      {/*
+        卡片而不是表格行：每张卡片承载「这个插件是什么 + 能对它做什么」。
+        表格行放不下开关、更新按钮与桥梁警示，挤在一行会读不出来。
+      */}
+      <ul className="dsh-fnos-cards">
+        {snapshot.plugins.map(plugin => {
+          const disabled = plugin.enabled === false
+          return (
+            <li key={plugin.name} className={`dsh-fnos-card${disabled ? ' dsh-fnos-card--off' : ''}`}>
+              <div className="dsh-fnos-card-head">
+                <code className="dsh-fnos-card-name">{plugin.name}</code>
+                <span className="dsh-fnos-card-version">{plugin.version}</span>
+                {/*
+                  启用开关。放在卡片右上：它是这张卡片最主要的状态。
+                  内置插件也允许禁用——「禁用」不删文件、配置仍在，是安全操作。
+                */}
+                <DshSwitch
+                  size="small"
+                  checked={!disabled}
+                  disabled={toggling === plugin.name}
+                  onChange={next => { void toggleEnabled(plugin.name, next) }}
+                />
+              </div>
+
+              {/* 状态徽标：不兼容 > 有更新 > 本地版本 > 已是最新。 */}
+              <div className="dsh-fnos-card-badges">
+                {plugin.incompatible === true ? (
+                  <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--warn" title={JSON.stringify(plugin.requirements ?? {})}>
+                    {t('installedIncompatible')}
+                  </span>
+                ) : plugin.updateAvailable === true ? (
+                  <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">
+                    {`${t('installedUpdateAvailable')} ${plugin.latestVersion ?? ''}`}
+                  </span>
+                ) : plugin.latestVersion === undefined ? null : plugin.aheadOfRegistry === true ? (
+                  <span className="dsh-fnos-installed-badge">{t('installedAheadOfRegistry')}</span>
+                ) : (
+                  <span className="dsh-fnos-repair-muted">{t('installedUpToDate')}</span>
+                )}
+                {plugin.bundled ? <span className="dsh-fnos-installed-badge">{t('installedPluginsBundled')}</span> : null}
+                {plugin.hasClient ? null : <span className="dsh-fnos-repair-muted">{t('installedPluginsHostOnly')}</span>}
+                {disabled ? <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--off">{t('pluginDisabled')}</span> : null}
+              </div>
+
               {/*
-                有更新时给一个安装入口。装的是**按 DSH 基线挑出来的版本**，不是
-                registry 的 latest——latest 常要求更新的基线，装上起不来。
+                桥梁提示只给本插件：它是应用与 DSH 之间唯一的通道，卸载后
+                授权目录、文件打开、网关反代、进程管理全部失效。
               */}
-              <DshButton
-                htmlType="button"
-                size="small"
-                theme="light"
-                type="primary"
-                onClick={() => { setInstalling(plugin.name) }}
-              >
-                {t('pluginInstallAction')}
-              </DshButton>
-            </>
-          ) : plugin.latestVersion === undefined ? null : plugin.aheadOfRegistry === true ? (
-            // 本地比 registry 新：开发/内测，不能说「已是最新」。
-            <span className="dsh-fnos-installed-badge">{t('installedAheadOfRegistry')}</span>
-          ) : (
-            <span className="dsh-fnos-repair-muted">{t('installedUpToDate')}</span>
-          )}
-          {plugin.bundled ? <span className="dsh-fnos-installed-badge">{t('installedPluginsBundled')}</span> : null}
-          {plugin.hasClient ? null : <span className="dsh-fnos-repair-muted">{t('installedPluginsHostOnly')}</span>}
-        </li>
-      ))}
-        </ul>
+              {plugin.bundled ? (
+                <p className="dsh-fnos-card-note" role="note">{t('installedBundledWarning')}</p>
+              ) : null}
+
+              <div className="dsh-fnos-card-actions">
+                {plugin.updateAvailable === true ? (
+                  <DshButton
+                    htmlType="button"
+                    size="small"
+                    theme="light"
+                    type="primary"
+                    disabled={toggling === plugin.name}
+                    onClick={() => { setInstalling(plugin.name) }}
+                  >
+                    {t('pluginInstallAction')}
+                  </DshButton>
+                ) : null}
+                {/*
+                  内置插件不允许卸载：它是应用的组成部分，删掉之后能力缺口无法
+                  通过「重新安装插件」恢复（要重装整个应用）。
+                */}
+                {plugin.bundled ? null : (
+                  <DshButton
+                    htmlType="button"
+                    size="small"
+                    theme="borderless"
+                    type="danger"
+                    disabled={toggling === plugin.name}
+                    onClick={() => { setRemoving(plugin.name) }}
+                  >
+                    {t('uninstall')}
+                  </DshButton>
+                )}
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+
+      <DshModal
+        visible={removing !== undefined}
+        title={t('pluginRemoveTitle')}
+        okText={t('confirm')}
+        cancelText={t('cancel')}
+        onOk={() => { void confirmRemove() }}
+        onCancel={() => { setRemoving(undefined) }}
+      >
+        <p>{`${t('pluginRemoveConfirm')}${removing ?? ''}`}</p>
+      </DshModal>
+
       <PluginInstallDialog
-        /* key 让每次安装都是新实例：日志与状态自动归零，不必在 effect 里重置。 */
         key={installing ?? 'idle'}
         visible={installing !== undefined}
         {...(installing === undefined ? {} : { name: installing })}

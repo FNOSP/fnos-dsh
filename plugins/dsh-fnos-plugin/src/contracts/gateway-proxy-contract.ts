@@ -139,6 +139,13 @@ export interface InstalledPlugin {
   readonly incompatible?: boolean
   /** 不兼容的具体要求。 */
   readonly requirements?: Record<string, string>
+  /**
+   * 是否启用。
+   *
+   * `false` 表示在 profile patch 里被标了 `disabled: true`：模块仍在磁盘上、
+   * 配置也在，只是组合加载时跳过它。与「卸载」是两件事。
+   */
+  readonly enabled?: boolean
 }
 
 /** 插件清单响应。 */
@@ -179,3 +186,9 @@ export const FNOS_PLUGIN_INSTALL_STATE_ROUTE = '/plugins/dsh-fnos/plugins/instal
 
 /** 安装日志（只读，支持 offset 增量）。 */
 export const FNOS_PLUGIN_INSTALL_LOG_ROUTE = '/plugins/dsh-fnos/plugins/install-log'
+
+/** 启用/禁用插件（写）。 */
+export const FNOS_PLUGIN_TOGGLE_ROUTE = '/plugins/dsh-fnos/plugins/toggle'
+
+/** 卸载插件（写）。 */
+export const FNOS_PLUGIN_REMOVE_ROUTE = '/plugins/dsh-fnos/plugins/remove'

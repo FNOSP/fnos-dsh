@@ -13,6 +13,8 @@ import {
   FNOS_PLUGIN_INSTALL_ROUTE,
   FNOS_PLUGIN_INSTALL_STATE_ROUTE,
   FNOS_PLUGIN_INSTALL_LOG_ROUTE,
+  FNOS_PLUGIN_TOGGLE_ROUTE,
+  FNOS_PLUGIN_REMOVE_ROUTE,
 } from '../../contracts/gateway-proxy-contract.ts'
 import type { GatewayAutoPathsStatus, InstalledPluginsSnapshot } from '../../contracts/gateway-proxy-contract.ts'
 
@@ -173,4 +175,33 @@ export async function fetchInstallLog(offset: number): Promise<{ text: string, o
     text: typeof value.text === 'string' ? value.text : '',
     offset: typeof value.offset === 'number' ? value.offset : offset,
   }
+}
+
+/**
+ * 启用/禁用插件。
+ * @param name - 包名。
+ * @param enabled - 目标状态。
+ */
+export async function togglePlugin(name: string, enabled: boolean): Promise<void> {
+  const response = await fetch(FNOS_PLUGIN_TOGGLE_ROUTE, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ name, enabled }),
+  })
+  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+}
+
+/**
+ * 卸载插件。
+ * @param name - 包名。
+ */
+export async function removePluginByName(name: string): Promise<void> {
+  const response = await fetch(FNOS_PLUGIN_REMOVE_ROUTE, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ name }),
+  })
+  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
 }
