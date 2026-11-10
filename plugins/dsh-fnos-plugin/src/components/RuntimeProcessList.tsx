@@ -17,12 +17,20 @@
  */
 
 import { useCallback, useState } from 'react'
-import { DshButton, DshIconInfoCircle, DshModal, DshTooltip } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshIconInfoCircle, DshModal, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { killRuntimeProcess } from '../client/services/runtime-status-client.ts'
 import type { RuntimeProcess } from '../contracts/runtime-status-contract.ts'
 
 type Translate = (key: FnosLocaleKey) => string
+
+/**
+ * Semi 的 `Typography.Text`。
+ *
+ * `@tnnevol/dsh-semi-ui` 把整个 Typography 作为命名空间对象导出（`DshTypography`），
+ * 而这里只需要 `Text` 这一个变体——解构出来用，避免每次写 `<DshTypography.Text>`。
+ */
+const DshTypographyText = DshTypography.Text
 
 /** 组件参数。 */
 export interface RuntimeProcessListProps {
@@ -107,7 +115,23 @@ export function RuntimeProcessList({ t, processes, available }: RuntimeProcessLi
                 {item.name}
                 {item.isRoot ? <em className="dsh-fnos-runtime-proc-badge">{t('runtimeProcessRoot')}</em> : null}
               </span>
-              <code className="dsh-fnos-runtime-proc-cmd" title={item.command}>{item.command}</code>
+              {/*
+                命令行用 Semi 的 Typography ellipsis，而不是自己写 `text-overflow`。
+
+                区别在**悬浮提示**：自写的省略号只有 `title` 属性（原生提示，延迟约
+                1 秒、样式不受控、暗色主题下是系统气泡），而 Semi 的
+                `ellipsis={{ showTooltip: true }}` 用站内 Tooltip，悬浮即出、
+                跟随主题，且**只在真的被截断时才显示**——没截断的短命令不会弹一个
+                和正文一样的提示。
+
+                `children` 必须是纯字符串：Semi 的 ellipsis 不支持 reactNode。
+              */}
+              <DshTypographyText
+                className="dsh-fnos-runtime-proc-cmd"
+                ellipsis={{ showTooltip: true }}
+              >
+                {item.command}
+              </DshTypographyText>
             </div>
             <div className="dsh-fnos-runtime-proc-meta">
               <span>PID {item.pid}</span>

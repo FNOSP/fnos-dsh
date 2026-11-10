@@ -37,10 +37,32 @@ export const ALLOWED_SIGNALS = ['SIGTERM', 'SIGKILL'] as const
 export type KillSignal = typeof ALLOWED_SIGNALS[number]
 
 /** 保护名单：这些 pid 永远不允许结束。 */
-function isProtected(pid: number, self: number): boolean {
+/**
+ * 受保护的进程名（按 basename 匹配）。
+ *
+ * `gateway-proxy.mjs` 是应用的**入口进程**：它负责把 fnOS 网关的请求转给 DSH，
+ * 并且由平台以 ppid=1 拉起。结束它的结果与结束根进程一样——整个应用失联，
+ * 而用户只是点了一下「结束」。因此与根进程同等保护。
+ *
+ * 用文件名而不是 pid：它是框架拉起的，每次重启 pid 都会变。
+ */
+const PROTECTED_NAMES: readonly string[] = ['gateway-proxy.mjs']
+
+/**
+ * 判断是否不可结束。
+ * @param pid - 进程号。
+ * @param self - 根进程号。
+ * @param command - 命令行（用于按名识别入口进程）。
+ * @param name - /proc 里的进程名（comm）。
+ * @returns 是否受保护。
+ */
+function isProtected(pid: number, self: number, command: string, name: string): boolean {
   // 本进程不能杀自己（面板会随之消失，且用户只是点了一下「结束」）；
   // init 进程同样保护，杀了会拖垮容器。
-  return pid === self || pid <= 1
+  if (pid === self || pid <= 1) return true
+  // 入口进程按文件名识别：命令行里出现 `gateway-proxy.mjs` 即视为它。
+  const haystack = `${command} ${name}`
+  return PROTECTED_NAMES.some(candidate => haystack.includes(candidate))
 }
 
 /**
@@ -228,18 +250,19 @@ export async function listProcessTree(
     const stat = stats.get(pid)
     if (stat === undefined) continue
     const rss = await readRss(pid)
+    const command = await readCmdline(pid, stat.name)
     out.push({
       pid,
       ppid: stat.ppid,
       name: stat.name,
-      command: await readCmdline(pid, stat.name),
+      command,
       // 读不到就不写这个键：`exactOptionalPropertyTypes` 下缺省字段必须是「不存在」
       // 而不是「存在但 undefined」。
       ...(rss === undefined ? {} : { rssBytes: rss }),
       // Z（zombie）等非运行态也照实给出，界面上可以区分「已退出待回收」。
       state: stat.state,
       isRoot: pid === rootPid,
-      canKill: !isProtected(pid, rootPid),
+      canKill: !isProtected(pid, rootPid, command, stat.name),
     })
   }
   return out
@@ -269,12 +292,21 @@ export async function killProcess(
   rootPid: number = process.pid,
 ): Promise<{ ok: boolean, reason?: string }> {
   if (!ALLOWED_SIGNALS.includes(signal)) return { ok: false, reason: 'signal-not-allowed' }
-  if (isProtected(pid, rootPid)) return { ok: false, reason: 'protected-process' }
+  // 先做 pid 级别的快速拦截（本进程 / init），不必读 /proc。
+  if (pid === rootPid || pid <= 1) return { ok: false, reason: 'protected-process' }
 
-  // 发信号前重新确认仍在树内，缩小「校验后 pid 被复用」的窗口。
+  /*
+    发信号前重新枚举一次：既确认仍在树内（缩小「校验后 pid 被复用」的窗口），
+    也复用这次枚举的 `canKill` 结果。
+
+    用树里的 `canKill` 而不是在这里另算一遍保护规则——`canKill` 已经包含
+    「入口进程（gateway-proxy）受保护」这条，若此处只按 pid 判断就会漏掉它，
+    变成「界面显示受保护、接口却允许杀」的危险不一致。
+  */
   const tree = await listProcessTree(rootPid)
   const target = tree.find(item => item.pid === pid)
   if (target === undefined) return { ok: false, reason: 'not-in-tree' }
+  if (!target.canKill) return { ok: false, reason: 'protected-process' }
 
   try {
     process.kill(pid, signal)

@@ -148,6 +148,15 @@ describe('运行状态：进程树与结束', () => {
     expect(CONTRACT).toContain("FNOS_RUNTIME_KILL_ROUTE = '/plugins/dsh-fnos/runtime/kill'")
   })
 
+  it('命令行省略用 Semi Typography 的 ellipsis（自带 tooltip）', () => {
+    const LIST = readFileSync(new URL('../../src/components/RuntimeProcessList.tsx', import.meta.url), 'utf8')
+    // 自写 text-overflow 只有原生 title 提示；Semi 的 ellipsis 用站内 Tooltip，
+    // 且只在真的被截断时才显示。
+    expect(LIST).toContain('ellipsis={{ showTooltip: true }}')
+    expect(LIST).toContain('DshTypography')
+    expect(LIST).not.toContain('title={item.command}')
+  })
+
   it('界面如实说明这是 OS 视角而不是会话任务，并提供两档结束', () => {
     const LIST = readFileSync(new URL('../../src/components/RuntimeProcessList.tsx', import.meta.url), 'utf8')
     expect(LIST).toContain('runtimeProcessesTip')
@@ -245,6 +254,28 @@ describe('运行状态：两排读数外观一致', () => {
     expect(nowRule).toContain('padding: 8px 10px')
     expect(portItem).toContain('border-radius: 8px')
     expect(nowRule).toContain('border-radius: 8px')
+  })
+})
+
+describe('运行状态：入口进程受保护', () => {
+  it('gateway-proxy 与根进程同等保护（结束它等于应用失联）', async () => {
+    const { listProcessTree } = await import('../../src/host/runtime-processes.ts')
+    const tree = await listProcessTree(process.pid, 'user')
+    for (const item of tree) {
+      // 按文件名识别：它是框架以 ppid=1 拉起的，pid 每次重启都变。
+      if (item.command.includes('gateway-proxy.mjs')) {
+        expect(item.canKill).toBe(false)
+      }
+    }
+    // 规则本身必须存在（当前环境没跑网关时列表里不会有它）。
+    const src = readFileSync(new URL('../../src/host/runtime-processes.ts', import.meta.url), 'utf8')
+    expect(src).toContain("PROTECTED_NAMES: readonly string[] = ['gateway-proxy.mjs']")
+  })
+
+  it('结束接口复用树里的 canKill，不另算一遍规则', () => {
+    // 若接口只按 pid 判断，就会出现「界面显示受保护、接口却允许杀」的危险不一致。
+    const src = readFileSync(new URL('../../src/host/runtime-processes.ts', import.meta.url), 'utf8')
+    expect(src).toContain('if (!target.canKill) return { ok: false, reason: ')
   })
 })
 
