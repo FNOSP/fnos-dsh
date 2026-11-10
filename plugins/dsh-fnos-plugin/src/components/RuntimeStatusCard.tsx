@@ -224,10 +224,17 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
       纵轴名字（`CPU (%)`）用 `name` 画在网格上方，不占左侧宽度，所以左边距只需
       容纳刻度数字。
     */
-    const cell = (i: number): { left: number | string, top: string, width: string, height: string } => ({
-      left: i % 2 === 0 ? 34 : '52%',
+    /*
+      **不要用 `calc()` 混百分比与像素**：ECharts 把 `grid.width` 当纯数值或百分比
+      解析，`calc(...)` 会被算错——实测两格宽度一起超出半幅，右列压到左列上，
+      曲线直接叠在一起。
+      全部改用百分比：左列从 6% 起、右列从 52% 起，各占 42%（左右各留 6%/6% 与
+      中间 4% 间隙），纵轴刻度的空间由 6% 承担（559px 下约 33px，够放三位数）。
+    */
+    const cell = (i: number): { left: string, top: string, width: string, height: string } => ({
+      left: i % 2 === 0 ? '6%' : '52%',
       top: Math.floor(i / 2) === 0 ? '12%' : '58%',
-      width: i % 2 === 0 ? 'calc(50% - 38px)' : 'calc(48% - 4px)',
+      width: '42%',
       height: '34%',
     })
     /*

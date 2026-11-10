@@ -93,9 +93,12 @@ describe('运行状态：网络与四宫格', () => {
     expect(CARD).toContain("key: 'netRx'")
     expect(CARD).toContain("key: 'netTx'")
     expect(CARD).toContain('NET_CELL_INDEX')
-    // 左列用固定像素容纳纵轴刻度、右列用百分比；左右留白因此一致。
-    expect(CARD).toContain("left: i % 2 === 0 ? 34 : '52%'")
+    // 全部用百分比：ECharts 不认 grid.width 里的 calc()，混用会把两格算重。
+    expect(CARD).toContain("left: i % 2 === 0 ? '6%' : '52%'")
     expect(CARD).toContain("top: Math.floor(i / 2) === 0 ? '12%' : '58%'")
+    expect(CARD).toContain("width: '42%'")
+    // calc 混百分比是这台机器的实际踩坑点，加断言防止回退。
+    expect(CARD).not.toMatch(/width: .*calc\(/)
     // `containLabel` 会把纵轴刻度算进绘图区，左侧被推、右侧不动，左右就不齐。
     // 只断言 grid 的实际配置行——注释里提到它属于说明文字。
     expect(CARD).toMatch(/grid: \[0, 1, 2, 3\]\.map\(i => \(\{ \.\.\.cell\(i\) \}\)\)/)
