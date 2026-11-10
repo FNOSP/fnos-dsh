@@ -105,6 +105,14 @@ describe('运行状态：图表', () => {
     expect(CARD).toContain('elapsed')
   })
 
+  it('echarts 必须打进产物（当外部依赖会让整个插件加载失败）', () => {
+    // 真机实测：宿主的模块表没有 echarts，按外部依赖处理后运行时直接报
+    // `require("echarts/charts") missed the module table`，插件整体不加载。
+    const build = readFileSync(new URL('../../tsdown.config.ts', import.meta.url), 'utf8')
+    expect(build).toContain('/^echarts(?:\\/|$)/u')
+    expect(build).toContain('alwaysBundle')
+  })
+
   it('图表容器有确定高度，否则 ECharts 画布为 0 不显示', () => {
     const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-runtime-chart {'))
     expect(rule.slice(0, rule.indexOf('}'))).toContain('height:')

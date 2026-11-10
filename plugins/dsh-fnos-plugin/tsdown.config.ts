@@ -126,6 +126,17 @@ export default [
     sourcemap: false,
     deps: {
       ...dshSemiClientDeps.deps,
+      /*
+        ECharts 必须**打进**客户端产物，不能当外部依赖。
+
+        宿主的模块表只提供 react / cordis / dsh-client-ui-* 那几项；`echarts` 不在其中，
+        当外部依赖处理时运行时直接报
+        `require("echarts/charts") missed the module table`，整个插件加载失败
+        （实测真机报 "Failed to load plugins / import failed"）。
+
+        用正则覆盖子路径：`echarts/core`、`echarts/charts` 等都要内联。
+      */
+      alwaysBundle: [...dshSemiClientDeps.deps.alwaysBundle ?? [], /^echarts(?:\/|$)/u],
       neverBundle: [...CLIENT_EXTERNALS],
     },
     alias: dshSemiClientDeps.alias,
