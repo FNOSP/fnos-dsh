@@ -212,14 +212,23 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
     /*
       2×2 四宫格：CPU / 内存 / 磁盘 / 网络。网络格画两条线（下行、上行）。
 
-      用百分比定位而不是像素：容器宽度随弹框自适应，写死像素在窄屏上会溢出。
-      `containLabel` 让轴标签算进可用区，标签不会被裁。
+      ## 为什么左右边距要用固定的像素
+
+      原来用百分比 + `containLabel: true`：纵轴数字被算进可用区，左侧因此多缩进
+      约 20px，而右侧几乎是贴着容器边缘——**左右看起来不齐**，右侧那条曲线还容易
+      被裁掉半个点。
+
+      改成显式 `left: 34`（容纳纵轴刻度）与 `right: 4`（给最后一个数据点留一点余量），
+      关掉 `containLabel`：绘图区边界因此是可预期的，两格各自的左右留白一致。
+
+      纵轴名字（`CPU (%)`）用 `name` 画在网格上方，不占左侧宽度，所以左边距只需
+      容纳刻度数字。
     */
-    const cell = (i: number): { left: string, top: string, width: string, height: string } => ({
-      left: i % 2 === 0 ? '4%' : '52%',
-      top: Math.floor(i / 2) === 0 ? '10%' : '57%',
-      width: '44%',
-      height: '35%',
+    const cell = (i: number): { left: number | string, top: string, width: string, height: string } => ({
+      left: i % 2 === 0 ? 34 : '52%',
+      top: Math.floor(i / 2) === 0 ? '12%' : '58%',
+      width: i % 2 === 0 ? 'calc(50% - 38px)' : 'calc(48% - 4px)',
+      height: '34%',
     })
     /*
       tooltip 必须带单位：只有数字时，0.02 到底是 MB/s 还是 KB/s 看不出来，
@@ -260,7 +269,11 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
           splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
         }
       }),
-      grid: [0, 1, 2, 3].map(i => ({ ...cell(i), containLabel: true })),
+      /*
+        关掉 `containLabel`：它会把纵轴刻度算进绘图区，左侧被推、右侧不动，
+        左右就不齐了（见上方 `cell` 的说明）。
+      */
+      grid: [0, 1, 2, 3].map(i => ({ ...cell(i) })),
       series: SERIES.map((s, idx) => {
         // 前三条各自独占一格；网络的两条都落在第 4 格。
         const gridIndex = idx < NET_CELL_INDEX ? idx : NET_CELL_INDEX

@@ -434,12 +434,25 @@ img.dsh-fnos-file-manager-icon {
   align-items: center;
   justify-content: center;
   box-sizing: content-box;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   /* 行内基线对齐用的负边距在 flex 容器里反而会把图标顶高，这里清零。 */
   margin: 0;
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
+
+  /*
+    图标本体必须显式限尺。
+
+    外层盒子是 12×12，但里面的 `svg` 由 Semi 图标组件按 `1em` 定尺寸——它的
+    字号继承自标题（14–15px），于是图标比盒子还大、把行高顶起来。之前只约束了
+    盒子，看起来仍然"info 字过大"就是这个原因。
+  */
+  svg {
+    width: 12px;
+    height: 12px;
+    font-size: 12px;
+  }
 
   &:focus-visible {
     border-radius: 3px;
