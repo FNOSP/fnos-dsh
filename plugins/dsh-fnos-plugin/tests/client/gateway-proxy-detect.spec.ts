@@ -89,6 +89,16 @@ describe('FNOS-052 路由表识别', () => {
   })
 })
 
+describe('FNOS-052 GET 返回结构', () => {
+  it('返回完整识别结果，而不是只有前缀数组', () => {
+    // 只给数组时界面分不清「读不到路由表」与「没有插件用绝对路径」，
+    // 而这两种情况的处置完全不同。
+    const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
+    expect(ROUTES).toContain('auto: detection')
+    expect(ROUTES).toContain('detectProxyPrefixes(ctx.webServer)')
+  })
+})
+
 describe('FNOS-052 界面', () => {
   it('自动区段展示「前缀 + 该前缀下的接口」', () => {
     expect(CARD).toContain('group.prefix')

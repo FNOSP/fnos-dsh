@@ -140,7 +140,16 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
           return send(res, 200, {
             version: 1,
             paths: normalizeGatewayProxyPaths(readSettings().gatewayProxyPaths ?? []) ?? [],
-            auto: detection.prefixes,
+            /*
+              这里返回的是**完整识别结果对象**（available / reason / groups / prefixes），
+              不只是前缀数组。
+
+              只给数组时，界面分不清「当前环境读不到路由表」与「读到了但没有插件用
+              绝对路径」——两种情况的处置完全不同（前者要引导手填，后者什么都不用做）。
+              明细分组也来自这里，界面的按前缀展示才有数据。文档里的 `auto` 字段仍是
+              纯数组（网关只关心要改写哪些前缀），两者形状不同是刻意的。
+            */
+            auto: detection,
             builtin: FNOS_GATEWAY_BUILTIN_PREFIXES,
           })
         }
