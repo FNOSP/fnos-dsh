@@ -103,6 +103,24 @@ describe('运行状态：网络与四宫格', () => {
   })
 })
 
+describe('运行状态：与左侧菜单对齐', () => {
+  it('分组标题重置 h3 默认外边距（否则右列永远低 15px）', () => {
+    // 浏览器默认给 h3 `margin: 1em 0`；不重置的话无论怎么调上层 padding，
+    // 标题都被推低 15px，右列顶部对不上左侧菜单项。
+    const i = SCSS.indexOf('.dsh-fnos-authorized-card-name {')
+    const rule = SCSS.slice(i, SCSS.indexOf('}', i))
+    expect(rule).toContain('margin: 0')
+  })
+
+  it('内容行上下 16，首行标题落在菜单项下方 6px', () => {
+    const i = SCSS.indexOf('.dsh-fnos-config-panel > * {')
+    const rule = SCSS.slice(i, SCSS.indexOf('}', i))
+    expect(rule).toContain('padding: 16px 0')
+    // 面板顶(84) + 16 = 100；菜单项顶(94)，差 6，与官方一致。
+    expect(rule).toContain('border-bottom')
+  })
+})
+
 describe('运行状态：路由与契约', () => {
   it('路由只读且禁止缓存（指标每秒变，缓存会让轮询拿到同一份）', () => {
     expect(ROUTES).toContain("'cache-control': 'no-store'")

@@ -225,7 +225,13 @@ img.dsh-fnos-file-manager-icon {
  * 后续行仍是 16 上下：那是行与行之间的呼吸，与顶部对齐无关。
  */
 .dsh-fnos-config-panel > * {
-  padding: 10px 0 16px;
+  /*
+    上下 16：面板顶与 nav 顶同为 84，nav 的 10 让菜单项顶落在 94；首行 16 让标题顶
+    落在 84 + 16 = 100，正好比菜单项低 6——与官方「菜单项 94 / 首行文字 100」
+    的关系一致。此前的 15px 偏差来自 h3 默认外边距，已在
+    `.dsh-fnos-authorized-card-name` 重置。
+  */
+  padding: 16px 0;
   border-bottom: 0.5px solid rgb(0 0 0 / 10%);
 
   &:last-child {
@@ -258,10 +264,18 @@ img.dsh-fnos-file-manager-icon {
  * 行框，字号变化时图标会跟着偏上/偏下，实机截图里就出现了标题与图标不齐。
  * 用 flex + `align-items: center` 后两者按盒子中线对齐，不再受体形影响。
  */
+/*
+ * 分组标题。
+ *
+ * **`margin: 0` 是必须的**：这是 `<h3>`，浏览器默认给它 `margin: 1em 0`（15px）。
+ * 之前漏了这条重置，标题被默认外边距推低 15px——无论怎么调上层的 padding，
+ * 右侧内容始终比左侧第一个菜单项低 15px。这是「右列顶部对不齐」的真正原因。
+ */
 .dsh-fnos-authorized-card-name {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin: 0;
   font-size: 15px;
   line-height: 1.4;
   font-weight: 600;
