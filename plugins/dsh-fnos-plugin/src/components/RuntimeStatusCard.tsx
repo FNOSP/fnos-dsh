@@ -54,7 +54,7 @@ const INTERVAL_MS = 1000
  * 提示框是字节，看起来像两个不同的量。
  */
 interface Series {
-  readonly key: 'cpu' | 'rss' | 'io'
+  readonly key: 'cpu' | 'rss' | 'io' | 'net'
   readonly labelKey: FnosLocaleKey
   /** 数值换算（字节 → MB 等）。 */
   readonly scale: number
@@ -65,6 +65,7 @@ const SERIES: readonly Series[] = [
   { key: 'cpu', labelKey: 'runtimeCpu', scale: 1, unit: '%' },
   { key: 'rss', labelKey: 'runtimeMemory', scale: 1024 * 1024, unit: 'MB' },
   { key: 'io', labelKey: 'runtimeDisk', scale: 1024 * 1024, unit: 'MB' },
+  { key: 'net', labelKey: 'runtimeNetwork', scale: 1024 * 1024, unit: 'MB' },
 ]
 
 /** 一帧采样。 */
@@ -72,8 +73,10 @@ interface Frame {
   readonly at: number
   readonly cpu?: number
   readonly rss: number
-  /** 读写增量（字节/秒）；首帧无从求差，忽略。 */
+  /** 读写速率（字节/秒）；首帧无从求差，忽略。 */
   readonly io?: number
+  /** 网络速率（字节/秒），收+发。 */
+  readonly net?: number
 }
 
 /**
@@ -83,7 +86,7 @@ interface Frame {
  */
 function toSeries(frames: readonly Frame[]): Record<Series['key'], (number | null)[]> {
   const pick = (key: Series['key'], scale: number): (number | null)[] => frames.map(f => {
-    const raw = key === 'cpu' ? f.cpu : key === 'rss' ? f.rss : f.io
+    const raw = key === 'cpu' ? f.cpu : key === 'rss' ? f.rss : key === 'io' ? f.io : f.net
     if (raw === undefined) return null
     return Number((raw / scale).toFixed(2))
   })
@@ -91,6 +94,7 @@ function toSeries(frames: readonly Frame[]): Record<Series['key'], (number | nul
     cpu: pick('cpu', 1),
     rss: pick('rss', 1024 * 1024),
     io: pick('io', 1024 * 1024),
+    net: pick('net', 1024 * 1024),
   }
 }
 
@@ -108,6 +112,8 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
   const chartRef = useRef<ECharts>()
   /** 上一帧的累计读写字节，用来求速率；跨渲染保留，所以放 ref。 */
   const lastIoRef = useRef<{ read: number, write: number, at: number }>()
+  /** 上一帧的累计网络字节，同上。 */
+  const lastNetRef = useRef<{ read: number, write: number, at: number }>()
 
   /** 轮询：每秒取一帧。 */
   const sample = useCallback(async () => {
@@ -116,21 +122,31 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
       setStatus(next)
       setError(undefined)
       const m = next.metrics
+      // 读写与网络都是**累计值**，画到图上必须换成每秒增量，否则是一条单调上升的
+      // 斜线，看不出「此刻在不在动」。
       const io = m.diskReadBytes !== null && m.diskWriteBytes !== null
         ? { read: m.diskReadBytes, write: m.diskWriteBytes, at: m.at }
         : undefined
-      // 读写是**累计值**，画到图上必须换成每秒增量，否则是一条单调上升的斜线，
-      // 看不出「此刻在不在读写」。
-      let rate: number | undefined
-      const previous = lastIoRef.current
-      if (io !== undefined && previous !== undefined) {
-        const elapsed = (io.at - previous.at) / 1000
-        if (elapsed > 0) {
-          rate = Math.max(0, (io.read - previous.read + io.write - previous.write) / elapsed)
-        }
+      const net = m.netRxBytes !== null && m.netTxBytes !== null
+        ? { read: m.netRxBytes, write: m.netTxBytes, at: m.at }
+        : undefined
+      const rateOf = (cur: typeof io, prev: typeof io): number | undefined => {
+        if (cur === undefined || prev === undefined) return undefined
+        const elapsed = (cur.at - prev.at) / 1000
+        if (elapsed <= 0) return undefined
+        return Math.max(0, (cur.read - prev.read + cur.write - prev.write) / elapsed)
       }
+      const rate = rateOf(io, lastIoRef.current)
+      const netRate = rateOf(net, lastNetRef.current)
       if (io !== undefined) lastIoRef.current = io
-      setFrames(prev => [...prev, { at: m.at, ...(m.cpuPercent === undefined ? {} : { cpu: m.cpuPercent }), rss: m.rssBytes, ...(rate === undefined ? {} : { io: rate }) }].slice(-POINTS))
+      if (net !== undefined) lastNetRef.current = net
+      setFrames(prev => [...prev, {
+        at: m.at,
+        ...(m.cpuPercent === undefined ? {} : { cpu: m.cpuPercent }),
+        rss: m.rssBytes,
+        ...(rate === undefined ? {} : { io: rate }),
+        ...(netRate === undefined ? {} : { net: netRate }),
+      }].slice(-POINTS))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     }
@@ -163,33 +179,43 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
     if (chart === undefined) return
     const data = toSeries(frames)
     const axis = frames.map(f => new Date(f.at).toLocaleTimeString(undefined, { minute: '2-digit', second: '2-digit' }))
+    /*
+      2×2 四宫格：每格一条曲线，共用同一条时间轴（各自持有 category 轴，数据相同）。
+
+      用百分比定位而不是像素：容器宽度随弹框自适应，写死像素在窄屏上会溢出。
+      每格给足 176×88，`containLabel` 让轴标签也算进可用区，标签不会被裁。
+    */
+    const cell = (i: number): { left: string, top: string, width: string, height: string } => ({
+      left: i % 2 === 0 ? '4%' : '52%',
+      top: Math.floor(i / 2) === 0 ? '10%' : '57%',
+      width: '44%',
+      height: '35%',
+    })
     chart.setOption({
-      // 三张图共用一条时间轴，纵向堆叠；文字全部交给图例，不额外写说明段落。
       animation: false,
-      grid: [
-        { left: 44, right: 12, top: 24, height: 56 },
-        { left: 44, right: 12, top: 104, height: 56 },
-        { left: 44, right: 12, top: 184, height: 56 },
-      ],
       tooltip: { trigger: 'axis', confine: true },
       xAxis: SERIES.map((_, i) => ({
         type: 'category',
         gridIndex: i,
         data: axis,
+        boundaryGap: false,
         showAxisLine: false,
-        axisLabel: i === SERIES.length - 1 ? { fontSize: 10 } : { show: false },
+        // 四格都显示时间：横轴是它们共有的参照，藏起来反而难以对照。
+        axisLabel: { fontSize: 9, interval: Math.max(0, Math.floor(axis.length / 4) - 1) },
         axisTick: { show: false },
       })),
       yAxis: SERIES.map((s, i) => ({
         type: 'value',
         gridIndex: i,
-        name: `${t(s.labelKey)} (${s.unit})`,
-        nameTextStyle: { fontSize: 11, align: 'left' },
-        nameGap: 10,
+        name: `${t(s.labelKey)}${s.unit === '%' ? '' : ` (${s.unit})`}`,
+        nameTextStyle: { fontSize: 10, align: 'left', padding: [0, 0, 2, 0] },
+        nameGap: 8,
         min: 0,
-        axisLabel: { fontSize: 10 },
+        axisLabel: { fontSize: 9 },
+        splitNumber: 3,
         splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
       })),
+      grid: SERIES.map((_, i) => ({ ...cell(i), containLabel: true })),
       series: SERIES.map((s, i) => ({
         type: 'line',
         xAxisIndex: i,
@@ -197,7 +223,7 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
         data: data[s.key],
         smooth: true,
         showSymbol: false,
-        lineStyle: { width: 1.5 },
+        lineStyle: { width: 1.4 },
         areaStyle: { opacity: 0.12 },
         connectNulls: false,
       })),
@@ -209,6 +235,7 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
     { key: 'runtimeCpu', value: latest?.cpu === undefined ? '—' : `${latest.cpu.toFixed(1)}%` },
     { key: 'runtimeMemory', value: `${((latest?.rss ?? 0) / 1024 / 1024).toFixed(0)} MB` },
     { key: 'runtimeDisk', value: latest?.io === undefined ? '—' : `${(latest.io / 1024 / 1024).toFixed(2)} MB/s` },
+    { key: 'runtimeNetwork', value: latest?.net === undefined ? '—' : `${(latest.net / 1024 / 1024).toFixed(2)} MB/s` },
   ]
 
   return (

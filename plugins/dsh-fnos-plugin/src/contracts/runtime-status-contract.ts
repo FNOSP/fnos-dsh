@@ -52,6 +52,10 @@ export interface RuntimeMetrics {
   readonly diskReadBytes: number | null
   /** 磁盘累计写字节；读不到时为 `null`（不是 0）。 */
   readonly diskWriteBytes: number | null
+  /** 本进程累计收字节（网络）；读不到时为 `null`。 */
+  readonly netRxBytes: number | null
+  /** 本进程累计发字节（网络）；读不到时为 `null`。 */
+  readonly netTxBytes: number | null
   /** 采样时刻（epoch 毫秒）。 */
   readonly at: number
 }

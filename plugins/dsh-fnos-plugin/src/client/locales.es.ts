@@ -169,6 +169,7 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   runtimeCpu: 'CPU',
   runtimeMemory: 'Memoria',
   runtimeDisk: 'E/S de disco',
+  runtimeNetwork: 'Red',
   runtimeWebPort: 'Puerto web de DSH',
   runtimeGatewayPort: 'Puerto de la puerta de enlace',
   runtimePid: 'PID',

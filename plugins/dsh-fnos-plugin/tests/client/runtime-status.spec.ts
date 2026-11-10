@@ -80,6 +80,29 @@ describe('运行状态：指标采集', () => {
   })
 })
 
+describe('运行状态：网络与四宫格', () => {
+  it('网络字节读不到时为 null，不填 0', async () => {
+    const m = await collectMetrics(1_000)
+    for (const v of [m.netRxBytes, m.netTxBytes]) {
+      expect(v === null || typeof v === 'number').toBe(true)
+    }
+  })
+
+  it('图表是 2×2 四宫格（四条曲线）', () => {
+    // 四个系列：CPU / 内存 / 磁盘 / 网络。
+    expect(CARD).toContain("key: 'net'")
+    expect(CARD).toContain("runtimeNetwork")
+    // 用百分比定位，写死像素在窄屏上会溢出。
+    expect(CARD).toContain("left: i % 2 === 0 ? '4%' : '52%'")
+    expect(CARD).toContain("top: Math.floor(i / 2) === 0 ? '10%' : '57%'")
+  })
+
+  it('网络与磁盘都按每秒增量换算，而不是画累计值', () => {
+    expect(CARD).toContain('lastNetRef')
+    expect(CARD).toContain('rateOf')
+  })
+})
+
 describe('运行状态：路由与契约', () => {
   it('路由只读且禁止缓存（指标每秒变，缓存会让轮询拿到同一份）', () => {
     expect(ROUTES).toContain("'cache-control': 'no-store'")

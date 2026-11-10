@@ -177,6 +177,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   runtimeCpu: 'CPU',
   runtimeMemory: '메모리',
   runtimeDisk: '디스크 I/O',
+  runtimeNetwork: '네트워크',
   runtimeWebPort: 'DSH 웹 포트',
   runtimeGatewayPort: '게이트웨이 포트',
   runtimePid: 'PID',

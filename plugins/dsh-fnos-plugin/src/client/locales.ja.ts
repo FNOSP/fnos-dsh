@@ -177,6 +177,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   runtimeCpu: 'CPU',
   runtimeMemory: 'メモリ',
   runtimeDisk: 'ディスク I/O',
+  runtimeNetwork: 'ネットワーク',
   runtimeWebPort: 'DSH Web ポート',
   runtimeGatewayPort: 'ゲートウェイポート',
   runtimePid: 'PID',

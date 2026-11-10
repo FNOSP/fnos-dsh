@@ -50,12 +50,50 @@ async function readDiskIo(): Promise<{ read: number, write: number } | null> {
     const text = await readFile(`/proc/${String(process.pid)}/io`, 'utf8')
     const pick = (key: string): number | undefined => {
       const match = new RegExp(`^${key}:\\s*(\\d+)$`, 'm').exec(text)
+      // exec 不匹配时返回 null（不是 undefined）。
       return match === null ? undefined : Number(match[1])
     }
     const read = pick('read_bytes')
     const write = pick('write_bytes')
     if (read === undefined || write === undefined) return null
     return { read, write }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 读网络累计收发字节。
+ *
+ * **口径要如实说明**：Node 没有「本进程的网络字节」API，Linux 上能读到的是
+ * `/proc/<pid>/net/dev`——它属于该进程所在的**网络命名空间**，在 fnOS 这种原生
+ * 应用里就是整机所有非回环网卡的累计收发。它不是严格意义上的「本应用网速」，
+ * 因此界面上标注为「网络」而不是「应用网络」，读不到时给 `null`。
+ *
+ * @returns 收/发字节数，读不到时为 null。
+ */
+async function readNetworkIo(): Promise<{ rx: number, tx: number } | null> {
+  try {
+    const text = await readFile(`/proc/${String(process.pid)}/net/dev`, 'utf8')
+    let rx = 0
+    let tx = 0
+    let found = false
+    for (const line of text.split('\n')) {
+      const idx = line.indexOf(':')
+      if (idx < 0) continue
+      const name = line.slice(0, idx).trim()
+      // 回环不计入：它只反映本机内部流量，会让「网速」虚高。
+      if (name === 'lo') continue
+      const cols = line.slice(idx + 1).trim().split(/\s+/u)
+      // net/dev 的列固定：第 0 列收字节、第 8 列发字节。
+      const rxBytes = Number(cols[0])
+      const txBytes = Number(cols[8])
+      if (!Number.isFinite(rxBytes) || !Number.isFinite(txBytes)) continue
+      rx += rxBytes
+      tx += txBytes
+      found = true
+    }
+    return found ? { rx, tx } : null
   } catch {
     return null
   }
@@ -112,6 +150,7 @@ export async function collectMetrics(now: number = Date.now()): Promise<RuntimeM
   }
 
   const io = await readDiskIo()
+  const net = await readNetworkIo()
   return {
     uptimeMs: Math.round(process.uptime() * 1000),
     ...(cpuPercent === undefined ? {} : { cpuPercent }),
@@ -120,6 +159,8 @@ export async function collectMetrics(now: number = Date.now()): Promise<RuntimeM
     heapTotalBytes: memory.heapTotal,
     diskReadBytes: io === null ? null : io.read,
     diskWriteBytes: io === null ? null : io.write,
+    netRxBytes: net === null ? null : net.rx,
+    netTxBytes: net === null ? null : net.tx,
     at: now,
   }
 }

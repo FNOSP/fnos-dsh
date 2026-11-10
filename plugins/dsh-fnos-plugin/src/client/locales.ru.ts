@@ -168,6 +168,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   runtimeCpu: 'CPU',
   runtimeMemory: 'Память',
   runtimeDisk: 'Дисковый ввод-вывод',
+  runtimeNetwork: 'Сеть',
   runtimeWebPort: 'Веб-порт DSH',
   runtimeGatewayPort: 'Порт шлюза',
   runtimePid: 'PID',
