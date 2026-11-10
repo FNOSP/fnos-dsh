@@ -36,6 +36,13 @@ export interface PluginUpdate {
   /** 是否有可装的更新。 */
   readonly updateAvailable: boolean
   /**
+   * 本地版本高于 registry 最新版。
+   *
+   * 开发/内测环境常见。界面据此显示「本地版本」而不是「已是最新」——后者会误导
+   * 用户以为这就是发布版。
+   */
+  readonly aheadOfRegistry: boolean
+  /**
    * 与当前 DSH 基线不兼容时为 true。
    *
    * 不兼容的**不提示更新**——装上去起不来比「没更新」更糟。
@@ -87,6 +94,21 @@ async function fetchLatest(name: string): Promise<string | undefined> {
 }
 
 /**
+ * 判断本地版本是否**高于** registry 上的最新版。
+ *
+ * 这在开发/内测环境很常见（本地装着 8.1.57，而 npm 上还停在 8.1.1）。此时
+ * 「没有更新」是对的，但**不能显示成「已是最新」**——那会让用户以为自己的版本
+ * 就是发布版。界面需要单独标明「本地版本高于 registry」。
+ *
+ * @param installed - 已装版本。
+ * @param latest - registry 最新版本。
+ * @returns 本地是否更新。
+ */
+export function isAheadOfRegistry(installed: string, latest: string): boolean {
+  return isNewerVersion(latest, installed)
+}
+
+/**
  * 比较两个语义化版本，判断 `latest` 是否严格高于 `installed`。
  *
  * 不引入 semver 依赖：这里只需三段式数字比较，且两边都可能带预发布后缀。
@@ -125,7 +147,7 @@ export function isNewerVersion(installed: string, latest: string): boolean {
 export async function checkPluginUpdate(profile: string, plugin: InstalledPlugin): Promise<PluginUpdate> {
   const manifest = await readManifest(profile, plugin.name)
   if (manifest === undefined) {
-    return { name: plugin.name, installedVersion: plugin.version, updateAvailable: false, incompatible: false, error: 'manifest-unreadable' }
+    return { name: plugin.name, installedVersion: plugin.version, updateAvailable: false, aheadOfRegistry: false, incompatible: false, error: 'manifest-unreadable' }
   }
 
   // 先判兼容性：不兼容的插件连「更新有没有」都不必问。
@@ -148,6 +170,7 @@ export async function checkPluginUpdate(profile: string, plugin: InstalledPlugin
     ...(latestVersion === undefined ? {} : { latestVersion }),
     // 不兼容时不提示更新：装上去起不来比「没更新」更糟。
     updateAvailable: !incompatible && latestVersion !== undefined && isNewerVersion(plugin.version, latestVersion),
+    aheadOfRegistry: latestVersion !== undefined && isAheadOfRegistry(plugin.version, latestVersion),
     incompatible,
     ...(requirements === undefined ? {} : { requirements }),
     ...(latestVersion === undefined ? { error: 'registry-unreachable' } : {}),

@@ -126,6 +126,12 @@ export interface InstalledPlugin {
   /** 是否有可装的更新（已过兼容性门禁）。 */
   readonly updateAvailable?: boolean
   /**
+   * 本地版本高于 registry 最新版（开发/内测环境常见）。
+   *
+   * 界面显示「本地版本」而不是「已是最新」——后者会让人以为这就是发布版。
+   */
+  readonly aheadOfRegistry?: boolean
+  /**
    * 与当前 DSH 基线不兼容。
    *
    * 不兼容时**不提示更新**——装上去起不来比「没更新」更糟。

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { isNewerVersion } from '../../src/host/plugin-updates.ts'
+import { isAheadOfRegistry, isNewerVersion } from '../../src/host/plugin-updates.ts'
 import { MARKET_ENTRY_ID, RECOMMENDED_INDEXES, readIndexStatus } from '../../src/host/plugin-index-sources.ts'
 
 /**
@@ -31,6 +31,24 @@ describe('插件更新：版本比较', () => {
   it('无法解析的版本不报错、不提示', () => {
     expect(isNewerVersion('bad', '8.1.1')).toBe(false)
     expect(isNewerVersion('8.1.0', 'also-bad')).toBe(false)
+  })
+})
+
+describe('插件更新：本地版本高于 registry', () => {
+  it('本地比 registry 新时单独标记，不显示「已是最新」', () => {
+    /*
+      真机踩到：本地装 8.1.57，npm 上最新是 8.1.1，界面却显示「已是最新」。
+      版本比较本身没错（8.1.1 不比 8.1.57 新），但文案误导——用户会以为
+      自己装的就是发布版。开发/内测环境必须能看出这个差别。
+    */
+    expect(isAheadOfRegistry('8.1.57', '8.1.1')).toBe(true)
+    expect(isAheadOfRegistry('8.1.1', '8.1.57')).toBe(false)
+    expect(isAheadOfRegistry('8.1.1', '8.1.1')).toBe(false)
+  })
+
+  it('界面有独立的「本地版本」标记', () => {
+    expect(LIST).toContain("t('installedAheadOfRegistry')")
+    expect(LIST).toContain('plugin.aheadOfRegistry')
   })
 })
 

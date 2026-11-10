@@ -236,6 +236,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   installedUpdateAvailable: "업데이트 있음",
   installedIncompatible: "이 DSH 빌드와 호환되지 않음",
   installedUpToDate: "최신",
+  installedAheadOfRegistry: "로컬 버전",
   installedManageHint: "이 플러그인을 관리하려면 \"플러그인 설치 및 문제\" 탭에서 다시 설치하세요.",
   configSectionRepairNew: "플러그인 설치 및 문제",
 }

@@ -227,6 +227,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   installedUpdateAvailable: "Доступно обновление",
   installedIncompatible: "Несовместимо с этой сборкой DSH",
   installedUpToDate: "Актуально",
+  installedAheadOfRegistry: "Локальная версия",
   installedManageHint: "Переустановите на вкладке \"Установка и проблемы\", чтобы управлять плагином.",
   configSectionRepairNew: "Установка и проблемы плагинов",
 }

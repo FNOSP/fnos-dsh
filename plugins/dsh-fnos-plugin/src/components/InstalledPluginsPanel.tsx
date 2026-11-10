@@ -77,7 +77,10 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
             <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">
               {`${t('installedUpdateAvailable')} ${plugin.latestVersion ?? ''}`}
             </span>
-          ) : plugin.latestVersion === undefined ? null : (
+          ) : plugin.latestVersion === undefined ? null : plugin.aheadOfRegistry === true ? (
+            // 本地比 registry 新：开发/内测，不能说「已是最新」。
+            <span className="dsh-fnos-installed-badge">{t('installedAheadOfRegistry')}</span>
+          ) : (
             <span className="dsh-fnos-repair-muted">{t('installedUpToDate')}</span>
           )}
           {plugin.bundled ? <span className="dsh-fnos-installed-badge">{t('installedPluginsBundled')}</span> : null}

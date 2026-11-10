@@ -228,6 +228,7 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   installedUpdateAvailable: "Mise a jour disponible",
   installedIncompatible: "Incompatible avec cette version de DSH",
   installedUpToDate: "A jour",
+  installedAheadOfRegistry: "Version locale",
   installedManageHint: "Reinstallez dans l onglet \"Installation et problemes\" pour gerer ce plugin.",
   configSectionRepairNew: "Installation et problemes de plugins",
 }

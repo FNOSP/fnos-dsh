@@ -236,6 +236,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   installedUpdateAvailable: "アップデートあり",
   installedIncompatible: "この DSH ビルドと互換性がありません",
   installedUpToDate: "最新",
+  installedAheadOfRegistry: "ローカル版",
   installedManageHint: "このプラグインを管理するには「プラグインのインストールと問題」タブで再インストールしてください。",
   configSectionRepairNew: "プラグインのインストールと問題",
 }

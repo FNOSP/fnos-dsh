@@ -231,6 +231,7 @@ export const en = {
   installedUpdateAvailable: "Update available",
   installedIncompatible: "Incompatible with this DSH build",
   installedUpToDate: "Up to date",
+  installedAheadOfRegistry: "Local version",
   installedManageHint: "Reinstall in the \"Plugin install & issues\" tab to manage this plugin.",
   configSectionRepairNew: "Plugin install & issues",
 }
@@ -473,6 +474,7 @@ export const zh: { [Key in FnosLocaleKey]: string } = {
   installedUpdateAvailable: "有新版本",
   installedIncompatible: "与当前 DSH 版本不兼容",
   installedUpToDate: "已是最新",
+  installedAheadOfRegistry: "本地版本",
   installedManageHint: "在「插件安装与异常」tab 中重新安装后可管理此插件。",
   configSectionRepairNew: "插件安装与异常",
 }

@@ -110,6 +110,7 @@ export async function readInstalledPlugins(
       ...plugin,
       ...(update.latestVersion === undefined ? {} : { latestVersion: update.latestVersion }),
       updateAvailable: update.updateAvailable,
+      aheadOfRegistry: update.aheadOfRegistry,
       incompatible: update.incompatible,
       ...(update.requirements === undefined ? {} : { requirements: update.requirements }),
     }
