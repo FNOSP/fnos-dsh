@@ -42,6 +42,7 @@ export type UsedIconName =
   | 'lucide:refresh-cw'
   | 'lucide:folder'
   | 'lucide:wrench'
+  | 'lucide:activity'
 
 /** 默认尺寸（px）；菜单行图标按官方 16px 对齐。 */
 const DEFAULT_SIZE = 16

@@ -35,8 +35,11 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
     expect(BUILD).toContain("'lucide:refresh-cw'")
     expect(BUILD).toContain("'lucide:folder'")
     expect(BUILD).toContain("'lucide:wrench'")
+    // 「运行」分组的分组图标。
+    expect(BUILD).toContain("'lucide:activity'")
     // 生成物里确实只有这些（多一个就说明有没登记的图标被打进去了）。
     expect(Object.keys(ICON_BODIES).sort()).toEqual([
+      'lucide:activity',
       'lucide:folder',
       'lucide:power',
       'lucide:refresh-cw',

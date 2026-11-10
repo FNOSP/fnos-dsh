@@ -86,7 +86,8 @@
     "react": "catalog:"
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "catalog:"
+    "@deepseek-ai/schemastery": "catalog:",
+    "echarts": "catalog:"
   },
   "dsh": {
     "bundle": {

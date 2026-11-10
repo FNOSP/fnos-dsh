@@ -166,6 +166,16 @@ export const en = {
   dependencyRepairStepOk: 'done',
   dependencyRepairStepSkipped: 'skipped',
   dependencyRepairStepFailed: 'failed',
+  configSectionRuntime: 'Runtime',
+  runtimeTitle: 'Runtime',
+  runtimeTip: 'Live CPU, memory and disk I/O of the app process, sampled once per second. Metrics come from the process itself; disk I/O is only available on Linux.',
+  runtimeCpu: 'CPU',
+  runtimeMemory: 'Memory',
+  runtimeDisk: 'Disk I/O',
+  runtimeWebPort: 'DSH Web port',
+  runtimeGatewayPort: 'Gateway port',
+  runtimePid: 'PID',
+  runtimeFailed: 'Failed to read runtime status: ',
 }
 
 export type FnosLocaleKey = keyof typeof en
@@ -341,4 +351,14 @@ export const zh: { [Key in FnosLocaleKey]: string } = {
   dependencyRepairStepOk: '完成',
   dependencyRepairStepSkipped: '跳过',
   dependencyRepairStepFailed: '失败',
+  configSectionRuntime: '运行',
+  runtimeTitle: '运行',
+  runtimeTip: '应用进程的 CPU、内存与磁盘读写，每秒采样一次。指标来自进程自身；磁盘读写仅 Linux 可读。',
+  runtimeCpu: 'CPU',
+  runtimeMemory: '内存',
+  runtimeDisk: '磁盘读写',
+  runtimeWebPort: 'DSH Web 端口',
+  runtimeGatewayPort: '网关端口',
+  runtimePid: '进程号',
+  runtimeFailed: '读取运行状态失败：',
 }

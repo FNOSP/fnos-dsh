@@ -205,6 +205,25 @@ img.dsh-fnos-file-manager-icon {
   list-style: none;
 }
 
+/*
+ * 内容区里的每个区块按官方设置行的规律排布：`16px 0` 上下留白 + 0.5px 底部分隔线。
+ *
+ * 官方（`[class*=oY77xG_row]` 等）实测每行都是 `padding: 16px 0`、
+ * `border-bottom: 0.5px solid rgba(0,0,0,.1)`，行与行之间不额外加 margin。
+ * 此前卡片自带 `padding: 14px 16px` 且没有分隔线——于是内容左沿比官方缩进 16px，
+ * 行间也没有官方的细分隔，整块看起来「浮」在面板里而不是排成一条列表。
+ *
+ * 左右内边距交给 `.dsh-fnos-config-panel` 的 24px，本层不再补，避免缩进翻倍。
+ */
+.dsh-fnos-config-panel > * {
+  padding: 16px 0;
+  border-bottom: 0.5px solid rgb(0 0 0 / 10%);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
 .dsh-fnos-authorized-card-header {
   box-sizing: border-box;
   display: flex;
@@ -212,7 +231,7 @@ img.dsh-fnos-file-manager-icon {
   justify-content: space-between;
   width: 100%;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 0;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -1212,9 +1231,92 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     outline-offset: 1px;
   }
 
-  /* 当前分组：底色 + 文字加重，和官方设置一致，不靠颜色之外的唯一线索。 */
+  /*
+    当前分组：底色与字重都取官方设置弹框的实测值。
+
+    官方 active 态是 `background: rgb(235,238,242)` + `font-weight: 400`——**不加粗**，
+    只靠底色区分。此前这里写 `font-weight: 600` 并叠了一个 `--dsw-alias-interactive-bg-selected`
+    变量，实测该变量解析为空（`rgba(0,0,0,0)`），等于底色没生效、只剩加粗，与官方的
+    观感完全不同：菜单看起来「突然变粗」而不是「被选中」。底色写死 rgb 是因为官方用的
+    就是固定色值，跟随主题反而会与官方的浅灰底脱开。
+  */
   &--active {
-    background: var(--dsw-alias-interactive-bg-selected, var(--dsw-alias-interactive-bg-hover));
-    font-weight: 600;
+    background: rgb(235 238 242);
+    font-weight: 400;
   }
+}
+
+/*
+ * 「运行」分组：端口 + 当前值 + 三条趋势曲线。
+ *
+ * 尺寸克制的原因：这一块要放进 612 宽的右列，三张图各占一行、每行 56 高，
+ * 加上端口行与当前值，总高约 330 —— 比授权目录短，切换分组时不会把面板撑满。
+ */
+.dsh-fnos-runtime {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 端口行：三项等宽排开，值用等宽数字，避免秒级刷新时左右抖动。 */
+.dsh-fnos-runtime-ports {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--dsw-alias-bg-layer-1, rgb(0 0 0 / 3%));
+  }
+
+  dt {
+    color: var(--dsw-alias-label-tertiary);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  dd {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    /* 端口与 PID 都是数字：等宽字体让刷新时不跳位。 */
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* 当前值：三个数并排，不加说明文字——曲线与提示框已给出上下文。 */
+.dsh-fnos-runtime-now {
+  display: flex;
+  gap: 20px;
+}
+
+.dsh-fnos-runtime-now-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dsh-fnos-runtime-now-label {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.dsh-fnos-runtime-now-value {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 24px;
+}
+
+/* 图表容器必须有确定高度：ECharts 取不到高度时画布是 0，图会完全不显示。 */
+.dsh-fnos-runtime-chart {
+  width: 100%;
+  height: 250px;
 }

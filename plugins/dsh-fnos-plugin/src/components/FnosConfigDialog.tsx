@@ -23,11 +23,12 @@ import { IconifyIcon } from './IconifyIcon.tsx'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { AuthorizedDirectoriesCard } from './AuthorizedDirectoriesCard.tsx'
 import { DependencyRepairCard } from './DependencyRepairCard.tsx'
+import { RuntimeStatusCard } from './RuntimeStatusCard.tsx'
 
 type Translate = (key: FnosLocaleKey) => string
 
 /** 弹框里的一级分组；新增配置项时在这里登记。 */
-type SectionId = 'directories' | 'repair'
+type SectionId = 'directories' | 'repair' | 'runtime'
 
 export interface FnosConfigDialogProps {
   /** 是否可见。 */
@@ -53,6 +54,8 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
   const sections: readonly { id: SectionId, label: string, icon: UsedIconName }[] = [
     { id: 'directories', label: t('configSectionDirectories'), icon: 'lucide:folder' },
     { id: 'repair', label: t('configSectionRepair'), icon: 'lucide:wrench' },
+    // 「运行」放最后：它是只读观测，不属于「设置」，放在配置项之后符合阅读顺序。
+    { id: 'runtime', label: t('configSectionRuntime'), icon: 'lucide:activity' },
   ]
 
   return (
@@ -95,6 +98,7 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
         <div className="dsh-fnos-config-panel">
           {section === 'directories' ? <AuthorizedDirectoriesCard t={t} /> : null}
           {section === 'repair' ? <DependencyRepairCard t={t} /> : null}
+          {section === 'runtime' ? <RuntimeStatusCard t={t} /> : null}
         </div>
       </div>
     </DshModal>

@@ -53,6 +53,22 @@ describe('dsh-fnos client artifact', () => {
       if (specifier === 'react-dom') return ReactDom
       if (specifier === 'react-dom/client') return ReactDomClient
       if (specifier === '@deepseek-ai/dsh-client-ui-primitives') return primitives
+      /*
+        ECharts 由 `RuntimeStatusCard` 按需引入（core/charts/components/renderers）。
+        这个用例只验证「产物能被加载并暴露 apply」，不渲染图表，因此给最小桩：
+        `use` 是注册图表类型的空操作，`init` 返回一个空壳实例。
+      */
+      if (specifier === 'echarts/core') {
+        // `use` 是 ECharts 的注册图表类型的函数，不是 React Hook；规则按名字误判。
+        return {
+          // eslint-disable-next-line react/no-unnecessary-use-prefix
+          use: () => undefined,
+          init: () => ({ setOption: () => undefined, resize: () => undefined, dispose: () => undefined }),
+        }
+      }
+      if (specifier === 'echarts/charts' || specifier === 'echarts/components' || specifier === 'echarts/renderers') {
+        return { LineChart: () => null, GridComponent: () => null, TooltipComponent: () => null, CanvasRenderer: () => null }
+      }
       throw new Error(`unexpected client external: ${specifier}`)
     })
     expect(typeof exports?.apply).toBe('function')
