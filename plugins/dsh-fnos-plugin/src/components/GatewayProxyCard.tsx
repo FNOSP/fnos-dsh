@@ -27,10 +27,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import * as echartsCore from 'echarts/core'
 import type { ECharts } from 'echarts/core'
 import type { FnosLocaleKey } from '../client/locales.ts'
-import {
-  FNOS_GATEWAY_BUILTIN_PREFIXES,
-  type GatewayAutoPathsStatus,
-} from '../contracts/gateway-proxy-contract.ts'
+import type { GatewayAutoPathsStatus } from '../contracts/gateway-proxy-contract.ts'
 import {
   fetchGatewayProxyPaths,
   saveGatewayProxyPaths,
@@ -217,20 +214,6 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
             </ul>
           </>
         ) : null}
-      </div>
-
-      {/* 系统内置前缀：只读，解释它们为何不在用户可编辑范围内。 */}
-      <div className="dsh-fnos-proxy-section">
-        <p className="dsh-fnos-authorized-body">{t('gatewayProxyBuiltinLabel')}</p>
-        <ul className="dsh-fnos-gateway-builtin-list">
-          {FNOS_GATEWAY_BUILTIN_PREFIXES.map(item => (
-            <li key={item.path} className="dsh-fnos-gateway-builtin-item">
-              <code>{item.path}</code>
-              <span>{item.description}</span>
-              <span className="dsh-fnos-gateway-builtin-badge">{t('gatewayProxyBuiltinReadonly')}</span>
-            </li>
-          ))}
-        </ul>
       </div>
 
       {/* 手动补充项：语义从「必填」变为「补充」，自动识别生效时可以完全留空。 */}

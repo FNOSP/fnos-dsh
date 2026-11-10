@@ -115,6 +115,18 @@ describe('FNOS-052 界面', () => {
     expect(rule).toContain('overflow-y: auto')
   })
 
+  it('不再展示内置前缀只读区（与自动识别区重复且占位）', () => {
+    // 内置前缀是否被接管由后端校验保证，界面上再列一遍只是重复占用画面。
+    expect(CARD).not.toContain('FNOS_GATEWAY_BUILTIN_PREFIXES')
+    expect(CARD).not.toContain('gatewayProxyBuiltinLabel')
+  })
+
+  it('明细列表上限 360px（原 180 只够看两组）', () => {
+    const i = SCSS.indexOf('.dsh-fnos-proxy-list {')
+    const rule = SCSS.slice(i, SCSS.indexOf('}', i))
+    expect(rule).toContain('max-height: 360px')
+  })
+
   it('自动识别不可用时说明原因，而不是静默空白', () => {
     expect(CARD).toContain('gatewayProxyAutoUnavailable')
     expect(CARD).toContain('auto.reason')

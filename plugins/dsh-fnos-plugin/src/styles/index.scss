@@ -934,49 +934,6 @@ img.dsh-fnos-file-manager-icon {
   }
 }
 
-/* 系统内置反代前缀：只读展示区。
-   与可编辑的 textarea 视觉上要能区分开，否则用户会尝试往里输入。 */
-.dsh-fnos-gateway-builtin {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.dsh-fnos-gateway-builtin-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.dsh-fnos-gateway-builtin-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: var(--dsw-radius-md);
-  background: var(--dsw-alias-bg-layer-1);
-  color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
-
-  code {
-    color: var(--dsw-alias-label-primary);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-}
-
-.dsh-fnos-gateway-builtin-badge {
-  margin-left: auto;
-  padding: 0 6px;
-  border-radius: var(--dsw-radius-sm);
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-caption);
-  font-size: 11px;
-  line-height: 18px;
-}
-
 /*
  * 配置弹框的蒙层改成暗色。
  *
@@ -1690,15 +1647,18 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 }
 
 /*
- * 明细列表：最大高度 180px。
+ * 明细列表：最大高度 360px。
  *
  * **这个上限是刻意的**：前缀可能很多（装十几个插件就是十几组），不限高会把下面
  * 「手动补充」一路顶出可视区，用户还得先滚过整片只读内容才能改自己的配置。
  * 上限用 `max-height` 而非固定值，条目少时自然收缩、不留空白。
+ *
+ * 360 而非 180：原值只够看两组多一点，`/dsh-market` 这类 51 条路由的条目一屏
+ * 都展不开，用户得反复滚才知道有哪些接口。翻倍后常见规模基本能一眼看完。
  */
 .dsh-fnos-proxy-list {
   display: flex;
-  max-height: 180px;
+  max-height: 360px;
   flex-direction: column;
   gap: 8px;
   overflow-y: auto;
