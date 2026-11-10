@@ -207,6 +207,21 @@ describe('fnOS 配置弹框', () => {
     expect(panel.slice(0, panel.indexOf('}'))).toContain('scrollbar-gutter: stable')
   })
 
+  it('插件管理外层不锁高度（锁了会滚不到底、保存按钮被截断）', () => {
+    /*
+      真机踩到：外层 `height: 100%` + 内层 `overflow: hidden`，整块被固定在可视
+      高度内，内容超出既不自己滚、外层也拿不到真实高度——表现是「滚不到底、
+      下面的保存按钮被截掉一截」。
+
+      正确做法是内容自然撑开，滚动交给 `overflow-y: auto` 的 .dsh-fnos-config-panel。
+    */
+    const block = SCSS.slice(SCSS.indexOf('.dsh-fnos-plugins {'), SCSS.indexOf('.dsh-fnos-installed {'))
+    expect(block.slice(0, block.indexOf('}'))).not.toContain('height: 100%')
+    expect(block).not.toContain('overflow: hidden')
+    // 顶部留白由面板统一给；本块再 padding 会在顶部形成一段无内容的空隙。
+    expect(block.slice(0, block.indexOf('}'))).toContain('padding: 0')
+  })
+
   it('左右两列间距 16px（nav 右 12 + panel 左 4）', () => {
     /*
       早前是 nav 右 12 + panel 左 24 = 36px，两列之间空出一条谁都不占的走廊。

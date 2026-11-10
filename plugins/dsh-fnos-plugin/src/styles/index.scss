@@ -1867,26 +1867,37 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  *
  * tab 内容撑满剩余高度：反代与已装列表都可能很长，交给内层自己滚动。
  */
+/*
+ * 「插件管理」外层。
+ *
+ * **不要 `height: 100%` + `overflow: hidden`**。那样会把这一块固定在可视高度内，
+ * 内容超出时既不自己滚（hidden 掉）、外层也拿不到真实高度——表现就是「滚不到
+ * 底部、保存按钮被截掉」。
+ *
+ * 正确做法：让内容自然撑开（`height: auto`），滚动交给 `.dsh-fnos-config-panel`
+ * （它本来就是 `overflow-y: auto` 的滚动容器）。`padding: 0` —— 这里的上下留白
+ * 由面板统一给，本块再加 16px 会在顶部形成一段无内容的空隙。
+ */
 .dsh-fnos-plugins {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  min-height: 0;
   gap: 12px;
+  padding: 0;
 }
 
+/*
+ * tab 容器同样不锁高度：反代与已装列表都可能很长，锁死就等于截断。
+ * 内层的列表自己带 `max-height`（如索引明细 360px），需要时它自己滚。
+ */
 .dsh-fnos-plugins-tabs {
-  flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
 }
 
 .dsh-fnos-proxy-panel {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  height: 100%;
-  min-height: 0;
+  padding: 0;
 }
 
 .dsh-fnos-installed {
