@@ -55,7 +55,22 @@ async function copyStaticAssets(config: { cwd: string }): Promise<void> {
  *
  * 用到哪些图标由 `ICON_NAMES` 决定——它是唯一的清单，调用处只写名字。
  */
-const ICON_NAMES = ['lucide:power', 'lucide:refresh-cw', 'lucide:folder', 'lucide:wrench', 'lucide:activity'] as const
+const ICON_NAMES = [
+  'lucide:power',
+  'lucide:refresh-cw',
+  'lucide:folder',
+  'lucide:wrench',
+  'lucide:activity',
+  // 「运行」页的字段图标：端口、CPU、内存、磁盘、网络上下行、进程、日志。
+  'lucide:plug',
+  'lucide:cpu',
+  'lucide:memory-stick',
+  'lucide:hard-drive',
+  'lucide:arrow-down',
+  'lucide:arrow-up',
+  'lucide:list-tree',
+  'lucide:scroll-text',
+] as const
 
 async function generateIcons(): Promise<void> {
   const { readFile } = await import('node:fs/promises')

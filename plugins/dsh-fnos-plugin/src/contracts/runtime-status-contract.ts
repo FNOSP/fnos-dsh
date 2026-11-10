@@ -86,6 +86,35 @@ export interface RuntimeProcess {
   readonly canKill: boolean
 }
 
+/** 日志查询路由（只读）。 */
+export const FNOS_RUNTIME_LOGS_ROUTE = '/plugins/dsh-fnos/runtime/logs'
+
+/** 日志级别；与 Cordis 的数字级别对应。 */
+export type RuntimeLogLevel = 'error' | 'warn' | 'info' | 'debug'
+
+/** 一条日志。 */
+export interface RuntimeLogEntry {
+  /** 单调递增序号，用于稳定排序与去重。 */
+  readonly seq: number
+  /** 产生时刻（epoch 毫秒）。 */
+  readonly at: number
+  /** 来源（Cordis 里的 logger 名，通常是插件名）。 */
+  readonly name: string
+  readonly level: RuntimeLogLevel
+  /** 已压成一行的正文。 */
+  readonly text: string
+}
+
+/** 日志快照。 */
+export interface RuntimeLogSnapshot {
+  /** 过滤前的缓冲总数，便于界面显示「显示 N / 共 M」。 */
+  readonly total: number
+  /** 已按「新到旧」排序的条目。 */
+  readonly entries: readonly RuntimeLogEntry[]
+  /** 本次生效的条数上限。 */
+  readonly limit: number
+}
+
 /** 运行状态响应。 */
 export interface RuntimeStatus {
   /** 进程 pid。 */

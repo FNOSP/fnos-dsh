@@ -40,9 +40,17 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
     // 生成物里确实只有这些（多一个就说明有没登记的图标被打进去了）。
     expect(Object.keys(ICON_BODIES).sort()).toEqual([
       'lucide:activity',
+      'lucide:arrow-down',
+      'lucide:arrow-up',
+      'lucide:cpu',
       'lucide:folder',
+      'lucide:hard-drive',
+      'lucide:list-tree',
+      'lucide:memory-stick',
+      'lucide:plug',
       'lucide:power',
       'lucide:refresh-cw',
+      'lucide:scroll-text',
       'lucide:wrench',
     ])
   })

@@ -43,6 +43,14 @@ export type UsedIconName =
   | 'lucide:folder'
   | 'lucide:wrench'
   | 'lucide:activity'
+  | 'lucide:plug'
+  | 'lucide:cpu'
+  | 'lucide:memory-stick'
+  | 'lucide:hard-drive'
+  | 'lucide:arrow-down'
+  | 'lucide:arrow-up'
+  | 'lucide:list-tree'
+  | 'lucide:scroll-text'
 
 /** 默认尺寸（px）；菜单行图标按官方 16px 对齐。 */
 const DEFAULT_SIZE = 16

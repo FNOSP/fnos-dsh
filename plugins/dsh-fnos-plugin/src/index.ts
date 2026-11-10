@@ -11,6 +11,7 @@ import { FnosSettingsSchema } from './contracts/theme-schema.ts'
 import { registerGatewayProxyRoutes } from './host/gateway-proxy-routes.ts'
 import { registerDependencyRepairRoutes } from './host/dependency-repair-routes.ts'
 import { registerRuntimeStatusRoutes } from './host/runtime-status-routes.ts'
+import { registerLogCollector } from './host/runtime-logs.ts'
 import { registerStaticAssetRoute } from './host/static-assets.ts'
 import { registerPresentedPathRoute } from './host/presented-open.ts'
 
@@ -51,6 +52,7 @@ export function apply(ctx: Context, config?: FnosConfig): void {
   registerAuthorizedDirectoryRoutes(ctx, { settingsNamespace: DSH_SETTINGS_ENTRY_ID })
   registerGatewayProxyRoutes(ctx, DSH_SETTINGS_ENTRY_ID)
   registerDependencyRepairRoutes(ctx)
+  registerLogCollector(ctx)
   registerRuntimeStatusRoutes(ctx)
   registerStaticAssetRoute(ctx)
   registerPresentedPathRoute(ctx)

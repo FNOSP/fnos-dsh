@@ -114,30 +114,43 @@ export function RuntimeProcessList({ t, processes, available }: RuntimeProcessLi
               <span>{mib(item.rssBytes)}</span>
               <span className="dsh-fnos-runtime-proc-state">{item.state}</span>
             </div>
-            {item.canKill ? (
-              <div className="dsh-fnos-runtime-proc-actions">
-                <DshButton
-                  htmlType="button"
-                  size="small"
-                  theme="borderless"
-                  type="tertiary"
-                  disabled={pending === item.pid}
-                  onClick={() => { setConfirming({ item, signal: 'SIGTERM' }) }}
-                >
-                  {t('runtimeKill')}
-                </DshButton>
-                <DshButton
-                  htmlType="button"
-                  size="small"
-                  theme="borderless"
-                  type="danger"
-                  disabled={pending === item.pid}
-                  onClick={() => { setConfirming({ item, signal: 'SIGKILL' }) }}
-                >
-                  {t('runtimeKillForce')}
-                </DshButton>
-              </div>
-            ) : null}
+            {/*
+              按钮**始终渲染**，只是不可杀时置灰。
+
+              之前是无条件隐藏：主进程受保护 → 面板里一个按钮都没有 → 用户以为
+              「这个功能坏了」。置灰 + 旁边一句原因，才说得清「不是不能做，是这条
+              不允许做」。
+            */}
+            <div className="dsh-fnos-runtime-proc-actions">
+              {item.canKill ? (
+                <>
+                  <DshButton
+                    htmlType="button"
+                    size="small"
+                    theme="borderless"
+                    type="tertiary"
+                    disabled={pending === item.pid}
+                    onClick={() => { setConfirming({ item, signal: 'SIGTERM' }) }}
+                  >
+                    {t('runtimeKill')}
+                  </DshButton>
+                  <DshButton
+                    htmlType="button"
+                    size="small"
+                    theme="borderless"
+                    type="danger"
+                    disabled={pending === item.pid}
+                    onClick={() => { setConfirming({ item, signal: 'SIGKILL' }) }}
+                  >
+                    {t('runtimeKillForce')}
+                  </DshButton>
+                </>
+              ) : (
+                <span className="dsh-fnos-runtime-proc-protected" title={t('runtimeProcessProtectedTip')}>
+                  {t('runtimeProcessProtected')}
+                </span>
+              )}
+            </div>
           </li>
         ))}
       </ul>

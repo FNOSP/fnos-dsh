@@ -30,6 +30,8 @@ import * as echartsCore from 'echarts/core'
 import type { ECharts } from 'echarts/core'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchRuntimeStatus } from '../client/services/runtime-status-client.ts'
+import { IconifyIcon } from './IconifyIcon.tsx'
+import type { UsedIconName } from './IconifyIcon.tsx'
 import type { RuntimeStatus } from '../contracts/runtime-status-contract.ts'
 import { RuntimeProcessList } from './RuntimeProcessList.tsx'
 
@@ -55,19 +57,30 @@ const INTERVAL_MS = 1000
  * 提示框是字节，看起来像两个不同的量。
  */
 interface Series {
-  readonly key: 'cpu' | 'rss' | 'io' | 'net'
+  readonly key: 'cpu' | 'rss' | 'io' | 'netRx' | 'netTx'
   readonly labelKey: FnosLocaleKey
   /** 数值换算（字节 → MB 等）。 */
   readonly scale: number
   readonly unit: string
 }
 
+/*
+  四个格子：CPU / 内存 / 磁盘 / 网络。
+
+  网络这一格画**两条线**（下行、上行），而不是合成一条：合并后看不出方向，
+  而「下载卡住还是上传卡住」恰恰是最常要判的。它们在同一个 grid 里，
+  各自独立 y 轴，互不遮挡。
+*/
 const SERIES: readonly Series[] = [
   { key: 'cpu', labelKey: 'runtimeCpu', scale: 1, unit: '%' },
   { key: 'rss', labelKey: 'runtimeMemory', scale: 1024 * 1024, unit: 'MB' },
   { key: 'io', labelKey: 'runtimeDisk', scale: 1024 * 1024, unit: 'MB' },
-  { key: 'net', labelKey: 'runtimeNetwork', scale: 1024 * 1024, unit: 'MB' },
+  { key: 'netRx', labelKey: 'runtimeNetDown', scale: 1024 * 1024, unit: 'MB/s' },
+  { key: 'netTx', labelKey: 'runtimeNetUp', scale: 1024 * 1024, unit: 'MB/s' },
 ]
+
+/** 网络格容纳两条系列，其余各一条。 */
+const NET_CELL_INDEX = 3
 
 /** 一帧采样。 */
 interface Frame {
@@ -76,8 +89,10 @@ interface Frame {
   readonly rss: number
   /** 读写速率（字节/秒）；首帧无从求差，忽略。 */
   readonly io?: number
-  /** 网络速率（字节/秒），收+发。 */
-  readonly net?: number
+  /** 下行速率（字节/秒）。 */
+  readonly netRx?: number
+  /** 上行速率（字节/秒）。 */
+  readonly netTx?: number
 }
 
 /**
@@ -87,15 +102,20 @@ interface Frame {
  */
 function toSeries(frames: readonly Frame[]): Record<Series['key'], (number | null)[]> {
   const pick = (key: Series['key'], scale: number): (number | null)[] => frames.map(f => {
-    const raw = key === 'cpu' ? f.cpu : key === 'rss' ? f.rss : key === 'io' ? f.io : f.net
+    const raw = key === 'cpu' ? f.cpu
+      : key === 'rss' ? f.rss
+        : key === 'io' ? f.io
+          : key === 'netRx' ? f.netRx
+            : f.netTx
     if (raw === undefined) return null
-    return Number((raw / scale).toFixed(2))
+    return Number((raw / scale).toFixed(3))
   })
   return {
     cpu: pick('cpu', 1),
     rss: pick('rss', 1024 * 1024),
     io: pick('io', 1024 * 1024),
-    net: pick('net', 1024 * 1024),
+    netRx: pick('netRx', 1024 * 1024),
+    netTx: pick('netTx', 1024 * 1024),
   }
 }
 
@@ -137,8 +157,16 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
         if (elapsed <= 0) return undefined
         return Math.max(0, (cur.read - prev.read + cur.write - prev.write) / elapsed)
       }
+      /** 单向速率：上行与下行分开算，合并会看不出方向。 */
+      const oneWay = (cur: typeof io, prev: typeof io, side: 'read' | 'write'): number | undefined => {
+        if (cur === undefined || prev === undefined) return undefined
+        const elapsed = (cur.at - prev.at) / 1000
+        if (elapsed <= 0) return undefined
+        return Math.max(0, (cur[side] - prev[side]) / elapsed)
+      }
       const rate = rateOf(io, lastIoRef.current)
-      const netRate = rateOf(net, lastNetRef.current)
+      const rx = oneWay(net, lastNetRef.current, 'read')
+      const tx = oneWay(net, lastNetRef.current, 'write')
       if (io !== undefined) lastIoRef.current = io
       if (net !== undefined) lastNetRef.current = net
       setFrames(prev => [...prev, {
@@ -146,7 +174,8 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
         ...(m.cpuPercent === undefined ? {} : { cpu: m.cpuPercent }),
         rss: m.rssBytes,
         ...(rate === undefined ? {} : { io: rate }),
-        ...(netRate === undefined ? {} : { net: netRate }),
+        ...(rx === undefined ? {} : { netRx: rx }),
+        ...(tx === undefined ? {} : { netTx: tx }),
       }].slice(-POINTS))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -181,10 +210,10 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
     const data = toSeries(frames)
     const axis = frames.map(f => new Date(f.at).toLocaleTimeString(undefined, { minute: '2-digit', second: '2-digit' }))
     /*
-      2×2 四宫格：每格一条曲线，共用同一条时间轴（各自持有 category 轴，数据相同）。
+      2×2 四宫格：CPU / 内存 / 磁盘 / 网络。网络格画两条线（下行、上行）。
 
       用百分比定位而不是像素：容器宽度随弹框自适应，写死像素在窄屏上会溢出。
-      每格给足 176×88，`containLabel` 让轴标签也算进可用区，标签不会被裁。
+      `containLabel` 让轴标签算进可用区，标签不会被裁。
     */
     const cell = (i: number): { left: string, top: string, width: string, height: string } => ({
       left: i % 2 === 0 ? '4%' : '52%',
@@ -192,51 +221,80 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
       width: '44%',
       height: '35%',
     })
+    /*
+      tooltip 必须带单位：只有数字时，0.02 到底是 MB/s 还是 KB/s 看不出来，
+      跨量级比较会误判。这里用 valueFormatter 统一补单位，避免每条系列各写一遍。
+    */
     chart.setOption({
       animation: false,
-      tooltip: { trigger: 'axis', confine: true },
-      xAxis: SERIES.map((_, i) => ({
+      legend: { show: false },
+      tooltip: {
+        trigger: 'axis',
+        confine: true,
+        // 时间轴取第一条，四格共用同一组采样时刻。
+        axisPointer: { type: 'line' },
+        valueFormatter: (value: unknown) => (typeof value === 'number' ? String(value) : '—'),
+      },
+      xAxis: [0, 1, 2, 3].map(i => ({
         type: 'category',
         gridIndex: i,
         data: axis,
         boundaryGap: false,
         showAxisLine: false,
-        // 四格都显示时间：横轴是它们共有的参照，藏起来反而难以对照。
         axisLabel: { fontSize: 9, interval: Math.max(0, Math.floor(axis.length / 4) - 1) },
         axisTick: { show: false },
       })),
-      yAxis: SERIES.map((s, i) => ({
-        type: 'value',
-        gridIndex: i,
-        name: `${t(s.labelKey)}${s.unit === '%' ? '' : ` (${s.unit})`}`,
-        nameTextStyle: { fontSize: 10, align: 'left', padding: [0, 0, 2, 0] },
-        nameGap: 8,
-        min: 0,
-        axisLabel: { fontSize: 9 },
-        splitNumber: 3,
-        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
-      })),
-      grid: SERIES.map((_, i) => ({ ...cell(i), containLabel: true })),
-      series: SERIES.map((s, i) => ({
-        type: 'line',
-        xAxisIndex: i,
-        yAxisIndex: i,
-        data: data[s.key],
-        smooth: true,
-        showSymbol: false,
-        lineStyle: { width: 1.4 },
-        areaStyle: { opacity: 0.12 },
-        connectNulls: false,
-      })),
-    }, { notMerge: false })
+      yAxis: [0, 1, 2, 3].map(i => {
+        // 网格 0–2 对应 CPU/内存/磁盘；网格 3 是网络格，用它的下行系列命名纵轴。
+        const s = SERIES[Math.min(i, NET_CELL_INDEX)]
+        if (s === undefined) return { type: 'value' as const, gridIndex: i }
+        return {
+          type: 'value',
+          gridIndex: i,
+          name: s.unit === '%' ? `${t(s.labelKey)} (%)` : `${t(s.labelKey)} (${s.unit})`,
+          nameTextStyle: { fontSize: 10, align: 'left', padding: [0, 0, 2, 0] },
+          nameGap: 8,
+          min: 0,
+          axisLabel: { fontSize: 9 },
+          splitNumber: 3,
+          splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+        }
+      }),
+      grid: [0, 1, 2, 3].map(i => ({ ...cell(i), containLabel: true })),
+      series: SERIES.map((s, idx) => {
+        // 前三条各自独占一格；网络的两条都落在第 4 格。
+        const gridIndex = idx < NET_CELL_INDEX ? idx : NET_CELL_INDEX
+        return {
+          type: 'line' as const,
+          name: `${t(s.labelKey)} (${s.unit})`,
+          xAxisIndex: gridIndex,
+          yAxisIndex: gridIndex,
+          data: data[s.key],
+          smooth: true,
+          showSymbol: false,
+          lineStyle: { width: 1.4 },
+          areaStyle: { opacity: idx === NET_CELL_INDEX ? 0.08 : 0.12 },
+          connectNulls: false,
+          // 单位在系列名里已带，tooltip 直接显示「名称: 值 单位」。
+          tooltip: { valueFormatter: (v: unknown) => (typeof v === 'number' ? `${String(v)} ${s.unit}` : '—') },
+        }
+      }),
+    }, { notMerge: true })
   }, [frames, t])
 
   const latest = frames.at(-1)
-  const cards: readonly { key: FnosLocaleKey, value: string }[] = [
-    { key: 'runtimeCpu', value: latest?.cpu === undefined ? '—' : `${latest.cpu.toFixed(1)}%` },
-    { key: 'runtimeMemory', value: `${((latest?.rss ?? 0) / 1024 / 1024).toFixed(0)} MB` },
-    { key: 'runtimeDisk', value: latest?.io === undefined ? '—' : `${(latest.io / 1024 / 1024).toFixed(2)} MB/s` },
-    { key: 'runtimeNetwork', value: latest?.net === undefined ? '—' : `${(latest.net / 1024 / 1024).toFixed(2)} MB/s` },
+  /*
+    当前值四项，每项带图标。
+
+    图标在这里不是装饰：一行四个数字时，眼睛要靠图标才能快速定位到「哪个是内存」，
+    纯文字标签在小字号下扫读成本明显更高。
+  */
+  const cards: readonly { key: FnosLocaleKey, icon: UsedIconName, value: string }[] = [
+    { key: 'runtimeCpu', icon: 'lucide:cpu', value: latest?.cpu === undefined ? '—' : `${latest.cpu.toFixed(1)}%` },
+    { key: 'runtimeMemory', icon: 'lucide:memory-stick', value: `${((latest?.rss ?? 0) / 1024 / 1024).toFixed(0)} MB` },
+    { key: 'runtimeDisk', icon: 'lucide:hard-drive', value: latest?.io === undefined ? '—' : `${(latest.io / 1024 / 1024).toFixed(2)} MB/s` },
+    { key: 'runtimeNetDown', icon: 'lucide:arrow-down', value: latest?.netRx === undefined ? '—' : `${(latest.netRx / 1024 / 1024).toFixed(2)} MB/s` },
+    { key: 'runtimeNetUp', icon: 'lucide:arrow-up', value: latest?.netTx === undefined ? '—' : `${(latest.netTx / 1024 / 1024).toFixed(2)} MB/s` },
   ]
 
   return (
@@ -257,15 +315,15 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
       {/* 端口：两个数直接读，不做推断。缺省时说「未知」而不是编一个默认值。 */}
       <dl className="dsh-fnos-runtime-ports">
         <div>
-          <dt>{t('runtimeWebPort')}</dt>
+          <dt><IconifyIcon name="lucide:plug" />{t('runtimeWebPort')}</dt>
           <dd>{status?.ports.web === undefined ? '—' : String(status.ports.web)}</dd>
         </div>
         <div>
-          <dt>{t('runtimeGatewayPort')}</dt>
+          <dt><IconifyIcon name="lucide:plug" />{t('runtimeGatewayPort')}</dt>
           <dd>{status?.ports.gateway === undefined ? '—' : String(status.ports.gateway)}</dd>
         </div>
         <div>
-          <dt>{t('runtimePid')}</dt>
+          <dt><IconifyIcon name="lucide:list-tree" />{t('runtimePid')}</dt>
           <dd>{status === undefined ? '—' : String(status.pid)}</dd>
         </div>
       </dl>
@@ -274,7 +332,10 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
       <div className="dsh-fnos-runtime-now">
         {cards.map(c => (
           <div key={c.key} className="dsh-fnos-runtime-now-item">
-            <span className="dsh-fnos-runtime-now-label">{t(c.key)}</span>
+            <span className="dsh-fnos-runtime-now-label">
+              <IconifyIcon name={c.icon} />
+              {t(c.key)}
+            </span>
             <strong className="dsh-fnos-runtime-now-value">{c.value}</strong>
           </div>
         ))}

@@ -10,7 +10,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { FNOS_RUNTIME_KILL_ROUTE, FNOS_RUNTIME_STATUS_ROUTE } from '../contracts/runtime-status-contract.ts'
+import { FNOS_RUNTIME_KILL_ROUTE, FNOS_RUNTIME_LOGS_ROUTE, FNOS_RUNTIME_STATUS_ROUTE } from '../contracts/runtime-status-contract.ts'
+import type { RuntimeLogLevel } from '../contracts/runtime-status-contract.ts'
+import { readLogs } from './runtime-logs.ts'
 import { readRuntimeStatus } from './runtime-status.ts'
 import { ALLOWED_SIGNALS, killProcess, type KillSignal } from './runtime-processes.ts'
 
@@ -89,6 +91,28 @@ export function registerRuntimeStatusRoutes(ctx: Context): void {
       }
     },
   }), 'dsh-fnos: runtime kill')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_RUNTIME_LOGS_ROUTE,
+    handler: (req, res) => {
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      const url = new URL(req.url ?? '/', 'http://localhost')
+      const rawLimit = url.searchParams.get('limit')
+      const rawLevel = url.searchParams.get('level')
+      const query = url.searchParams.get('q') ?? undefined
+      const levels: readonly RuntimeLogLevel[] = ['error', 'warn', 'info', 'debug']
+      // 非法级别当作「不过滤」而不是报错：这是只读面板，宽容一点更有用。
+      const level = rawLevel !== null && (levels as readonly string[]).includes(rawLevel)
+        ? rawLevel as RuntimeLogLevel
+        : undefined
+      send(res, 200, readLogs({
+        ...(rawLimit === null ? {} : { limit: Number(rawLimit) }),
+        ...(level === undefined ? {} : { level }),
+        ...(query === undefined ? {} : { query }),
+      }))
+    },
+  }), 'dsh-fnos: runtime logs')
 }
 
 /** 请求体上限：只有 pid 与 signal，1KB 足够，超出即拒绝。 */

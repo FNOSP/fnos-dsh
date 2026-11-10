@@ -24,11 +24,12 @@ import type { FnosLocaleKey } from '../client/locales.ts'
 import { AuthorizedDirectoriesCard } from './AuthorizedDirectoriesCard.tsx'
 import { DependencyRepairCard } from './DependencyRepairCard.tsx'
 import { RuntimeStatusCard } from './RuntimeStatusCard.tsx'
+import { RuntimeLogPanel } from './RuntimeLogPanel.tsx'
 
 type Translate = (key: FnosLocaleKey) => string
 
 /** 弹框里的一级分组；新增配置项时在这里登记。 */
-type SectionId = 'directories' | 'repair' | 'runtime'
+type SectionId = 'directories' | 'repair' | 'runtime' | 'logs'
 
 export interface FnosConfigDialogProps {
   /** 是否可见。 */
@@ -56,6 +57,8 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
     { id: 'repair', label: t('configSectionRepair'), icon: 'lucide:wrench' },
     // 「运行」放最后：它是只读观测，不属于「设置」，放在配置项之后符合阅读顺序。
     { id: 'runtime', label: t('configSectionRuntime'), icon: 'lucide:activity' },
+    // 日志排在运行之后：先看「现在怎么样」，再看「发生过什么」。
+    { id: 'logs', label: t('configSectionLogs'), icon: 'lucide:scroll-text' },
   ]
 
   return (
@@ -99,6 +102,7 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
           {section === 'directories' ? <AuthorizedDirectoriesCard t={t} /> : null}
           {section === 'repair' ? <DependencyRepairCard t={t} /> : null}
           {section === 'runtime' ? <RuntimeStatusCard t={t} /> : null}
+          {section === 'logs' ? <RuntimeLogPanel t={t} /> : null}
         </div>
       </div>
     </DshModal>

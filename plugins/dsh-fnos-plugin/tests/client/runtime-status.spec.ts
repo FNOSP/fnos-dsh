@@ -88,13 +88,20 @@ describe('运行状态：网络与四宫格', () => {
     }
   })
 
-  it('图表是 2×2 四宫格（四条曲线）', () => {
-    // 四个系列：CPU / 内存 / 磁盘 / 网络。
-    expect(CARD).toContain("key: 'net'")
-    expect(CARD).toContain("runtimeNetwork")
+  it('图表是 2×2 四宫格，网络格画上下行两条线', () => {
+    // 四格：CPU / 内存 / 磁盘 / 网络；网络拆成下行与上行两条系列。
+    expect(CARD).toContain("key: 'netRx'")
+    expect(CARD).toContain("key: 'netTx'")
+    expect(CARD).toContain('NET_CELL_INDEX')
     // 用百分比定位，写死像素在窄屏上会溢出。
     expect(CARD).toContain("left: i % 2 === 0 ? '4%' : '52%'")
     expect(CARD).toContain("top: Math.floor(i / 2) === 0 ? '10%' : '57%'")
+  })
+
+  it('tooltip 带单位（只有数字看不出 MB/s 还是 KB/s）', () => {
+    expect(CARD).toContain('valueFormatter')
+    // 系列名里带单位，tooltip 直接显示「名称: 值 单位」。
+    expect(CARD).toMatch(/name: `\$\{t\(s\.labelKey\)\} \(\$\{s\.unit\}\)`/)
   })
 
   it('网络与磁盘都按每秒增量换算，而不是画累计值', () => {
@@ -145,6 +152,41 @@ describe('运行状态：进程树与结束', () => {
     expect(LIST).toContain('setConfirming')
     // 不可杀的行不渲染按钮。
     expect(LIST).toContain('item.canKill')
+  })
+})
+
+describe('运行状态：日志面板', () => {
+  it('日志走 ctx.logger.exporter，而不是读文件（应用不写日志文件）', () => {
+    const LOGS = readFileSync(new URL('../../src/host/runtime-logs.ts', import.meta.url), 'utf8')
+    expect(LOGS).toContain('ctx.logger.exporter')
+    // 环形缓冲必须有上限，否则进程会随运行时间吃光内存。
+    expect(LOGS).toContain('buffer.splice(0, buffer.length - limit)')
+    expect(LOGS).toContain('MAX_LOG_LIMIT')
+  })
+
+  it('日志接口是只读 GET，支持 limit/level/q', () => {
+    expect(ROUTES).toContain('FNOS_RUNTIME_LOGS_ROUTE')
+    expect(CONTRACT).toContain("FNOS_RUNTIME_LOGS_ROUTE = '/plugins/dsh-fnos/runtime/logs'")
+  })
+
+  it('面板有级别筛选、搜索、条数自定义，且占满剩余高度', () => {
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('DshSelect')
+    expect(PANEL).toContain("type=\"search\"")
+    expect(PANEL).toContain('setLimit')
+    expect(PANEL).toContain('DEFAULT_LIMIT')
+    // 占满剩余空间
+    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-logs {'), SCSS.indexOf('.dsh-fnos-logs-bar {'))
+    expect(rule).toContain('height: 100%')
+    expect(rule).toContain('flex-direction: column')
+  })
+
+  it('日志按级别着色，且不只靠颜色传达信息', () => {
+    // 每种级别既有徽标底色也有文字标签。
+    expect(SCSS).toContain('.dsh-fnos-logs-line--error .dsh-fnos-logs-badge')
+    expect(SCSS).toContain('.dsh-fnos-logs-line--warn .dsh-fnos-logs-badge')
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('levelKey')
   })
 })
 

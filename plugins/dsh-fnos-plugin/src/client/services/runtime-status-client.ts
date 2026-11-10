@@ -4,8 +4,8 @@
  * @module dsh-fnos/client/runtime-status-client
  */
 
-import { FNOS_RUNTIME_KILL_ROUTE, FNOS_RUNTIME_STATUS_ROUTE } from '../../contracts/runtime-status-contract.ts'
-import type { RuntimeStatus } from '../../contracts/runtime-status-contract.ts'
+import { FNOS_RUNTIME_KILL_ROUTE, FNOS_RUNTIME_LOGS_ROUTE, FNOS_RUNTIME_STATUS_ROUTE } from '../../contracts/runtime-status-contract.ts'
+import type { RuntimeLogSnapshot, RuntimeStatus } from '../../contracts/runtime-status-contract.ts'
 
 /**
  * 取一次运行状态快照。
@@ -45,4 +45,32 @@ export async function killRuntimeProcess(pid: number, signal: 'SIGTERM' | 'SIGKI
       : `HTTP ${String(response.status)}`
     throw new Error(reason)
   }
+}
+
+/**
+ * 取最近的日志。
+ * @param options - 查询条件。
+ * @param options.limit - 最多返回条数。
+ * @param options.level - 只要该级别，`all` 表示全部。
+ * @param options.query - 搜索词。
+ * @returns 日志快照。
+ */
+export async function fetchRuntimeLogs(options: {
+  limit?: number
+  level?: string
+  query?: string
+} = {}): Promise<RuntimeLogSnapshot> {
+  const params = new URLSearchParams()
+  if (options.limit !== undefined) params.set('limit', String(options.limit))
+  if (options.level !== undefined && options.level !== 'all') params.set('level', options.level)
+  if (options.query !== undefined && options.query.length > 0) params.set('q', options.query)
+  const suffix = params.toString()
+  const response = await fetch(`${FNOS_RUNTIME_LOGS_ROUTE}${suffix.length > 0 ? `?${suffix}` : ''}`, {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+  return await response.json() as RuntimeLogSnapshot
 }

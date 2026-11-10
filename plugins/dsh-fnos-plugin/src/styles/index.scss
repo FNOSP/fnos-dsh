@@ -1306,6 +1306,9 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   }
 
   dt {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     color: var(--dsw-alias-label-tertiary);
     font-size: 12px;
     line-height: 16px;
@@ -1324,8 +1327,9 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 /* 当前值：四格与图表的 2×2 呼应，一眼对得上哪条曲线对应哪个数。 */
 .dsh-fnos-runtime-now {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  /* 5 项：CPU、内存、磁盘、下行、上行；网络拆开后不再合成一格。 */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .dsh-fnos-runtime-now-item {
@@ -1336,6 +1340,9 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 }
 
 .dsh-fnos-runtime-now-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 16px;
@@ -1458,4 +1465,162 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   display: flex;
   flex: 0 0 auto;
   gap: 4px;
+}
+
+/*
+ * 日志面板：占满弹框剩余高度。
+ *
+ * 父级（`.dsh-fnos-config-panel`）是 flex 列且自身滚动，这里用 `height: 100%`
+ * 让内部列表吃满可用高度——日志是「越多越好」的内容，不该像表单那样按内容撑。
+ */
+.dsh-fnos-logs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* 工具条：一行放下筛选、搜索、条数。 */
+.dsh-fnos-logs-bar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.dsh-fnos-logs-level {
+  flex: 0 0 120px;
+}
+
+.dsh-fnos-logs-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 12%));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  outline: none;
+
+  &:focus-visible {
+    border-color: var(--dsw-alias-state-focus-primary, #4d6fff);
+  }
+}
+
+.dsh-fnos-logs-limit {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+
+  input {
+    width: 64px;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 12%));
+    border-radius: 6px;
+    background: transparent;
+    color: var(--dsw-alias-label-primary);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+  }
+}
+
+.dsh-fnos-logs-count {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * 列表本体：等宽字体 + 单行省略。
+ *
+ * 日志行不对齐就没法扫读，因此固定四段（时刻/级别/来源/正文），正文吃掉剩余宽度
+ * 并省略；完整内容在 title 里。
+ */
+.dsh-fnos-logs-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1, rgb(0 0 0 / 2%));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-fnos-logs-line {
+  display: flex;
+  gap: 8px;
+  padding: 1px 0;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 4%));
+  }
+}
+
+.dsh-fnos-logs-time {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 级别徽标：用色区分，同时保留文字（不只靠颜色传达信息）。 */
+.dsh-fnos-logs-badge {
+  flex: 0 0 46px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.dsh-fnos-logs-name {
+  flex: 0 0 auto;
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--dsw-alias-label-secondary);
+  text-overflow: ellipsis;
+}
+
+.dsh-fnos-logs-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 级别配色：错误红、警告橙、信息蓝、调试灰。 */
+.dsh-fnos-logs-line--error .dsh-fnos-logs-badge {
+  background: rgb(214 60 60 / 14%);
+  color: rgb(190 40 40);
+}
+
+.dsh-fnos-logs-line--warn .dsh-fnos-logs-badge {
+  background: rgb(214 140 20 / 16%);
+  color: rgb(170 105 0);
+}
+
+.dsh-fnos-logs-line--info .dsh-fnos-logs-badge {
+  background: rgb(60 120 214 / 14%);
+  color: rgb(40 90 180);
+}
+
+.dsh-fnos-logs-line--debug .dsh-fnos-logs-badge {
+  background: rgb(0 0 0 / 8%);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.dsh-fnos-logs-line--error .dsh-fnos-logs-text {
+  color: rgb(170 30 30);
 }
