@@ -24,29 +24,34 @@ export interface PluginIndexStatus {
   readonly sources: readonly PluginIndexSourceInfo[]
 }
 
-/** localStorage 键：本页的「推荐索引已开启」偏好。 */
-const ENABLED_KEY = 'dsh-fnos.plugin-index-enabled'
+/** localStorage 键：用户**显式关掉**推荐索引的偏好。 */
+const DISABLED_KEY = 'dsh-fnos.plugin-index-disabled'
 
 /**
- * 读「开启」偏好。
- * @returns 是否开启；缺省为 false（未开启状态要如实展示）。
+ * 读用户偏好：是否显式关掉了推荐索引。
+ *
+ * **只记录「关掉」**，不记录「开启」。因为默认值应当来自真实状态（市场是否启用），
+ * 而不是一个本地的初值——早前用 `=== '1'` 判断开启，结果市场明明是启用状态，
+ * 开关却因为本地没存过值而显示「未开启」，与事实相反。
+ * @returns 是否被用户显式关掉。
  */
-export function getIndexEnabled(): boolean {
+export function getIndexDisabled(): boolean {
   try {
-    return globalThis.localStorage?.getItem(ENABLED_KEY) === '1'
+    return globalThis.localStorage?.getItem(DISABLED_KEY) === '1'
   } catch {
-    // 隐私模式下 localStorage 可能抛错：当作未开启，不影响功能。
+    // 隐私模式下 localStorage 可能抛错：按「未关掉」处理，如实反映市场状态。
     return false
   }
 }
 
 /**
- * 写「开启」偏好。
- * @param enabled - 是否开启。
+ * 写用户偏好。
+ * @param enabled - 是否开启；`true` 表示清掉「关掉」标记、回到跟随真实状态。
  */
 export function setIndexEnabled(enabled: boolean): void {
   try {
-    globalThis.localStorage?.setItem(ENABLED_KEY, enabled ? '1' : '0')
+    if (enabled) globalThis.localStorage?.removeItem(DISABLED_KEY)
+    else globalThis.localStorage?.setItem(DISABLED_KEY, '1')
   } catch {
     // 同上：存不下就只影响下次打开时的默认值。
   }

@@ -83,6 +83,7 @@ export { default as DshIconSearch } from '@douyinfe/semi-icons/lib/es/icons/Icon
 export type { IconProps as DshIconProps, IconSize as DshIconSize } from '@douyinfe/semi-icons'
 
 export { default as DshTypography } from '@douyinfe/semi-ui/lib/es/typography/index'
+export { default as DshImage } from '@douyinfe/semi-ui/lib/es/image/index'
 /**
  * Semi 的复制能力（Typography 的 copyable 背后的独立组件）。
  *

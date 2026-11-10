@@ -18,12 +18,12 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshButton, DshSwitch } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshImage, DshSwitch } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   applyPluginIndexes,
   fetchPluginIndexStatus,
-  getIndexEnabled,
+  getIndexDisabled,
   setIndexEnabled,
   type PluginIndexStatus,
 } from '../client/services/plugin-index-client.ts'
@@ -52,7 +52,10 @@ export interface PluginIndexPanelProps {
  */
 export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode {
   const [status, setStatus] = useState<PluginIndexStatus>()
-  const [enabled, setEnabled] = useState(() => getIndexEnabled())
+  /** 用户是否显式关掉了推荐索引（默认跟随真实状态）。 */
+  const [userDisabled, setUserDisabled] = useState(() => getIndexDisabled())
+  /** 官方引导图读取失败：失败后整块不渲染，避免留一个破图占位。 */
+  const [guideBroken, setGuideBroken] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -80,13 +83,20 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
     }
   }, [])
 
-  /** 一键开启：本地开关 + 记忆。 */
+  /** 切换：记住「用户是否关掉」，真实状态由它与市场状态共同决定。 */
   const toggle = useCallback((next: boolean) => {
     setIndexEnabled(next)
-    setEnabled(next)
+    setUserDisabled(!next)
   }, [])
 
   const marketMissing = status !== undefined && !status.marketAvailable
+  /*
+    **开关反映真实状态**，不是本地偏好。
+
+    早前只看 localStorage：市场明明已启用，开关却因为本地没存过值而显示「未开启」，
+    与事实相反。现在默认取「市场是否启用」，用户显式关掉时才覆盖它。
+  */
+  const enabled = status !== undefined && status.marketAvailable && !userDisabled
   const allConfigured = status !== undefined && status.marketAvailable && status.missing.length === 0
 
   return (
@@ -161,13 +171,20 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
         每次都去重新截图替换。读不到时只显示文字说明，不留破图占位。
       */}
       <p className="dsh-fnos-idx-guide">{t('indexGuideText')}</p>
-      <img
-        className="dsh-fnos-idx-guide-image"
-        src={OFFICIAL_INDEX_GUIDE_IMAGE}
-        alt={t('indexGuideText')}
-        loading="lazy"
-        onError={event => { event.currentTarget.style.display = 'none' }}
-      />
+      {/*
+        用 Semi 的 Image 而不是裸 <img>：自带加载态、失败兜底与主题样式。
+        `preview={false}` —— 这是示意图，放大没有意义，开着反而会盖住下方的配置项。
+      */}
+      {guideBroken ? null : (
+        <DshImage
+          className="dsh-fnos-idx-guide-image"
+          src={OFFICIAL_INDEX_GUIDE_IMAGE}
+          alt={t('indexGuideText')}
+          width="100%"
+          preview={false}
+          onError={() => { setGuideBroken(true) }}
+        />
+      )}
 
       {error === undefined ? null : <p className="dsh-fnos-repair-error" role="alert">{error}</p>}
     </div>

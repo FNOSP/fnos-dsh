@@ -2074,13 +2074,16 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   line-height: 18px;
 }
 
-/* 官方引导图：限宽限高，避免大图撑破面板。 */
+/*
+ * 官方引导图：限宽限高，避免大图撑破面板。
+ *
+ * **不加 border / 圆角 / 边框**：图本身自带浅色背景与内嵌卡片，外面再套一圈框
+ * 会有「框中框」的重复感；Semi 的 Image 也有自己的容器样式，外部再加边会双重描边。
+ */
 .dsh-fnos-idx-guide-image {
   display: block;
-  width: 100%;
   max-height: 240px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
+  overflow: hidden;
   object-fit: contain;
   object-position: left top;
 }

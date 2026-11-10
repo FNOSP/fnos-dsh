@@ -26,6 +26,7 @@ export {
   DshSelect,
   DshTreeSelect,
   DshTypography,
+  DshImage,
   DshCopyable,
   DshDatePicker,
   type DshDatePickerProps,

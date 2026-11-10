@@ -104,6 +104,29 @@ describe('插件索引：界面', () => {
     expect(PANEL).not.toContain("t('indexApplyEnable')")
   })
 
+  it('开关反映真实状态（市场启用 + 未显式关掉），不是本地偏好', () => {
+    /*
+      真机踩到：市场明明是启用状态，开关却显示「未开启」——因为原来只看
+      localStorage 里的偏好，本地没存过值就当 false。开关必须反映事实。
+    */
+    expect(PANEL).toContain('getIndexDisabled')
+    expect(PANEL).toMatch(/const enabled = status !== undefined && status\.marketAvailable/)
+    // 偏好只记录「关掉」，默认跟随真实状态。
+    const CLIENT = readFileSync(new URL('../../src/client/services/plugin-index-client.ts', import.meta.url), 'utf8')
+    expect(CLIENT).toContain('DISABLED_KEY')
+    expect(CLIENT).toContain('removeItem')
+  })
+
+  it('引导图用 Semi 的 Image 组件，且不带 border', () => {
+    // 裸 <img> 拿不到 Semi 的加载态与主题样式。
+    expect(PANEL).toContain('DshImage')
+    // 只检查实际 JSX 标签：注释里提到「裸 <img>」属于说明文字，不算违规。
+    expect(PANEL).not.toMatch(/<img\s/u)
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-idx-guide-image {'))
+    expect(rule.slice(0, rule.indexOf('}'))).not.toContain('border')
+  })
+
   it('一键设置按钮在市场缺失或已配齐时置灰', () => {
     expect(PANEL).toContain("t('indexApplyConfigure')")
     expect(PANEL).toContain('disabled={busy || marketMissing || allConfigured}')
