@@ -100,9 +100,13 @@ describe('fnOS 配置弹框', () => {
     expect(block).toContain('--dsw-alias-state-business-primary')
   })
 
-  it('两段配置复用原组件，不复制实现', () => {
+  it('复用原组件，不复制实现', () => {
     expect(DIALOG).toContain('AuthorizedDirectoriesCard')
-    expect(DIALOG).toContain('DependencyRepairCard')
+    // 「插件安装修复」已收进「插件管理」的 tab，由 GatewayProxyCard 内部引用。
+    const PROXY = read('../../src/components/GatewayProxyCard.tsx')
+    expect(PROXY).toContain('DependencyRepairCard')
+    expect(PROXY).toContain('InstalledPluginsPanel')
+    expect(PROXY).toContain('PluginIndexPanel')
   })
 
   it('菜单项有可访问的当前态与键盘可达性', () => {

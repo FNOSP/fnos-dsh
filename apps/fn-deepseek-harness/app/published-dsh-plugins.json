@@ -4,11 +4,6 @@
     {
       "name": "@tnnevol/dsh-fnos",
       "version": "8.1.56"
-    },
-    {
-      "name": "dshmarket",
-      "version": "1.73.12",
-      "source": "thirdparty"
     }
   ]
 }

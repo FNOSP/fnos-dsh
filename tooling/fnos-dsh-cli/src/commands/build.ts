@@ -21,7 +21,6 @@ const DSH_PUBLISHED_PLUGIN_MANIFEST = 'app/published-dsh-plugins.json'
 const DSH_BUNDLED_PLUGIN_DIRECTORY = 'app/bundled-dsh-plugins'
 const PNPM_VERSION = '11.7.0'
 /** 三方插件在清单里的固定标识；版本本身由清单持有，不在校验代码里重复书写。 */
-const DSHMARKET_NAME = 'dshmarket'
 /**
  * The runtime plugins the FPK bundles.
  *
@@ -199,13 +198,17 @@ async function validateDshReleaseInputs(app: FpkApp): Promise<void> {
   // CodeBuddy 曾在此处有「必须内置」的守卫。它已于 2026-10-22 下架：上游对非官方
   // 客户端通道收紧拦截，插件无法再稳定可用。守卫随之移除——保留它只会让清单
   // 永远无法合法地少一个插件。
-  // 三方插件的版本由清单持有。这里只校验它存在且为精确版本——把版本写进校验代码
-  // 会让「升级插件」变成「同时改两处」，漏改一处就构建失败（`dshmarket` 从 1.66.3
-  // 升到 1.66.11 时正是如此）。清单值的正确性由 peer 覆盖与真机安装验证来保证。
-  const dshmarket = manifest.plugins.find(plugin => plugin?.name === DSHMARKET_NAME && plugin.source === 'thirdparty')
-  if (dshmarket === undefined) {
-    throw new Error(`The published DSH plugin manifest must pin third-party ${DSHMARKET_NAME} in plugins`)
-  }
+  /*
+    **不再强制内置任何三方插件**。
+
+    这里原本校验 `dshmarket` 必须出现在清单里。它在 2026-11 被移出内置清单：
+    dshmarket 的核心用途（浏览/安装插件）现在已经由「插件管理」里的
+    「自定义插件索引」覆盖，把它继续塞进 FPK 只会让每个用户都被强制装一个
+    用不上的市场。用户需要时在「插件安装与异常」里自行安装。
+
+    与 CodeBuddy 下架时移除同名守卫是同一种处置——保留守卫只会让
+    「把插件移出内置清单」这个合法决定永远无法落地。
+  */
   const callback = await readFile(join(repositoryRoot, 'apps', app.name, 'cmd/install_callback'), 'utf8')
   const dshVersion = requireDshBaseline()
   if (!callback.includes(`DSH_VERSION="${dshVersion}"`) || !callback.includes(`PNPM_VERSION="${PNPM_VERSION}"`)) {

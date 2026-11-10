@@ -121,6 +121,18 @@ export interface InstalledPlugin {
   readonly hasClient: boolean
   /** 是否为随 FPK 内置、由本应用管理的插件。 */
   readonly bundled: boolean
+  /** registry 上的最新版本；查不到时缺省。 */
+  readonly latestVersion?: string
+  /** 是否有可装的更新（已过兼容性门禁）。 */
+  readonly updateAvailable?: boolean
+  /**
+   * 与当前 DSH 基线不兼容。
+   *
+   * 不兼容时**不提示更新**——装上去起不来比「没更新」更糟。
+   */
+  readonly incompatible?: boolean
+  /** 不兼容的具体要求。 */
+  readonly requirements?: Record<string, string>
 }
 
 /** 插件清单响应。 */
@@ -132,3 +144,9 @@ export interface InstalledPluginsSnapshot {
   /** 已安装插件，按包名排序。 */
   readonly plugins: readonly InstalledPlugin[]
 }
+
+/** 自定义插件索引状态路由（只读）。 */
+export const FNOS_PLUGIN_INDEX_STATUS_ROUTE = '/plugins/dsh-fnos/plugins/index-status'
+
+/** 一键写入推荐索引源（写）。 */
+export const FNOS_PLUGIN_INDEX_APPLY_ROUTE = '/plugins/dsh-fnos/plugins/index-apply'

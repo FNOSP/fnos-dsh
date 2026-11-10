@@ -66,6 +66,7 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "catalog:",
     "@deepseek-ai/dsh-api-remotes": "catalog:dsh",
+    "@deepseek-ai/dsh-app-boot": "catalog:dsh",
     "@deepseek-ai/dsh-client-locale": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-commands": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-conversation": "catalog:dsh",

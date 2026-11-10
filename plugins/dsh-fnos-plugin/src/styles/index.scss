@@ -1934,3 +1934,93 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   font-size: 11px;
   line-height: 16px;
 }
+
+/*
+ * 「自定义插件索引」与已安装列表的更新徽标。
+ */
+.dsh-fnos-idx {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dsh-fnos-idx-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+}
+
+.dsh-fnos-idx-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dsh-fnos-idx-title {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.dsh-fnos-idx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-fnos-idx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+/* 长 URL 单行省略：完整地址在 title 里。 */
+.dsh-fnos-idx-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsh-fnos-idx-state {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.dsh-fnos-idx-state--ok {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+/* 引导文案：告诉用户在官方界面哪里填这两个源。 */
+.dsh-fnos-idx-guide {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--dsw-alias-state-business-primary);
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dsh-fnos-installed-badge--ok {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 16%, transparent);
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.dsh-fnos-installed-badge--warn {
+  background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 18%, transparent);
+  color: var(--dsw-alias-state-warn-primary);
+}

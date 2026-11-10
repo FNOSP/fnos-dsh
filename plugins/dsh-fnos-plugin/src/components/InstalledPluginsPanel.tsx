@@ -65,6 +65,21 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
         <li key={plugin.name} className="dsh-fnos-installed-item">
           <code className="dsh-fnos-installed-name">{plugin.name}</code>
           <span className="dsh-fnos-installed-version">{plugin.version}</span>
+          {/*
+            更新提示有三态，且**不兼容时不提示更新**：装上去起不来比「没更新」更糟。
+            不兼容单独标出来，用户才知道该去升 DSH 而不是升插件。
+          */}
+          {plugin.incompatible === true ? (
+            <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--warn" title={JSON.stringify(plugin.requirements ?? {})}>
+              {t('installedIncompatible')}
+            </span>
+          ) : plugin.updateAvailable === true ? (
+            <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">
+              {`${t('installedUpdateAvailable')} ${plugin.latestVersion ?? ''}`}
+            </span>
+          ) : plugin.latestVersion === undefined ? null : (
+            <span className="dsh-fnos-repair-muted">{t('installedUpToDate')}</span>
+          )}
           {plugin.bundled ? <span className="dsh-fnos-installed-badge">{t('installedPluginsBundled')}</span> : null}
           {plugin.hasClient ? null : <span className="dsh-fnos-repair-muted">{t('installedPluginsHostOnly')}</span>}
         </li>

@@ -18,6 +18,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { InstalledPlugin, InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
+import { checkAllPluginUpdates } from './plugin-updates.ts'
 
 /** profile `package.json` 里关心的字段。 */
 interface ProfileManifest {
@@ -56,6 +57,8 @@ async function readPlugin(profile: string, name: string, bundledNames: ReadonlyS
 export async function readInstalledPlugins(
   profileDirectory: string | undefined,
   bundledDirectory: string | undefined,
+  /** 是否检测更新（联网查 registry）；界面按需传 false 以加快首屏。 */
+  checkUpdates = true,
 ): Promise<InstalledPluginsSnapshot> {
   if (profileDirectory === undefined) {
     return { available: false, reason: 'profile-missing', plugins: [] }
@@ -91,6 +94,25 @@ export async function readInstalledPlugins(
     }
   }
 
-  const plugins = await Promise.all(names.map(name => readPlugin(profileDirectory, name, bundledNames)))
+  const base = await Promise.all(names.map(name => readPlugin(profileDirectory, name, bundledNames)))
+  if (!checkUpdates) return { available: true, plugins: base }
+
+  /*
+    更新检测放在这里统一做（而不是客户端逐包查）：兼容性判据要拿 DSH 运行时版本，
+    那是宿主侧才知道的东西；放客户端就得把版本号传下来，规则会漂到两处。
+  */
+  const updates = await checkAllPluginUpdates(profileDirectory, base)
+  const byName = new Map(updates.map(update => [update.name, update]))
+  const plugins = base.map(plugin => {
+    const update = byName.get(plugin.name)
+    if (update === undefined) return plugin
+    return {
+      ...plugin,
+      ...(update.latestVersion === undefined ? {} : { latestVersion: update.latestVersion }),
+      updateAvailable: update.updateAvailable,
+      incompatible: update.incompatible,
+      ...(update.requirements === undefined ? {} : { requirements: update.requirements }),
+    }
+  })
   return { available: true, plugins }
 }

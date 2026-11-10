@@ -30,6 +30,7 @@ import type { FnosLocaleKey } from '../client/locales.ts'
 import type { GatewayAutoPathsStatus } from '../contracts/gateway-proxy-contract.ts'
 import { DependencyRepairCard } from './DependencyRepairCard.tsx'
 import { InstalledPluginsPanel } from './InstalledPluginsPanel.tsx'
+import { PluginIndexPanel } from './PluginIndexPanel.tsx'
 import {
   fetchGatewayProxyPaths,
   saveGatewayProxyPaths,
@@ -266,6 +267,10 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
         </DshTabs.TabPane>
         <DshTabs.TabPane tab={t('gatewayProxyTabInstalled')} itemKey="installed">
           <InstalledPluginsPanel t={t} />
+        </DshTabs.TabPane>
+        {/* 索引放最后：它是「扩展来源」，前三项是当前已有的插件。 */}
+        <DshTabs.TabPane tab={t('gatewayProxyTabIndex')} itemKey="index">
+          <PluginIndexPanel t={t} />
         </DshTabs.TabPane>
       </DshTabs>
     </section>

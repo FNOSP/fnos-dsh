@@ -3,9 +3,10 @@ import { dirname, join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, FNOS_INSTALLED_PLUGINS_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
+import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, FNOS_INSTALLED_PLUGINS_ROUTE, FNOS_PLUGIN_INDEX_APPLY_ROUTE, FNOS_PLUGIN_INDEX_STATUS_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
 import { detectProxyPrefixes } from './gateway-proxy-detect.ts'
 import { readInstalledPlugins } from './installed-plugins.ts'
+import { applyRecommendedIndexes, readIndexStatus } from './plugin-index-sources.ts'
 import { resolveRepairEnvironment } from './dependency-repair.ts'
 import type { FnosSettings } from '../contracts/theme-contract.ts'
 
@@ -171,6 +172,34 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
       }
     },
   }), 'dsh-fnos: installed plugins')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_PLUGIN_INDEX_STATUS_ROUTE,
+    handler: (req, res) => {
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      try {
+        send(res, 200, readIndexStatus(ctx))
+      } catch (error) {
+        send(res, 500, { error: 'index-status-failed', message: error instanceof Error ? error.message : String(error) })
+      }
+    },
+  }), 'dsh-fnos: plugin index status')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_PLUGIN_INDEX_APPLY_ROUTE,
+    handler: async (req, res) => {
+      // 写操作：POST + 同源。GET 会被预取意外触发。
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      if (req.method !== 'POST') return send(res, 405, { error: 'method-not-allowed' })
+      try {
+        send(res, 200, await applyRecommendedIndexes(ctx))
+      } catch (error) {
+        send(res, 500, { error: 'index-apply-failed', message: error instanceof Error ? error.message : String(error) })
+      }
+    },
+  }), 'dsh-fnos: plugin index apply')
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',

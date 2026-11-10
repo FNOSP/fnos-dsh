@@ -177,14 +177,16 @@ describe('FNOS-007 DSH baseline', () => {
       const source = JSON.parse(await readFile(new URL(`../../../plugins/${directory}/package.json`, import.meta.url), 'utf8')) as { version: string }
       expect(published.plugins.find(plugin => plugin.name === name), name).toEqual({ name, version: source.version })
     }
-    // 只剩 fnOS 一个自有插件随 FPK 内置，加三方 dshmarket。
+    // 只剩 fnOS 一个自有插件随 FPK 内置。
     // Codex Auth 与 Failover Search 自 8.1.4 起不再内置（用户在插件市场自行安装），
     // 与 `@tnnevol/dsh-midscene` 相同口径；CodeBuddy 已于 2026-10-22 下架（FNOS-025）。
-    expect(published.plugins).toHaveLength(2)
-    // Third-party dshmarket has no local source, so its exact pin stays a
-    // literal: the registry version is the contract, not a copy. 每次更新 DSH
-    // 基线都要同步升级它，否则其 peer 范围可能不覆盖新基线而被兼容门禁拒绝。
-    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toEqual({ name: 'dshmarket', version: '1.73.12', source: 'thirdparty' })
+    expect(published.plugins).toHaveLength(1)
+    /*
+      dshmarket 于 2026-11 移出内置清单：它的核心用途（浏览/安装插件）已经由
+      「插件管理 → 自定义插件索引」覆盖，继续内置只会让每个用户被强制装一个用不上
+      的市场。需要时在「插件安装与异常」里自行安装。
+    */
+    expect(published.plugins.find(plugin => plugin.name === 'dshmarket')).toBeUndefined()
     expect(published.registry).toBeUndefined()
     expect(published.bundled ?? []).toEqual([])
 

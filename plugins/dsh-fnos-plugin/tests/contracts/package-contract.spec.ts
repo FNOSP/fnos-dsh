@@ -530,6 +530,7 @@ describe('dsh-fnos package contract', () => {
     expect(compatibility.dshPluginApi.version).toBe(await workspaceRuntimeBaseline())
     expect(compatibility.dshPluginApi.packages).toEqual([
       '@deepseek-ai/dsh-api-remotes',
+    '@deepseek-ai/dsh-app-boot',
       '@deepseek-ai/dsh-client-locale',
       '@deepseek-ai/dsh-client-ui-commands',
       '@deepseek-ai/dsh-client-ui-conversation',
