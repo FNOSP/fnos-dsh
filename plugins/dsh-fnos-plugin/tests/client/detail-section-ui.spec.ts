@@ -93,19 +93,15 @@ describe('反代配置：文案、tip、placeholder、行数上限', () => {
     expect(LOCALES).not.toContain('三方插件 API URL 反代配置')
   })
 
-  it('label 后有 tip 图标，说明放进 tooltip 而不是平铺', () => {
-    expect(PROXY).toContain('DshIconInfoCircle')
-    expect(PROXY).toContain('DshTooltip')
-    expect(PROXY).toContain("t('gatewayProxyDescription')")
-    // 平铺的那段说明段落被移除（它的 key 仍可保留给 tooltip 复用，但不能作为
-    // 独立段落渲染在标题下）。
-    expect(PROXY).not.toContain('dsh-fnos-authorized-gateway-description')
-  })
-
-  it('tip 图标可键盘聚焦并带 aria-label（说明不能只存在于悬浮层）', () => {
-    const tip = PROXY.slice(PROXY.indexOf('dsh-fnos-authorized-gateway-tip'))
-    expect(tip.slice(0, 400)).toContain('tabIndex={0}')
-    expect(tip.slice(0, 400)).toContain('aria-label=')
+  it('组内不再重复标题（标题由左侧菜单承担）', () => {
+    /*
+      原先这里有一行「三方插件 proxy」+ info tip。它与左侧菜单的「插件管理」说的是
+      同一件事，形成两级标题；tab 行紧接着又是第三种层级。标题移除后，tab 直接作为
+      这一页的主结构。
+    */
+    expect(PROXY).not.toContain('gatewayProxyTitle')
+    expect(PROXY).not.toContain('dsh-fnos-authorized-gateway-tip')
+    expect(PROXY).toContain('DshTabs')
   })
 
   it('描述固定三行：是什么 / 怎么写 / 举例子', () => {
@@ -139,16 +135,6 @@ describe('反代配置：文案、tip、placeholder、行数上限', () => {
     // 这条是本次的语义修正：功能不是「转发给本机其它服务」，而是把三方插件的
     // 绝对路径 API 统一接入应用网关。
     expect(zhCopy('gatewayProxyDescription')).toMatch(/统一接入|接入.*网关|网关.*接入/)
-  })
-
-  it('tooltip 带专用类，换行才渲染得出来', () => {
-    // 三行结构靠 `white-space: pre-line` 渲染；浮层 portal 到 body，只能靠类名命中。
-    expect(PROXY).toContain('className="dsh-fnos-gateway-tip-content"')
-    const tipRule = (() => {
-      const i = SCSS.indexOf('.semi-tooltip-wrapper.dsh-fnos-gateway-tip-content')
-      return SCSS.slice(i, i + SCSS.slice(i).indexOf('}'))
-    })()
-    expect(tipRule).toContain('white-space: pre-line')
   })
 
   it('多行样式只作用于本 tip，不改动共用提示外观', () => {

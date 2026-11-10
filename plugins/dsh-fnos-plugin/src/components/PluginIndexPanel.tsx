@@ -18,7 +18,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshButton } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshSwitch } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   applyPluginIndexes,
@@ -29,6 +29,15 @@ import {
 } from '../client/services/plugin-index-client.ts'
 
 type Translate = (key: FnosLocaleKey) => string
+
+/**
+ * 官方插件市场自带的界面预览图（`docs/preview.zh.svg`），经 DSH 的
+ * `detail-file` 接口读取。
+ *
+ * 用官方图而不是自己截图：官方改版时这张图会一起更新。
+ * 相对路径交给页面的 `<base>` 解析，在 fnOS iframe 里也能命中。
+ */
+const OFFICIAL_INDEX_GUIDE_IMAGE = 'api/plugin-manager/detail-file?bundle=%40deepseek-ai%2Fdsh-experimental-plugin-market-bundle&document=docs%2FDETAIL.zh.md&path=preview.zh.svg'
 
 /** 组件参数。 */
 export interface PluginIndexPanelProps {
@@ -82,7 +91,12 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
 
   return (
     <div className="dsh-fnos-idx">
-      {/* 状态行：开/关 + 一键开启。 */}
+      {/*
+        状态行：Switch 开关而不是按钮。
+
+        开关天然表达「一个东西的开/关」，按钮表达「执行一个动作」。这里改的是一个
+        持续的状态，不是一次性动作，Switch 更贴切，也能直接看出当前是开还是关。
+      */}
       <div className="dsh-fnos-idx-row">
         <div className="dsh-fnos-idx-row-main">
           <strong className="dsh-fnos-idx-title">{t('indexSourcesTitle')}</strong>
@@ -90,16 +104,12 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
             {enabled ? t('indexSourceOn') : t('indexSourceOff')}
           </span>
         </div>
-        <DshButton
-          htmlType="button"
-          size="small"
-          theme="solid"
-          type="primary"
-          disabled={busy}
-          onClick={() => { toggle(!enabled) }}
-        >
-          {t('indexApplyEnable')}
-        </DshButton>
+        <DshSwitch
+          size="default"
+          checked={enabled}
+          disabled={busy || marketMissing}
+          onChange={next => { toggle(next) }}
+        />
       </div>
 
       {/* 一键设置：市场缺失时置灰并说明。 */}
@@ -123,11 +133,18 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
 
       {/* 索引源清单：已配置的打勾，缺失的标出来。 */}
       <ul className="dsh-fnos-idx-list">
-        {(status?.recommended ?? []).map(url => {
-          const configured = status?.configured.some(item => item.trim().replace(/\/+$/u, '') === url.trim().replace(/\/+$/u, '')) ?? false
+        {(status?.sources ?? []).map(source => {
+          const configured = status?.configured.some(item => item.trim().replace(/\/+$/u, '') === source.url.trim().replace(/\/+$/u, '')) ?? false
           return (
-            <li key={url} className="dsh-fnos-idx-item">
-              <code className="dsh-fnos-idx-url" title={url}>{url}</code>
+            <li key={source.url} className="dsh-fnos-idx-item">
+              <div className="dsh-fnos-idx-item-main">
+                {/*
+                  标题从索引文件里读（`index.json` 的 `title`），不在代码里硬编码：
+                  索引改名时这里自动跟上。读不到时退回显示 URL。
+                */}
+                {source.label === undefined ? null : <span className="dsh-fnos-idx-label">{source.label}</span>}
+                <code className="dsh-fnos-idx-url" title={source.url}>{source.url}</code>
+              </div>
               <span className={`dsh-fnos-idx-state ${configured ? 'dsh-fnos-idx-state--ok' : ''}`}>
                 {configured ? '✓' : '—'}
               </span>
@@ -138,9 +155,19 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
 
       {/*
         引导：告诉用户这两个源应该在官方界面的哪个位置出现。
-        纯文字，不用截图——截图会随官方改版失效，而位置描述不会。
+
+        图**直接引用官方插件自带的 `docs/preview.zh.svg`**（经 `detail-file` 接口），
+        而不是自己截图：官方改版时那张图会一起更新，我们这边自动跟上，不需要
+        每次都去重新截图替换。读不到时只显示文字说明，不留破图占位。
       */}
       <p className="dsh-fnos-idx-guide">{t('indexGuideText')}</p>
+      <img
+        className="dsh-fnos-idx-guide-image"
+        src={OFFICIAL_INDEX_GUIDE_IMAGE}
+        alt={t('indexGuideText')}
+        loading="lazy"
+        onError={event => { event.currentTarget.style.display = 'none' }}
+      />
 
       {error === undefined ? null : <p className="dsh-fnos-repair-error" role="alert">{error}</p>}
     </div>

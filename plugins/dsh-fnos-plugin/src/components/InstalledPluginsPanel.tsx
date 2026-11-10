@@ -15,8 +15,10 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
+import { DshButton } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchInstalledPlugins } from '../client/services/gateway-proxy-client.ts'
+import { PluginInstallDialog } from './PluginInstallDialog.tsx'
 import type { InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -34,6 +36,9 @@ export interface InstalledPluginsPanelProps {
  */
 export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.ReactNode {
   const [snapshot, setSnapshot] = useState<InstalledPluginsSnapshot>()
+  const [refreshing, setRefreshing] = useState(false)
+  /** 正在安装的包名；undefined 表示弹框关闭。 */
+  const [installing, setInstalling] = useState<string>()
   const [error, setError] = useState<string>()
 
   const load = useCallback(async () => {
@@ -44,6 +49,16 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
       setError(cause instanceof Error ? cause.message : String(cause))
     }
   }, [])
+
+  /** 手动刷新：重新查 registry，看上游有没有新版本。 */
+  const refresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await load()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [load])
 
   useEffect(() => { void load() }, [load])
 
@@ -60,10 +75,39 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   }
 
   return (
-    <ul className="dsh-fnos-installed">
+    <>
+      {/*
+        刷新：重新检测上游是否有新版本。
+        放在列表上方而不是页头——它是这个列表的动作，作用域只有这一块。
+      */}
+      <div className="dsh-fnos-installed-toolbar">
+        <DshButton
+          htmlType="button"
+          size="small"
+          theme="borderless"
+          type="tertiary"
+          loading={refreshing}
+          onClick={() => { void refresh() }}
+        >
+          {t('refresh')}
+        </DshButton>
+      </div>
+      <ul className="dsh-fnos-installed">
       {snapshot.plugins.map(plugin => (
         <li key={plugin.name} className="dsh-fnos-installed-item">
+          <div className="dsh-fnos-installed-main">
           <code className="dsh-fnos-installed-name">{plugin.name}</code>
+          {/*
+            本插件是飞牛应用与 DSH 之间的**桥梁**：授权目录、文件打开、网关反代、
+            进程管理全靠它。卸载后应用仍能启动，但这些能力全部消失，用户会以为
+            「应用坏了」。这里必须直说，而不是只标一个「内置」。
+          */}
+          {plugin.bundled ? (
+            <span className="dsh-fnos-installed-note" role="note">
+              {t('installedBundledWarning')}
+            </span>
+          ) : null}
+          </div>
           <span className="dsh-fnos-installed-version">{plugin.version}</span>
           {/*
             更新提示有三态，且**不兼容时不提示更新**：装上去起不来比「没更新」更糟。
@@ -74,9 +118,24 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
               {t('installedIncompatible')}
             </span>
           ) : plugin.updateAvailable === true ? (
-            <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">
-              {`${t('installedUpdateAvailable')} ${plugin.latestVersion ?? ''}`}
-            </span>
+            <>
+              <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">
+                {`${t('installedUpdateAvailable')} ${plugin.latestVersion ?? ''}`}
+              </span>
+              {/*
+                有更新时给一个安装入口。装的是**按 DSH 基线挑出来的版本**，不是
+                registry 的 latest——latest 常要求更新的基线，装上起不来。
+              */}
+              <DshButton
+                htmlType="button"
+                size="small"
+                theme="light"
+                type="primary"
+                onClick={() => { setInstalling(plugin.name) }}
+              >
+                {t('pluginInstallAction')}
+              </DshButton>
+            </>
           ) : plugin.latestVersion === undefined ? null : plugin.aheadOfRegistry === true ? (
             // 本地比 registry 新：开发/内测，不能说「已是最新」。
             <span className="dsh-fnos-installed-badge">{t('installedAheadOfRegistry')}</span>
@@ -87,6 +146,16 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
           {plugin.hasClient ? null : <span className="dsh-fnos-repair-muted">{t('installedPluginsHostOnly')}</span>}
         </li>
       ))}
-    </ul>
+        </ul>
+      <PluginInstallDialog
+        /* key 让每次安装都是新实例：日志与状态自动归零，不必在 effect 里重置。 */
+        key={installing ?? 'idle'}
+        visible={installing !== undefined}
+        {...(installing === undefined ? {} : { name: installing })}
+        t={t}
+        onClose={() => { setInstalling(undefined) }}
+        onSettled={ok => { if (ok) void load() }}
+      />
+    </>
   )
 }

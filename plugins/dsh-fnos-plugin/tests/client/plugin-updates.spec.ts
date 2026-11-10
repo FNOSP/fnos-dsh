@@ -82,9 +82,9 @@ describe('插件索引：推荐源与状态', () => {
     expect(INDEX).toContain('dsh-experimental-plugin-market-bundle')
   })
 
-  it('市场未装时报告不可用，而不是写一份没人读的配置', () => {
-    // 用一个只有 settings 的空 context 模拟未装。
-    const status = readIndexStatus({ settings: { describe: () => [] } } as never)
+  it('市场未装时报告不可用，而不是写一份没人读的配置', async () => {
+    // 服务未挂载（ctx.get 返回 undefined）即为未装。
+    const status = await readIndexStatus({ get: () => undefined, settings: { describe: () => [] } } as never)
     expect(status.marketAvailable).toBe(false)
     expect(status.reason).toBe('plugin-market-not-installed')
   })
@@ -96,10 +96,31 @@ describe('插件索引：推荐源与状态', () => {
 })
 
 describe('插件索引：界面', () => {
-  it('两个按键都有，且市场缺失时置灰', () => {
-    expect(PANEL).toContain("t('indexApplyEnable')")
+  it('开启用 Switch 而不是按钮', () => {
+    // 开关表达「持续状态」，按钮表达「执行动作」；这里改的是状态。
+    expect(PANEL).toContain('DshSwitch')
+    expect(PANEL).toContain('checked={enabled}')
+    expect(PANEL).toContain('disabled={busy || marketMissing}')
+    expect(PANEL).not.toContain("t('indexApplyEnable')")
+  })
+
+  it('一键设置按钮在市场缺失或已配齐时置灰', () => {
     expect(PANEL).toContain("t('indexApplyConfigure')")
     expect(PANEL).toContain('disabled={busy || marketMissing || allConfigured}')
+  })
+
+  it('引导图引用官方插件自带图，读不到时不显示破图', () => {
+    // 用官方图：官方改版时那张图会一起更新。
+    expect(PANEL).toContain('detail-file?bundle=')
+    expect(PANEL).toContain('preview.zh.svg')
+    expect(PANEL).toContain('onError')
+  })
+
+  it('索引标题从索引文件读，不硬编码', () => {
+    // 索引改名（dsh 插件目录 → Awesome DSH Plugin 插件精选）时代码不用改。
+    expect(INDEX).toContain('fetchIndexTitle')
+    expect(INDEX).toContain('title')
+    expect(PANEL).toContain('source.label')
   })
 
   it('引导文案告诉用户在官方界面的哪一步填（不用会过期的截图）', () => {

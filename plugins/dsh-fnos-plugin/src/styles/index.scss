@@ -2024,3 +2024,80 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 18%, transparent);
   color: var(--dsw-alias-state-warn-primary);
 }
+
+/* 已安装列表的工具条（刷新按钮）。 */
+.dsh-fnos-installed-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+/* 桥梁提示：内联在包名下方，不抢主信息的视觉重量。 */
+.dsh-fnos-installed-note {
+  display: block;
+  color: var(--dsw-alias-state-warn-primary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.dsh-fnos-installed-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* 索引源的标题 + URL 两行。 */
+.dsh-fnos-idx-item-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dsh-fnos-idx-label {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* 官方引导图：限宽限高，避免大图撑破面板。 */
+.dsh-fnos-idx-guide-image {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  object-fit: contain;
+  object-position: left top;
+}
+
+/*
+ * 安装弹框：日志区。
+ *
+ * 固定高度 + 自己滚动：pnpm 输出长度不可预期，撑开弹框会让它顶出屏幕。
+ * 用等宽字体保留 pnpm 的进度条与缩进——折行会把它们搅成一团。
+ */
+.dsh-fnos-install {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dsh-fnos-install-log {
+  height: 360px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

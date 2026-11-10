@@ -20,7 +20,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshIconInfoCircle, DshTooltip, DshTabs } from '@tnnevol/dsh-semi-ui'
+import { DshTabs } from '@tnnevol/dsh-semi-ui'
 import { BarChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -243,20 +243,12 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
   )
 
   return (
-    <section className="dsh-fnos-plugins" aria-labelledby="dsh-fnos-proxy-title">
-      <header className="dsh-fnos-authorized-card-header">
-        <div className="dsh-fnos-authorized-card-head-text">
-          <h3 id="dsh-fnos-proxy-title" className="dsh-fnos-authorized-card-name">
-            {t('gatewayProxyTitle')}
-            <DshTooltip className="dsh-fnos-gateway-tip-content" content={t('gatewayProxyDescription')}>
-              <span className="dsh-fnos-authorized-gateway-tip" tabIndex={0} aria-label={t('gatewayProxyDescription')}>
-                <DshIconInfoCircle />
-              </span>
-            </DshTooltip>
-          </h3>
-        </div>
-      </header>
+    <section className="dsh-fnos-plugins" aria-label={t('configSectionPlugins')}>
 
+      {/*
+        标题由左侧菜单承担（「插件管理」），这里不再重复一遍「三方插件 proxy」。
+        一栏标题 + 一栏 tab 会形成两级标题，而它们说的是同一件事。
+      */}
       <DshTabs type="line" className="dsh-fnos-plugins-tabs">
         {/* 第一个 tab 默认选中：反代是这里最常改的东西。 */}
         <DshTabs.TabPane tab={t('gatewayProxyTabProxy')} itemKey="proxy">

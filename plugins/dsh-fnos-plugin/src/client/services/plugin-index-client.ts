@@ -10,6 +10,7 @@
 import {
   FNOS_PLUGIN_INDEX_APPLY_ROUTE,
   FNOS_PLUGIN_INDEX_STATUS_ROUTE,
+  type PluginIndexSourceInfo,
 } from '../../contracts/gateway-proxy-contract.ts'
 
 /** 索引状态（与宿主 `PluginIndexStatus` 同形）。 */
@@ -19,6 +20,8 @@ export interface PluginIndexStatus {
   readonly configured: readonly string[]
   readonly missing: readonly string[]
   readonly recommended: readonly string[]
+  /** 推荐源的展示信息（含从索引里读到的标题）。 */
+  readonly sources: readonly PluginIndexSourceInfo[]
 }
 
 /** localStorage 键：本页的「推荐索引已开启」偏好。 */
@@ -59,6 +62,9 @@ function toStatus(value: unknown): PluginIndexStatus {
     configured: list(record.configured),
     missing: list(record.missing),
     recommended: list(record.recommended),
+    sources: Array.isArray(record.sources)
+      ? record.sources.filter((item): item is PluginIndexSourceInfo => typeof item === 'object' && item !== null && typeof (item as PluginIndexSourceInfo).url === 'string')
+      : [],
   }
 }
 

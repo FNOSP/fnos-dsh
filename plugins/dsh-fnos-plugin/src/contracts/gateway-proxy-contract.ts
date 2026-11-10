@@ -156,3 +156,26 @@ export const FNOS_PLUGIN_INDEX_STATUS_ROUTE = '/plugins/dsh-fnos/plugins/index-s
 
 /** 一键写入推荐索引源（写）。 */
 export const FNOS_PLUGIN_INDEX_APPLY_ROUTE = '/plugins/dsh-fnos/plugins/index-apply'
+
+/** 一个索引源的展示信息。 */
+export interface PluginIndexSourceInfo {
+  /** 索引 URL。 */
+  readonly url: string
+  /**
+   * 索引自带的标题（`index.json` 的 `title`，按当前语言取值）。
+   *
+   * 从索引本身读，而不是在代码里写死：索引改名（比如从「dsh 插件目录」变成
+   * 「Awesome DSH Plugin 插件精选」）时这里自动跟上，不需要改代码。
+   * 读不到时 undefined，界面退回显示 URL。
+   */
+  readonly label?: string
+}
+
+/** 安装插件（写）。 */
+export const FNOS_PLUGIN_INSTALL_ROUTE = '/plugins/dsh-fnos/plugins/install'
+
+/** 安装状态（只读）。 */
+export const FNOS_PLUGIN_INSTALL_STATE_ROUTE = '/plugins/dsh-fnos/plugins/install-state'
+
+/** 安装日志（只读，支持 offset 增量）。 */
+export const FNOS_PLUGIN_INSTALL_LOG_ROUTE = '/plugins/dsh-fnos/plugins/install-log'

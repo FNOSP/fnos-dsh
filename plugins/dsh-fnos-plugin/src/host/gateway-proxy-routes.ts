@@ -3,11 +3,12 @@ import { dirname, join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, FNOS_INSTALLED_PLUGINS_ROUTE, FNOS_PLUGIN_INDEX_APPLY_ROUTE, FNOS_PLUGIN_INDEX_STATUS_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
+import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, FNOS_INSTALLED_PLUGINS_ROUTE, FNOS_PLUGIN_INDEX_APPLY_ROUTE, FNOS_PLUGIN_INDEX_STATUS_ROUTE, FNOS_PLUGIN_INSTALL_ROUTE, FNOS_PLUGIN_INSTALL_STATE_ROUTE, FNOS_PLUGIN_INSTALL_LOG_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
 import { detectProxyPrefixes } from './gateway-proxy-detect.ts'
 import { readInstalledPlugins } from './installed-plugins.ts'
 import { applyRecommendedIndexes, readIndexStatus } from './plugin-index-sources.ts'
 import { resolveRepairEnvironment } from './dependency-repair.ts'
+import { installPlugin, readInstallLog, readInstallState } from './plugin-install.ts'
 import type { FnosSettings } from '../contracts/theme-contract.ts'
 
 function send(res: ServerResponse, status: number, value: unknown): void { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(value)) }
@@ -176,10 +177,12 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: FNOS_PLUGIN_INDEX_STATUS_ROUTE,
-    handler: (req, res) => {
+    handler: async (req, res) => {
       if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
       try {
-        send(res, 200, readIndexStatus(ctx))
+        // 语言用于取索引标题（索引的 `title` 按语言给出）。
+        const locale = typeof req.headers['accept-language'] === 'string' ? req.headers['accept-language'].slice(0, 5) : 'zh'
+        send(res, 200, await readIndexStatus(ctx, locale))
       } catch (error) {
         send(res, 500, { error: 'index-status-failed', message: error instanceof Error ? error.message : String(error) })
       }
@@ -200,6 +203,46 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
       }
     },
   }), 'dsh-fnos: plugin index apply')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_PLUGIN_INSTALL_ROUTE,
+    handler: async (req, res) => {
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      if (req.method !== 'POST') return send(res, 405, { error: 'method-not-allowed' })
+      try {
+        const payload = await body(req) as { name?: unknown } | undefined
+        // 只接受规范包名：安装会执行 pnpm，名字必须能拼成合法参数，
+        // 否则 `--foo` 之类的内容会被 pnpm 当成选项。
+        if (typeof payload?.name !== 'string' || !/^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/u.test(body.name)) {
+          return send(res, 400, { error: 'invalid-plugin-name' })
+        }
+        send(res, 200, await installPlugin(payload.name))
+      } catch (error) {
+        send(res, 500, { error: 'install-failed', message: error instanceof Error ? error.message : String(error) })
+      }
+    },
+  }), 'dsh-fnos: plugin install')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_PLUGIN_INSTALL_STATE_ROUTE,
+    handler: (req, res) => {
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      send(res, 200, readInstallState())
+    },
+  }), 'dsh-fnos: plugin install state')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_PLUGIN_INSTALL_LOG_ROUTE,
+    handler: async (req, res) => {
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      // offset 让前端只取新增部分，避免每次轮询都重传整份日志。
+      const offset = Number.parseInt(new URL(req.url ?? '/', 'http://x').searchParams.get('offset') ?? '0', 10)
+      send(res, 200, await readInstallLog(Number.isFinite(offset) ? offset : 0))
+    },
+  }), 'dsh-fnos: plugin install log')
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',

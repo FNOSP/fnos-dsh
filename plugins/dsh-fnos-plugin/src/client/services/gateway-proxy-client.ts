@@ -10,6 +10,9 @@ import {
   FNOS_GATEWAY_BUILTIN_PREFIXES,
   FNOS_GATEWAY_PROXY_PATHS_ROUTE,
   FNOS_INSTALLED_PLUGINS_ROUTE,
+  FNOS_PLUGIN_INSTALL_ROUTE,
+  FNOS_PLUGIN_INSTALL_STATE_ROUTE,
+  FNOS_PLUGIN_INSTALL_LOG_ROUTE,
 } from '../../contracts/gateway-proxy-contract.ts'
 import type { GatewayAutoPathsStatus, InstalledPluginsSnapshot } from '../../contracts/gateway-proxy-contract.ts'
 
@@ -111,5 +114,63 @@ export async function fetchInstalledPlugins(): Promise<InstalledPluginsSnapshot>
     available: value.available === true,
     ...(typeof value.reason === 'string' ? { reason: value.reason } : {}),
     plugins: Array.isArray(value.plugins) ? value.plugins : [],
+  }
+}
+
+/** 安装进度（与宿主 `PluginInstallState` 同形）。 */
+export interface PluginInstallStateSnapshot {
+  readonly running: boolean
+  readonly name?: string
+  readonly version?: string
+  readonly status?: 'succeeded' | 'failed'
+  readonly error?: string
+}
+
+/**
+ * 启动安装。
+ * @param name - 包名。
+ * @returns 结束状态。
+ */
+export async function startPluginInstall(name: string): Promise<PluginInstallStateSnapshot> {
+  const response = await fetch(FNOS_PLUGIN_INSTALL_ROUTE, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ name }),
+  })
+  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+  return await response.json() as PluginInstallStateSnapshot
+}
+
+/**
+ * 读安装状态。
+ * @returns 状态。
+ */
+export async function fetchInstallState(): Promise<PluginInstallStateSnapshot> {
+  const response = await fetch(FNOS_PLUGIN_INSTALL_STATE_ROUTE, {
+    headers: { accept: 'application/json' },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+  return await response.json() as PluginInstallStateSnapshot
+}
+
+/**
+ * 增量读安装日志。
+ * @param offset - 起始字节。
+ * @returns 新增文本与新偏移。
+ */
+export async function fetchInstallLog(offset: number): Promise<{ text: string, offset: number }> {
+  const response = await fetch(`${FNOS_PLUGIN_INSTALL_LOG_ROUTE}?offset=${String(offset)}`, {
+    headers: { accept: 'application/json' },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (!response.ok) return { text: '', offset }
+  const value = await response.json() as { text?: unknown, offset?: unknown }
+  return {
+    text: typeof value.text === 'string' ? value.text : '',
+    offset: typeof value.offset === 'number' ? value.offset : offset,
   }
 }
