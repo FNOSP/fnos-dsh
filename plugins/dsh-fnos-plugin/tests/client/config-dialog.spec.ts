@@ -174,8 +174,12 @@ describe('fnOS 配置弹框', () => {
   it('弹框宽高固定，切换分组不跳动', () => {
     const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
     // 高度由 flex 撑开（容器固定 800），切换分组时不变。
-    // 用 flex 撑满而不是 height: 100%：外层已有 padding-bottom，100% 会多算那 15px。
-    expect(body).toContain('flex: 1 1 auto')
+    /*
+      `flex: 1 1 0%` 而不是 `height: 100%` 或 `1 1 auto`：后两者按内容高度起算、
+      会吸收掉父层的 padding-bottom，最后一个元素贴住弹框底沿。
+      `1 1 0%` 基准为 0、按已扣掉 padding 的可用空间伸展，底部 15px 才是真空出来的。
+    */
+    expect(body).toContain('flex: 1 1 0%')
     expect(body).not.toMatch(/min-height:\s*\d+px/)
     // 内容多的分组由 tab 内容区自己滚动（tab 栏常驻）。
     expect(SCSS).toContain('.dsh-fnos-plugins-tabs .semi-tabs-content')
@@ -304,8 +308,12 @@ describe('fnOS 配置弹框', () => {
 
   it('高度由 flex 撑开，不硬编码 body 高度（否则底部被裁）', () => {
     const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
-    // 用 flex 撑满而不是 height: 100%：外层已有 padding-bottom，100% 会多算那 15px。
-    expect(body).toContain('flex: 1 1 auto')
+    /*
+      `flex: 1 1 0%` 而不是 `height: 100%` 或 `1 1 auto`：后两者按内容高度起算、
+      会吸收掉父层的 padding-bottom，最后一个元素贴住弹框底沿。
+      `1 1 0%` 基准为 0、按已扣掉 padding 的可用空间伸展，底部 15px 才是真空出来的。
+    */
+    expect(body).toContain('flex: 1 1 0%')
     expect(body).toContain('min-height: 0')
     // content 是 flex 纵向容器，body 占满剩余高度。
     expect(SCSS).toContain('flex-direction: column')
