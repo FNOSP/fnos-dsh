@@ -160,6 +160,29 @@ describe('插件索引：界面', () => {
   })
 })
 
+describe('插件安装与异常：两段顺序与分割线', () => {
+  it('镜像管理在前、修复在后', () => {
+    /*
+      「装不上」最常见的原因是网络（国内直连 registry 慢或被限流），先排查镜像
+      再谈修复，顺序与真实排查路径一致。
+    */
+    const CARD = readFileSync(new URL('../../src/components/GatewayProxyCard.tsx', import.meta.url), 'utf8')
+    const block = CARD.slice(CARD.indexOf('dsh-fnos-repair-tab'))
+    expect(block.indexOf('NpmMirrorCard')).toBeLessThan(block.indexOf('DependencyRepairCard'))
+  })
+
+  it('两条分割线只保留一条', () => {
+    /*
+      `.dsh-fnos-config-panel > *` 已给每个直接子元素一条 border-bottom；
+      镜像卡片若再自带 border-top 就会出现两道线（一道全宽、一道带缩进）。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-mirror {'), SCSS.indexOf('.dsh-fnos-mirror-head {'))
+    expect(rule).not.toContain('border-top')
+    expect(rule).not.toContain('padding-top')
+  })
+})
+
 describe('已安装列表：更新三态', () => {
   it('不兼容优先于更新提示', () => {
     const inorder = LIST.indexOf('installedIncompatible')

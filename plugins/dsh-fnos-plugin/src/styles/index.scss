@@ -2238,12 +2238,17 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   gap: 20px;
 }
 
+/*
+ * npm 镜像管理卡片。
+ *
+ * **不自带分割线**：`.dsh-fnos-config-panel > *` 已经给每个直接子元素一条
+ * `border-bottom`，这里再画一条 `border-top` 会出现两道线（一道全宽、一道带缩进）。
+ * 两者之间的区隔由外层 `.dsh-fnos-repair-tab` 的 `gap` 承担。
+ */
 .dsh-fnos-mirror {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-top: 16px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
 }
 
 .dsh-fnos-mirror-head {

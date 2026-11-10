@@ -207,13 +207,13 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
           {proxyPanel}
         </DshTabs.TabPane>
         <DshTabs.TabPane tab={t('gatewayProxyTabRepair')} itemKey="repair">
+          {/*
+            npm 镜像管理放在前面：它是「装不上」最常见的原因（国内直连 registry 慢
+            或被限流），先排查网络再谈修复，顺序与排查路径一致。
+          */}
           <div className="dsh-fnos-repair-tab">
-            <DependencyRepairCard t={t} />
-            {/*
-              npm 镜像管理放在同一个 tab：它解决的是同一类问题——「装不上插件」。
-              国内直连 registry 慢或被限流时，换个镜像往往就是解决办法。
-            */}
             <NpmMirrorCard t={t} />
+            <DependencyRepairCard t={t} />
           </div>
         </DshTabs.TabPane>
         <DshTabs.TabPane tab={t('gatewayProxyTabInstalled')} itemKey="installed">
