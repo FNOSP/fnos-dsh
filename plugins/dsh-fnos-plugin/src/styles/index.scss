@@ -1301,14 +1301,25 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   display: grid;
   /* 5 项：CPU、内存、磁盘、下行、上行；网络拆开后不再合成一格。 */
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  /* 与上方端口行同值：两排是并列的读数区，间距不一致会看起来像两组东西。 */
+  gap: 8px;
 }
 
+/*
+ * 指标项：与端口行保持同一套「卡片」外观。
+ *
+ * 两排都是读数（上面是端口/进程号，下面是实时指标），原先只有上面那排有内边距与
+ * 底色、下面这排是裸文字，看起来像两个层级的元素。这里补齐同样的 padding 与圆角，
+ * 两排因此对齐成一组。
+ */
 .dsh-fnos-runtime-now-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1, rgb(0 0 0 / 3%));
 }
 
 .dsh-fnos-runtime-now-label {

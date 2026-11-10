@@ -196,6 +196,19 @@ describe('运行状态：日志面板', () => {
   })
 })
 
+describe('运行状态：两排读数外观一致', () => {
+  it('端口行与指标行都有内边距与底色（否则看起来像两个层级）', () => {
+    const portItem = SCSS.slice(SCSS.indexOf('.dsh-fnos-runtime-ports {'), SCSS.indexOf('.dsh-fnos-runtime-now {'))
+    const nowItem = SCSS.slice(SCSS.indexOf('.dsh-fnos-runtime-now-item {'))
+    const nowRule = nowItem.slice(0, nowItem.indexOf('}'))
+    // 两排都是读数，视觉上必须同构。
+    expect(portItem).toContain('padding: 8px 10px')
+    expect(nowRule).toContain('padding: 8px 10px')
+    expect(portItem).toContain('border-radius: 8px')
+    expect(nowRule).toContain('border-radius: 8px')
+  })
+})
+
 describe('运行状态：进程排序', () => {
   it('根进程固定排最后（它永远不可操作，不该占最显眼的位置）', async () => {
     const { listProcessTree } = await import('../../src/host/runtime-processes.ts')
