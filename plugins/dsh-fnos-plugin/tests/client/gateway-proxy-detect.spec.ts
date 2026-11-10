@@ -99,6 +99,18 @@ describe('FNOS-052 GET 返回结构', () => {
   })
 })
 
+describe('FNOS-052 自动前缀自更新', () => {
+  it('宿主自己巡检路由表并回写（不能等用户点保存）', () => {
+    const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
+    // 这是「插件装了但接口一直 404」的根因：auto 只在保存设置时写。
+    expect(ROUTES).toContain('AUTO_PREFIX_POLL_MS')
+    expect(ROUTES).toContain('setInterval')
+    // 只在变化时写文件，空转不产生 IO。
+    expect(ROUTES).toContain('lastAuto')
+    expect(ROUTES).toContain('clearInterval')
+  })
+})
+
 describe('FNOS-052 界面', () => {
   it('自动区段展示「前缀 + 该前缀下的接口」', () => {
     expect(CARD).toContain('group.prefix')

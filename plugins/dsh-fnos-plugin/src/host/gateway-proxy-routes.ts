@@ -74,6 +74,14 @@ async function writeDocument(file: string, document: GatewayProxyPathsDocument):
   }
 }
 
+/**
+ * 自动前缀的巡检间隔（毫秒）。
+ *
+ * 装插件后不会有任何「保存」动作，前缀因此必须由宿主自己发现并回写。3 秒足够
+ * 让用户在装完后立刻可用，而空转只是一次内存 Map 遍历。
+ */
+const AUTO_PREFIX_POLL_MS = 3000
+
 export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: string): void {
   const settings = ctx.settings
   const readSettings = (): FnosSettings => {
@@ -120,8 +128,31 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         await sync(readSettings())
       }
       void restoreOrSync().catch(error => { console.error('[dsh-fnos] unable to initialize gateway proxy paths', error) })
+
+      /*
+        **自动区段要自己巡检**：装完插件后没人会去点「保存」，只靠
+        `settings/document-updated` 意味着新插件的路由永远不会进 allowlist——
+        表现就是「插件装上去了、界面也认得它，但它的接口一直 404」。
+
+        每 3 秒读一次路由表并比对；只有变化时才写文件（网关侧 `fs.watch` 收到后
+        经 SSE 推给页面，无需刷新）。3 秒是权衡：装插件本身要几秒，用户不会感知
+        延迟；而空转成本只是一次纯内存的 Map 遍历。
+      */
+      let lastAuto = JSON.stringify(autoPrefixes())
+      const timer = setInterval(() => {
+        const current = JSON.stringify(autoPrefixes())
+        if (current === lastAuto) return
+        lastAuto = current
+        void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to sync auto proxy prefixes', error) })
+      }, AUTO_PREFIX_POLL_MS)
+      ctx.effect(() => () => { clearInterval(timer) })
+
       return ctx.on('settings/document-updated', namespace => {
-        if (namespace === settingsNamespace) void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to mirror gateway proxy paths', error) })
+        if (namespace === settingsNamespace) {
+          // 手动项变化时顺带把 lastAuto 对齐，避免巡检立刻又写一次同样的内容。
+          lastAuto = JSON.stringify(autoPrefixes())
+          void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to mirror gateway proxy paths', error) })
+        }
       })
     }, 'dsh-fnos: gateway proxy path settings mirror')
   }

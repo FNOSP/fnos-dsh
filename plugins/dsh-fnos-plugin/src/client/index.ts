@@ -28,6 +28,7 @@ import { FnosAuthorizedPathPanel } from '../components/FnosAuthorizedPathPicker.
 import { FnosOpenInHeaderAction } from '../components/FnosOpenInHeaderAction.tsx'
 import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAction.tsx'
 import { FnosConfigMenuEntry } from '../components/FnosConfigMenuEntry.tsx'
+import { FnosRefreshMenuEntry, FnosRestartMenuEntry } from '../components/FnosWebActionsMenuEntry.tsx'
 import { FnosConfigOverlay } from '../components/FnosConfigOverlay.tsx'
 import { FNOS_OPEN_IN_APP_SEAT, FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
 import { createPickerOpenStore } from './input-references/picker-store.ts'
@@ -248,6 +249,27 @@ export function apply(ctx: ClientContext): void {
     locale: namespace,
     inject: () => ({ t }),
   }, (props: { onDismiss?: () => void }) => FnosConfigMenuEntry({ ...props, t })))
+  /**
+   * 「刷新页面」与「重启服务」两行，紧跟在「飞牛 OS」之后（order 91/92）。
+   *
+   * 它们都是「整个应用」级别的操作，与会话无关——原先挂在会话头部工具条，
+   * 语义不对且占用头部宽度。放进同一菜单后与面板动作归为一类。
+   */
+  ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register({
+    name: 'sidebar.panellist.actions',
+    id: 'dsh-fnos-refresh-entry',
+    order: 91,
+    locale: namespace,
+    inject: () => ({ t }),
+  }, (props: { onDismiss?: () => void }) => FnosRefreshMenuEntry({ ...props, t })))
+  ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register({
+    name: 'sidebar.panellist.actions',
+    id: 'dsh-fnos-restart-entry',
+    order: 92,
+    locale: namespace,
+    inject: () => ({ t }),
+  }, (props: { onDismiss?: () => void }) => FnosRestartMenuEntry({ ...props, t })))
+
   /**
    * 配置弹框本体挂在 `shell.overlay`（官方挂 portal 弹框的槽位），不挂在菜单项的
    * 子树里：菜单选中后会关闭并卸载整棵子树，弹框的可见状态会随之丢失。
