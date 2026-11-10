@@ -2407,3 +2407,17 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
   min-height: 0;
   overflow: hidden;
 }
+
+/*
+ * 卡片列表：**一行两个**。
+ *
+ * 卡片内容是「包名 + 版本 + 状态 + 操作」，单列时每张卡只有一行文字却占满整宽，
+ * 一屏放不下几个；两列能显著减少滚动，也让长包名有固定宽度可省略。
+ *
+ * 用 `auto-fill` + `minmax`：窄容器自动退化为单列，不需要额外断点。
+ */
+.dsh-fnos-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}

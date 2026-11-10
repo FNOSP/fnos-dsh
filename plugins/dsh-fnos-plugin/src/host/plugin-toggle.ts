@@ -122,32 +122,45 @@ export async function setPackageEnabled(name: string, enabled: boolean): Promise
     text = '[]\n'
   }
 
+  try {
   const entries = parsePatchEntries(text)
   const targets = entries.filter(entry => entry.name === name)
   const lines = text.split('\n')
 
-  if (targets.length === 0) {
-    // 没有现成条目：追加一条禁用指令。
-    if (enabled) return { ok: true }
-    const appended = `${text.trimEnd()}\n- id: ${name}\n  disabled: true\n`
-    await writeAtomic(path, appended)
-    return { ok: true }
+  /*
+    **按 name 找不到条目时，不要盲写「id = 包名」。**
+
+    实测真机：`dsh-plugin-wallpaper-engine` 在 profile 依赖里、也确实被加载，
+    但 patch 里没有它的 `name` 条目（它由 bundle 内部挂载，id 不一定等于包名）。
+    这时写 `- id: dsh-plugin-wallpaper-engine` 只是在追加一条**对不上任何条目**的
+    补丁——浏览器侧看起来「点了没反应」，而且每点一次就多一条（实测堆了 4 条）。
+
+    所以这里先按 name 找；找不到就按 id 等于包名找（有些插件确实如此）；
+    仍找不到则**如实报错**，让界面把原因显示出来，而不是静默追加垃圾条目。
+  */
+  const byName = targets.length > 0
+  const byId = entries.filter(entry => entry.id === name)
+  const matchedIds = new Set((byName ? targets : byId).map(entry => entry.id))
+
+  if (matchedIds.size === 0) {
+    return { ok: false, error: 'entry-not-found' }
   }
 
-  // 逐条改 disabled：在 `name:` 之后插入或替换。
+  // 逐条改 disabled：在对应条目的 `name:`（或 `id:`）之后插入或替换。
   let currentId: string | undefined
   const out: string[] = []
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i] ?? ''
     const idMatch = /^\s*-\s+id:\s*(.+?)\s*$/u.exec(line)
     if (idMatch !== null) currentId = idMatch[1]
-    const isTarget = currentId !== undefined && targets.some(entry => entry.id === currentId)
     out.push(line)
 
-    if (!isTarget) continue
-    const nameMatch = /^\s+name:/u.test(line)
-    if (!nameMatch) continue
-    // 该条目之后紧跟的 disabled 行需要跳过（下面重写）。
+    if (currentId === undefined || !matchedIds.has(currentId)) continue
+    // 在条目的第一行之后决定插在哪：紧跟 `id:` 行最安全（name 可能不存在）。
+    const isAnchor = idMatch !== null || /^\s+name:/u.test(line)
+    if (!isAnchor) continue
+
+    // 跳过紧跟其后的既有 disabled 行（下面按目标状态重写）。
     let j = i + 1
     while (j < lines.length && /^\s+disabled:\s*(?:true|false)\s*$/u.test(lines[j] ?? '')) j += 1
     const indent = /^(\s+)/u.exec(lines[i + 1] ?? '  ')![1]
@@ -155,10 +168,11 @@ export async function setPackageEnabled(name: string, enabled: boolean): Promise
     i = j - 1
   }
 
-  const updated = out.join('\n')
-  try {
-    await writeAtomic(path, updated)
-    return { ok: true }
+  // 去掉重复的同 id 追加条目（早前版本会重复追加，实测堆过 4 条）。
+  const deduped = dedupeAppendedEntries(out)
+  const updated = deduped.join('\n')
+  await writeAtomic(path, updated)
+  return { ok: true }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }
@@ -173,4 +187,35 @@ async function writeAtomic(path: string, content: string): Promise<void> {
   const temporary = `${path}.dsh-plugin-toggle-${String(process.pid)}`
   await writeFile(temporary, content, { mode: 0o600 })
   await rename(temporary, path)
+}
+
+/**
+ * 去掉重复的「仅含 id + disabled」的追加条目。
+ *
+ * 早前的实现每次点「禁用」都在文件末尾追加一条 `- id: X / disabled: true`，
+ * 而在真机上 `X` 并不是组合里的 entry id，于是既没生效、又不断堆积（实测 4 条）。
+ * 这里保留最后一条，把前面的删掉。
+ *
+ * @param lines - patch 的各行。
+ * @returns 处理后的行。
+ */
+function dedupeAppendedEntries(lines: readonly string[]): string[] {
+  const seen = new Set<string>()
+  const keep: boolean[] = lines.map(() => true)
+
+  // 从后往前扫：保留每个 id 的最后一条「仅 id + disabled」形条目。
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const idMatch = /^\s*-\s+id:\s*(.+?)\s*$/u.exec(lines[i] ?? '')
+    if (idMatch === null) continue
+    const id = idMatch[1]
+    if (id === undefined) continue
+    // 该条目是否只有一个 disabled 子行（没有 name / config）。
+    const next = lines[i + 1] ?? ''
+    const after = lines[i + 2] ?? ''
+    const onlyDisabled = /^\s+disabled:\s*(?:true|false)\s*$/u.test(next) && !/^\s+\S/u.test(after)
+    if (!onlyDisabled) continue
+    if (seen.has(id)) keep[i] = false
+    else seen.add(id)
+  }
+  return lines.filter((_, index) => keep[index])
 }

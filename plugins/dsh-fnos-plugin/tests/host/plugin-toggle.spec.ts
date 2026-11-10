@@ -52,8 +52,32 @@ describe('禁用写入', () => {
   })
 
   it('按 entry id 改，而不是按包名', () => {
-    // 一个包可能对应多条组合条目（服务端/客户端分开挂载）。
-    expect(TOGGLE).toContain('entry.id === currentId')
+    // 一个包可能对应多条组合条目（服务端/客户端分开挂载），要全部覆盖。
+    expect(TOGGLE).toContain('matchedIds.has(currentId)')
+    expect(TOGGLE).toContain('const matchedIds = new Set(')
+  })
+})
+
+describe('禁用：entry id 解析与去重', () => {
+  it('找不到对应条目时如实报错，不盲写 id = 包名', () => {
+    /*
+      真机踩到：`dsh-plugin-wallpaper-engine` 在 profile 依赖里、也确实被加载，但
+      patch 里没有它的 name 条目（由 bundle 内部挂载）。早前盲写
+      `- id: dsh-plugin-wallpaper-engine` 只是追加一条对不上任何条目的补丁：
+      界面看「点了没反应」，而且每点一次多一条（实测堆了 4 条）。
+    */
+    expect(TOGGLE).toContain("error: 'entry-not-found'")
+    expect(TOGGLE).toContain('byId = entries.filter(entry => entry.id === name)')
+  })
+
+  it('按 id 行作为插入锚点（name 可能不存在）', () => {
+    // 只在 `name:` 后插入的实现在「无 name 条目」上完全不生效。
+    expect(TOGGLE).toContain('const isAnchor = idMatch !== null')
+  })
+
+  it('去重：同 id 的「仅 id + disabled」条目只保留一条', () => {
+    expect(TOGGLE).toContain('dedupeAppendedEntries')
+    expect(TOGGLE).toContain('onlyDisabled')
   })
 })
 
@@ -77,6 +101,21 @@ describe('卡片式界面', () => {
   it('禁用态有视觉区分', () => {
     expect(PANEL).toContain('dsh-fnos-card--off')
     expect(PANEL).toContain("t('pluginDisabled')")
+  })
+
+  it('卡片一行两个，窄容器自动退化单列', () => {
+    // 单列时每张卡只有一行文字却占满整宽，一屏放不下几个。
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const rule = SCSS.slice(SCSS.lastIndexOf('.dsh-fnos-cards {'))
+    const body = rule.slice(0, rule.indexOf('}'))
+    expect(body).toContain('grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))')
+  })
+
+  it('「已是最新」也用徽标，与其它状态同构', () => {
+    // 裸文字会让同行看起来没对齐——其它状态都是带底色的块。
+    const idx = PANEL.indexOf("t('installedUpToDate')")
+    const around = PANEL.slice(Math.max(0, idx - 160), idx)
+    expect(around).toContain('dsh-fnos-installed-badge')
   })
 })
 
