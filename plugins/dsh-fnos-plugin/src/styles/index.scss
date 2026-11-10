@@ -2382,3 +2382,17 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   overflow: visible;
   padding-bottom: 0;
 }
+
+/*
+ * Semi 的 `.semi-modal-body` 本身不是 flex 容器（`display: block`），
+ * 所以在它内部的 `.dsh-fnos-config-body` 上写 flex 值不起作用——那一层的高度
+ * 完全由内容决定，于是越过 semiBody 的边界、吃掉弹框的 padding-bottom。
+ *
+ * 这里给 semiBody 加 `overflow: hidden`，让它在自己的盒子里裁剪：
+ * 内容再多也不会盖到那 15px 留白上。它是一个 block 容器，裁掉溢出不改变布局
+ * 语义（内部本来就有自己的滚动容器）。
+ */
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-modal-body {
+  min-height: 0;
+  overflow: hidden;
+}
