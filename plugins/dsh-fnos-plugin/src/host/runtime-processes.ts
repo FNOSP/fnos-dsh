@@ -230,28 +230,24 @@ export async function listProcessTree(
   }
 
   /*
-    排序：可操作的排前面，根进程固定最后。
+    **先构建记录，再按 `canKill` 排序。**
 
-    这一栏的用途是「找到该结束的那个进程」。根进程永远不可结束（按钮是置灰的
-    「受保护」），把它按 pid 混在中间只会占掉最显眼的位置、还得让人先扫过去；
-    放到末尾相当于「其它进程」列表之后的固定脚注。
+    这一栏的用途是「找到该结束的那个进程」，所以**可结束的必须永远排在最上面**。
+    早前只把根进程挑到末尾，但受保护的并不止根进程——`gateway-proxy.mjs` 也受
+    保护，它按 pid 混在中间，用户得先扫过它才能找到真正能动手的那条。
 
-    同组内仍按 pid 升序：稳定、可预期，刷新时不会跳来跳去。
+    排序只能放在这里（而不是挑 pid 的时候）：`canKill` 依赖 `command`，而命令行
+    要逐个读 `/proc`，那时还拿不到。
+
+    同组内保持 pid 升序：稳定、可预期，刷新时不会跳来跳去。
   */
-  const ordered = [...tree].sort((a, b) => {
-    const rootA = a === rootPid ? 1 : 0
-    const rootB = b === rootPid ? 1 : 0
-    if (rootA !== rootB) return rootA - rootB
-    return a - b
-  })
-
-  const out: RuntimeProcess[] = []
-  for (const pid of ordered) {
+  const records: RuntimeProcess[] = []
+  for (const pid of tree) {
     const stat = stats.get(pid)
     if (stat === undefined) continue
     const rss = await readRss(pid)
     const command = await readCmdline(pid, stat.name)
-    out.push({
+    records.push({
       pid,
       ppid: stat.ppid,
       name: stat.name,
@@ -265,6 +261,14 @@ export async function listProcessTree(
       canKill: !isProtected(pid, rootPid, command, stat.name),
     })
   }
+
+  const out = records.sort((a, b) => {
+    // 可结束的排前面。
+    if (a.canKill !== b.canKill) return a.canKill ? -1 : 1
+    // 同为不可结束时，根进程再往后放（它是这棵树的根，位置最靠后最合理）。
+    if (a.isRoot !== b.isRoot) return a.isRoot ? 1 : -1
+    return a.pid - b.pid
+  })
   return out
 }
 

@@ -257,6 +257,39 @@ describe('运行状态：两排读数外观一致', () => {
   })
 })
 
+describe('运行状态：可结束的永远排最上面', () => {
+  it('排序按 canKill，而不是只看是不是根进程', () => {
+    /*
+      真机踩到：受保护的并不止根进程——`gateway-proxy.mjs` 也受保护，它按 pid
+      混在中间，用户得先扫过它才能找到真正能动手的那条。
+
+      这一栏的用途就是「找到该结束的那个进程」，所以可结束的必须永远在最上面。
+    */
+    const SRC = readFileSync(new URL('../../src/host/runtime-processes.ts', import.meta.url), 'utf8')
+    expect(SRC).toContain('if (a.canKill !== b.canKill) return a.canKill ? -1 : 1')
+  })
+
+  it('实测：所有 canKill 的记录都排在不可结束的前面', async () => {
+    const { listProcessTree } = await import('../../src/host/runtime-processes.ts')
+    const list = await listProcessTree(process.pid, 'user')
+    const firstUnkillable = list.findIndex(item => !item.canKill)
+    if (firstUnkillable >= 0) {
+      // 一旦出现不可结束的，后面不能再有可结束的。
+      expect(list.slice(firstUnkillable).every(item => !item.canKill)).toBe(true)
+    }
+  })
+
+  it('同为不可结束时，根进程排最后', async () => {
+    const { listProcessTree } = await import('../../src/host/runtime-processes.ts')
+    const list = await listProcessTree(process.pid, 'user')
+    const rootIndex = list.findIndex(item => item.isRoot)
+    if (rootIndex >= 0) {
+      // 根进程之后不应再有其它不可结束的进程。
+      expect(list.slice(rootIndex + 1).every(item => !item.canKill)).toBe(true)
+    }
+  })
+})
+
 describe('运行状态：入口进程受保护', () => {
   it('gateway-proxy 与根进程同等保护（结束它等于应用失联）', async () => {
     const { listProcessTree } = await import('../../src/host/runtime-processes.ts')
