@@ -174,4 +174,13 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   runtimeGatewayPort: 'Gateway-Port',
   runtimePid: 'PID',
   runtimeFailed: 'Laufzeitstatus konnte nicht gelesen werden: ',
+  runtimeProcesses: "Prozesse",
+  runtimeProcessesTip: "Prozesse dieser Anwendung und ihrer Kindprozesse, gelesen aus /proc. Dies ist die OS-Sicht, nicht die Aufgabenliste der Sitzung: der Host bietet keine API, um Aufgaben anderer Sitzungen aufzulisten.",
+  runtimeProcessUnavailable: "Die Prozessliste ist in dieser Umgebung nicht lesbar (kein /proc).",
+  runtimeKill: "Beenden",
+  runtimeKillForce: "Sofort beenden",
+  runtimeKillConfirm: "Diesen Prozess beenden? Seine Kindprozesse koennen ebenfalls stoppen.",
+  runtimeKillForceConfirm: "Diesen Prozess sofort beenden? Nicht gespeicherte Arbeit geht verloren.",
+  runtimeKillFailed: "Prozess beenden fehlgeschlagen: ",
+  runtimeProcessRoot: "Hauptprozess",
 }

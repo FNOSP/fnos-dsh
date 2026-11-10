@@ -10,8 +10,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { FNOS_RUNTIME_STATUS_ROUTE } from '../contracts/runtime-status-contract.ts'
+import { FNOS_RUNTIME_KILL_ROUTE, FNOS_RUNTIME_STATUS_ROUTE } from '../contracts/runtime-status-contract.ts'
 import { readRuntimeStatus } from './runtime-status.ts'
+import { ALLOWED_SIGNALS, killProcess, type KillSignal } from './runtime-processes.ts'
 
 function send(res: ServerResponse, status: number, value: unknown): void {
   // 指标每秒都在变，必须禁止缓存，否则轮询拿到的是同一份旧快照。
@@ -60,4 +61,57 @@ export function registerRuntimeStatusRoutes(ctx: Context): void {
       }
     },
   }), 'dsh-fnos: runtime status')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_RUNTIME_KILL_ROUTE,
+    handler: async (req, res) => {
+      /*
+        结束进程是**写操作**，两道门槛都要过：
+        1. 同源——跨站请求不能借这个路由杀掉宿主进程；
+        2. POST——GET 会被预取/缓存机制意外触发，杀进程不能有这个可能。
+      */
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      if (req.method !== 'POST') return send(res, 405, { error: 'method-not-allowed' })
+      try {
+        const body = await readJsonBody(req)
+        const pid = Number(body.pid)
+        const signal = body.signal
+        if (!Number.isInteger(pid) || pid <= 0) return send(res, 400, { error: 'invalid-pid' })
+        if (typeof signal !== 'string' || !ALLOWED_SIGNALS.includes(signal as KillSignal)) {
+          return send(res, 400, { error: 'signal-not-allowed' })
+        }
+        const result = await killProcess(pid, signal as KillSignal)
+        if (!result.ok) return send(res, 409, { error: result.reason ?? 'kill-refused' })
+        send(res, 200, { ok: true, pid, signal })
+      } catch (error) {
+        send(res, 500, { error: 'runtime-kill-failed', message: error instanceof Error ? error.message : String(error) })
+      }
+    },
+  }), 'dsh-fnos: runtime kill')
+}
+
+/** 请求体上限：只有 pid 与 signal，1KB 足够，超出即拒绝。 */
+const MAX_BODY_BYTES = 1024
+
+/**
+ * 读 JSON 请求体。
+ *
+ * 带体积上限：这个路由能杀进程，不能让调用方用一个巨大的 body 把宿主拖住。
+ * @param req - 请求。
+ * @returns 解析后的对象；非法 JSON 抛错。
+ */
+async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = []
+  let size = 0
+  for await (const chunk of req) {
+    const buf = chunk as Buffer
+    size += buf.length
+    if (size > MAX_BODY_BYTES) throw new Error('body-too-large')
+    chunks.push(buf)
+  }
+  const text = Buffer.concat(chunks).toString('utf8')
+  if (text.length === 0) return {}
+  const value: unknown = JSON.parse(text)
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {}
 }

@@ -173,4 +173,13 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   runtimeGatewayPort: 'Порт шлюза',
   runtimePid: 'PID',
   runtimeFailed: 'Не удалось прочитать состояние выполнения: ',
+  runtimeProcesses: "Процессы",
+  runtimeProcessesTip: "Процессы этого приложения и его потомки, читаются из /proc. Это представление ОС, а не список задач сеанса: хост не предоставляет API для перечисления задач других сеансов.",
+  runtimeProcessUnavailable: "В этом окружении дерево процессов недоступно (нет /proc).",
+  runtimeKill: "Завершить",
+  runtimeKillForce: "Принудительно завершить",
+  runtimeKillConfirm: "Завершить этот процесс? Его дочерние процессы тоже могут остановиться.",
+  runtimeKillForceConfirm: "Принудительно завершить процесс немедленно? Несохранённая работа будет потеряна.",
+  runtimeKillFailed: "Не удалось завершить процесс: ",
+  runtimeProcessRoot: "основной",
 }

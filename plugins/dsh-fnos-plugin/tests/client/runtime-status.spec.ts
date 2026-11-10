@@ -103,6 +103,51 @@ describe('运行状态：网络与四宫格', () => {
   })
 })
 
+describe('运行状态：进程树与结束', () => {
+  it('只能动进程树内的进程，且根与 init 受保护', async () => {
+    const { killProcess } = await import('../../src/host/runtime-processes.ts')
+    // 关键安全边界：不在本树内的 pid 一律拒绝。
+    const outside = await killProcess(1, 'SIGTERM')
+    expect(outside.ok).toBe(false)
+    expect(outside.reason).toBe('protected-process')
+    // 自己也不能杀。
+    const self = await killProcess(process.pid, 'SIGKILL')
+    expect(self.ok).toBe(false)
+  })
+
+  it('只接受 SIGTERM / SIGKILL 两种信号', async () => {
+    const { killProcess, ALLOWED_SIGNALS } = await import('../../src/host/runtime-processes.ts')
+    expect([...ALLOWED_SIGNALS]).toEqual(['SIGTERM', 'SIGKILL'])
+    const bad = await killProcess(1234, 'SIGUSR2' as 'SIGTERM')
+    expect(bad.ok).toBe(false)
+    expect(bad.reason).toBe('signal-not-allowed')
+  })
+
+  it('非 Linux 上返回空列表而不是抛错', async () => {
+    const { listProcessTree } = await import('../../src/host/runtime-processes.ts')
+    const tree = await listProcessTree()
+    expect(Array.isArray(tree)).toBe(true)
+  })
+
+  it('kill 路由是 POST + 同源 + 限制 body 体积', () => {
+    expect(ROUTES).toContain("'method-not-allowed'")
+    expect(ROUTES).toContain('MAX_BODY_BYTES')
+    expect(CONTRACT).toContain("FNOS_RUNTIME_KILL_ROUTE = '/plugins/dsh-fnos/runtime/kill'")
+  })
+
+  it('界面如实说明这是 OS 视角而不是会话任务，并提供两档结束', () => {
+    const LIST = readFileSync(new URL('../../src/components/RuntimeProcessList.tsx', import.meta.url), 'utf8')
+    expect(LIST).toContain('runtimeProcessesTip')
+    expect(LIST).toContain("'SIGTERM'")
+    expect(LIST).toContain("'SIGKILL'")
+    // 破坏性动作必须确认（用 DshModal，不用被 lint 禁用的 window.confirm）。
+    expect(LIST).toContain('DshModal')
+    expect(LIST).toContain('setConfirming')
+    // 不可杀的行不渲染按钮。
+    expect(LIST).toContain('item.canKill')
+  })
+})
+
 describe('运行状态：与左侧菜单对齐', () => {
   it('分组标题重置 h3 默认外边距（否则右列永远低 15px）', () => {
     // 浏览器默认给 h3 `margin: 1em 0`；不重置的话无论怎么调上层 padding，

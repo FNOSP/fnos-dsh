@@ -182,4 +182,13 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   runtimeGatewayPort: 'ゲートウェイポート',
   runtimePid: 'PID',
   runtimeFailed: '実行状況を読み取れませんでした: ',
+  runtimeProcesses: "プロセス",
+  runtimeProcessesTip: "このアプリとその子プロセス。/proc から読み取ります。これは OS の視点であり、セッションのタスク一覧ではありません。ホストは他セッションのタスクを列挙するAPIを提供していません。",
+  runtimeProcessUnavailable: "この環境ではプロセスツリーを読み取れません（/proc なし）。",
+  runtimeKill: "終了",
+  runtimeKillForce: "強制終了",
+  runtimeKillConfirm: "このプロセスを終了しますか？子プロセスも停止する場合があります。",
+  runtimeKillForceConfirm: "このプロセスを直ちに強制終了しますか？未保存の作業は失われます。",
+  runtimeKillFailed: "プロセスの終了に失敗しました: ",
+  runtimeProcessRoot: "メイン",
 }

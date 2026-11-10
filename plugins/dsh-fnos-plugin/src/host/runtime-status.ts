@@ -23,6 +23,7 @@ import type {
   RuntimePorts,
   RuntimeStatus,
 } from '../contracts/runtime-status-contract.ts'
+import { listProcessTree } from './runtime-processes.ts'
 
 /** 上一次 CPU 采样，用于求差。 */
 interface CpuSample {
@@ -172,11 +173,15 @@ export async function collectMetrics(now: number = Date.now()): Promise<RuntimeM
  * @returns 运行状态。
  */
 export async function readRuntimeStatus(env: NodeJS.ProcessEnv = process.env): Promise<RuntimeStatus> {
+  const processes = await listProcessTree()
   return {
     pid: process.pid,
     platform: env.DSH_HOME === undefined || env.DSH_HOME.length === 0 ? 'local' : 'fnos',
     ports: resolveRuntimePorts(env),
     metrics: await collectMetrics(),
+    processes,
+    // 只有根进程在列表里才说明真的读到了 /proc；空数组可能是「读不到」。
+    processTreeAvailable: processes.some(item => item.isRoot),
   }
 }
 

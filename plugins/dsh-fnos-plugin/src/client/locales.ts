@@ -177,6 +177,15 @@ export const en = {
   runtimeGatewayPort: 'Gateway port',
   runtimePid: 'PID',
   runtimeFailed: 'Failed to read runtime status: ',
+  runtimeProcesses: "Processes",
+  runtimeProcessesTip: "Processes of this application and its children, read from /proc. This is the OS view, not the session task list: the host exposes no API to enumerate another session tasks.",
+  runtimeProcessUnavailable: "Process tree is not readable in this environment (no /proc).",
+  runtimeKill: "End",
+  runtimeKillForce: "Force end",
+  runtimeKillConfirm: "End this process? Its children may also stop.",
+  runtimeKillForceConfirm: "Force end this process immediately? Unsaved work in it is lost.",
+  runtimeKillFailed: "Failed to end process: ",
+  runtimeProcessRoot: "main",
 }
 
 export type FnosLocaleKey = keyof typeof en
@@ -363,4 +372,13 @@ export const zh: { [Key in FnosLocaleKey]: string } = {
   runtimeGatewayPort: '网关端口',
   runtimePid: '进程号',
   runtimeFailed: '读取运行状态失败：',
+  runtimeProcesses: "进程",
+  runtimeProcessesTip: "本应用及其子进程，读自 /proc。这是操作系统视角，不是会话任务列表——宿主没有提供枚举其它会话任务的接口。",
+  runtimeProcessUnavailable: "当前环境读不到进程树（没有 /proc）。",
+  runtimeKill: "结束",
+  runtimeKillForce: "强制结束",
+  runtimeKillConfirm: "结束这个进程？它的子进程可能一并停止。",
+  runtimeKillForceConfirm: "立即强制结束这个进程？其中未保存的工作会丢失。",
+  runtimeKillFailed: "结束进程失败：",
+  runtimeProcessRoot: "主进程",
 }

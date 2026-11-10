@@ -174,4 +174,13 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   runtimeGatewayPort: 'Port de la passerelle',
   runtimePid: 'PID',
   runtimeFailed: "Impossible de lire l'état d'exécution : ",
+  runtimeProcesses: "Processus",
+  runtimeProcessesTip: "Processus de cette application et de ses enfants, lus dans /proc. C est la vue du systeme, pas la liste des taches de la session : l hote n expose aucune API pour lister les taches d une autre session.",
+  runtimeProcessUnavailable: "Arbre de processus illisible dans cet environnement (pas de /proc).",
+  runtimeKill: "Terminer",
+  runtimeKillForce: "Forcer l arret",
+  runtimeKillConfirm: "Terminer ce processus ? Ses enfants peuvent aussi s arreter.",
+  runtimeKillForceConfirm: "Forcer l arret immediat de ce processus ? Le travail non enregistre sera perdu.",
+  runtimeKillFailed: "Echec de la fin du processus : ",
+  runtimeProcessRoot: "principal",
 }

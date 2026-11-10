@@ -60,6 +60,32 @@ export interface RuntimeMetrics {
   readonly at: number
 }
 
+/** 结束进程的路由（写操作）。 */
+export const FNOS_RUNTIME_KILL_ROUTE = '/plugins/dsh-fnos/runtime/kill'
+
+/**
+ * 本应用进程树里的一个进程。
+ *
+ * 字段刻意保持「操作系统本来就这样」的口径：`state` 是 /proc 的单字母状态，
+ * 不在宿主侧翻译成中文——翻译属于展示层，契约这一层越少语义越不会漂。
+ */
+export interface RuntimeProcess {
+  readonly pid: number
+  readonly ppid: number
+  /** /proc 里的进程名（comm）。 */
+  readonly name: string
+  /** 完整命令行，已把 NUL 换成空格。 */
+  readonly command: string
+  /** 常驻内存（字节）；读不到时缺省。 */
+  readonly rssBytes?: number
+  /** /proc stat 的状态字母，如 `R`/`S`/`Z`。 */
+  readonly state: string
+  /** 是否为进程树根（本应用主进程）。 */
+  readonly isRoot: boolean
+  /** 是否允许结束（根进程与 init 为 false）。 */
+  readonly canKill: boolean
+}
+
 /** 运行状态响应。 */
 export interface RuntimeStatus {
   /** 进程 pid。 */
@@ -68,4 +94,13 @@ export interface RuntimeStatus {
   readonly platform: string
   readonly ports: RuntimePorts
   readonly metrics: RuntimeMetrics
+  /**
+   * 本应用进程树；非 Linux 上为空数组（读不到 /proc）。
+   *
+   * 空数组表示「这个环境拿不到」，与「当前没有子进程」是两件事，
+   * 界面需要结合 `processTreeAvailable` 区分。
+   */
+  readonly processes: readonly RuntimeProcess[]
+  /** 是否能枚举进程树（Linux 上有 /proc 为 true）。 */
+  readonly processTreeAvailable: boolean
 }

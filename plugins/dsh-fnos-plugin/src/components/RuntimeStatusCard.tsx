@@ -31,6 +31,7 @@ import type { ECharts } from 'echarts/core'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchRuntimeStatus } from '../client/services/runtime-status-client.ts'
 import type { RuntimeStatus } from '../contracts/runtime-status-contract.ts'
+import { RuntimeProcessList } from './RuntimeProcessList.tsx'
 
 echartsCore.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
@@ -282,6 +283,13 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
       <div ref={hostRef} className="dsh-fnos-runtime-chart" role="img" aria-label={t('runtimeTitle')} />
 
       {error === undefined ? null : <p className="dsh-fnos-repair-error" role="alert">{`${t('runtimeFailed')}${error}`}</p>}
+
+      {/* 进程树放在曲线下面：指标回答「忙不忙」，进程列表回答「忙在哪个进程上」。 */}
+      <RuntimeProcessList
+        t={t}
+        processes={status?.processes ?? []}
+        available={status?.processTreeAvailable ?? false}
+      />
     </section>
   )
 }

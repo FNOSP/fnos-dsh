@@ -182,4 +182,13 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   runtimeGatewayPort: '게이트웨이 포트',
   runtimePid: 'PID',
   runtimeFailed: '실행 상태를 읽지 못했습니다: ',
+  runtimeProcesses: "프로세스",
+  runtimeProcessesTip: "이 앱과 하위 프로세스이며 /proc에서 읽습니다. OS 관점이며 세션 작업 목록이 아닙니다. 호스트는 다른 세션의 작업을 열거하는 API를 제공하지 않습니다.",
+  runtimeProcessUnavailable: "이 환경에서는 프로세스 트리를 읽을 수 없습니다(/proc 없음).",
+  runtimeKill: "종료",
+  runtimeKillForce: "강제 종료",
+  runtimeKillConfirm: "이 프로세스를 종료할까요? 하위 프로세스도 중지될 수 있습니다.",
+  runtimeKillForceConfirm: "이 프로세스를 즉시 강제 종료할까요? 저장하지 않은 작업이 사라집니다.",
+  runtimeKillFailed: "프로세스 종료 실패: ",
+  runtimeProcessRoot: "기본",
 }

@@ -174,4 +174,13 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   runtimeGatewayPort: 'Puerto de la puerta de enlace',
   runtimePid: 'PID',
   runtimeFailed: 'No se pudo leer el estado de ejecución: ',
+  runtimeProcesses: "Procesos",
+  runtimeProcessesTip: "Procesos de esta aplicacion y sus hijos, leidos de /proc. Es la vista del sistema operativo, no la lista de tareas de la sesion: el host no ofrece API para enumerar tareas de otras sesiones.",
+  runtimeProcessUnavailable: "No se puede leer el arbol de procesos en este entorno (sin /proc).",
+  runtimeKill: "Finalizar",
+  runtimeKillForce: "Forzar finalizacion",
+  runtimeKillConfirm: "Finalizar este proceso? Sus procesos hijos tambien pueden detenerse.",
+  runtimeKillForceConfirm: "Forzar la finalizacion inmediata de este proceso? Se perdera el trabajo no guardado.",
+  runtimeKillFailed: "Error al finalizar el proceso: ",
+  runtimeProcessRoot: "principal",
 }
