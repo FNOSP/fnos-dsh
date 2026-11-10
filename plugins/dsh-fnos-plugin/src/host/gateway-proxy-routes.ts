@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
+import { detectProxyPrefixes } from './gateway-proxy-detect.ts'
 import type { FnosSettings } from '../contracts/theme-contract.ts'
 
 function send(res: ServerResponse, status: number, value: unknown): void { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(value)) }
@@ -79,9 +80,23 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
     const descriptor = settings.describe().find(row => row.ns === settingsNamespace)
     return descriptor?.value as FnosSettings ?? {}
   }
+  /**
+   * 当前自动识别到的前缀。
+   *
+   * 每次写文档都重新读一次路由表，而不是缓存：用户装/卸插件后前缀会变，
+   * 缓存就要额外维护失效，容易留下残影（需求 FNOS-052-04 明确要求
+   * 「插件停用后其前缀从生效集合消失」）。
+   * @returns 自动前缀集合。
+   */
+  const autoPrefixes = (): string[] => [...detectProxyPrefixes(ctx.webServer).prefixes]
+
   const file = gatewayProxyPathsFile()
   if (file !== undefined) {
-    const sync = (value: FnosSettings): Promise<void> => writeDocument(file, { version: 1, paths: normalizeGatewayProxyPaths(value.gatewayProxyPaths ?? []) ?? [] })
+    const sync = (value: FnosSettings): Promise<void> => writeDocument(file, {
+      version: 1,
+      paths: normalizeGatewayProxyPaths(value.gatewayProxyPaths ?? []) ?? [],
+      auto: autoPrefixes(),
+    })
     ctx.effect(() => {
       // 启动时的方向取决于 settings 是否为空：
       //
@@ -120,15 +135,20 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         if (file === undefined) return send(res, 503, { error: 'fnos-gateway-config-unavailable' })
         // GET 额外带上网关固定前缀：前端据此渲染「系统内置」只读区，
         // 让用户明白这些路径为什么不在自己的可编辑列表里。
-        if (req.method === 'GET') return send(res, 200, {
-          version: 1,
-          paths: normalizeGatewayProxyPaths(readSettings().gatewayProxyPaths ?? []) ?? [],
-          builtin: FNOS_GATEWAY_BUILTIN_PREFIXES,
-        })
+        if (req.method === 'GET') {
+          const detection = detectProxyPrefixes(ctx.webServer)
+          return send(res, 200, {
+            version: 1,
+            paths: normalizeGatewayProxyPaths(readSettings().gatewayProxyPaths ?? []) ?? [],
+            auto: detection.prefixes,
+            builtin: FNOS_GATEWAY_BUILTIN_PREFIXES,
+          })
+        }
         if (req.method !== 'PUT') return send(res, 405, { error: 'method-not-allowed' })
         const paths = validateGatewayProxyPaths(await body(req))
         if (paths === undefined) return send(res, 400, { error: 'invalid-gateway-proxy-paths' })
-        const document: GatewayProxyPathsDocument = { version: 1, paths }
+        // 保留 auto：用户保存手动项不该把自动区段清掉。
+        const document: GatewayProxyPathsDocument = { version: 1, paths, auto: autoPrefixes() }
         const previous = await readDocument(file)
         await writeDocument(file, document)
         try {

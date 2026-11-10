@@ -198,7 +198,8 @@ describe('gateway proxy-path route over the real DSH webserver', () => {
       // Before the fix this was an empty-body 400.
       expect(response.status).toBe(200)
       expect(response.contentType).toContain('application/json')
-      expect(JSON.parse(response.body)).toEqual({ version: 1, paths: ['/store/api'] })
+      // 同上：`auto` 由真实路由表决定，这里只保证手动项正确且 auto 存在。
+      expect(JSON.parse(response.body)).toMatchObject({ version: 1, paths: ['/store/api'] })
       // The write must have reached the settings namespace, not just the file.
       expect(harness.stored().gatewayProxyPaths).toEqual(['/store/api'])
     } finally {

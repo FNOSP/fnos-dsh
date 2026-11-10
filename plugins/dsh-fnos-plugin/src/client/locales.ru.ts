@@ -196,4 +196,13 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   runtimeLogLimit: "Лимит",
   runtimeLogEmpty: "Журналов пока нет.",
   runtimeLogFailed: "Не удалось прочитать журналы: ",
+  configSectionProxy: "Прокси плагинов",
+  gatewayProxyAutoTitle: "Определено автоматически",
+  gatewayProxyAutoOn: "Вкл",
+  gatewayProxyAutoOff: "Выкл",
+  gatewayProxyAutoUnavailable: "Не удалось прочитать таблицу маршрутов хоста, автоматическое определение недоступно. Причина: ",
+  gatewayProxyAutoEmpty: "Пока ни один плагин не зарегистрировал маршрут с абсолютным путём.",
+  gatewayProxyRoutesUnit: "маршрутов",
+  gatewayProxyManualTitle: "Ручные дополнения",
+  gatewayProxyManualHint: "Необязательно. Определённые префиксы уже работают; добавляйте только пути, невидимые приложению.",
 }

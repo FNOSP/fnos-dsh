@@ -22,6 +22,7 @@ import { DshModal } from '@tnnevol/dsh-semi-ui'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { AuthorizedDirectoriesCard } from './AuthorizedDirectoriesCard.tsx'
+import { GatewayProxyCard } from './GatewayProxyCard.tsx'
 import { DependencyRepairCard } from './DependencyRepairCard.tsx'
 import { RuntimeStatusCard } from './RuntimeStatusCard.tsx'
 import { RuntimeLogPanel } from './RuntimeLogPanel.tsx'
@@ -29,7 +30,7 @@ import { RuntimeLogPanel } from './RuntimeLogPanel.tsx'
 type Translate = (key: FnosLocaleKey) => string
 
 /** 弹框里的一级分组；新增配置项时在这里登记。 */
-type SectionId = 'directories' | 'repair' | 'runtime' | 'logs'
+type SectionId = 'directories' | 'proxy' | 'repair' | 'runtime' | 'logs'
 
 export interface FnosConfigDialogProps {
   /** 是否可见。 */
@@ -54,6 +55,8 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
   // 每项配一个图标：纯文字分组在窄列里不易扫读，图标给一眼可辨的锚点。
   const sections: readonly { id: SectionId, label: string, icon: UsedIconName }[] = [
     { id: 'directories', label: t('configSectionDirectories'), icon: 'lucide:folder' },
+    // 「三方插件代理」紧跟授权目录：两者都是「谁能访问什么」的放行配置。
+    { id: 'proxy', label: t('configSectionProxy'), icon: 'lucide:route' },
     { id: 'repair', label: t('configSectionRepair'), icon: 'lucide:wrench' },
     // 「运行」放最后：它是只读观测，不属于「设置」，放在配置项之后符合阅读顺序。
     { id: 'runtime', label: t('configSectionRuntime'), icon: 'lucide:activity' },
@@ -100,6 +103,7 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
         </nav>
         <div className="dsh-fnos-config-panel">
           {section === 'directories' ? <AuthorizedDirectoriesCard t={t} /> : null}
+          {section === 'proxy' ? <GatewayProxyCard t={t} /> : null}
           {section === 'repair' ? <DependencyRepairCard t={t} /> : null}
           {section === 'runtime' ? <RuntimeStatusCard t={t} /> : null}
           {section === 'logs' ? <RuntimeLogPanel t={t} /> : null}

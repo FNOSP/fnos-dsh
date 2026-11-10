@@ -18,6 +18,8 @@ const read = (relative: string): string => readFileSync(new URL(relative, import
  *  - 文本框既不知道快捷键、也不知道「一行一个」，且行数无上限。
  */
 const CARD = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+/** 「三方插件代理」已从授权目录卡片拆出为独立分组（FNOS-052）。 */
+const PROXY = read('../../src/components/GatewayProxyCard.tsx')
 const SCSS = read('../../src/styles/index.scss')
 const LOCALES = read('../../src/client/locales.ts')
 
@@ -88,16 +90,16 @@ describe('反代配置：文案、tip、placeholder、行数上限', () => {
   })
 
   it('label 后有 tip 图标，说明放进 tooltip 而不是平铺', () => {
-    expect(CARD).toContain('DshIconInfoCircle')
-    expect(CARD).toContain('DshTooltip')
-    expect(CARD).toContain("t('gatewayProxyDescription')")
+    expect(PROXY).toContain('DshIconInfoCircle')
+    expect(PROXY).toContain('DshTooltip')
+    expect(PROXY).toContain("t('gatewayProxyDescription')")
     // 平铺的那段说明段落被移除（它的 key 仍可保留给 tooltip 复用，但不能作为
     // 独立段落渲染在标题下）。
-    expect(CARD).not.toContain('dsh-fnos-authorized-gateway-description')
+    expect(PROXY).not.toContain('dsh-fnos-authorized-gateway-description')
   })
 
   it('tip 图标可键盘聚焦并带 aria-label（说明不能只存在于悬浮层）', () => {
-    const tip = CARD.slice(CARD.indexOf('dsh-fnos-authorized-gateway-tip'))
+    const tip = PROXY.slice(PROXY.indexOf('dsh-fnos-authorized-gateway-tip'))
     expect(tip.slice(0, 400)).toContain('tabIndex={0}')
     expect(tip.slice(0, 400)).toContain('aria-label=')
   })
@@ -137,7 +139,7 @@ describe('反代配置：文案、tip、placeholder、行数上限', () => {
 
   it('tooltip 带专用类，换行才渲染得出来', () => {
     // 三行结构靠 `white-space: pre-line` 渲染；浮层 portal 到 body，只能靠类名命中。
-    expect(CARD).toContain('className="dsh-fnos-gateway-tip-content"')
+    expect(PROXY).toContain('className="dsh-fnos-gateway-tip-content"')
     const tipRule = (() => {
       const i = SCSS.indexOf('.semi-tooltip-wrapper.dsh-fnos-gateway-tip-content')
       return SCSS.slice(i, i + SCSS.slice(i).indexOf('}'))

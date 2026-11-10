@@ -197,4 +197,13 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   runtimeLogLimit: "Limite",
   runtimeLogEmpty: "Aucun journal pour le moment.",
   runtimeLogFailed: "Impossible de lire les journaux : ",
+  configSectionProxy: "Proxy de plugins",
+  gatewayProxyAutoTitle: "Detecte automatiquement",
+  gatewayProxyAutoOn: "Active",
+  gatewayProxyAutoOff: "Desactive",
+  gatewayProxyAutoUnavailable: "Impossible de lire la table de routes de l hote, rien n est detecte. Raison : ",
+  gatewayProxyAutoEmpty: "Aucun plugin ne registre encore de route absolue.",
+  gatewayProxyRoutesUnit: "routes",
+  gatewayProxyManualTitle: "Ajouts manuels",
+  gatewayProxyManualHint: "Optionnel. Les prefixes detectes fonctionnent deja ; ajoutez ici seulement les chemins invisibles pour l app.",
 }

@@ -51,6 +51,7 @@ export type UsedIconName =
   | 'lucide:arrow-up'
   | 'lucide:list-tree'
   | 'lucide:scroll-text'
+  | 'lucide:route'
 
 /** 默认尺寸（px）；菜单行图标按官方 16px 对齐。 */
 const DEFAULT_SIZE = 16

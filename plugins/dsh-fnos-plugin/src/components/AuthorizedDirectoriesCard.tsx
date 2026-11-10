@@ -1,8 +1,7 @@
 /** Settings card for the fnOS shared-directory authorization list. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
-import { DshIconInfoCircle, DshModal, DshTooltip } from '@tnnevol/dsh-semi-ui'
+import { DshModal } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { diagnosePickerResult, isPickerCancellation, isPickerNoSelection, logPickerSdkEvent, logPickerSdkValue } from '../client/input-references/picker-result.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
@@ -16,8 +15,6 @@ import {
   FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
   type AuthorizedDirectory,
 } from '../contracts/authorized-directories-contract.ts'
-import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_ROUTE } from '../contracts/gateway-proxy-contract.ts'
-import { isProxyPathsSaveShortcut } from '../client/shortcuts/proxy-paths-save-shortcut.ts'
 
 type Translate = (key: FnosLocaleKey) => string
 
@@ -116,9 +113,6 @@ function errorMessage(error: unknown, t: Translate, action: 'load' | 'pick' | 'd
 export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps) {
   const [state, setState] = useState<LoadState>({ status: 'idle', directories: [] })
   const [busy, setBusy] = useState(false)
-  const [savedProxyPaths, setSavedProxyPaths] = useState('')
-  const [proxyPathsDraft, setProxyPathsDraft] = useState('')
-  const [proxyMessage, setProxyMessage] = useState<string>()
   const [pendingDeletePath, setPendingDeletePath] = useState<string>()
   const [validateNotice, setValidateNotice] = useState<string>()
   /**
@@ -129,15 +123,6 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
    */
   const directoriesRef = useRef<AuthorizedDirectory[]>([])
 
-  const loadProxyPaths = useCallback(async (): Promise<void> => {
-    try {
-      const result = await jsonRequest<{ paths?: string[] }>(FNOS_GATEWAY_PROXY_PATHS_ROUTE)
-      const text = Array.isArray(result.paths) ? result.paths.join('\n') : ''
-      setSavedProxyPaths(text)
-      setProxyPathsDraft(text)
-      setProxyMessage(undefined)
-    } catch { setProxyMessage(t('gatewayProxyFailed')) }
-  }, [t])
 
   const refresh = useCallback(async (): Promise<void> => {
     logAuthorizedDirectoryEvent('refresh-start', {})
@@ -178,32 +163,9 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
    */
   useEffect(() => {
     void refresh()
-    void loadProxyPaths()
-  }, [loadProxyPaths, refresh])
+  }, [refresh])
 
-  const saveProxyPaths = useCallback(async (): Promise<void> => {
-    setBusy(true)
-    try {
-      const paths = proxyPathsDraft.split(/\r?\n/u).map(value => value.trim()).filter(Boolean)
-      const result = await jsonRequest<{ paths: string[] }>(FNOS_GATEWAY_PROXY_PATHS_ROUTE, 'PUT', { version: 1, paths })
-      const text = result.paths.join('\n')
-      setSavedProxyPaths(text)
-      setProxyPathsDraft(text)
-      setProxyMessage(t('gatewayProxySaved'))
-    } catch (error: unknown) {
-      setProxyMessage(error instanceof DirectoryRequestError && error.code === 'invalid-gateway-proxy-paths' ? t('gatewayProxyInvalid') : t('gatewayProxyFailed'))
-    }
-    finally { setBusy(false) }
-  }, [proxyPathsDraft, t])
 
-  const handleProxyPathsKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (!isProxyPathsSaveShortcut(event)) return
-    // Suppress the browser's Save-page dialog and stop the gesture from
-    // reaching outer handlers (the DSH shell registers global hotkeys).
-    event.preventDefault()
-    event.stopPropagation()
-    if (!busy && proxyPathsDraft !== savedProxyPaths) void saveProxyPaths()
-  }, [busy, proxyPathsDraft, saveProxyPaths, savedProxyPaths])
 
   /**
    * 把当前可移除目录写进持久化记录（FNOS-009-09）。
@@ -368,54 +330,6 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
               ))}
             </ul>
           ) : null}
-          <div className="dsh-fnos-authorized-gateway">
-            <div className="dsh-fnos-authorized-gateway-head">
-              <strong className="dsh-fnos-authorized-gateway-title">{t('gatewayProxyTitle')}</strong>
-              {/*
-                * 说明收进 tip 图标。
-                *
-                * 原先是一段平铺在标题下的长句，占掉两行还挤不出信息量。`tabIndex`
-                * 与 `aria-label` 是必需的：说明只存在于悬浮层时，键盘与读屏用户
-                * 拿不到它——那等于把这部分用户排除在这条说明之外。
-                *
-                * `className` 是必需的：文案按「是什么 / 怎么写 / 举例子」分三行，
-                * 浮层被 portal 到 body，只能靠这个专用类拿到 `white-space: pre-line`
-                * （直接改 `.semi-tooltip-wrapper` 会波及所有提示）。
-                */}
-              <DshTooltip className="dsh-fnos-gateway-tip-content" content={t('gatewayProxyDescription')}>
-                <span
-                  className="dsh-fnos-authorized-gateway-tip"
-                  tabIndex={0}
-                  aria-label={t('gatewayProxyDescription')}
-                >
-                  <DshIconInfoCircle />
-                </span>
-              </DshTooltip>
-            </div>
-            {/*
-              系统内置前缀单独展示、只读。
-              它们本来就被校验拦在可配置项之外，但「拦掉」不等于「看得见」——
-              不列出来，用户会反复尝试添加这些路径然后被拒，却不知道为什么。
-            */}
-            <div className="dsh-fnos-gateway-builtin">
-              <p className="dsh-fnos-authorized-body">{t('gatewayProxyBuiltinLabel')}</p>
-              <ul className="dsh-fnos-gateway-builtin-list">
-                {FNOS_GATEWAY_BUILTIN_PREFIXES.map(item => (
-                  <li key={item.path} className="dsh-fnos-gateway-builtin-item">
-                    <code>{item.path}</code>
-                    <span>{item.description}</span>
-                    <span className="dsh-fnos-gateway-builtin-badge">{t('gatewayProxyBuiltinReadonly')}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <textarea value={proxyPathsDraft} placeholder={t('gatewayProxyPlaceholder')} className="dsh-fnos-authorized-textarea" disabled={busy} onKeyDown={handleProxyPathsKeyDown} onChange={event => { setProxyPathsDraft(event.currentTarget.value); setProxyMessage(undefined) }} />
-            {proxyMessage === undefined ? null : <p className="dsh-fnos-authorized-body dsh-fnos-authorized-gateway-message">{proxyMessage}</p>}
-            <div className="dsh-fnos-authorized-row dsh-fnos-authorized-row--end">
-              <button type="button" className="dsh-fnos-authorized-button" disabled={busy || proxyPathsDraft === savedProxyPaths} onClick={() => { setProxyPathsDraft(savedProxyPaths); setProxyMessage(undefined) }}>{t('discard')}</button>
-              <button type="button" className="dsh-fnos-authorized-button dsh-fnos-authorized-button--primary" disabled={busy || proxyPathsDraft === savedProxyPaths} onClick={() => { void saveProxyPaths() }}>{t('save')}</button>
-            </div>
-          </div>
       </div>
     </div>
   )

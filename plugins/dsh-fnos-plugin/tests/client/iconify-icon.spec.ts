@@ -50,6 +50,7 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
       'lucide:plug',
       'lucide:power',
       'lucide:refresh-cw',
+      'lucide:route',
       'lucide:scroll-text',
       'lucide:wrench',
     ])

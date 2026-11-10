@@ -200,6 +200,15 @@ export const en = {
   runtimeLogLimit: "Limit",
   runtimeLogEmpty: "No logs yet.",
   runtimeLogFailed: "Failed to read logs: ",
+  configSectionProxy: "Plugin proxy",
+  gatewayProxyAutoTitle: "Auto-detected",
+  gatewayProxyAutoOn: "On",
+  gatewayProxyAutoOff: "Off",
+  gatewayProxyAutoUnavailable: "Could not read the host route table, so nothing is auto-detected. Reason: ",
+  gatewayProxyAutoEmpty: "No plugin registers an absolute-path route yet.",
+  gatewayProxyRoutesUnit: "routes",
+  gatewayProxyManualTitle: "Manual additions",
+  gatewayProxyManualHint: "Optional. Auto-detected prefixes already work; add here only paths the app cannot see.",
 }
 
 export type FnosLocaleKey = keyof typeof en
@@ -409,4 +418,13 @@ export const zh: { [Key in FnosLocaleKey]: string } = {
   runtimeLogLimit: "条数",
   runtimeLogEmpty: "暂无日志。",
   runtimeLogFailed: "读取日志失败：",
+  configSectionProxy: "插件代理",
+  gatewayProxyAutoTitle: "自动识别",
+  gatewayProxyAutoOn: "已启用",
+  gatewayProxyAutoOff: "已关闭",
+  gatewayProxyAutoUnavailable: "读不到宿主路由表，因此未自动识别。原因：",
+  gatewayProxyAutoEmpty: "还没有插件注册绝对路径路由。",
+  gatewayProxyRoutesUnit: "条路由",
+  gatewayProxyManualTitle: "手动补充",
+  gatewayProxyManualHint: "可选。自动识别的前缀已生效，这里只补应用看不到的路径。",
 }

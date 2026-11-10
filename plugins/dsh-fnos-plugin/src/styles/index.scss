@@ -1624,3 +1624,125 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 .dsh-fnos-logs-line--error .dsh-fnos-logs-text {
   color: rgb(170 30 30);
 }
+
+/*
+ * 「三方插件代理」分组。
+ *
+ * 三段：自动识别（图表 + 明细）、内置只读、手动补充。
+ * 明细列表用 `max-height` 收住——用户改自己的配置时不希望先滚过一长串只读内容。
+ */
+.dsh-fnos-proxy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dsh-fnos-proxy-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dsh-fnos-proxy-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.dsh-fnos-proxy-badge {
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.dsh-fnos-proxy-badge--ok {
+  background: rgb(30 160 90 / 14%);
+  color: rgb(20 120 65);
+}
+
+.dsh-fnos-proxy-badge--warn {
+  background: rgb(214 140 20 / 16%);
+  color: rgb(170 105 0);
+}
+
+/* 柱状图只是索引：高度固定，不抢明细的位置。 */
+.dsh-fnos-proxy-chart {
+  width: 100%;
+  height: 120px;
+}
+
+/*
+ * 明细列表：最大高度 180px。
+ *
+ * **这个上限是刻意的**：前缀可能很多（装十几个插件就是十几组），不限高会把下面
+ * 「手动补充」一路顶出可视区，用户还得先滚过整片只读内容才能改自己的配置。
+ * 上限用 `max-height` 而非固定值，条目少时自然收缩、不留空白。
+ */
+.dsh-fnos-proxy-list {
+  display: flex;
+  max-height: 180px;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-fnos-proxy-item {
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
+  border-radius: 8px;
+}
+
+.dsh-fnos-proxy-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsh-fnos-proxy-prefix {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dsh-fnos-proxy-count {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* WebSocket 升级路由单独标一下：它们的失败最容易被误判成「后端挂了」。 */
+.dsh-fnos-proxy-kind {
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgb(60 120 214 / 14%);
+  color: rgb(40 90 180);
+  font-size: 10px;
+  line-height: 15px;
+}
+
+/* 前缀下的完整路径：多列排布，单条省略。 */
+.dsh-fnos-proxy-routes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 2px 12px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+
+  code {
+    display: block;
+    overflow: hidden;
+    color: var(--dsw-alias-label-secondary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

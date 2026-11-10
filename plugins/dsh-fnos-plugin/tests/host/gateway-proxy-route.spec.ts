@@ -116,7 +116,9 @@ describe('fnOS gateway proxy path route', () => {
     register({ describe: describe_, update })
     const res = await invoke('PUT', { version: 1, paths: ['/store/api/', ' /alpha '] })
     expect(res.statusCode).toBe(200)
-    expect(JSON.parse(String(res.body))).toEqual({ version: 1, paths: ['/alpha', '/store/api'] })
+    // `auto` 由宿主路由表决定：测试夹具里没有三方路由，因此是空数组。
+    // 断言用 toMatchObject 而不是 toEqual，避免把「自动区段」钉死在这里。
+    expect(JSON.parse(String(res.body))).toMatchObject({ version: 1, paths: ['/alpha', '/store/api'], auto: [] })
   })
 
   it('persists the accepted snapshot into the gateway allowlist file', async () => {

@@ -196,4 +196,13 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   runtimeLogLimit: "Limite",
   runtimeLogEmpty: "Nessun registro.",
   runtimeLogFailed: "Impossibile leggere i registri: ",
+  configSectionProxy: "Proxy plugin",
+  gatewayProxyAutoTitle: "Rilevato automaticamente",
+  gatewayProxyAutoOn: "Attivo",
+  gatewayProxyAutoOff: "Disattivato",
+  gatewayProxyAutoUnavailable: "Impossibile leggere la tabella delle rotte dell host, nulla viene rilevato. Motivo: ",
+  gatewayProxyAutoEmpty: "Nessun plugin registra ancora una rotta assoluta.",
+  gatewayProxyRoutesUnit: "rotte",
+  gatewayProxyManualTitle: "Aggiunte manuali",
+  gatewayProxyManualHint: "Opzionale. I prefissi rilevati funzionano gia; aggiungi qui solo percorsi invisibili all app.",
 }

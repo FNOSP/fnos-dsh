@@ -197,4 +197,13 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   runtimeLogLimit: "Limit",
   runtimeLogEmpty: "Noch keine Protokolle.",
   runtimeLogFailed: "Protokolle konnten nicht gelesen werden: ",
+  configSectionProxy: "Plugin-Proxy",
+  gatewayProxyAutoTitle: "Automatisch erkannt",
+  gatewayProxyAutoOn: "An",
+  gatewayProxyAutoOff: "Aus",
+  gatewayProxyAutoUnavailable: "Die Routentabelle des Hosts ist nicht lesbar, daher nichts automatisch erkannt. Grund: ",
+  gatewayProxyAutoEmpty: "Noch kein Plugin registriert eine absoluten Pfadroute.",
+  gatewayProxyRoutesUnit: "Routen",
+  gatewayProxyManualTitle: "Manuelle Ergaenzungen",
+  gatewayProxyManualHint: "Optional. Automatisch erkannte Praefixe funktionieren bereits; hier nur Pfade ergaenzen, die die App nicht sieht.",
 }

@@ -205,4 +205,13 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   runtimeLogLimit: "최대",
   runtimeLogEmpty: "아직 로그가 없습니다.",
   runtimeLogFailed: "로그를 읽지 못했습니다: ",
+  configSectionProxy: "플러그인 프록시",
+  gatewayProxyAutoTitle: "자동 감지",
+  gatewayProxyAutoOn: "켜짐",
+  gatewayProxyAutoOff: "꺼짐",
+  gatewayProxyAutoUnavailable: "호스트 라우트 테이블을 읽을 수 없어 자동 감지하지 못했습니다. 이유: ",
+  gatewayProxyAutoEmpty: "아직 절대 경로 라우트를 등록한 플러그인이 없습니다.",
+  gatewayProxyRoutesUnit: "개 라우트",
+  gatewayProxyManualTitle: "수동 추가",
+  gatewayProxyManualHint: "선택 사항. 자동 감지된 접두사는 이미 동작합니다. 앱이 볼 수 없는 경로만 추가하세요.",
 }

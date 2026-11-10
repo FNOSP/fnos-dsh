@@ -244,13 +244,13 @@ describe('dsh-fnos package contract', () => {
   })
 
   it('saves gateway proxy paths with Ctrl/Cmd+S from the textarea', async () => {
-    const source = await readFile(new URL('../../src/components/AuthorizedDirectoriesCard.tsx', import.meta.url), 'utf8')
-    expect(source).toContain('handleProxyPathsKeyDown')
-    expect(source).toContain('isProxyPathsSaveShortcut(event)')
+    // 代理配置已从「授权目录」卡片拆到独立分组，快捷键行为随之迁移。
+    const source = await readFile(new URL('../../src/components/GatewayProxyCard.tsx', import.meta.url), 'utf8')
+    expect(source).toContain('handleKeyDown')
+    expect(source).toContain("event.key === 's'")
     expect(source).toContain('event.preventDefault()')
-    expect(source).toContain('event.stopPropagation()')
-    expect(source).toContain('void saveProxyPaths()')
-    expect(source).toContain('onKeyDown={handleProxyPathsKeyDown}')
+    expect(source).toContain('void save()')
+    expect(source).toContain('onKeyDown={handleKeyDown}')
   })
 
   it('adapts opening the DSH settings document to fnOS', async () => {

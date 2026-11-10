@@ -16,7 +16,33 @@ export const FNOS_GATEWAY_BUILTIN_PREFIXES: readonly { path: string, description
 ]
 
 export const FNOS_GATEWAY_PROXY_PATHS_FILE = 'gateway/path-allowlist.json'
-export interface GatewayProxyPathsDocument { version: 1, paths: string[] }
+
+/** 自动识别出的前缀（由宿主读路由表得到，用户不可编辑）。 */
+export const FNOS_GATEWAY_AUTO_PATHS_ROUTE = '/plugins/dsh-fnos/gateway/auto-paths'
+
+/**
+ * 前缀文档。
+ *
+ * `auto` 是新增的可选字段，承载自动识别出的前缀。它**刻意可选**：旧版网关只读
+ * `paths`，遇到多出来的 `auto` 会忽略而不会整份拒绝，升级期间两个方向都不会坏。
+ */
+export interface GatewayProxyPathsDocument { version: 1, paths: string[], auto?: string[] }
+
+/** 自动识别状态，供界面区分「没识别到」与「识别不到」。 */
+export interface GatewayAutoPathsStatus {
+  /** 是否成功读到宿主路由表。 */
+  readonly available: boolean
+  /** 不可用原因代码（`webserver-unavailable` / `route-table-unreadable`）。 */
+  readonly reason?: string
+  /** 前缀分组，按插件前缀归并，供界面按 API 形式展示。 */
+  readonly groups: readonly {
+    readonly prefix: string
+    readonly routes: readonly string[]
+    readonly kinds: readonly ('exact' | 'prefix' | 'upgrade')[]
+  }[]
+  /** 归并后的前缀集合。 */
+  readonly prefixes: readonly string[]
+}
 
 /** The only document version this plugin and the gateway understand. */
 export const FNOS_GATEWAY_PROXY_PATHS_VERSION = 1

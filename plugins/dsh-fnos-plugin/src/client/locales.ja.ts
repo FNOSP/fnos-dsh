@@ -205,4 +205,13 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   runtimeLogLimit: "上限",
   runtimeLogEmpty: "ログはまだありません。",
   runtimeLogFailed: "ログを読み取れませんでした: ",
+  configSectionProxy: "プラグイン代理",
+  gatewayProxyAutoTitle: "自動検出",
+  gatewayProxyAutoOn: "有効",
+  gatewayProxyAutoOff: "無効",
+  gatewayProxyAutoUnavailable: "ホストのルートテーブルを読めないため自動検出できません。理由: ",
+  gatewayProxyAutoEmpty: "絶対パスのルートを登録したプラグインはまだありません。",
+  gatewayProxyRoutesUnit: "件のルート",
+  gatewayProxyManualTitle: "手動追加",
+  gatewayProxyManualHint: "任意。自動検出済みのプレフィックスは動作します。アプリが見えないパスのみ追加してください。",
 }

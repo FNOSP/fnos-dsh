@@ -197,4 +197,13 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   runtimeLogLimit: "Limite",
   runtimeLogEmpty: "Aun no hay registros.",
   runtimeLogFailed: "No se pudieron leer los registros: ",
+  configSectionProxy: "Proxy de plugins",
+  gatewayProxyAutoTitle: "Detectado automaticamente",
+  gatewayProxyAutoOn: "Activado",
+  gatewayProxyAutoOff: "Desactivado",
+  gatewayProxyAutoUnavailable: "No se pudo leer la tabla de rutas del host, nada se detecta automaticamente. Motivo: ",
+  gatewayProxyAutoEmpty: "Ningun plugin registra aun una ruta de ruta absoluta.",
+  gatewayProxyRoutesUnit: "rutas",
+  gatewayProxyManualTitle: "Anadidos manuales",
+  gatewayProxyManualHint: "Opcional. Los prefijos detectados ya funcionan; anade aqui solo rutas que la app no ve.",
 }
