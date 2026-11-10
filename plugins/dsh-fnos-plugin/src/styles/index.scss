@@ -1281,12 +1281,15 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     了 `rgb(235 238 242)`、又加了 `font-weight: 600`，结果是**暗色主题下浅灰底
     惨白**、并且菜单看起来「突然变粗」而不是「被选中」。
 
-    现在改用 `--dsw-alias-interactive-bg-selected`（选中态语义变量），亮暗两套
-    主题各自有合适的底色。变量缺失时退回 `bg-layer-2`——那是「比表面高一层的底」，
-    在两种主题下都能读出区别，比写死颜色安全。
+    **不能用不存在的变量**：`--dsw-alias-interactive-bg-selected` 在 DSH 里没有
+    定义（实测 fallback 到 `bg-layer-2`，而它在亮色下也是白色，等于没有底色）。
+    真实可用的是 `--dsw-alias-interactive-bg-hover` / `-active` / `-hover-solid`。
+
+    选中态取 `-active`（比 hover 再深一档）：它既能与弹框白底区分，暗色主题下也
+    是「比表面亮一点」的灰，两种主题都能读出「当前在哪一项」。
   */
   &--active {
-    background: var(--dsw-alias-interactive-bg-selected, var(--dsw-alias-bg-layer-2));
+    background: var(--dsw-alias-interactive-bg-active);
     font-weight: 400;
   }
 }
