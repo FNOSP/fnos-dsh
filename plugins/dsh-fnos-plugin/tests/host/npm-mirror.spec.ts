@@ -72,6 +72,16 @@ describe('未安装与失败要区分', () => {
     expect(MIRROR).toContain('ENOENT')
   })
 
+  it('必须把 error.message 并入输出，否则检测不到「未安装」', () => {
+    /*
+      真机踩到：命令不存在时 execFile 的 stdout 与 stderr **都是空字符串**，
+      `spawn nrm ENOENT` 只在 error.message 里。只拼 stdout+stderr 的话，
+      「没装」会被误报成「装了但执行失败」，提示用户去重装一个从没装过的东西。
+    */
+    expect(MIRROR).toContain("error?.message ?? ''")
+    expect(MIRROR).toContain('codeName')
+  })
+
   it('不代用户执行全局安装', () => {
     // `npm i -g` 写全局 node_modules，跨项目生效，不该由应用替用户决定。
     expect(MIRROR).not.toContain("'install'")

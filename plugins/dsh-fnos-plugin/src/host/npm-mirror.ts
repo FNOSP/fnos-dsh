@@ -59,20 +59,31 @@ export interface NpmMirrorStatus {
  * @param args - 参数。
  * @returns 退出码与合并输出。
  */
-function runNrm(args: readonly string[]): Promise<{ code: number, output: string }> {
+function runNrm(args: readonly string[]): Promise<{ code: number, output: string, codeName?: string }> {
   return new Promise(resolve => {
     execFile('nrm', [...args], {
       timeout: NRM_TIMEOUT_MS,
       maxBuffer: 1024 * 1024,
       env: process.env,
     }, (error, stdout, stderr) => {
-      const output = `${stdout ?? ''}${stderr ?? ''}`.trim()
+      /*
+        **`error.message` 必须并入 output。**
+
+        实测：命令不存在时 execFile 的 `stdout` 与 `stderr` **都是空字符串**，
+        `spawn nrm ENOENT` 只出现在 `error.message` 里。只用 stdout+stderr 判断
+        「是否安装」永远为 false，于是「没装」被误报成「装了但执行失败」——
+        用户看到的提示变成「重装 nrm」（而它压根没装过）。
+      */
+      const merged = `${stdout ?? ''}${stderr ?? ''}${error?.message ?? ''}`.trim()
+      const rawCode = (error as { code?: unknown } | null)?.code
       const code = error === null
         ? 0
-        : typeof (error as { code?: unknown }).code === 'number'
-          ? (error as { code: number }).code
-          : 1
-      resolve({ code, output })
+        : typeof rawCode === 'number' ? rawCode : 1
+      resolve({
+        code,
+        output: merged,
+        ...(typeof rawCode === 'string' ? { codeName: rawCode } : {}),
+      })
     })
   })
 }
@@ -123,7 +134,8 @@ export async function readNpmMirrorStatus(): Promise<NpmMirrorStatus> {
       合并进 output 后是一句 `spawn nrm ENOENT`；其它失败（比如 .npmrc 读不了）
       要如实报出来，否则用户会以为是没装而去重装一遍。
     */
-    const notInstalled = /ENOENT|not found|command not found/iu.test(version.output)
+    // codeName 是 execFile 明确给出的 'ENOENT'；output 里也兜一层（其它平台可能只给文字）。
+    const notInstalled = version.codeName === 'ENOENT' || /ENOENT|not found|command not found/iu.test(version.output)
     return {
       available: false,
       reason: notInstalled ? 'nrm-not-installed' : 'nrm-failed',
