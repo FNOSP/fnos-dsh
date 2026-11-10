@@ -139,6 +139,15 @@ describe('插件索引：界面', () => {
     expect(PANEL).toContain('onError')
   })
 
+  it('「一键设置」只在开启后显示', () => {
+    /*
+      未开启时这一行是死信息：源都配齐、按钮永远灰着，占一整块却没有可做的事。
+      开关已表达「开/关」，清单也照常展示配了哪些源，因此未开启时直接隐藏。
+    */
+    expect(PANEL).toMatch(/\{enabled \? \(\s*<div className="dsh-fnos-idx-row"/u)
+    expect(PANEL).toContain("t('indexApplyConfigure')")
+  })
+
   it('索引标题从索引文件读，不硬编码', () => {
     // 索引改名（dsh 插件目录 → Awesome DSH Plugin 插件精选）时代码不用改。
     expect(INDEX).toContain('fetchIndexTitle')

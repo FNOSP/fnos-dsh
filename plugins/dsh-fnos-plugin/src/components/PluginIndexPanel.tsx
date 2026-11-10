@@ -122,24 +122,33 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
         />
       </div>
 
-      {/* 一键设置：市场缺失时置灰并说明。 */}
-      <div className="dsh-fnos-idx-row">
-        <div className="dsh-fnos-idx-row-main">
-          <strong className="dsh-fnos-idx-title">{t('gatewayProxyTabIndex')}</strong>
-          {marketMissing ? <span className="dsh-fnos-repair-muted">{t('indexMarketMissing')}</span> : null}
-          {allConfigured ? <span className="dsh-fnos-repair-muted">{t('indexAllConfigured')}</span> : null}
+      {/*
+        「一键设置」只在**开启后**显示。
+
+        未开启时这一行是死信息：源都配齐了、按钮永远是灰的，占着一整块却没有任何
+        可做的事。开关本身已经表达了「开/关」，下面的清单也照常展示配了哪些源，
+        因此未开启时直接隐藏这一行，开启后再出现——它的作用就是「补齐缺失的源」，
+        而这只有在用户决定启用索引之后才有意义。
+      */}
+      {enabled ? (
+        <div className="dsh-fnos-idx-row">
+          <div className="dsh-fnos-idx-row-main">
+            <strong className="dsh-fnos-idx-title">{t('gatewayProxyTabIndex')}</strong>
+            {marketMissing ? <span className="dsh-fnos-repair-muted">{t('indexMarketMissing')}</span> : null}
+            {allConfigured ? <span className="dsh-fnos-repair-muted">{t('indexAllConfigured')}</span> : null}
+          </div>
+          <DshButton
+            htmlType="button"
+            size="small"
+            theme="light"
+            type="primary"
+            disabled={busy || marketMissing || allConfigured}
+            onClick={() => { void apply() }}
+          >
+            {t('indexApplyConfigure')}
+          </DshButton>
         </div>
-        <DshButton
-          htmlType="button"
-          size="small"
-          theme="light"
-          type="primary"
-          disabled={busy || marketMissing || allConfigured}
-          onClick={() => { void apply() }}
-        >
-          {t('indexApplyConfigure')}
-        </DshButton>
-      </div>
+      ) : null}
 
       {/* 索引源清单：已配置的打勾，缺失的标出来。 */}
       <ul className="dsh-fnos-idx-list">
