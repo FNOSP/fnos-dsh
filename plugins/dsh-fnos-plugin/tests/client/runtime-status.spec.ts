@@ -94,9 +94,9 @@ describe('运行状态：网络与四宫格', () => {
     expect(CARD).toContain("key: 'netTx'")
     expect(CARD).toContain('NET_CELL_INDEX')
     // 全部用百分比：ECharts 不认 grid.width 里的 calc()，混用会把两格算重。
-    expect(CARD).toContain("left: i % 2 === 0 ? '6%' : '52%'")
+    expect(CARD).toContain("left: i % 2 === 0 ? '6%' : '52.83%'")
     expect(CARD).toContain("top: Math.floor(i / 2) === 0 ? '12%' : '58%'")
-    expect(CARD).toContain("width: '42%'")
+    expect(CARD).toContain("width: i % 2 === 0 ? '42%' : '41.17%'")
     // calc 混百分比是这台机器的实际踩坑点，加断言防止回退。
     expect(CARD).not.toMatch(/width: .*calc\(/)
     // `containLabel` 会把纵轴刻度算进绘图区，左侧被推、右侧不动，左右就不齐。
@@ -193,6 +193,45 @@ describe('运行状态：日志面板', () => {
     expect(SCSS).toContain('.dsh-fnos-logs-line--warn .dsh-fnos-logs-badge')
     const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
     expect(PANEL).toContain('levelKey')
+  })
+})
+
+describe('运行状态：日志换行与整行同色', () => {
+  it('日志行允许换行，不再用省略号截断', () => {
+    const i = SCSS.indexOf('.dsh-fnos-logs-line {')
+    const rule = SCSS.slice(i, SCSS.indexOf('}', i))
+    // 日志的价值在后半段（路径、错误码），省略号恰好切掉它。
+    expect(rule).not.toContain('white-space: nowrap')
+    const t = SCSS.indexOf('.dsh-fnos-logs-text {')
+    const textRule = SCSS.slice(t, SCSS.indexOf('}', t))
+    expect(textRule).not.toContain('text-overflow: ellipsis')
+    // 长路径也要能断开。
+    expect(textRule).toContain('overflow-wrap: anywhere')
+  })
+
+  it('整行同色：级别色由行元素统一赋值，子元素继承', () => {
+    // 早前只有徽章有级别色、正文是继承色，一行里出现两种颜色。
+    expect(SCSS).toContain('--dsh-fnos-log-color')
+    // 该选择器有两条规则（布局 + 着色），取带 color 的那条。
+    const rules = Array.from(SCSS.matchAll(/^\.dsh-fnos-logs-line \{([\s\S]*?)^\}/gmu)).map(m => m[1])
+    expect(rules.some(rule => rule?.includes('color: var(--dsh-fnos-log-color'))).toBe(true)
+    for (const sel of ['.dsh-fnos-logs-time {', '.dsh-fnos-logs-name {', '.dsh-fnos-logs-text {']) {
+      const j = SCSS.indexOf(sel)
+      expect(SCSS.slice(j, SCSS.indexOf('}', j))).toContain('color: inherit')
+    }
+  })
+
+  it('运行与日志轮询都是 5 秒', () => {
+    expect(CARD).toContain('INTERVAL_MS = 5000')
+    const LOGS = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(LOGS).toContain('INTERVAL_MS = 5000')
+  })
+
+  it('运行页字号统一 14px', () => {
+    const block = SCSS.slice(SCSS.indexOf('.dsh-fnos-runtime-ports {'), SCSS.indexOf('.dsh-fnos-runtime-chart {'))
+    // 标签与数值都不得出现 12/15/18。
+    expect(block).not.toMatch(/font-size: 1[258]px/)
+    expect(block).toContain('font-size: 14px')
   })
 })
 

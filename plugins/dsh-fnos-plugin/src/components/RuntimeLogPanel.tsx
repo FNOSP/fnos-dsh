@@ -33,8 +33,8 @@ export interface RuntimeLogPanelProps {
 /** 默认条数；用户可用输入框改。 */
 const DEFAULT_LIMIT = 200
 
-/** 轮询间隔：日志要「接近实时」，但不必每秒。 */
-const INTERVAL_MS = 2000
+/** 轮询间隔：日志要「接近实时」，但不必每秒；与运行页统一为 5 秒。 */
+const INTERVAL_MS = 5000
 
 /** 级别选项与配色。 */
 const LEVELS: readonly { value: 'all' | RuntimeLogLevel, labelKey: FnosLocaleKey }[] = [

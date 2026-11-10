@@ -44,11 +44,21 @@ export interface RuntimeStatusCardProps {
   readonly t: Translate
 }
 
-/** 折线保留的采样点数：约 60 秒（每秒一次）。 */
-const POINTS = 60
+/**
+ * 轮询间隔（毫秒）。
+ *
+ * 5 秒：1 秒一次对「看一眼进程忙不忙」这个用途没有必要，而且每次都要读
+ * `/proc`（进程树 + io + net/dev），5 秒已足够看出趋势。
+ */
+const INTERVAL_MS = 5000
 
-/** 轮询间隔（毫秒）。 */
-const INTERVAL_MS = 1000
+/**
+ * 折线保留的采样点数。
+ *
+ * 按 5 秒一次、60 个点算，窗口是 **5 分钟**——比原来「1 秒 × 60 = 1 分钟」看得更远，
+ * 更适合判断「内存有没有一路涨」这类缓慢变化。
+ */
+const POINTS = 60
 
 /**
  * 一条指标的显示单位与换算。
@@ -231,10 +241,14 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
       全部改用百分比：左列从 6% 起、右列从 52% 起，各占 42%（左右各留 6%/6% 与
       中间 4% 间隙），纵轴刻度的空间由 6% 承担（559px 下约 33px，够放三位数）。
     */
+    /*
+      左列 6%–48%，右列 52.83%–94%：两列之间留 4.83%（559px 下 **27px**），
+      比原 22px 多 5px。左右两侧各留 6%，视觉上对称。
+    */
     const cell = (i: number): { left: string, top: string, width: string, height: string } => ({
-      left: i % 2 === 0 ? '6%' : '52%',
+      left: i % 2 === 0 ? '6%' : '52.83%',
       top: Math.floor(i / 2) === 0 ? '12%' : '58%',
-      width: '42%',
+      width: i % 2 === 0 ? '42%' : '41.17%',
       height: '34%',
     })
     /*

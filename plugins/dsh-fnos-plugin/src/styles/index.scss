@@ -1327,13 +1327,14 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     align-items: center;
     gap: 6px;
     color: var(--dsw-alias-label-tertiary);
-    font-size: 12px;
-    line-height: 16px;
+    /* 统一 14px：标签与数值同字号，两排读数整体一致。 */
+    font-size: 14px;
+    line-height: 20px;
   }
 
   dd {
     margin: 0;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     /* 端口与 PID 都是数字：等宽字体让刷新时不跳位。 */
     font-variant-numeric: tabular-nums;
@@ -1372,12 +1373,12 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   align-items: center;
   gap: 5px;
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 .dsh-fnos-runtime-now-value {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 24px;
@@ -1586,11 +1587,21 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   line-height: 18px;
 }
 
+/*
+ * 一行日志：**允许换行**。
+ *
+ * 原先 `white-space: nowrap` + 文本 `text-overflow: ellipsis`，长日志被截成
+ * 「…skipped unsafe root /tmp/…」。日志的价值就在后半段（具体哪个路径、哪个错误码），
+ * 省略号恰好把它切掉——而要看清只能改窗口宽度，比换行麻烦得多。
+ *
+ * 现在正文自己折行；左侧时刻/级别/来源保持不折（它们很短，折了反而更乱）。
+ */
 .dsh-fnos-logs-line {
   display: flex;
+  /* 顶对齐：正文折行后，左侧几段应贴在首行而不是垂直居中。 */
+  align-items: flex-start;
   gap: 8px;
   padding: 1px 0;
-  white-space: nowrap;
 
   &:hover {
     background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 4%));
@@ -1599,8 +1610,11 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 
 .dsh-fnos-logs-time {
   flex: 0 0 auto;
-  color: var(--dsw-alias-label-tertiary);
+  /* 整行同色：时刻与来源跟随级别色，不再各自一套三级灰。 */
+  color: inherit;
   font-variant-numeric: tabular-nums;
+  /* 时刻很短，明确不折行，折了会把正文挤到第二列。 */
+  white-space: nowrap;
 }
 
 /* 级别徽标：用色区分，同时保留文字（不只靠颜色传达信息）。 */
@@ -1617,24 +1631,62 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   flex: 0 0 auto;
   max-width: 180px;
   overflow: hidden;
-  color: var(--dsw-alias-label-secondary);
+  /* 来源同样跟随级别色。 */
+  color: inherit;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dsh-fnos-logs-text {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /*
+    长词（路径、URL、堆栈里的连续标识符）也要能断开，否则一行仍会被撑出容器。
+    `break-word` 在无处可断时从任意字符处折行，正是日志需要的。
+  */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  /*
+    **整行文字色与级别一致**：原先只有 error 级别给 `.dsh-fnos-logs-text` 上色，
+    其余级别的正文是继承色，于是同一行里徽章是橙的、正文却是灰的——看起来像两段
+    不相关的内容。这里把颜色统一交给行级的 `--dsh-fnos-log-color`，由级别规则
+    统一赋值，时刻/来源/正文共享同一个色值。
+  */
+  color: inherit;
 }
 
 /*
  * 级别配色：错误红、警告橙、信息蓝、调试灰。
  *
- * 全部走 `--dsw-alias-state-*`：**硬编码的 RGB 在暗色主题下会失效**——深色底上
- * `rgb(190 40 40)` 这种偏深的红几乎看不见，而主题给的状态色已按明暗两套分别
- * 调过亮度。暖色底用 `color-mix` 与 `bg-layer-3` 混出低饱和底，跟随主题。
+ * **整行同色**：早前只给徽章上色、正文继承默认色，同一行里徽章是橙的、文字是灰的，
+ * 看起来像两段不相关的内容；error 级别又单独给正文上色，导致同一份日志里不同级别
+ * 的着色范围还不一样。现在由行元素设 `--dsh-fnos-log-color`，徽章/时刻/来源/正文
+ * 全部 `color: inherit`，一行一个色。
+ *
+ * 全部走 `--dsw-alias-state-*`：硬编码 RGB 在暗色主题下会失效（深色底上深红几乎
+ * 看不见），主题给的状态色已按明暗两套分别调过亮度。
  */
+.dsh-fnos-logs-line--error {
+  --dsh-fnos-log-color: var(--dsw-alias-state-error-primary);
+}
+
+.dsh-fnos-logs-line--warn {
+  --dsh-fnos-log-color: var(--dsw-alias-state-warn-primary);
+}
+
+.dsh-fnos-logs-line--info {
+  --dsh-fnos-log-color: var(--dsw-alias-state-business-primary);
+}
+
+.dsh-fnos-logs-line--debug {
+  --dsh-fnos-log-color: var(--dsw-alias-label-tertiary);
+}
+
+/* 行级色值：作用到整行，正文与左侧几段共享。 */
+.dsh-fnos-logs-line {
+  color: var(--dsh-fnos-log-color, var(--dsw-alias-label-primary));
+}
+
 .dsh-fnos-logs-line--error .dsh-fnos-logs-badge {
   background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 16%, transparent);
   color: var(--dsw-alias-state-error-primary);
@@ -1653,10 +1705,6 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 .dsh-fnos-logs-line--debug .dsh-fnos-logs-badge {
   background: color-mix(in srgb, var(--dsw-alias-label-dimmed) 14%, transparent);
   color: var(--dsw-alias-label-tertiary);
-}
-
-.dsh-fnos-logs-line--error .dsh-fnos-logs-text {
-  color: var(--dsw-alias-state-error-primary);
 }
 
 /*
