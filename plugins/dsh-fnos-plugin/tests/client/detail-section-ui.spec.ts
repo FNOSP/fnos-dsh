@@ -66,20 +66,24 @@ describe('配置区不再折叠，内容常驻', () => {
   })
 })
 
-describe('授权目录列表：固定高度、超出滚动', () => {
-  it('列表容器有 300px 上限并允许纵向滚动', () => {
-    const block = SCSS.slice(SCSS.indexOf('.dsh-fnos-authorized-path-list'))
+describe('授权目录列表：不单独限高，滚动交给面板', () => {
+  it('列表容器没有自身高度上限与滚动条', () => {
+    /*
+      早前钉了 `max-height: 300px` + `overflow-y: auto`，理由是「目录没有数量
+      上限，会把保存按钮顶出屏幕」。但外层面板本身就是滚动容器，列表再限高只是
+      造出**嵌套滚动区**：滚轮落在列表与落在面板上行为不同，同一屏两套滚动。
+    */
+    const block = SCSS.slice(SCSS.indexOf('.dsh-fnos-authorized-path-list {'))
     const rule = block.slice(0, block.indexOf('}'))
-    expect(rule).toContain('max-height: 300px')
-    expect(rule).toContain('overflow-y: auto')
+    // 只匹配声明行：注释里留着「早前钉过 max-height」的说明，不能被误命中。
+    expect(rule).not.toMatch(/^\s*max-height\s*:/m)
+    expect(rule).not.toMatch(/^\s*overflow-y\s*:/m)
   })
 
-  it('滚动的是列表本身，不是整页', () => {
-    // 若把 max-height 放在卡片或 body 上，超长列表会把保存按钮一起顶出视口。
-    const listRule = SCSS.slice(SCSS.indexOf('.dsh-fnos-authorized-path-list'))
-    expect(listRule.slice(0, listRule.indexOf('}'))).toContain('max-height')
-    const cardBody = SCSS.slice(SCSS.indexOf('.dsh-fnos-authorized-card-body'))
-    expect(cardBody.slice(0, cardBody.indexOf('}'))).not.toContain('max-height')
+  it('外层面板仍是滚动容器（内容多了不会真的溢出）', () => {
+    const panel = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-panel {'))
+    const rule = panel.slice(0, panel.indexOf('}'))
+    expect(rule).toContain('overflow-y: auto')
   })
 })
 
