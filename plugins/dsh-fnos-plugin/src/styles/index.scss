@@ -1210,7 +1210,13 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     所以底部那 15px 是真空出来的。
   */
   flex: 1 1 0%;
+  /*
+    `min-height: 0` 让这一层能被压缩（flex 项默认 min-height: auto，会被内容撑开）；
+    `overflow: hidden` 则兜底：即使内部某层算大了，也不会越过 semiBody 的边界
+    去吃弹框的 padding-bottom。
+  */
   min-height: 0;
+  overflow: hidden;
   box-sizing: border-box;
 }
 
