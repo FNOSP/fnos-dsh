@@ -132,4 +132,14 @@ export interface RuntimeStatus {
   readonly processes: readonly RuntimeProcess[]
   /** 是否能枚举进程树（Linux 上有 /proc 为 true）。 */
   readonly processTreeAvailable: boolean
+  /**
+   * 枚举口径。
+   *
+   * - `user`：同一应用用户（uid）下的全部进程——**包含网关进程**，它们由框架拉起、
+   *   ppid 为 1，用进程树永远爬不到；
+   * - `tree`：仅本进程的子进程树。
+   */
+  readonly processScope: 'tree' | 'user'
+  /** 运行用户（uid）；读不到时缺省。 */
+  readonly uid?: number
 }

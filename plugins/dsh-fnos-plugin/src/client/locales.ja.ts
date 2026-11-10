@@ -185,7 +185,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   runtimePid: 'PID',
   runtimeFailed: '実行状況を読み取れませんでした: ',
   runtimeProcesses: "プロセス",
-  runtimeProcessesTip: "このアプリとその子プロセス。/proc から読み取ります。これは OS の視点であり、セッションのタスク一覧ではありません。ホストは他セッションのタスクを列挙するAPIを提供していません。",
+  runtimeProcessesTip: "このアプリケーションユーザー（uid）のプロセスを /proc から読み取ります。ppid=1 で起動されるゲートウェイも含み、単純なプロセスツリーでは到達できません。",
   runtimeProcessUnavailable: "この環境ではプロセスツリーを読み取れません（/proc なし）。",
   runtimeKill: "終了",
   runtimeKillForce: "強制終了",

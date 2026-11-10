@@ -177,7 +177,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   runtimePid: 'PID',
   runtimeFailed: 'Laufzeitstatus konnte nicht gelesen werden: ',
   runtimeProcesses: "Prozesse",
-  runtimeProcessesTip: "Prozesse dieser Anwendung und ihrer Kindprozesse, gelesen aus /proc. Dies ist die OS-Sicht, nicht die Aufgabenliste der Sitzung: der Host bietet keine API, um Aufgaben anderer Sitzungen aufzulisten.",
+  runtimeProcessesTip: "Prozesse des Anwendungsbenutzers (uid), gelesen aus /proc. Enthaelt das Gateway, das die Plattform mit ppid=1 startet und das ein reiner Prozessbaum nicht erreicht.",
   runtimeProcessUnavailable: "Die Prozessliste ist in dieser Umgebung nicht lesbar (kein /proc).",
   runtimeKill: "Beenden",
   runtimeKillForce: "Sofort beenden",

@@ -176,7 +176,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   runtimePid: 'PID',
   runtimeFailed: 'Impossibile leggere lo stato di esecuzione: ',
   runtimeProcesses: "Processi",
-  runtimeProcessesTip: "Processi di questa applicazione e dei suoi figli, letti da /proc. E la vista del sistema operativo, non l elenco delle attivita della sessione: l host non espone API per enumerare le attivita di altre sessioni.",
+  runtimeProcessesTip: "Processi dell utente applicativo (uid), letti da /proc. Include il gateway, avviato dalla piattaforma con ppid=1, irraggiungibile da un albero dei processi.",
   runtimeProcessUnavailable: "Impossibile leggere l albero dei processi in questo ambiente (nessun /proc).",
   runtimeKill: "Termina",
   runtimeKillForce: "Termina forzatamente",

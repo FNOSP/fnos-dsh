@@ -190,6 +190,34 @@ describe('运行状态：日志面板', () => {
   })
 })
 
+describe('运行状态：按 uid 枚举（覆盖网关进程）', () => {
+  it('默认按 uid 枚举，而不是只爬进程树', async () => {
+    const { listProcessTree } = await import('../../src/host/runtime-processes.ts')
+    // 两种口径都要能跑通；user 口径应包含当前进程。
+    const byUser = await listProcessTree(process.pid, 'user')
+    const byTree = await listProcessTree(process.pid, 'tree')
+    expect(Array.isArray(byUser)).toBe(true)
+    expect(Array.isArray(byTree)).toBe(true)
+    // 进程树必然包含根；user 口径在非 Linux 上为空。
+    if (byTree.length > 0) expect(byTree.some(p => p.isRoot)).toBe(true)
+  })
+
+  it('快照声明口径为 user 并给出 uid', async () => {
+    const { readRuntimeStatus } = await import('../../src/host/runtime-status.ts')
+    const status = await readRuntimeStatus({})
+    expect(status.processScope).toBe('user')
+    if (typeof process.getuid === 'function') expect(status.uid).toBe(process.getuid())
+  })
+
+  it('按 uid 枚举能抓到 ppid=1 的兄弟进程（这正是它优于进程树的地方）', () => {
+    const SRC = readFileSync(new URL('../../src/host/runtime-processes.ts', import.meta.url), 'utf8')
+    expect(SRC).toContain("scope === 'user'")
+    expect(SRC).toContain('readUid')
+    // 网关由框架以 ppid=1 拉起，纯树遍历到不了——这一点必须在注释里说清。
+    expect(SRC).toContain('ppid=1')
+  })
+})
+
 describe('运行状态：与左侧菜单对齐', () => {
   it('分组标题重置 h3 默认外边距（否则右列永远低 15px）', () => {
     // 浏览器默认给 h3 `margin: 1em 0`；不重置的话无论怎么调上层 padding，

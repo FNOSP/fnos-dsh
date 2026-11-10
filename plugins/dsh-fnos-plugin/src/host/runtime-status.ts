@@ -173,7 +173,8 @@ export async function collectMetrics(now: number = Date.now()): Promise<RuntimeM
  * @returns 运行状态。
  */
 export async function readRuntimeStatus(env: NodeJS.ProcessEnv = process.env): Promise<RuntimeStatus> {
-  const processes = await listProcessTree()
+  // 默认按 uid 枚举：比进程树完整（网关进程的 ppid 是 1，树里到不了）。
+  const processes = await listProcessTree(process.pid, 'user')
   return {
     pid: process.pid,
     platform: env.DSH_HOME === undefined || env.DSH_HOME.length === 0 ? 'local' : 'fnos',
@@ -182,6 +183,8 @@ export async function readRuntimeStatus(env: NodeJS.ProcessEnv = process.env): P
     processes,
     // 只有根进程在列表里才说明真的读到了 /proc；空数组可能是「读不到」。
     processTreeAvailable: processes.some(item => item.isRoot),
+    processScope: 'user',
+    ...(typeof process.getuid === 'function' ? { uid: process.getuid() } : {}),
   }
 }
 

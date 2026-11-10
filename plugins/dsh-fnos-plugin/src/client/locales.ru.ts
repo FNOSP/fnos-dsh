@@ -176,7 +176,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   runtimePid: 'PID',
   runtimeFailed: 'Не удалось прочитать состояние выполнения: ',
   runtimeProcesses: "Процессы",
-  runtimeProcessesTip: "Процессы этого приложения и его потомки, читаются из /proc. Это представление ОС, а не список задач сеанса: хост не предоставляет API для перечисления задач других сеансов.",
+  runtimeProcessesTip: "Процессы пользователя приложения (uid), читаются из /proc. Включает шлюз, запускаемый платформой с ppid=1, недостижимый для дерева процессов.",
   runtimeProcessUnavailable: "В этом окружении дерево процессов недоступно (нет /proc).",
   runtimeKill: "Завершить",
   runtimeKillForce: "Принудительно завершить",

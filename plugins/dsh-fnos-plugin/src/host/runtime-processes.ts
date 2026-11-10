@@ -100,12 +100,51 @@ async function readRss(pid: number): Promise<number | undefined> {
 }
 
 /**
+ * 本应用的运行用户（uid）。
+ *
+ * fnOS 会为每个应用建一个专用用户（`TRIM_USERNAME`，实测形如
+ * `fn-deepseek-harness`，uid 992），应用进程以它运行。因此「按 uid 枚举」比
+ * 「按 ppid 爬树」更完整：它能捞到**同一个应用用户下所有进程**，包括
+ * 网关（`gateway-proxy.mjs`，ppid=1 而非本进程的子进程）与各会话起的命令，
+ * 而这些在纯进程树里是看不到的。
+ *
+ * 用 `process.getuid()` 直接拿，不需要读环境变量：插件的宿主代码就跑在这个
+ * uid 下，天然是同一个。
+ *
+ * @returns 当前进程的 uid。
+ */
+function currentUid(): number {
+  return typeof process.getuid === 'function' ? process.getuid() : -1
+}
+
+/**
+ * 读 `/proc/<pid>/status` 里的 `Uid:` 行（取 real uid）。
+ * @param pid - 进程号。
+ * @returns uid；读不到时 undefined。
+ */
+async function readUid(pid: number): Promise<number | undefined> {
+  try {
+    const text = await readFile(`/proc/${String(pid)}/status`, 'utf8')
+    const match = /^Uid:\s*(\d+)/mu.exec(text)
+    return match === null ? undefined : Number(match[1])
+  } catch {
+    return undefined
+  }
+}
+
+/** 枚举范围。 */
+export type ProcessScope = 'tree' | 'user'
+
+/**
  * 枚举本应用进程树。
  *
  * @param rootPid - 根进程号，默认当前进程。
  * @returns 进程列表（含根），按 pid 升序。
  */
-export async function listProcessTree(rootPid: number = process.pid): Promise<RuntimeProcess[]> {
+export async function listProcessTree(
+  rootPid: number = process.pid,
+  scope: ProcessScope = 'tree',
+): Promise<RuntimeProcess[]> {
   let entries: string[]
   try {
     entries = await readdir('/proc')
@@ -134,22 +173,38 @@ export async function listProcessTree(rootPid: number = process.pid): Promise<Ru
     if (stat !== undefined) stats.set(pid, stat)
   }
 
-  // 从根往下收集子节点：先把 ppid → 子 pid 建索引，再 BFS。
-  const children = new Map<number, number[]>()
-  for (const [pid, stat] of stats) {
-    const list = children.get(stat.ppid)
-    if (list === undefined) children.set(stat.ppid, [pid])
-    else list.push(pid)
-  }
-  const tree: number[] = []
-  const queue = [rootPid]
-  const seen = new Set<number>()
-  while (queue.length > 0) {
-    const pid = queue.shift() as number
-    if (seen.has(pid)) continue
-    seen.add(pid)
-    tree.push(pid)
-    for (const child of children.get(pid) ?? []) queue.push(child)
+  let tree: number[]
+  if (scope === 'user') {
+    /*
+      按 uid 枚举：覆盖同一应用用户的**全部**进程。
+
+      比进程树更完整——网关进程的 ppid 是 1（由框架拉起），在树里根本到不了；
+      而它和 DSH 同属应用用户，按 uid 就能抓到。
+    */
+    const uid = currentUid()
+    tree = []
+    for (const pid of stats.keys()) {
+      const owner = await readUid(pid)
+      if (owner !== undefined && owner === uid) tree.push(pid)
+    }
+  } else {
+    // 从根往下收集子节点：先把 ppid → 子 pid 建索引，再 BFS。
+    const children = new Map<number, number[]>()
+    for (const [pid, stat] of stats) {
+      const list = children.get(stat.ppid)
+      if (list === undefined) children.set(stat.ppid, [pid])
+      else list.push(pid)
+    }
+    tree = []
+    const queue = [rootPid]
+    const seen = new Set<number>()
+    while (queue.length > 0) {
+      const pid = queue.shift() as number
+      if (seen.has(pid)) continue
+      seen.add(pid)
+      tree.push(pid)
+      for (const child of children.get(pid) ?? []) queue.push(child)
+    }
   }
 
   const out: RuntimeProcess[] = []

@@ -185,7 +185,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   runtimePid: 'PID',
   runtimeFailed: '실행 상태를 읽지 못했습니다: ',
   runtimeProcesses: "프로세스",
-  runtimeProcessesTip: "이 앱과 하위 프로세스이며 /proc에서 읽습니다. OS 관점이며 세션 작업 목록이 아닙니다. 호스트는 다른 세션의 작업을 열거하는 API를 제공하지 않습니다.",
+  runtimeProcessesTip: "이 애플리케이션 사용자(uid)의 프로세스를 /proc에서 읽습니다. ppid=1로 시작되는 게이트웨이도 포함하며 단순 프로세스 트리로는 도달할 수 없습니다.",
   runtimeProcessUnavailable: "이 환경에서는 프로세스 트리를 읽을 수 없습니다(/proc 없음).",
   runtimeKill: "종료",
   runtimeKillForce: "강제 종료",

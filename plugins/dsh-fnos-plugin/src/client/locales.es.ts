@@ -177,7 +177,7 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   runtimePid: 'PID',
   runtimeFailed: 'No se pudo leer el estado de ejecución: ',
   runtimeProcesses: "Procesos",
-  runtimeProcessesTip: "Procesos de esta aplicacion y sus hijos, leidos de /proc. Es la vista del sistema operativo, no la lista de tareas de la sesion: el host no ofrece API para enumerar tareas de otras sesiones.",
+  runtimeProcessesTip: "Procesos del usuario de la aplicacion (uid), leidos de /proc. Incluye el gateway, que la plataforma inicia con ppid=1 y un arbol de procesos no alcanza.",
   runtimeProcessUnavailable: "No se puede leer el arbol de procesos en este entorno (sin /proc).",
   runtimeKill: "Finalizar",
   runtimeKillForce: "Forzar finalizacion",

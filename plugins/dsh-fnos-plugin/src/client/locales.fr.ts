@@ -177,7 +177,7 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   runtimePid: 'PID',
   runtimeFailed: "Impossible de lire l'état d'exécution : ",
   runtimeProcesses: "Processus",
-  runtimeProcessesTip: "Processus de cette application et de ses enfants, lus dans /proc. C est la vue du systeme, pas la liste des taches de la session : l hote n expose aucune API pour lister les taches d une autre session.",
+  runtimeProcessesTip: "Processus de l utilisateur applicatif (uid), lus dans /proc. Inclut la passerelle, demarree par la plateforme avec ppid=1, hors de portee d un arbre de processus.",
   runtimeProcessUnavailable: "Arbre de processus illisible dans cet environnement (pas de /proc).",
   runtimeKill: "Terminer",
   runtimeKillForce: "Forcer l arret",
