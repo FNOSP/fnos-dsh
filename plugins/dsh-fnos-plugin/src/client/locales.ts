@@ -209,6 +209,16 @@ export const en = {
   gatewayProxyRoutesUnit: "routes",
   gatewayProxyManualTitle: "Manual additions",
   gatewayProxyManualHint: "Optional. Auto-detected prefixes already work; add here only paths the app cannot see.",
+  configSectionPlugins: "Plugin management",
+  gatewayProxyTabProxy: "Reverse proxy",
+  gatewayProxyTabRepair: "Install issues",
+  gatewayProxyTabInstalled: "Installed plugins",
+  installedPluginsBundled: "Bundled",
+  installedPluginsHostOnly: "Host only",
+  installedPluginsEmpty: "No plugins installed.",
+  installedPluginsLoading: "Loading installed plugins…",
+  installedPluginsUnavailable: "Could not read the plugin list: ",
+  installedPluginsFailed: "Failed to read installed plugins: ",
 }
 
 export type FnosLocaleKey = keyof typeof en
@@ -427,4 +437,14 @@ export const zh: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyRoutesUnit: "条路由",
   gatewayProxyManualTitle: "手动补充",
   gatewayProxyManualHint: "可选。自动识别的前缀已生效，这里只补应用看不到的路径。",
+  configSectionPlugins: "插件管理",
+  gatewayProxyTabProxy: "插件反代",
+  gatewayProxyTabRepair: "插件安装异常",
+  gatewayProxyTabInstalled: "已安装的插件",
+  installedPluginsBundled: "内置",
+  installedPluginsHostOnly: "仅宿主",
+  installedPluginsEmpty: "还没有安装任何插件。",
+  installedPluginsLoading: "正在读取已安装插件…",
+  installedPluginsUnavailable: "读不到插件列表：",
+  installedPluginsFailed: "读取已安装插件失败：",
 }

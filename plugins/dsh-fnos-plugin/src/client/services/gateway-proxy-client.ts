@@ -9,8 +9,9 @@
 import {
   FNOS_GATEWAY_BUILTIN_PREFIXES,
   FNOS_GATEWAY_PROXY_PATHS_ROUTE,
+  FNOS_INSTALLED_PLUGINS_ROUTE,
 } from '../../contracts/gateway-proxy-contract.ts'
-import type { GatewayAutoPathsStatus } from '../../contracts/gateway-proxy-contract.ts'
+import type { GatewayAutoPathsStatus, InstalledPluginsSnapshot } from '../../contracts/gateway-proxy-contract.ts'
 
 /** 读取结果。 */
 export interface GatewayProxySnapshot {
@@ -90,5 +91,25 @@ export async function saveGatewayProxyPaths(paths: readonly string[]): Promise<G
     paths: Array.isArray(saved.paths) ? saved.paths.map(String) : [],
     auto: toAuto(saved.auto),
     builtin: FNOS_GATEWAY_BUILTIN_PREFIXES,
+  }
+}
+
+/**
+ * 取已安装插件清单。
+ * @returns 快照；读不到 profile 时 `available: false`。
+ */
+export async function fetchInstalledPlugins(): Promise<InstalledPluginsSnapshot> {
+  const response = await fetch(FNOS_INSTALLED_PLUGINS_ROUTE, {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+  const value = await response.json() as Partial<InstalledPluginsSnapshot>
+  return {
+    available: value.available === true,
+    ...(typeof value.reason === 'string' ? { reason: value.reason } : {}),
+    plugins: Array.isArray(value.plugins) ? value.plugins : [],
   }
 }

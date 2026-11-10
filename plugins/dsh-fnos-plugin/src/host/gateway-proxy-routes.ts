@@ -3,8 +3,10 @@ import { dirname, join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
+import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, FNOS_INSTALLED_PLUGINS_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
 import { detectProxyPrefixes } from './gateway-proxy-detect.ts'
+import { readInstalledPlugins } from './installed-plugins.ts'
+import { resolveRepairEnvironment } from './dependency-repair.ts'
 import type { FnosSettings } from '../contracts/theme-contract.ts'
 
 function send(res: ServerResponse, status: number, value: unknown): void { res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(value)) }
@@ -156,6 +158,20 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
       })
     }, 'dsh-fnos: gateway proxy path settings mirror')
   }
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_INSTALLED_PLUGINS_ROUTE,
+    handler: async (req, res) => {
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      try {
+        const environment = resolveRepairEnvironment()
+        send(res, 200, await readInstalledPlugins(environment?.profileDirectory, environment?.bundledDirectory))
+      } catch (error) {
+        send(res, 500, { error: 'installed-plugins-failed', message: error instanceof Error ? error.message : String(error) })
+      }
+    },
+  }), 'dsh-fnos: installed plugins')
+
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: FNOS_GATEWAY_PROXY_PATHS_ROUTE,

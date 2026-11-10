@@ -1298,9 +1298,29 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     选中态取 `-active`（比 hover 再深一档）：它既能与弹框白底区分，暗色主题下也
     是「比表面亮一点」的灰，两种主题都能读出「当前在哪一项」。
   */
+  /*
+    选中态：底色 + **左侧强调条**。
+
+    只靠底色在亮色主题下几乎看不出来——`--dsw-alias-interactive-bg-active` 是
+    10% 透明的浅灰，与弹框白底差别极小（实测截图里完全看不出哪项被选中）。
+    加一条 3px 的实色竖条，两种主题下都有明确的指示，且不依赖底色对比度。
+  */
   &--active {
+    position: relative;
     background: var(--dsw-alias-interactive-bg-active);
-    font-weight: 400;
+    font-weight: 600;
+
+    &::before {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 3px;
+      height: 18px;
+      border-radius: 0 2px 2px 0;
+      background: var(--dsw-alias-state-business-primary);
+      content: '';
+      transform: translateY(-50%);
+    }
   }
 }
 
@@ -1840,4 +1860,77 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+
+/*
+ * 「插件管理」：三个 tab 的容器与「已安装的插件」列表。
+ *
+ * tab 内容撑满剩余高度：反代与已装列表都可能很长，交给内层自己滚动。
+ */
+.dsh-fnos-plugins {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 12px;
+}
+
+.dsh-fnos-plugins-tabs {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dsh-fnos-proxy-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+.dsh-fnos-installed {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-fnos-installed-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.dsh-fnos-installed-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsh-fnos-installed-version {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dsh-fnos-installed-badge {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+  line-height: 16px;
 }

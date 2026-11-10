@@ -71,6 +71,7 @@ const ICON_NAMES = [
   'lucide:list-tree',
   'lucide:scroll-text',
   'lucide:route',
+  'lucide:blocks',
 ] as const
 
 async function generateIcons(): Promise<void> {

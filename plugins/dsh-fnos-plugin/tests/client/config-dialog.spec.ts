@@ -65,11 +65,39 @@ describe('fnOS 配置弹框', () => {
     expect(STORE).not.toContain("@deepseek-ai/dsh-client-store")
   })
 
-  it('左侧菜单 + 右侧主体，两个分组', () => {
+  it('左侧菜单 + 右侧主体，四个分组', () => {
     expect(DIALOG).toContain('dsh-fnos-config-nav')
     expect(DIALOG).toContain('dsh-fnos-config-panel')
     expect(DIALOG).toContain("id: 'directories'")
-    expect(DIALOG).toContain("id: 'repair'")
+    /*
+      「插件安装修复」不再是独立分组：它只服务于「装不上」这一件事，与反代、
+      已装列表同属「插件」，摊在一级菜单里让左列显得更碎。现在收进
+      「插件管理」的三个 tab（反代 / 安装异常 / 已安装）。
+    */
+    expect(DIALOG).toContain("id: 'plugins'")
+    expect(DIALOG).not.toContain("id: 'repair'")
+    expect(DIALOG).toContain("id: 'runtime'")
+    expect(DIALOG).toContain("id: 'logs'")
+  })
+
+  it('插件管理用三个 tab：反代 / 安装异常 / 已安装', () => {
+    const PROXY = read('../../src/components/GatewayProxyCard.tsx')
+    expect(PROXY).toContain('DshTabs')
+    // 顺序是产品决定的：反代最常用，排在第一个并默认选中。
+    expect(PROXY).toContain("tab={t('gatewayProxyTabProxy')}")
+    expect(PROXY).toContain("tab={t('gatewayProxyTabRepair')}")
+    expect(PROXY).toContain("tab={t('gatewayProxyTabInstalled')}")
+    expect(PROXY).toContain('DependencyRepairCard')
+    expect(PROXY).toContain('InstalledPluginsPanel')
+  })
+
+  it('菜单选中态有可见指示（纯底色在亮色主题下太弱）', () => {
+    const item = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-nav-item {'))
+    const block = item.slice(0, item.indexOf('\n}'))
+    // 实测截图里纯底色完全看不出选中；加左侧竖条后两种主题都清晰。
+    expect(block).toContain('&--active')
+    expect(block).toContain('&::before')
+    expect(block).toContain('--dsw-alias-state-business-primary')
   })
 
   it('两段配置复用原组件，不复制实现', () => {
@@ -127,7 +155,7 @@ describe('fnOS 配置弹框', () => {
   it('左侧菜单项带图标，图标与文字横排居中', () => {
     expect(DIALOG).toContain('<IconifyIcon name={item.icon} />')
     expect(DIALOG).toContain("icon: 'lucide:folder'")
-    expect(DIALOG).toContain("icon: 'lucide:wrench'")
+    expect(DIALOG).toContain("icon: 'lucide:blocks'")
     const item = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-nav-item {'))
     expect(item.slice(0, item.indexOf('}'))).toContain('align-items: center')
     expect(item.slice(0, item.indexOf('}'))).toContain('gap: 8px')

@@ -42,6 +42,7 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
       'lucide:activity',
       'lucide:arrow-down',
       'lucide:arrow-up',
+      'lucide:blocks',
       'lucide:cpu',
       'lucide:folder',
       'lucide:hard-drive',

@@ -107,3 +107,28 @@ export function validateGatewayProxyPaths(value: unknown): string[] | undefined 
   }
   return normalizeGatewayProxyPaths(value)
 }
+
+/** 已安装插件清单路由（只读）。 */
+export const FNOS_INSTALLED_PLUGINS_ROUTE = '/plugins/dsh-fnos/plugins/installed'
+
+/** 一个已安装的插件。 */
+export interface InstalledPlugin {
+  /** 包名，如 `@tnnevol/dsh-fnos`。 */
+  readonly name: string
+  /** 版本；`package.json` 没写时为 `—`。 */
+  readonly version: string
+  /** 是否声明了 dsh 客户端入口（能出现在界面里）。 */
+  readonly hasClient: boolean
+  /** 是否为随 FPK 内置、由本应用管理的插件。 */
+  readonly bundled: boolean
+}
+
+/** 插件清单响应。 */
+export interface InstalledPluginsSnapshot {
+  /** 是否读到 profile 目录。false 时界面给降级说明。 */
+  readonly available: boolean
+  /** 不可用原因代码。 */
+  readonly reason?: string
+  /** 已安装插件，按包名排序。 */
+  readonly plugins: readonly InstalledPlugin[]
+}

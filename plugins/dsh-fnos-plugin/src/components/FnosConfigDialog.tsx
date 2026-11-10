@@ -23,14 +23,13 @@ import { IconifyIcon } from './IconifyIcon.tsx'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { AuthorizedDirectoriesCard } from './AuthorizedDirectoriesCard.tsx'
 import { GatewayProxyCard } from './GatewayProxyCard.tsx'
-import { DependencyRepairCard } from './DependencyRepairCard.tsx'
 import { RuntimeStatusCard } from './RuntimeStatusCard.tsx'
 import { RuntimeLogPanel } from './RuntimeLogPanel.tsx'
 
 type Translate = (key: FnosLocaleKey) => string
 
 /** 弹框里的一级分组；新增配置项时在这里登记。 */
-type SectionId = 'directories' | 'proxy' | 'repair' | 'runtime' | 'logs'
+type SectionId = 'directories' | 'plugins' | 'runtime' | 'logs'
 
 export interface FnosConfigDialogProps {
   /** 是否可见。 */
@@ -55,9 +54,13 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
   // 每项配一个图标：纯文字分组在窄列里不易扫读，图标给一眼可辨的锚点。
   const sections: readonly { id: SectionId, label: string, icon: UsedIconName }[] = [
     { id: 'directories', label: t('configSectionDirectories'), icon: 'lucide:folder' },
-    // 「三方插件代理」紧跟授权目录：两者都是「谁能访问什么」的放行配置。
-    { id: 'proxy', label: t('configSectionProxy'), icon: 'lucide:route' },
-    { id: 'repair', label: t('configSectionRepair'), icon: 'lucide:wrench' },
+    /*
+      「插件管理」紧跟授权目录：两者都是「哪些东西能进来」的配置。
+      它内部再用 tab 分成「插件反代 / 插件安装异常 / 已安装的插件」三块——
+      原先「插件安装修复」是并列的一级菜单项，但它只服务于插件安装这一件事，
+      与反代、已装列表同属「插件」，摊平在一级菜单里会让左列显得比实际更碎。
+    */
+    { id: 'plugins', label: t('configSectionPlugins'), icon: 'lucide:blocks' },
     // 「运行」放最后：它是只读观测，不属于「设置」，放在配置项之后符合阅读顺序。
     { id: 'runtime', label: t('configSectionRuntime'), icon: 'lucide:activity' },
     // 日志排在运行之后：先看「现在怎么样」，再看「发生过什么」。
@@ -103,8 +106,7 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
         </nav>
         <div className="dsh-fnos-config-panel">
           {section === 'directories' ? <AuthorizedDirectoriesCard t={t} /> : null}
-          {section === 'proxy' ? <GatewayProxyCard t={t} /> : null}
-          {section === 'repair' ? <DependencyRepairCard t={t} /> : null}
+          {section === 'plugins' ? <GatewayProxyCard t={t} /> : null}
           {section === 'runtime' ? <RuntimeStatusCard t={t} /> : null}
           {section === 'logs' ? <RuntimeLogPanel t={t} /> : null}
         </div>
