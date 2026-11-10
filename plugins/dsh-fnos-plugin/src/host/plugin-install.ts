@@ -101,7 +101,7 @@ export async function readInstallLog(offset = 0): Promise<{ text: string, offset
  * @param path - 日志文件。
  * @param line - 内容。
  */
-async function appendLog(path: string, line: string): Promise<void> {
+export async function appendLog(path: string, line: string): Promise<void> {
   const stamp = new Date().toISOString().slice(11, 19)
   const text = `[${stamp}] ${line}\n`
   try {
@@ -219,6 +219,17 @@ async function resetLog(path: string, name: string, version: string): Promise<vo
   await mkdir(dirname(path), { recursive: true })
   await writeFile(path, '')
   await appendLog(path, `准备安装 ${name}@${version}（当前 DSH 基线 ${getDshRuntimeVersion()}）`)
+}
+
+/**
+ * 清空日志并写入首行（供其它安装流程复用，如 nrm）。
+ * @param path - 日志文件。
+ * @param firstLine - 首行说明。
+ */
+export async function startLog(path: string, firstLine: string): Promise<void> {
+  await mkdir(dirname(path), { recursive: true })
+  await writeFile(path, '')
+  await appendLog(path, firstLine)
 }
 
 /**

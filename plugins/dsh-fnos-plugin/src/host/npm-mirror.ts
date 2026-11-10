@@ -25,7 +25,8 @@
  * @module dsh-fnos/npm-mirror
  */
 
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
+import { appendLog, installLogPath, startLog } from './plugin-install.ts'
 
 /** nrm 命令的超时（毫秒）。它要访问网络，给宽一点。 */
 const NRM_TIMEOUT_MS = 30_000
@@ -189,19 +190,49 @@ export async function switchNpmMirror(name: string): Promise<{ ok: boolean, erro
  * @returns 是否成功。
  */
 export async function installNrm(): Promise<{ ok: boolean, error?: string }> {
+  const logPath = installLogPath()
+  if (logPath !== undefined) await startLog(logPath, '准备安装 nrm（npm install -g nrm）')
+
   return new Promise(resolve => {
-    execFile('npm', ['install', '-g', 'nrm'], {
-      timeout: 5 * 60 * 1000,
-      maxBuffer: 4 * 1024 * 1024,
+    /*
+      用 spawn 而不是 execFile：需要**流式**把输出写进日志。
+
+      execFile 只在结束时一次性给出全部输出，安装要几十秒，界面那段时间只能显示
+      一个「正在安装…」而无任何进展——用户无法判断它是在下载、还是卡住了。
+    */
+    const child = spawn('npm', ['install', '-g', 'nrm'], {
       env: process.env,
-    }, (error, stdout, stderr) => {
-      if (error === null) {
-        resolve({ ok: true })
-        return
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    let pending = ''
+    const flush = (): void => {
+      const lines = pending.split('\n')
+      pending = lines.pop() ?? ''
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed !== '' && logPath !== undefined) void appendLog(logPath, trimmed)
       }
-      // 失败时把 npm 的输出带回去：原因通常是网络或权限，用户需要看到具体信息。
-      const output = `${stdout ?? ''}${stderr ?? ''}${error.message}`.trim()
-      resolve({ ok: false, error: output })
+    }
+    child.stdout?.setEncoding('utf8')
+    child.stderr?.setEncoding('utf8')
+    child.stdout?.on('data', (chunk: string) => { pending += chunk; flush() })
+    child.stderr?.on('data', (chunk: string) => { pending += chunk; flush() })
+
+    let settled = false
+    const finish = (result: { ok: boolean, error?: string }): void => {
+      if (settled) return
+      settled = true
+      if (pending.trim() !== '' && logPath !== undefined) void appendLog(logPath, pending.trim())
+      if (logPath !== undefined) {
+        void appendLog(logPath, result.ok ? 'nrm 安装成功' : `nrm 安装失败：${result.error ?? 'unknown'}`)
+      }
+      resolve(result)
+    }
+
+    child.on('error', error => { finish({ ok: false, error: error.message }) })
+    child.on('close', code => {
+      finish(code === 0 ? { ok: true } : { ok: false, error: `npm 退出码 ${String(code)}` })
     })
   })
 }

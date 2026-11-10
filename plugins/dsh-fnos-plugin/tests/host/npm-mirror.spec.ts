@@ -95,6 +95,31 @@ describe('未安装与失败要区分', () => {
   })
 })
 
+describe('安装过程有日志', () => {
+  it('用 spawn 流式写日志，而不是 execFile 一次性给', () => {
+    /*
+      安装要几十秒，execFile 只在结束时给全部输出——界面那段时间只能显示一个
+      「正在安装…」，用户无法判断是在下载还是卡住了。
+    */
+    expect(MIRROR).toContain('spawn(')
+    expect(MIRROR).toContain('appendLog')
+    expect(MIRROR).toContain('startLog')
+  })
+
+  it('成功与失败都落一行结论', () => {
+    expect(MIRROR).toContain('nrm 安装成功')
+    expect(MIRROR).toContain('nrm 安装失败')
+  })
+
+  it('界面按 offset 增量拉日志并展示', () => {
+    const CARD = readFileSync(new URL('../../src/components/NpmMirrorCard.tsx', import.meta.url), 'utf8')
+    expect(CARD).toContain('fetchInstallLog')
+    expect(CARD).toContain('dsh-fnos-mirror-log')
+    // 与插件安装共用同一个日志接口，不另建一套。
+    expect(CARD).not.toContain('nrm-log')
+  })
+})
+
 describe('界面宽度', () => {
   it('带 width: 100% + padding 的块必须 border-box', () => {
     /*

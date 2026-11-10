@@ -2421,3 +2421,26 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 8px;
 }
+
+/*
+ * nrm 安装过程的实时日志。
+ *
+ * 与安装弹框里的日志同款（等宽、限高、自己滚）：npm 的输出带进度条与缩进，
+ * 用正文字体折行会把它们搅成一团。
+ */
+.dsh-fnos-mirror-log {
+  width: 100%;
+  max-height: 200px;
+  box-sizing: border-box;
+  overflow: auto;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

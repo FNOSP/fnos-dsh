@@ -14,10 +14,11 @@
  * @module dsh-fnos/components/NpmMirrorCard
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { DshButton } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchNpmMirrorStatus, installNrm, switchNpmMirror, type NpmMirrorStatus } from '../client/services/npm-mirror-client.ts'
+import { fetchInstallLog } from '../client/services/gateway-proxy-client.ts'
 
 type Translate = (key: FnosLocaleKey) => string
 
@@ -39,6 +40,10 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
   const [installing, setInstalling] = useState(false)
   /** 安装失败的原因（成功时清空）。 */
   const [installError, setInstallError] = useState<string>()
+  /** 安装过程的实时日志。 */
+  const [installLog, setInstallLog] = useState('')
+  /** 日志轮询的字节偏移。 */
+  const logOffsetRef = useRef(0)
   const [error, setError] = useState<string>()
 
   const load = useCallback(async () => {
@@ -52,16 +57,39 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
 
   useEffect(() => { void load() }, [load])
 
-  /** 安装 nrm：`npm i -g nrm`，装完自动刷新状态。 */
+  /**
+   * 安装 nrm：`npm i -g nrm`，过程实时展示日志。
+   *
+   * 安装要几十秒，只显示一个「正在安装…」用户无法判断是在下载还是卡住了。
+   * 日志与「插件安装」共用同一个文件与 offset 增量接口，不另建一套。
+   */
   const install = useCallback(async () => {
     setInstalling(true)
+    setInstallLog('')
+    setInstallError(undefined)
+    logOffsetRef.current = 0
+
+    const timer = setInterval(() => {
+      void fetchInstallLog(logOffsetRef.current).then(next => {
+        if (next.text === '') return
+        logOffsetRef.current = next.offset
+        setInstallLog(previous => previous + next.text)
+      })
+    }, 800)
+
     try {
       await installNrm()
-      setInstallError(undefined)
+      // 结束时再拉一次：最后几行可能在停止轮询之后才落盘。
+      const tail = await fetchInstallLog(logOffsetRef.current)
+      if (tail.text !== '') {
+        logOffsetRef.current = tail.offset
+        setInstallLog(previous => previous + tail.text)
+      }
       await load()
     } catch (cause) {
       setInstallError(cause instanceof Error ? cause.message : String(cause))
     } finally {
+      clearInterval(timer)
       setInstalling(false)
     }
   }, [load])
@@ -110,6 +138,10 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
           >
             {installing ? t('mirrorInstalling') : t('mirrorInstall')}
           </DshButton>
+          {/* 安装过程日志：与插件安装共用同一份输出。 */}
+          {installLog === '' ? null : (
+            <pre className="dsh-fnos-mirror-log">{installLog}</pre>
+          )}
           {installError === undefined ? null : (
             <pre className="dsh-fnos-mirror-error">{installError}</pre>
           )}
