@@ -2195,3 +2195,121 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   background: color-mix(in srgb, var(--dsw-alias-label-dimmed) 18%, transparent);
   color: var(--dsw-alias-label-tertiary);
 }
+
+/*
+ * 「npm 镜像管理」卡片。
+ *
+ * 与「插件安装修复」同处一个 tab，两者之间用分隔线而不是间距区分——
+ * 它们是两个独立能力，间距相等会让人以为属于同一块。
+ */
+.dsh-fnos-repair-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dsh-fnos-mirror {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+
+.dsh-fnos-mirror-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsh-fnos-mirror-title {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.dsh-fnos-mirror-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* 安装命令：等宽 + 可选中，用户要复制去终端跑。 */
+.dsh-fnos-mirror-command {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-1);
+
+  code {
+    flex: 1 1 auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+  }
+}
+
+.dsh-fnos-mirror-error {
+  width: 100%;
+  max-height: 120px;
+  overflow: auto;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-state-error-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.dsh-fnos-mirror-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-fnos-mirror-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+}
+
+/* 当前源：强调色边框 + 左侧竖条，与其它源区分。 */
+.dsh-fnos-mirror-item--current {
+  border-color: var(--dsw-alias-state-business-primary);
+  border-left-width: 3px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.dsh-fnos-mirror-item-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dsh-fnos-mirror-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dsh-fnos-mirror-registry {
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

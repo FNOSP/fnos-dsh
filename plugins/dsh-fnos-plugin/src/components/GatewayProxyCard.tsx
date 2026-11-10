@@ -31,6 +31,7 @@ import type { GatewayAutoPathsStatus } from '../contracts/gateway-proxy-contract
 import { DependencyRepairCard } from './DependencyRepairCard.tsx'
 import { InstalledPluginsPanel } from './InstalledPluginsPanel.tsx'
 import { PluginIndexPanel } from './PluginIndexPanel.tsx'
+import { NpmMirrorCard } from './NpmMirrorCard.tsx'
 import {
   fetchGatewayProxyPaths,
   saveGatewayProxyPaths,
@@ -255,7 +256,14 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
           {proxyPanel}
         </DshTabs.TabPane>
         <DshTabs.TabPane tab={t('gatewayProxyTabRepair')} itemKey="repair">
-          <DependencyRepairCard t={t} />
+          <div className="dsh-fnos-repair-tab">
+            <DependencyRepairCard t={t} />
+            {/*
+              npm 镜像管理放在同一个 tab：它解决的是同一类问题——「装不上插件」。
+              国内直连 registry 慢或被限流时，换个镜像往往就是解决办法。
+            */}
+            <NpmMirrorCard t={t} />
+          </div>
         </DshTabs.TabPane>
         <DshTabs.TabPane tab={t('gatewayProxyTabInstalled')} itemKey="installed">
           <InstalledPluginsPanel t={t} />

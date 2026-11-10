@@ -192,3 +192,9 @@ export const FNOS_PLUGIN_TOGGLE_ROUTE = '/plugins/dsh-fnos/plugins/toggle'
 
 /** 卸载插件（写）。 */
 export const FNOS_PLUGIN_REMOVE_ROUTE = '/plugins/dsh-fnos/plugins/remove'
+
+/** npm 镜像状态（只读）。 */
+export const FNOS_NPM_MIRROR_STATUS_ROUTE = '/plugins/dsh-fnos/npm/mirrors'
+
+/** 切换 npm 镜像源（写）。 */
+export const FNOS_NPM_MIRROR_USE_ROUTE = '/plugins/dsh-fnos/npm/mirror-use'
