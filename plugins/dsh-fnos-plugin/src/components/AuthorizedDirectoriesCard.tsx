@@ -281,16 +281,15 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         * 只多出一次点击——实机截图里第一眼看到的就是一排折叠标题而不是设置项。
         */}
       {/*
-        只留标题，去掉下方那段描述。
-        这段说明在弹框里是冗余的：分组名「授权目录」已经说清楚这是什么，而它
-        占掉两行高度、把首屏的路径列表往下推——实机截图里第一眼看到的是解释
-        文字而不是要操作的目录。
+        **不再渲染标题行**。
+
+        分组名「授权目录」已经写在左侧菜单里，这里再写一遍「fnos」/「授权目录」
+        是同一信息的重复，还占掉一行高度、把首屏的目录列表往下推——实机截图里
+        第一眼看到的是这行标题而不是要操作的目录。
+
+        下方 `.dsh-fnos-authorized-card-body` 自带 `border-top` 作为与面板顶部分隔
+        的那条线；移除标题后它直接贴到面板的 16px 上内边距之下，间距仍然成立。
       */}
-      <div className="dsh-fnos-authorized-card-header">
-        <span className="dsh-fnos-authorized-card-head-text">
-          <span className="dsh-fnos-authorized-card-name">{t('title')}</span>
-        </span>
-      </div>
       <DshModal
         visible={pendingDeletePath !== undefined}
         title={t('delete')}

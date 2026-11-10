@@ -66,6 +66,20 @@ describe('配置区不再折叠，内容常驻', () => {
   })
 })
 
+describe('授权目录卡片：不渲染重复标题', () => {
+  it('卡片里没有标题行（分组名已在左侧菜单）', () => {
+    /*
+      分组名「授权目录」已经写在左侧菜单里，卡内再写一遍「fnos」是同一信息的
+      重复，还占掉一行高度、把首屏的目录列表往下推。
+    */
+    const CARD = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+    expect(CARD).not.toContain('dsh-fnos-authorized-card-header')
+    expect(CARD).not.toContain("t('title')")
+    // 列表主体仍在，它自带的 border-top 就是面板顶部分隔线。
+    expect(CARD).toContain('dsh-fnos-authorized-card-body')
+  })
+})
+
 describe('授权目录列表：不单独限高，滚动交给面板', () => {
   it('列表容器没有自身高度上限与滚动条', () => {
     /*
