@@ -327,11 +327,18 @@ pnpm --filter @tnnevol/dsh-midscene run test:bridge "<目标URL>"
 
 `files.include` **相对执行目录**（插件根）解析，不是相对配置文件所在目录——写成 `tests/e2e/cases/**/*.yaml`。
 
-#### 文件上传：用 `dsh.uploadFile` 直接注入 `input[type=file]`（**不要**用 `fileChooserAccept`）
+#### 文件上传：两条路线，别混用
 
-FPK 上传是应用级验收里最容易卡住的一步。**2026-10-26 起本条结论已更正**：原先推荐的
-`aiAct` + `fileChooserAccept`（走系统文件选择器）在真实 NAS 上连续失败，失败全部发生在
-**视觉与文件选择器**环节，与被测物无关：
+FPK 上传是应用级验收里最容易卡住的一步。**用哪个工具，决定了用哪条路线**；两者的失败点
+完全不同，混着用会「看起来成功但应用不消费」：
+
+| 工具 | 路线 | 说明 |
+| --- | --- | --- |
+| Midscene Test（`dsh.uploadFile` 节点） | Node 读文件 → base64 → 页面内造 `File` → 派发完整事件序列 | 见本节，零模型调用 |
+| **Chrome MCP（本会话实测）** | **`upload_file` 走 CDP `DOM.setFileInputFiles`** + 拦 `input.click()` | 见下文「用 Chrome MCP 安装 FPK」 |
+
+**不要**用 `aiAct` + `fileChooserAccept`（走系统文件选择器）：2026-10-26 在真实 NAS 上
+连续失败，失败全部发生在**视觉与文件选择器**环节，与被测物无关：
 
 | 失败形态 | 实测现象 |
 | --- | --- |
@@ -340,7 +347,7 @@ FPK 上传是应用级验收里最容易卡住的一步。**2026-10-26 起本条
 | 桥调用超时 | `Bridge call timeout after 30000ms: getBrowserTabList` |
 | 重规划死循环 | `planning cycle limit (20) has been reached`（模型反复找桌面上的应用中心图标） |
 
-**当前唯一可靠路径**是共享包的 `dsh.uploadFile` 节点：Node 侧读本地文件 → base64 传入页面 →
+Midscene 路线用共享包的 `dsh.uploadFile` 节点：Node 侧读本地文件 → base64 传入页面 →
 页面内构造 `File` 塞进 `input[type=file]` → 派发完整事件序列。**零模型调用**，全确定性。
 
 ```yaml
@@ -354,42 +361,60 @@ FPK 上传是应用级验收里最容易卡住的一步。**2026-10-26 起本条
 四条实测约束：
 
 - **「从电脑上传」是「隐藏 input + label」模式**：`input[type=file]` 常驻且一直是 `0×0`，
-  点按钮**不会新建** input。直接给该隐藏 input 赋 `files` 即可。
+  点按钮**不会新建** input，操作的是同一枚节点。但点它**会**调用 `input.click()` 请求系统
+  选择器（实测 `pickerCount` 递增），所以必须先把 `click()` 拦下来，否则安装会被文件选择器
+  打断。
 - **页面里同时有一个 `webkitdirectory` 目录 input**，必须排除，否则会注进目录选择器。
-- **事件序列必须完整**：`pointerdown → pointerup → click → input → change`。只派发
-  `input`/`change` 时 fnOS 收不到文件——不弹安全提示，`input.files` 也不会被清空。
+- **事件序列必须完整**（仅 Midscene 路线需要）：`pointerdown → pointerup → click → input →
+  change`。只派发 `input`/`change` 时 fnOS 收不到文件——不弹安全提示，`input.files` 也不会
+  被清空。走 Chrome MCP 的 `upload_file` 时**不需要**这些补丁，浏览器原生完成关联。
 - **单次页面脚本不能长等**：Bridge 单次调用上限 30 秒。把「开对话框」与「注入」分步，
   等待判定放到 Node 侧轮询（即 `expectText` + `timeoutMs`）。
 
-**用 Chrome MCP 时不要依赖「拦 input.click()」**（2026-11-09 实测更正）：
+#### 用 Chrome MCP 安装 FPK：`upload_file` + 拦 `input.click()`
 
-早前认为必须先把来源切到「从电脑上传」并拦下它触发的 `input.click()`，否则应用不消费。
-在 fnOS 0.17 上用 Chrome MCP 反复验证后，这条**不是必要条件**，而且靠它判断目标 input
-会漏：
+**2026-11-10 实测确定的正解**，四步，全程不弹系统文件选择器：
 
-| 观察 | 实测结果 |
+1. **开对话框**：点「手动安装」。
+2. **拦住 `input.click()`**：把它换成只打标记、不真的打开选择器的函数。
+   不做这一步，点「从电脑上传」会弹出系统文件选择器——这正是此前每次安装都弹出的那个
+   窗口，也是「安装总是被打断」的根因。
+3. **切上传来源**：点「从电脑上传」。对话框默认处于「从 NAS 添加」形态，不切换就注入
+   文件，应用**不消费**（`input.files` 有值但不弹安全提示）。
+4. **`upload_file` 注入**：对第 2 步被请求的那枚 input 注入。
+
+```js
+// ① 拦 click：既避免系统选择器，又标出「应用真正请求的那一枚」
+HTMLInputElement.prototype.click = function () { this.dataset.dshRequested = '1' }
+// ② 切来源
+;[...document.querySelectorAll('span.semi-button-content')]
+  .filter(e => e.textContent.trim() === '从电脑上传').pop().closest('button').click()
+// ③ 非目录 input 上会带上 data-dsh-requested="1"
+```
+
+**两条必须满足的前置条件**（缺任一都会失败）：
+
+| 条件 | 实测现象 |
 | --- | --- |
-| 「从电脑上传」按钮的 `onClick` | 只切换来源枚举（`()=>{p(Qt.Computer)}`），**不调用** `input.click()` |
-| 切换来源时 input 是否重建 | **不重建**，同一个 DOM 节点保留（打 `data-*` 标记后仍在） |
-| input 的 React props | 只有 `type/multiple/accept`，**没有 `onChange`** |
-| 拦截成功次数 | 不稳定，多数调用拿不到被请求的那一枚 |
+| FPK 必须放在 **`os.tmpdir()`** 下 | 放仓库路径或 `~/.dsh/profiles/desktop` 都会被 `Access denied ... not within any of the configured workspace roots` 拒掉 |
+| input 必须**可被快照收录** | 它常驻在 `hidden` 祖先里、尺寸 `0×0`，快照不收录就取不到 uid。需 `document.body.appendChild()` 并给可见尺寸后才拿得到 uid |
 
-因此可靠顺序是：**先给非目录 input 打标记 → 再切来源 → 用标记取同一个节点注入**。
-标记不会因切换来源丢失，比「等拦截到的 `dataset` 标记」稳。拦截 `click()` 仍可保留
-（避免系统选择器弹窗占住页面），但**不能把它当成目标定位或成功判据**。
+MCP 的 roots **只包含 `os.tmpdir()`**（连个人 profile 都不在其中），这是选临时目录而非
+仓库路径的原因；先把 FPK `cp` 过去再用：
 
-判定成功的唯一依据仍是页面出现「未经验证应用的安全提示」。
+```bash
+cp apps/fn-deepseek-harness/dist/<name>.fpk "$(node -e 'console.log(require("os").tmpdir())')/"
+```
 
-文件被接收的可观察证据是 fnOS 弹出「未经验证应用的安全提示」；随后 React 会清空 input
+**别再走 DataTransfer + 合成事件**：那条路依赖页面内 `fetch` 跨源取包、再自造 `File`
+与事件序列，既慢又容易「看起来成功但应用不消费」。`upload_file` 走 CDP
+`DOM.setFileInputFiles`，由浏览器原生完成文件关联，不需要任何事件补丁。
+
+判定成功的唯一依据：页面出现「未经验证应用的安全提示」。随后 React 会清空 input
 （`files.length` 归 0），属正常现象，**不要**据此判失败。
 
 完整可执行用例见 `apps/fn-deepseek-harness/tests/e2e/cases/FNOS-013-nas-install-from-computer.yaml`，
 操作手册见[从电脑上传 FPK 到 NAS 并安装](/guide/nas-fpk-install)第 4.4 节。
-
-**为什么不能用 Chrome MCP 的 `upload_file` 上传**：该工具受工作区根白名单限制，实测
-`/tmp`、`~/Downloads`、仓库内路径**全部被拒**，且它解析到的根可能是 `~/.dsh/profiles/desktop`
-——那是用户的个人 profile，测试规范禁止写入。所以应用级安装用例走 Midscene Test，不要指望
-MCP 传文件。
 
 **为什么不能用 SSH 代替**：能连上（若已配置免密）也不该走——上传是**界面验收**的一部分，
 跳过它就无法证明「用户在应用中心能装成功」。SSH 只用于安装后的日志取证。
@@ -907,6 +932,7 @@ Codex Auth 插件的**已登录账号配置文件可直接用作测试账号**�
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-11-10 | 改正 Chrome MCP 传 FPK 的结论：`upload_file` 可用，关键在临时目录与拦 `click()` | 此前两处判断都错，一并纠正：① 原写「Chrome MCP 的 `upload_file` 受工作区根白名单限制，`/tmp`、`~/Downloads`、仓库内路径全被拒，故不能指望 MCP 传文件」——实测 MCP 的 roots **只包含 `os.tmpdir()`**，把 FPK `cp` 到该目录后 `upload_file` 正常工作；被拒的是仓库路径与 `~/.dsh/profiles/desktop`。② 原写「『从电脑上传』的 `onClick` 只切换来源枚举、不调用 `input.click()`」——同机重测**确会调用**（拦截计数 1），系统文件选择器就是这么弹出来的，正是「每次安装都被上传窗口打断」的根因。正解四步：开对话框 → 把 `HTMLInputElement.prototype.click` 换成只打标记的实现 → 点「从电脑上传」切来源 → 对带标记的非目录 input 用 `upload_file` 注入。另登记一个易漏前置：该 input 常驻在 `hidden` 祖先里、尺寸 `0×0` 时不被快照收录，需 `document.body.appendChild()` 并给可见尺寸才拿得到 uid。 |
 | 2026-10-23 | 补「同一 profile 同时只能一个实例」强制条款 | 开发态 Desktop 与 `dsh web` 共用 `<repo>/.dsh` 时会争抢同一会话，后发起的客户端发送被拒并提示「当前会话已被占用」。该现象是会话占用而非端口冲突——两实例都能正常启动、界面都能打开，只有发送失败，容易被误判成插件缺陷（实测踩到，白查了一轮）。规范写明先释放另一侧、Desktop 测试期间不起 `dsh web`，并给出用 `lsof` 按端口反查 PID 的收尾方式。 |
 | 2026-10-23 | 纠正 Desktop 口径：只用开发态，不涉及发行版 | 两处会误导的表述已改正：① 「测试环境执行方式」表格里的 Desktop 一栏原写「在安装的 DSH Desktop 客户端中加载待测插件版本」，与后文「不使用系统安装的发行版」自相矛盾，改为「在上游检出的开发态 Desktop 里加载」；② 「测试完成后必须把 Desktop 改回全局 profile」把开发态实例与使用者的发行版混为一谈，改为「收尾只退出开发态实例，不启动/重启发行版」，仅当测试者本人另外启动过发行版做对照时才适用交还动作。启动命令、`ELECTRON_RUN_AS_NODE` 与 profile 装配三件事另在[开发环境](../development/environment)新增「DSH Desktop 联调」小节陈述。 |
 | 2026-10-23 | 补 DSH Web 取 token URL、Desktop 启动环境与进程清理三类实测教训 | ① Web：裸访问 8070 返回 401，取证须用启动日志里带 `?token=` 的地址，且不要把启动输出接进管道（会缓冲到进程结束、吞掉那一行）；② Desktop：宿主注入的 `ELECTRON_RUN_AS_NODE=1` 会让 Electron 以 Node 模式启动并报 `bad option: --remote-debugging-port=…`，启动前须 unset；③ Desktop 插件页显示「不兼容/异常」多半是 profile 把插件以 `link:` 指向源码、peer 里是 `catalog:dsh` 解析不出语义化版本，处置是实体副本 + 规范化 peer，而非改源码；④ 结束 Desktop 进程只能按检出路径精确匹配，禁止用 `dsh-desktop` 等宽模式——会误杀用户日常发行版（其子进程命令行含 `@deepseek-ai/dsh-desktop`），且被误杀后 agent 无法恢复（沙箱内报 `task_name_for_pid` failure 5），只能请用户手动启动。 |
