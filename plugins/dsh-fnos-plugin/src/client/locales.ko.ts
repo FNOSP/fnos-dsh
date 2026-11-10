@@ -235,6 +235,8 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   mirrorNrmFailed: "nrm 이 설치되어 있지만 실행에 실패했습니다: ",
   mirrorCurrent: "사용 중",
   mirrorUse: "전환",
+  mirrorInstall: "설치",
+  mirrorInstalling: "설치 중…",
   copy: "복사",
   installedPluginsHostOnly: "호스트 전용",
   installedPluginsEmpty: "설치된 플러그인이 없습니다.",

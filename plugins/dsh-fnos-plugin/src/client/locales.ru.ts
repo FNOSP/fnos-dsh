@@ -226,6 +226,8 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   mirrorNrmFailed: "nrm установлен, но завершился с ошибкой: ",
   mirrorCurrent: "Текущий",
   mirrorUse: "Переключить",
+  mirrorInstall: "Установить",
+  mirrorInstalling: "Установка…",
   copy: "Копировать",
   installedPluginsHostOnly: "Только хост",
   installedPluginsEmpty: "Плагины не установлены.",

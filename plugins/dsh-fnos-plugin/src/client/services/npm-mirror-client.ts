@@ -6,6 +6,7 @@
 import {
   FNOS_NPM_MIRROR_USE_ROUTE,
   FNOS_NPM_MIRROR_STATUS_ROUTE,
+  FNOS_NPM_MIRROR_INSTALL_ROUTE,
 } from '../../contracts/gateway-proxy-contract.ts'
 
 /** 一个镜像源。 */
@@ -59,4 +60,20 @@ export async function switchNpmMirror(name: string): Promise<void> {
     body: JSON.stringify({ name }),
   })
   if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+}
+
+/**
+ * 安装 nrm。
+ */
+export async function installNrm(): Promise<void> {
+  const response = await fetch(FNOS_NPM_MIRROR_INSTALL_ROUTE, {
+    method: 'POST',
+    headers: { accept: 'application/json' },
+    credentials: 'same-origin',
+    body: '{}',
+  })
+  if (!response.ok) {
+    const value = await response.json().catch(() => undefined) as { message?: unknown } | undefined
+    throw new Error(typeof value?.message === 'string' ? value.message : `HTTP ${String(response.status)}`)
+  }
 }

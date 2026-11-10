@@ -17,12 +17,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { DshButton } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
-import { fetchNpmMirrorStatus, switchNpmMirror, type NpmMirrorStatus } from '../client/services/npm-mirror-client.ts'
+import { fetchNpmMirrorStatus, installNrm, switchNpmMirror, type NpmMirrorStatus } from '../client/services/npm-mirror-client.ts'
 
 type Translate = (key: FnosLocaleKey) => string
-
-/** 安装 nrm 的命令：给用户照着执行。 */
-const NRM_INSTALL_COMMAND = 'npm install -g nrm'
 
 /** 组件参数。 */
 export interface NpmMirrorCardProps {
@@ -38,6 +35,10 @@ export interface NpmMirrorCardProps {
 export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
   const [status, setStatus] = useState<NpmMirrorStatus>()
   const [busy, setBusy] = useState<string>()
+  /** 正在安装 nrm。 */
+  const [installing, setInstalling] = useState(false)
+  /** 安装失败的原因（成功时清空）。 */
+  const [installError, setInstallError] = useState<string>()
   const [error, setError] = useState<string>()
 
   const load = useCallback(async () => {
@@ -50,6 +51,20 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  /** 安装 nrm：`npm i -g nrm`，装完自动刷新状态。 */
+  const install = useCallback(async () => {
+    setInstalling(true)
+    try {
+      await installNrm()
+      setInstallError(undefined)
+      await load()
+    } catch (cause) {
+      setInstallError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setInstalling(false)
+    }
+  }, [load])
 
   const switchTo = useCallback(async (name: string) => {
     setBusy(name)
@@ -64,10 +79,6 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
     }
   }, [load])
 
-  const copyCommand = useCallback(() => {
-    void globalThis.navigator?.clipboard?.writeText(NRM_INSTALL_COMMAND)
-  }, [])
-
   return (
     <section className="dsh-fnos-mirror">
       <header className="dsh-fnos-mirror-head">
@@ -79,24 +90,29 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
 
       {status === undefined ? <p className="dsh-fnos-repair-muted">{t('mirrorLoading')}</p> : null}
 
-      {/* 未安装：给出命令，让用户自己装（全局操作不由应用代做）。 */}
+      {/*
+        未安装：只给一个「安装」按钮，不解释。
+
+        安装 nrm 是 `npm i -g`（全局写入、跨项目生效）。这类跨项目的改动不该由
+        应用替用户决定，所以不代装——但也不必把命令、原因、刷新串成一段话：
+        按钮点下去就是执行「安装 nrm 并刷新状态」，用户不需要先读懂它。
+        装了之后这一块整块消失，直接展示镜像列表。
+      */}
       {status !== undefined && !status.available ? (
         <div className="dsh-fnos-mirror-missing">
-          <p className="dsh-fnos-repair-muted">
-            {status.reason === 'nrm-failed' ? t('mirrorNrmFailed') : t('mirrorNrmMissing')}
-          </p>
-          {status.reason === 'nrm-failed' && status.error !== undefined ? (
-            <pre className="dsh-fnos-mirror-error">{status.error}</pre>
-          ) : null}
-          <div className="dsh-fnos-mirror-command">
-            <code>{NRM_INSTALL_COMMAND}</code>
-            <DshButton htmlType="button" size="small" theme="borderless" type="tertiary" onClick={copyCommand}>
-              {t('copy')}
-            </DshButton>
-          </div>
-          <DshButton htmlType="button" size="small" theme="light" type="primary" onClick={() => { void load() }}>
-            {t('refresh')}
+          <DshButton
+            htmlType="button"
+            size="small"
+            theme="solid"
+            type="primary"
+            loading={installing}
+            onClick={() => { void install() }}
+          >
+            {installing ? t('mirrorInstalling') : t('mirrorInstall')}
           </DshButton>
+          {installError === undefined ? null : (
+            <pre className="dsh-fnos-mirror-error">{installError}</pre>
+          )}
         </div>
       ) : null}
 

@@ -235,6 +235,8 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   mirrorNrmFailed: "nrm はインストール済みですが実行に失敗しました: ",
   mirrorCurrent: "使用中",
   mirrorUse: "切り替え",
+  mirrorInstall: "インストール",
+  mirrorInstalling: "インストール中…",
   copy: "コピー",
   installedPluginsHostOnly: "ホストのみ",
   installedPluginsEmpty: "インストール済みプラグインはありません。",

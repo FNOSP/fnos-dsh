@@ -82,10 +82,32 @@ describe('未安装与失败要区分', () => {
     expect(MIRROR).toContain('codeName')
   })
 
-  it('不代用户执行全局安装', () => {
-    // `npm i -g` 写全局 node_modules，跨项目生效，不该由应用替用户决定。
-    expect(MIRROR).not.toContain("'install'")
-    expect(MIRROR).not.toContain("'-g'")
+  it('提供安装能力，且只装 nrm 这一个包', () => {
+    /*
+      早前只显示命令、让用户去终端执行。但这是 fnOS 应用——用户打开的是 Web
+      界面，未必有可以直接执行的 shell 环境，「请你去终端跑这条命令」等于把问题
+      丢回去。既然界面上有「安装」按钮，就该真的装上。
+
+      约束：只装 nrm、只用标准 `-g`，不改其它全局状态。
+    */
+    expect(MIRROR).toContain('installNrm')
+    expect(MIRROR).toContain("'install', '-g', 'nrm'")
+  })
+})
+
+describe('界面宽度', () => {
+  it('带 width: 100% + padding 的块必须 border-box', () => {
+    /*
+      真机踩到：`.dsh-fnos-mirror-command` 写了 `width: 100%` + `padding: 8px 12px`
+      但没有 `box-sizing: border-box`，横向多出 24px，把整个 tab 撑出水平滚动条
+      （clientWidth 579 / scrollWidth 603）。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    for (const selector of ['.dsh-fnos-mirror-command {', '.dsh-fnos-mirror-error {']) {
+      const i = SCSS.indexOf(selector)
+      const rule = SCSS.slice(i, SCSS.indexOf('}', i))
+      expect(rule, selector).toContain('box-sizing: border-box')
+    }
   })
 })
 

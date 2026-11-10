@@ -2269,7 +2269,10 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   display: flex;
   align-items: center;
   gap: 8px;
+  /* box-sizing 必须写：`width: 100%` + padding 若不 border-box，横向会多出
+     padding 的宽度（实测超出 24px），把整个 tab 撑出水平滚动条。 */
   width: 100%;
+  box-sizing: border-box;
   padding: 8px 12px;
   border-radius: 8px;
   background: var(--dsw-alias-bg-layer-1);
@@ -2283,6 +2286,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 
 .dsh-fnos-mirror-error {
   width: 100%;
+  box-sizing: border-box;
   max-height: 120px;
   overflow: auto;
   margin: 0;

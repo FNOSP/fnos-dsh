@@ -198,3 +198,6 @@ export const FNOS_NPM_MIRROR_STATUS_ROUTE = '/plugins/dsh-fnos/npm/mirrors'
 
 /** 切换 npm 镜像源（写）。 */
 export const FNOS_NPM_MIRROR_USE_ROUTE = '/plugins/dsh-fnos/npm/mirror-use'
+
+/** 安装 nrm（写）。 */
+export const FNOS_NPM_MIRROR_INSTALL_ROUTE = '/plugins/dsh-fnos/npm/install-nrm'

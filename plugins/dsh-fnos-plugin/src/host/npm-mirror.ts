@@ -174,3 +174,34 @@ export async function switchNpmMirror(name: string): Promise<{ ok: boolean, erro
   if (result.code === 0) return { ok: true }
   return { ok: false, error: result.output }
 }
+
+/**
+ * 安装 nrm：`npm install -g nrm`。
+ *
+ * ## 为什么由应用代装
+ *
+ * 早前的做法是只显示命令、让用户自己去终端执行。但这是个 **fnOS 应用**：用户打开
+ * 的是一个 Web 界面，未必有可以直接执行的 shell 环境；「请你去终端跑这条命令」
+ * 等于把问题丢回去。既然界面已经提供了「安装」按钮，就该真的把它装上。
+ *
+ * 仍然只装 `nrm` 这一个包、只用 `-g` 标准安装方式，不改其它全局状态。
+ *
+ * @returns 是否成功。
+ */
+export async function installNrm(): Promise<{ ok: boolean, error?: string }> {
+  return new Promise(resolve => {
+    execFile('npm', ['install', '-g', 'nrm'], {
+      timeout: 5 * 60 * 1000,
+      maxBuffer: 4 * 1024 * 1024,
+      env: process.env,
+    }, (error, stdout, stderr) => {
+      if (error === null) {
+        resolve({ ok: true })
+        return
+      }
+      // 失败时把 npm 的输出带回去：原因通常是网络或权限，用户需要看到具体信息。
+      const output = `${stdout ?? ''}${stderr ?? ''}${error.message}`.trim()
+      resolve({ ok: false, error: output })
+    })
+  })
+}

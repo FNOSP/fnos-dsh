@@ -226,6 +226,8 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   mirrorNrmFailed: "nrm e installato ma ha fallito: ",
   mirrorCurrent: "In uso",
   mirrorUse: "Cambia",
+  mirrorInstall: "Installa",
+  mirrorInstalling: "Installazione…",
   copy: "Copia",
   installedPluginsHostOnly: "Solo host",
   installedPluginsEmpty: "Nessun plugin installato.",
