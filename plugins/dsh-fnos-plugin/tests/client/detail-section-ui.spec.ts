@@ -80,10 +80,16 @@ describe('授权目录列表：不单独限高，滚动交给面板', () => {
     expect(rule).not.toMatch(/^\s*overflow-y\s*:/m)
   })
 
-  it('外层面板仍是滚动容器（内容多了不会真的溢出）', () => {
+  it('滚动下沉到 tab 内容区，右列本身不再滚', () => {
+    /*
+      原来整个右列是滚动容器，tab 栏在它内部——滚动时 tab 栏会一起滚走，
+      切 tab 得先滚回顶部。现在由 Semi 的 tab 内容容器承担滚动，tab 栏常驻。
+    */
     const panel = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-panel {'))
-    const rule = panel.slice(0, panel.indexOf('}'))
-    expect(rule).toContain('overflow-y: auto')
+    expect(panel.slice(0, panel.indexOf('}'))).not.toContain('overflow-y: auto')
+    expect(SCSS).toContain('.dsh-fnos-plugins-tabs .semi-tabs-content')
+    const contentRule = SCSS.slice(SCSS.indexOf('.dsh-fnos-plugins-tabs .semi-tabs-content {'))
+    expect(contentRule.slice(0, contentRule.indexOf('}'))).toContain('overflow-y: auto')
   })
 })
 

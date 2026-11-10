@@ -153,7 +153,8 @@ describe('fnOS 配置弹框', () => {
     const panelRule = panel.slice(0, panel.indexOf('}'))
     // 右列内容左沿 = 188 + 24 = 212，与官方 options 的 padding-left 一致；
     // 下 24 同官方；右 24 不把滚动条推到中间（滚动条画在本元素右边缘＝弹框右沿）。
-    expect(panelRule).toContain('padding: 0 24px 24px')
+    // 右侧 24 保留（与滚动区右沿分开）；底部归零——留白由弹框 padding-bottom 统一给。
+    expect(panelRule).toContain('padding: 0 24px 0 4px')
   })
 
   it('左侧菜单项带图标，图标与文字横排居中', () => {
@@ -173,10 +174,11 @@ describe('fnOS 配置弹框', () => {
   it('弹框宽高固定，切换分组不跳动', () => {
     const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
     // 高度由 flex 撑开（容器固定 800），切换分组时不变。
-    expect(body).toContain('height: 100%')
+    // 用 flex 撑满而不是 height: 100%：外层已有 padding-bottom，100% 会多算那 15px。
+    expect(body).toContain('flex: 1 1 auto')
     expect(body).not.toMatch(/min-height:\s*\d+px/)
-    // 内容多的分组由右侧自己滚动。
-    expect(SCSS).toContain('.dsh-fnos-config-panel {')
+    // 内容多的分组由 tab 内容区自己滚动（tab 栏常驻）。
+    expect(SCSS).toContain('.dsh-fnos-plugins-tabs .semi-tabs-content')
     // 宽度固定但窄屏不溢出。
     expect(SCSS).toContain('max-width: calc(100vw - 32px)')
     expect(DIALOG).toContain('width={800}')
@@ -202,9 +204,10 @@ describe('fnOS 配置弹框', () => {
     // 标题下方实际变成 20。现在本层完全不设内边距，避免任何重复计算。
     expect(body).not.toMatch(/^\s*padding:/m)
     expect(body).toContain('box-sizing: border-box')
-    // 切换分组时右缘不能因为有无滚动条而左右跳。
-    const panel = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-panel {'))
-    expect(panel.slice(0, panel.indexOf('}'))).toContain('scrollbar-gutter: stable')
+    // 切换分组时右缘不能因为有无滚动条而左右跳——这个约束现在落在
+    // 真正的滚动容器（tab 内容区）上。
+    const content = SCSS.slice(SCSS.indexOf('.dsh-fnos-plugins-tabs .semi-tabs-content {'))
+    expect(content.slice(0, content.indexOf('}'))).toContain('scrollbar-gutter: stable')
   })
 
   it('插件管理外层不锁高度（锁了会滚不到底、保存按钮被截断）', () => {
@@ -231,7 +234,7 @@ describe('fnOS 配置弹框', () => {
     expect(nav).toContain('padding: 10px 12px 0')
     const panel = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-panel {'))
     const rule = panel.slice(0, panel.indexOf('}'))
-    expect(rule).toContain('padding: 0 24px 24px 4px')
+    expect(rule).toContain('padding: 0 24px 0 4px')
   })
 
   it('垂直留白只在 semi-modal-body 上设置一次', () => {
@@ -301,7 +304,8 @@ describe('fnOS 配置弹框', () => {
 
   it('高度由 flex 撑开，不硬编码 body 高度（否则底部被裁）', () => {
     const body = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-body {'), SCSS.indexOf('.dsh-fnos-config-panel {'))
-    expect(body).toContain('height: 100%')
+    // 用 flex 撑满而不是 height: 100%：外层已有 padding-bottom，100% 会多算那 15px。
+    expect(body).toContain('flex: 1 1 auto')
     expect(body).toContain('min-height: 0')
     // content 是 flex 纵向容器，body 占满剩余高度。
     expect(SCSS).toContain('flex-direction: column')

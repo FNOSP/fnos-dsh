@@ -1085,9 +1085,15 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
     为「浮起的面板」准备的语义层级，亮暗两套主题各自有合适的强度。
   */
   box-shadow: var(--dsw-shadow-lv3);
-  /* 左右内边距归零：标题与菜单各自的 24 由 header / nav 的内边距提供。
-     之前这里给 24，再叠 nav 与 item 的缩进，整列被推右。 */
-  padding: 0;
+  /*
+    左右内边距归零：标题与菜单各自的 24 由 header / nav 的内边距提供。
+    之前这里给 24，再叠 nav 与 item 的缩进，整列被推右。
+
+    **底部 15px 是统一的收尾留白**：内容区（.dsh-fnos-config-body）撑满剩余高度后
+    直抵弹框底沿，各菜单的最后一个元素会贴边。给它一个统一值，各菜单就不必再为
+    「离底多远」各写一份 padding。
+  */
+  padding: 0 0 15px;
   height: 800px;
   max-height: calc(100vh - 48px);
   border-radius: 28px;
@@ -1193,7 +1199,8 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 /* 两列容器：高度 746（= body），切换分组时不变。 */
 .dsh-fnos-config-body {
   display: flex;
-  height: 100%;
+  /* 用 1 1 auto 而不是 height: 100%：外层已有 padding-bottom，100% 会多算 15px。 */
+  flex: 1 1 auto;
   min-height: 0;
   box-sizing: border-box;
 }
@@ -1228,10 +1235,19 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     右 24 保持不变：右侧主体是滚动区，滚动条画在它自己的右边缘（即弹框右沿），
     需要这个留白把内容与滚动条分开。
   */
-  padding: 0 24px 24px 4px;
+  /*
+    **右列不再自己滚动**，滚动下沉到 tab 内容区（见 .dsh-fnos-plugins-scroll）。
+
+    原来整个右列是一个滚动容器：tab 栏在它内部，滚动时 tab 栏会一起滚走。而
+    tab 栏应当是常驻的——用户切 tab 不该先滚回顶部。
+
+    底部内边距改为 0：留白统一由弹框的 padding-bottom 给，这里再写一份会翻倍。
+  */
+  padding: 0 24px 0 4px;
   box-sizing: border-box;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /*
@@ -1885,10 +1901,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   padding: 0;
 }
 
-/*
- * tab 容器同样不锁高度：反代与已装列表都可能很长，锁死就等于截断。
- * 内层的列表自己带 `max-height`（如索引明细 360px），需要时它自己滚。
- */
+/* 高度链条透传：真正的滚动容器见文件末尾的 `.semi-tabs-content` 规则。 */
 .dsh-fnos-plugins-tabs {
   min-height: 0;
 }
@@ -2312,4 +2325,42 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * 「插件管理」tab 内容区：**这里才是滚动容器**。
+ *
+ * 原来滚动落在整个右列（.dsh-fnos-config-panel）上，导致 tab 栏跟着一起滚走——
+ * 用户切 tab 得先滚回顶部。
+ *
+ * 现在把高度链条逐层透传（content → body → panel → section → tabs → content），
+ * 由 Semi 的 `.semi-tabs-content` 承担滚动：tab 栏常驻，下面的内容自己滚。
+ */
+.dsh-fnos-plugins {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dsh-fnos-plugins-tabs {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Semi 的 tab 内容容器：撑满剩余高度并自己滚动。 */
+.dsh-fnos-plugins-tabs .semi-tabs-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* 滚动条常驻，避免内容变化时宽度跳动。 */
+  scrollbar-gutter: stable;
+  /* 底部留白归零：由弹框的 padding-bottom 统一给。 */
+  padding-bottom: 0;
+}
+
+/* 面板本身不再滚动，内容自然撑开交给上面的容器。 */
+.dsh-fnos-plugins-tabs .semi-tabs-pane {
+  overflow: visible;
+  padding-bottom: 0;
 }
