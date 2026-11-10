@@ -175,7 +175,19 @@ describe('fnOS 配置弹框', () => {
     expect(panel.slice(0, panel.indexOf('}'))).toContain('scrollbar-gutter: stable')
   })
 
-  it('semi-modal-body 不留内边距，高度全部交给两列', () => {
+  it('左右两列间距 16px（nav 右 12 + panel 左 4）', () => {
+    /*
+      早前是 nav 右 12 + panel 左 24 = 36px，两列之间空出一条谁都不占的走廊。
+      只收 panel 这一侧：菜单项的盒子宽度（188 − 12 − 12 = 164）因此不变。
+    */
+    const nav = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-nav {'), SCSS.indexOf('.dsh-fnos-config-nav-item {'))
+    expect(nav).toContain('padding: 10px 12px 0')
+    const panel = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-panel {'))
+    const rule = panel.slice(0, panel.indexOf('}'))
+    expect(rule).toContain('padding: 0 24px 24px 4px')
+  })
+
+  it('垂直留白只在 semi-modal-body 上设置一次', () => {
     const shellBody = SCSS.slice(
       SCSS.indexOf('.semi-modal-content.dsh-fnos-config-dialog .semi-modal-body {'),
       SCSS.indexOf('.semi-modal-content.dsh-fnos-config-dialog .semi-modal-body {') + 400,

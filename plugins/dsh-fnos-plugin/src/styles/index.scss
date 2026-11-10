@@ -1218,7 +1218,17 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     这样首行的**分隔线**仍落在面板边缘、而文字从 94+6=100 开始，与官方
     「菜单项 94 / 首行文字 100」的 6px 差值一致。
   */
-  padding: 0 24px 24px;
+  /*
+    左内边距 4 —— 与 nav 的右内边距 12 相加，菜单与内容之间是 **16px**。
+
+    原先这里是 24 与 nav 右侧 12 叠成 36px，两列离得太远，中间空出一条谁都不占的
+    走廊。只改这一侧、保留 nav 的 12：菜单项的盒子宽度（188 − 左右各 12 = 164）
+    因此不变，动的是内容区的起点。
+
+    右 24 保持不变：右侧主体是滚动区，滚动条画在它自己的右边缘（即弹框右沿），
+    需要这个留白把内容与滚动条分开。
+  */
+  padding: 0 24px 24px 4px;
   box-sizing: border-box;
   overflow-y: auto;
   scrollbar-gutter: stable;
