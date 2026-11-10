@@ -966,7 +966,29 @@ img.dsh-fnos-file-manager-icon {
  */
 .semi-modal-mask,
 .semi-modal-wrap {
-  --semi-color-overlay-bg: color-mix(in srgb, var(--dsw-alias-bg-base) 72%, transparent);
+  /*
+    蒙层用主题的「基色」压暗，但**透明度分主题**。
+
+    只用 `bg-base 72%` 在亮色主题下等于一层 72% 的白——背景几乎看不出被遮住，
+    弹框像是「浮在页面旁边」而不是「盖住了页面」。暗色主题下则相反：黑色 72% 很重。
+    因此亮色给更强的遮罩、暗色给更弱的：两者都是「压暗一档」，观感才一致。
+
+    变量来自 DSH（全局定义，不依赖 `data-dsh-semi-theme`），`data-ds-dark-theme`
+    由本插件的 theme-controller 维护。
+  */
+  --semi-color-overlay-bg: color-mix(in srgb, var(--dsw-alias-bg-base) 62%, transparent);
+  background-color: color-mix(in srgb, var(--dsw-alias-bg-base) 62%, transparent) !important;
+}
+
+/* 亮色主题：白色蒙层要更实，否则看不出「背后已禁用」。 */
+body:not([data-ds-dark-theme]) .semi-modal-mask,
+body:not([data-ds-dark-theme]) .semi-modal-wrap {
+  background-color: color-mix(in srgb, var(--dsw-alias-label-primary) 28%, transparent) !important;
+}
+
+/* 暗色主题：深色蒙层反而要淡一点，否则整块发黑、层级被压平。 */
+body[data-ds-dark-theme] .semi-modal-mask,
+body[data-ds-dark-theme] .semi-modal-wrap {
   background-color: color-mix(in srgb, var(--dsw-alias-bg-base) 72%, transparent) !important;
 }
 
