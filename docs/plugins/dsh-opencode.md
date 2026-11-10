@@ -9,7 +9,7 @@
 ## 安装
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-opencode@8.1.41
+dsh plugin --profile web add @tnnevol/dsh-opencode@8.1.42
 ```
 
 安装后重启 DSH Web profile。插件版本信息见[插件总览](/plugins/)。
