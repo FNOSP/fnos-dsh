@@ -19,13 +19,8 @@
  * @module dsh-fnos/components/GatewayProxyCard
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { DshTabs } from '@tnnevol/dsh-semi-ui'
-import { BarChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent } from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
-import * as echartsCore from 'echarts/core'
-import type { ECharts } from 'echarts/core'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import type { GatewayAutoPathsStatus } from '../contracts/gateway-proxy-contract.ts'
 import { DependencyRepairCard } from './DependencyRepairCard.tsx'
@@ -36,8 +31,6 @@ import {
   fetchGatewayProxyPaths,
   saveGatewayProxyPaths,
 } from '../client/services/gateway-proxy-client.ts'
-
-echartsCore.use([BarChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 type Translate = (key: FnosLocaleKey) => string
 
@@ -70,8 +63,6 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
   const [message, setMessage] = useState<string>()
   const [auto, setAuto] = useState<GatewayAutoPathsStatus>()
   const [busy, setBusy] = useState(false)
-  const chartHostRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<ECharts>()
 
   /** 载入当前配置与自动识别状态。 */
   const load = useCallback(async () => {
@@ -121,47 +112,6 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
     }
   }, [busy, save])
 
-  /** 建图（一次）+ 数据变化时刷新。 */
-  useEffect(() => {
-    const host = chartHostRef.current
-    if (host === null) return
-    const chart = echartsCore.init(host, undefined, { renderer: 'canvas' })
-    chartRef.current = chart
-    const onResize = (): void => { chart.resize() }
-    globalThis.addEventListener('resize', onResize)
-    return () => {
-      globalThis.removeEventListener('resize', onResize)
-      chart.dispose()
-      chartRef.current = undefined
-    }
-  }, [auto])
-
-  useEffect(() => {
-    const chart = chartRef.current
-    const groups = auto?.groups ?? []
-    if (chart === undefined || groups.length === 0) return
-    chart.setOption({
-      animation: false,
-      grid: { left: 8, right: 16, top: 8, bottom: 8, containLabel: true },
-      tooltip: { trigger: 'axis', confine: true, axisPointer: { type: 'shadow' } },
-      xAxis: { type: 'value', minInterval: 1, axisLabel: { fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } } },
-      yAxis: {
-        type: 'category',
-        data: groups.map(group => group.prefix),
-        axisLabel: { fontSize: 11, fontFamily: 'ui-monospace, Menlo, monospace' },
-        axisTick: { show: false },
-      },
-      series: [{
-        type: 'bar',
-        data: groups.map(group => group.routes.length),
-        barMaxWidth: 14,
-        itemStyle: { borderRadius: [0, 3, 3, 0] },
-        // 单位写进 tooltip：条数是计数，不加说明容易被当成字节数之类。
-        tooltip: { valueFormatter: (value: unknown) => (typeof value === 'number' ? `${String(value)} ${t('gatewayProxyRoutesUnit')}` : '—') },
-      }],
-    }, { notMerge: true })
-  }, [auto, t])
-
   const groups = auto?.groups ?? []
   const hasAuto = groups.length > 0
 
@@ -192,11 +142,12 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
 
       {hasAuto ? (
         <>
-          {/* 柱状图只是索引：谁贡献的路由最多，一眼看出来。 */}
-          <div ref={chartHostRef} className="dsh-fnos-proxy-chart" role="img" aria-label={t('gatewayProxyAutoTitle')} />
           {/*
-            明细列表**有最大高度**：前缀多时自己滚动，不把下面的手动配置区顶出屏幕。
-            用户改自己的配置时不希望先滚过一长串只读内容。
+            明细列表**不限高度、随内容自增**。
+
+            早前钉了 360px 让它自己滚，理由是「不把手动配置区顶出屏幕」。但列表
+            本身就是这份配置的主要内容，砍掉一半高度等于逼用户在小窗口里翻找；
+            而外层（tab 内容区）本来就是滚动容器，整页一起滚更符合阅读习惯。
           */}
           <ul className="dsh-fnos-proxy-list">
             {groups.map(group => (

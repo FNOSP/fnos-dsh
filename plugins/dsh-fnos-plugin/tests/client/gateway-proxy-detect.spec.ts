@@ -115,16 +115,20 @@ describe('FNOS-052 界面', () => {
   it('自动区段展示「前缀 + 该前缀下的接口」', () => {
     expect(CARD).toContain('group.prefix')
     expect(CARD).toContain('group.routes.map')
-    // 用 ECharts 做索引，按前置缀对比路由条数。
-    expect(CARD).toContain("from 'echarts/charts'")
-    expect(CARD).not.toContain("from 'echarts'")
+    // 柱状图已移除：条数在每个前缀的标题行里直接写着，图只重复了同一信息。
+    expect(CARD).not.toContain("from 'echarts/charts'")
+    expect(CARD).not.toContain('dsh-fnos-proxy-chart')
   })
 
-  it('明细列表有最大高度，不会把手动配置区顶出可视区', () => {
+  it('明细列表不限高度，随内容自增', () => {
+    /*
+      早前钉了 360px 让它自己滚。但列表本身就是配置的主要内容，砍掉一半高度等于
+      逼用户在小窗口里翻找；外层本来就是滚动容器，整页一起滚更符合阅读习惯。
+    */
     const i = SCSS.indexOf('.dsh-fnos-proxy-list {')
     const rule = SCSS.slice(i, SCSS.indexOf('}', i))
-    expect(rule).toContain('max-height')
-    expect(rule).toContain('overflow-y: auto')
+    expect(rule).not.toContain('max-height')
+    expect(rule).not.toContain('overflow-y')
   })
 
   it('不再展示内置前缀只读区（与自动识别区重复且占位）', () => {
@@ -133,10 +137,10 @@ describe('FNOS-052 界面', () => {
     expect(CARD).not.toContain('gatewayProxyBuiltinLabel')
   })
 
-  it('明细列表上限 360px（原 180 只够看两组）', () => {
+  it('列表高度不再被锁死（上限已移除）', () => {
     const i = SCSS.indexOf('.dsh-fnos-proxy-list {')
     const rule = SCSS.slice(i, SCSS.indexOf('}', i))
-    expect(rule).toContain('max-height: 360px')
+    expect(rule).not.toMatch(/max-height:\s*\d+px/u)
   })
 
   it('自动识别不可用时说明原因，而不是静默空白', () => {

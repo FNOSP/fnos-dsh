@@ -1821,28 +1821,20 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   color: var(--dsw-alias-state-warn-primary);
 }
 
-/* 柱状图只是索引：高度固定，不抢明细的位置。 */
-.dsh-fnos-proxy-chart {
-  width: 100%;
-  height: 120px;
-}
-
 /*
- * 明细列表：最大高度 360px。
+ * 明细列表：**不限高度，随内容自增**。
  *
- * **这个上限是刻意的**：前缀可能很多（装十几个插件就是十几组），不限高会把下面
- * 「手动补充」一路顶出可视区，用户还得先滚过整片只读内容才能改自己的配置。
- * 上限用 `max-height` 而非固定值，条目少时自然收缩、不留空白。
+ * 早前钉了 360px（更早是 180）让它自己滚，理由是「不把手动配置区顶出屏幕」。
+ * 但这份列表本身就是配置的主要内容，砍掉一半高度等于逼用户在小窗口里翻找，
+ * 而 `/dsh-market` 这种 51 条路由的条目在小窗里几乎没法读。
  *
- * 360 而非 180：原值只够看两组多一点，`/dsh-market` 这类 51 条路由的条目一屏
- * 都展不开，用户得反复滚才知道有哪些接口。翻倍后常见规模基本能一眼看完。
+ * 外层（tab 内容区 / 右列）本来就是滚动容器，整页一起滚更符合阅读习惯，
+ * 也避免了「同一屏两套滚动」那种滚轮落点不确定的问题。
  */
 .dsh-fnos-proxy-list {
   display: flex;
-  max-height: 360px;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
   margin: 0;
   padding: 0;
   list-style: none;
