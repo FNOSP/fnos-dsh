@@ -264,12 +264,29 @@ describe('fnOS 配置弹框', () => {
     expect(SCSS).not.toContain('.dsh-fnos-config-dialog .semi-modal-content')
   })
 
-  it('弹框去掉 1px 描边，阴影改为大范围低透明度', () => {
+  it('弹框去掉 1px 描边，阴影用主题层级变量', () => {
     // 按整条规则定位：同类选择器出现两次（窄屏兜底 + 表面样式），只取带边框的那条。
     const surface = SCSS.slice(SCSS.indexOf('body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {'))
-    expect(surface.slice(0, 300)).toContain('border: none')
-    // 阴影外扩：贴近的窄阴影会看起来像又描了一遍边。
-    expect(surface.slice(0, 300)).toMatch(/0 32px 80px/)
+    expect(surface.slice(0, 400)).toContain('border: none')
+    /*
+      阴影取自 `--dsw-shadow-lv3`（DSH 为「浮起的面板」准备的语义层级），不再自拼
+      两段 rgba——自定义阴影在暗色主题下是「黑上叠黑」，看不出层级。
+    */
+    expect(surface.slice(0, 400)).toContain('box-shadow: var(--dsw-shadow-lv3)')
+    expect(surface.slice(0, 400)).not.toMatch(/box-shadow:\s*\n?\s*0 \d+px/)
+  })
+
+  it('弹框与蒙层不写死颜色，全部走 DSH 主题变量', () => {
+    /*
+      写死颜色在亮色下够用，但**暗色主题会失效**：蒙层在深底上再压一层更黑、
+      弹框阴影「黑上叠黑」，层级被抹平。遮罩与浮起面板都属于主题语义，
+      底色应来自 `--dsw-alias-bg-base` / `--dsw-shadow-lv3`。
+    */
+    const mask = SCSS.slice(SCSS.indexOf('.semi-modal-mask,'), SCSS.indexOf('.semi-modal-mask,') + 900)
+    expect(mask).toContain('--dsw-alias-bg-base')
+    expect(mask).not.toMatch(/rgb\(0 0 0 \/ 45%\)/)
+    const surface = SCSS.slice(SCSS.indexOf('body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {'))
+    expect(surface.slice(0, 400)).toContain('--dsw-shadow-lv3')
   })
 
   it('阴影规则用 body[data-dsh-semi-theme] 前缀压过共享主题层', () => {

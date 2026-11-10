@@ -232,7 +232,8 @@ img.dsh-fnos-file-manager-icon {
     `.dsh-fnos-authorized-card-name` 重置。
   */
   padding: 16px 0;
-  border-bottom: 0.5px solid rgb(0 0 0 / 10%);
+  /* 用主题的边框变量：硬编码黑线在暗色主题下等于没画。 */
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 
   &:last-child {
     border-bottom: 0;
@@ -946,13 +947,27 @@ img.dsh-fnos-file-manager-icon {
  * background 的选择器同为 (0,1,0)，谁的规则靠后谁赢——实测直接写会被它盖掉，
  * 蒙层仍是白色。改在变量这一层才稳定。
  */
+/*
+ * 弹框蒙层与容器。
+ *
+ * **用 DSH 的语义变量，不写死颜色**。这里要解决的是「背后已禁用」这件事——
+ * 它属于主题语义，不是插件自己的设计决定，因此底色应当来自
+ * `--dsw-alias-bg-base` 与主题给的 `--semi-color-overlay-bg`。写死 `rgb(0 0 0/45%)`
+ * 的问题在于：亮色主题下够用，但**暗色主题下会在深色背景上再压一层更深的黑**，
+ * 弹框与页面的层级反而被抹平，且不与官方其它弹框一致。
+ *
+ * 具体做法沿用 DSH 官方主题层（`packages/dsh-semi-ui/src/theme.scss`）的口径：
+ * `color-mix(in srgb, var(--dsw-alias-bg-base) 72%, transparent)` —— 用来做「压暗
+ * 但不遮死」的蒙层，跟随主题自动切换明暗。
+ *
+ * `!important` 仍然保留：实测 Semi 另有一条同优先级的 `.semi-modal-mask { background }`
+ * 在本表之后生效，普通声明会被它压掉（计算值仍是白色）。遮罩是纯表现层，
+ * 覆盖不会破坏语义。
+ */
 .semi-modal-mask,
 .semi-modal-wrap {
-  --semi-color-overlay-bg: rgb(0 0 0 / 45%);
-  /* `!important` 在这里是必须的：实测 Semi 另有一条规则压过本类选择器，普通
-     声明的 `background-color` 与变量覆盖都不生效（变量已解析成 #00000073，
-     计算值却仍是白色）。遮罩是纯表现层，不会因覆盖而破坏语义。 */
-  background-color: rgb(0 0 0 / 45%) !important;
+  --semi-color-overlay-bg: color-mix(in srgb, var(--dsw-alias-bg-base) 72%, transparent);
+  background-color: color-mix(in srgb, var(--dsw-alias-bg-base) 72%, transparent) !important;
 }
 
 /*
@@ -1042,9 +1057,12 @@ body[data-dsh-semi-theme] .semi-modal {
 /* 弹框内容：去掉给 header/body 的内边距，左右缩进改由各段自己控制。 */
 body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
   border: none;
-  box-shadow:
-    0 12px 32px rgb(0 0 0 / 14%),
-    0 32px 80px rgb(0 0 0 / 18%);
+  /*
+    阴影用官方弹框的层级变量，而不是自己拼两段 rgba。
+    自定义阴影在暗色主题下是「黑上叠黑」，看不出层级；`--dsw-shadow-lv3` 是 DSH
+    为「浮起的面板」准备的语义层级，亮暗两套主题各自有合适的强度。
+  */
+  box-shadow: var(--dsw-shadow-lv3);
   /* 左右内边距归零：标题与菜单各自的 24 由 header / nav 的内边距提供。
      之前这里给 24，再叠 nav 与 item 的缩进，整列被推右。 */
   padding: 0;
@@ -1235,16 +1253,18 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   }
 
   /*
-    当前分组：底色与字重都取官方设置弹框的实测值。
+    当前分组：底色取主题的选中态变量，字重保持 400（不加粗）。
 
-    官方 active 态是 `background: rgb(235,238,242)` + `font-weight: 400`——**不加粗**，
-    只靠底色区分。此前这里写 `font-weight: 600` 并叠了一个 `--dsw-alias-interactive-bg-selected`
-    变量，实测该变量解析为空（`rgba(0,0,0,0)`），等于底色没生效、只剩加粗，与官方的
-    观感完全不同：菜单看起来「突然变粗」而不是「被选中」。底色写死 rgb 是因为官方用的
-    就是固定色值，跟随主题反而会与官方的浅灰底脱开。
+    官方 active 态是「浅灰底 + font-weight: 400」，只靠底色区分。早前这里既写死
+    了 `rgb(235 238 242)`、又加了 `font-weight: 600`，结果是**暗色主题下浅灰底
+    惨白**、并且菜单看起来「突然变粗」而不是「被选中」。
+
+    现在改用 `--dsw-alias-interactive-bg-selected`（选中态语义变量），亮暗两套
+    主题各自有合适的底色。变量缺失时退回 `bg-layer-2`——那是「比表面高一层的底」，
+    在两种主题下都能读出区别，比写死颜色安全。
   */
   &--active {
-    background: rgb(235 238 242);
+    background: var(--dsw-alias-interactive-bg-selected, var(--dsw-alias-bg-layer-2));
     font-weight: 400;
   }
 }
@@ -1384,7 +1404,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   align-items: center;
   gap: 12px;
   padding: 8px 0;
-  border-bottom: 0.5px solid rgb(0 0 0 / 8%);
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
 
   &:last-child {
     border-bottom: 0;
@@ -1412,7 +1432,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 .dsh-fnos-runtime-proc-badge {
   padding: 0 6px;
   border-radius: 4px;
-  background: rgb(0 0 0 / 6%);
+  background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-secondary);
   font-size: 11px;
   font-style: normal;
@@ -1583,29 +1603,35 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   text-overflow: ellipsis;
 }
 
-/* 级别配色：错误红、警告橙、信息蓝、调试灰。 */
+/*
+ * 级别配色：错误红、警告橙、信息蓝、调试灰。
+ *
+ * 全部走 `--dsw-alias-state-*`：**硬编码的 RGB 在暗色主题下会失效**——深色底上
+ * `rgb(190 40 40)` 这种偏深的红几乎看不见，而主题给的状态色已按明暗两套分别
+ * 调过亮度。暖色底用 `color-mix` 与 `bg-layer-3` 混出低饱和底，跟随主题。
+ */
 .dsh-fnos-logs-line--error .dsh-fnos-logs-badge {
-  background: rgb(214 60 60 / 14%);
-  color: rgb(190 40 40);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 16%, transparent);
+  color: var(--dsw-alias-state-error-primary);
 }
 
 .dsh-fnos-logs-line--warn .dsh-fnos-logs-badge {
-  background: rgb(214 140 20 / 16%);
-  color: rgb(170 105 0);
+  background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 18%, transparent);
+  color: var(--dsw-alias-state-warn-primary);
 }
 
 .dsh-fnos-logs-line--info .dsh-fnos-logs-badge {
-  background: rgb(60 120 214 / 14%);
-  color: rgb(40 90 180);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent);
+  color: var(--dsw-alias-state-business-primary);
 }
 
 .dsh-fnos-logs-line--debug .dsh-fnos-logs-badge {
-  background: rgb(0 0 0 / 8%);
+  background: color-mix(in srgb, var(--dsw-alias-label-dimmed) 14%, transparent);
   color: var(--dsw-alias-label-tertiary);
 }
 
 .dsh-fnos-logs-line--error .dsh-fnos-logs-text {
-  color: rgb(170 30 30);
+  color: var(--dsw-alias-state-error-primary);
 }
 
 /*
@@ -1642,13 +1668,13 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 }
 
 .dsh-fnos-proxy-badge--ok {
-  background: rgb(30 160 90 / 14%);
-  color: rgb(20 120 65);
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 16%, transparent);
+  color: var(--dsw-alias-state-success-primary);
 }
 
 .dsh-fnos-proxy-badge--warn {
-  background: rgb(214 140 20 / 16%);
-  color: rgb(170 105 0);
+  background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 18%, transparent);
+  color: var(--dsw-alias-state-warn-primary);
 }
 
 /* 柱状图只是索引：高度固定，不抢明细的位置。 */
@@ -1706,8 +1732,8 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 .dsh-fnos-proxy-kind {
   padding: 0 5px;
   border-radius: 3px;
-  background: rgb(60 120 214 / 14%);
-  color: rgb(40 90 180);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent);
+  color: var(--dsw-alias-state-business-primary);
   font-size: 10px;
   line-height: 15px;
 }
