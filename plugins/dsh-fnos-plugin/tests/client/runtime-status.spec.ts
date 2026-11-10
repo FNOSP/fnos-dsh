@@ -190,6 +190,30 @@ describe('运行状态：日志面板', () => {
   })
 })
 
+describe('运行状态：进程排序', () => {
+  it('根进程固定排最后（它永远不可操作，不该占最显眼的位置）', async () => {
+    const { listProcessTree } = await import('../../src/host/runtime-processes.ts')
+    const list = await listProcessTree(process.pid, 'user')
+    if (list.length === 0) return
+    const rootIndex = list.findIndex(item => item.isRoot)
+    // 根可能在也可能不在（uid 口径下当前进程必然在），在就必须是最后一条。
+    if (rootIndex >= 0) expect(rootIndex).toBe(list.length - 1)
+  })
+
+  it('可操作项排在根之前，同组内按 pid 升序', async () => {
+    const { listProcessTree } = await import('../../src/host/runtime-processes.ts')
+    const list = await listProcessTree(process.pid, 'user')
+    const killable = list.filter(item => item.canKill)
+    const pids = killable.map(item => item.pid)
+    expect([...pids].sort((a, b) => a - b)).toEqual(pids)
+    // canKill 为 false 的只允许出现在末尾。
+    const firstUnkillable = list.findIndex(item => !item.canKill)
+    if (firstUnkillable >= 0) {
+      expect(list.slice(firstUnkillable).every(item => !item.canKill)).toBe(true)
+    }
+  })
+})
+
 describe('运行状态：按 uid 枚举（覆盖网关进程）', () => {
   it('默认按 uid 枚举，而不是只爬进程树', async () => {
     const { listProcessTree } = await import('../../src/host/runtime-processes.ts')

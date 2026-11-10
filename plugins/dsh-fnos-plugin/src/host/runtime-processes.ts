@@ -207,8 +207,24 @@ export async function listProcessTree(
     }
   }
 
+  /*
+    排序：可操作的排前面，根进程固定最后。
+
+    这一栏的用途是「找到该结束的那个进程」。根进程永远不可结束（按钮是置灰的
+    「受保护」），把它按 pid 混在中间只会占掉最显眼的位置、还得让人先扫过去；
+    放到末尾相当于「其它进程」列表之后的固定脚注。
+
+    同组内仍按 pid 升序：稳定、可预期，刷新时不会跳来跳去。
+  */
+  const ordered = [...tree].sort((a, b) => {
+    const rootA = a === rootPid ? 1 : 0
+    const rootB = b === rootPid ? 1 : 0
+    if (rootA !== rootB) return rootA - rootB
+    return a - b
+  })
+
   const out: RuntimeProcess[] = []
-  for (const pid of tree.sort((a, b) => a - b)) {
+  for (const pid of ordered) {
     const stat = stats.get(pid)
     if (stat === undefined) continue
     const rss = await readRss(pid)
