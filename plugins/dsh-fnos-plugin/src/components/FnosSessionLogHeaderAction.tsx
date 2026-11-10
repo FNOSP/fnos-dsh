@@ -187,9 +187,10 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
   // 结构也对齐官方：第一项是「下载 Session 日志」，本插件额外提供的两种落点
   // （电脑 / NAS）挂在它的子菜单里，而不是平铺成两个同级项；第二项是反馈。
   //
-  // 刷新与重启也在这个菜单里，按用户指定排序：**刷新在最上面**（最常用、最轻，
-  // 一次重载即可），**重启在反馈下面**（动作最重，需要二次确认）。两者原先常驻
-  // 在侧栏底部，占掉两个按钮位——都是低频动作，收进这里更划算。
+  // 刷新与重启也在这个菜单里，**刷新紧邻重启、排在它上面**：两者都是「让界面或
+  // 服务重新开始」，放在一起便于对照；刷新更轻（一次重载），重启更重（会中断
+  // 当前所有会话），按「由轻到重」排序符合操作预期。两者原先常驻在侧栏底部，
+  // 占掉两个按钮位——都是低频动作，收进这里更划算。
   // 重启失败时把该行文案换成失败提示：菜单里不弹窗，否则会打断用户操作，
   // 但静默失败又等于没做——所以借这一行的标签承载结果。
   // 重启用电源图标（lucide:power）：与「刷新」的循环箭头一眼可分。官方 primitives
@@ -208,7 +209,6 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
       icon: <IconCopyOutlineRegular />,
       ...(copying ? { disabled: true } : {}),
     },
-    { id: 'refresh', label: t('refresh'), icon: <IconifyIcon name="lucide:refresh-cw" /> },
     {
       id: 'download',
       label: t('sessionLogDownload'),
@@ -219,6 +219,9 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
       ],
     },
     { id: 'feedback', label: t('sessionLogFeedback'), icon: <IconPaperPlaneOutlineRegular /> },
+    // 刷新紧邻重启：两者都是「让界面/服务重新开始」，放一起便于对照；
+    // 刷新在前是因为它更轻（一次重载），重启更重（会中断当前所有会话）。
+    { id: 'refresh', label: t('refresh'), icon: <IconifyIcon name="lucide:refresh-cw" /> },
     restartItem,
   ]
 

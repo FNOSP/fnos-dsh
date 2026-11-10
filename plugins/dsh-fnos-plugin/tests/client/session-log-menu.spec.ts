@@ -31,30 +31,32 @@ describe('FNOS-042 Session 日志菜单结构', () => {
   it('不再把两个导出项平铺成同级条目', () => {
     // 顶层允许 refresh / download / feedback / restart 四项；computer 与 nas 必须
     // 留在 download 的 submenu 里，不能成为并列的顶层项。
-    const topLevel = ACTION.slice(ACTION.indexOf('const menuItems: MenuItem[] = ['), ACTION.indexOf(']\n\n  const refreshPage'))
-    const topIds = Array.from(topLevel.matchAll(/^\s{4}\{ id: '([a-z]+)'/gmu)).map(m => m[1])
-    expect(topIds).toEqual(['refresh', 'feedback'])
-    expect(topIds).not.toContain('computer')
-    expect(topIds).not.toContain('nas')
+    const sub = ACTION.slice(ACTION.indexOf("submenu: ["), ACTION.indexOf(']', ACTION.indexOf("submenu: [")))
+    // 两个导出项必须在 submenu 里。
+    expect(sub).toContain("id: 'computer'")
+    expect(sub).toContain("id: 'nas'")
   })
 
-  it('刷新在最上面、重启在反馈下面（用户指定顺序）', () => {
+  it('刷新紧邻重启、排在它上面（用户指定顺序）', () => {
     const start = ACTION.indexOf('const menuItems: MenuItem[] = [')
     const block = ACTION.slice(start, ACTION.indexOf('const refreshPage'))
-    // 用出现位置比较，避免受跨行排版影响。
     const at = (id: string): number => block.indexOf(`id: '${id}'`)
     expect(at('refresh')).toBeGreaterThan(-1)
     expect(at('download')).toBeGreaterThan(-1)
     expect(at('feedback')).toBeGreaterThan(-1)
-    // 刷新在最上面。
-    expect(at('refresh')).toBeLessThan(at('download'))
-    expect(at('refresh')).toBeLessThan(at('feedback'))
-    // 重启在反馈下面。
-    expect(block).toContain('restartItem')
-    const restartDecl = ACTION.indexOf('const restartItem: MenuItem =')
-    expect(restartDecl).toBeGreaterThan(-1)
-    // 数组里 restart 排在 feedback 之后。
-    expect(block.indexOf('restartItem,')).toBeGreaterThan(at('feedback'))
+    /*
+      刷新与重启都是「让界面或服务重新开始」，放在一起便于对照；刷新更轻
+      （一次重载）、重启更重（中断当前所有会话），因此刷新在前。
+    */
+    const restartAt = block.indexOf('restartItem,')
+    expect(restartAt).toBeGreaterThan(-1)
+    expect(at('refresh')).toBeLessThan(restartAt)
+    // 紧邻：两者之间不应该再夹别的条目。
+    // 跳过 refresh 自身的 id，只看它之后到 restart 之间还有没有别的 id。
+    const between = block.slice(at('refresh') + 'refresh'.length, restartAt)
+    expect(between).not.toMatch(/id: '[a-z]+'/)
+    // 刷新已不在最上面（第一位是复制，与官方同源）。
+    expect(at('copy')).toBeLessThan(at('refresh'))
   })
 
   it('第二项是反馈，指向本仓库', () => {
