@@ -7,7 +7,7 @@
 插件发布在 npm，要求 DSH `0.2.0-rc.2` 。安装命令：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-semi-ui-showcase@8.1.71
+dsh plugin --profile web add @tnnevol/dsh-semi-ui-showcase@8.1.72
 ```
 
 装完重启 Web profile 即可。
