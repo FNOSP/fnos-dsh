@@ -2471,12 +2471,34 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
  *
  * 定为 40px（= 开启态宽度），关闭时让圆钮左移而不是缩短轨道。
  */
+/*
+ * 卡片里的开关：统一成标准药丸（Semi 默认 40×24、圆角 12 = 高度一半）。
+ *
+ * 下面补了两处，都是为了让「开 / 关 / 置灰」三种状态看起来是**同一种控件**：
+ *
+ * 1. **宽度固定 40px**：Semi 默认就是 40，但 `size="small"` 之类会把轨道压窄，
+ *    同一列表里几个开关便宽窄不一。
+ * 2. **置灰态保持填充**：Semi 的 `-disabled` 把背景改成 `transparent` 再加一圈
+ *    灰边框，视觉上像「空心方框」，与旁边实心的开关不像一套控件。这里改成
+ *    浅灰填充 + 去掉边框，圆角不变，仍是药丸。
+ */
 .dsh-fnos-card .semi-switch {
   width: 40px;
   flex: 0 0 auto;
 }
 
+.dsh-fnos-card .semi-switch.semi-switch-disabled {
+  background-color: var(--dsw-alias-bg-layer-3);
+  border-color: transparent;
+}
+
+/* 开启且置灰：保留一层淡的成功色，仍能读出「它是开着的，只是不能动」。 */
+.dsh-fnos-card .semi-switch.semi-switch-disabled.semi-switch-checked {
+  background-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 45%, transparent);
+}
+
 .dsh-fnos-card .semi-switch .semi-switch-knob {
   /* 关闭态 Semi 会缩小轨道宽度；固定后让钮按 left 定位即可，无需额外补偿。 */
   transition: left 0.2s ease-in-out;
+  border-radius: 9px;
 }

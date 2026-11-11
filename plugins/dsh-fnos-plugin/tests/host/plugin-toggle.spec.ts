@@ -284,6 +284,19 @@ describe('卡片式界面', () => {
     expect(rule).toContain('width: 40px')
   })
 
+  it('置灰态保持药丸填充，不变成空心方框', () => {
+    /*
+      Semi 的 `-disabled` 把背景改成 transparent 再加一圈灰边框，视觉上像「空心
+      方框」，与旁边实心的开关不像一套控件。这里改成浅灰填充 + 去边框，圆角不变。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-card .semi-switch.semi-switch-disabled {')
+    expect(idx).toBeGreaterThan(-1)
+    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
+    expect(rule).toContain('background-color')
+    expect(rule).toContain('border-color: transparent')
+  })
+
   it('卡片一行两个，窄容器自动退化单列', () => {
     // 单列时每张卡只有一行文字却占满整宽，一屏放不下几个。
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
