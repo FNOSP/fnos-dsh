@@ -159,7 +159,12 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                 ) : plugin.latestVersion === undefined ? null : plugin.aheadOfRegistry === true ? (
                   <span className="dsh-fnos-installed-badge">{t('installedAheadOfRegistry')}</span>
                 ) : (
-                  <span className="dsh-fnos-repair-muted">{t('installedUpToDate')}</span>
+                  /*
+                    「已是最新」也用徽标而不是裸文字：它是**状态**，与「有更新」
+                    「不兼容」是同一层级的信息。裸文字会让这一行看起来没对齐——
+                    同行其它状态都是带底色的块。
+                  */
+                  <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">{t('installedUpToDate')}</span>
                 )}
                 {plugin.bundled ? <span className="dsh-fnos-installed-badge">{t('installedPluginsBundled')}</span> : null}
                 {plugin.hasClient ? null : <span className="dsh-fnos-repair-muted">{t('installedPluginsHostOnly')}</span>}

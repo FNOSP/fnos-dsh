@@ -34,13 +34,55 @@ describe('patch 解析', () => {
     expect(entries[0]?.enabled).toBe(true)
   })
 
-  it('忽略没有 name 的条目（不是插件挂载）', () => {
-    expect(parsePatchEntries('- id: alone\n  config: {}\n')).toEqual([])
+  it('保留没有 name 的条目（它们可能是禁用指令）', () => {
+    /*
+      早前这里断言「忽略没有 name 的条目」，但那把 `- id: X / disabled: true`
+      这类**禁用指令**也一起丢了，导致无法启用已禁用的插件。
+      现在 name 为空串、条目保留。
+    */
+    expect(parsePatchEntries('- id: alone\n  config: {}\n')).toEqual([{ id: 'alone', name: '', enabled: true }])
   })
 
   it('解析失败不猜，返回空', () => {
     expect(parsePatchEntries('')).toEqual([])
     expect(parsePatchEntries('not yaml at all')).toEqual([])
+  })
+})
+
+describe('解析必须保留只有 id 的条目', () => {
+  it('id-only 的禁用条目不能被过滤掉', () => {
+    /*
+      真机踩到：`- id: X / disabled: true` 这种**只有 id** 的条目在解析时被整个
+      丢掉，于是 `setPackageEnabled` 的 byId 匹配永远找不到它——已禁用过的插件
+      无法再启用，也识别不出「这个包已有 id 条目」。
+
+      这同时是「无法禁用」的最后一环：patch 里明明有 4 条 wallpaper 的禁用条目，
+      界面却一直是启用状态、点禁用还报错。
+    */
+    const entries = parsePatchEntries(`- id: plugin-market
+  name: "@deepseek-ai/dsh-plugin-market"
+- id: dsh-plugin-wallpaper-engine
+  disabled: true
+`)
+    expect(entries).toHaveLength(2)
+    // 只有 id 的条目 name 为空串。
+    expect(entries[1]).toEqual({ id: 'dsh-plugin-wallpaper-engine', name: '', enabled: false })
+  })
+
+  it('注释行不影响解析', () => {
+    // 真实文件开头有三行 `#` 说明。
+    const entries = parsePatchEntries(`# Your patch layer for this dsh profile
+# a top-level YAML array
+- id: a
+  name: x
+`)
+    expect(entries).toEqual([{ id: 'a', name: 'x', enabled: true }])
+  })
+
+  it('读不到文件时用与官方同构的骨架（含注释）', () => {
+    // 写 `[]` 会丢注释，且 flow/block sequence 语法不一致。
+    expect(TOGGLE).toContain('DEFAULT_PATCH_SKELETON')
+    expect(TOGGLE).toContain('Your patch layer for this dsh profile')
   })
 })
 

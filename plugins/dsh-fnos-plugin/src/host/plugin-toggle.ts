@@ -34,6 +34,17 @@ export interface PluginEntryState {
   readonly enabled: boolean
 }
 
+/**
+ * patch 文件读不到时的骨架。
+ *
+ * 与官方生成的文件同构：三行说明注释 + block sequence。写回时注释得以保留，
+ * 语言风格也一致。
+ */
+const DEFAULT_PATCH_SKELETON = `# Your patch layer for this dsh profile, applied after every bundle layer:
+# a top-level YAML array of loader patch entries (id-targeted config
+# overrides, disables, and insert lists; \`!!js\` expressions allowed).
+`
+
 /** profile patch 文件路径。 */
 function patchPath(): string | undefined {
   const environment = resolveRepairEnvironment()
@@ -57,8 +68,18 @@ export function parsePatchEntries(text: string): PluginEntryState[] {
   let current: { id: string, name: string | undefined, disabled: boolean } | undefined
 
   const flush = (): void => {
-    if (current?.id !== undefined && current.name !== undefined) {
-      entries.push({ id: current.id, name: current.name, enabled: !current.disabled })
+    /*
+      **保留没有 `name` 的条目。**
+
+      早前只收「同时有 id 与 name」的条目，于是 `- id: X / disabled: true` 这种
+      **只有 id 的禁用条目**在解析时被整个丢掉——`setPackageEnabled` 里的 `byId`
+      匹配因此永远找不到它们。真机表现：patch 里明明有 4 条 wallpaper 的禁用条目，
+      界面却一直是启用状态、点禁用还报错。
+
+      `name` 用空串表示「该条目没有 name 字段」，调用方据此选择匹配方式。
+    */
+    if (current !== undefined && current.id !== '') {
+      entries.push({ id: current.id, name: current.name ?? '', enabled: !current.disabled })
     }
     current = undefined
   }
@@ -119,12 +140,20 @@ export async function setPackageEnabled(name: string, enabled: boolean): Promise
   try {
     text = await readFile(path, 'utf8')
   } catch {
-    text = '[]\n'
+    /*
+      读不到时不要写 `[]`。
+
+      真实文件是「三行 `#` 注释 + `- ` 列表」，而不是 `[]`——两者是不同的 YAML
+      语法（flow sequence vs block sequence），混用会让写回的内容与原文件风格
+      不一致，也丢掉那几行说明。这里给一份与官方同构的骨架。
+    */
+    text = DEFAULT_PATCH_SKELETON
   }
 
   try {
   const entries = parsePatchEntries(text)
-  const targets = entries.filter(entry => entry.name === name)
+  // name 非空时按 name 匹配；只有 id 的条目按 id 匹配（见下方 byId）。
+  const targets = entries.filter(entry => entry.name !== '' && entry.name === name)
   const lines = text.split('\n')
 
   /*
