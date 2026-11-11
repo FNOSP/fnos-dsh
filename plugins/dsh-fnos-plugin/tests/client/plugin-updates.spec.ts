@@ -202,6 +202,11 @@ describe('插件安装与异常：两段顺序与分割线', () => {
     const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx))
     expect(rule).toContain('border-bottom: 1px solid')
 
+    // 第一个模块的线贴近内容（5px），后续模块线与下一块之间留 15px。
+    expect(rule).toContain('padding-bottom: 5px')
+    const gap = SCSS.slice(SCSS.indexOf('.dsh-fnos-repair-tab > * + * {'))
+    expect(gap.slice(0, gap.indexOf('\n}'))).toContain('margin-top: 15px')
+
     const last = SCSS.slice(SCSS.indexOf('.dsh-fnos-repair-tab > *:last-child {'))
     expect(last.slice(0, last.indexOf('\n}'))).toContain('border-bottom: none')
 

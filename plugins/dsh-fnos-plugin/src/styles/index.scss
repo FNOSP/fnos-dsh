@@ -2352,8 +2352,19 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  * 线永远只在相邻两块之间。
  */
 .dsh-fnos-repair-tab > * {
-  padding-bottom: 20px;
+  /*
+    **第一个模块的线贴近其内容（5px），后续模块线与下一块之间留 15px。**
+
+    20px 的上下等距会让每条线看起来悬在两块中间、不与任何一侧成组；靠上一侧
+    5px 读起来就是「这一块到此结束」，下一块的 `margin-top: 15px` 负责呼吸。
+  */
+  padding-bottom: 5px;
   border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+/* 从第二块起：与上方那条线拉开 15px。 */
+.dsh-fnos-repair-tab > * + * {
+  margin-top: 15px;
 }
 
 .dsh-fnos-repair-tab > *:last-child {
@@ -2704,8 +2715,8 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: none;
   border-radius: 6px;
@@ -2714,9 +2725,12 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
   cursor: pointer;
 
   svg {
-    /* 与当前文案字号一致：13px 文字对应的图标观感约 16px。 */
-    width: 16px;
-    height: 16px;
+    /*
+      20px：16px 在大屏上偏小，与所在的工具条（28px 高按钮）不成比例。
+      容器同步放大到 32px，保持图标四周的留白比例，点击热区也更大。
+    */
+    width: 20px;
+    height: 20px;
   }
 
   &:hover:not(:disabled) {

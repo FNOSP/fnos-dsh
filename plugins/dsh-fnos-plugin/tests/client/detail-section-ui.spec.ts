@@ -66,6 +66,17 @@ describe('配置区不再折叠，内容常驻', () => {
   })
 })
 
+describe('图标按钮尺寸', () => {
+  it('图标 20px、容器 32px（保持留白比例与点击热区）', () => {
+    // 16px 在大屏上偏小，与 28px 高的按钮不成比例。
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-icon-button {')
+    const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx))
+    expect(rule).toContain('width: 32px')
+    expect(rule).toContain('width: 20px')
+  })
+})
+
 describe('授权目录：不出现多余的顶部分隔线', () => {
   it('卡片主体没有 border-top', () => {
     /*
