@@ -88,6 +88,8 @@ describe('授权目录：不出现多余的顶部分隔线', () => {
     // 去掉注释再看：说明文字里提到 `border-top` 是解释原因，不算声明。
     const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx)).replace(/\/\*[\s\S]*?\*\//gu, '')
     expect(rule).not.toMatch(/^\s*border-top\s*:/mu)
+    // 顶部也不该留白：这一块紧接面板顶端，12px 的 padding-top 只是一段空当。
+    expect(rule).toMatch(/padding:\s*0 0 8px/u)
   })
 })
 

@@ -303,7 +303,11 @@ img.dsh-fnos-file-manager-icon {
   flex-direction: column;
   gap: 12px;
   margin: 0 16px;
-  padding: 12px 0 8px;
+  /*
+    顶部不留白：这一块紧接在右侧面板顶端，12px 的 `padding-top` 在没有任何上方的
+    内容时只是一段空当，看起来像「内容没对齐」。
+  */
+  padding: 0 0 8px;
   /*
     不要 `border-top`：这一块就是卡片的全部内容（按钮行 + 目录列表），上面没有
     需要分隔的兄弟区段。留着会在弹框顶部横一道线，看起来像半个分隔符。
@@ -2828,28 +2832,30 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
  * Semi 的 `size="small"` 是 24px，而搜索框是手写的 28px——两者并排时下沿不齐，
  * 看起来像没对齐的两套控件。
  */
-.dsh-fnos-logs-level.dsh-fnos-logs-level.dsh-fnos-logs-level {
-  /*
-    重复类名提权：Semi 的 `.semi-select-small { height: 24px }` 与
-    `.dsh-fnos-logs-level .semi-select` 同为 0,2,0，而 Semi 的样式在文件里更靠后，
-    实测覆盖掉了我们的 28px（`getBoundingClientRect().height` 仍是 24）。
+/*
+ * 高度与旁边的搜索框一致（28px）。
+ *
+ * **`.dsh-fnos-logs-level` 与 `.semi-select` 是同一个元素**（className 是
+ * `semi-select dsh-fnos-logs-level semi-select-single semi-select-small`），
+ * 不是父子关系。此前写成后代选择器 `.dsh-fnos-logs-level .semi-select`——
+ * 那条规则永远不匹配，所以两次「提权」都没效果（实测一直是 24px）。
+ *
+ * 改成复合选择器：`.dsh-fnos-logs-level.semi-select`。
+ */
+.dsh-fnos-logs-level.semi-select,
+.dsh-fnos-logs-level.semi-select.semi-select-small {
+  height: 28px;
+  border-radius: 6px;
+}
 
-    同时要压过 `.semi-select-small`，所以把小尺寸类名也写进选择器。
-  */
-  .semi-select,
-  .semi-select.semi-select-small {
-    height: 28px;
-    border-radius: 6px;
-  }
+/* 内部选中区与箭头跟着撑满，否则文字仍垂直居在 24px 的框里。 */
+.dsh-fnos-logs-level.semi-select .semi-select-selection {
+  height: 100%;
+}
 
-  .semi-select-selection {
-    height: 100%;
-  }
-
-  .semi-select-selection-text,
-  .semi-select-arrow {
-    line-height: 26px;
-  }
+.dsh-fnos-logs-level.semi-select .semi-select-selection-text,
+.dsh-fnos-logs-level.semi-select .semi-select-arrow {
+  line-height: 26px;
 }
 
 /*

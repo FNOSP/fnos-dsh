@@ -123,8 +123,15 @@ describe('日志工具条：下拉与搜索框对齐', () => {
       看起来像没对齐的两套控件。
     */
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    // `.dsh-fnos-logs-level` 在文件里出现两次（布局定义 + 高度覆盖），取最后一条。
-    const idx = SCSS.lastIndexOf('.dsh-fnos-logs-level {')
+    /*
+      **`.dsh-fnos-logs-level` 与 `.semi-select` 是同一个元素**（className 为
+      `semi-select dsh-fnos-logs-level semi-select-single semi-select-small`），
+      不是父子关系。早前写成后代选择器 `.dsh-fnos-logs-level .semi-select`，
+      那条规则从未匹配、两次「提权」都无效（实测一直是 24px）。
+
+      必须是复合选择器。
+    */
+    const idx = SCSS.indexOf('.dsh-fnos-logs-level.semi-select,')
     expect(idx).toBeGreaterThan(-1)
     const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx))
     expect(rule).toContain('height: 28px')
