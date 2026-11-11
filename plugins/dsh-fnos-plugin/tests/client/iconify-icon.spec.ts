@@ -44,12 +44,15 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
       'lucide:arrow-up',
       'lucide:blocks',
       'lucide:chevron-right',
+      'lucide:circle-check',
+      'lucide:circle-x',
       'lucide:cpu',
       'lucide:download',
       'lucide:folder',
       'lucide:folder-plus',
       'lucide:hard-drive',
       'lucide:list-tree',
+      'lucide:loader',
       'lucide:memory-stick',
       'lucide:plug',
       'lucide:power',
@@ -58,6 +61,7 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
       'lucide:scroll-text',
       'lucide:trash',
       'lucide:wrench',
+      'lucide:x',
     ])
   })
 

@@ -189,6 +189,43 @@ describe('bundle 与普通插件走不同路径（复用官方实现）', () => 
   })
 })
 
+describe('安装进度内联在卡片里，不再弹二级弹框', () => {
+  it('卡片内渲染进度组件，弹框已移除', () => {
+    /*
+      原先点「更新」弹一个二级弹框塞满 pnpm 输出：弹中弹、挡住列表、关掉即失。
+      现在过程可见、结果留在原地、默认折叠不占版面。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('PluginInstallInline')
+    expect(PANEL).not.toContain('PluginInstallDialog')
+  })
+
+  it('日志固定三行高度，默认折叠', () => {
+    // 固定高度：pnpm 输出长度不可预期，撑开会把下面的卡片顶走。
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-install-inline-log {')
+    expect(idx).toBeGreaterThan(-1)
+    const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx))
+    expect(rule).toContain('height: 56px')
+    expect(rule).toContain('overflow: auto')
+
+    const CMP = readFileSync(new URL('../../src/components/PluginInstallInline.tsx', import.meta.url), 'utf8')
+    // 默认折叠。
+    expect(CMP).toContain("useState(false)")
+    // 成功自动收起、失败常驻。
+    expect(CMP).toContain("if (status !== 'succeeded') return")
+  })
+
+  it('状态用图标 + 文字 + 颜色三重表达', () => {
+    // 只靠颜色的话色盲用户分不出成功与失败。
+    const CMP = readFileSync(new URL('../../src/components/PluginInstallInline.tsx', import.meta.url), 'utf8')
+    expect(CMP).toContain('lucide:circle-check')
+    expect(CMP).toContain('lucide:circle-x')
+    expect(CMP).toContain('installStatusSucceeded')
+    expect(CMP).toContain('installStatusFailed')
+  })
+})
+
 describe('插件说明：三行省略可展开', () => {
   it('用 Typography 的多行 ellipsis，而不是单行截断', () => {
     // 单行把大部分描述都切掉，而列表页的作用正是让人判断「这插件做什么」。

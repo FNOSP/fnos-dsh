@@ -2857,3 +2857,130 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
   background: color-mix(in srgb, var(--dsw-alias-state-danger-primary) 12%, transparent);
   color: var(--dsw-alias-state-danger-primary);
 }
+
+/*
+ * 卡片内的安装进度与日志。
+ *
+ * 取代了原先的二级弹框：过程可见、结果留在原地、默认折叠不占版面。
+ */
+.dsh-fnos-install-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  /* 状态色只做左侧竖条与图标，不做整块底色——整块上色会让卡片看起来很吵。 */
+  border-left: 3px solid var(--dsw-alias-label-dimmed);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.dsh-fnos-install-inline--succeeded {
+  border-left-color: var(--dsw-alias-state-success-primary);
+}
+
+.dsh-fnos-install-inline--failed {
+  border-left-color: var(--dsw-alias-state-danger-primary);
+}
+
+.dsh-fnos-install-inline-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dsh-fnos-install-inline-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.dsh-fnos-install-inline--succeeded .dsh-fnos-install-inline-icon {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.dsh-fnos-install-inline--failed .dsh-fnos-install-inline-icon {
+  color: var(--dsw-alias-state-danger-primary);
+}
+
+/* 安装中让图标转起来：静止的图标看起来像「已经结束」。 */
+.dsh-fnos-install-inline--running .dsh-fnos-install-inline-icon {
+  animation: dsh-fnos-spin 900ms linear infinite;
+}
+
+@keyframes dsh-fnos-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dsh-fnos-install-inline--running .dsh-fnos-install-inline-icon {
+    animation: none;
+  }
+}
+
+.dsh-fnos-install-inline-text {
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dsh-fnos-install-inline-toggle,
+.dsh-fnos-install-inline-close {
+  flex: 0 0 auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--dsw-alias-label-primary);
+  }
+}
+
+.dsh-fnos-install-inline-close {
+  display: inline-flex;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+.dsh-fnos-install-inline-error {
+  margin: 0;
+  color: var(--dsw-alias-state-danger-primary);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/*
+ * 日志框：**固定显示三行**（3 × 16px 行高 + 上下 padding = 56px）。
+ *
+ * 固定而不自适应：pnpm 输出长度不可预期，撑开会把下面的卡片顶走。更多内容在框内滚动。
+ */
+.dsh-fnos-install-inline-log {
+  box-sizing: border-box;
+  height: 56px;
+  overflow: auto;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

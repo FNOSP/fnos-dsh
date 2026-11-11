@@ -18,7 +18,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { DshModal, DshSwitch, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
-import { PluginInstallDialog } from './PluginInstallDialog.tsx'
+import { PluginInstallInline } from './PluginInstallInline.tsx'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import type { InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
 
@@ -81,6 +81,16 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   }, [load])
 
   /** 确认卸载。 */
+  /**
+   * 安装/更新结束：成功时刷新列表让新状态生效。
+   *
+   * 失败**不刷新**——列表没变，刷新只会多一次无意义的请求；错误信息已经显示在
+   * 卡片内的进度条上。
+   */
+  const handleInstallSettled = useCallback((ok: boolean) => {
+    if (ok) void load()
+  }, [load])
+
   const confirmRemove = useCallback(async () => {
     const name = removing
     if (name === undefined) return
@@ -285,6 +295,19 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
               {plugin.bundled ? (
                 <p className="dsh-fnos-card-note" role="note">{t('installedBundledWarning')}</p>
               ) : null}
+
+              {/*
+                安装/更新进度与日志就长在卡片下方，不再弹二级弹框。
+                过程可见、结果留在原地、默认折叠不占版面。
+              */}
+              {installing === plugin.name ? (
+                <PluginInstallInline
+                  name={plugin.name}
+                  t={t}
+                  onSettled={handleInstallSettled}
+                  onDismiss={() => { setInstalling(undefined) }}
+                />
+              ) : null}
             </li>
           )
         })}
@@ -305,14 +328,6 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
         <p>{`${t('pluginRemoveConfirm')}${removing ?? ''}`}</p>
       </DshModal>
 
-      <PluginInstallDialog
-        key={installing ?? 'idle'}
-        visible={installing !== undefined}
-        {...(installing === undefined ? {} : { name: installing })}
-        t={t}
-        onClose={() => { setInstalling(undefined) }}
-        onSettled={ok => { if (ok) void load() }}
-      />
     </>
   )
 }
