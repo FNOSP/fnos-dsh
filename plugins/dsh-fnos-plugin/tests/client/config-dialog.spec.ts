@@ -63,8 +63,15 @@ describe('fnOS 配置弹框', () => {
     const main = ENTRY.slice(ENTRY.indexOf('export function FnosPanelMain'))
     expect(main).toContain('selectConversation()')
     expect(main).toContain('configDialogStore.set(true)')
-    // 先切回会话、再开弹框。
-    expect(main.indexOf('selectConversation()')).toBeLessThan(main.indexOf('configDialogStore.set(true)'))
+    /*
+      **先开弹框、再切回会话。**
+
+      反过来的话 `selectConversation()` 会引发重渲染并卸载本组件，随后的
+      `set(true)` 落在已卸载的树里、不生效——真机验证：overlay 在、弹框 DOM 没出现。
+    */
+    // 只看 effect 块：`reopen` 里另有一处调用，会干扰 indexOf。
+    const effect = main.slice(main.indexOf('useEffect'), main.indexOf('useCallback'))
+    expect(effect.indexOf('configDialogStore.set(true)')).toBeLessThan(effect.indexOf('selectConversation()'))
   })
 
   it('弹框挂在 shell.overlay，不在菜单子树里', () => {

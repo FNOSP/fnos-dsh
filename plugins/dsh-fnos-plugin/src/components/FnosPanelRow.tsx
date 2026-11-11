@@ -80,19 +80,23 @@ export interface FnosPanelMainProps {
  */
 export function FnosPanelMain({ t, selectConversation }: FnosPanelMainProps): React.ReactNode {
   /*
-    顺序很重要：先切回会话，再打开弹框。
+    **先开弹框，再切回会话。**
 
-    反过来的话，`selectPanel(null)` 可能触发一次重渲染，把刚打开的弹框状态搅乱
-    （弹框挂在 `shell.overlay`，理论上不受影响，但没有理由冒这个风险）。
+    反过来的话，`selectConversation()` 会在同一个 effect 里引发重渲染并卸载本组件，
+    随后的 `configDialogStore.set(true)` 就落在了一个已卸载的树里——真机验证过：
+    点「飞牛 OS」后 `aria-current="page"` 生效、overlay 也在，但弹框 DOM 完全没有
+    出现，控制台也没有异常。
+
+    弹框挂在 `shell.overlay`，与这棵子树的卸载无关，所以先开它是安全的。
   */
   useEffect(() => {
-    selectConversation()
     configDialogStore.set(true)
+    selectConversation()
   }, [selectConversation])
 
   const reopen = useCallback(() => {
-    selectConversation()
     configDialogStore.set(true)
+    selectConversation()
   }, [selectConversation])
 
   return (
