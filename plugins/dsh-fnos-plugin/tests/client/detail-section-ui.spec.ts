@@ -66,6 +66,33 @@ describe('配置区不再折叠，内容常驻', () => {
   })
 })
 
+describe('授权目录：添加/刷新改成纯图标按钮', () => {
+  it('无边框无底色，文案移进 tooltip，保留 aria-label', () => {
+    /*
+      它们原先是有文字与边框的按钮，在列表上方各占一大块宽度，视觉重心比下面的
+      目录行还重。图标 + 悬浮提示既保住可读性，又把重心还给目录列表。
+
+      `aria-label` 必须留：图标按钮没有可见文本，缺了它读屏软件只会念「按钮」。
+    */
+    const CARD = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+    expect(CARD).toContain('dsh-fnos-icon-button')
+    expect(CARD).toContain("content={t('add')}")
+    expect(CARD).toContain("content={t('refresh')}")
+    expect(CARD).toContain("aria-label={t('add')}")
+    expect(CARD).toContain("aria-label={t('refresh')}")
+    // 不再用带边框的按钮类承载这两个动作。
+    expect(CARD).not.toContain('authorized-button--primary')
+  })
+
+  it('按钮本身透明，悬停才出背景', () => {
+    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-icon-button {'))
+    const body = rule.slice(0, rule.indexOf('}'))
+    expect(body).toContain('background: transparent')
+    expect(body).toContain('border: none')
+    expect(rule).toContain('&:hover:not(:disabled)')
+  })
+})
+
 describe('授权目录：打开按钮与路径省略', () => {
   it('每个目录都有「打开」按钮（只读目录也能浏览）', () => {
     /*

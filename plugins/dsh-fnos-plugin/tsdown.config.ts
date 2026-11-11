@@ -96,6 +96,7 @@ const ICON_NAMES = [
   'lucide:power',
   'lucide:refresh-cw',
   'lucide:folder',
+  'lucide:folder-plus',
   'lucide:wrench',
   'lucide:activity',
   // 「运行」页的字段图标：端口、CPU、内存、磁盘、网络上下行、进程、日志。

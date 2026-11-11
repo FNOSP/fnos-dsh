@@ -1,10 +1,11 @@
 /** Settings card for the fnOS shared-directory authorization list. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshModal, DshTypography } from '@tnnevol/dsh-semi-ui'
+import { DshModal, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { diagnosePickerResult, isPickerCancellation, isPickerNoSelection, logPickerSdkEvent, logPickerSdkValue } from '../client/input-references/picker-result.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
+import { IconifyIcon } from './IconifyIcon.tsx'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import {
   DirectoryRequestError,
@@ -336,12 +337,37 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
       />
       <div id="dsh-fnos-authorized-directories-body" className="dsh-fnos-authorized-card-body">
           <div className="dsh-fnos-authorized-row">
-            <button type="button" className="dsh-fnos-authorized-button dsh-fnos-authorized-button--primary" disabled={busy || state.status === 'loading'} onClick={() => { void addDirectory() }}>
-              {t('add')}
-            </button>
-             <button type="button" className="dsh-fnos-authorized-button" disabled={busy || state.status === 'loading'} onClick={() => { void refresh() }}>
-              {t('refresh')}
-            </button>
+            {/*
+              两个动作改成**纯图标按钮**：文案移进 tooltip。
+
+              原因是它们在列表上方各占一大块宽度，而整行只有这两个动作——文字按钮
+              让上方留白比下面的目录行还重。图标 + 悬浮提示既保住可读性，又把视觉
+              重心还给目录列表。
+
+              `aria-label` 必须留：图标按钮没有可见文本，没有它读屏软件只会念「按钮」。
+            */}
+            <DshTooltip content={t('add')}>
+              <button
+                type="button"
+                className="dsh-fnos-icon-button"
+                aria-label={t('add')}
+                disabled={busy || state.status === 'loading'}
+                onClick={() => { void addDirectory() }}
+              >
+                <IconifyIcon name="lucide:folder-plus" />
+              </button>
+            </DshTooltip>
+            <DshTooltip content={t('refresh')}>
+              <button
+                type="button"
+                className="dsh-fnos-icon-button"
+                aria-label={t('refresh')}
+                disabled={busy || state.status === 'loading'}
+                onClick={() => { void refresh() }}
+              >
+                <IconifyIcon name="lucide:refresh-cw" />
+              </button>
+            </DshTooltip>
           </div>
           {state.status === 'loading' ? <p className="dsh-fnos-authorized-body">{t('loading')}</p> : null}
           {state.status === 'error' ? <p className="dsh-fnos-authorized-error">{state.code ?? t('loadFailed')}</p> : null}

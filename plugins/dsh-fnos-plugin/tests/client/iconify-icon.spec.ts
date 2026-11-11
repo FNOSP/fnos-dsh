@@ -45,6 +45,7 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
       'lucide:blocks',
       'lucide:cpu',
       'lucide:folder',
+      'lucide:folder-plus',
       'lucide:hard-drive',
       'lucide:list-tree',
       'lucide:memory-stick',

@@ -2651,3 +2651,47 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/*
+ * 纯图标按钮：无边框、无底色，悬停才出背景。
+ *
+ * 用在授权目录上方的「添加 / 刷新」两个动作。它们原先是有文字与边框的按钮，
+ * 在列表上方各占一大块宽度，视觉重心比下面的目录行还重——改成图标后把重点
+ * 还给内容本身。
+ *
+ * 尺寸取 28×28（与行内文字 13–14px 的视觉重量匹配），图标 16px。
+ */
+.dsh-fnos-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+
+  svg {
+    /* 与当前文案字号一致：13px 文字对应的图标观感约 16px。 */
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+    color: var(--dsw-alias-label-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-state-focus-primary, #4d6fff);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}

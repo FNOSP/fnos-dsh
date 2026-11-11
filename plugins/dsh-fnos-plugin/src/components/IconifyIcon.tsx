@@ -41,6 +41,7 @@ export type UsedIconName =
   | 'lucide:power'
   | 'lucide:refresh-cw'
   | 'lucide:folder'
+  | 'lucide:folder-plus'
   | 'lucide:wrench'
   | 'lucide:activity'
   | 'lucide:plug'
