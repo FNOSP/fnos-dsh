@@ -229,6 +229,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   uninstall: "제거",
   pluginRemoveTitle: "플러그인 제거",
   pluginRemoveConfirm: "프로필에서 제거되며 설정과 데이터도 사라집니다. 제거할까요: ",
+  pluginRemoveNeedRestart: "플러그인을 제거했습니다. Web 을 다시 시작하면 완전히 반영됩니다.",
   mirrorTitle: "npm 미러 관리",
   mirrorLoading: "nrm 확인 중…",
   mirrorNrmMissing: "nrm 을 찾을 수 없습니다. 설치하면 npm 미러를 관리할 수 있습니다: ",

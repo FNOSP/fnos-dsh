@@ -273,7 +273,10 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
       const payload = await body(req) as { name?: unknown } | undefined
       if (!validName(payload?.name)) return send(res, 400, { error: 'invalid-plugin-name' })
       const result = await removePlugin(payload.name)
-      send(res, result.ok ? 200 : 500, result.ok ? { ok: true } : { error: 'remove-failed', message: result.error })
+      send(res, result.ok ? 200 : 500, result.ok
+        // needRestart：已卸载但组合仍持有旧模块，重启 Web 后才完全消失。
+        ? { ok: true, needRestart: result.needRestart === true }
+        : { error: 'remove-failed', message: result.error })
     },
   }), 'dsh-fnos: plugin remove')
 

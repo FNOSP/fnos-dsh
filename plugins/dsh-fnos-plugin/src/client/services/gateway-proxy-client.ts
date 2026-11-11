@@ -195,13 +195,19 @@ export async function togglePlugin(name: string, enabled: boolean): Promise<void
 /**
  * 卸载插件。
  * @param name - 包名。
+ * @returns 是否需要重启 Web 才完全生效。
  */
-export async function removePluginByName(name: string): Promise<void> {
+export async function removePluginByName(name: string): Promise<{ needRestart: boolean }> {
   const response = await fetch(FNOS_PLUGIN_REMOVE_ROUTE, {
     method: 'POST',
     headers: { accept: 'application/json', 'content-type': 'application/json' },
     credentials: 'same-origin',
     body: JSON.stringify({ name }),
   })
-  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+  if (!response.ok) {
+    const value = await response.json().catch(() => undefined) as { message?: unknown } | undefined
+    throw new Error(typeof value?.message === 'string' ? value.message : `HTTP ${String(response.status)}`)
+  }
+  const value = await response.json() as { needRestart?: unknown }
+  return { needRestart: value.needRestart === true }
 }

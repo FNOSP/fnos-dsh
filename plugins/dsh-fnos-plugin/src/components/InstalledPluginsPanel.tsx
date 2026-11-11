@@ -44,6 +44,8 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   const [toggling, setToggling] = useState<string>()
   /** 待确认卸载的包名；undefined 表示确认框关闭。 */
   const [removing, setRemoving] = useState<string>()
+  /** 操作后的提示（如「需重启才完全生效」）。 */
+  const [notice, setNotice] = useState<string>()
   const [error, setError] = useState<string>()
 
   const load = useCallback(async () => {
@@ -84,15 +86,21 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
     if (name === undefined) return
     setToggling(name)
     try {
-      await removePluginByName(name)
+      const result = await removePluginByName(name)
       setRemoving(undefined)
       await load()
+      /*
+        卸载已完成，但已加载的模块仍在当前进程里——没有热更新通道，必须重启 Web
+        才会真正消失。不提示的话用户会以为「没卸干净」（官方 `removeBundle`
+        末尾的 `publishAndReload()` 做的正是这件事）。
+      */
+      if (result.needRestart) setNotice(t('pluginRemoveNeedRestart'))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
       setToggling(undefined)
     }
-  }, [removing, load])
+  }, [removing, load, t])
 
   useEffect(() => { void load() }, [load])
 
@@ -110,6 +118,10 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
 
   return (
     <>
+      {notice === undefined ? null : (
+        <p className="dsh-fnos-repair-muted" role="status">{notice}</p>
+      )}
+
       <div className="dsh-fnos-installed-toolbar">
         <DshButton
           htmlType="button"

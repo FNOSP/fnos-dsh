@@ -220,6 +220,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   uninstall: "Удалить",
   pluginRemoveTitle: "Удалить плагин",
   pluginRemoveConfirm: "Плагин будет удалён из профиля, настройки и данные будут потеряны. Удалить: ",
+  pluginRemoveNeedRestart: "Плагин удалён. Полностью применится после перезапуска Web.",
   mirrorTitle: "Управление зеркалами npm",
   mirrorLoading: "Проверка nrm…",
   mirrorNrmMissing: "nrm не найден. Установите, чтобы управлять зеркалами npm: ",

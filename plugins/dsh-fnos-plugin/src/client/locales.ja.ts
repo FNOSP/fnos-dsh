@@ -229,6 +229,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   uninstall: "アンインストール",
   pluginRemoveTitle: "プラグインをアンインストール",
   pluginRemoveConfirm: "プロファイルから削除され、設定とデータも失われます。実行しますか: ",
+  pluginRemoveNeedRestart: "プラグインを削除しました。Web を再起動すると完全に反映されます。",
   mirrorTitle: "npm ミラー管理",
   mirrorLoading: "nrm を確認中…",
   mirrorNrmMissing: "nrm が見つかりません。インストールすると npm ミラーを管理できます: ",

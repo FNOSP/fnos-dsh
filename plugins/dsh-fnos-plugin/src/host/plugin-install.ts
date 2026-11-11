@@ -354,21 +354,112 @@ export async function installPlugin(name: string): Promise<PluginInstallState> {
  * @param name - 包名。
  * @returns 是否成功。
  */
-export async function removePlugin(name: string): Promise<{ ok: boolean, error?: string }> {
+/**
+ * 卸载一个插件：**先停用（从 bundles 移出），再 `pnpm remove`**。
+ *
+ * ## 为什么必须先停用
+ *
+ * 只跑 `pnpm remove` 会留下半套状态：包装备被删了，但 `dsh.profile.bundles` 里
+ * 还留着它的名字——下次启动时 loader 找不到这个 bundle 层，插件视图里则显示成
+ * 一个「有名字、没内容」的残影。用户看到的现象就是「卸了但还在列表里」。
+ *
+ * 官方 `dsh-plugin-manager.removeBundle` 的顺序正是如此：
+ * `selectBundle(name, false)` → `pnpm remove` → `publishAndReload()`。
+ * 这里做前两步；第三步（重新加载插件组合）需要热更新能力，本应用没有，因此
+ * 由界面提示用户重启 Web 生效。
+ *
+ * ## 失败时不留中间态
+ *
+ * 停用成功而 `pnpm remove` 失败时，把 bundle 重新选回去——否则用户会得到一个
+ * 「已停用但仍占用磁盘」的插件，既没删掉也没在使用。
+ *
+ * @param name - 包名。
+ * @returns 是否成功，以及是否需要重启才完全生效。
+ */
+export async function removePlugin(name: string): Promise<{ ok: boolean, error?: string, needRestart?: boolean }> {
   const environment = resolveRepairEnvironment()
   if (environment === undefined || environment.pnpmBin === undefined) return { ok: false, error: 'pnpm-unavailable' }
+  const profile = environment.profileDirectory
 
-  return new Promise(resolve => {
+  // 第一步：从 profile 的 bundles 里移出（停用整层）。
+  const manifestPath = join(profile, 'package.json')
+  let wasSelected = false
+  try {
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as { dsh?: { profile?: { bundles?: string[] } } }
+    const previous = manifest.dsh?.profile?.bundles ?? []
+    wasSelected = previous.includes(name)
+    if (wasSelected) {
+      manifest.dsh = {
+        ...manifest.dsh,
+        profile: { ...manifest.dsh?.profile, bundles: previous.filter(item => item !== name) },
+      }
+      await writeFileAtomic(manifestPath, `${JSON.stringify(manifest, undefined, 2)}\n`)
+    }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+
+  // 第二步：删掉依赖本身。
+  const removed = await new Promise<{ ok: boolean, error?: string }>(resolve => {
     execFile(environment.pnpmBin ?? 'pnpm', ['remove', name], {
-      cwd: environment.profileDirectory,
+      cwd: profile,
       timeout: 120_000,
       env: process.env,
-    }, error => {
+    }, (error, stdout, stderr) => {
       if (error === null) {
         resolve({ ok: true })
         return
       }
-      resolve({ ok: false, error: error instanceof Error ? error.message : String(error) })
+      // 把 pnpm 的输出带回去：失败原因通常是网络或 lockfile 冲突，用户需要看到。
+      resolve({ ok: false, error: `${stdout ?? ''}${stderr ?? ''}${error.message}`.trim() })
     })
   })
+
+  if (!removed.ok) {
+    // 回滚停用，避免「已停用但仍占磁盘」的中间态。
+    if (wasSelected) {
+      try {
+        const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as { dsh?: { profile?: { bundles?: string[] } } }
+        const previous = manifest.dsh?.profile?.bundles ?? []
+        manifest.dsh = {
+          ...manifest.dsh,
+          profile: { ...manifest.dsh?.profile, bundles: previous.includes(name) ? previous : [...previous, name] },
+        }
+        await writeFileAtomic(manifestPath, `${JSON.stringify(manifest, undefined, 2)}\n`)
+      } catch {
+        // 回滚失败也只好作罢：错误已经上报，用户可重试。
+      }
+    }
+    return { ok: false, ...(removed.error === undefined ? {} : { error: removed.error }) }
+  }
+
+  /*
+    第三步：删完之后确认它真的不在依赖里了。
+
+    官方还会 `publishAndReload()` 让组合立即生效；本应用没有热更新通道，
+    所以返回 `needRestart` 让界面提示「重启 Web 后完全生效」——已加载的模块
+    仍在当前进程内存里，直到重启才会消失。
+  */
+  try {
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as {
+      dependencies?: Record<string, string>, devDependencies?: Record<string, string>
+    }
+    const stillThere = Object.hasOwn(manifest.dependencies ?? {}, name) || Object.hasOwn(manifest.devDependencies ?? {}, name)
+    if (stillThere) return { ok: false, error: 'still-in-dependencies' }
+  } catch {
+    // 读不到 package.json 时不阻断——pnpm 已成功即可。
+  }
+
+  return { ok: true, needRestart: true }
+}
+
+/**
+ * 原子写入：先写临时文件再改名，避免中途失败留下半个 JSON。
+ * @param path - 目标。
+ * @param content - 内容。
+ */
+async function writeFileAtomic(path: string, content: string): Promise<void> {
+  const temporary = `${path}.dsh-plugin-remove-${String(process.pid)}`
+  await writeFile(temporary, content, { mode: 0o600 })
+  await rename(temporary, path)
 }

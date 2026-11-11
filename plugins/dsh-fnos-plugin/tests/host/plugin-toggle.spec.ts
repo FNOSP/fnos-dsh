@@ -230,6 +230,47 @@ describe('桥接插件禁止禁用', () => {
   })
 })
 
+describe('卸载要完整（参考官方 removeBundle）', () => {
+  it('先停用（从 bundles 移出）再 pnpm remove', () => {
+    /*
+      只跑 `pnpm remove` 会留下半套状态：包装备删了，但 `dsh.profile.bundles` 里
+      还留着它的名字——下次启动时 loader 找不到这个 bundle 层，插件视图里则是
+      一个「有名字、没内容」的残影。用户看到的就是「卸了但还在列表里」。
+
+      官方 `removeBundle` 的顺序：selectBundle(false) → pnpm remove → publishAndReload。
+    */
+    const SRC = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    const start = SRC.indexOf('export async function removePlugin')
+    const body = SRC.slice(start)
+    const deselect = body.indexOf('previous.filter(item => item !== name)')
+    const pnpmRemove = body.indexOf("'remove', name")
+    expect(deselect).toBeGreaterThan(-1)
+    expect(pnpmRemove).toBeGreaterThan(deselect)
+  })
+
+  it('pnpm 失败时回滚停用，不留「已停用但仍占磁盘」', () => {
+    const SRC = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    const start = SRC.indexOf('export async function removePlugin')
+    const body = SRC.slice(start)
+    expect(body).toContain('wasSelected')
+    // 回滚：把名字加回去。
+    expect(body).toContain('[...previous, name]')
+  })
+
+  it('删完后校验它真的不在依赖里', () => {
+    const SRC = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    expect(SRC).toContain("'still-in-dependencies'")
+  })
+
+  it('需要重启才完全生效时提示用户', () => {
+    // 没有热更新通道，已加载的模块仍在进程内存里。
+    const SRC = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    expect(SRC).toContain('needRestart')
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain("t('pluginRemoveNeedRestart')")
+  })
+})
+
 describe('卡片式界面', () => {
   it('用卡片而不是表格行', () => {
     expect(PANEL).toContain('dsh-fnos-cards')
