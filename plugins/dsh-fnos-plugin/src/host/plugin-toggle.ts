@@ -122,6 +122,58 @@ export async function readPackageEntries(name: string): Promise<PluginEntryState
 }
 
 /**
+ * 从插件自身的 `cordis.patch.yml` 里解析出它贡献的组合 entry id。
+ *
+ * ## 为什么必须读这个文件
+ *
+ * 组合里的 entry id **不等于包名**。真机实例：`dsh-plugin-wallpaper-engine` 这个
+ * bundle 贡献了 9 条 entry，id 分别是 `wallpaper-engine`、`wallpaper-engine-fx`、
+ * `wallpaper-engine-parallax`……而包名一条都对不上。
+ *
+ * 早前直接写 `- id: <包名>`，结果那条补丁不指向任何条目——**禁用完全没生效**，
+ * 界面上开关点下去又弹回去。这是「无法禁用插件」的真正原因。
+ *
+ * bundle 的 `package.json` 用 `dsh.bundle.patch` 指到这个文件，那里是 entry 集的
+ * 唯一真相来源。
+ *
+ * @param profile - profile 目录。
+ * @param name - 包名。
+ * @returns 该包贡献的 entry id 列表（可能为空）。
+ */
+async function resolveEntryIds(profile: string, name: string): Promise<string[]> {
+  const packageDirectory = join(profile, 'node_modules', ...name.split('/'))
+  let patchRelative: string | undefined
+  try {
+    const manifest = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8')) as {
+      dsh?: { bundle?: { patch?: unknown } }
+    }
+    const declared = manifest.dsh?.bundle?.patch
+    if (typeof declared === 'string') patchRelative = declared
+  } catch {
+    return []
+  }
+  if (patchRelative === undefined) return []
+
+  let text: string
+  try {
+    text = await readFile(join(packageDirectory, patchRelative), 'utf8')
+  } catch {
+    return []
+  }
+
+  /*
+    这个文件里的 entry 是嵌套在 `insert:` 列表下的，因此 id 行带缩进
+    （`    - id: wallpaper-engine`）。用宽松匹配把每条都取出来。
+  */
+  const ids: string[] = []
+  for (const line of text.split('\n')) {
+    const match = /^\s*-\s+id:\s*['"]?(.+?)['"]?\s*$/u.exec(line)
+    if (match?.[1] !== undefined) ids.push(match[1])
+  }
+  return [...new Set(ids)]
+}
+
+/**
  * 设置某个包所有条目的启用状态。
  *
  * 已有条目就地改 `disabled`；没有条目时追加一条 `{ id, disabled: true }`
@@ -167,13 +219,44 @@ export async function setPackageEnabled(name: string, enabled: boolean): Promise
     所以这里先按 name 找；找不到就按 id 等于包名找（有些插件确实如此）；
     仍找不到则**如实报错**，让界面把原因显示出来，而不是静默追加垃圾条目。
   */
+  /*
+    匹配顺序：
+      1. 按 `name` 匹配（patch 里直接写过该包的 name）；
+      2. 按包名当 id 匹配（少数插件 id 恰好等于包名）；
+      3. **读该包自己的 bundle patch，按它声明的真实 entry id 匹配**——这是
+         `dsh-plugin-wallpaper-engine` 这类 bundle 唯一的正确路径。
+
+    三者都没有才报错。
+  */
   const byName = targets.length > 0
   const byId = entries.filter(entry => entry.id === name)
-  const matchedIds = new Set((byName ? targets : byId).map(entry => entry.id))
+  let matchedIds = new Set((byName ? targets : byId).map(entry => entry.id))
+
+  if (matchedIds.size === 0) {
+    const profile = resolveRepairEnvironment()?.profileDirectory
+    if (profile !== undefined) {
+      const declared = await resolveEntryIds(profile, name)
+      /*
+        这些 id 通常**还不在** profile patch 里（它们由 bundle 层声明），所以不能
+        只在「已有条目」里找。直接按它们追加禁用指令：loader 会把同 id 的补丁层
+        叠加到 bundle 层的对应条目上。
+
+        启用时则相反——把已有的这些 id 条目去掉 disabled。
+      */
+      matchedIds = new Set(declared)
+    }
+  }
 
   if (matchedIds.size === 0) {
     return { ok: false, error: 'entry-not-found' }
   }
+
+  /*
+    需要处理「id 尚不在 patch 中」的情形：为每个缺失的 id 追加一条
+    `- id: X / disabled: true`（禁用），或什么都不做（启用时本来就该没有）。
+  */
+  const presentIds = new Set(entries.map(entry => entry.id))
+  const missingIds = [...matchedIds].filter(id => !presentIds.has(id))
 
   // 逐条改 disabled：在对应条目的 `name:`（或 `id:`）之后插入或替换。
   let currentId: string | undefined
@@ -198,8 +281,15 @@ export async function setPackageEnabled(name: string, enabled: boolean): Promise
   }
 
   // 去掉重复的同 id 追加条目（早前版本会重复追加，实测堆过 4 条）。
-  const deduped = dedupeAppendedEntries(out)
-  const updated = deduped.join('\n')
+  const cleaned = dedupeAppendedEntries(out)
+
+  // 为尚不在 patch 中的 entry id 追加禁用指令（仅禁用时需要）。
+  if (!enabled) {
+    for (const id of missingIds) {
+      cleaned.push(`- id: ${id}`, '  disabled: true')
+    }
+  }
+  const updated = cleaned.join('\n')
   await writeAtomic(path, updated)
   return { ok: true }
   } catch (error) {

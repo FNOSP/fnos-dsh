@@ -96,7 +96,27 @@ describe('禁用写入', () => {
   it('按 entry id 改，而不是按包名', () => {
     // 一个包可能对应多条组合条目（服务端/客户端分开挂载），要全部覆盖。
     expect(TOGGLE).toContain('matchedIds.has(currentId)')
-    expect(TOGGLE).toContain('const matchedIds = new Set(')
+    expect(TOGGLE).toContain('matchedIds = new Set(')
+  })
+
+  it('bundle 型插件：从它自己的 cordis.patch.yml 解析真实 entry id', () => {
+    /*
+      真机根因：`dsh-plugin-wallpaper-engine` 是 bundle，贡献 9 条 entry，id 是
+      `wallpaper-engine` / `wallpaper-engine-fx` / ...，**没有一条等于包名**。
+      写 `- id: <包名>` 只是追加一条不指向任何条目的补丁，禁用完全不生效。
+
+      真实 id 的唯一来源是该包 package.json 里 `dsh.bundle.patch` 指到的文件。
+    */
+    expect(TOGGLE).toContain('resolveEntryIds')
+    expect(TOGGLE).toContain("manifest.dsh?.bundle?.patch")
+  })
+
+  it('id 尚不在 patch 中时要追加禁用指令', () => {
+    // 这些 entry 由 bundle 层声明，profile patch 里本来没有它们的行。
+    expect(TOGGLE).toContain('missingIds')
+    // 用正则避开「字符串里出现模板占位」的 lint 规则。
+    expect(TOGGLE).toMatch(/- id: \$\{id\}/u)
+    expect(TOGGLE).toContain("disabled: true")
   })
 })
 
