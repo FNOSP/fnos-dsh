@@ -2761,3 +2761,47 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
 .dsh-fnos-proxy-item-head:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
+
+/*
+ * 日志工具条里的级别下拉：**高度与旁边的搜索框一致（28px）**。
+ *
+ * Semi 的 `size="small"` 是 24px，而搜索框是手写的 28px——两者并排时下沿不齐，
+ * 看起来像没对齐的两套控件。
+ */
+.dsh-fnos-logs-level {
+  .semi-select {
+    height: 28px;
+    border-radius: 6px;
+  }
+
+  .semi-select-selection {
+    height: 100%;
+  }
+
+  .semi-select-selection-text,
+  .semi-select-arrow {
+    line-height: 26px;
+  }
+}
+
+/*
+ * 下拉里**选中项的勾选图标跟随该行文字颜色**。
+ *
+ * Semi 默认给勾选图标固定的主题色，而选项文字是普通前景色——选中项因此出现两种
+ * 颜色，像两个不相干的元素拼在一起。`currentColor` 让两者永远一致，深色主题也自动适配。
+ */
+body[data-dsh-semi-theme] .semi-select-option-icon,
+body[data-dsh-semi-theme] .semi-select-option-icon svg,
+.semi-select-option-icon,
+.semi-select-option-icon svg {
+  /*
+    `currentColor` 让图标跟随该行文字：选中项的文字是普通前景色，而 Semi 默认给
+    勾选图标固定的主题色——两者并排像是两个不相干的元素。
+
+    同时命中 `svg`：图标是 `IconTick` 组件（内部用 `currentColor`），但若外层容器
+    另有颜色声明，只设容器不够。
+
+    带主题前缀的那两条是为了压过 Semi 自带规则（选择器权重更高，不用 `!important`）。
+  */
+  color: currentColor !important;
+}

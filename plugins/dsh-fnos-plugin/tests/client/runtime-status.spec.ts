@@ -116,6 +116,29 @@ describe('运行状态：网络与四宫格', () => {
   })
 })
 
+describe('日志工具条：下拉与搜索框对齐', () => {
+  it('级别下拉高度与搜索框一致（28px）', () => {
+    /*
+      Semi 的 `size="small"` 是 24px，而搜索框是手写的 28px——并排时下沿不齐，
+      看起来像没对齐的两套控件。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-logs-level {')
+    expect(idx).toBeGreaterThan(-1)
+    const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx))
+    expect(rule).toContain('height: 28px')
+    // 与搜索框取同一个值。
+    expect(SCSS).toMatch(/\.dsh-fnos-logs-search \{[^}]*height: 28px/u)
+  })
+
+  it('选中项勾选图标跟随文字颜色', () => {
+    // Semi 默认给勾选图标固定主题色，而选项文字是普通前景色——两种颜色像拼在一起。
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    expect(SCSS).toContain('.semi-select-option-icon')
+    expect(SCSS).toContain('color: currentColor !important')
+  })
+})
+
 describe('运行状态：进程树与结束', () => {
   it('只能动进程树内的进程，且根与 init 受保护', async () => {
     const { killProcess } = await import('../../src/host/runtime-processes.ts')
