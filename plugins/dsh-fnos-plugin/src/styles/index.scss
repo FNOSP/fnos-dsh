@@ -402,10 +402,12 @@ img.dsh-fnos-file-manager-icon {
  * 里的 `max-width: 100%`，单个 `.dsh-fnos-authorized-path` 压不过它——实测
  * `getComputedStyle().maxWidth` 返回 `100%`，我们设的 520px 完全没生效。
  *
- * 因此这里重复自身类名提升权重（等价于双类），而不是用 `!important`——
- * 后者会让后续任何微调都必须再加 `!important`。
+ * 因此这里重复自身类名提升权重。**要三个类**：Semi 那条是双类（0,2,0），
+ * 只重复一次仍打平，而同权重下更靠后的 Semi 胜出（实测 `maxWidth` 仍为 `100%`）。
+ * 三类的 0,3,0 才真正压过它，且不必用 `!important`——后者会让后续任何微调
+ * 都必须再加一个。
  */
-.dsh-fnos-authorized-path.dsh-fnos-authorized-path {
+.dsh-fnos-authorized-path.dsh-fnos-authorized-path.dsh-fnos-authorized-path {
   flex: 1 1 auto;
   min-width: 0;
   max-width: 520px;
@@ -2768,7 +2770,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
  * Semi 的 `size="small"` 是 24px，而搜索框是手写的 28px——两者并排时下沿不齐，
  * 看起来像没对齐的两套控件。
  */
-.dsh-fnos-logs-level.dsh-fnos-logs-level {
+.dsh-fnos-logs-level.dsh-fnos-logs-level.dsh-fnos-logs-level {
   /*
     重复类名提权：Semi 的 `.semi-select-small { height: 24px }` 与
     `.dsh-fnos-logs-level .semi-select` 同为 0,2,0，而 Semi 的样式在文件里更靠后，

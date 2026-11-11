@@ -127,8 +127,13 @@ describe('授权目录：打开按钮与路径省略', () => {
     expect(CARD).toContain('ellipsis={{ showTooltip: true }}')
     expect(CARD).not.toContain('title={directory.semanticPath}')
 
-    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-authorized-path {'))
-    const body = rule.slice(0, rule.indexOf('}'))
+    /*
+      必须用**三个类名**（0,3,0）：Semi 的省略规则是双类 0,2,0，只重复一次仍打平，
+      而同权重下更靠后的 Semi 胜出——实测 `maxWidth` 仍是 `100%`。
+    */
+    expect(SCSS).toContain('.dsh-fnos-authorized-path.dsh-fnos-authorized-path.dsh-fnos-authorized-path {')
+    const idx = SCSS.indexOf('.dsh-fnos-authorized-path.dsh-fnos-authorized-path.dsh-fnos-authorized-path {')
+    const body = SCSS.slice(idx, SCSS.indexOf('\n}', idx))
     expect(body).toContain('max-width')
     expect(body).toContain('min-width: 0')
   })
