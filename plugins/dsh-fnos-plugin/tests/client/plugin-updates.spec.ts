@@ -189,15 +189,26 @@ describe('插件安装与异常：两段顺序与分割线', () => {
     expect(block.indexOf('NpmMirrorCard')).toBeLessThan(block.indexOf('DependencyRepairCard'))
   })
 
-  it('分割线在两段之间（镜像模块顶部）', () => {
+  it('分割线挂在每个模块底部，最后一个去掉', () => {
     /*
-      用户要求「分割线在上面，把两个模块内容分开」——即镜像模块**顶部**一条线，
-      而不是靠 gap 的空白区隔（那段空白在没有内容时看起来像渲染坏了一块）。
+      早前把线画在镜像模块的 `border-top` 上，位置偏了：那条线跑到 tab 内容区最
+      上面、紧贴 tab 栏，看起来像 tab 栏的下边框，而不是「两个功能之间」的线。
+
+      改为每个模块各自 `border-bottom`，`:last-child` 去掉。
     */
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-mirror {'), SCSS.indexOf('.dsh-fnos-mirror-head {'))
-    expect(rule).toContain('border-top: 1px solid')
-    expect(rule).toContain('padding-top')
+    const idx = SCSS.indexOf('.dsh-fnos-repair-tab > * {')
+    expect(idx).toBeGreaterThan(-1)
+    const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx))
+    expect(rule).toContain('border-bottom: 1px solid')
+
+    const last = SCSS.slice(SCSS.indexOf('.dsh-fnos-repair-tab > *:last-child {'))
+    expect(last.slice(0, last.indexOf('\n}'))).toContain('border-bottom: none')
+
+    // 镜像模块自己不再带 border-top（否则第一块顶部多一道线）。
+    const mirror = SCSS.slice(SCSS.indexOf('.dsh-fnos-mirror {'), SCSS.indexOf('.dsh-fnos-mirror-head {'))
+      .replace(/\/\*[\s\S]*?\*\//gu, '')
+    expect(mirror).not.toMatch(/^\s*border-top\s*:/mu)
   })
 })
 

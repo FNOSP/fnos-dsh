@@ -2327,7 +2327,25 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 .dsh-fnos-repair-tab {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+}
+
+/*
+ * **分隔线挂在每个模块的底部，最后一个去掉。**
+ *
+ * 早前把线画在镜像模块的 `border-top` 上，位置偏了：那条线跑到 tab 内容区
+ * 最上面、紧贴 tab 栏，看起来像是 tab 栏的下边框，而不是「两个功能之间」的线。
+ *
+ * 用 `+` 兄弟选择器而不是 `:not(:last-child)`：模块增减时不用改选择器，
+ * 线永远只在相邻两块之间。
+ */
+.dsh-fnos-repair-tab > * {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.dsh-fnos-repair-tab > *:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 /*
@@ -2342,13 +2360,9 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   flex-direction: column;
   gap: 10px;
   /*
-    **分割线在镜像模块顶部**，把「修复插件安装异常」与「npm 镜像管理」两段分开。
-
-    早前没有线，两段靠 `gap: 20px` 的空白区隔——真机截图里那段空白在没有内容时
-    看起来像「渲染坏了一块」。一条线把「这是两件事」说得更直接。
+    分隔线由 `.dsh-fnos-repair-tab > *` 统一挂在各自底部，这里不再自带
+    `border-top`——否则第一块顶部也会有一道线，紧贴 tab 栏，位置错误。
   */
-  padding-top: 16px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
 }
 
 .dsh-fnos-mirror-head {
