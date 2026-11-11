@@ -147,6 +147,13 @@ export interface InstalledPlugin {
    */
   readonly enabled?: boolean
   /**
+   * 插件的一句话说明（`package.json` 的 `description`）。
+   *
+   * 与官方插件页同源同口径：用户判断「这个插件是做什么的」首先看这句，
+   * 只有包名和版本号等于什么都没说。
+   */
+  readonly description?: string
+  /**
    * 仓库地址（`package.json` 的 `repository`，归一化为可点击的 http URL）。
    *
    * 插件名做成链接就靠它——用户想看去处、文档或 issue 时有个确定去处。

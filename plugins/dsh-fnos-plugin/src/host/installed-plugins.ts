@@ -106,11 +106,21 @@ async function readPlugin(profile: string, name: string, bundledNames: ReadonlyS
   let version = '—'
   let hasClient = false
   let repository: string | undefined
+  let description: string | undefined
   try {
     const text = await readFile(join(profile, 'node_modules', ...name.split('/'), 'package.json'), 'utf8')
-    const manifest = JSON.parse(text) as { version?: unknown, main?: unknown, exports?: unknown, repository?: unknown }
+    const manifest = JSON.parse(text) as {
+      version?: unknown, main?: unknown, exports?: unknown, repository?: unknown, description?: unknown
+    }
     if (typeof manifest.version === 'string') version = manifest.version
     repository = normalizeRepository(manifest.repository)
+    /*
+      只取 `description`（官方 `plugin-manager` 的 `INSPECT_FIELDS` 也是这个字段）。
+      空串按「没有」处理——空描述与缺描述在界面上都该什么都不显示。
+    */
+    if (typeof manifest.description === 'string' && manifest.description.trim() !== '') {
+      description = manifest.description.trim()
+    }
     // 「有客户端入口」的判据：声明了 main 或 exports。纯宿主插件没有，不会出现在界面里。
     hasClient = typeof manifest.main === 'string' || manifest.exports !== undefined
   } catch {
@@ -121,6 +131,7 @@ async function readPlugin(profile: string, name: string, bundledNames: ReadonlyS
     version,
     hasClient,
     bundled: bundledNames.has(name),
+    ...(description === undefined ? {} : { description }),
     ...(repository === undefined ? {} : { repository }),
   }
 }

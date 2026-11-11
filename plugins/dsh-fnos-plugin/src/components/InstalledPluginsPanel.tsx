@@ -197,6 +197,16 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
               </div>
 
               {/*
+                插件说明：来自 `package.json` 的 `description`，与官方插件页同源。
+
+                没有它，卡片只剩包名和版本号——用户没法判断「这个插件做什么」。
+                空描述时整行不渲染，不留一条空行。
+              */}
+              {plugin.description === undefined ? null : (
+                <p className="dsh-fnos-card-description" title={plugin.description}>{plugin.description}</p>
+              )}
+
+              {/*
                 操作行：**开关在左、动作在右，两端对齐**。
                 开关是「状态开关」而不是「一次动作」，放左边与其它状态信息同一侧；
                 卸载/更新是动作，靠右符合从左读到右的习惯。

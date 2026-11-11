@@ -189,6 +189,25 @@ describe('bundle 与普通插件走不同路径（复用官方实现）', () => 
   })
 })
 
+describe('插件说明文案', () => {
+  it('从 package.json 的 description 读取，与官方同源', () => {
+    /*
+      官方 `plugin-manager` 的 `INSPECT_FIELDS` 就是
+      ['name','version','description','dsh']——描述来自同一个字段。
+      没有它卡片只剩包名和版本号，用户没法判断「这个插件做什么」。
+    */
+    const SRC = readFileSync(new URL('../../src/host/installed-plugins.ts', import.meta.url), 'utf8')
+    expect(SRC).toContain('manifest.description')
+    expect(SRC).toContain('description.trim()')
+  })
+
+  it('空描述按「没有」处理，不渲染空行', () => {
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('plugin.description === undefined ? null :')
+    expect(PANEL).toContain('dsh-fnos-card-description')
+  })
+})
+
 describe('插件名可跳转到仓库', () => {
   it('从 package.json 的 repository 归一化出可点击 URL', () => {
     /*

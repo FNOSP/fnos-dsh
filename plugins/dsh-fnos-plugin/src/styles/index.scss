@@ -2620,3 +2620,19 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
     margin: 0;
   }
 }
+
+/*
+ * 插件卡片的说明文字。
+ *
+ * 单行省略而不是折行：卡片宽度有限（两列布局下约 285px），长描述折成三四行会
+ * 把操作行挤下去，而列表页的作用是「扫读」。完整内容在 `title` 悬浮里。
+ */
+.dsh-fnos-card-description {
+  overflow: hidden;
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
