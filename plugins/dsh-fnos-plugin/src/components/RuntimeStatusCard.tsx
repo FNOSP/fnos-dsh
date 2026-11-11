@@ -17,7 +17,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshIconInfoCircle, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -336,12 +335,11 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
       <header className="dsh-fnos-authorized-card-header">
         <div className="dsh-fnos-authorized-card-head-text">
           <h3 id="dsh-fnos-runtime-title" className="dsh-fnos-authorized-card-name">
+            {/*
+              不带 info 图标：标题旁边挂一个「i」在视觉上是噪音，而这段说明本身
+              不是必须读的内容——真要解释可以写进正文。
+            */}
             {t('runtimeTitle')}
-            <DshTooltip className="dsh-fnos-gateway-tip-content" content={t('runtimeTip')}>
-              <span className="dsh-fnos-authorized-gateway-tip" tabIndex={0} aria-label={t('runtimeTip')}>
-                <DshIconInfoCircle />
-              </span>
-            </DshTooltip>
           </h3>
         </div>
       </header>

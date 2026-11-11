@@ -157,9 +157,18 @@ describe('运行状态：进程树与结束', () => {
     expect(LIST).not.toContain('title={item.command}')
   })
 
+  it('标题旁不带 info 图标（运行 / 进程两处）', () => {
+    // 标题旁边挂一个「i」在视觉上是噪音，而这段说明不是必须读的内容。
+    const CARD = readFileSync(new URL('../../src/components/RuntimeStatusCard.tsx', import.meta.url), 'utf8')
+    const LIST = readFileSync(new URL('../../src/components/RuntimeProcessList.tsx', import.meta.url), 'utf8')
+    expect(CARD).not.toContain('DshIconInfoCircle')
+    expect(LIST).not.toContain('DshIconInfoCircle')
+  })
+
   it('界面如实说明这是 OS 视角而不是会话任务，并提供两档结束', () => {
     const LIST = readFileSync(new URL('../../src/components/RuntimeProcessList.tsx', import.meta.url), 'utf8')
-    expect(LIST).toContain('runtimeProcessesTip')
+    // 标题旁的 info 图标已按用户要求去掉。
+    expect(LIST).not.toContain('runtimeProcessesTip')
     expect(LIST).toContain("'SIGTERM'")
     expect(LIST).toContain("'SIGKILL'")
     // 破坏性动作必须确认（用 DshModal，不用被 lint 禁用的 window.confirm）。

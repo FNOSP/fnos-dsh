@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useState } from 'react'
-import { DshButton, DshIconInfoCircle, DshModal, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshModal, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { killRuntimeProcess } from '../client/services/runtime-status-client.ts'
 import type { RuntimeProcess } from '../contracts/runtime-status-contract.ts'
@@ -81,14 +81,7 @@ export function RuntimeProcessList({ t, processes, available }: RuntimeProcessLi
 
   const header = (
     <div className="dsh-fnos-runtime-proc-head">
-      <h4 className="dsh-fnos-runtime-proc-title">
-        {t('runtimeProcesses')}
-        <DshTooltip className="dsh-fnos-gateway-tip-content" content={t('runtimeProcessesTip')}>
-          <span className="dsh-fnos-authorized-gateway-tip" tabIndex={0} aria-label={t('runtimeProcessesTip')}>
-            <DshIconInfoCircle />
-          </span>
-        </DshTooltip>
-      </h4>
+      <h4 className="dsh-fnos-runtime-proc-title">{t('runtimeProcesses')}</h4>
     </div>
   )
 
