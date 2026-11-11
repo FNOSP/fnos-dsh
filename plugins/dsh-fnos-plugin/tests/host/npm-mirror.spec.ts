@@ -120,6 +120,33 @@ describe('安装过程有日志', () => {
   })
 })
 
+describe('安装日志界面', () => {
+  it('日志放在固定 140px 的代码框里，可复制', () => {
+    /*
+      固定高度而不是 max-height：npm 输出长度不可预期，撑开会把下方内容顶走，
+      用户也失去「日志区在这里」的空间概念。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-mirror-log {')
+    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
+    expect(rule).toContain('height: 140px')
+    expect(rule).toContain('overflow: auto')
+
+    const CARD = readFileSync(new URL('../../src/components/NpmMirrorCard.tsx', import.meta.url), 'utf8')
+    expect(CARD).toContain('copyLog')
+    expect(CARD).toContain('dsh-fnos-mirror-logbar')
+  })
+
+  it('失败时日志常显，按钮变「重新安装」', () => {
+    // 用户要能回看 npm 到底报了什么，而不是只看到一句「失败」。
+    const CARD = readFileSync(new URL('../../src/components/NpmMirrorCard.tsx', import.meta.url), 'utf8')
+    expect(CARD).toContain('setFailed(true)')
+    expect(CARD).toContain("failed ? t('mirrorReinstall')")
+    // 成功或未尝试时收起，不占地方。
+    expect(CARD).toContain('!installing && !failed')
+  })
+})
+
 describe('界面宽度', () => {
   it('带 width: 100% + padding 的块必须 border-box', () => {
     /*

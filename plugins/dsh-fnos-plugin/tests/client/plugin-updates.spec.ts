@@ -185,15 +185,15 @@ describe('插件安装与异常：两段顺序与分割线', () => {
     expect(block.indexOf('NpmMirrorCard')).toBeLessThan(block.indexOf('DependencyRepairCard'))
   })
 
-  it('两条分割线只保留一条', () => {
+  it('分割线在两段之间（镜像模块顶部）', () => {
     /*
-      `.dsh-fnos-config-panel > *` 已给每个直接子元素一条 border-bottom；
-      镜像卡片若再自带 border-top 就会出现两道线（一道全宽、一道带缩进）。
+      用户要求「分割线在上面，把两个模块内容分开」——即镜像模块**顶部**一条线，
+      而不是靠 gap 的空白区隔（那段空白在没有内容时看起来像渲染坏了一块）。
     */
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
     const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-mirror {'), SCSS.indexOf('.dsh-fnos-mirror-head {'))
-    expect(rule).not.toContain('border-top')
-    expect(rule).not.toContain('padding-top')
+    expect(rule).toContain('border-top: 1px solid')
+    expect(rule).toContain('padding-top')
   })
 })
 
