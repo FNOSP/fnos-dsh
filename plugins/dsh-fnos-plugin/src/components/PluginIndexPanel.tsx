@@ -150,50 +150,54 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
         </div>
       ) : null}
 
-      {/* 索引源清单：已配置的打勾，缺失的标出来。 */}
-      <ul className="dsh-fnos-idx-list">
-        {(status?.sources ?? []).map(source => {
-          const configured = status?.configured.some(item => item.trim().replace(/\/+$/u, '') === source.url.trim().replace(/\/+$/u, '')) ?? false
-          return (
-            <li key={source.url} className="dsh-fnos-idx-item">
-              <div className="dsh-fnos-idx-item-main">
-                {/*
-                  标题从索引文件里读（`index.json` 的 `title`），不在代码里硬编码：
-                  索引改名时这里自动跟上。读不到时退回显示 URL。
-                */}
-                {source.label === undefined ? null : <span className="dsh-fnos-idx-label">{source.label}</span>}
-                <code className="dsh-fnos-idx-url" title={source.url}>{source.url}</code>
-              </div>
-              <span className={`dsh-fnos-idx-state ${configured ? 'dsh-fnos-idx-state--ok' : ''}`}>
-                {configured ? '✓' : '—'}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
+      {enabled ? (
+        <>
+          {/* 索引源清单：已配置的打勾，缺失的标出来。 */}
+          <ul className="dsh-fnos-idx-list">
+            {(status?.sources ?? []).map(source => {
+              const configured = status?.configured.some(item => item.trim().replace(/\/+$/u, '') === source.url.trim().replace(/\/+$/u, '')) ?? false
+              return (
+                <li key={source.url} className="dsh-fnos-idx-item">
+                  <div className="dsh-fnos-idx-item-main">
+                    {/*
+                      标题从索引文件里读（`index.json` 的 `title`），不在代码里硬编码：
+                      索引改名时这里自动跟上。读不到时退回显示 URL。
+                    */}
+                    {source.label === undefined ? null : <span className="dsh-fnos-idx-label">{source.label}</span>}
+                    <code className="dsh-fnos-idx-url" title={source.url}>{source.url}</code>
+                  </div>
+                  <span className={`dsh-fnos-idx-state ${configured ? 'dsh-fnos-idx-state--ok' : ''}`}>
+                    {configured ? '✓' : '—'}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
 
-      {/*
-        引导：告诉用户这两个源应该在官方界面的哪个位置出现。
+          {/*
+            引导：告诉用户这两个源应该在官方界面的哪个位置出现。
 
-        图**直接引用官方插件自带的 `docs/preview.zh.svg`**（经 `detail-file` 接口），
-        而不是自己截图：官方改版时那张图会一起更新，我们这边自动跟上，不需要
-        每次都去重新截图替换。读不到时只显示文字说明，不留破图占位。
-      */}
-      <p className="dsh-fnos-idx-guide">{t('indexGuideText')}</p>
-      {/*
-        用 Semi 的 Image 而不是裸 <img>：自带加载态、失败兜底与主题样式。
-        `preview={false}` —— 这是示意图，放大没有意义，开着反而会盖住下方的配置项。
-      */}
-      {guideBroken ? null : (
-        <DshImage
-          className="dsh-fnos-idx-guide-image"
-          src={OFFICIAL_INDEX_GUIDE_IMAGE}
-          alt={t('indexGuideText')}
-          width="100%"
-          preview={false}
-          onError={() => { setGuideBroken(true) }}
-        />
-      )}
+            图**直接引用官方插件自带的 `docs/preview.zh.svg`**（经 `detail-file` 接口），
+            而不是自己截图：官方改版时那张图会一起更新，我们这边自动跟上，不需要
+            每次都去重新截图替换。读不到时只显示文字说明，不留破图占位。
+          */}
+          <p className="dsh-fnos-idx-guide">{t('indexGuideText')}</p>
+          {/*
+            用 Semi 的 Image 而不是裸 <img>：自带加载态、失败兜底与主题样式。
+            `preview={false}` —— 这是示意图，放大没有意义，开着反而会盖住下方的配置项。
+          */}
+          {guideBroken ? null : (
+            <DshImage
+              className="dsh-fnos-idx-guide-image"
+              src={OFFICIAL_INDEX_GUIDE_IMAGE}
+              alt={t('indexGuideText')}
+              width="100%"
+              preview={false}
+              onError={() => { setGuideBroken(true) }}
+            />
+          )}
+        </>
+      ) : null}
 
       {error === undefined ? null : <p className="dsh-fnos-repair-error" role="alert">{error}</p>}
     </div>

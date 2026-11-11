@@ -148,6 +148,20 @@ describe('插件索引：界面', () => {
     expect(PANEL).toContain("t('indexApplyConfigure')")
   })
 
+  it('关闭时整块隐藏（源清单 / 引导文字 / 引导图）', () => {
+    /*
+      关闭状态下这些全是死信息：源配了也说明不了什么、引导也没有可执行的动作，
+      却占掉大半屏。开关本身已清楚表达「未启用」。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/PluginIndexPanel.tsx', import.meta.url), 'utf8')
+    const idx = PANEL.lastIndexOf('{enabled ? (')
+    const block = PANEL.slice(idx)
+    expect(block).toContain('dsh-fnos-idx-list')
+    expect(block).toContain("t('indexGuideText')")
+    expect(block).toContain('dsh-fnos-idx-guide-image')
+    expect(block).toContain(') : null}')
+  })
+
   it('索引标题从索引文件读，不硬编码', () => {
     // 索引改名（dsh 插件目录 → Awesome DSH Plugin 插件精选）时代码不用改。
     expect(INDEX).toContain('fetchIndexTitle')
