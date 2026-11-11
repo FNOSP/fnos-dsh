@@ -53,11 +53,18 @@ describe('fnOS 配置弹框', () => {
     expect(css).toContain('invert(1)')
   })
 
-  it('配对主视图挂载即打开弹框（占位而非真面板）', () => {
-    // 「飞牛 OS」一直是弹框交互，不该替换主视图；main 只是让 selectPanel 不报错。
+  it('配对主视图挂载即切回会话并打开弹框（不占住主区域）', () => {
+    /*
+      「飞牛 OS」一直是弹框交互，不该替换主视图；main 只是让 selectPanel 不报错。
+
+      挂载后立刻 `selectPanel(null)`（官方语义「返回会话」），主区域一帧都不停留
+      ——早前渲染占位说明，用户关掉弹框会停在空白页，还得再点一次。
+    */
     const main = ENTRY.slice(ENTRY.indexOf('export function FnosPanelMain'))
-    expect(main).toContain('useEffect')
+    expect(main).toContain('selectConversation()')
     expect(main).toContain('configDialogStore.set(true)')
+    // 先切回会话、再开弹框。
+    expect(main.indexOf('selectConversation()')).toBeLessThan(main.indexOf('configDialogStore.set(true)'))
   })
 
   it('弹框挂在 shell.overlay，不在菜单子树里', () => {

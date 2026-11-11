@@ -262,7 +262,14 @@ const namespace = 'settings.dsh-fnos'
     name: 'main',
     key: FNOS_CONFIG_PANEL_ID,
     locale: namespace,
-    inject: () => ({ t }),
+    inject: () => ({
+      t,
+      /*
+        `selectPanel(null)` 的官方语义是「返回会话」。由注册处注入，组件本身
+        不直接拿 `ctx`——保持它对宿主 API 的零依赖，便于单测。
+      */
+      selectConversation: () => { ctx.layout.selectPanel(null) },
+    }),
   }, FnosPanelMain))
   /**
    * 「刷新页面」与「重启服务」两行仍留在「更多」菜单里（order 91/92）。
