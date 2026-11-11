@@ -123,6 +123,20 @@ describe('前缀分组卡片：可折叠 + 插件名', () => {
   })
 })
 
+describe('巡检必须 await 后再比较（否则静默失效）', () => {
+  it('autoPrefixes 是 async，巡检里不能直接 JSON.stringify', () => {
+    /*
+      `JSON.stringify(Promise)` 恒为 `"{}"`——把 Promise 直接序列化会让比较永远
+      相等，巡检认为「没变化」，新装插件的路由永远进不了 allowlist。
+      表现就是「插件装了、接口一直 404」，而且**不报错**，最难查的那种失效。
+    */
+    const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
+    // 不允许出现未 await 的序列化。
+    expect(ROUTES).not.toMatch(/JSON\.stringify\(autoPrefixes\(\)\)/u)
+    expect(ROUTES).toContain('JSON.stringify(await autoPrefixes())')
+  })
+})
+
 describe('FNOS-052 自动前缀自更新', () => {
   it('宿主自己巡检路由表并回写（不能等用户点保存）', () => {
     const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')

@@ -168,19 +168,31 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         经 SSE 推给页面，无需刷新）。3 秒是权衡：装插件本身要几秒，用户不会感知
         延迟；而空转成本只是一次纯内存的 Map 遍历。
       */
-      let lastAuto = JSON.stringify(autoPrefixes())
+      /*
+        **`autoPrefixes()` 是 async，必须 await 后再序列化。**
+
+        漏掉 await 时 `JSON.stringify(Promise)` 恒为 `"{}"`，巡检就永远认为
+        「没变化」——新装插件的路由进不了 allowlist，表现正是「插件装了、接口一直
+        404」。这条比较是整个自更新链路的关键判定，写错会静默失效。
+      */
+      let lastAuto: string | undefined
       const timer = setInterval(() => {
-        const current = JSON.stringify(autoPrefixes())
-        if (current === lastAuto) return
-        lastAuto = current
-        void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to sync auto proxy prefixes', error) })
+        void (async () => {
+          const current = JSON.stringify(await autoPrefixes())
+          if (current === lastAuto) return
+          // 首次巡检只记基线，不写文件：启动时的方向由上面的 restoreOrSync 决定。
+          const first = lastAuto === undefined
+          lastAuto = current
+          if (first) return
+          await sync(readSettings())
+        })().catch(error => { console.error('[dsh-fnos] unable to sync auto proxy prefixes', error) })
       }, AUTO_PREFIX_POLL_MS)
       ctx.effect(() => () => { clearInterval(timer) })
 
       return ctx.on('settings/document-updated', namespace => {
         if (namespace === settingsNamespace) {
           // 手动项变化时顺带把 lastAuto 对齐，避免巡检立刻又写一次同样的内容。
-          lastAuto = JSON.stringify(autoPrefixes())
+          void autoPrefixes().then(value => { lastAuto = JSON.stringify(value) })
           void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to mirror gateway proxy paths', error) })
         }
       })
