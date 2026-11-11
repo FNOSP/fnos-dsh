@@ -99,7 +99,7 @@ describe('禁用写入', () => {
     expect(TOGGLE).toContain('matchedIds = new Set(')
   })
 
-  it('bundle 型插件：从它自己的 cordis.patch.yml 解析真实 entry id', () => {
+  it('非 bundle 但有 bundle patch 声明时仍可解析 entry id（兜底）', () => {
     /*
       真机根因：`dsh-plugin-wallpaper-engine` 是 bundle，贡献 9 条 entry，id 是
       `wallpaper-engine` / `wallpaper-engine-fx` / ...，**没有一条等于包名**。
@@ -140,6 +140,38 @@ describe('禁用：entry id 解析与去重', () => {
   it('去重：同 id 的「仅 id + disabled」条目只保留一条', () => {
     expect(TOGGLE).toContain('dedupeAppendedEntries')
     expect(TOGGLE).toContain('onlyDisabled')
+  })
+})
+
+describe('bundle 与普通插件走不同路径（复用官方实现）', () => {
+  it('bundle 改 package.json 的 dsh.profile.bundles', () => {
+    /*
+      官方 `dsh-plugin-manager` 的分工：
+        - `setBundleEnabled` → 增删 package.json 的 `dsh.profile.bundles`
+        - `setPluginEnabled` → 写 patch 的 `disabled`
+
+      bundle 是一整层组合补丁，写 `disabled` 对它无效——真机对
+      `dsh-plugin-wallpaper-engine` 验证过，写了完全没反应。
+    */
+    expect(TOGGLE).toContain('setBundleEnabled')
+    expect(TOGGLE).toContain('dsh?.profile?.bundles')
+    expect(TOGGLE).toContain('previous.filter(item => item !== name)')
+  })
+
+  it('按官方判据识别 bundle（dsh.bundle.patch 存在）', () => {
+    // 与官方 operations.ts 的 bundleManifest 同判据。
+    expect(TOGGLE).toContain('isBundle')
+    expect(TOGGLE).toContain("manifest.dsh?.bundle?.patch === 'string'")
+  })
+
+  it('分派顺序：bundle 优先，非 bundle 才写 patch', () => {
+    // 只看 setPackageEnabled 函数体内：文件里另有多处 parsePatchEntries 定义。
+    const start = TOGGLE.indexOf('export async function setPackageEnabled')
+    const body = TOGGLE.slice(start)
+    const idx = body.indexOf('await isBundle(profileDirectory, name)')
+    const patchIdx = body.indexOf('const entries = parsePatchEntries(text)')
+    expect(idx).toBeGreaterThan(-1)
+    expect(patchIdx).toBeGreaterThan(idx)
   })
 })
 

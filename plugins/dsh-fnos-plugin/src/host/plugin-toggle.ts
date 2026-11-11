@@ -174,6 +174,73 @@ async function resolveEntryIds(profile: string, name: string): Promise<string[]>
 }
 
 /**
+ * 判断一个包是否为 **bundle**，并读出它的元信息。
+ *
+ * 官方 `dsh-plugin-manager` 的判据：`package.json` 里有 `dsh.bundle.patch` 就是
+ * bundle（见其 `operations.ts` 的 `bundleManifest`）。
+ *
+ * @param profile - profile 目录。
+ * @param name - 包名。
+ * @returns 是否 bundle。
+ */
+async function isBundle(profile: string, name: string): Promise<boolean> {
+  try {
+    const manifest = JSON.parse(await readFile(join(profile, 'node_modules', ...name.split('/'), 'package.json'), 'utf8')) as {
+      dsh?: { bundle?: { patch?: unknown } }
+    }
+    return typeof manifest.dsh?.bundle?.patch === 'string'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 启用/禁用一个 **bundle**：改 profile `package.json` 的 `dsh.profile.bundles`。
+ *
+ * ## 为什么 bundle 不能靠 patch 的 `disabled`
+ *
+ * 官方 `setBundleEnabled` 的做法是把这个包从 `bundles` 数组里增删——bundle 是一整层
+ * 组合补丁，`disabled` 只能作用于单个 entry，去掉整个 bundle 层才是「不加载它」的
+ * 语义。真机验证过：对 `dsh-plugin-wallpaper-engine` 写 patch 的 `disabled` 完全不
+ * 生效，正是因为它属于 bundle 层。
+ *
+ * 与官方保持一致：启用时追加到数组末尾；禁用时从数组移除。写入前做原子替换，
+ * 避免半份 JSON。
+ *
+ * @param profile - profile 目录。
+ * @param name - 包名。
+ * @param enabled - 目标状态。
+ * @returns 是否成功。
+ */
+async function setBundleEnabled(profile: string, name: string, enabled: boolean): Promise<{ ok: boolean, error?: string }> {
+  const manifestPath = join(profile, 'package.json')
+  let manifest: Record<string, unknown> & { dsh?: { profile?: { bundles?: string[] } } }
+  try {
+    manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as typeof manifest
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+
+  const previous = manifest.dsh?.profile?.bundles ?? []
+  const next = enabled
+    ? (previous.includes(name) ? previous : [...previous, name])
+    : previous.filter(item => item !== name)
+
+  if (JSON.stringify(previous) === JSON.stringify(next)) return { ok: true }
+
+  manifest.dsh = {
+    ...manifest.dsh,
+    profile: { ...manifest.dsh?.profile, bundles: next },
+  }
+  try {
+    await writeAtomic(manifestPath, `${JSON.stringify(manifest, undefined, 2)}\n`)
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+/**
  * 设置某个包所有条目的启用状态。
  *
  * 已有条目就地改 `disabled`；没有条目时追加一条 `{ id, disabled: true }`
@@ -187,6 +254,18 @@ async function resolveEntryIds(profile: string, name: string): Promise<string[]>
 export async function setPackageEnabled(name: string, enabled: boolean): Promise<{ ok: boolean, error?: string }> {
   const path = patchPath()
   if (path === undefined) return { ok: false, error: 'profile-unavailable' }
+
+  /*
+    **bundle 走 `package.json`，非 bundle 才走 patch。**
+
+    这与官方 `dsh-plugin-manager` 的分工一致（`setBundleEnabled` vs
+    `setPluginEnabled`）：bundle 是一整层组合补丁，只有把它从 `dsh.profile.bundles`
+    里增删才真正「不加载」；写 patch 的 `disabled` 对它无效——真机验证过。
+  */
+  const profileDirectory = resolveRepairEnvironment()?.profileDirectory
+  if (profileDirectory !== undefined && await isBundle(profileDirectory, name)) {
+    return setBundleEnabled(profileDirectory, name, enabled)
+  }
 
   let text: string
   try {
