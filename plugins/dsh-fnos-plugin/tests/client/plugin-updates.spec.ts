@@ -103,7 +103,7 @@ describe('插件索引：推荐源与状态', () => {
 describe('插件索引：界面', () => {
   it('开启用 Switch 而不是按钮，且调用真实切换接口', () => {
     // 开关表达「持续状态」，按钮表达「执行动作」；这里改的是状态。
-    expect(PANEL).toContain('DshSwitch')
+    expect(PANEL).toContain('SwitchWithLoading')
     expect(PANEL).toContain('checked={enabled}')
     expect(PANEL).toContain('setIndexEnabledRemote')
     expect(PANEL).not.toContain("t('indexApplyEnable')")
@@ -214,6 +214,47 @@ describe('插件安装与异常：两段顺序与分割线', () => {
     const mirror = SCSS.slice(SCSS.indexOf('.dsh-fnos-mirror {'), SCSS.indexOf('.dsh-fnos-mirror-head {'))
       .replace(/\/\*[\s\S]*?\*\//gu, '')
     expect(mirror).not.toMatch(/^\s*border-top\s*:/mu)
+  })
+})
+
+describe('状态获取要快：默认不联网查更新', () => {
+  it('路由只在 updates=1 时查 registry', () => {
+    /*
+      查更新是「每个插件发一次 registry 请求」，装十几个插件就要十几个网络往返，
+      首屏因此很慢。官方 `listPlugins` 也只读本地清单，版本更新是另一条单独调用。
+    */
+    const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
+    expect(ROUTES).toContain("url.searchParams.get('updates') === '1'")
+    const CLIENT = readFileSync(new URL('../../src/client/services/gateway-proxy-client.ts', import.meta.url), 'utf8')
+    // 客户端默认 false。
+    expect(CLIENT).toContain('fetchInstalledPlugins(checkUpdates = false)')
+  })
+
+  it('索引页有手动刷新按钮', () => {
+    // 状态来自磁盘上的 bundles 数组，外部改动不会自动反映过来。
+    const PANEL = readFileSync(new URL('../../src/components/PluginIndexPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain("aria-label={t('refresh')}")
+  })
+})
+
+describe('操作结果用 Toast 通知', () => {
+  it('不再就地插一行提示文案', () => {
+    /*
+      就地插文案会撑动布局、容易被忽略、失败后一直挂着。Toast 悬浮在角落、自动
+      消失、样式统一。
+
+      需要**持续看到**的信息（如「需重启 Web 才生效」）仍留在页面上——那种提示
+      消失得太快反而有害，因此 `pluginRemoveNeedRestart` 走 Toast，
+      而安装卡片内的进度仍内联。
+    */
+    const NOTIFY = readFileSync(new URL('../../src/client/notify.ts', import.meta.url), 'utf8')
+    expect(NOTIFY).toContain('DshToast.success')
+    expect(NOTIFY).toContain('DshToast.error')
+
+    // 已安装面板不再有就地 notice 状态。
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('notifyFailure')
+    expect(PANEL).not.toContain('setNotice(')
   })
 })
 

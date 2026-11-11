@@ -103,8 +103,10 @@ export async function saveGatewayProxyPaths(paths: readonly string[]): Promise<G
  * 取已安装插件清单。
  * @returns 快照；读不到 profile 时 `available: false`。
  */
-export async function fetchInstalledPlugins(): Promise<InstalledPluginsSnapshot> {
-  const response = await fetch(FNOS_INSTALLED_PLUGINS_ROUTE, {
+export async function fetchInstalledPlugins(checkUpdates = false): Promise<InstalledPluginsSnapshot> {
+  // 默认不联网查更新：每个插件一次 registry 请求会让首屏很慢。
+  const query = checkUpdates ? '?updates=1' : ''
+  const response = await fetch(`${FNOS_INSTALLED_PLUGINS_ROUTE}${query}`, {
     method: 'GET',
     headers: { accept: 'application/json' },
     credentials: 'same-origin',

@@ -1,3 +1,4 @@
+import { notifySuccess } from '../client/notify.ts'
 /**
  * 「自定义插件索引」tab：检测索引源是否配置，并提供一键开启 / 一键设置。
  *
@@ -18,7 +19,9 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshButton, DshImage, DshSwitch } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshImage, DshTooltip } from '@tnnevol/dsh-semi-ui'
+import { SwitchWithLoading } from './SwitchWithLoading.tsx'
+import { IconifyIcon } from './IconifyIcon.tsx'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   applyPluginIndexes,
@@ -96,7 +99,7 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
     try {
       const result = await setIndexEnabledRemote(next)
       await load()
-      if (result.needRestart) setRestartNotice(t('indexToggleNeedRestart'))
+      notifySuccess(result.needRestart ? t('indexToggleNeedRestart') : t('indexToggleDone'))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -130,12 +133,27 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
             {enabled ? t('indexSourceOn') : t('indexSourceOff')}
           </span>
         </div>
-        <DshSwitch
-          size="default"
+        <SwitchWithLoading
           checked={enabled}
-          disabled={busy || toggling}
+          loading={toggling}
+          disabled={busy}
           onChange={next => { void toggle(next) }}
         />
+        {/*
+          手动刷新：状态来自磁盘上的 `bundles` 数组，外部改动（命令行、其它插件页）
+          不会自动反映过来。一个显式刷新比「等它自己变」可靠。
+        */}
+        <DshTooltip content={t('refresh')}>
+          <button
+            type="button"
+            className="dsh-fnos-icon-button"
+            aria-label={t('refresh')}
+            disabled={busy}
+            onClick={() => { void load() }}
+          >
+            <IconifyIcon name="lucide:refresh-cw" />
+          </button>
+        </DshTooltip>
       </div>
 
       {/*

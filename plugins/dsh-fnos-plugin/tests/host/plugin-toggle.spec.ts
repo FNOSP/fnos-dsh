@@ -291,7 +291,7 @@ describe('桥接插件禁止禁用', () => {
       而「启用回来」这个动作正是它自己提供的——用户没有别的入口。
     */
     const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
-    const idx = PANEL.indexOf('<DshSwitch')
+    const idx = PANEL.indexOf('<SwitchWithLoading')
     const block = PANEL.slice(idx, PANEL.indexOf('/>', idx))
     expect(block).toContain('plugin.bundled === true')
   })
@@ -369,16 +369,21 @@ describe('卡片式界面', () => {
     expect(PANEL).toContain("t('pluginDisabled')")
   })
 
-  it('开关不带 size，保持药丸形', () => {
+  it('开关不带 size，保持药丸形；切换中换成 loading', () => {
     /*
-      `size="small"` 把高度压到 16px、圆角随之近似方形，于是同一列表里两个开关
-      看起来不是一套控件（真机截图里第二张卡的开关明显更「方」）。
+      `size="small"` 把高度压到 16px、圆角随之近似方形，同一列表里两个开关看起来
+      不是一套控件。
+
+      切换时渲染 `DshSpin` 而不是「置灰的开关」：后者仍像个可操作控件，只是「坏了」，
+      用户会以为没点中再点一次。
     */
-    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
-    const idx = PANEL.indexOf('<DshSwitch')
-    const block = PANEL.slice(idx, PANEL.indexOf('/>', idx))
+    const CMP = readFileSync(new URL('../../src/components/SwitchWithLoading.tsx', import.meta.url), 'utf8')
+    expect(CMP).toContain('DshSpin')
+    expect(CMP).toContain('aria-busy')
+    // 内部仍用不带 size 的 DshSwitch。
+    const idx = CMP.indexOf('<DshSwitch')
+    const block = CMP.slice(idx, CMP.indexOf('/>', idx))
     expect(block).not.toContain('size=')
-    expect(block).toContain('checked={!disabled}')
   })
 
   it('更新与卸载都是图标按钮，文案进 tooltip', () => {

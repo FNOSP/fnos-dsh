@@ -169,7 +169,22 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
       if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
       try {
         const environment = resolveRepairEnvironment()
-        send(res, 200, await readInstalledPlugins(environment?.profileDirectory, environment?.bundledDirectory))
+        /*
+          **默认不联网查更新（`updates=1` 才查）。**
+
+          查更新是「每个插件发一次 registry 请求」，装十几个插件就要十几个网络
+          往返——首屏因此很慢。官方 `listPlugins` 也只读本地清单，版本更新是另一
+          条单独的调用。
+
+          需要「有没有新版本」时由界面显式点刷新触发（带 `?updates=1`）。
+        */
+        const url = new URL(req.url ?? '/', 'http://localhost')
+        const checkUpdates = url.searchParams.get('updates') === '1'
+        send(res, 200, await readInstalledPlugins(
+          environment?.profileDirectory,
+          environment?.bundledDirectory,
+          checkUpdates,
+        ))
       } catch (error) {
         send(res, 500, { error: 'installed-plugins-failed', message: error instanceof Error ? error.message : String(error) })
       }

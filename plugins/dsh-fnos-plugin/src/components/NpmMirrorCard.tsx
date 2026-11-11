@@ -1,3 +1,4 @@
+import { notifyFailure, notifySuccess } from '../client/notify.ts'
 /**
  * 「npm 镜像管理」卡片：检测 nrm、列出加速源、切换当前源。
  *
@@ -119,12 +120,13 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
       await switchNpmMirror(name)
       await load()
       setError(undefined)
+      notifySuccess(t('mirrorSwitched'))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      notifyFailure(cause instanceof Error ? cause.message : String(cause))
     } finally {
       setBusy(undefined)
     }
-  }, [load])
+  }, [load, t])
 
   return (
     <section className="dsh-fnos-mirror">

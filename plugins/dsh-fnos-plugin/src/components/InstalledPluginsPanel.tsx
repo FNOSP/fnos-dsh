@@ -15,10 +15,12 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshModal, DshSwitch, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
+import { DshModal, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
 import { PluginInstallInline } from './PluginInstallInline.tsx'
+import { SwitchWithLoading } from './SwitchWithLoading.tsx'
+import { notifyFailure, notifySuccess } from '../client/notify.ts'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import type { InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
 
@@ -44,8 +46,6 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   const [toggling, setToggling] = useState<string>()
   /** 待确认卸载的包名；undefined 表示确认框关闭。 */
   const [removing, setRemoving] = useState<string>()
-  /** 操作后的提示（如「需重启才完全生效」）。 */
-  const [notice, setNotice] = useState<string>()
   const [error, setError] = useState<string>()
 
   const load = useCallback(async () => {
@@ -104,9 +104,10 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
         才会真正消失。不提示的话用户会以为「没卸干净」（官方 `removeBundle`
         末尾的 `publishAndReload()` 做的正是这件事）。
       */
-      if (result.needRestart) setNotice(t('pluginRemoveNeedRestart'))
+      if (result.needRestart) notifySuccess(t('pluginRemoveNeedRestart'))
+      else notifySuccess(t('pluginRemoved'))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      notifyFailure(cause instanceof Error ? cause.message : String(cause))
     } finally {
       setToggling(undefined)
     }
@@ -128,10 +129,6 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
 
   return (
     <>
-      {notice === undefined ? null : (
-        <p className="dsh-fnos-repair-muted" role="status">{notice}</p>
-      )}
-
       <div className="dsh-fnos-installed-toolbar">
         {/*
           图标按钮：文案移进 tooltip。刷新是工具条里的次要动作，占一个文字按钮的
@@ -245,9 +242,10 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
 
                   置灰而不是隐藏：让人看到「这里有开关、但你不能动」。
                 */}
-                <DshSwitch
+                <SwitchWithLoading
                   checked={!disabled}
-                  disabled={plugin.bundled === true || toggling === plugin.name}
+                  loading={toggling === plugin.name}
+                  {...(plugin.bundled === true ? { disabled: true } : {})}
                   onChange={next => { void toggleEnabled(plugin.name, next) }}
                 />
                 <div className="dsh-fnos-card-action-buttons">

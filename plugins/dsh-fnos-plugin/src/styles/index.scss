@@ -2984,3 +2984,17 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/*
+ * 开关切换中的加载指示器。
+ *
+ * 尺寸与开关一致（40×24），否则替换瞬间整行会跳一下。
+ */
+.dsh-fnos-switch-loading {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 24px;
+}
