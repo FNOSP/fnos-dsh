@@ -66,6 +66,19 @@ describe('配置区不再折叠，内容常驻', () => {
   })
 })
 
+describe('授权目录：不出现多余的顶部分隔线', () => {
+  it('卡片主体没有 border-top', () => {
+    /*
+      这一块就是卡片的全部内容（按钮行 + 目录列表），上面没有需要分隔的兄弟区段。
+      留着会在弹框顶部横一道线，看起来像半个分隔符。
+    */
+    const idx = SCSS.indexOf('.dsh-fnos-authorized-card-body {')
+    expect(idx).toBeGreaterThan(-1)
+    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
+    expect(rule).not.toContain('border-top')
+  })
+})
+
 describe('授权目录：添加/刷新改成纯图标按钮', () => {
   it('无边框无底色，文案移进 tooltip，保留 aria-label', () => {
     /*

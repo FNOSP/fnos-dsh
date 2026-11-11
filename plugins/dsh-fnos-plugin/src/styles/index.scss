@@ -304,7 +304,10 @@ img.dsh-fnos-file-manager-icon {
   gap: 12px;
   margin: 0 16px;
   padding: 12px 0 8px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
+  /*
+    不要 `border-top`：这一块就是卡片的全部内容（按钮行 + 目录列表），上面没有
+    需要分隔的兄弟区段。留着会在弹框顶部横一道线，看起来像半个分隔符。
+  */
 }
 
 .dsh-fnos-authorized-row {
