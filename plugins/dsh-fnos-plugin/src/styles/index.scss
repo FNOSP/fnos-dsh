@@ -2554,10 +2554,27 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
  *
  * 用 `auto-fill` + `minmax`：窄容器自动退化为单列，不需要额外断点。
  */
+/*
+ * **瀑布流**：固定列宽、各自按内容撑高。
+ *
+ * 用 `columns` 而不是 `grid`：grid 的行高由该行最高的卡片决定，矮卡片会被拉出
+ * 一块空白（描述展开后尤其明显）。`columns` 让卡片按内容自然高度紧密排列，
+ * 列宽固定、不留行对齐的空洞。
+ *
+ * `break-inside: avoid` 是必须的：否则一张卡片会被拆到两列之间。
+ */
 .dsh-fnos-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 8px;
+  columns: 280px;
+  column-gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-fnos-card {
+  break-inside: avoid;
+  /* 卡片间距由 margin 提供：`columns` 下 `gap` 不起作用。 */
+  margin-bottom: 8px;
 }
 
 /*

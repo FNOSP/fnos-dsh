@@ -189,6 +189,25 @@ describe('bundle 与普通插件走不同路径（复用官方实现）', () => 
   })
 })
 
+describe('插件说明：三行省略可展开', () => {
+  it('用 Typography 的多行 ellipsis，而不是单行截断', () => {
+    // 单行把大部分描述都切掉，而列表页的作用正是让人判断「这插件做什么」。
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('ellipsis={{ rows: 3, expandable: true, collapsible: true')
+    expect(PANEL).toContain('DshTypography.Paragraph')
+  })
+
+  it('描述优先取中文片段', () => {
+    /*
+      现实中常见写法是英文在前、`·` 分隔、中文在后。界面语言是中文时，把英文那段
+      显示出来对用户没有帮助。
+    */
+    const SRC = readFileSync(new URL('../../src/host/installed-plugins.ts', import.meta.url), 'utf8')
+    expect(SRC).toContain('preferChinese')
+    expect(SRC).toContain('description = preferChinese(')
+  })
+})
+
 describe('插件说明文案', () => {
   it('从 package.json 的 description 读取，与官方同源', () => {
     /*
@@ -397,12 +416,18 @@ describe('卡片式界面', () => {
     expect(rule).toContain('min-width: 0')
   })
 
-  it('卡片一行两个，窄容器自动退化单列', () => {
-    // 单列时每张卡只有一行文字却占满整宽，一屏放不下几个。
+  it('卡片用瀑布流：列宽固定、各自按内容撑高', () => {
+    /*
+      用 `columns` 而不是 `grid`：grid 的行高由该行最高的卡片决定，矮卡片会被拉出
+      一块空白（描述展开后尤其明显）。`columns` 让卡片按内容自然高度紧密排列。
+    */
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
     const rule = SCSS.slice(SCSS.lastIndexOf('.dsh-fnos-cards {'))
     const body = rule.slice(0, rule.indexOf('}'))
-    expect(body).toContain('grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))')
+    expect(body).toContain('columns: 280px')
+    expect(body).not.toContain('grid-template-columns')
+    // 卡片必须避免被拆到两列之间。
+    expect(SCSS).toContain('break-inside: avoid')
   })
 
   it('「已是最新」也用徽标，与其它状态同构', () => {

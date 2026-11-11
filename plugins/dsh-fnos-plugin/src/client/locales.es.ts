@@ -223,6 +223,8 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   pluginInstallAction: "Instalar",
   pluginDisabled: "Desactivado",
   uninstall: "Desinstalar",
+  expand: "Ver mas",
+  collapse: "Ver menos",
   pluginRemoveTitle: "Desinstalar plugin",
   pluginRemoveConfirm: "El plugin se eliminara del perfil; la configuracion y los datos se perderan. Desinstalar: ",
   pluginRemoveNeedRestart: "Plugin desinstalado. Efectivo por completo tras reiniciar la Web.",

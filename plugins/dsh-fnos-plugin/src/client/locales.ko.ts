@@ -231,6 +231,8 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   pluginInstallAction: "설치",
   pluginDisabled: "비활성화됨",
   uninstall: "제거",
+  expand: "펼치기",
+  collapse: "접기",
   pluginRemoveTitle: "플러그인 제거",
   pluginRemoveConfirm: "프로필에서 제거되며 설정과 데이터도 사라집니다. 제거할까요: ",
   pluginRemoveNeedRestart: "플러그인을 제거했습니다. Web 을 다시 시작하면 완전히 반영됩니다.",

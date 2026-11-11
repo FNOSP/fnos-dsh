@@ -70,6 +70,32 @@ async function readBundleSelection(profile: string | undefined): Promise<readonl
  * @returns 插件条目。
  */
 /**
+ * 描述里中英文并列时**优先取中文**。
+ *
+ * 现实中很常见的写法是英文在前、`·` 或 `-` 分隔、中文在后：
+ *
+ * ```
+ * Visual plugin market inside DeepSeek Harness — browse… · DSH 可视化插件市场：逛一逛，点一下，装好。
+ * ```
+ *
+ * 界面语言是中文时，把英文那段显示出来对用户没有帮助。规则很保守：
+ * 只在确实存在连续中文片段时取那一段，否则原样返回——不去猜也不去翻译。
+ *
+ * @param text - `package.json` 的 `description`。
+ * @returns 中文片段（若存在），否则原文。
+ */
+export function preferChinese(text: string): string {
+  // 连续中文（含全角标点）至少 4 字才算「一段中文描述」，避免只匹配到零星符号。
+  const matches = text.match(/[\u4E00-\u9FA5][\u4E00-\u9FA5\uFF00-\uFFEF\s。、「」『』—·…]*/gu)
+  if (matches === null) return text
+  const best = matches
+    .map(item => item.trim())
+    .filter(item => item.length >= 4)
+    .sort((a, b) => b.length - a.length)[0]
+  return best === undefined ? text : best
+}
+
+/**
  * 把 `repository` 字段归一化成可点击的 http(s) URL。
  *
  * npm 生态里它有三种常见形态，都要认：
@@ -119,7 +145,7 @@ async function readPlugin(profile: string, name: string, bundledNames: ReadonlyS
       空串按「没有」处理——空描述与缺描述在界面上都该什么都不显示。
     */
     if (typeof manifest.description === 'string' && manifest.description.trim() !== '') {
-      description = manifest.description.trim()
+      description = preferChinese(manifest.description.trim())
     }
     // 「有客户端入口」的判据：声明了 main 或 exports。纯宿主插件没有，不会出现在界面里。
     hasClient = typeof manifest.main === 'string' || manifest.exports !== undefined

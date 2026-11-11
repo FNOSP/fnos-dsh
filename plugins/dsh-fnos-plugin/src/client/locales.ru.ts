@@ -222,6 +222,8 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   pluginInstallAction: "Установить",
   pluginDisabled: "Отключён",
   uninstall: "Удалить",
+  expand: "Развернуть",
+  collapse: "Свернуть",
   pluginRemoveTitle: "Удалить плагин",
   pluginRemoveConfirm: "Плагин будет удалён из профиля, настройки и данные будут потеряны. Удалить: ",
   pluginRemoveNeedRestart: "Плагин удалён. Полностью применится после перезапуска Web.",

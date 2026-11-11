@@ -231,6 +231,8 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   pluginInstallAction: "インストール",
   pluginDisabled: "無効",
   uninstall: "アンインストール",
+  expand: "展開",
+  collapse: "折りたたむ",
   pluginRemoveTitle: "プラグインをアンインストール",
   pluginRemoveConfirm: "プロファイルから削除され、設定とデータも失われます。実行しますか: ",
   pluginRemoveNeedRestart: "プラグインを削除しました。Web を再起動すると完全に反映されます。",

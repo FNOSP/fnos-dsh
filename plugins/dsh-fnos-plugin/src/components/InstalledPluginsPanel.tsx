@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshButton, DshModal, DshSwitch } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshModal, DshSwitch, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
 import { PluginInstallDialog } from './PluginInstallDialog.tsx'
@@ -123,16 +123,21 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
       )}
 
       <div className="dsh-fnos-installed-toolbar">
-        <DshButton
-          htmlType="button"
-          size="small"
-          theme="borderless"
-          type="tertiary"
-          loading={refreshing}
-          onClick={() => { void refresh() }}
-        >
-          {t('refresh')}
-        </DshButton>
+        {/*
+          图标按钮：文案移进 tooltip。刷新是工具条里的次要动作，占一个文字按钮的
+          位置不值当；`aria-label` 保留，读屏软件才不会只念「按钮」。
+        */}
+        <DshTooltip content={t('refresh')}>
+          <button
+            type="button"
+            className="dsh-fnos-icon-button"
+            aria-label={t('refresh')}
+            disabled={refreshing}
+            onClick={() => { void refresh() }}
+          >
+            <IconifyIcon name="lucide:refresh-cw" />
+          </button>
+        </DshTooltip>
       </div>
 
       {/*
@@ -197,13 +202,22 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
               </div>
 
               {/*
-                插件说明：来自 `package.json` 的 `description`，与官方插件页同源。
+                插件说明：**最多三行，超出可展开**。
 
-                没有它，卡片只剩包名和版本号——用户没法判断「这个插件做什么」。
-                空描述时整行不渲染，不留一条空行。
+                用 Semi Typography 的 `ellipsis`（`rows: 3` + `expandable` +
+                `collapsible`）而不是自己写 `-webkit-line-clamp`：它自带展开/收起
+                按钮与状态管理，且只在真的超出时才出现按钮。
+
+                取代了此前的「单行省略 + title 悬浮」——单行把大部分描述都切掉，
+                而列表页的作用正是让人判断「这插件做什么」。
               */}
               {plugin.description === undefined ? null : (
-                <p className="dsh-fnos-card-description" title={plugin.description}>{plugin.description}</p>
+                <DshTypography.Paragraph
+                  className="dsh-fnos-card-description"
+                  ellipsis={{ rows: 3, expandable: true, collapsible: true, expandText: t('expand'), collapseText: t('collapse') }}
+                >
+                  {plugin.description}
+                </DshTypography.Paragraph>
               )}
 
               {/*
