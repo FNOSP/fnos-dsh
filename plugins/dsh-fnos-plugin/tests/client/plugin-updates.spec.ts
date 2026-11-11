@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { isAheadOfRegistry, isNewerVersion } from '../../src/host/plugin-updates.ts'
-import { MARKET_ENTRY_ID, RECOMMENDED_INDEXES, readIndexStatus } from '../../src/host/plugin-index-sources.ts'
+import { MARKET_ENTRY_ID, RECOMMENDED_INDEXES } from '../../src/host/plugin-index-sources.ts'
 
 /**
  * 插件更新检测与索引源管理。
@@ -82,11 +82,16 @@ describe('插件索引：推荐源与状态', () => {
     expect(INDEX).toContain('dsh-experimental-plugin-market-bundle')
   })
 
-  it('市场未装时报告不可用，而不是写一份没人读的配置', async () => {
-    // 服务未挂载（ctx.get 返回 undefined）即为未装。
-    const status = await readIndexStatus({ get: () => undefined, settings: { describe: () => [] } } as never)
-    expect(status.marketAvailable).toBe(false)
-    expect(status.reason).toBe('plugin-market-not-installed')
+  it('开关状态来自 bundle 是否被选中，与官方 setBundleEnabled 同判据', () => {
+    /*
+      早前看 `ctx.get('pluginMarket')`（模块在不在内存里），于是 bundle 明明在
+      `bundles` 数组里、界面却可以因为一个本地开关显示「未开启」。
+      现在读写都走 `dsh.profile.bundles`，与「已安装的插件」页完全一致。
+    */
+    expect(INDEX).toContain('MARKET_BUNDLE_NAME')
+    expect(INDEX).toContain('readSelectedBundles')
+    expect(INDEX).toContain('selected.includes(MARKET_BUNDLE_NAME)')
+    expect(INDEX).toContain('setMarketEnabled')
   })
 
   it('一键设置只追加、不覆盖用户已配的源', () => {
@@ -96,11 +101,11 @@ describe('插件索引：推荐源与状态', () => {
 })
 
 describe('插件索引：界面', () => {
-  it('开启用 Switch 而不是按钮', () => {
+  it('开启用 Switch 而不是按钮，且调用真实切换接口', () => {
     // 开关表达「持续状态」，按钮表达「执行动作」；这里改的是状态。
     expect(PANEL).toContain('DshSwitch')
     expect(PANEL).toContain('checked={enabled}')
-    expect(PANEL).toContain('disabled={busy || marketMissing}')
+    expect(PANEL).toContain('setIndexEnabledRemote')
     expect(PANEL).not.toContain("t('indexApplyEnable')")
   })
 
@@ -109,12 +114,11 @@ describe('插件索引：界面', () => {
       真机踩到：市场明明是启用状态，开关却显示「未开启」——因为原来只看
       localStorage 里的偏好，本地没存过值就当 false。开关必须反映事实。
     */
-    expect(PANEL).toContain('getIndexDisabled')
-    expect(PANEL).toMatch(/const enabled = status !== undefined && status\.marketAvailable/)
-    // 偏好只记录「关掉」，默认跟随真实状态。
+    // 现在直接读 bundle 选择状态，本地偏好已彻底移除。
+    expect(PANEL).toMatch(/const enabled = status\?\.marketEnabled === true/u)
     const CLIENT = readFileSync(new URL('../../src/client/services/plugin-index-client.ts', import.meta.url), 'utf8')
-    expect(CLIENT).toContain('DISABLED_KEY')
-    expect(CLIENT).toContain('removeItem')
+    expect(CLIENT).not.toContain('DISABLED_KEY')
+    expect(CLIENT).toContain('setIndexEnabledRemote')
   })
 
   it('引导图用 Semi 的 Image 组件，且不带 border', () => {

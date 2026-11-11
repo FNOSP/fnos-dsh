@@ -10,6 +10,7 @@
 import {
   FNOS_PLUGIN_INDEX_APPLY_ROUTE,
   FNOS_PLUGIN_INDEX_STATUS_ROUTE,
+  FNOS_PLUGIN_INDEX_TOGGLE_ROUTE,
   type PluginIndexSourceInfo,
 } from '../../contracts/gateway-proxy-contract.ts'
 
@@ -22,39 +23,8 @@ export interface PluginIndexStatus {
   readonly recommended: readonly string[]
   /** 推荐源的展示信息（含从索引里读到的标题）。 */
   readonly sources: readonly PluginIndexSourceInfo[]
-}
-
-/** localStorage 键：用户**显式关掉**推荐索引的偏好。 */
-const DISABLED_KEY = 'dsh-fnos.plugin-index-disabled'
-
-/**
- * 读用户偏好：是否显式关掉了推荐索引。
- *
- * **只记录「关掉」**，不记录「开启」。因为默认值应当来自真实状态（市场是否启用），
- * 而不是一个本地的初值——早前用 `=== '1'` 判断开启，结果市场明明是启用状态，
- * 开关却因为本地没存过值而显示「未开启」，与事实相反。
- * @returns 是否被用户显式关掉。
- */
-export function getIndexDisabled(): boolean {
-  try {
-    return globalThis.localStorage?.getItem(DISABLED_KEY) === '1'
-  } catch {
-    // 隐私模式下 localStorage 可能抛错：按「未关掉」处理，如实反映市场状态。
-    return false
-  }
-}
-
-/**
- * 写用户偏好。
- * @param enabled - 是否开启；`true` 表示清掉「关掉」标记、回到跟随真实状态。
- */
-export function setIndexEnabled(enabled: boolean): void {
-  try {
-    if (enabled) globalThis.localStorage?.removeItem(DISABLED_KEY)
-    else globalThis.localStorage?.setItem(DISABLED_KEY, '1')
-  } catch {
-    // 同上：存不下就只影响下次打开时的默认值。
-  }
+  /** 插件市场 bundle 是否已启用（开关的真实状态）。 */
+  readonly marketEnabled: boolean
 }
 
 /** 归一化路由返回。 */
@@ -67,6 +37,7 @@ function toStatus(value: unknown): PluginIndexStatus {
     configured: list(record.configured),
     missing: list(record.missing),
     recommended: list(record.recommended),
+    marketEnabled: record.marketEnabled === true,
     sources: Array.isArray(record.sources)
       ? record.sources.filter((item): item is PluginIndexSourceInfo => typeof item === 'object' && item !== null && typeof (item as PluginIndexSourceInfo).url === 'string')
       : [],
@@ -100,4 +71,26 @@ export async function applyPluginIndexes(): Promise<PluginIndexStatus> {
   })
   if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
   return toStatus(await response.json())
+}
+
+/**
+ * 启用/禁用「自定义插件索引」能力。
+ *
+ * 背后是真正增删 `dsh.profile.bundles` 里的市场 bundle，不是本地偏好。
+ * @param enabled - 目标状态。
+ * @returns 是否需要重启 Web 才生效。
+ */
+export async function setIndexEnabledRemote(enabled: boolean): Promise<{ needRestart: boolean }> {
+  const response = await fetch(FNOS_PLUGIN_INDEX_TOGGLE_ROUTE, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ enabled }),
+  })
+  if (!response.ok) {
+    const value = await response.json().catch(() => undefined) as { message?: unknown } | undefined
+    throw new Error(typeof value?.message === 'string' ? value.message : `HTTP ${String(response.status)}`)
+  }
+  const value = await response.json() as { needRestart?: unknown }
+  return { needRestart: value.needRestart === true }
 }

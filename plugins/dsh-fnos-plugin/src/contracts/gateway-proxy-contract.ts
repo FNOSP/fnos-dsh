@@ -208,3 +208,6 @@ export const FNOS_NPM_MIRROR_USE_ROUTE = '/plugins/dsh-fnos/npm/mirror-use'
 
 /** 安装 nrm（写）。 */
 export const FNOS_NPM_MIRROR_INSTALL_ROUTE = '/plugins/dsh-fnos/npm/install-nrm'
+
+/** 启用/禁用「自定义插件索引」能力（写）。 */
+export const FNOS_PLUGIN_INDEX_TOGGLE_ROUTE = '/plugins/dsh-fnos/plugins/index-toggle'

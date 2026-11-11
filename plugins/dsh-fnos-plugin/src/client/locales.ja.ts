@@ -220,6 +220,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyTabInstalled: "インストール済みプラグイン",
   installedPluginsBundled: "同梱",
   installedBundledWarning: "このプラグインは fnOS アプリと DSH の橋渡しです。アンインストールしてもアプリは起動しますが、認可ディレクトリ・ファイルを開く・ゲートウェイ代理・プロセス管理が機能しなくなります。",
+  indexToggleNeedRestart: "インデックスを切り替えました。Web を再起動すると反映されます。",
   pluginInstallRunning: "インストール中…",
   pluginInstallSucceeded: "インストール成功",
   pluginInstallFailed: "インストール失敗",

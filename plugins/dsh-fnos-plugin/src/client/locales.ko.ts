@@ -220,6 +220,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyTabInstalled: "설치된 플러그인",
   installedPluginsBundled: "내장",
   installedBundledWarning: "이 플러그인은 fnOS 앱과 DSH 사이의 다리입니다. 제거해도 앱은 시작되지만 인가 디렉터리, 파일 열기, 게이트웨이 프록시, 프로세스 관리가 동작하지 않습니다.",
+  indexToggleNeedRestart: "인덱스를 전환했습니다. Web 을 다시 시작하면 반영됩니다.",
   pluginInstallRunning: "설치 중…",
   pluginInstallSucceeded: "설치 성공",
   pluginInstallFailed: "설치 실패",

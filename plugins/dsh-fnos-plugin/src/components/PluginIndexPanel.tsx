@@ -23,8 +23,7 @@ import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   applyPluginIndexes,
   fetchPluginIndexStatus,
-  getIndexDisabled,
-  setIndexEnabled,
+  setIndexEnabledRemote,
   type PluginIndexStatus,
 } from '../client/services/plugin-index-client.ts'
 
@@ -52,8 +51,10 @@ export interface PluginIndexPanelProps {
  */
 export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode {
   const [status, setStatus] = useState<PluginIndexStatus>()
-  /** 用户是否显式关掉了推荐索引（默认跟随真实状态）。 */
-  const [userDisabled, setUserDisabled] = useState(() => getIndexDisabled())
+  /** 切换开关时的忙碌标记。 */
+  const [toggling, setToggling] = useState(false)
+  /** 切换后需要重启的提示。 */
+  const [restartNotice, setRestartNotice] = useState<string>()
   /** 官方引导图读取失败：失败后整块不渲染，避免留一个破图占位。 */
   const [guideBroken, setGuideBroken] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -83,21 +84,36 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
     }
   }, [])
 
-  /** 切换：记住「用户是否关掉」，真实状态由它与市场状态共同决定。 */
-  const toggle = useCallback((next: boolean) => {
-    setIndexEnabled(next)
-    setUserDisabled(!next)
-  }, [])
+  /**
+   * 切换：真正启用/禁用市场 bundle。
+   *
+   * 与「已安装的插件」页的开关走同一套逻辑（官方 `setBundleEnabled` 的同构实现），
+   * 因此两处状态永远一致，不会出现「这边开、那边关」。
+   */
+  const toggle = useCallback(async (next: boolean) => {
+    setToggling(true)
+    setRestartNotice(undefined)
+    try {
+      const result = await setIndexEnabledRemote(next)
+      await load()
+      if (result.needRestart) setRestartNotice(t('indexToggleNeedRestart'))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setToggling(false)
+    }
+  }, [load, t])
 
-  const marketMissing = status !== undefined && !status.marketAvailable
   /*
-    **开关反映真实状态**，不是本地偏好。
+    **开关就是插件本身的启用状态**（`dsh.profile.bundles` 里有没有市场 bundle）。
 
-    早前只看 localStorage：市场明明已启用，开关却因为本地没存过值而显示「未开启」，
-    与事实相反。现在默认取「市场是否启用」，用户显式关掉时才覆盖它。
+    早前用 localStorage 记偏好，于是出现过「bundle 明明在 bundles 数组里、开关却
+    显示未开启」——界面与真实状态相反。现在读写都走同一个判据，与「已安装的插件」
+    页的开关完全一致。
   */
-  const enabled = status !== undefined && status.marketAvailable && !userDisabled
-  const allConfigured = status !== undefined && status.marketAvailable && status.missing.length === 0
+  const enabled = status?.marketEnabled === true
+  const marketMissing = status !== undefined && !status.marketEnabled
+  const allConfigured = status?.marketEnabled === true && status.missing.length === 0
 
   return (
     <div className="dsh-fnos-idx">
@@ -117,8 +133,8 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
         <DshSwitch
           size="default"
           checked={enabled}
-          disabled={busy || marketMissing}
-          onChange={next => { toggle(next) }}
+          disabled={busy || toggling}
+          onChange={next => { void toggle(next) }}
         />
       </div>
 
@@ -199,6 +215,7 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
         </>
       ) : null}
 
+      {restartNotice === undefined ? null : <p className="dsh-fnos-repair-muted" role="status">{restartNotice}</p>}
       {error === undefined ? null : <p className="dsh-fnos-repair-error" role="alert">{error}</p>}
     </div>
   )

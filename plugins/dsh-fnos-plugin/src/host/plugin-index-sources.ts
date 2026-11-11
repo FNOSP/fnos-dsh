@@ -15,11 +15,23 @@
  * @module dsh-fnos/plugin-index-sources
  */
 
+import { readFile, rename, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
+import { resolveRepairEnvironment } from './dependency-repair.ts'
 import type { PluginIndexSourceInfo } from '../contracts/gateway-proxy-contract.ts'
 
 /** 官方插件市场的 settings entry id（由官方 bundle 固定）。 */
 export const MARKET_ENTRY_ID = 'plugin-market'
+
+/**
+ * 提供「自定义插件索引」能力的官方 **bundle** 包名。
+ *
+ * 索引功能由它贡献（`plugin-market` 只是其中一条 entry）。因此「索引是否启用」
+ * 等价于「这个 bundle 是否在 profile 的 `dsh.profile.bundles` 里」——与官方
+ * `setBundleEnabled` 的判据一致，而不是看某个本地开关。
+ */
+export const MARKET_BUNDLE_NAME = '@deepseek-ai/dsh-experimental-plugin-market-bundle'
 
 /**
  * 本插件推荐的两个索引源。
@@ -94,8 +106,16 @@ async function describeSources(locale: string): Promise<PluginIndexSourceInfo[]>
 
 /** 索引状态。 */
 export interface PluginIndexStatus {
-  /** 插件市场是否已挂载（没装时为 false，两键不可用）。 */
+  /** 插件市场是否可用（已装且已启用）；false 时两键不可用。 */
   readonly marketAvailable: boolean
+  /**
+   * 插件市场 bundle 是否**已启用**。
+   *
+   * 与 `marketAvailable` 的区别：bundle 装了但未选中时，`marketEnabled` 为 false
+   * 而 `marketAvailable` 也为 false——但界面要能表达「装了、只是关着」，好让用户
+   * 把开关打开。仅看 `marketAvailable` 会把这两种情况混为一谈。
+   */
+  readonly marketEnabled: boolean
   /** 不可用原因。 */
   readonly reason?: string
   /** 当前已配置的索引源。 */
@@ -106,6 +126,23 @@ export interface PluginIndexStatus {
   readonly recommended: readonly string[]
   /** 推荐源的展示信息（含从索引里读到的标题）。 */
   readonly sources: readonly PluginIndexSourceInfo[]
+}
+
+/**
+ * 读 profile 选中的 bundle 列表。
+ * @returns 包名列表；读不到时空数组。
+ */
+async function readSelectedBundles(): Promise<readonly string[]> {
+  const environment = resolveRepairEnvironment()
+  if (environment === undefined) return []
+  try {
+    const manifest = JSON.parse(await readFile(join(environment.profileDirectory, 'package.json'), 'utf8')) as {
+      dsh?: { profile?: { bundles?: string[] } }
+    }
+    return manifest.dsh?.profile?.bundles ?? []
+  } catch {
+    return []
+  }
 }
 
 /**
@@ -143,19 +180,32 @@ function readConfigured(ctx: Context): readonly string[] | undefined {
 export async function readIndexStatus(ctx: Context, locale = 'zh'): Promise<PluginIndexStatus> {
   const sources = await describeSources(locale)
   const configured = readConfigured(ctx)
-  if (configured === undefined) {
-    return {
-      marketAvailable: false,
-      reason: 'plugin-market-not-installed',
-      configured: [],
-      missing: [...RECOMMENDED_INDEXES],
-      recommended: [...RECOMMENDED_INDEXES],
-      sources,
-    }
+
+  /*
+    **「启用」= 这个 bundle 是否被 profile 选中**，与官方 `setBundleEnabled` 同判据。
+
+    早前只看服务是否挂载（`ctx.get('pluginMarket')`），那是「模块在不在内存里」，
+    不是「用户是否启用它」——于是 bundle 明明在 `bundles` 数组里、界面却可以因为
+    一个本地开关显示「未开启」，与实际状态相反。
+
+    现在 `enabled` 由 bundle 选择状态决定，开关也随之变成真正的启用/禁用。
+  */
+  const selected = await readSelectedBundles()
+  const bundleEnabled = selected.includes(MARKET_BUNDLE_NAME)
+
+  return {
+    marketAvailable: bundleEnabled && configured !== undefined,
+    marketEnabled: bundleEnabled,
+    configured: configured ?? [],
+    missing: configured === undefined
+      ? [...RECOMMENDED_INDEXES]
+      : RECOMMENDED_INDEXES.filter(url => {
+          const present = new Set(configured.map(item => item.trim().replace(/\/+$/u, '')))
+          return !present.has(url.trim().replace(/\/+$/u, ''))
+        }),
+    recommended: [...RECOMMENDED_INDEXES],
+    sources,
   }
-  const present = new Set(configured.map(url => url.trim().replace(/\/+$/u, '')))
-  const missing = RECOMMENDED_INDEXES.filter(url => !present.has(url.trim().replace(/\/+$/u, '')))
-  return { marketAvailable: true, configured, missing, recommended: [...RECOMMENDED_INDEXES], sources }
 }
 
 /**
@@ -178,4 +228,40 @@ export async function applyRecommendedIndexes(ctx: Context, locale = 'zh'): Prom
   }
   await ctx.settings.update(MARKET_ENTRY_ID, { indexes: merged })
   return readIndexStatus(ctx, locale)
+}
+
+/**
+ * 启用/禁用「自定义插件索引」能力。
+ *
+ * 复用 `plugin-toggle` 的 bundle 逻辑（官方 `setBundleEnabled` 的同构实现），
+ * 因此开关背后是**真正在增删 `dsh.profile.bundles`**，而不是记一个本地偏好。
+ *
+ * @param ctx - 宿主上下文（此处不用，保留签名一致性）。
+ * @param enabled - 目标状态。
+ * @returns 是否成功；`needRestart` 表示需重启 Web 才生效。
+ */
+export async function setMarketEnabled(_ctx: Context, enabled: boolean): Promise<{ ok: boolean, error?: string, needRestart?: boolean }> {
+  const environment = resolveRepairEnvironment()
+  if (environment === undefined) return { ok: false, error: 'profile-unavailable' }
+
+  const manifestPath = join(environment.profileDirectory, 'package.json')
+  try {
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as {
+      dsh?: { profile?: { bundles?: string[] } }
+    }
+    const previous = manifest.dsh?.profile?.bundles ?? []
+    const next = enabled
+      ? (previous.includes(MARKET_BUNDLE_NAME) ? previous : [...previous, MARKET_BUNDLE_NAME])
+      : previous.filter(item => item !== MARKET_BUNDLE_NAME)
+    if (JSON.stringify(previous) === JSON.stringify(next)) return { ok: true, needRestart: false }
+
+    manifest.dsh = { ...manifest.dsh, profile: { ...manifest.dsh?.profile, bundles: next } }
+    const temporary = `${manifestPath}.dsh-market-toggle-${String(process.pid)}`
+    await writeFile(temporary, `${JSON.stringify(manifest, undefined, 2)}\n`, { mode: 0o600 })
+    await rename(temporary, manifestPath)
+    // 组合在进程启动时装配，改动要重启才生效。
+    return { ok: true, needRestart: true }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
 }
