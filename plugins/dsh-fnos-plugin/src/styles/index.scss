@@ -978,18 +978,36 @@ img.dsh-fnos-file-manager-icon {
   */
   --semi-color-overlay-bg: color-mix(in srgb, var(--dsw-alias-bg-base) 62%, transparent);
   background-color: color-mix(in srgb, var(--dsw-alias-bg-base) 62%, transparent) !important;
+  /*
+    背景模糊：让「弹框浮在页面上」这件事一眼可见。
+
+    只压暗（半透明底色）在浅色页面上很容易看起来只是「整体淡了一点」，
+    背后的文字和控件仍然清晰可辨，视觉上像是并排两套界面。加一层模糊后，
+    背景退成一层光斑，焦点自然落到弹框上。
+
+    `saturate(120%)` 稍微提一点饱和度：模糊会把色彩搅向灰，补一点回来才不会
+    显得脏。两个值都调得克制——模糊过度会让用户失去「我还在哪个页面」的线索。
+  */
+  backdrop-filter: blur(8px) saturate(120%);
+  /* Safari 仍需要前缀版本；它与标准属性可共存，写两份最省事。 */
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
 }
 
 /* 亮色主题：白色蒙层要更实，否则看不出「背后已禁用」。 */
 body:not([data-ds-dark-theme]) .semi-modal-mask,
 body:not([data-ds-dark-theme]) .semi-modal-wrap {
   background-color: color-mix(in srgb, var(--dsw-alias-label-primary) 28%, transparent) !important;
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
 }
 
 /* 暗色主题：深色蒙层反而要淡一点，否则整块发黑、层级被压平。 */
 body[data-ds-dark-theme] .semi-modal-mask,
 body[data-ds-dark-theme] .semi-modal-wrap {
   background-color: color-mix(in srgb, var(--dsw-alias-bg-base) 72%, transparent) !important;
+  /* 暗色下背景本身对比低，模糊可以稍弱一点，避免糊成一团。 */
+  backdrop-filter: blur(6px) saturate(110%);
+  -webkit-backdrop-filter: blur(6px) saturate(110%);
 }
 
 /*

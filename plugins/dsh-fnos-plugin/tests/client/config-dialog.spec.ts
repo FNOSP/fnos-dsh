@@ -347,6 +347,26 @@ describe('fnOS 配置弹框', () => {
     expect(surface.slice(0, 400)).not.toMatch(/box-shadow:\s*\n?\s*0 \d+px/)
   })
 
+  it('蒙层有背景模糊，三种主题变体都要有', () => {
+    /*
+      只压暗（半透明底色）在浅色页面上很容易看起来只是「整体淡了一点」，背后的
+      文字仍清晰可辨，视觉上像并排两套界面。加一层模糊后背景退成光斑，
+      焦点自然落到弹框上。
+
+      三种变体（基础 / 亮色 / 暗色）都要带，否则某一主题下会突然没有模糊。
+    */
+    const maskBlocks = [
+      SCSS.slice(SCSS.indexOf('.semi-modal-mask,'), SCSS.indexOf('.semi-modal-mask,') + 1200),
+      SCSS.slice(SCSS.indexOf('body:not([data-ds-dark-theme]) .semi-modal-mask'), SCSS.indexOf('body:not([data-ds-dark-theme]) .semi-modal-mask') + 400),
+      SCSS.slice(SCSS.indexOf('body[data-ds-dark-theme] .semi-modal-mask'), SCSS.indexOf('body[data-ds-dark-theme] .semi-modal-mask') + 400),
+    ]
+    for (const block of maskBlocks) {
+      expect(block).toContain('backdrop-filter: blur(')
+      // Safari 需要前缀版本。
+      expect(block).toContain('-webkit-backdrop-filter')
+    }
+  })
+
   it('弹框与蒙层不写死颜色，全部走 DSH 主题变量', () => {
     /*
       写死颜色在亮色下够用，但**暗色主题会失效**：蒙层在深底上再压一层更黑、
