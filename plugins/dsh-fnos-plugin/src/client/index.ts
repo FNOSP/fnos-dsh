@@ -27,7 +27,7 @@ import { FnosInputPickerButton } from '../components/FnosInputPickerButton.tsx'
 import { FnosAuthorizedPathPanel } from '../components/FnosAuthorizedPathPicker.tsx'
 import { FnosOpenInHeaderAction } from '../components/FnosOpenInHeaderAction.tsx'
 import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAction.tsx'
-import { FnosConfigMenuEntry } from '../components/FnosConfigMenuEntry.tsx'
+import { FnosPanelMain, FnosPanelRow } from '../components/FnosPanelRow.tsx'
 import { FnosRefreshMenuEntry, FnosRestartMenuEntry } from '../components/FnosWebActionsMenuEntry.tsx'
 import { FnosConfigOverlay } from '../components/FnosConfigOverlay.tsx'
 import { FNOS_OPEN_IN_APP_SEAT, FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
@@ -110,7 +110,10 @@ export function apply(ctx: ClientContext): void {
     }, 'dsh-fnos: fnOS theme bridge')
   }
 
-  const namespace = 'settings.dsh-fnos'
+  /** 「飞牛 OS」面板 id：侧栏行与 main 视图靠它配对。 */
+const FNOS_CONFIG_PANEL_ID = 'dsh-fnos-config'
+
+const namespace = 'settings.dsh-fnos'
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'dsh-fnos: locale')
   // FNOS-045：先补齐可选语言（已存在则跳过，六个插件可能都想注册同一批 id），
   // 再登记本插件命名空间的各语言字典。
@@ -233,24 +236,36 @@ export function apply(ctx: ClientContext): void {
   const pickerStore = createPickerOpenStore()
   ctx.effect(() => () => { pickerStore.closeAll() }, 'dsh-fnos: picker store')
   /**
-   * 「更多」下拉菜单里的「飞牛 OS」入口。
+   * **侧栏面板列表里的「飞牛 OS」入口，位于「更多」之上。**
    *
-   * 原先授权目录与依赖修复两块配置挂在插件详情页（`plugins.detail.section`），
-   * 随页面滚动、要找一条路径得翻很长。改为收进这里打开的配置弹框（左侧菜单 +
-   * 右侧主体），详情页不再保留这两块——同一份设置只出现在一个地方。
+   * 「插件」「自动化任务」那一组由 `sidebar.panellist` 渲染，「更多」是
+   * `panelList` 里固定的最后一项——所以要排在它上方，就得注册成本槽位的一行。
    *
-   * 槽位语义对照：`sidebar.panellist.actions` 是「面板列表的更多菜单行」，官方
-   * entry-customization 也往这里放非面板动作，因此一个「打开配置」入口不越界。
+   * 代价：`sidebar.panellist` 的语义是「可切换面板」，点击会走
+   * `layout.selectPanel(id)`，而它**先校验 `hasMainPanel(id)`**、没有配对主视图
+   * 直接抛错。因此必须同时注册 `main` 视图。
+   *
+   * 那个主视图只渲染一句占位说明并在挂载时打开配置弹框——位置借面板行的外观，
+   * 行为仍是弹框（见 `FnosPanelRow.tsx` 的说明）。
+   *
+   * `order: 20` 让它排在「自动化任务」（10）之后、「更多」之前。
    */
-  ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register({
-    name: 'sidebar.panellist.actions',
-    id: 'dsh-fnos-config-entry',
-    order: 90,
+  ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+    name: 'sidebar.panellist',
+    id: FNOS_CONFIG_PANEL_ID,
+    order: 20,
+    locale: namespace,
+    label: () => t('configMenuEntry'),
+    inject: () => ({ t }),
+  }, FnosPanelRow))
+  ctx.slots.inject('main', () => ctx.slots.register({
+    name: 'main',
+    key: FNOS_CONFIG_PANEL_ID,
     locale: namespace,
     inject: () => ({ t }),
-  }, (props: { onDismiss?: () => void }) => FnosConfigMenuEntry({ ...props, t })))
+  }, FnosPanelMain))
   /**
-   * 「刷新页面」与「重启服务」两行，紧跟在「飞牛 OS」之后（order 91/92）。
+   * 「刷新页面」与「重启服务」两行仍留在「更多」菜单里（order 91/92）。
    *
    * 它们都是「整个应用」级别的操作，与会话无关——原先挂在会话头部工具条，
    * 语义不对且占用头部宽度。放进同一菜单后与面板动作归为一类。

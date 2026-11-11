@@ -13,16 +13,28 @@ import { readFileSync } from 'node:fs'
  */
 const read = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
 const DIALOG = read('../../src/components/FnosConfigDialog.tsx')
-const ENTRY = read('../../src/components/FnosConfigMenuEntry.tsx')
+const ENTRY = read('../../src/components/FnosPanelRow.tsx')
 const SCSS = read('../../src/styles/index.scss')
 const LOCALES = read('../../src/client/locales.ts')
 
 describe('fnOS 配置弹框', () => {
-  it('挂在「更多」菜单，菜单项文案是「飞牛 OS」', () => {
-    expect(ENTRY).toContain('MenuItemButton')
+  it('是侧栏面板行，位置在「更多」之上', () => {
+    /*
+      「插件」「自动化任务」由 `sidebar.panellist` 渲染，「更多」是 panelList 里
+      固定的最后一项——要排在它上方就得注册成该槽位的一行。
+      代价是必须同时注册 `main`（否则 selectPanel 校验失败抛错）。
+    */
+    const INDEX = read('../../src/client/index.ts')
+    expect(INDEX).toContain("ctx.slots.inject('sidebar.panellist'")
+    expect(INDEX).toContain("ctx.slots.inject('main'")
+    expect(INDEX).toContain('FNOS_CONFIG_PANEL_ID')
     expect(LOCALES).toContain("configMenuEntry: '飞牛 OS'")
-    // 第一行带分隔线，与上面的面板导航分开。
-    expect(ENTRY).toContain('separatorBefore')
+  })
+
+  it('面板行只提供图标，点击行为由 sidebar 提供', () => {
+    // `sidebar.panellist` 把注册项放进 PanelRow 的 glyph 槽，行本身由 sidebar 渲染。
+    expect(ENTRY).toContain('FnosMonoLogo')
+    expect(ENTRY).toContain('FnosPanelMain')
   })
 
   it('入口用飞牛标记而不是通用设置齿轮', () => {
@@ -41,10 +53,11 @@ describe('fnOS 配置弹框', () => {
     expect(css).toContain('invert(1)')
   })
 
-  it('先关菜单再开弹框（避免 portaled 浮层抢焦点）', () => {
-    const open = ENTRY.slice(ENTRY.indexOf('const openConfig'), ENTRY.indexOf('return ('))
-    expect(open).toContain('onDismiss?.()')
-    expect(open.indexOf('onDismiss?.()')).toBeLessThan(open.indexOf('configDialogStore.set(true)'))
+  it('配对主视图挂载即打开弹框（占位而非真面板）', () => {
+    // 「飞牛 OS」一直是弹框交互，不该替换主视图；main 只是让 selectPanel 不报错。
+    const main = ENTRY.slice(ENTRY.indexOf('export function FnosPanelMain'))
+    expect(main).toContain('useEffect')
+    expect(main).toContain('configDialogStore.set(true)')
   })
 
   it('弹框挂在 shell.overlay，不在菜单子树里', () => {

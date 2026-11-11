@@ -188,12 +188,18 @@ describe('dsh-fnos package contract', () => {
     expect(patch).not.toContain('@deepseek-ai/dsh-host-directory-picker-browse')
   })
 
-  it('配置收进「更多」菜单打开的弹框，详情页不再挂配置块', async () => {
+  it('配置入口是侧栏面板行（位于「更多」之上），详情页不再挂配置块', async () => {
     const source = await readFile(new URL('../../src/client/index.ts', import.meta.url), 'utf8')
-    // 配置从详情页搬到「更多」菜单的入口：同一份设置只保留一个入口，避免两处
-    // 都能改却状态不同步。
-    expect(source).toContain("ctx.slots.inject('sidebar.panellist.actions'")
-    expect(source).toContain("id: 'dsh-fnos-config-entry'")
+    /*
+      「插件」「自动化任务」那一组由 `sidebar.panellist` 渲染，「更多」是 panelList
+      里固定的最后一项——要排在它上方，就得注册成本槽位的一行。
+
+      代价：该槽位的行点击会走 `layout.selectPanel(id)`，而它先校验
+      `hasMainPanel(id)`、没有配对主视图直接抛错，所以必须同时注册 `main`。
+    */
+    expect(source).toContain("ctx.slots.inject('sidebar.panellist'")
+    expect(source).toContain('FNOS_CONFIG_PANEL_ID')
+    expect(source).toContain("ctx.slots.inject('main'")
     expect(source).not.toContain("ctx.slots.inject('plugins.detail.section'")
     expect(source).not.toContain("ctx.slots.inject('settings.plugins.tab'")
     // 刷新 / 重启已从侧栏底部移入会话头部的「…」菜单（FNOS-042 那个菜单）。

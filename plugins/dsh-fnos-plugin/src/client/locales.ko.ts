@@ -25,6 +25,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   sessionLogExportComputer: '컴퓨터로 내보내기',
   sessionLogExportNas: 'NAS로 내보내기',
   configMenuEntry: 'fnOS',
+  configPanelOpenedInDialog: "설정이 대화 상자에서 열렸습니다. 닫은 후 왼쪽 \\\"fnOS\\\"를 다시 클릭하세요.",
   configDialogTitle: 'fnOS 설정',
   configSectionDirectories: '권한 부여된 디렉터리',
   configSectionRepair: '종속성 복구',

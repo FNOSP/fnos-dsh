@@ -2597,3 +2597,26 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
   transition: left 0.2s ease-in-out;
   border-radius: 9px;
 }
+
+/*
+ * 「飞牛 OS」面板的占位主视图。
+ *
+ * 它不是真正的面板——注册 `main` 只是为了让侧栏那一行的 `selectPanel` 不报错
+ * （官方先校验 `hasMainPanel`）。内容只说明「设置已在弹框中打开」。
+ */
+.dsh-fnos-panel-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 480px;
+  margin: 48px auto;
+  padding: 0 24px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 22px;
+
+  p {
+    margin: 0;
+  }
+}

@@ -25,6 +25,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   sessionLogExportComputer: 'コンピューターにエクスポート',
   sessionLogExportNas: 'NAS にエクスポート',
   configMenuEntry: 'fnOS',
+  configPanelOpenedInDialog: "設定はダイアログで開いています。閉じた後、左の「fnOS」を再度クリックしてください。",
   configDialogTitle: 'fnOS 設定',
   configSectionDirectories: '許可ディレクトリ',
   configSectionRepair: '依存関係の修復',

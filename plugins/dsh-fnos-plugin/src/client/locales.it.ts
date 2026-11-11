@@ -21,6 +21,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   sessionLogExportComputer: 'Esporta sul computer',
   sessionLogExportNas: 'Esporta sul NAS',
   configMenuEntry: 'fnOS',
+  configPanelOpenedInDialog: "Le impostazioni sono aperte nella finestra. Dopo la chiusura, fai clic di nuovo su \\\"fnOS\\\".",
   configDialogTitle: 'Impostazioni fnOS',
   configSectionDirectories: 'Cartelle autorizzate',
   configSectionRepair: 'Riparazione dipendenze',

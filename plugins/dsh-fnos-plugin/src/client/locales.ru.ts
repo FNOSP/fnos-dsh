@@ -21,6 +21,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   sessionLogExportComputer: 'Экспортировать на компьютер',
   sessionLogExportNas: 'Экспортировать на NAS',
   configMenuEntry: 'fnOS',
+  configPanelOpenedInDialog: "Настройки открыты в диалоге. После закрытия нажмите \\\"fnOS\\\" снова.",
   configDialogTitle: 'Настройки fnOS',
   configSectionDirectories: 'Авторизованные каталоги',
   configSectionRepair: 'Восстановление зависимостей',
