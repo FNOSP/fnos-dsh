@@ -160,9 +160,19 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                   高度压到 16px、圆角随之变成近似方形，于是同一列表里两个开关看起来
                   不是一套控件（真机截图里第二张卡的开关明显更「方」）。
                 */}
+                {/*
+                  **内置插件只展示、不可操作。**
+
+                  `@tnnevol/dsh-fnos` 是应用与 DSH 之间的桥梁：它一旦被禁用，
+                  授权目录、文件打开、网关反代、进程管理全部失效——而「启用回来」
+                  这个动作正是它自己提供的功能，用户没有别的入口。
+
+                  置灰而不是隐藏：让人看到「这里有开关、但你不能动」，比整个控件
+                  消失更能说清限制的存在。
+                */}
                 <DshSwitch
                   checked={!disabled}
-                  disabled={toggling === plugin.name}
+                  disabled={plugin.bundled === true || toggling === plugin.name}
                   onChange={next => { void toggleEnabled(plugin.name, next) }}
                 />
               </div>

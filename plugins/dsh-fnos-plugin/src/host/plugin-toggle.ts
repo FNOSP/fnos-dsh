@@ -24,6 +24,15 @@ import { readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { resolveRepairEnvironment } from './dependency-repair.ts'
 
+/**
+ * 本插件自己的包名。
+ *
+ * 它是应用与 DSH 之间的桥接层：一旦被禁用，授权目录、文件打开、网关反代、
+ * 进程管理全部失效，而「重新启用」这个动作本身也由它提供——用户没有别的入口
+ * 可以救回来。因此禁止被禁用（见 `setPackageEnabled` 里的服务端兜底）。
+ */
+const SELF_PACKAGE_NAME = '@tnnevol/dsh-fnos'
+
 /** 一个组合条目的启用状态。 */
 export interface PluginEntryState {
   /** 组合 entry id。 */
@@ -254,6 +263,23 @@ async function setBundleEnabled(profile: string, name: string, enabled: boolean)
 export async function setPackageEnabled(name: string, enabled: boolean): Promise<{ ok: boolean, error?: string }> {
   const path = patchPath()
   if (path === undefined) return { ok: false, error: 'profile-unavailable' }
+
+  /*
+    **桥接插件禁止禁用（服务端兜底）。**
+
+    `@tnnevol/dsh-fnos` 是应用与 DSH 之间的桥梁：禁用后授权目录、文件打开、
+    网关反代、进程管理全部失效，而「重新启用」这个动作本身也由它提供——用户没有
+    别的入口可以救回来。
+
+    界面上开关已置灰，但那只挡住鼠标：直接 POST 这个接口仍能把它关掉。既然后果是
+    「应用永久失能」，就必须在真正写入的地方拒绝。
+
+    与官方 `plugin-manager` 的 `management-required` 是同一类保护：管理自身的
+    插件不允许把自己关掉。
+  */
+  if (name === SELF_PACKAGE_NAME && !enabled) {
+    return { ok: false, error: 'management-required' }
+  }
 
   /*
     **bundle 走 `package.json`，非 bundle 才走 patch。**

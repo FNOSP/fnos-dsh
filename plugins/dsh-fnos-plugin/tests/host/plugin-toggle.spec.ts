@@ -209,6 +209,27 @@ describe('插件名可跳转到仓库', () => {
   })
 })
 
+describe('桥接插件禁止禁用', () => {
+  it('界面：内置插件的开关置灰', () => {
+    /*
+      `@tnnevol/dsh-fnos` 一被禁用，授权目录、文件打开、网关反代、进程管理全失效，
+      而「启用回来」这个动作正是它自己提供的——用户没有别的入口。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    const idx = PANEL.indexOf('<DshSwitch')
+    const block = PANEL.slice(idx, PANEL.indexOf('/>', idx))
+    expect(block).toContain('plugin.bundled === true')
+  })
+
+  it('服务端：真正写入处拒绝禁用自己（界面置灰只挡鼠标）', () => {
+    // 直接 POST 那个接口仍能绕开界面，必须由后端兜底。
+    expect(TOGGLE).toContain('SELF_PACKAGE_NAME')
+    expect(TOGGLE).toContain("error: 'management-required'")
+    const idx = TOGGLE.indexOf('name === SELF_PACKAGE_NAME && !enabled')
+    expect(idx).toBeGreaterThan(-1)
+  })
+})
+
 describe('卡片式界面', () => {
   it('用卡片而不是表格行', () => {
     expect(PANEL).toContain('dsh-fnos-cards')
