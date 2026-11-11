@@ -53,6 +53,7 @@ export type UsedIconName =
   | 'lucide:scroll-text'
   | 'lucide:route'
   | 'lucide:blocks'
+  | 'lucide:trash'
 
 /** 默认尺寸（px）；菜单行图标按官方 16px 对齐。 */
 const DEFAULT_SIZE = 16

@@ -53,6 +53,7 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
       'lucide:refresh-cw',
       'lucide:route',
       'lucide:scroll-text',
+      'lucide:trash',
       'lucide:wrench',
     ])
   })

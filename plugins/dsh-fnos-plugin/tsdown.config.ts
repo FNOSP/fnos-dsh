@@ -72,6 +72,7 @@ const ICON_NAMES = [
   'lucide:scroll-text',
   'lucide:route',
   'lucide:blocks',
+  'lucide:trash',
 ] as const
 
 async function generateIcons(): Promise<void> {
@@ -87,9 +88,16 @@ async function generateIcons(): Promise<void> {
   const picked: Record<string, { body: string }> = {}
   for (const name of ICON_NAMES) {
     const key = name.slice(name.indexOf(':') + 1)
-    const icon = data.icons[key]
-    if (icon === undefined) throw new Error(`图标集里没有 ${name}`)
-    picked[name] = { body: icon.body }
+    /*
+      **先查实体，再解析别名。**
+
+      lucide 把一批名字放在 `aliases` 里（如 `trash-2` → `trash`），只查
+      `data.icons` 会误报「图标集里没有」。早前写 `lucide:trash-2` 就踩了这个坑。
+    */
+    const alias = (data as { aliases?: Record<string, { parent?: string } | undefined> }).aliases?.[key]
+    const resolved = data.icons[key] ?? (alias?.parent === undefined ? undefined : data.icons[alias.parent])
+    if (resolved === undefined) throw new Error(`图标集里没有 ${name}（也不是可解析的别名）`)
+    picked[name] = { body: resolved.body }
   }
   const target = join(root, 'src', 'generated', 'icons.ts')
   await mkdir(join(root, 'src', 'generated'), { recursive: true })

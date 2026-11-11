@@ -189,6 +189,26 @@ describe('bundle 与普通插件走不同路径（复用官方实现）', () => 
   })
 })
 
+describe('插件名可跳转到仓库', () => {
+  it('从 package.json 的 repository 归一化出可点击 URL', () => {
+    /*
+      npm 生态里 repository 有三种常见形态，都要认；认不出就不做链接，
+      而不是给一个死链。
+    */
+    const SRC = readFileSync(new URL('../../src/host/installed-plugins.ts', import.meta.url), 'utf8')
+    expect(SRC).toContain('normalizeRepository')
+    expect(SRC).toContain('git+')
+    expect(SRC).toContain('github.com')
+  })
+
+  it('界面在没有 repository 时退回纯文本', () => {
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('plugin.repository === undefined')
+    expect(PANEL).toContain('rel="noopener noreferrer"')
+    expect(PANEL).toContain('target="_blank"')
+  })
+})
+
 describe('卡片式界面', () => {
   it('用卡片而不是表格行', () => {
     expect(PANEL).toContain('dsh-fnos-cards')
@@ -209,6 +229,26 @@ describe('卡片式界面', () => {
   it('禁用态有视觉区分', () => {
     expect(PANEL).toContain('dsh-fnos-card--off')
     expect(PANEL).toContain("t('pluginDisabled')")
+  })
+
+  it('开关不带 size，保持药丸形', () => {
+    /*
+      `size="small"` 把高度压到 16px、圆角随之近似方形，于是同一列表里两个开关
+      看起来不是一套控件（真机截图里第二张卡的开关明显更「方」）。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    const idx = PANEL.indexOf('<DshSwitch')
+    const block = PANEL.slice(idx, PANEL.indexOf('/>', idx))
+    expect(block).not.toContain('size=')
+    expect(block).toContain('checked={!disabled}')
+  })
+
+  it('卸载是无背景的边框按钮，且带图标', () => {
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    const idx = PANEL.indexOf("t('uninstall')")
+    const around = PANEL.slice(Math.max(0, idx - 500), idx)
+    expect(around).toContain('theme="outline"')
+    expect(around).toContain('lucide:trash')
   })
 
   it('卡片一行两个，窄容器自动退化单列', () => {

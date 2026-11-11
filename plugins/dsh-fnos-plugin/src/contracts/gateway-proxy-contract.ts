@@ -146,6 +146,13 @@ export interface InstalledPlugin {
    * 配置也在，只是组合加载时跳过它。与「卸载」是两件事。
    */
   readonly enabled?: boolean
+  /**
+   * 仓库地址（`package.json` 的 `repository`，归一化为可点击的 http URL）。
+   *
+   * 插件名做成链接就靠它——用户想看去处、文档或 issue 时有个确定去处。
+   * 没有时不渲染链接，而不是给一个死链。
+   */
+  readonly repository?: string
 }
 
 /** 插件清单响应。 */

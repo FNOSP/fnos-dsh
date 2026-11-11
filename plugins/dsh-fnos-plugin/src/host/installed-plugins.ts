@@ -69,19 +69,60 @@ async function readBundleSelection(profile: string | undefined): Promise<readonl
  * @param bundledNames - 内置插件名集合。
  * @returns 插件条目。
  */
+/**
+ * 把 `repository` 字段归一化成可点击的 http(s) URL。
+ *
+ * npm 生态里它有三种常见形态，都要认：
+ *   - `"git+https://github.com/x/y.git"`（最常见）
+ *   - `{ "type": "git", "url": "git+ssh://git@github.com/x/y.git" }`
+ *   - `"github:x/y"` / `"x/y"` 之类的简写
+ *
+ * @param value - `package.json` 的 repository 字段。
+ * @returns 可点击 URL；无法识别时 undefined（界面就不做链接，而不是给个死链）。
+ */
+export function normalizeRepository(value: unknown): string | undefined {
+  const raw = typeof value === 'string'
+    ? value
+    : (typeof value === 'object' && value !== null && typeof (value as { url?: unknown }).url === 'string'
+        ? (value as { url: string }).url
+        : undefined)
+  if (raw === undefined) return undefined
+
+  let url = raw.trim()
+  // `git+` 前缀与 `.git` 后缀对浏览器无意义，去掉更像「仓库主页」。
+  url = url.replace(/^git\+/u, '').replace(/\.git$/u, '')
+  if (/^https?:\/\//u.test(url)) return url
+  // scp 形态 `git@github.com:x/y` → https。
+  const scp = /^git@([^:]+):(.+)$/u.exec(url)
+  if (scp?.[1] !== undefined && scp[2] !== undefined) return `https://${scp[1]}/${scp[2]}`
+  if (/^ssh:\/\/git@/u.test(url)) return url.replace(/^ssh:\/\/git@/u, 'https://').replace(/\//u, '/')
+  // `github:x/y` 简写。
+  const shorthand = /^(?:github:)?([\w.-]+)\/([\w.-]+)$/u.exec(url)
+  if (shorthand?.[1] !== undefined && shorthand[2] !== undefined) return `https://github.com/${shorthand[1]}/${shorthand[2]}`
+  return undefined
+}
+
 async function readPlugin(profile: string, name: string, bundledNames: ReadonlySet<string>): Promise<InstalledPlugin> {
   let version = '—'
   let hasClient = false
+  let repository: string | undefined
   try {
     const text = await readFile(join(profile, 'node_modules', ...name.split('/'), 'package.json'), 'utf8')
-    const manifest = JSON.parse(text) as { version?: unknown, main?: unknown, exports?: unknown }
+    const manifest = JSON.parse(text) as { version?: unknown, main?: unknown, exports?: unknown, repository?: unknown }
     if (typeof manifest.version === 'string') version = manifest.version
+    repository = normalizeRepository(manifest.repository)
     // 「有客户端入口」的判据：声明了 main 或 exports。纯宿主插件没有，不会出现在界面里。
     hasClient = typeof manifest.main === 'string' || manifest.exports !== undefined
   } catch {
     // 装了但没落盘（或权限不足）：仍列出来，版本给 `—`，不假装它不存在。
   }
-  return { name, version, hasClient, bundled: bundledNames.has(name) }
+  return {
+    name,
+    version,
+    hasClient,
+    bundled: bundledNames.has(name),
+    ...(repository === undefined ? {} : { repository }),
+  }
 }
 
 /**

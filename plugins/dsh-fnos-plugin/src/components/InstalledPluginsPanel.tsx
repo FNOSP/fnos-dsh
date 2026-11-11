@@ -19,6 +19,7 @@ import { DshButton, DshModal, DshSwitch } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
 import { PluginInstallDialog } from './PluginInstallDialog.tsx'
+import { IconifyIcon } from './IconifyIcon.tsx'
 import type { InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -132,14 +133,34 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
           return (
             <li key={plugin.name} className={`dsh-fnos-card${disabled ? ' dsh-fnos-card--off' : ''}`}>
               <div className="dsh-fnos-card-head">
-                <code className="dsh-fnos-card-name">{plugin.name}</code>
+                {/*
+                  插件名做成可点击链接：用户想看去处、文档、issue 时有个确定去处。
+                  没有 repository 的插件保持纯文本——宁可不做链接，也不给死链。
+                */}
+                {plugin.repository === undefined ? (
+                  <code className="dsh-fnos-card-name">{plugin.name}</code>
+                ) : (
+                  <a
+                    className="dsh-fnos-card-name dsh-fnos-card-name--link"
+                    href={plugin.repository}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={plugin.repository}
+                  >
+                    {plugin.name}
+                  </a>
+                )}
                 <span className="dsh-fnos-card-version">{plugin.version}</span>
                 {/*
                   启用开关。放在卡片右上：它是这张卡片最主要的状态。
                   内置插件也允许禁用——「禁用」不删文件、配置仍在，是安全操作。
                 */}
+                {/*
+                  **不带 `size`**：Semi 的 Switch 默认就是药丸形；`size="small"` 会把
+                  高度压到 16px、圆角随之变成近似方形，于是同一列表里两个开关看起来
+                  不是一套控件（真机截图里第二张卡的开关明显更「方」）。
+                */}
                 <DshSwitch
-                  size="small"
                   checked={!disabled}
                   disabled={toggling === plugin.name}
                   onChange={next => { void toggleEnabled(plugin.name, next) }}
@@ -200,8 +221,13 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                   <DshButton
                     htmlType="button"
                     size="small"
-                    theme="borderless"
+                    /*
+                      `theme="light"` 给的是带浅底的样式；这里要「无背景 + 边框」，
+                      用 Semi 的 outline 主题最贴近——它与卡片里的其它次要动作同一档。
+                    */
+                    theme="outline"
                     type="danger"
+                    icon={<IconifyIcon name="lucide:trash" />}
                     disabled={toggling === plugin.name}
                     onClick={() => { setRemoving(plugin.name) }}
                   >
