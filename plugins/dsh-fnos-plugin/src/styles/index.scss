@@ -1886,6 +1886,15 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 }
 
 .dsh-fnos-proxy-item-head {
+  /* 现在是 <button>：清掉浏览器默认外观，只保留布局语义。 */
+  width: 100%;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2694,4 +2703,44 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
     cursor: not-allowed;
     opacity: 0.5;
   }
+}
+
+/*
+ * 可折叠的前缀分组卡片。
+ *
+ * 标题整行可点（`<button>`），箭头旋转表示展开态。默认全部折叠——路由条目是
+ * 诊断信息，一次列十几条反而看不出重点，而用户来这页通常是确认「某个前缀有没有
+ * 被接管」，标题一行就够。
+ */
+.dsh-fnos-proxy-caret {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform 150ms ease;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.dsh-fnos-proxy-caret--open {
+  transform: rotate(90deg);
+}
+
+/* 插件名：弱化标签，不抢前缀这个主信息。 */
+.dsh-fnos-proxy-plugin {
+  flex: 0 1 auto;
+  overflow: hidden;
+  max-width: 40%;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 悬停给一点底色，提示整行可点。 */
+.dsh-fnos-proxy-item-head:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
 }

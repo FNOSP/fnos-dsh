@@ -101,6 +101,7 @@ const ICON_NAMES = [
   'lucide:activity',
   // 「运行」页的字段图标：端口、CPU、内存、磁盘、网络上下行、进程、日志。
   'lucide:plug',
+  'lucide:chevron-right',
   'lucide:cpu',
   'lucide:memory-stick',
   'lucide:hard-drive',

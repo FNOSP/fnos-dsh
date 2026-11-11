@@ -84,12 +84,39 @@ export function toPrefix(path: string): string | undefined {
 }
 
 /**
+ * 由前缀段推出最可能的插件包名。
+ *
+ * ## 为什么是「猜」而不是「查」
+ *
+ * DSH 的路由表只有 `{ kind, path, handler }`（`packages/host/webserver` 的
+ * `WebRoute`），**没有 owner 字段**——注册时不记录是谁注册的。所以插件名无法
+ * 反查，只能按命名约定推断：包名最后一段去掉 `dsh-` / `dsh-plugin-` 前缀后与
+ * 前缀段比较（`/chat-wallpaper` 对 `dsh-plugin-chat-wallpaper`）。
+ *
+ * 推断不出来就留空——显示一个猜错的包名比不显示更糟。
+ *
+ * @param prefix - 路由前缀，形如 `/chat-wallpaper`。
+ * @param packageNames - 已安装的包名。
+ * @returns 匹配到的包名；无匹配时 undefined。
+ */
+function resolvePackageName(prefix: string, packageNames: readonly string[]): string | undefined {
+  const segment = prefix.replace(/^\//u, '').toLowerCase()
+  if (segment === '') return undefined
+  for (const name of packageNames) {
+    const tail = (name.split('/').pop() ?? '').toLowerCase()
+    if (tail === segment || tail.replace(/^dsh-(?:plugin-)?/u, '') === segment) return name
+  }
+  return undefined
+}
+
+/**
  * 读路由表并归并。
  *
  * @param webServer - DSH 的 webServer 服务实例。
+ * @param packageNames - 已安装的包名，用于把前缀推断回插件（推断不到则留空）。
  * @returns 识别结果；读不到时 `available: false`。
  */
-export function detectProxyPrefixes(webServer: unknown): ProxyDetection {
+export function detectProxyPrefixes(webServer: unknown, packageNames: readonly string[] = []): ProxyDetection {
   if (webServer === null || typeof webServer !== 'object') {
     return { available: false, reason: 'webserver-unavailable', groups: [], prefixes: [] }
   }
@@ -122,11 +149,15 @@ export function detectProxyPrefixes(webServer: unknown): ProxyDetection {
 
   const groups: ProxyRouteGroup[] = [...collected.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([prefix, entry]) => ({
-      prefix,
-      routes: [...entry.routes].sort(),
-      kinds: [...entry.kinds].sort(),
-    }))
+    .map(([prefix, entry]) => {
+      const pluginName = resolvePackageName(prefix, packageNames)
+      return {
+        prefix,
+        ...(pluginName === undefined ? {} : { pluginName }),
+        routes: [...entry.routes].sort(),
+        kinds: [...entry.kinds].sort(),
+      }
+    })
 
   return {
     available: true,

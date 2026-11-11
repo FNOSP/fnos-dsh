@@ -24,6 +24,7 @@ import { DshTabs } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import type { GatewayAutoPathsStatus } from '../contracts/gateway-proxy-contract.ts'
 import { DependencyRepairCard } from './DependencyRepairCard.tsx'
+import { IconifyIcon } from './IconifyIcon.tsx'
 import { InstalledPluginsPanel } from './InstalledPluginsPanel.tsx'
 import { PluginIndexPanel } from './PluginIndexPanel.tsx'
 import { NpmMirrorCard } from './NpmMirrorCard.tsx'
@@ -112,7 +113,21 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
     }
   }, [busy, save])
 
+  const toggleGroup = useCallback((prefix: string) => {
+    setExpandedGroups(previous => {
+      const next = new Set(previous)
+      if (next.has(prefix)) next.delete(prefix)
+      else next.add(prefix)
+      return next
+    })
+  }, [])
+
   const groups = auto?.groups ?? []
+  /*
+    展开的分组前缀集合。默认空集 = **全部折叠**。
+    存「expanded」而不是「collapsed」：默认值就是空集，不用初始化时遍历一遍。
+  */
+  const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(() => new Set())
   const hasAuto = groups.length > 0
 
   /** 「插件反代」面板：自动识别 + 手动补充。 */
@@ -150,22 +165,52 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
             而外层（tab 内容区）本来就是滚动容器，整页一起滚更符合阅读习惯。
           */}
           <ul className="dsh-fnos-proxy-list">
-            {groups.map(group => (
-              <li key={group.prefix} className="dsh-fnos-proxy-item">
-                <div className="dsh-fnos-proxy-item-head">
-                  <code className="dsh-fnos-proxy-prefix">{group.prefix}</code>
-                  <span className="dsh-fnos-proxy-count">{`${String(group.routes.length)} ${t('gatewayProxyRoutesUnit')}`}</span>
-                  {group.kinds.includes('upgrade') ? (
-                    <span className="dsh-fnos-proxy-kind">WS</span>
+            {groups.map(group => {
+              /*
+                **默认全部折叠。** 展开态存进 sets：默认空集就是「全收起」。
+
+                折叠的理由：路由条目是诊断信息，一次看十几条反而看不出重点——
+                用户来这一页通常是「某个前缀有没有被接管」，标题一行就够。
+              */
+              const expanded = expandedGroups.has(group.prefix)
+              return (
+                <li key={group.prefix} className="dsh-fnos-proxy-item">
+                  {/*
+                    整行标题都可点：折叠控件做成只有小三角可点是最常见的可用性问题，
+                    尤其这一行本身没有别的交互。
+                  */}
+                  <button
+                    type="button"
+                    className="dsh-fnos-proxy-item-head"
+                    aria-expanded={expanded}
+                    onClick={() => { toggleGroup(group.prefix) }}
+                  >
+                    <span className={`dsh-fnos-proxy-caret${expanded ? ' dsh-fnos-proxy-caret--open' : ''}`} aria-hidden="true">
+                      <IconifyIcon name="lucide:chevron-right" />
+                    </span>
+                    <code className="dsh-fnos-proxy-prefix">{group.prefix}</code>
+                    {/*
+                      插件名来自前缀推断（路由表不含 owner 信息），推断不到就不显示——
+                      猜错的包名比不显示更糟。
+                    */}
+                    {group.pluginName === undefined ? null : (
+                      <span className="dsh-fnos-proxy-plugin" title={group.pluginName}>{group.pluginName}</span>
+                    )}
+                    <span className="dsh-fnos-proxy-count">{`${String(group.routes.length)} ${t('gatewayProxyRoutesUnit')}`}</span>
+                    {group.kinds.includes('upgrade') ? (
+                      <span className="dsh-fnos-proxy-kind">WS</span>
+                    ) : null}
+                  </button>
+                  {expanded ? (
+                    <ul className="dsh-fnos-proxy-routes">
+                      {group.routes.map(route => (
+                        <li key={route}><code title={route}>{route}</code></li>
+                      ))}
+                    </ul>
                   ) : null}
-                </div>
-                <ul className="dsh-fnos-proxy-routes">
-                  {group.routes.map(route => (
-                    <li key={route}><code title={route}>{route}</code></li>
-                  ))}
-                </ul>
-              </li>
-            ))}
+                </li>
+              )
+            })}
           </ul>
         </>
       ) : null}

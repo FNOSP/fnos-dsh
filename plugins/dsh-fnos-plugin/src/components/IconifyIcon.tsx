@@ -45,6 +45,7 @@ export type UsedIconName =
   | 'lucide:wrench'
   | 'lucide:activity'
   | 'lucide:plug'
+  | 'lucide:chevron-right'
   | 'lucide:cpu'
   | 'lucide:memory-stick'
   | 'lucide:hard-drive'

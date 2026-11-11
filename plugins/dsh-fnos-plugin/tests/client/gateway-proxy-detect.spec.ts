@@ -95,7 +95,31 @@ describe('FNOS-052 GET 返回结构', () => {
     // 而这两种情况的处置完全不同。
     const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
     expect(ROUTES).toContain('auto: detection')
-    expect(ROUTES).toContain('detectProxyPrefixes(ctx.webServer)')
+    // 现在带包名参数：把前缀推断回插件（路由表本身不含 owner 信息）。
+    expect(ROUTES).toContain('detectProxyPrefixes(ctx.webServer, await installedNames())')
+  })
+})
+
+describe('前缀分组卡片：可折叠 + 插件名', () => {
+  it('默认全部折叠（展开态只记「已展开」的集合）', () => {
+    /*
+      路由条目是诊断信息，一次列十几条反而看不出重点。用户来这一页通常是确认
+      「某个前缀有没有被接管」，标题一行就够。
+    */
+    const CARD = readFileSync(new URL('../../src/components/GatewayProxyCard.tsx', import.meta.url), 'utf8')
+    expect(CARD).toContain('expandedGroups')
+    // 默认值是空集 = 全折叠，不需要初始化时遍历一遍。
+    expect(CARD).toContain('useState<ReadonlySet<string>>(() => new Set())')
+    expect(CARD).toContain('aria-expanded={expanded}')
+  })
+
+  it('插件名由前缀推断，推断不到就留空', () => {
+    // 路由表只有 { kind, path, handler }，没有 owner 字段——无法反查，只能按命名约定猜。
+    const DETECT = readFileSync(new URL('../../src/host/gateway-proxy-detect.ts', import.meta.url), 'utf8')
+    expect(DETECT).toContain('resolvePackageName')
+    expect(DETECT).toContain("replace(/^dsh-(?:plugin-)?/u, '')")
+    // 猜不出来时字段缺省，而不是填一个猜错的包名。
+    expect(DETECT).toContain('...(pluginName === undefined ? {} : { pluginName })')
   })
 })
 

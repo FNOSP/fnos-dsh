@@ -5,11 +5,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, FNOS_INSTALLED_PLUGINS_ROUTE, FNOS_PLUGIN_INDEX_APPLY_ROUTE, FNOS_PLUGIN_INDEX_STATUS_ROUTE, FNOS_PLUGIN_INDEX_TOGGLE_ROUTE, FNOS_PLUGIN_INSTALL_ROUTE, FNOS_PLUGIN_INSTALL_STATE_ROUTE, FNOS_PLUGIN_INSTALL_LOG_ROUTE, FNOS_PLUGIN_TOGGLE_ROUTE, FNOS_PLUGIN_REMOVE_ROUTE, FNOS_NPM_MIRROR_STATUS_ROUTE, FNOS_NPM_MIRROR_USE_ROUTE, FNOS_NPM_MIRROR_INSTALL_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
 import { detectProxyPrefixes } from './gateway-proxy-detect.ts'
-import { readInstalledPlugins } from './installed-plugins.ts'
 import { applyRecommendedIndexes, readIndexStatus, setMarketEnabled } from './plugin-index-sources.ts'
 import { resolveRepairEnvironment } from './dependency-repair.ts'
 import { installPlugin, readInstallLog, readInstallState, removePlugin } from './plugin-install.ts'
 import { setPackageEnabled } from './plugin-toggle.ts'
+import { readInstalledPlugins } from './installed-plugins.ts'
 import { installNrm, readNpmMirrorStatus, switchNpmMirror } from './npm-mirror.ts'
 import type { FnosSettings } from '../contracts/theme-contract.ts'
 
@@ -102,14 +102,38 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
    * 「插件停用后其前缀从生效集合消失」）。
    * @returns 自动前缀集合。
    */
-  const autoPrefixes = (): string[] => [...detectProxyPrefixes(ctx.webServer).prefixes]
+  /**
+   * 已安装包名：用来把路由前缀推断回插件（路由表本身不含 owner 信息）。
+   *
+   * 直接读 profile 的 `package.json` 依赖名，不走 `readInstalledPlugins`——后者
+   * 会联网查 registry 检查更新，而这里只需要一串名字。
+   */
+  const installedNames = async (): Promise<string[]> => {
+    const profile = resolveRepairEnvironment()?.profileDirectory
+    if (profile === undefined) return []
+    try {
+      const manifest = JSON.parse(await readFile(join(profile, 'package.json'), 'utf8')) as {
+        dependencies?: Record<string, string>, devDependencies?: Record<string, string>
+        dsh?: { profile?: { bundles?: string[] } }
+      }
+      return [
+        ...Object.keys(manifest.dependencies ?? {}),
+        ...Object.keys(manifest.devDependencies ?? {}),
+        ...manifest.dsh?.profile?.bundles ?? [],
+      ]
+    } catch {
+      return []
+    }
+  }
+  const autoPrefixes = async (): Promise<string[]> =>
+    [...detectProxyPrefixes(ctx.webServer, await installedNames()).prefixes]
 
   const file = gatewayProxyPathsFile()
   if (file !== undefined) {
-    const sync = (value: FnosSettings): Promise<void> => writeDocument(file, {
+    const sync = async (value: FnosSettings): Promise<void> => writeDocument(file, {
       version: 1,
       paths: normalizeGatewayProxyPaths(value.gatewayProxyPaths ?? []) ?? [],
-      auto: autoPrefixes(),
+      auto: await autoPrefixes(),
     })
     ctx.effect(() => {
       // 启动时的方向取决于 settings 是否为空：
@@ -351,7 +375,7 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         // GET 额外带上网关固定前缀：前端据此渲染「系统内置」只读区，
         // 让用户明白这些路径为什么不在自己的可编辑列表里。
         if (req.method === 'GET') {
-          const detection = detectProxyPrefixes(ctx.webServer)
+          const detection = detectProxyPrefixes(ctx.webServer, await installedNames())
           return send(res, 200, {
             version: 1,
             paths: normalizeGatewayProxyPaths(readSettings().gatewayProxyPaths ?? []) ?? [],
@@ -372,7 +396,7 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         const paths = validateGatewayProxyPaths(await body(req))
         if (paths === undefined) return send(res, 400, { error: 'invalid-gateway-proxy-paths' })
         // 保留 auto：用户保存手动项不该把自动区段清掉。
-        const document: GatewayProxyPathsDocument = { version: 1, paths, auto: autoPrefixes() }
+        const document: GatewayProxyPathsDocument = { version: 1, paths, auto: await autoPrefixes() }
         const previous = await readDocument(file)
         await writeDocument(file, document)
         try {
