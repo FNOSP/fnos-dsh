@@ -2461,3 +2461,22 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
     text-decoration: underline;
   }
 }
+
+/*
+ * 卡片里的开关：**固定宽度**，两种状态同宽。
+ *
+ * Semi 的 Switch 用「宽度变化」表达状态（关 33px / 开 40px）。这在单个控件上没问题，
+ * 但同一列表里并排展示时，几行开关的右边缘参差不齐，看起来像两套控件
+ * （真机截图里第二张卡的开关明显更窄）。
+ *
+ * 定为 40px（= 开启态宽度），关闭时让圆钮左移而不是缩短轨道。
+ */
+.dsh-fnos-card .semi-switch {
+  width: 40px;
+  flex: 0 0 auto;
+}
+
+.dsh-fnos-card .semi-switch .semi-switch-knob {
+  /* 关闭态 Semi 会缩小轨道宽度；固定后让钮按 left 定位即可，无需额外补偿。 */
+  transition: left 0.2s ease-in-out;
+}

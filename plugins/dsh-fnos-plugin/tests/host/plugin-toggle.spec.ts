@@ -251,6 +251,18 @@ describe('卡片式界面', () => {
     expect(around).toContain('lucide:trash')
   })
 
+  it('开关固定宽度，两种状态同宽', () => {
+    /*
+      Semi 用「宽度变化」表达状态（关 33px / 开 40px）。并排展示时右边缘参差不齐，
+      看起来像两套控件。固定 40px 后，关闭只是钮左移而不是轨道缩短。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-card .semi-switch {')
+    expect(idx).toBeGreaterThan(-1)
+    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
+    expect(rule).toContain('width: 40px')
+  })
+
   it('卡片一行两个，窄容器自动退化单列', () => {
     // 单列时每张卡只有一行文字却占满整宽，一屏放不下几个。
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
