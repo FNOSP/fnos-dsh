@@ -149,6 +149,19 @@ export interface InstalledPlugin {
    */
   readonly enabled?: boolean
   /**
+   * 展示用名称（`locale/zh.json` 的 `meta.title`）。
+   *
+   * 与官方 `readPluginMeta` 同源。包作者写在这里的中文名（如「插件市场」）比包名
+   * 末段可读得多；没有时界面退回包名。
+   */
+  readonly title?: string
+  /**
+   * 插件图标（`package.json` 的 `icon`，相对包目录的路径）。
+   *
+   * 通过插件的静态路由取到；没有时界面不渲染图标位。
+   */
+  readonly icon?: string
+  /**
    * 插件的一句话说明（`package.json` 的 `description`）。
    *
    * 与官方插件页同源同口径：用户判断「这个插件是做什么的」首先看这句，
@@ -217,6 +230,9 @@ export const FNOS_NPM_MIRROR_USE_ROUTE = '/plugins/dsh-fnos/npm/mirror-use'
 
 /** 安装 nrm（写）。 */
 export const FNOS_NPM_MIRROR_INSTALL_ROUTE = '/plugins/dsh-fnos/npm/install-nrm'
+
+/** 读插件包内的静态资源（目前只用于图标）。 */
+export const FNOS_PLUGIN_ASSET_ROUTE = '/plugins/dsh-fnos/plugins/asset'
 
 /** 启用/禁用「自定义插件索引」能力（写）。 */
 export const FNOS_PLUGIN_INDEX_TOGGLE_ROUTE = '/plugins/dsh-fnos/plugins/index-toggle'

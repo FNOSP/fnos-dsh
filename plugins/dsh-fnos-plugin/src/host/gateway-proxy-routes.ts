@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, FNOS_INSTALLED_PLUGINS_ROUTE, FNOS_PLUGIN_INDEX_APPLY_ROUTE, FNOS_PLUGIN_INDEX_STATUS_ROUTE, FNOS_PLUGIN_INDEX_TOGGLE_ROUTE, FNOS_PLUGIN_INSTALL_ROUTE, FNOS_PLUGIN_INSTALL_STATE_ROUTE, FNOS_PLUGIN_INSTALL_LOG_ROUTE, FNOS_PLUGIN_TOGGLE_ROUTE, FNOS_PLUGIN_REMOVE_ROUTE, FNOS_NPM_MIRROR_STATUS_ROUTE, FNOS_NPM_MIRROR_USE_ROUTE, FNOS_NPM_MIRROR_INSTALL_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
+import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, FNOS_INSTALLED_PLUGINS_ROUTE, FNOS_PLUGIN_ASSET_ROUTE, FNOS_PLUGIN_INDEX_APPLY_ROUTE, FNOS_PLUGIN_INDEX_STATUS_ROUTE, FNOS_PLUGIN_INDEX_TOGGLE_ROUTE, FNOS_PLUGIN_INSTALL_ROUTE, FNOS_PLUGIN_INSTALL_STATE_ROUTE, FNOS_PLUGIN_INSTALL_LOG_ROUTE, FNOS_PLUGIN_TOGGLE_ROUTE, FNOS_PLUGIN_REMOVE_ROUTE, FNOS_NPM_MIRROR_STATUS_ROUTE, FNOS_NPM_MIRROR_USE_ROUTE, FNOS_NPM_MIRROR_INSTALL_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
 import { detectProxyPrefixes } from './gateway-proxy-detect.ts'
 import { applyRecommendedIndexes, readIndexStatus, setMarketEnabled } from './plugin-index-sources.ts'
 import { resolveRepairEnvironment } from './dependency-repair.ts'
@@ -377,6 +377,55 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
       }
     },
   }), 'dsh-fnos: install nrm')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_PLUGIN_ASSET_ROUTE,
+    handler: async (req, res) => {
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      if (req.method !== 'GET') return send(res, 405, { error: 'method-not-allowed' })
+      const url = new URL(req.url ?? '/', 'http://localhost')
+      const name = url.searchParams.get('name') ?? ''
+      const asset = url.searchParams.get('path') ?? ''
+      /*
+        **路径校验：只允许包目录内的相对路径。**
+
+        `asset` 直接来自查询串。若不管，`../../../../etc/passwd` 就能读任意文件。
+        这里要求：不以 `/` 开头、不含 `..` 段。包的定位仍只接受 `dependencies`
+        里已声明的名字——不认识的包名直接拒绝，避免用它探测磁盘。
+      */
+      if (name === '' || asset === '' || asset.startsWith('/') || asset.split('/').includes('..')) {
+        return send(res, 400, { error: 'invalid-asset-path' })
+      }
+      const environment = resolveRepairEnvironment()
+      const profile = environment?.profileDirectory
+      if (profile === undefined) return send(res, 400, { error: 'profile-unavailable' })
+      try {
+        const manifest = JSON.parse(await readFile(join(profile, 'package.json'), 'utf8')) as {
+          dependencies?: Record<string, string>, devDependencies?: Record<string, string>
+          dsh?: { profile?: { bundles?: string[] } }
+        }
+        const known = new Set([
+          ...Object.keys(manifest.dependencies ?? {}),
+          ...Object.keys(manifest.devDependencies ?? {}),
+          ...manifest.dsh?.profile?.bundles ?? [],
+        ])
+        if (!known.has(name)) return send(res, 404, { error: 'unknown-plugin' })
+        const file = join(profile, 'node_modules', ...name.split('/'), ...asset.split('/'))
+        const body = await readFile(file)
+        const type = asset.endsWith('.svg') ? 'image/svg+xml'
+          : asset.endsWith('.png') ? 'image/png'
+            : asset.endsWith('.jpg') || asset.endsWith('.jpeg') ? 'image/jpeg'
+              : asset.endsWith('.webp') ? 'image/webp' : 'application/octet-stream'
+        res.statusCode = 200
+        res.setHeader('content-type', type)
+        res.setHeader('cache-control', 'private, max-age=300')
+        res.end(body)
+      } catch {
+        send(res, 404, { error: 'asset-not-found' })
+      }
+    },
+  }), 'dsh-fnos: plugin asset')
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',

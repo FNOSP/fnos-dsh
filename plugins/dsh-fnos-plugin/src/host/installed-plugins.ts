@@ -133,10 +133,13 @@ async function readPlugin(profile: string, name: string, bundledNames: ReadonlyS
   let hasClient = false
   let repository: string | undefined
   let description: string | undefined
+  let title: string | undefined
+  let icon: string | undefined
   try {
-    const text = await readFile(join(profile, 'node_modules', ...name.split('/'), 'package.json'), 'utf8')
+    const packageDirectory = join(profile, 'node_modules', ...name.split('/'))
+    const text = await readFile(join(packageDirectory, 'package.json'), 'utf8')
     const manifest = JSON.parse(text) as {
-      version?: unknown, main?: unknown, exports?: unknown, repository?: unknown, description?: unknown
+      version?: unknown, main?: unknown, exports?: unknown, repository?: unknown, description?: unknown, icon?: unknown
     }
     if (typeof manifest.version === 'string') version = manifest.version
     repository = normalizeRepository(manifest.repository)
@@ -146,6 +149,25 @@ async function readPlugin(profile: string, name: string, bundledNames: ReadonlyS
     */
     if (typeof manifest.description === 'string' && manifest.description.trim() !== '') {
       description = preferChinese(manifest.description.trim())
+    }
+    if (typeof manifest.icon === 'string' && manifest.icon.trim() !== '') icon = manifest.icon.trim()
+    /*
+      **优先用包自带的展示元信息**（`locale/zh.json` 的 `meta`）。
+
+      与官方 `readPluginMeta` 同源：`title` 来自 `meta.title`、`description` 来自
+      `meta.description`。包作者写在这里的中文名（如「插件市场」）比包名末段可读
+      得多，而 `package.json` 的 `description` 常是中英混排的长句。
+    */
+    try {
+      const locale = JSON.parse(await readFile(join(packageDirectory, 'locale', 'zh.json'), 'utf8')) as {
+        meta?: { title?: unknown, description?: unknown }
+      }
+      if (typeof locale.meta?.title === 'string' && locale.meta.title.trim() !== '') title = locale.meta.title.trim()
+      if (typeof locale.meta?.description === 'string' && locale.meta.description.trim() !== '') {
+        description = locale.meta.description.trim()
+      }
+    } catch {
+      // 没有 locale/zh.json 就退回 package.json 的描述，这是常态。
     }
     // 「有客户端入口」的判据：声明了 main 或 exports。纯宿主插件没有，不会出现在界面里。
     hasClient = typeof manifest.main === 'string' || manifest.exports !== undefined
@@ -157,7 +179,9 @@ async function readPlugin(profile: string, name: string, bundledNames: ReadonlyS
     version,
     hasClient,
     bundled: bundledNames.has(name),
+    ...(title === undefined ? {} : { title }),
     ...(description === undefined ? {} : { description }),
+    ...(icon === undefined ? {} : { icon }),
     ...(repository === undefined ? {} : { repository }),
   }
 }

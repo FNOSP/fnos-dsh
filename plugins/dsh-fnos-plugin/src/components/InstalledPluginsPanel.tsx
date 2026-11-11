@@ -22,9 +22,27 @@ import { PluginInstallInline } from './PluginInstallInline.tsx'
 import { SwitchWithLoading } from './SwitchWithLoading.tsx'
 import { notifyFailure, notifySuccess } from '../client/notify.ts'
 import { IconifyIcon } from './IconifyIcon.tsx'
-import type { InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
+import { FNOS_PLUGIN_ASSET_ROUTE, type InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
 
 type Translate = (key: FnosLocaleKey) => string
+
+/** Semi 的 `Typography.Text`：只取需要的变体，避免每次写 `<DshTypography.Text>`。 */
+const DshTypographyText = DshTypography.Text
+
+/**
+ * 拼出插件图标的 URL。
+ *
+ * `icon` 是相对包目录的路径（如 `assets/logo.svg`），由插件的静态资源路由按
+ * 「包名 + 相对路径」读取——不直接暴露文件系统路径。
+ *
+ * @param name - 包名。
+ * @param icon - 包内相对路径。
+ * @returns 可直接放进 `src` 的地址。
+ */
+function pluginIconUrl(name: string, icon: string): string {
+  const query = new URLSearchParams({ name, path: icon })
+  return `${FNOS_PLUGIN_ASSET_ROUTE}?${query.toString()}`
+}
 
 /** 组件参数。 */
 export interface InstalledPluginsPanelProps {
@@ -168,23 +186,29 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                 哪是状态、哪是动作。
               */}
               <div className="dsh-fnos-card-title">
-                {/*
-                  插件名做成可点击链接：用户想看去处、文档、issue 时有个确定去处。
-                  没有 repository 的插件保持纯文本——宁可不做链接，也不给死链。
-                */}
-                {plugin.repository === undefined ? (
-                  <code className="dsh-fnos-card-name">{plugin.name}</code>
-                ) : (
-                  <a
-                    className="dsh-fnos-card-name dsh-fnos-card-name--link"
-                    href={plugin.repository}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={plugin.repository}
-                  >
-                    {plugin.name}
-                  </a>
+                {/* 图标在名称左侧；没有 icon 字段时不占位。 */}
+                {plugin.icon === undefined ? null : (
+                  <img
+                    className="dsh-fnos-card-logo"
+                    src={pluginIconUrl(plugin.name, plugin.icon)}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                  />
                 )}
+                {/*
+                  名称用 `meta.title`（如「插件市场」），没有才退回包名。
+                  单行省略交给 Typography：自带 tooltip，且只在真的被截断时提示。
+                */}
+                <DshTypographyText
+                  className="dsh-fnos-card-name"
+                  ellipsis={{ showTooltip: true }}
+                  link={plugin.repository === undefined
+                    ? undefined
+                    : { href: plugin.repository, target: '_blank', rel: 'noopener noreferrer' }}
+                >
+                  {plugin.title ?? plugin.name}
+                </DshTypographyText>
               </div>
 
               <div className="dsh-fnos-card-meta">
@@ -221,7 +245,12 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
               {plugin.description === undefined ? null : (
                 <DshTypography.Paragraph
                   className="dsh-fnos-card-description"
-                  ellipsis={{ rows: 3, expandable: true, collapsible: true, expandText: t('expand'), collapseText: t('collapse') }}
+                  /*
+                    用 Typography 自带的 `ellipsis.showTooltip`：它只在真的被截断时
+                    提示，且提示样式与主题一致。此前用原生 `title`——那是浏览器自绘
+                    气泡，延迟约 1 秒、位置不受控，正是用户说「气泡不符合预期」的原因。
+                  */
+                  ellipsis={{ rows: 3, expandable: true, collapsible: true, expandText: t('expand'), collapseText: t('collapse'), showTooltip: true }}
                 >
                   {plugin.description}
                 </DshTypography.Paragraph>

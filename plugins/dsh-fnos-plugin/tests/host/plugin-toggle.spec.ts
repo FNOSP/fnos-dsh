@@ -226,6 +226,34 @@ describe('安装进度内联在卡片里，不再弹二级弹框', () => {
   })
 })
 
+describe('插件图标与本地化名称', () => {
+  it('名称取自 locale/zh.json 的 meta.title，图标取自 package.json 的 icon', () => {
+    /*
+      与官方 `readPluginMeta` 同源：`title` ← `meta.title`、`icon` ← `manifest.icon`。
+      包作者写的中文名（如「插件市场」）比包名末段可读得多。
+    */
+    const SRC = readFileSync(new URL('../../src/host/installed-plugins.ts', import.meta.url), 'utf8')
+    expect(SRC).toContain("'locale', 'zh.json'")
+    expect(SRC).toContain('locale.meta?.title')
+    expect(SRC).toContain('manifest.icon')
+  })
+
+  it('图标经插件路由读取，且校验路径不许穿越', () => {
+    // `path` 来自查询串，不校验就能 `../../etc/passwd` 读任意文件。
+    const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
+    const idx = ROUTES.indexOf("path: FNOS_PLUGIN_ASSET_ROUTE")
+    const block = ROUTES.slice(idx, idx + 2000)
+    expect(block).toContain("asset.split('/').includes('..')")
+    expect(block).toContain('unknown-plugin')
+  })
+
+  it('描述用 Typography 自带 tooltip，不用浏览器原生气泡', () => {
+    // 原生 `title` 是浏览器自绘气泡，延迟约 1 秒、位置不受控。
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('ellipsis={{ rows: 3, expandable: true, collapsible: true, expandText: t(\'expand\'), collapseText: t(\'collapse\'), showTooltip: true }}')
+  })
+})
+
 describe('插件说明：三行省略可展开', () => {
   it('用 Typography 的多行 ellipsis，而不是单行截断', () => {
     // 单行把大部分描述都切掉，而列表页的作用正是让人判断「这插件做什么」。
@@ -276,11 +304,16 @@ describe('插件名可跳转到仓库', () => {
     expect(SRC).toContain('github.com')
   })
 
-  it('界面在没有 repository 时退回纯文本', () => {
+  it('名称用 Typography 单行省略，链接交给它的 link 属性', () => {
+    /*
+      名称可能很长；`Typography.Text` 的 `ellipsis.showTooltip` 自带提示且只在真的
+      被截断时弹。链接通过 `link` 属性传，不再手写 `<a>`。
+    */
     const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
-    expect(PANEL).toContain('plugin.repository === undefined')
-    expect(PANEL).toContain('rel="noopener noreferrer"')
-    expect(PANEL).toContain('target="_blank"')
+    expect(PANEL).toContain('DshTypographyText')
+    expect(PANEL).toContain("ellipsis={{ showTooltip: true }}")
+    expect(PANEL).toContain("target: '_blank'")
+    expect(PANEL).toContain("rel: 'noopener noreferrer'")
   })
 })
 
