@@ -56,8 +56,6 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
   const [status, setStatus] = useState<PluginIndexStatus>()
   /** 切换开关时的忙碌标记。 */
   const [toggling, setToggling] = useState(false)
-  /** 切换后需要重启的提示。 */
-  const [restartNotice, setRestartNotice] = useState<string>()
   /** 官方引导图读取失败：失败后整块不渲染，避免留一个破图占位。 */
   const [guideBroken, setGuideBroken] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -95,11 +93,14 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
    */
   const toggle = useCallback(async (next: boolean) => {
     setToggling(true)
-    setRestartNotice(undefined)
     try {
       const result = await setIndexEnabledRemote(next)
       await load()
-      notifySuccess(result.needRestart ? t('indexToggleNeedRestart') : t('indexToggleDone'))
+      /*
+        文案分两种：**启用**才提「重启后生效」（组合在进程启动时装配），
+        **禁用**立即生效、不说重启——说了反而让用户以为没关上。
+      */
+      notifySuccess(result.needRestart ? t('indexToggleNeedRestart') : t('indexToggleDisabled'))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
@@ -233,7 +234,6 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
         </>
       ) : null}
 
-      {restartNotice === undefined ? null : <p className="dsh-fnos-repair-muted" role="status">{restartNotice}</p>}
       {error === undefined ? null : <p className="dsh-fnos-repair-error" role="alert">{error}</p>}
     </div>
   )

@@ -238,7 +238,7 @@ export async function applyRecommendedIndexes(ctx: Context, locale = 'zh'): Prom
  *
  * @param ctx - 宿主上下文（此处不用，保留签名一致性）。
  * @param enabled - 目标状态。
- * @returns 是否成功；`needRestart` 表示需重启 Web 才生效。
+ * @returns 是否成功；`needRestart` 表示需重启 Web 才生效（仅**启用**时）。
  */
 export async function setMarketEnabled(_ctx: Context, enabled: boolean): Promise<{ ok: boolean, error?: string, needRestart?: boolean }> {
   const environment = resolveRepairEnvironment()
@@ -259,8 +259,17 @@ export async function setMarketEnabled(_ctx: Context, enabled: boolean): Promise
     const temporary = `${manifestPath}.dsh-market-toggle-${String(process.pid)}`
     await writeFile(temporary, `${JSON.stringify(manifest, undefined, 2)}\n`, { mode: 0o600 })
     await rename(temporary, manifestPath)
-    // 组合在进程启动时装配，改动要重启才生效。
-    return { ok: true, needRestart: true }
+    /*
+      **只有启用需要重启，禁用立即生效。**
+
+      启用要往组合里加一层 bundle，而组合是在进程启动时装配的——不重启，那层
+      代码根本不在内存里。
+
+      禁用则是把它从组合里摘掉：已经加载的模块还在内存里，但索引这条路不再被
+      调用，用户看到的行为就是「立刻关掉了」。为此提示「重启生效」属于过度要求，
+      反而让用户以为没生效。
+    */
+    return { ok: true, needRestart: enabled }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }
   }

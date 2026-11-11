@@ -237,6 +237,27 @@ describe('状态获取要快：默认不联网查更新', () => {
   })
 })
 
+describe('禁用索引不需要重启', () => {
+  it('只有启用的 needRestart 为真', () => {
+    /*
+      启用要往组合里加一层 bundle，而组合在进程启动时装配——不重启那层代码不在内存里。
+      禁用是把它摘掉：模块还在内存，但索引这条路不再被调用，用户看到的就是「立刻关掉了」。
+      为此提示重启属于过度要求，反而让用户以为没关成功。
+    */
+    const SRC = readFileSync(new URL('../../src/host/plugin-index-sources.ts', import.meta.url), 'utf8')
+    expect(SRC).toContain('needRestart: enabled')
+    expect(SRC).not.toContain('needRestart: true }')
+  })
+
+  it('文案分两种，禁用不提重启，且走 Toast', () => {
+    const PANEL = readFileSync(new URL('../../src/components/PluginIndexPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain("t('indexToggleDisabled')")
+    expect(PANEL).toContain('notifySuccess')
+    // 不再就地渲染提示。
+    expect(PANEL).not.toContain('restartNotice')
+  })
+})
+
 describe('操作结果用 Toast 通知', () => {
   it('不再就地插一行提示文案', () => {
     /*

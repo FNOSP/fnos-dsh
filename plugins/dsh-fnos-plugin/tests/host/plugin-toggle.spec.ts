@@ -353,7 +353,8 @@ describe('卡片式界面', () => {
   })
 
   it('有启用开关、卸载与更新', () => {
-    expect(PANEL).toContain('DshSwitch')
+    // 开关现在经 SwitchWithLoading（切换中换成 Spin）。
+    expect(PANEL).toContain('SwitchWithLoading')
     expect(PANEL).toContain('toggleEnabled')
     expect(PANEL).toContain("t('uninstall')")
     // 现在是「更新」，且文案在 tooltip 里。
