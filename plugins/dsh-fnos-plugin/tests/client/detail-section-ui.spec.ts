@@ -74,8 +74,9 @@ describe('授权目录：不出现多余的顶部分隔线', () => {
     */
     const idx = SCSS.indexOf('.dsh-fnos-authorized-card-body {')
     expect(idx).toBeGreaterThan(-1)
-    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
-    expect(rule).not.toContain('border-top')
+    // 去掉注释再看：说明文字里提到 `border-top` 是解释原因，不算声明。
+    const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx)).replace(/\/\*[\s\S]*?\*\//gu, '')
+    expect(rule).not.toMatch(/^\s*border-top\s*:/mu)
   })
 })
 
