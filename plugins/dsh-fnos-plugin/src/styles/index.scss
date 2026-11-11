@@ -2196,26 +2196,6 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 }
 
 /*
- * 卡片主行：名称 · 版本 · 徽标 · 开关 · 操作 横向排开。
- *
- * `min-width: 0` 让名称可以省略；徽标与操作各自 `flex: 0 0 auto` 不被压扁。
- */
-.dsh-fnos-card-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.dsh-fnos-card-identity {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-  flex: 0 1 auto;
-}
-
-/*
  * 禁用态：**只加左侧灰条，不给整体 opacity**。
  *
  * 早前 `opacity: 0.72` 把整张卡（含「卸载」按钮）都压淡了——按钮看起来像被
@@ -2226,7 +2206,43 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   border-left: 3px solid var(--dsw-alias-label-dimmed);
 }
 
-/* 缩小卸载按钮：默认内边距在单行里太占地方。 */
+/* 名称行：独占一行，长名字自动省略而不是撑破卡片。 */
+.dsh-fnos-card-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* 版本 + 状态徽标行：弱化显示，可换行。 */
+.dsh-fnos-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/*
+ * 操作行：**开关在左、动作在右，两端对齐**。
+ *
+ * 开关是「状态」不是「动作」，与其它状态信息同处左侧；卸载/更新是动作，靠右。
+ * `space-between` 让两者各自贴边，不因名称长度不同而左右参差。
+ */
+.dsh-fnos-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.dsh-fnos-card-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 缩小卸载按钮：默认内边距在卡片里太占地方。 */
 .dsh-fnos-card-uninstall.semi-button {
   padding: 0 8px;
   min-width: 0;
@@ -2268,12 +2284,6 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   color: var(--dsw-alias-state-warn-primary);
   font-size: 11px;
   line-height: 16px;
-}
-
-.dsh-fnos-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .dsh-fnos-installed-badge--off {

@@ -338,17 +338,22 @@ describe('卡片式界面', () => {
     expect(rule).toContain('border-color: transparent')
   })
 
-  it('卡片是单行：名称/版本/徽标/开关/操作横向排开', () => {
-    // 原来分四行，一张卡占 4 行高，两列并排一屏只能看两张。
+  it('卡片三段式：名称行 / 版本徽标行 / 操作行', () => {
+    /*
+      对齐官方插件页的观感：名称独占一行、版本与状态第二行、操作行两端对齐。
+      早前把五个元素全挤进一行，名称被压成 `dsh-plugin-wallp…`，开关与按钮
+      也失去层级——看着齐，读起来分不清哪是身份、哪是状态、哪是动作。
+    */
     const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
-    expect(PANEL).toContain('dsh-fnos-card-row')
-    expect(PANEL).toContain('dsh-fnos-card-identity')
+    expect(PANEL).toContain('dsh-fnos-card-title')
+    expect(PANEL).toContain('dsh-fnos-card-meta')
+    expect(PANEL).toContain('dsh-fnos-card-actions')
 
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    const idx = SCSS.indexOf('.dsh-fnos-card-row {')
+    const idx = SCSS.indexOf('.dsh-fnos-card-actions {')
     const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
-    expect(rule).toContain('display: flex')
-    expect(rule).toContain('align-items: center')
+    // 操作行两端对齐：开关在左、动作按钮在右。
+    expect(rule).toContain('justify-content: space-between')
   })
 
   it('禁用态不给整体 opacity（否则卸载按钮像被禁用）', () => {
@@ -358,6 +363,7 @@ describe('卡片式界面', () => {
     */
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
     const idx = SCSS.indexOf('.dsh-fnos-card--off {')
+    expect(idx).toBeGreaterThan(-1)
     const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
     expect(rule).not.toContain('opacity')
     expect(rule).toContain('border-left')
