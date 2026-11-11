@@ -2182,17 +2182,48 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 .dsh-fnos-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: 6px;
+  padding: 10px 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
   background: var(--dsw-alias-bg-layer-2);
 }
 
-/* 禁用态：整体降饱和 + 左侧灰条，一眼区分「在但不生效」。 */
+/*
+ * 卡片主行：名称 · 版本 · 徽标 · 开关 · 操作 横向排开。
+ *
+ * `min-width: 0` 让名称可以省略；徽标与操作各自 `flex: 0 0 auto` 不被压扁。
+ */
+.dsh-fnos-card-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dsh-fnos-card-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+/*
+ * 禁用态：**只加左侧灰条，不给整体 opacity**。
+ *
+ * 早前 `opacity: 0.72` 把整张卡（含「卸载」按钮）都压淡了——按钮看起来像被
+ * 禁用，实际上点得动，反而让人不敢点。状态应当由徽标与开关表达，不该牺牲
+ * 其它控件的可读性。
+ */
 .dsh-fnos-card--off {
   border-left: 3px solid var(--dsw-alias-label-dimmed);
-  opacity: 0.72;
+}
+
+/* 缩小卸载按钮：默认内边距在单行里太占地方。 */
+.dsh-fnos-card-uninstall.semi-button {
+  padding: 0 8px;
+  min-width: 0;
 }
 
 .dsh-fnos-card-head {

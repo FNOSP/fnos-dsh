@@ -132,34 +132,59 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
           const disabled = plugin.enabled === false
           return (
             <li key={plugin.name} className={`dsh-fnos-card${disabled ? ' dsh-fnos-card--off' : ''}`}>
-              <div className="dsh-fnos-card-head">
-                {/*
-                  插件名做成可点击链接：用户想看去处、文档、issue 时有个确定去处。
-                  没有 repository 的插件保持纯文本——宁可不做链接，也不给死链。
-                */}
-                {plugin.repository === undefined ? (
-                  <code className="dsh-fnos-card-name">{plugin.name}</code>
-                ) : (
-                  <a
-                    className="dsh-fnos-card-name dsh-fnos-card-name--link"
-                    href={plugin.repository}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={plugin.repository}
-                  >
-                    {plugin.name}
-                  </a>
-                )}
-                <span className="dsh-fnos-card-version">{plugin.version}</span>
-                {/*
-                  启用开关。放在卡片右上：它是这张卡片最主要的状态。
-                  内置插件也允许禁用——「禁用」不删文件、配置仍在，是安全操作。
-                */}
-                {/*
-                  **不带 `size`**：Semi 的 Switch 默认就是药丸形；`size="small"` 会把
-                  高度压到 16px、圆角随之变成近似方形，于是同一列表里两个开关看起来
-                  不是一套控件（真机截图里第二张卡的开关明显更「方」）。
-                */}
+              {/*
+                **单行布局**：名称 · 版本 · 状态徽标 · 开关 · 操作，全在同一行。
+
+                原来分四行（名称 / 徽标 / 说明 / 操作），一张卡就占掉 4 行高度，
+                两列并排时一屏只能看两张。这些信息都是「这一行插件的属性」，
+                横向排开更符合表格化的阅读方式。
+              */}
+              <div className="dsh-fnos-card-row">
+                <div className="dsh-fnos-card-identity">
+                  {/*
+                    插件名做成可点击链接：用户想看去处、文档、issue 时有个确定去处。
+                    没有 repository 的插件保持纯文本——宁可不做链接，也不给死链。
+                  */}
+                  {plugin.repository === undefined ? (
+                    <code className="dsh-fnos-card-name">{plugin.name}</code>
+                  ) : (
+                    <a
+                      className="dsh-fnos-card-name dsh-fnos-card-name--link"
+                      href={plugin.repository}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={plugin.repository}
+                    >
+                      {plugin.name}
+                    </a>
+                  )}
+                  <span className="dsh-fnos-card-version">{plugin.version}</span>
+                </div>
+
+                {/* 状态徽标：不兼容 > 有更新 > 本地版本 > 已是最新。 */}
+                <div className="dsh-fnos-card-badges">
+                  {plugin.incompatible === true ? (
+                    <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--warn" title={JSON.stringify(plugin.requirements ?? {})}>
+                      {t('installedIncompatible')}
+                    </span>
+                  ) : plugin.updateAvailable === true ? (
+                    <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">
+                      {`${t('installedUpdateAvailable')} ${plugin.latestVersion ?? ''}`}
+                    </span>
+                  ) : plugin.latestVersion === undefined ? null : plugin.aheadOfRegistry === true ? (
+                    <span className="dsh-fnos-installed-badge">{t('installedAheadOfRegistry')}</span>
+                  ) : (
+                    /*
+                      「已是最新」也用徽标而不是裸文字：它是**状态**，与「有更新」
+                      「不兼容」是同一层级的信息。
+                    */
+                    <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">{t('installedUpToDate')}</span>
+                  )}
+                  {plugin.bundled ? <span className="dsh-fnos-installed-badge">{t('installedPluginsBundled')}</span> : null}
+                  {disabled ? <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--off">{t('pluginDisabled')}</span> : null}
+                  {plugin.hasClient ? null : <span className="dsh-fnos-repair-muted">{t('installedPluginsHostOnly')}</span>}
+                </div>
+
                 {/*
                   **内置插件只展示、不可操作。**
 
@@ -175,76 +200,49 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                   disabled={plugin.bundled === true || toggling === plugin.name}
                   onChange={next => { void toggleEnabled(plugin.name, next) }}
                 />
-              </div>
 
-              {/* 状态徽标：不兼容 > 有更新 > 本地版本 > 已是最新。 */}
-              <div className="dsh-fnos-card-badges">
-                {plugin.incompatible === true ? (
-                  <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--warn" title={JSON.stringify(plugin.requirements ?? {})}>
-                    {t('installedIncompatible')}
-                  </span>
-                ) : plugin.updateAvailable === true ? (
-                  <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">
-                    {`${t('installedUpdateAvailable')} ${plugin.latestVersion ?? ''}`}
-                  </span>
-                ) : plugin.latestVersion === undefined ? null : plugin.aheadOfRegistry === true ? (
-                  <span className="dsh-fnos-installed-badge">{t('installedAheadOfRegistry')}</span>
-                ) : (
-                  /*
-                    「已是最新」也用徽标而不是裸文字：它是**状态**，与「有更新」
-                    「不兼容」是同一层级的信息。裸文字会让这一行看起来没对齐——
-                    同行其它状态都是带底色的块。
-                  */
-                  <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--ok">{t('installedUpToDate')}</span>
-                )}
-                {plugin.bundled ? <span className="dsh-fnos-installed-badge">{t('installedPluginsBundled')}</span> : null}
-                {plugin.hasClient ? null : <span className="dsh-fnos-repair-muted">{t('installedPluginsHostOnly')}</span>}
-                {disabled ? <span className="dsh-fnos-installed-badge dsh-fnos-installed-badge--off">{t('pluginDisabled')}</span> : null}
+                <div className="dsh-fnos-card-actions">
+                  {plugin.updateAvailable === true ? (
+                    <DshButton
+                      htmlType="button"
+                      size="small"
+                      theme="light"
+                      type="primary"
+                      disabled={toggling === plugin.name}
+                      onClick={() => { setInstalling(plugin.name) }}
+                    >
+                      {t('pluginInstallAction')}
+                    </DshButton>
+                  ) : null}
+                  {/*
+                    内置插件不允许卸载：它是应用的组成部分，删掉之后能力缺口无法
+                    通过「重新安装插件」恢复（要重装整个应用）。
+                  */}
+                  {plugin.bundled ? null : (
+                    <DshButton
+                      htmlType="button"
+                      size="small"
+                      className="dsh-fnos-card-uninstall"
+                      theme="outline"
+                      type="danger"
+                      icon={<IconifyIcon name="lucide:trash" />}
+                      disabled={toggling === plugin.name}
+                      onClick={() => { setRemoving(plugin.name) }}
+                    >
+                      {t('uninstall')}
+                    </DshButton>
+                  )}
+                </div>
               </div>
 
               {/*
                 桥梁提示只给本插件：它是应用与 DSH 之间唯一的通道，卸载后
                 授权目录、文件打开、网关反代、进程管理全部失效。
+                单独一行是因为它是一段说明，塞进单行会把那一行撑得读不了。
               */}
               {plugin.bundled ? (
                 <p className="dsh-fnos-card-note" role="note">{t('installedBundledWarning')}</p>
               ) : null}
-
-              <div className="dsh-fnos-card-actions">
-                {plugin.updateAvailable === true ? (
-                  <DshButton
-                    htmlType="button"
-                    size="small"
-                    theme="light"
-                    type="primary"
-                    disabled={toggling === plugin.name}
-                    onClick={() => { setInstalling(plugin.name) }}
-                  >
-                    {t('pluginInstallAction')}
-                  </DshButton>
-                ) : null}
-                {/*
-                  内置插件不允许卸载：它是应用的组成部分，删掉之后能力缺口无法
-                  通过「重新安装插件」恢复（要重装整个应用）。
-                */}
-                {plugin.bundled ? null : (
-                  <DshButton
-                    htmlType="button"
-                    size="small"
-                    /*
-                      `theme="light"` 给的是带浅底的样式；这里要「无背景 + 边框」，
-                      用 Semi 的 outline 主题最贴近——它与卡片里的其它次要动作同一档。
-                    */
-                    theme="outline"
-                    type="danger"
-                    icon={<IconifyIcon name="lucide:trash" />}
-                    disabled={toggling === plugin.name}
-                    onClick={() => { setRemoving(plugin.name) }}
-                  >
-                    {t('uninstall')}
-                  </DshButton>
-                )}
-              </div>
             </li>
           )
         })}

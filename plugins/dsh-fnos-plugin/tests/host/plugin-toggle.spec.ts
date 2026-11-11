@@ -297,6 +297,40 @@ describe('卡片式界面', () => {
     expect(rule).toContain('border-color: transparent')
   })
 
+  it('卡片是单行：名称/版本/徽标/开关/操作横向排开', () => {
+    // 原来分四行，一张卡占 4 行高，两列并排一屏只能看两张。
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('dsh-fnos-card-row')
+    expect(PANEL).toContain('dsh-fnos-card-identity')
+
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-card-row {')
+    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
+    expect(rule).toContain('display: flex')
+    expect(rule).toContain('align-items: center')
+  })
+
+  it('禁用态不给整体 opacity（否则卸载按钮像被禁用）', () => {
+    /*
+      `opacity: 0.72` 会把整张卡（含「卸载」按钮）一起压淡——按钮看起来像不可点，
+      实际上点得动，反而让人不敢点。状态由徽标与开关表达。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-card--off {')
+    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
+    expect(rule).not.toContain('opacity')
+    expect(rule).toContain('border-left')
+  })
+
+  it('卸载按钮缩小内边距', () => {
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-card-uninstall.semi-button {')
+    expect(idx).toBeGreaterThan(-1)
+    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
+    expect(rule).toContain('padding: 0 8px')
+    expect(rule).toContain('min-width: 0')
+  })
+
   it('卡片一行两个，窄容器自动退化单列', () => {
     // 单列时每张卡只有一行文字却占满整宽，一屏放不下几个。
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
