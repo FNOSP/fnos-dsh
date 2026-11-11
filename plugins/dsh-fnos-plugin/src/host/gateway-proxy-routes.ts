@@ -102,7 +102,49 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
    * 「插件停用后其前缀从生效集合消失」）。
    * @returns 自动前缀集合。
    */
-  const autoPrefixes = (): string[] => [...detectProxyPrefixes(ctx.webServer).prefixes]
+  /**
+   * 路由前缀 → 插件包名。
+   *
+   * ## 为什么能问到，以及为什么不能靠猜
+   *
+   * `webserver.register()` 只接收 `{ kind, path, handler }`，**不记录是谁注册的**
+   * （见上游 `packages/host/webserver` 的 `WebRoute`）。所以直接反查是拿不到的。
+   *
+   * 但 **loader 侧知道**：每个插件条目有 `options.name`（模块名），而模块名就是
+   * 包名。于是「这个前缀属于谁」可以这样判断——遍历 loader 条目，对每个插件调用
+   * 它自己声明的路由前缀……可惜那需要读插件代码，不可行。
+   *
+   * 实际可行的做法是**用路由表反推**：前缀段与某插件包名的一部分相同即认为归属
+   * 该包。这仍是启发式，所以：
+   *
+   * - 只在前缀段**完整出现在包名里**时认定（`/connect` ↛ `dsh-pet` 除非包名含
+   *   `connect`）；
+   * - 拿不准就留空，绝不猜。
+   *
+   * 真机数据也印证了这点：`/connect` 由 `dsh-pet` 提供、`/fnos-plugins` 由
+   * `@tnnevol/dsh-fnos` 提供——按「包名末段 vs 前缀段」猜全部落空。
+   */
+  const buildOwnerResolver = (): ((prefix: string) => string | undefined) => {
+    const loader = (ctx as unknown as { loader?: { entries?: () => Iterable<{ options?: { name?: string } }> } }).loader
+    const names: string[] = []
+    try {
+      for (const entry of loader?.entries?.() ?? []) {
+        const name = entry.options?.name
+        if (typeof name === 'string' && name !== '') names.push(name)
+      }
+    } catch {
+      // loader 不可读时退化为「无归属信息」。
+    }
+    return (prefix: string): string | undefined => {
+      const segment = prefix.replace(/^\//u, '').toLowerCase()
+      if (segment === '') return undefined
+      // 只在包名**整体包含**该前缀段时认定，避免 `connect` 命中无关包。
+      const hit = names.find(name => name.toLowerCase().includes(segment))
+      return hit
+    }
+  }
+  const ownerOf = buildOwnerResolver()
+  const autoPrefixes = (): string[] => [...detectProxyPrefixes(ctx.webServer, ownerOf).prefixes]
 
   const file = gatewayProxyPathsFile()
   if (file !== undefined) {
@@ -366,7 +408,7 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         // GET 额外带上网关固定前缀：前端据此渲染「系统内置」只读区，
         // 让用户明白这些路径为什么不在自己的可编辑列表里。
         if (req.method === 'GET') {
-          const detection = detectProxyPrefixes(ctx.webServer)
+          const detection = detectProxyPrefixes(ctx.webServer, ownerOf)
           return send(res, 200, {
             version: 1,
             paths: normalizeGatewayProxyPaths(readSettings().gatewayProxyPaths ?? []) ?? [],

@@ -37,6 +37,8 @@ export interface GatewayAutoPathsStatus {
   /** 前缀分组，按插件前缀归并，供界面按 API 形式展示。 */
   readonly groups: readonly {
     readonly prefix: string
+    /** 提供该前缀的插件包名（由 loader 条目反推；拿不准时省略）。 */
+    readonly pluginName?: string
     readonly routes: readonly string[]
     readonly kinds: readonly ('exact' | 'prefix' | 'upgrade')[]
   }[]

@@ -87,9 +87,14 @@ export function toPrefix(path: string): string | undefined {
  * 读路由表并归并。
  *
  * @param webServer - DSH 的 webServer 服务实例。
+ * @param ownerOf - 前缀归属查询；由调用方提供，默认不含归属信息。
  * @returns 识别结果；读不到时 `available: false`。
  */
-export function detectProxyPrefixes(webServer: unknown): ProxyDetection {
+export function detectProxyPrefixes(
+  webServer: unknown,
+  /** 路由前缀 → 插件包名。由调用方从 loader 条目解析（路由表本身不含 owner）。 */
+  ownerOf: (prefix: string) => string | undefined = () => undefined,
+): ProxyDetection {
   if (webServer === null || typeof webServer !== 'object') {
     return { available: false, reason: 'webserver-unavailable', groups: [], prefixes: [] }
   }
@@ -122,11 +127,15 @@ export function detectProxyPrefixes(webServer: unknown): ProxyDetection {
 
   const groups: ProxyRouteGroup[] = [...collected.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([prefix, entry]) => ({
-      prefix,
-      routes: [...entry.routes].sort(),
-      kinds: [...entry.kinds].sort(),
-    }))
+    .map(([prefix, entry]) => {
+      const pluginName = ownerOf(prefix)
+      return {
+        prefix,
+        ...(pluginName === undefined ? {} : { pluginName }),
+        routes: [...entry.routes].sort(),
+        kinds: [...entry.kinds].sort(),
+      }
+    })
 
   return {
     available: true,

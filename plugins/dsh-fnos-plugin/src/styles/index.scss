@@ -2790,6 +2790,17 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
   transform: rotate(90deg);
 }
 
+/* 归属插件名：弱化标签，不抢前缀这个主信息。 */
+.dsh-fnos-proxy-plugin {
+  flex: 0 1 auto;
+  overflow: hidden;
+  max-width: 45%;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 悬停给一点底色，提示整行可点。 */
 .dsh-fnos-proxy-item-head:hover {
   background: var(--dsw-alias-interactive-bg-hover);

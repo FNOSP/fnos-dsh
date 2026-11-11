@@ -189,6 +189,10 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
                       <IconifyIcon name="lucide:chevron-right" />
                     </span>
                     <code className="dsh-fnos-proxy-prefix">{group.prefix}</code>
+                    {/* 归属插件：路由表不记 owner，这里是从 loader 条目反推的。 */}
+                    {group.pluginName === undefined ? null : (
+                      <span className="dsh-fnos-proxy-plugin" title={group.pluginName}>{group.pluginName}</span>
+                    )}
                     <span className="dsh-fnos-proxy-count">{`${String(group.routes.length)} ${t('gatewayProxyRoutesUnit')}`}</span>
                     {group.kinds.includes('upgrade') ? (
                       <span className="dsh-fnos-proxy-kind">WS</span>

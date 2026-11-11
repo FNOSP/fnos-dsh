@@ -96,7 +96,7 @@ describe('FNOS-052 GET 返回结构', () => {
     const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
     expect(ROUTES).toContain('auto: detection')
     // 回到单参数调用（插件名推断已移除）。
-    expect(ROUTES).toContain('detectProxyPrefixes(ctx.webServer)')
+    expect(ROUTES).toContain('detectProxyPrefixes(ctx.webServer, ownerOf)')
   })
 })
 
@@ -113,16 +113,20 @@ describe('前缀分组卡片：可折叠 + 插件名', () => {
     expect(CARD).toContain('aria-expanded={expanded}')
   })
 
-  it('不显示插件名——路由表没有 owner 字段，推断不可靠', () => {
+  it('插件名由 loader 条目反推，拿不准就留空', () => {
     /*
-      曾按「包名末段 vs 前缀段」推断插件名，真机验证四个分组**全为空**：
-      前缀与已装包名对不上（`/fnos-plugins` vs `dsh-fnos` 等）。
-      一个从未命中过的特性形同虚设，且猜错比不显示更糟，因此整体移除。
+      路由表只有 `{ kind, path, handler }`、不记 owner，但 **loader 侧知道**：
+      每个插件条目有 `options.name`（模块名即包名）。
+
+      真机数据印证了「按包名末段猜」不可行：`/connect` 由 `dsh-pet` 提供、
+      `/fnos-plugins` 由 `@tnnevol/dsh-fnos` 提供——末段与前缀对不上。
     */
+    const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
+    expect(ROUTES).toContain('buildOwnerResolver')
+    expect(ROUTES).toContain('loader?.entries?.()')
+    // 拿不准时字段缺省，不填猜的值。
     const DETECT = readFileSync(new URL('../../src/host/gateway-proxy-detect.ts', import.meta.url), 'utf8')
-    const CARD = readFileSync(new URL('../../src/components/GatewayProxyCard.tsx', import.meta.url), 'utf8')
-    expect(DETECT).not.toContain('resolvePackageName')
-    expect(CARD).not.toContain('pluginName')
+    expect(DETECT).toContain('...(pluginName === undefined ? {} : { pluginName })')
   })
 })
 
