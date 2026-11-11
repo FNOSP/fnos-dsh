@@ -1,7 +1,7 @@
 {
   "name": "fn-os-apps",
   "type": "module",
-  "version": "8.1.81",
+  "version": "8.1.82",
   "private": true,
   "packageManager": "pnpm@11.16.0",
   "description": "飞牛 fnOS 应用 Monorepo",
