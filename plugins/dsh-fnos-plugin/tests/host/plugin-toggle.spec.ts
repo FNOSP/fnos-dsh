@@ -447,17 +447,23 @@ describe('卡片式界面', () => {
     expect(rule).toContain('width: 40px')
   })
 
-  it('置灰态保持药丸填充，不变成空心方框', () => {
+  it('置灰态沿用当前颜色、只降透明度，不换色', () => {
     /*
-      Semi 的 `-disabled` 把背景改成 transparent 再加一圈灰边框，视觉上像「空心
-      方框」，与旁边实心的开关不像一套控件。这里改成浅灰填充 + 去边框，圆角不变。
+      早前把禁用的「开」状态染成绿色（`--state-success` 45%）——那是在切换语义：
+      绿色读作「启用成功」，而这里只是「开着但不能动」。
+
+      同时不能用 Semi 默认的 `-disabled`（背景 transparent + 灰边框）：那看起来
+      像「空心方框」，与旁边实心的开关不像一套控件。
     */
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
     const idx = SCSS.indexOf('.dsh-fnos-card .semi-switch.semi-switch-disabled {')
     expect(idx).toBeGreaterThan(-1)
-    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
-    expect(rule).toContain('background-color')
-    expect(rule).toContain('border-color: transparent')
+    // 去掉注释再看：说明文字里提到旧实现，不算声明。
+    const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx)).replace(/\/\*[\s\S]*?\*\//gu, '')
+    expect(rule).toContain('opacity: 0.45')
+    // 不再用另一种颜色表达禁用。
+    expect(rule).not.toContain('state-success')
+    expect(rule).not.toContain('bg-layer-3')
   })
 
   it('卡片三段式：名称行 / 版本徽标行 / 操作行', () => {

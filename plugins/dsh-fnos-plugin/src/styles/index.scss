@@ -2220,15 +2220,6 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  * 每张卡片承载「是什么 + 能对它做什么」。表格行放不下开关、更新按钮与桥梁警示，
  * 挤在一行会读不出来。
  */
-.dsh-fnos-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .dsh-fnos-card {
   display: flex;
   flex-direction: column;
@@ -2685,13 +2676,19 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
 }
 
 .dsh-fnos-card .semi-switch.semi-switch-disabled {
-  background-color: var(--dsw-alias-bg-layer-3);
+  /*
+    禁用态**沿用当前颜色、只降低透明度**，不换成另一种颜色。
+
+    早前把禁用的「开」状态染成绿色（`--state-success` 45%）——那是在切换语义：
+    绿色读作「启用成功」，而这里只是「开着但不能动」。
+  */
+  opacity: 0.45;
   border-color: transparent;
 }
 
-/* 开启且置灰：保留一层淡的成功色，仍能读出「它是开着的，只是不能动」。 */
+/* 开着但禁用：保留原本的成功色，只是变淡——由上面的 `opacity` 统一处理。 */
 .dsh-fnos-card .semi-switch.semi-switch-disabled.semi-switch-checked {
-  background-color: color-mix(in srgb, var(--dsw-alias-state-success-primary) 45%, transparent);
+  background-color: var(--semi-color-success);
 }
 
 .dsh-fnos-card .semi-switch .semi-switch-knob {
@@ -2726,17 +2723,14 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
 /*
  * 插件卡片的说明文字。
  *
- * 单行省略而不是折行：卡片宽度有限（两列布局下约 285px），长描述折成三四行会
- * 把操作行挤下去，而列表页的作用是「扫读」。完整内容在 `title` 悬浮里。
+ * 行数与省略**交给 Semi 的 Typography**（`ellipsis={{ rows: 3, expandable }}`），
+ * 这里只管字号与颜色。不要再写 `white-space: nowrap`——那会把多行省略变成单行。
  */
 .dsh-fnos-card-description {
-  overflow: hidden;
   margin: 0;
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /*
