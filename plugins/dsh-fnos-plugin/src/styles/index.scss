@@ -988,17 +988,23 @@ img.dsh-fnos-file-manager-icon {
     `saturate(120%)` 稍微提一点饱和度：模糊会把色彩搅向灰，补一点回来才不会
     显得脏。两个值都调得克制——模糊过度会让用户失去「我还在哪个页面」的线索。
   */
-  backdrop-filter: blur(8px) saturate(120%);
-  /* Safari 仍需要前缀版本；它与标准属性可共存，写两份最省事。 */
+  /*
+    **顺序很重要**：`-webkit-` 写在前面、标准属性写在后面。
+
+    实测 lightningcss 压这两行时会把它们合并成一条，**保留最后一条**：若标准属性
+    在前，产物里只剩 `-webkit-backdrop-filter`，标准属性消失，Chrome 上模糊就
+    完全不生效（真机 `getComputedStyle(...).backdropFilter` 返回 `none`）。
+  */
   -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
 }
 
 /* 亮色主题：白色蒙层要更实，否则看不出「背后已禁用」。 */
 body:not([data-ds-dark-theme]) .semi-modal-mask,
 body:not([data-ds-dark-theme]) .semi-modal-wrap {
   background-color: color-mix(in srgb, var(--dsw-alias-label-primary) 28%, transparent) !important;
-  backdrop-filter: blur(8px) saturate(120%);
   -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
 }
 
 /* 暗色主题：深色蒙层反而要淡一点，否则整块发黑、层级被压平。 */
@@ -1006,8 +1012,8 @@ body[data-ds-dark-theme] .semi-modal-mask,
 body[data-ds-dark-theme] .semi-modal-wrap {
   background-color: color-mix(in srgb, var(--dsw-alias-bg-base) 72%, transparent) !important;
   /* 暗色下背景本身对比低，模糊可以稍弱一点，避免糊成一团。 */
-  backdrop-filter: blur(6px) saturate(110%);
   -webkit-backdrop-filter: blur(6px) saturate(110%);
+  backdrop-filter: blur(6px) saturate(110%);
 }
 
 /*
@@ -2507,7 +2513,12 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
 }
 
 .dsh-fnos-mirror-log {
+  /*
+    `box-sizing: border-box` 必须写：否则 `height: 140px` 之外还要加上下 padding
+    各 8px，实测元素高 156px，与要求的 140 不符。
+  */
   height: 140px;
+  box-sizing: border-box;
   overflow: auto;
   margin: 0;
   padding: 8px 10px;

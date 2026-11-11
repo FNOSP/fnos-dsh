@@ -263,7 +263,11 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
       <DshModal
         visible={removing !== undefined}
         title={t('pluginRemoveTitle')}
-        okText={t('confirm')}
+        /*
+          **不能复用 `t('confirm')`**：它在授权目录场景下是「确认授权」，放到卸载
+          确认框里读起来像「确认授权卸载」——语义不对。用一个专门的「卸载」动词键。
+        */
+        okText={t('uninstall')}
         cancelText={t('cancel')}
         onOk={() => { void confirmRemove() }}
         onCancel={() => { setRemoving(undefined) }}

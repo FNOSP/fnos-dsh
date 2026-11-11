@@ -147,6 +147,38 @@ describe('安装日志界面', () => {
   })
 })
 
+describe('自测发现的三处修复', () => {
+  it('日志框必须 border-box，否则 140px 实际渲染成 156px', () => {
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-mirror-log {')
+    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
+    expect(rule).toContain('box-sizing: border-box')
+    expect(rule).toContain('height: 140px')
+  })
+
+  it('backdrop-filter 的 -webkit- 前缀必须写在标准属性之前', () => {
+    /*
+      实测 lightningcss 压这两行时只保留最后一条：标准属性若在前，产物里只剩
+      `-webkit-backdrop-filter`，Chrome 上模糊完全不生效
+      （`getComputedStyle(...).backdropFilter` 返回 `none`）。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('-webkit-backdrop-filter: blur(8px)')
+    expect(idx).toBeGreaterThan(-1)
+    // 标准属性紧跟其后。
+    expect(SCSS.slice(idx, idx + 200)).toMatch(/-webkit-backdrop-filter[^;]*;\s*backdrop-filter:/u)
+  })
+
+  it('卸载确认框的主按钮用「卸载」而不是「确认授权」', () => {
+    // `t('confirm')` 在授权场景是「确认授权」，放到卸载框里语义不对。
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    const idx = PANEL.indexOf("t('pluginRemoveTitle')")
+    const block = PANEL.slice(idx, idx + 400)
+    expect(block).toContain("okText={t('uninstall')}")
+    expect(block).not.toContain("okText={t('confirm')}")
+  })
+})
+
 describe('界面宽度', () => {
   it('带 width: 100% + padding 的块必须 border-box', () => {
     /*
