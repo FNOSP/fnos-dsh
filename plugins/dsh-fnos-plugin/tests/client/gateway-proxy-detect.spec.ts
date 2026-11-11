@@ -95,8 +95,8 @@ describe('FNOS-052 GET 返回结构', () => {
     // 而这两种情况的处置完全不同。
     const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
     expect(ROUTES).toContain('auto: detection')
-    // 现在带包名参数：把前缀推断回插件（路由表本身不含 owner 信息）。
-    expect(ROUTES).toContain('detectProxyPrefixes(ctx.webServer, await installedNames())')
+    // 回到单参数调用（插件名推断已移除）。
+    expect(ROUTES).toContain('detectProxyPrefixes(ctx.webServer)')
   })
 })
 
@@ -113,13 +113,16 @@ describe('前缀分组卡片：可折叠 + 插件名', () => {
     expect(CARD).toContain('aria-expanded={expanded}')
   })
 
-  it('插件名由前缀推断，推断不到就留空', () => {
-    // 路由表只有 { kind, path, handler }，没有 owner 字段——无法反查，只能按命名约定猜。
+  it('不显示插件名——路由表没有 owner 字段，推断不可靠', () => {
+    /*
+      曾按「包名末段 vs 前缀段」推断插件名，真机验证四个分组**全为空**：
+      前缀与已装包名对不上（`/fnos-plugins` vs `dsh-fnos` 等）。
+      一个从未命中过的特性形同虚设，且猜错比不显示更糟，因此整体移除。
+    */
     const DETECT = readFileSync(new URL('../../src/host/gateway-proxy-detect.ts', import.meta.url), 'utf8')
-    expect(DETECT).toContain('resolvePackageName')
-    expect(DETECT).toContain("replace(/^dsh-(?:plugin-)?/u, '')")
-    // 猜不出来时字段缺省，而不是填一个猜错的包名。
-    expect(DETECT).toContain('...(pluginName === undefined ? {} : { pluginName })')
+    const CARD = readFileSync(new URL('../../src/components/GatewayProxyCard.tsx', import.meta.url), 'utf8')
+    expect(DETECT).not.toContain('resolvePackageName')
+    expect(CARD).not.toContain('pluginName')
   })
 })
 
@@ -131,9 +134,10 @@ describe('巡检必须 await 后再比较（否则静默失效）', () => {
       表现就是「插件装了、接口一直 404」，而且**不报错**，最难查的那种失效。
     */
     const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
-    // 不允许出现未 await 的序列化。
-    expect(ROUTES).not.toMatch(/JSON\.stringify\(autoPrefixes\(\)\)/u)
-    expect(ROUTES).toContain('JSON.stringify(await autoPrefixes())')
+    // `autoPrefixes` 已回到同步实现，不存在 Promise 被序列化的风险。
+    expect(ROUTES).toContain('const autoPrefixes = (): string[] =>')
+    expect(ROUTES).toContain('JSON.stringify(autoPrefixes())')
+    expect(ROUTES).not.toContain('await autoPrefixes()')
   })
 })
 

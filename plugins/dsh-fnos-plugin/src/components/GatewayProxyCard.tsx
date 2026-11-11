@@ -189,13 +189,6 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
                       <IconifyIcon name="lucide:chevron-right" />
                     </span>
                     <code className="dsh-fnos-proxy-prefix">{group.prefix}</code>
-                    {/*
-                      插件名来自前缀推断（路由表不含 owner 信息），推断不到就不显示——
-                      猜错的包名比不显示更糟。
-                    */}
-                    {group.pluginName === undefined ? null : (
-                      <span className="dsh-fnos-proxy-plugin" title={group.pluginName}>{group.pluginName}</span>
-                    )}
                     <span className="dsh-fnos-proxy-count">{`${String(group.routes.length)} ${t('gatewayProxyRoutesUnit')}`}</span>
                     {group.kinds.includes('upgrade') ? (
                       <span className="dsh-fnos-proxy-kind">WS</span>

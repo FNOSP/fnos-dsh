@@ -102,38 +102,14 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
    * 「插件停用后其前缀从生效集合消失」）。
    * @returns 自动前缀集合。
    */
-  /**
-   * 已安装包名：用来把路由前缀推断回插件（路由表本身不含 owner 信息）。
-   *
-   * 直接读 profile 的 `package.json` 依赖名，不走 `readInstalledPlugins`——后者
-   * 会联网查 registry 检查更新，而这里只需要一串名字。
-   */
-  const installedNames = async (): Promise<string[]> => {
-    const profile = resolveRepairEnvironment()?.profileDirectory
-    if (profile === undefined) return []
-    try {
-      const manifest = JSON.parse(await readFile(join(profile, 'package.json'), 'utf8')) as {
-        dependencies?: Record<string, string>, devDependencies?: Record<string, string>
-        dsh?: { profile?: { bundles?: string[] } }
-      }
-      return [
-        ...Object.keys(manifest.dependencies ?? {}),
-        ...Object.keys(manifest.devDependencies ?? {}),
-        ...manifest.dsh?.profile?.bundles ?? [],
-      ]
-    } catch {
-      return []
-    }
-  }
-  const autoPrefixes = async (): Promise<string[]> =>
-    [...detectProxyPrefixes(ctx.webServer, await installedNames()).prefixes]
+  const autoPrefixes = (): string[] => [...detectProxyPrefixes(ctx.webServer).prefixes]
 
   const file = gatewayProxyPathsFile()
   if (file !== undefined) {
-    const sync = async (value: FnosSettings): Promise<void> => writeDocument(file, {
+    const sync = (value: FnosSettings): Promise<void> => writeDocument(file, {
       version: 1,
       paths: normalizeGatewayProxyPaths(value.gatewayProxyPaths ?? []) ?? [],
-      auto: await autoPrefixes(),
+      auto: autoPrefixes(),
     })
     ctx.effect(() => {
       // 启动时的方向取决于 settings 是否为空：
@@ -168,31 +144,19 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         经 SSE 推给页面，无需刷新）。3 秒是权衡：装插件本身要几秒，用户不会感知
         延迟；而空转成本只是一次纯内存的 Map 遍历。
       */
-      /*
-        **`autoPrefixes()` 是 async，必须 await 后再序列化。**
-
-        漏掉 await 时 `JSON.stringify(Promise)` 恒为 `"{}"`，巡检就永远认为
-        「没变化」——新装插件的路由进不了 allowlist，表现正是「插件装了、接口一直
-        404」。这条比较是整个自更新链路的关键判定，写错会静默失效。
-      */
-      let lastAuto: string | undefined
+      let lastAuto = JSON.stringify(autoPrefixes())
       const timer = setInterval(() => {
-        void (async () => {
-          const current = JSON.stringify(await autoPrefixes())
-          if (current === lastAuto) return
-          // 首次巡检只记基线，不写文件：启动时的方向由上面的 restoreOrSync 决定。
-          const first = lastAuto === undefined
-          lastAuto = current
-          if (first) return
-          await sync(readSettings())
-        })().catch(error => { console.error('[dsh-fnos] unable to sync auto proxy prefixes', error) })
+        const current = JSON.stringify(autoPrefixes())
+        if (current === lastAuto) return
+        lastAuto = current
+        void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to sync auto proxy prefixes', error) })
       }, AUTO_PREFIX_POLL_MS)
       ctx.effect(() => () => { clearInterval(timer) })
 
       return ctx.on('settings/document-updated', namespace => {
         if (namespace === settingsNamespace) {
           // 手动项变化时顺带把 lastAuto 对齐，避免巡检立刻又写一次同样的内容。
-          void autoPrefixes().then(value => { lastAuto = JSON.stringify(value) })
+          lastAuto = JSON.stringify(autoPrefixes())
           void sync(readSettings()).catch(error => { console.error('[dsh-fnos] unable to mirror gateway proxy paths', error) })
         }
       })
@@ -387,7 +351,7 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         // GET 额外带上网关固定前缀：前端据此渲染「系统内置」只读区，
         // 让用户明白这些路径为什么不在自己的可编辑列表里。
         if (req.method === 'GET') {
-          const detection = detectProxyPrefixes(ctx.webServer, await installedNames())
+          const detection = detectProxyPrefixes(ctx.webServer)
           return send(res, 200, {
             version: 1,
             paths: normalizeGatewayProxyPaths(readSettings().gatewayProxyPaths ?? []) ?? [],
@@ -408,7 +372,7 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         const paths = validateGatewayProxyPaths(await body(req))
         if (paths === undefined) return send(res, 400, { error: 'invalid-gateway-proxy-paths' })
         // 保留 auto：用户保存手动项不该把自动区段清掉。
-        const document: GatewayProxyPathsDocument = { version: 1, paths, auto: await autoPrefixes() }
+        const document: GatewayProxyPathsDocument = { version: 1, paths, auto: autoPrefixes() }
         const previous = await readDocument(file)
         await writeDocument(file, document)
         try {
