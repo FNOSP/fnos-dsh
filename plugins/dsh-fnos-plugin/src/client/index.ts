@@ -27,7 +27,7 @@ import { FnosInputPickerButton } from '../components/FnosInputPickerButton.tsx'
 import { FnosAuthorizedPathPanel } from '../components/FnosAuthorizedPathPicker.tsx'
 import { FnosOpenInHeaderAction } from '../components/FnosOpenInHeaderAction.tsx'
 import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAction.tsx'
-import { FnosPanelMain, FnosPanelRow } from '../components/FnosPanelRow.tsx'
+import { FnosConfigMenuEntry } from '../components/FnosConfigMenuEntry.tsx'
 import { FnosRefreshMenuEntry, FnosRestartMenuEntry } from '../components/FnosWebActionsMenuEntry.tsx'
 import { FnosConfigOverlay } from '../components/FnosConfigOverlay.tsx'
 import { FNOS_OPEN_IN_APP_SEAT, FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
@@ -110,10 +110,7 @@ export function apply(ctx: ClientContext): void {
     }, 'dsh-fnos: fnOS theme bridge')
   }
 
-  /** 「飞牛 OS」面板 id：侧栏行与 main 视图靠它配对。 */
-const FNOS_CONFIG_PANEL_ID = 'dsh-fnos-config'
-
-const namespace = 'settings.dsh-fnos'
+  const namespace = 'settings.dsh-fnos'
   ctx.effect(() => ctx.locale.register(namespace, { zh, en }), 'dsh-fnos: locale')
   // FNOS-045：先补齐可选语言（已存在则跳过，六个插件可能都想注册同一批 id），
   // 再登记本插件命名空间的各语言字典。
@@ -236,41 +233,33 @@ const namespace = 'settings.dsh-fnos'
   const pickerStore = createPickerOpenStore()
   ctx.effect(() => () => { pickerStore.closeAll() }, 'dsh-fnos: picker store')
   /**
-   * **侧栏面板列表里的「飞牛 OS」入口，位于「更多」之上。**
+   * 「飞牛 OS」入口：**放在「更多」菜单里**（`sidebar.panellist.actions`）。
    *
-   * 「插件」「自动化任务」那一组由 `sidebar.panellist` 渲染，「更多」是
-   * `panelList` 里固定的最后一项——所以要排在它上方，就得注册成本槽位的一行。
+   * ## 为什么不能注册成面板行
    *
-   * 代价：`sidebar.panellist` 的语义是「可切换面板」，点击会走
-   * `layout.selectPanel(id)`，而它**先校验 `hasMainPanel(id)`**、没有配对主视图
-   * 直接抛错。因此必须同时注册 `main` 视图。
+   * 曾试过注册到 `sidebar.panellist` 把它排到「更多」之上，代价是必须同时注册
+   * `main` 视图——因为 `layout.selectPanel(id)` 会校验 `hasMainPanel(id)`，
+   * 没有配对主视图直接抛错。
    *
-   * 那个主视图只渲染一句占位说明并在挂载时打开配置弹框——位置借面板行的外观，
-   * 行为仍是弹框（见 `FnosPanelRow.tsx` 的说明）。
+   * 真机验证这条路**走不通**：
    *
-   * `order: 20` 让它排在「自动化任务」（10）之后、「更多」之前。
+   * 1. 点它会把主区域切到我们的面板（`data-global-panel`），而弹框随即覆盖上来，
+   *    用户先看到一帧空白页；
+   * 2. `main` 槽渲染时直接报错（DOM 里留下 `data-slot-error="main"` 的空 div），
+   *    占位组件没渲染出来；
+   * 3. 关闭弹框后停在空白面板，**再点侧栏也不再打开弹框**——因为该行已是激活态，
+   *    `selectPanel` 相同 id 不触发重新挂载，effect 不再执行。
+   *
+   * 面板行天生假设「点它 = 切换到一个长期存在的主视图」。而「打开弹框」是一次性
+   * 动作，两者语义不兼容。放回「更多」菜单，点击即开弹框、无需任何主视图。
    */
-  ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
-    name: 'sidebar.panellist',
-    id: FNOS_CONFIG_PANEL_ID,
-    order: 20,
+  ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register({
+    name: 'sidebar.panellist.actions',
+    id: 'dsh-fnos-config-entry',
+    order: 90,
     locale: namespace,
-    label: () => t('configMenuEntry'),
     inject: () => ({ t }),
-  }, FnosPanelRow))
-  ctx.slots.inject('main', () => ctx.slots.register({
-    name: 'main',
-    key: FNOS_CONFIG_PANEL_ID,
-    locale: namespace,
-    inject: () => ({
-      t,
-      /*
-        `selectPanel(null)` 的官方语义是「返回会话」。由注册处注入，组件本身
-        不直接拿 `ctx`——保持它对宿主 API 的零依赖，便于单测。
-      */
-      selectConversation: () => { ctx.layout.selectPanel(null) },
-    }),
-  }, FnosPanelMain))
+  }, (props: { onDismiss?: () => void }) => FnosConfigMenuEntry({ ...props, t })))
   /**
    * 「刷新页面」与「重启服务」两行仍留在「更多」菜单里（order 91/92）。
    *

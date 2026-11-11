@@ -13,28 +13,28 @@ import { readFileSync } from 'node:fs'
  */
 const read = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
 const DIALOG = read('../../src/components/FnosConfigDialog.tsx')
-const ENTRY = read('../../src/components/FnosPanelRow.tsx')
+const ENTRY = read('../../src/components/FnosConfigMenuEntry.tsx')
 const SCSS = read('../../src/styles/index.scss')
 const LOCALES = read('../../src/client/locales.ts')
 
 describe('fnOS 配置弹框', () => {
-  it('是侧栏面板行，位置在「更多」之上', () => {
+  it('是「更多」菜单里的入口，不注册面板行', () => {
     /*
-      「插件」「自动化任务」由 `sidebar.panellist` 渲染，「更多」是 panelList 里
-      固定的最后一项——要排在它上方就得注册成该槽位的一行。
-      代价是必须同时注册 `main`（否则 selectPanel 校验失败抛错）。
+      曾注册到 `sidebar.panellist` 以排到「更多」之上，但那条路走不通：
+      面板行假设「点它 = 切换到长期存在的主视图」，而「打开弹框」是一次性动作。
+      真机上表现为先闪一帧空白页、`main` 槽报错、关掉弹框后再点也不打开。
     */
     const INDEX = read('../../src/client/index.ts')
-    expect(INDEX).toContain("ctx.slots.inject('sidebar.panellist'")
-    expect(INDEX).toContain("ctx.slots.inject('main'")
-    expect(INDEX).toContain('FNOS_CONFIG_PANEL_ID')
+    expect(INDEX).toContain("ctx.slots.inject('sidebar.panellist.actions'")
+    expect(INDEX).not.toContain("ctx.slots.inject('main'")
+    expect(INDEX).not.toContain('FNOS_CONFIG_PANEL_ID')
     expect(LOCALES).toContain("configMenuEntry: '飞牛 OS'")
   })
 
-  it('面板行只提供图标，点击行为由 sidebar 提供', () => {
-    // `sidebar.panellist` 把注册项放进 PanelRow 的 glyph 槽，行本身由 sidebar 渲染。
+  it('用 MenuItemButton，图标是飞牛标记', () => {
+    // 与「刷新/重启」两行同款，行高、内边距与键盘行为才能对齐。
+    expect(ENTRY).toContain('MenuItemButton')
     expect(ENTRY).toContain('FnosMonoLogo')
-    expect(ENTRY).toContain('FnosPanelMain')
   })
 
   it('入口用飞牛标记而不是通用设置齿轮', () => {
@@ -53,25 +53,11 @@ describe('fnOS 配置弹框', () => {
     expect(css).toContain('invert(1)')
   })
 
-  it('配对主视图挂载即切回会话并打开弹框（不占住主区域）', () => {
-    /*
-      「飞牛 OS」一直是弹框交互，不该替换主视图；main 只是让 selectPanel 不报错。
-
-      挂载后立刻 `selectPanel(null)`（官方语义「返回会话」），主区域一帧都不停留
-      ——早前渲染占位说明，用户关掉弹框会停在空白页，还得再点一次。
-    */
-    const main = ENTRY.slice(ENTRY.indexOf('export function FnosPanelMain'))
-    expect(main).toContain('selectConversation()')
-    expect(main).toContain('configDialogStore.set(true)')
-    /*
-      **先开弹框、再切回会话。**
-
-      反过来的话 `selectConversation()` 会引发重渲染并卸载本组件，随后的
-      `set(true)` 落在已卸载的树里、不生效——真机验证：overlay 在、弹框 DOM 没出现。
-    */
-    // 只看 effect 块：`reopen` 里另有一处调用，会干扰 indexOf。
-    const effect = main.slice(main.indexOf('useEffect'), main.indexOf('useCallback'))
-    expect(effect.indexOf('configDialogStore.set(true)')).toBeLessThan(effect.indexOf('selectConversation()'))
+  it('先关菜单再开弹框，避免 portaled 浮层抢焦点', () => {
+    // 只看 openConfig 块。
+    const open = ENTRY.slice(ENTRY.indexOf('const openConfig'), ENTRY.indexOf('return ('))
+    expect(open).toContain('onDismiss?.()')
+    expect(open.indexOf('onDismiss?.()')).toBeLessThan(open.indexOf('configDialogStore.set(true)'))
   })
 
   it('弹框挂在 shell.overlay，不在菜单子树里', () => {
