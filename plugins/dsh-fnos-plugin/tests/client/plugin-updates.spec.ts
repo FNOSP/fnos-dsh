@@ -183,6 +183,24 @@ describe('插件安装与异常：两段顺序与分割线', () => {
   })
 })
 
+describe('样式注入必须去重', () => {
+  it('用固定 id 复用 style 标签，不无条件 append', () => {
+    /*
+      真机问题：插件每次加载（热更新、禁用再启用、多插件并存）都无条件
+      `document.head.append(style)`，页面里能堆出好几份完全相同的 Semi 样式
+      （整包 CSS 约 250KB，Semi 占 89%）。
+
+      实测本仓库 6 个插件都内联了 Semi，装多个插件时重复更明显。
+    */
+    const BUILD = readFileSync(new URL('../../tsdown.config.ts', import.meta.url), 'utf8')
+    expect(BUILD).toContain('getElementById(ID)')
+    expect(BUILD).toContain('dsh-plugin-style-')
+    expect(BUILD).toContain('__disposeStyle')
+    // 不能还是「直接 append」的旧写法。
+    expect(BUILD).not.toContain("document.head.append(style); })();")
+  })
+})
+
 describe('已安装列表：更新三态', () => {
   it('不兼容优先于更新提示', () => {
     const inorder = LIST.indexOf('installedIncompatible')

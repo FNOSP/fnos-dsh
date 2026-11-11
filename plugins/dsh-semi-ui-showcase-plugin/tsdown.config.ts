@@ -11,7 +11,20 @@ async function inlineClientStyles(config: { cwd: string }): Promise<void> {
     const [client, styles] = await Promise.all([readFile(clientPath, 'utf8'), readFile(stylePath, 'utf8')])
     const statement = "import './style.css';\n"
     if (!client.startsWith(statement)) return
-    const loader = `(() => { if (typeof document === 'undefined') return; const style = document.createElement('style'); style.dataset.dshSemiShowcase = ''; style.textContent = ${JSON.stringify(styles)}; document.head.append(style); })();\n`
+    /* 注入样式时去重：同一插件重复加载不再堆出多份相同 CSS。 */
+    const loader = [
+      '(() => {',
+      "  if (typeof document === 'undefined') return;",
+      '  const ID = ' + JSON.stringify('dsh-plugin-style-dsh-semi-ui-showcase-plugin') + ';',
+      '  const existing = document.getElementById(ID);',
+      '  if (existing !== null) { existing.textContent = ' + JSON.stringify(styles) + '; return; }',
+      "  const style = document.createElement('style');",
+      '  style.id = ID;',
+      '  style.textContent = ' + JSON.stringify(styles) + ';',
+      '  document.head.append(style);',
+      '})();',
+      '',
+    ].join('\n')
     await writeFile(clientPath, client.replace(statement, loader), 'utf8')
   } catch {}
 }

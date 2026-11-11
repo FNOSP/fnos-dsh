@@ -43,7 +43,25 @@ async function inlineClientStyles(config: { cwd: string }): Promise<void> {
   }
   const importStatement = "import './style.css';\n"
   if (!client.startsWith(importStatement)) return
-  const styleLoader = `(() => { if (typeof document === 'undefined') return; const style = document.createElement('style'); style.dataset.dshMidscene = 'semi'; style.textContent = ${JSON.stringify(styles)}; document.head.append(style); })();\n`
+  /*
+    注入样式时**必须去重**。早前是「无条件 document.head.append(style)」：
+    插件每次加载（热更新、禁用再启用）就多一份整包 CSS，页面里能堆出好几份
+    完全相同的 Semi 样式。
+  */
+  const styleLoader = [
+    '(() => {',
+    "  if (typeof document === 'undefined') return;",
+    '  const ID = ' + JSON.stringify('dsh-plugin-style-' + 'dsh-midscene-plugin') + ';',
+    '  const existing = document.getElementById(ID);',
+    '  if (existing !== null) { existing.textContent = ' + JSON.stringify(styles) + '; return; }',
+    "  const style = document.createElement('style');",
+    '  style.id = ID;',
+    '  style.dataset.dshPluginStyle = ID;',
+    '  style.textContent = ' + JSON.stringify(styles) + ';',
+    '  document.head.append(style);',
+    '})();',
+    '',
+  ].join('\n')
   await writeFile(clientPath, client.replace(importStatement, styleLoader), 'utf8')
 }
 

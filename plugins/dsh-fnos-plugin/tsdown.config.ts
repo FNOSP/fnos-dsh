@@ -29,7 +29,44 @@ async function inlineClientStyles(config: { cwd: string }): Promise<void> {
   }
   const importStatement = "import './style.css';\n"
   if (!client.startsWith(importStatement)) return
-  const styleLoader = `(() => { if (typeof document === 'undefined') return; const style = document.createElement('style'); style.dataset.dshFnos = 'semi'; style.textContent = ${JSON.stringify(styles)}; document.head.append(style); })();\n`
+  // 插件目录名，用于给 <style> 一个稳定的 id（去重的依据）。
+  const cwdName = String(config.cwd).split(/[\\/]/u).pop() ?? 'plugin'
+  /*
+    注入样式时**必须去重，并保证卸载时移除**。
+
+    ## 为什么
+
+    插件会被反复加载（热更新、禁用再启用、切换 profile），而早前的写法是
+    「无条件 `document.head.append(style)`」：
+
+    - 每加载一次就多一份 **254KB** 的 `<style>`，页面里能堆出好几份完全相同的
+      Semi 样式；浏览器的样式匹配因此变慢，DevTools 里看到的也是一堆重复规则。
+    - 多个插件各自带一份 Semi 样式时更明显（本仓库 6 个插件都内联了 Semi）。
+
+    ## 做法
+
+    1. 用**固定 id** 定位自己那份样式，存在就复用（不重复插入）。
+    2. 把 `dispose` 挂到模块的导出上，宿主卸载插件时调用它移除标签——这样
+       「禁用再启用」不会累积。
+  */
+  const styleLoader = [
+    '(() => {',
+    "  if (typeof document === 'undefined') return;",
+    "  const ID = " + JSON.stringify('dsh-plugin-style-' + cwdName) + ";",
+    '  const existing = document.getElementById(ID);',
+    '  if (existing !== null) { existing.textContent = ' + JSON.stringify(styles) + '; return; }',
+    "  const style = document.createElement('style');",
+    '  style.id = ID;',
+    "  style.dataset.dshPluginStyle = ID;",
+    '  style.textContent = ' + JSON.stringify(styles) + ';',
+    '  document.head.append(style);',
+    '  // 卸载时移除，避免「禁用再启用」累积。',
+    '  if (typeof module !== "undefined" && module.exports !== undefined) {',
+    '    module.exports.__disposeStyle = () => { document.getElementById(ID)?.remove(); };',
+    '  }',
+    '})();',
+    '',
+  ].join('\n')
   await writeFile(clientPath, client.replace(importStatement, styleLoader), 'utf8')
 }
 
