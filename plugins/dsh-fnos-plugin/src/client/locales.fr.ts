@@ -52,6 +52,8 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   pickFailed: "Impossible d'ouvrir le sélecteur de répertoires fnOS.",
   permissionDenied: 'Impossible de terminer cette opération sur les répertoires autorisés.',
   sharedDirectory: "Répertoire partagé de l'application",
+  open: "Ouvrir",
+  openDirectoryFailed: "Impossible d ouvrir le dossier.",
   originNotTrusted: "Cette origine de navigateur n'est pas approuvée par le serveur web DSH.",
   unavailable: "L'API d'autorisation fnOS n'est pas disponible dans cet environnement.",
   validateUnavailable: "La liste enregistrée des répertoires est affichée ; les autorisations n'ont pas pu être vérifiées pour le moment.",

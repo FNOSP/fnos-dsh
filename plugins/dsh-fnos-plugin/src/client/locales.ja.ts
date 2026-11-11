@@ -56,6 +56,8 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   pickFailed: 'fnOS のディレクトリ選択画面を開けませんでした。',
   permissionDenied: 'この認可ディレクトリの操作を完了できませんでした。',
   sharedDirectory: 'アプリの共有ディレクトリ',
+  open: "開く",
+  openDirectoryFailed: "フォルダを開けませんでした。",
   originNotTrusted: 'このブラウザのオリジンは DSH Web サーバーに信頼されていません。',
   unavailable: 'この環境では fnOS の認可 API を利用できません。',
   validateUnavailable: '保存済みのディレクトリ一覧を表示しています。現在は権限を確認できません。',

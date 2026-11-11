@@ -52,6 +52,8 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   pickFailed: 'Не удалось открыть средство выбора каталогов fnOS.',
   permissionDenied: 'Не удалось выполнить операцию с авторизованными каталогами.',
   sharedDirectory: 'Общий каталог приложения',
+  open: "Открыть",
+  openDirectoryFailed: "Не удалось открыть каталог.",
   originNotTrusted: 'Источник браузера не является доверенным для сервера DSH Web.',
   unavailable: 'API авторизации fnOS недоступен в этой среде.',
   validateUnavailable: 'Показан сохранённый список каталогов; проверить права сейчас не удалось.',

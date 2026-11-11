@@ -52,6 +52,8 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   pickFailed: 'Die fnOS-Verzeichnisauswahl konnte nicht geöffnet werden.',
   permissionDenied: 'Dieser Vorgang auf freigegebenen Verzeichnissen konnte nicht abgeschlossen werden.',
   sharedDirectory: 'Gemeinsames Verzeichnis der Anwendung',
+  open: "Oeffnen",
+  openDirectoryFailed: "Verzeichnis konnte nicht geoeffnet werden.",
   originNotTrusted: 'Diese Browser-Herkunft wird vom DSH-Webserver nicht als vertrauenswürdig eingestuft.',
   unavailable: 'Die fnOS-Freigabe-API ist in dieser Umgebung nicht verfügbar.',
   validateUnavailable: 'Die gespeicherte Verzeichnisliste wird angezeigt; die Berechtigungen konnten derzeit nicht geprüft werden.',

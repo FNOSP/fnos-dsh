@@ -52,6 +52,8 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   pickFailed: 'Impossibile aprire il selettore di directory di fnOS.',
   permissionDenied: 'Impossibile completare questa operazione sulle directory autorizzate.',
   sharedDirectory: 'Directory condivisa dell\'applicazione',
+  open: "Apri",
+  openDirectoryFailed: "Impossibile aprire la cartella.",
   originNotTrusted: 'L\'origine del browser non è considerata attendibile dal server DSH Web.',
   unavailable: 'L\'API di autorizzazione di fnOS non è disponibile in questo ambiente.',
   validateUnavailable: 'Viene mostrato l\'elenco delle directory salvate; al momento non è possibile verificare i permessi.',

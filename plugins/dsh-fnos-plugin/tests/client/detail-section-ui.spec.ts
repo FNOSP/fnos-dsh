@@ -66,6 +66,33 @@ describe('配置区不再折叠，内容常驻', () => {
   })
 })
 
+describe('授权目录：打开按钮与路径省略', () => {
+  it('每个目录都有「打开」按钮（只读目录也能浏览）', () => {
+    /*
+      「打开」对每个目录都有意义——包括只读的应用共享目录：用户想确认目录里
+      有什么，不该被「不能取消授权」顺带禁掉浏览。
+    */
+    const CARD = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+    expect(CARD).toContain("t('open')")
+    expect(CARD).toContain('openDirectory')
+    expect(CARD).toContain('openFnosFileManager')
+    // 用 openFileManager 而不是 openFile：后者按文件类型交给默认应用，对目录无意义。
+    expect(CARD).not.toContain('sdk.openFile(')
+  })
+
+  it('路径用 Semi Typography 省略 + tooltip，且有最大宽度', () => {
+    // 自写省略号只有原生 title：延迟约 1 秒、样式不受控、没截断时也会弹。
+    const CARD = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+    expect(CARD).toContain('ellipsis={{ showTooltip: true }}')
+    expect(CARD).not.toContain('title={directory.semanticPath}')
+
+    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-authorized-path {'))
+    const body = rule.slice(0, rule.indexOf('}'))
+    expect(body).toContain('max-width')
+    expect(body).toContain('min-width: 0')
+  })
+})
+
 describe('授权目录卡片：不渲染重复标题', () => {
   it('卡片里没有标题行（分组名已在左侧菜单）', () => {
     /*

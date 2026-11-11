@@ -1,10 +1,11 @@
 /** Settings card for the fnOS shared-directory authorization list. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshModal } from '@tnnevol/dsh-semi-ui'
+import { DshModal, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { diagnosePickerResult, isPickerCancellation, isPickerNoSelection, logPickerSdkEvent, logPickerSdkValue } from '../client/input-references/picker-result.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
+import { openFnosFileManager } from '../client/services/file-manager.ts'
 import {
   DirectoryRequestError,
   requestAuthorizedDirectories,
@@ -17,6 +18,14 @@ import {
 } from '../contracts/authorized-directories-contract.ts'
 
 type Translate = (key: FnosLocaleKey) => string
+
+/**
+ * Semi 的 `Typography.Text`。
+ *
+ * `@tnnevol/dsh-semi-ui` 把整个 Typography 作为命名空间对象导出，这里只需要
+ * `Text` 一个变体——解构出来用，避免每次写 `<DshTypography.Text>`。
+ */
+const DshTypographyText = DshTypography.Text
 
 const AUTHORIZED_DIRECTORY_LOG_PREFIX = '[dsh-fnos][authorized-directories]'
 
@@ -114,6 +123,8 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
   const [state, setState] = useState<LoadState>({ status: 'idle', directories: [] })
   const [busy, setBusy] = useState(false)
   const [pendingDeletePath, setPendingDeletePath] = useState<string>()
+  /** 正在打开哪个目录（按路径区分，避免多行同时转圈）。 */
+  const [openingPath, setOpeningPath] = useState<string>()
   const [validateNotice, setValidateNotice] = useState<string>()
   /**
    * 最近一次加载到的目录列表。
@@ -152,6 +163,27 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         message: error instanceof Error ? error.message : undefined,
       })
       setState(current => ({ status: 'error', directories: current.directories, code: errorMessage(error, t, 'load') }))
+    }
+  }, [t])
+
+  /**
+   * 在 NAS 文件管理器里打开这个目录。
+   *
+   * 用 `openFileManager` 而不是 `openFile`：后者按文件类型交给系统默认应用，
+   * 对目录没有意义。失败时提示而不静默——iframe SDK 未就绪时调用是空操作，
+   * 静默失败会让用户以为「按钮坏了」。
+   *
+   * @param path - 目录的原始绝对路径（不是展示用的 `semanticPath`）。
+   */
+  const openDirectory = useCallback(async (path: string): Promise<void> => {
+    setOpeningPath(path)
+    try {
+      await openFnosFileManager(path, () => createTrimApp())
+      setValidateNotice(undefined)
+    } catch (error) {
+      setValidateNotice(error instanceof Error && error.message !== '' ? error.message : t('openDirectoryFailed'))
+    } finally {
+      setOpeningPath(undefined)
     }
   }, [t])
 
@@ -319,7 +351,31 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
             <ul className="dsh-fnos-authorized-path-list">
               {state.directories.map(directory => (
                 <li key={directory.path} className="dsh-fnos-authorized-path-row">
-                  <span title={directory.semanticPath} className="dsh-fnos-authorized-path">{directory.semanticPath}</span>
+                  {/*
+                    路径用 Semi 的 Typography ellipsis，而不是自己写 `text-overflow`。
+
+                    与命令行那处同理：自带 tooltip、只在真的被截断时才提示、跟随主题。
+                    路径很容易长到超出卡片宽度（`存储空间 2/@apphome/fn-deepseek-harness`
+                    这类），自写省略号只有原生 `title`——延迟约 1 秒、样式不受控。
+                  */}
+                  <DshTypographyText
+                    className="dsh-fnos-authorized-path"
+                    ellipsis={{ showTooltip: true }}
+                  >
+                    {directory.semanticPath}
+                  </DshTypographyText>
+                  {/*
+                    「打开」对每个目录都有意义——包括只读的应用共享目录：用户想确认
+                    目录里到底有什么，不该被「不能取消授权」顺带禁掉浏览。
+                  */}
+                  <button
+                    type="button"
+                    className="dsh-fnos-authorized-button dsh-fnos-authorized-button--open"
+                    disabled={busy || openingPath === directory.path}
+                    onClick={() => { void openDirectory(directory.path) }}
+                  >
+                    {t('open')}
+                  </button>
                   {directory.removable ? (
                     <button type="button" className="dsh-fnos-authorized-button dsh-fnos-authorized-button--danger" disabled={busy} onClick={() => { setPendingDeletePath(directory.path) }}>
                       {t('delete')}

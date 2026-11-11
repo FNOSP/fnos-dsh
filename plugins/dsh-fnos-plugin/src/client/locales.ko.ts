@@ -56,6 +56,8 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   pickFailed: 'fnOS 디렉터리 선택기를 열 수 없습니다.',
   permissionDenied: '이 인가 디렉터리 작업을 완료할 수 없습니다.',
   sharedDirectory: '앱 공유 디렉터리',
+  open: "열기",
+  openDirectoryFailed: "폴더를 열 수 없습니다.",
   originNotTrusted: '이 브라우저 출처는 DSH Web 서버에서 신뢰하지 않습니다.',
   unavailable: '이 환경에서는 fnOS 인가 API를 사용할 수 없습니다.',
   validateUnavailable: '저장된 디렉터리 목록을 표시하고 있습니다. 지금은 권한을 확인할 수 없습니다.',

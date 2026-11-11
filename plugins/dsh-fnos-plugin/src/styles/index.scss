@@ -382,14 +382,29 @@ img.dsh-fnos-file-manager-icon {
   background: var(--dsw-alias-bg-layer-1);
 }
 
+/*
+ * 路径文本：**留出右侧按钮的位置、并给一个最大宽度**。
+ *
+ * 省略本身交给 Semi 的 Typography（`ellipsis={{ showTooltip: true }}`），它负责
+ * 截断判断与 tooltip；这里只限定它最多占多宽，以及用等宽字体让路径可读。
+ *
+ * `flex: 1 1 auto` + `min-width: 0` 让它吃掉剩余空间；`max-width` 防止极宽弹框下
+ * 路径拉得过长、把右侧按钮推到视线外。
+ */
 .dsh-fnos-authorized-path {
+  flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
+  max-width: 520px;
   color: var(--dsw-alias-label-primary);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+/* 「打开」是次要动作：描边按钮，与红色的「取消授权」区分层级。 */
+.dsh-fnos-authorized-button--open {
+  flex: 0 0 auto;
+  border: 1px solid var(--dsw-alias-border-l2);
+  color: var(--dsw-alias-label-primary);
 }
 
 .dsh-fnos-authorized-read-only {
