@@ -28,6 +28,41 @@ interface ProfileManifest {
 }
 
 /**
+ * 判断一个包是否为 bundle（`dsh.bundle.patch` 存在，与官方 `bundleManifest` 同判据）。
+ * @param profile - profile 目录。
+ * @param name - 包名。
+ * @returns 是否 bundle。
+ */
+async function isBundlePackage(profile: string | undefined, name: string): Promise<boolean> {
+  if (profile === undefined) return false
+  try {
+    const manifest = JSON.parse(await readFile(join(profile, 'node_modules', ...name.split('/'), 'package.json'), 'utf8')) as {
+      dsh?: { bundle?: { patch?: unknown } }
+    }
+    return typeof manifest.dsh?.bundle?.patch === 'string'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 读 profile 选中的 bundle 列表。
+ * @param profile - profile 目录。
+ * @returns 包名列表。
+ */
+async function readBundleSelection(profile: string | undefined): Promise<readonly string[]> {
+  if (profile === undefined) return []
+  try {
+    const manifest = JSON.parse(await readFile(join(profile, 'package.json'), 'utf8')) as {
+      dsh?: { profile?: { bundles?: string[] } }
+    }
+    return manifest.dsh?.profile?.bundles ?? []
+  } catch {
+    return []
+  }
+}
+
+/**
  * 读一个已安装包的元信息。
  * @param profile - profile 目录。
  * @param name - 包名。
@@ -98,10 +133,21 @@ export async function readInstalledPlugins(
   const base = await Promise.all(names.map(name => readPlugin(profileDirectory, name, bundledNames)))
 
   /*
-    启用状态来自 profile 的 patch（`disabled: true`）。一个包可能对应多条组合条目
-    （服务端与客户端分开挂载），因此**全部条目都 disabled 才算这个包被禁用**。
+    启用状态有**两条**判据，与官方的 bundle/entry 分工一致：
+
+    1. **bundle 型插件**（`package.json` 有 `dsh.bundle.patch`）：看它是否在
+       profile 的 `dsh.profile.bundles` 数组里。装了但没选进 bundles = 未启用。
+    2. 普通插件：看 patch 里是否全部条目都 `disabled: true`。
+
+    真机踩到：`dsh-plugin-wallpaper-engine` 在 dependencies 里、但**不在 bundles**
+    数组里（即未启用），早前只查 patch 就把它显示成了「启用」。
   */
   const withEnabled = await Promise.all(base.map(async plugin => {
+    const bundled = await isBundlePackage(profileDirectory, plugin.name)
+    if (bundled) {
+      const selected = await readBundleSelection(profileDirectory)
+      return { ...plugin, enabled: selected.includes(plugin.name) }
+    }
     const entries = await readPackageEntries(plugin.name)
     if (entries.length === 0) return plugin
     return { ...plugin, enabled: entries.some(entry => entry.enabled) }

@@ -143,6 +143,20 @@ describe('禁用：entry id 解析与去重', () => {
   })
 })
 
+describe('启用状态的两条判据', () => {
+  it('bundle 型插件看它是否在 dsh.profile.bundles 里', () => {
+    /*
+      真机踩到：`dsh-plugin-wallpaper-engine` 在 dependencies 里、但**不在 bundles**
+      数组里（即未启用），而早前只查 patch 就把它显示成了「启用」，于是点开关
+      看起来毫无反应（其实是「已禁用 → 想启用」这一步写错了分支）。
+    */
+    const SRC = readFileSync(new URL('../../src/host/installed-plugins.ts', import.meta.url), 'utf8')
+    expect(SRC).toContain('isBundlePackage')
+    expect(SRC).toContain('readBundleSelection')
+    expect(SRC).toContain('selected.includes(plugin.name)')
+  })
+})
+
 describe('bundle 与普通插件走不同路径（复用官方实现）', () => {
   it('bundle 改 package.json 的 dsh.profile.bundles', () => {
     /*
