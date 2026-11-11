@@ -229,6 +229,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   pluginInstallFailed: "설치 실패",
   pluginInstallWaiting: "pnpm 출력을 기다리는 중…",
   pluginInstallAction: "설치",
+  pluginUpdateAction: "업데이트",
   pluginDisabled: "비활성화됨",
   uninstall: "제거",
   expand: "펼치기",

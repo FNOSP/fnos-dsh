@@ -319,7 +319,8 @@ describe('卡片式界面', () => {
     expect(PANEL).toContain('DshSwitch')
     expect(PANEL).toContain('toggleEnabled')
     expect(PANEL).toContain("t('uninstall')")
-    expect(PANEL).toContain("t('pluginInstallAction')")
+    // 现在是「更新」，且文案在 tooltip 里。
+    expect(PANEL).toContain("t('pluginUpdateAction')")
   })
 
   it('内置插件不允许卸载（删了要重装整个应用才能恢复）', () => {
@@ -343,12 +344,19 @@ describe('卡片式界面', () => {
     expect(block).toContain('checked={!disabled}')
   })
 
-  it('卸载是无背景的边框按钮，且带图标', () => {
+  it('更新与卸载都是图标按钮，文案进 tooltip', () => {
+    /*
+      同档的次要动作用文字按钮会让一行里堆两个大色块；图标 + tip 保住可读性。
+      `aria-label` 必须有：图标按钮没有可见文本。
+    */
     const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
-    const idx = PANEL.indexOf("t('uninstall')")
-    const around = PANEL.slice(Math.max(0, idx - 500), idx)
-    expect(around).toContain('theme="outline"')
-    expect(around).toContain('lucide:trash')
+    for (const [key, icon] of [['pluginUpdateAction', 'lucide:download'], ['uninstall', 'lucide:trash']]) {
+      const idx = PANEL.indexOf(`content={t('${key}')}`)
+      expect(idx).toBeGreaterThan(-1)
+      const block = PANEL.slice(idx, idx + 500)
+      expect(block).toContain(icon)
+      expect(block).toContain(`aria-label={t('${key}')}`)
+    }
   })
 
   it('开关固定宽度，两种状态同宽', () => {

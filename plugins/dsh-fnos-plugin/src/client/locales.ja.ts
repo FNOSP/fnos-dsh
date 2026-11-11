@@ -229,6 +229,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   pluginInstallFailed: "インストール失敗",
   pluginInstallWaiting: "pnpm の出力を待っています…",
   pluginInstallAction: "インストール",
+  pluginUpdateAction: "更新",
   pluginDisabled: "無効",
   uninstall: "アンインストール",
   expand: "展開",

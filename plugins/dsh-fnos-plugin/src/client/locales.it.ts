@@ -220,6 +220,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   pluginInstallFailed: "Installazione non riuscita",
   pluginInstallWaiting: "In attesa dell output di pnpm…",
   pluginInstallAction: "Installa",
+  pluginUpdateAction: "Aggiorna",
   pluginDisabled: "Disattivato",
   uninstall: "Disinstalla",
   expand: "Espandi",

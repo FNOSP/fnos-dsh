@@ -103,6 +103,7 @@ const ICON_NAMES = [
   'lucide:plug',
   'lucide:chevron-right',
   'lucide:cpu',
+  'lucide:download',
   'lucide:memory-stick',
   'lucide:hard-drive',
   'lucide:arrow-down',

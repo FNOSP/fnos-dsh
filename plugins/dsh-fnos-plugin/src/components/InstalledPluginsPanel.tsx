@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshButton, DshModal, DshSwitch, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
+import { DshModal, DshSwitch, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
 import { PluginInstallDialog } from './PluginInstallDialog.tsx'
@@ -241,35 +241,39 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                   onChange={next => { void toggleEnabled(plugin.name, next) }}
                 />
                 <div className="dsh-fnos-card-action-buttons">
+                  {/*
+                    更新是图标按钮、文案进 tip：与「卸载」同档的次要动作，
+                    文字按钮会让一行里堆两个大色块。
+                  */}
                   {plugin.updateAvailable === true ? (
-                    <DshButton
-                      htmlType="button"
-                      size="small"
-                      theme="light"
-                      type="primary"
-                      disabled={toggling === plugin.name}
-                      onClick={() => { setInstalling(plugin.name) }}
-                    >
-                      {t('pluginInstallAction')}
-                    </DshButton>
+                    <DshTooltip content={t('pluginUpdateAction')}>
+                      <button
+                        type="button"
+                        className="dsh-fnos-icon-button"
+                        aria-label={t('pluginUpdateAction')}
+                        disabled={toggling === plugin.name}
+                        onClick={() => { setInstalling(plugin.name) }}
+                      >
+                        <IconifyIcon name="lucide:download" />
+                      </button>
+                    </DshTooltip>
                   ) : null}
                   {/*
                     内置插件不允许卸载：它是应用的组成部分，删掉之后能力缺口无法
                     通过「重新安装插件」恢复（要重装整个应用）。
                   */}
                   {plugin.bundled ? null : (
-                    <DshButton
-                      htmlType="button"
-                      size="small"
-                      className="dsh-fnos-card-uninstall"
-                      theme="outline"
-                      type="danger"
-                      icon={<IconifyIcon name="lucide:trash" />}
-                      disabled={toggling === plugin.name}
-                      onClick={() => { setRemoving(plugin.name) }}
-                    >
-                      {t('uninstall')}
-                    </DshButton>
+                    <DshTooltip content={t('uninstall')}>
+                      <button
+                        type="button"
+                        className="dsh-fnos-icon-button dsh-fnos-icon-button--danger"
+                        aria-label={t('uninstall')}
+                        disabled={toggling === plugin.name}
+                        onClick={() => { setRemoving(plugin.name) }}
+                      >
+                        <IconifyIcon name="lucide:trash" />
+                      </button>
+                    </DshTooltip>
                   )}
                 </div>
               </div>
