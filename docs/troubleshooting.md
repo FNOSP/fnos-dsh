@@ -81,3 +81,42 @@ chmod 600 "$DSH_HOME/codebuddy-auth.json"        # 如存在（下架前装过 C
 - `/plugins/events`
 
 同时确认浏览器开发者工具中的响应类型与请求路径，避免将 API 或 SSE 请求错误返回为 HTML。
+
+## 终端里没有 `DSH_HOME`
+
+在 DSH 会话内新建的终端里执行 `echo $DSH_HOME` 得到空值；依赖该变量的命令（如
+`dsh plugin`）因此找不到 profile。
+
+**这是 DSH 上游的设计缺口，不是本应用的缺陷。**
+
+传递链路的实际情况：
+
+1. 网关用 `buildDshRuntimeEnv`（`packages/fnos-gateway/src/config/dsh-runtime-env.ts`）
+   把 `DSH_HOME` 放进 DSH Web 进程的环境，这一步是**正常**的；
+2. 终端的 PTY 环境只由官方 backend 的 `childEnvironment()` 决定
+   （`@deepseek-ai/dsh-terminal-bash`），它返回 `TERM` / `PS1` / `DSH_SESSION_ID` 等
+   少量覆盖，**不含 `DSH_HOME`**；
+3. 基础环境来自 `childEnv()` → `scrubbedParentEnv()`
+   （`@deepseek-ai/dsh-subprocess`），后者**剔除所有 `DSH_*` 前缀变量**：
+
+   ```ts
+   // packages/subprocess/subprocess/src/types.ts
+   /** Namespace prefix reserved for DeepSeek Harness-managed child environment facts. */
+   export const DSH_ENV_PREFIX = 'DSH_' as const
+   ```
+
+   `DSH_*` 是上游保留的命名空间，子进程不得继承，必须经 `DshEnvironment` 显式传入。
+   而终端侧的 `childEnvironment()` 只显式传了两个 session id。
+
+结论：变量在进入 DSH 后、创建终端时被上游过滤掉了。本应用无法通过配置修正——终端
+backend 的 `Config` 没有 env 注入项，`startupSession()` 也只发送空内容，没有注入点。
+
+**可选的修复方向**（暂未实施，待上游支持或按需再评估）：
+
+| 方案 | 做法 | 代价 |
+| --- | --- | --- |
+| 替换终端 backend | 用插件在 profile 的 `cordis.patch.yml` 里禁掉官方 `optional-terminal-bash`，换成自己实现的 backend，构造环境时带上 `DSH_HOME` | 需实现并维护一个替代 backend |
+| 写 shell rc | 启动前在 profile 目录写 `.bashrc` 之类，内容 `export DSH_HOME=...`，由 shell 自行加载 | 改动小，但依赖 shell 读取 rc，且只覆盖交互式 shell |
+
+排查时可用 `dsh --version` 之外的方式确认当前实例的 home：Web 端「飞牛 OS 设置 →
+运行」里显示的路径即为 `DSH_HOME`。
