@@ -205,7 +205,21 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
    ```
 
    可复用实现见 `packages/dsh-e2e-kit/src/upload-input.ts` 的 `injectUpload()`。
-3. **时序：打开「手动安装」对话框之后再注入。** 对话框未打开时注入，`input.files` 有值但应用不消费（不弹安全提示），之后也难以补救。**不需要**点「从电脑上传」切换来源，也不需要拦 `input.click()`——那两件事只在你走 CDP `upload_file`（依赖无障碍树取 uid）时才相关，而纯 JS 路线完全绕开。
+3. **时序：先点一次「从电脑上传」，再开对话框注入。**
+
+   2026-11-12 同一天内两次实测的差异，最终定位到这一步：
+
+   | 做法 | 结果 |
+   | --- | --- |
+   | 直接往常驻 input 注入 | `input.files` 有值（`filesAfter: 1`），但**应用不消费**、不弹安全提示 |
+   | **先点一次「从电脑上传」→ 再开对话框 → 注入** | `filesAfter: 0`（应用已接管）、安全提示弹出 |
+
+   「点一次」的作用是把应用切到「电脑上传」形态、给那枚 input 接上处理器。
+   点它会打开一次系统文件选择器，**关掉即可**（不需要真选文件）；它同时会
+   卸载当前对话框，所以顺序是：点来源 → 对话框消失 → 重新点「手动安装」→ 注入。
+
+   注意：**仍然不需要拦 `input.click()`，也不需要改 DOM 可见性**——那两件事是
+   CDP `upload_file` 路线的限制，与「点来源」是两回事。
 4. **页面里还有一个 `webkitdirectory` 的目录 input**，必须按属性排除，否则会注进目录选择器。
 5. **事件序列必须完整**：`pointerdown → pointerup → click → input → change`。只派发 `input`/`change` 时 fnOS 收不到文件——不弹安全提示，`input.files` 也不会被清空。应用在 `change` 之外还靠指针事件判定「这次是用户选的」。
 
@@ -270,7 +284,7 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 | 模型报 `502` / `Connection error` | 上游模型瞬时故障 | 重试；flash 模型做长规划容易翻车，换更强的模型 |
 | 上传步骤 `429` / `502 额度已用尽` | 视觉模型额度或频率限制 | 改用 `dsh.uploadFile`（§4.4，零模型调用） |
 | 上传步骤 `Connection lost` / `Bridge call timeout` | 扩展断连或单次调用超 30 秒 | 同上改用 `dsh.uploadFile`；单次页面脚本不要长等 |
-| 注入后不弹安全提示（`input.files` 却有值） | **注入时「手动安装」对话框还没打开**。应用是在对话框挂载后才接上处理器的；先开对话框再注入即可（§4.4 事实 3）。与「是否切上传来源」无关——那是 CDP `upload_file` 路线的说法，纯 JS 路线不需要 |
+| 注入后不弹安全提示（`input.files` 却有值，`filesAfter` 停在 1） | **没有先点一次「从电脑上传」**。那一步把应用切到「电脑上传」形态并给 input 接上处理器；不点它，文件塞进去也没人消费。点完会弹一次系统选择器（关掉即可）并卸载对话框，所以要重新打开「手动安装」再注入（§4.4 事实 3） |
 | 注入后不弹安全提示（来源已切） | 事件序列不完整，或注入到了目录 input | 补齐 `pointerdown → pointerup → click → input → change`；排除 `webkitdirectory` |
 | 报「既无『手动安装』也无『应用中心』入口」 | 页面刚被导航回目标地址、SPA 还没渲染完 | 轮询等待（§4.4 事实 2），不要一次性查找 |
 | 桥端口 `EADDRINUSE 126.0.0.1:3766` | 另一个会话/进程占着桥 | 先确认是谁的再决定是否接管；不要直接杀 |
