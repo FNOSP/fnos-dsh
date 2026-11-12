@@ -514,3 +514,44 @@ describe('fnOS 配置弹框', () => {
     expect(LOCALES).toContain("dependencyRepairRun: '修复'")
   })
 })
+
+describe('授权目录加载态：用骨架屏而不是文字提示', () => {
+  const CARD_SRC = readFileSync(new URL('../../src/components/AuthorizedDirectoriesCard.tsx', import.meta.url), 'utf8')
+  const SCSS_SRC = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+
+  it('加载中渲染骨架行，不再是一句「正在加载…」', () => {
+    // 文字提示把「等待」变成一次阅读；骨架屏直接占住内容将要出现的位置。
+    expect(CARD_SRC).toContain('DshSkeleton')
+    expect(CARD_SRC).toContain('dsh-fnos-authorized-skeleton')
+    // 旧的纯文字分支必须消失。
+    expect(CARD_SRC).not.toContain("<p className=\"dsh-fnos-authorized-body\">{t('loading')}</p>")
+  })
+
+  it('骨架复用真实行的容器类，加载完成时行高不跳', () => {
+    expect(CARD_SRC).toContain('dsh-fnos-authorized-path-row dsh-fnos-authorized-skeleton-row')
+    expect(SCSS_SRC).toContain('.dsh-fnos-authorized-skeleton-row')
+    // 真实行是 10px 内边距 + 20px 行高，骨架条要留出同样的高度。
+    expect(SCSS_SRC).toMatch(/\.dsh-fnos-authorized-skeleton-row \{[\s\S]{0,120}min-height: 42px/u)
+  })
+
+  it('骨架对读屏可感知', () => {
+    // 骨架屏没有可见文字，必须补一条可朗读的状态说明，否则读屏只会报「空」。
+    expect(CARD_SRC).toContain('aria-busy="true"')
+    expect(CARD_SRC).toContain('dsh-fnos-visually-hidden')
+    expect(SCSS_SRC).toContain('.dsh-fnos-visually-hidden')
+  })
+
+  it('动画由组件承担，不自造 keyframes', () => {
+    // Semi 的 Skeleton 自带 shimmer；自造动画容易与主题色、减少动效偏好脱节。
+    expect(SCSS_SRC).not.toMatch(/@keyframes\s+dsh-fnos-skeleton/u)
+  })
+
+  it('骨架必须包在 `<Skeleton active>` 里，否则不动', () => {
+    /*
+      shimmer 的选择器是 `.semi-skeleton-active .semi-skeleton-title` 这类**后代**
+      规则：`active` 只有根组件有，`Title` / `Button` 子组件没有。只写子组件时
+      骨架条有底色但 `animationName` 是 `none`——看起来就是几块静止的灰条。
+    */
+    expect(CARD_SRC).toContain('<DshSkeleton active>')
+  })
+})

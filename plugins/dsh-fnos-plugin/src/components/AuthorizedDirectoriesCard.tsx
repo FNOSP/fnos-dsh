@@ -1,7 +1,7 @@
 /** Settings card for the fnOS shared-directory authorization list. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshModal, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
+import { DshModal, DshSkeleton, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { diagnosePickerResult, isPickerCancellation, isPickerNoSelection, logPickerSdkEvent, logPickerSdkValue } from '../client/input-references/picker-result.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
@@ -487,7 +487,34 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
               </button>
             </DshTooltip>
           </div>
-          {state.status === 'loading' ? <p className="dsh-fnos-authorized-body">{t('loading')}</p> : null}
+          {/*
+            加载态用**骨架屏**，不是一句「正在加载…」的文字。
+
+            文字提示的问题是把「等待」变成一次阅读：用户得先读那句提示，才知道
+            列表还没出来；而骨架屏直接占住内容将要出现的位置，等待期间页面结构
+            不跳动，加载完成后是同位置的替换。
+          */}
+          {state.status === 'loading' ? (
+            <div className="dsh-fnos-authorized-skeleton" aria-busy="true" aria-live="polite">
+              <span className="dsh-fnos-visually-hidden">{t('loading')}</span>
+              {/*
+                必须包在 `<DshSkeleton active>` 里。
+
+                shimmer 动画的选择器是 `.semi-skeleton-active .semi-skeleton-title`
+                这类**后代**规则——`active` 是根组件的属性，`Title` / `Button`
+                这些子组件没有自己的 `active`。只写子组件的话，骨架条有底色但
+                **不动**（实测 `animationName: none`），看起来就是几块静止的灰条。
+              */}
+              <DshSkeleton active>
+                {[0, 1, 2].map(index => (
+                  <div key={index} className="dsh-fnos-authorized-path-row dsh-fnos-authorized-skeleton-row">
+                    <DshSkeleton.Title className="dsh-fnos-authorized-skeleton-bar" />
+                    <DshSkeleton.Button className="dsh-fnos-authorized-skeleton-button" />
+                  </div>
+                ))}
+              </DshSkeleton>
+            </div>
+          ) : null}
           {state.status === 'error' ? <p className="dsh-fnos-authorized-error">{state.code ?? t('loadFailed')}</p> : null}
           {validateNotice === undefined ? null : <p className="dsh-fnos-authorized-body">{validateNotice}</p>}
           {state.status !== 'loading' && state.directories.length === 0 ? <p className="dsh-fnos-authorized-body">{t('empty')}</p> : null}
