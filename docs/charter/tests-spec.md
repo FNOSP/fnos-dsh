@@ -384,20 +384,62 @@ Midscene 路线用共享包的 `dsh.uploadFile` 节点：Node 侧读本地文件
 4. **`upload_file` 注入**：对第 2 步被请求的那枚 input 注入。
 
 ```js
-// ① 拦 click：既避免系统选择器，又标出「应用真正请求的那一枚」
-HTMLInputElement.prototype.click = function () { this.dataset.dshRequested = '1' }
+// ① 拦 click：只在该元素上打补丁，不动原型（动原型是全局副作用，见下方警告）
+const inputs = [...document.querySelectorAll('input[type="file"]:not([webkitdirectory])')]
+for (const el of inputs) el.click = () => { el.dataset.dshRequested = '1' }
 // ② 切来源
 ;[...document.querySelectorAll('span.semi-button-content')]
   .filter(e => e.textContent.trim() === '从电脑上传').pop().closest('button').click()
 // ③ 非目录 input 上会带上 data-dsh-requested="1"
 ```
 
+> **不要改 `HTMLInputElement.prototype.click`。** 那是全局替换：页面里所有 `<input>` 的
+> `click()` 都会被劫持，而补丁一旦没恢复（脚本抛错、后续流程中途 return），fnOS 自身的
+> 上传与会话逻辑就会静默失效——实测表现为对话框异常卸载、页面跳回 `/login`。
+> 正确做法是**只给目标元素装一个实例属性**（如上），并记录原函数以便恢复：
+>
+> ```js
+> const restore = inputs.map(el => [el, el.click])
+> // …用完（或注入失败）时：
+> for (const [el, original] of restore) if (original) el.click = original
+> ```
+>
+> 元素级补丁随 DOM 节点销毁自动失效，也不会影响其它 `<input>`。
+
 **两条必须满足的前置条件**（缺任一都会失败）：
 
 | 条件 | 实测现象 |
 | --- | --- |
-| FPK 必须放在 **`os.tmpdir()`** 下 | 放仓库路径或 `~/.dsh/profiles/desktop` 都会被 `Access denied ... not within any of the configured workspace roots` 拒掉 |
-| input 必须**可被快照收录** | 它常驻在 `hidden` 祖先里、尺寸 `0×0`，快照不收录就取不到 uid。需 `document.body.appendChild()` 并给可见尺寸后才拿得到 uid |
+| FPK 必须放在 **`os.tmpdir()`** 下 | 放仓库路径或 `~/.dsh/profiles/desktop` 都会被 `Access denied ... not within any of the configured workspace roots` 拒掉。注意 macOS 上 `/tmp` 会解析成 `/private/tmp`，同样被拒——要用 `node -e 'console.log(require("os").tmpdir())'` 的**真实返回值**，别写 `/tmp` |
+| input 必须**留在布局里且非 `disabled`** | `display: none` 的元素被无障碍树排除，快照里取不到 uid，`upload_file` 无从下手。`disabled` 的元素同理不会进入快照。见下表的实测对照 |
+
+**注入用 input 的可见性：实测对照（2026-11-12，NAS 192.168.0.17）**
+
+同一页面同时挂三枚 `input[type=file]`，对应用中心「从电脑上传」的注入路径逐项验证：
+
+| 做法 | 快照能取到 uid | `upload_file` 结果 | 结论 |
+| --- | --- | --- | --- |
+| `display: none` | ❌ 被 a11y 树排除 | ❌ 无 uid 可注入 | **不可用** |
+| `display: none` + `disabled` | ❌ | ❌ | **不可用** |
+| `position: fixed; width:1px; height:1px; opacity:0` | ✅ | ✅ 文件成功落入（`files.length === 1`） | **推荐** |
+
+所以要「看不见但不影响注入」，用**尺寸压到 1px + `opacity: 0`**，不要用 `display: none`。
+`disabled` 也不要加——它同样会让元素退出快照。
+
+实测脚本（把目标 input 挪到 `body` 下再压成 1px）：
+
+```js
+const el = [...document.querySelectorAll('input[type="file"]:not([webkitdirectory])')]
+  .find(e => e.dataset.dshRequested === '1')
+document.body.appendChild(el)
+el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:0;padding:0'
+el.id = 'dsh-fpk-input'
+// 注入完成后 el.remove() 恢复现场
+```
+
+**`display:none` 会在两处同时失败，容易误判。** 一次实测里挂了三枚 input，快照只出现一枚
+「选择文件」——不是工具漏收，而是另外两枚 `display:none` 的确实不在无障碍树里。据此得出
+「快照不稳定」的结论是错的，真实原因是可见性。
 
 MCP 的 roots **只包含 `os.tmpdir()`**（连个人 profile 都不在其中），这是选临时目录而非
 仓库路径的原因；先把 FPK `cp` 过去再用：

@@ -39,6 +39,27 @@ describe('fnOS 配置弹框', () => {
     expect(LOCALES).toContain("configMenuEntry: '飞牛 OS'")
   })
 
+  it('入口高度按实测对齐设置行（不是抄官方源码的 42px）', () => {
+    /*
+      真机实测：本机 fnOS 上设置行是 32px、侧栏「更多」行是 36px，
+      而官方源码里写的是 42px。抄源码会得到一个高出一截的入口——两者紧贴在一起，
+      一眼就能看出来。这里钉住「以实测值为准」这条规则。
+
+      另一个易漏点：`Menu` 会给 anchor 包一层 flex 容器，容器高度不显式给就会
+      收缩到内容高度（实测 20px），把按钮一起压扁。所以 anchor 也必须写死高度。
+    */
+    const anchor = SCSS.slice(SCSS.indexOf('.dsh-fnos-footer-anchor {'))
+    const anchorBlock = anchor.slice(0, anchor.indexOf('\n}'))
+    expect(anchorBlock).toContain('height: 32px')
+    expect(anchorBlock).toContain('flex: none')
+
+    const trigger = SCSS.slice(SCSS.indexOf('.dsh-fnos-footer-trigger {'))
+    const triggerBlock = trigger.slice(0, trigger.indexOf('\n}'))
+    expect(triggerBlock).toContain('height: 32px')
+    // 抄官方源码的 42px 不该再出现。
+    expect(triggerBlock).not.toContain('height: 42px')
+  })
+
   it('折叠态与展开态都带无障碍名', () => {
     // 图标按钮没有可见文字，缺 aria-label 时读屏只会念「按钮」。
     expect(ENTRY).toContain('aria-label={t(\'configMenuEntry\')}')
