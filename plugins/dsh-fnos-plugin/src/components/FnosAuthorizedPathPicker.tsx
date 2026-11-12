@@ -23,7 +23,9 @@ import {
   DshIconFile as IconFile,
   DshIconFolder as IconFolder,
   DshIconFolderOpen as IconFolderOpen,
+  DshIconPlus as IconPlus,
   DshInput as Input,
+  DshTooltip as Tooltip,
   DshModal as Modal,
   DshPopconfirm as Popconfirm,
   DshToast as Toast,
@@ -834,18 +836,28 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       <div aria-hidden="true" className="dsh-fnos-path-panel-material" />
       <div className="dsh-fnos-path-panel-header">
         <span className="dsh-fnos-path-panel-title">{t('inputPickerTitle')}</span>
-        {/* 授权入口：唤起 fnOS 原生选择器，用户在那里确认目录权限。
-            用文案按钮而非图标：这个动作会打开一个系统窗口，图标说明不了它。
-            两个按钮都不设 `title`——原生气泡和面板自身的玻璃浮层风格不搭，
-            关闭按钮的无障碍名交给 `aria-label`。 */}
-        <button
-          type="button"
-          className="dsh-fnos-path-panel-new"
-          disabled={busy || authorizing}
-          onClick={() => { void authorizeDirectory() }}
-        >
-          {t('authorizeNewDirectory')}
-        </button>
+        {/*
+          授权入口：唤起 fnOS 原生选择器，用户在那里确认目录权限。
+
+          文案改成**图标 + Tooltip**：标题行右侧的空间有限，一个「新增授权」文字
+          按钮会把标题挤窄；而且它和旁边的关闭按钮是同一层级的头部动作，两个都是
+          图标时才成组。说明文字放进 Tooltip，`aria-label` 保留同一个文案——
+          图标按钮没有可见文字，缺了它读屏只会念「按钮」。
+
+          用 DshTooltip 而不是原生 `title`：原生气泡是浏览器自绘的浅灰直角方块，
+          与面板的玻璃磨砂浮层完全不是一套。
+        */}
+        <Tooltip content={t('authorizeNewDirectory')}>
+          <button
+            type="button"
+            className="dsh-fnos-path-panel-new"
+            aria-label={t('authorizeNewDirectory')}
+            disabled={busy || authorizing}
+            onClick={() => { void authorizeDirectory() }}
+          >
+            <IconPlus size="small" />
+          </button>
+        </Tooltip>
         <button
           type="button"
           className="dsh-fnos-path-panel-close"

@@ -649,18 +649,27 @@ img.dsh-fnos-file-manager-icon {
 }
 
 /* 标题栏的文案按钮：与图标按钮同高，宽度由文案撑开。 */
+/*
+ * 头部「新增授权」图标按钮。
+ *
+ * 与旁边的关闭按钮同一形态：正方形点击区、无边框无底色、悬停才出背景。
+ * 早前是文字按钮（`padding: 0 8px`），它会把标题行挤窄；文案改由 Tooltip 承担。
+ *
+ * `width` 与 `height` 都写 24px 而不是只靠 padding：图标按钮没有文字撑开，
+ * 少了宽度就只剩图标本身的 14px，点击区太小。
+ */
 .dsh-fnos-path-panel-new {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
+  width: 24px;
   height: 24px;
-  padding: 0 8px;
+  padding: 0;
   border: 0;
   border-radius: var(--dsw-radius-sm);
   background: transparent;
   color: var(--dsw-alias-label-secondary);
-  font-size: 12px;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;

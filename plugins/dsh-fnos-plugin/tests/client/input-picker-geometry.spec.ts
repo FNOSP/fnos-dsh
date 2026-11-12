@@ -214,16 +214,22 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(PANEL).toContain('listenFnosAppAuthResult')
   })
 
-  it('标题栏两个按钮都不用原生 title，授权用文案按钮', () => {
-    // 原生气泡是浅灰直角小方块，与面板的玻璃磨砂浮层风格冲突，因此标题栏的
-    // 授权与关闭都不挂 `title`；关闭按钮的无障碍名交给 `aria-label`。
+  it('标题栏两个按钮都是图标按钮，文案走 Tooltip 而非原生 title', () => {
+    /*
+      2026-11-12 变更：「新增授权」由文案按钮改为**图标 + Tooltip**。
+      理由是它和关闭按钮同属头部动作，两个都是图标才成组；文字按钮会把标题挤窄。
+
+      仍不用原生 `title`：原生气泡是浏览器自绘的浅灰直角小方块，与面板的玻璃
+      磨砂浮层不是一套。用 `DshTooltip`。
+    */
     const header = /className="dsh-fnos-path-panel-header"[\s\S]*?<\/div>/u.exec(PANEL)?.[0] ?? ''
     expect(header.length).toBeGreaterThan(0)
     expect(header).not.toContain('title=')
-    // 授权是「打开系统窗口」的重动作，图标说明不了，改用文案按钮。
+    // 授权：图标按钮 + Tooltip 文案 + 同文案的 aria-label。
     expect(header).toContain('dsh-fnos-path-panel-new')
-    expect(header).toContain("t('authorizeNewDirectory')")
-    expect(header).not.toContain('IconPlus')
+    expect(header).toContain('IconPlus')
+    expect(header).toContain("Tooltip content={t('authorizeNewDirectory')}")
+    expect(header).toContain("aria-label={t('authorizeNewDirectory')}")
     // 关闭仍是无障碍可认的图标按钮。
     expect(header).toContain('dsh-fnos-path-panel-close')
     expect(header).toContain("aria-label={t('inputPickerClose')}")
