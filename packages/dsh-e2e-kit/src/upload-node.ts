@@ -119,6 +119,11 @@ export const uploadFile = defineNode<
         if (requested) return requested;
         // fnOS 的「从电脑上传」是「隐藏 input + label 触发系统文件选择器」模式：
         // input 始终是 0×0 的隐藏元素，点按钮也不会新建 input。取第一个非目录的即可。
+        //
+        // **不要去「放开」祖先的 display**：fnOS 把这两枚 input 一起放在 .hidden
+        // 容器里，把容器改可见会连带放出同容器内的目录 input，页面上就多出一个
+        // 「选择文件」按钮。祖先样式属于页面，不属于调用方；隐藏只动目标元素本身
+        // （见 upload-input.ts）。
         const visible = all.find(i => { const r = i.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
         return visible ?? all[0];
       };

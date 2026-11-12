@@ -426,16 +426,27 @@ for (const el of inputs) el.click = () => { el.dataset.dshRequested = '1' }
 所以要「看不见但不影响注入」，用**尺寸压到 1px + `opacity: 0`**，不要用 `display: none`。
 `disabled` 也不要加——它同样会让元素退出快照。
 
-实测脚本（把目标 input 挪到 `body` 下再压成 1px）：
+实测脚本（**只动目标元素，不碰祖先**）：
 
 ```js
+// 用共享包的工具函数，它会保存并还原每一处改动
+const { prepareUploadInput } = await import('@tnnevol/dsh-e2e-kit')
 const el = [...document.querySelectorAll('input[type="file"]:not([webkitdirectory])')]
   .find(e => e.dataset.dshRequested === '1')
-document.body.appendChild(el)
-el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:0;padding:0'
-el.id = 'dsh-fpk-input'
-// 注入完成后 el.remove() 恢复现场
+const { dispose } = prepareUploadInput(el)
+// …用 CDP DOM.setFileInputFiles 注入…
+dispose()   // 逐条还原内联样式、id 与 aria-label
 ```
+
+如果手工写，等价做法是给目标元素设 `{position:fixed;width:1px;height:1px;opacity:.01;
+padding:0;border:0;margin:0;pointer-events:none}` 并记录原值以便还原。
+
+> **绝对不要动祖先的 `display`。** 2026-11-12 真机踩过：fnOS 把「从电脑上传」和
+> 「从 NAS 添加」两枚 input 放在同一个 `display:none` 容器里。为了让目标元素能被
+> 无障碍树收录而把容器改成 `block`，会**连带把同容器内的目录 input 一起放出来**——
+> 应用中心顶部凭空多出一个「选择文件」按钮，用户以为安装出错。
+> 祖先样式属于页面，不属于注入方；隐藏只改目标元素自身，且必须可还原。
+> 也不要把元素 `appendChild` 到 `body`：应用可能依赖它在原容器里接收事件。
 
 **`display:none` 会在两处同时失败，容易误判。** 一次实测里挂了三枚 input，快照只出现一枚
 「选择文件」——不是工具漏收，而是另外两枚 `display:none` 的确实不在无障碍树里。据此得出

@@ -68,6 +68,7 @@ export { assertInPage } from './assert-node.ts'
 export { actUntil as actUntilNode } from './act-node.ts'
 export { clickInPage } from './click-node.ts'
 export { uploadFile } from './upload-node.ts'
+export { prepareUploadInput, type PreparedUploadInput } from './upload-input.ts'
 export { readPageVerdict, wrapPageScript, type PageVerdict } from './page-script.ts'
 export {
   connectDesktopCdp,

@@ -199,6 +199,8 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 3. **「从电脑上传」是「隐藏 input + label」模式**：`input[type=file]` 常驻且一直是 `0×0`，点按钮**不会新建** input。但它 `0×0` 的同时还躺在布局里，所以走 Chrome MCP 时要先把它挪到 `body` 下并**给一个 1px 的可见尺寸**才拿得到 uid。
 
    **别用 `display: none` 隐藏它。** 2026-11-12 在同一台 NAS 上实测三枚 input 对照：`display:none`（无论加不加 `disabled`）都会被无障碍树排除、快照取不到 uid，`upload_file` 无从注入；而 `position:fixed; width:1px; height:1px; opacity:0` 仍留在布局里，能取到 uid 且文件成功落入。要「看不见」就用后一种。
+
+   **更别动祖先的 `display`。** 同一天真机踩过：fnOS 把「从电脑上传」与「从 NAS 添加」两枚 input 放在同一个 `display:none` 容器里，把容器改 `block` 会连带放出目录 input，应用中心顶部凭空多出一个「可见的『选择文件』按钮」。祖先样式属于页面。用 `packages/dsh-e2e-kit/src/upload-input.ts` 的 `prepareUploadInput()`：它只改目标元素并保存每一处改动，`dispose()` 逐条还原。
 4. **页面里还有一个 `webkitdirectory` 的目录 input**，必须按属性排除，否则会注进目录选择器。
 5. **事件序列必须完整**：`pointerdown → pointerup → click → input → change`。只派发 `input`/`change` 时 fnOS 收不到文件——不弹安全提示，`input.files` 也不会被清空。
 6. **单次页面脚本不能长等**：Bridge 单次调用上限 30 秒。把「开对话框」与「注入」分步，等待判定放到 Node 侧轮询（`expectText` + `timeoutMs` 就是干这个的）。
