@@ -555,3 +555,30 @@ describe('授权目录加载态：用骨架屏而不是文字提示', () => {
     expect(CARD_SRC).toContain('<DshSkeleton active>')
   })
 })
+
+describe('插件卡片：没有自备图标时用官方默认图形', () => {
+  const PANEL_SRC = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+  const SCSS_ALL = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+
+  it('复用官方的 PluginArtworkDefault，而不是自己复制一段 SVG', () => {
+    /*
+      DSH 自己的插件市场在图标缺失时用的就是它（`MarketIcon` 见
+      `ui-plugin-market/DiscoverSection.tsx`）。直接复用组件，官方改图形我们跟着变。
+    */
+    expect(PANEL_SRC).toContain('PluginArtworkDefault')
+    expect(PANEL_SRC).toContain("from '@deepseek-ai/dsh-client-ui-primitives'")
+    // 不要内联 svg 兜底图形。
+    expect(PANEL_SRC).not.toMatch(/plugin\.icon === undefined[\s\S]{0,80}<svg/u)
+  })
+
+  it('缺图标时仍然占位，不留空', () => {
+    // 早前是 `plugin.icon === undefined ? null`：卡片少了身份标识，和旁边排一起参差。
+    expect(PANEL_SRC).toContain('dsh-fnos-card-logo--default')
+    expect(PANEL_SRC).not.toContain('{plugin.icon === undefined ? null : (')
+  })
+
+  it('默认图形的盒子与真实 logo 一致', () => {
+    // 尺寸不同会让标题行基线在有无自备图标的插件之间跳动。
+    expect(SCSS_ALL).toMatch(/\.dsh-fnos-card-logo--default \{[\s\S]{0,200}display: inline-flex/u)
+  })
+})

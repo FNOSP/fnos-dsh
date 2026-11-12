@@ -23,6 +23,7 @@ import { SwitchWithLoading } from './SwitchWithLoading.tsx'
 import { notifyFailure, notifySuccess } from '../client/notify.ts'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import { FNOS_PLUGIN_ASSET_ROUTE, type InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
+import { PluginArtworkDefault } from '@deepseek-ai/dsh-client-ui-primitives'
 
 type Translate = (key: FnosLocaleKey) => string
 
@@ -186,16 +187,29 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                 哪是状态、哪是动作。
               */}
               <div className="dsh-fnos-card-title">
-                {/* 图标在名称左侧；没有 icon 字段时不占位。 */}
-                {plugin.icon === undefined ? null : (
-                  <img
-                    className="dsh-fnos-card-logo"
-                    src={pluginIconUrl(plugin.name, plugin.icon)}
-                    alt=""
-                    aria-hidden="true"
-                    loading="lazy"
-                  />
-                )}
+                {/*
+                  图标在名称左侧。没有自带 icon 的插件不能留空——卡片会缺一块
+                  身份标识，和旁边的插件排在一起显得参差。
+
+                  用官方 `PluginArtworkDefault`：DSH 自己的插件市场在没有图标时
+                  也是这个（`MarketIcon` 见 `ui-plugin-market/DiscoverSection.tsx`）。
+                  直接复用组件而不是复制那串 SVG，官方改了图形我们跟着变。
+                */}
+                {plugin.icon === undefined
+                  ? (
+                    <span className="dsh-fnos-card-logo dsh-fnos-card-logo--default" aria-hidden="true">
+                      <PluginArtworkDefault size={20} />
+                    </span>
+                    )
+                  : (
+                    <img
+                      className="dsh-fnos-card-logo"
+                      src={pluginIconUrl(plugin.name, plugin.icon)}
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                    />
+                    )}
                 {/*
                   名称用 `meta.title`（如「插件市场」），没有才退回包名。
                   单行省略交给 Typography：自带 tooltip，且只在真的被截断时提示。

@@ -2311,6 +2311,20 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   object-fit: contain;
 }
 
+/*
+ * 默认 logo 是 SVG 组件而不是 `<img>`，多一层 span 包着。
+ *
+ * 它自带配色（渐变），不需要圆角，也不该被 `object-fit` 影响；这里只负责和
+ * 真实 logo 占同样的盒子，让标题行的基线在有无自备图标的插件之间保持一致。
+ */
+.dsh-fnos-card-logo--default {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  overflow: visible;
+}
+
 /* 版本 + 状态徽标行：弱化显示，可换行。 */
 .dsh-fnos-card-meta {
   display: flex;
