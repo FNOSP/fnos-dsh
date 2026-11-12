@@ -330,7 +330,7 @@ img.dsh-fnos-file-manager-icon {
   padding: 4px 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 16px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
   color: var(--dsw-alias-label-primary);
   font: inherit;
   font-size: 13px;
@@ -386,7 +386,7 @@ img.dsh-fnos-file-manager-icon {
   padding: 10px 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 9px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
 }
 
 /*
@@ -575,7 +575,7 @@ img.dsh-fnos-file-manager-icon {
   padding: 9px 10px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
   color: var(--dsw-alias-label-primary);
   font: 13px/20px ui-monospace, SFMono-Regular, Menlo, monospace;
 }
@@ -608,7 +608,7 @@ img.dsh-fnos-file-manager-icon {
   height: 28px;
   border: 0;
   border-radius: 7px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
 
@@ -933,7 +933,13 @@ img.dsh-fnos-file-manager-icon {
     }
   }
 
-  /* 输入框：白底 + 细描边，不用主题的浅灰填充（fnOS 弹框里是白底）。 */
+  /*
+    输入框：白底 + 细描边，不用主题的浅灰填充（fnOS 弹框里是白底）。
+
+    这里**要用** `bg-layer-1`：浅色下它是 `#fff`，正好是想要的白底。
+    别处不能用的原因是「与弹框同色、区分不出卡片」，但输入框要的正是「与弹框
+    一致的白」。
+  */
   .dsh-fnos-create-form .semi-input-wrapper {
     height: 36px !important;
     padding: 0 !important;
@@ -1489,6 +1495,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   gap: 12px;
 }
 
+
 /* 端口行：三项等宽排开，值用等宽数字，避免秒级刷新时左右抖动。 */
 .dsh-fnos-runtime-ports {
   display: grid;
@@ -1502,14 +1509,26 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     gap: 2px;
     padding: 8px 10px;
     border-radius: 8px;
-    background: var(--dsw-alias-bg-layer-1, rgb(0 0 0 / 3%));
+    /*
+      卡片底色必须**两种主题各自能区分于弹框底**，实测两组变量互补：
+
+      | 变量 | 浅色 | 深色 |
+      | --- | --- | --- |
+      | `bg-layer-*` | 全是 `#fff`（与弹框同色✗） | `#232324`/`#2c2c2e`（可用✓） |
+      | `interactive-bg-hover-solid` | `#f1f3f5`（可用✓） | `#353638`（与弹框同色✗） |
+
+      单用任何一个，总有一侧糊掉。所以按主题分支取：
+      浅色用 `hover-solid`，深色用 `bg-layer-2`（官方插件卡片就是 `#2c2c2e`）。
+    */
+    background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
   }
 
   dt {
     display: flex;
     align-items: center;
     gap: 6px;
-    color: var(--dsw-alias-label-tertiary);
+    /* 与下方指标标签同理：tertiary 在浅色下对比不足，见 `.dsh-fnos-runtime-now-label`。 */
+    color: var(--dsw-alias-label-secondary);
     /* 统一 14px：标签与数值同字号，两排读数整体一致。 */
     font-size: 14px;
     line-height: 20px;
@@ -1548,14 +1567,25 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   min-width: 0;
   padding: 8px 10px;
   border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-1, rgb(0 0 0 / 3%));
+  /* 与端口行同色，见上方注释：bg-layer-* 在浅色下是纯白，用不了。 */
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
 }
 
 .dsh-fnos-runtime-now-label {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: var(--dsw-alias-label-tertiary);
+  /*
+    **用 `label-secondary` 而不是 `label-tertiary`。**
+
+    实测 tertiary 在浅色主题下是 `#81858c`，与卡片底 `#f1f3f5` 的对比度只有
+    **3.33**，低于 WCAG AA 的 4.5 —— 这类小字号标签需要 4.5 才达标。
+    两个变量在深浅主题下是镜像的（浅色 tertiary `#81858c` / caption `#adb2b8`，
+    深色正好相反），所以「换一个变量」在不同主题下效果相反，不能凭感觉挑。
+
+    secondary 在浅色是 `#61666b`、深色是 `#cfd3d6`，两侧对比都过 AA。
+  */
+  color: var(--dsw-alias-label-secondary);
   font-size: 14px;
   line-height: 20px;
 }
@@ -1641,7 +1671,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 .dsh-fnos-runtime-proc-badge {
   padding: 0 6px;
   border-radius: 4px;
-  background: var(--dsw-alias-bg-layer-2);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
   color: var(--dsw-alias-label-secondary);
   font-size: 11px;
   font-style: normal;
@@ -1764,7 +1794,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   padding: 8px 10px;
   border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
   border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-1, rgb(0 0 0 / 2%));
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   line-height: 18px;
@@ -2091,7 +2121,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   flex: 0 0 auto;
   padding: 0 6px;
   border-radius: 4px;
-  background: var(--dsw-alias-bg-layer-2);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
   color: var(--dsw-alias-label-secondary);
   font-size: 11px;
   line-height: 16px;
@@ -2143,7 +2173,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   gap: 8px;
   padding: 6px 10px;
   border-radius: 6px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
 }
 
 /* 长 URL 单行省略：完整地址在 title 里。 */
@@ -2171,7 +2201,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   margin: 0;
   padding: 8px 10px;
   border-left: 2px solid var(--dsw-alias-state-business-primary);
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   line-height: 18px;
@@ -2258,7 +2288,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   padding: 10px 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
   color: var(--dsw-alias-label-secondary);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
@@ -2280,7 +2310,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   padding: 10px 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
-  background: var(--dsw-alias-bg-layer-2);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
 }
 
 /*
@@ -2490,7 +2520,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   box-sizing: border-box;
   padding: 8px 12px;
   border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
 
   code {
     flex: 1 1 auto;
@@ -2507,7 +2537,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   margin: 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
   color: var(--dsw-alias-state-error-primary);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
@@ -2538,7 +2568,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 .dsh-fnos-mirror-item--current {
   border-color: var(--dsw-alias-state-business-primary);
   border-left-width: 3px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
 }
 
 .dsh-fnos-mirror-item-main {
@@ -2662,7 +2692,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
   overflow: hidden;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 8px;
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
 }
 
 .dsh-fnos-mirror-logbar {
@@ -2970,7 +3000,7 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
   border-radius: 8px;
   /* 状态色只做左侧竖条与图标，不做整块底色——整块上色会让卡片看起来很吵。 */
   border-left: 3px solid var(--dsw-alias-label-dimmed);
-  background: var(--dsw-alias-bg-layer-1);
+  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
 }
 
 .dsh-fnos-install-inline--succeeded {
@@ -3221,3 +3251,14 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
   max-width: min(480px, calc(100vw - 24px));
 }
 
+/*
+ * 深色主题下卡片底色改取 `bg-layer-2`。
+ *
+ * 浅色主题的 `interactive-bg-hover-solid` 是 `#f1f3f5`，在深色下却是 `#353638`
+ * ——与弹框底完全同色，卡片等于没有底色。深色要的是比弹框更深一档的
+ * `bg-layer-2`（`#2c2c2e`），与官方插件卡片一致。
+ */
+body[data-ds-dark-theme] .dsh-fnos-runtime-ports > div,
+body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
+  background: var(--dsw-alias-bg-layer-2);
+}
