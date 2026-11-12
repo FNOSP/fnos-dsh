@@ -216,3 +216,27 @@ describe('独立浏览器页面授权：结果反馈', () => {
     expect(panel).toContain("Toast.warning({ content: t('authorizePersistFailed') })")
   })
 })
+
+describe('授权列表缓存：解除授权后必须消失', () => {
+  it('根列表按整表替换，不累加', () => {
+    /*
+      `entries` 是累加 Map，早前 `applyEntries` 只做 `set`。宿主已解除授权的目录
+      会永远留在里面——表现为「设置里取消了授权，输入区面板还能看到、还能勾选」。
+      根列表（无 parent）必须先 clear 再写入；带 parent 的是加载子目录，有意增量。
+    */
+    const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+    expect(panel).toContain('if (parent === undefined) entries.current.clear()')
+  })
+
+  it('面板每次打开都重新拉取，而不是只在挂载时拉一次', () => {
+    // 面板是「开关」式复用，关闭再打开不会重新挂载；只在挂载时拉会一直用旧缓存。
+    const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+    expect(panel).toContain('reloadRoots')
+    expect(panel).toMatch(/useEffect\(\(\) => \{\s*if \(!open\) return[\s\S]{0,200}reloadRoots/u)
+  })
+
+  it('拉取失败时清空树与缓存，不留半截旧数据', () => {
+    const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+    expect(panel).toMatch(/catch \{[\s\S]{0,120}setTreeData\(\[\]\)[\s\S]{0,80}entries\.current\.clear\(\)/u)
+  })
+})

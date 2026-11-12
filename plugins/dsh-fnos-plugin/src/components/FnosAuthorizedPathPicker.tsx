@@ -293,6 +293,14 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   const scrollTopRef = useRef(0)
 
   const applyEntries = useCallback((result: AuthorizedEntriesResult, parent?: string) => {
+    /*
+      **根列表是一次整表快照，必须先把缓存清空再写入。**
+
+      早前这里只做 `set`：`entries` 是个累加 Map，宿主那边已解除授权的目录会
+      永远留在里面——表现为「在设置里取消授权了，输入区面板还能看到、还能勾选」。
+      带 `parent` 的调用是「加载某个节点的子目录」，那是有意增量，不清。
+    */
+    if (parent === undefined) entries.current.clear()
     for (const entry of result.entries) entries.current.set(entry.path, entry)
     const children = result.entries.map(entry => toTreeNode(entry, nodeLabel(entry)))
     setTreeData(current => parent === undefined
@@ -300,15 +308,32 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       : updateChildren(current, parent, children))
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    void requestAuthorizedEntries().then(result => {
-      if (!cancelled) applyEntries(result)
-    }).catch(() => {
-      if (!cancelled) setTreeData([])
-    })
-    return () => { cancelled = true }
+  /**
+   * 拉取根列表。
+   *
+   * **每次面板打开都要重拉**，不能只在挂载时拉一次：面板是「开关」式复用，
+   * 关闭再打开不会重新挂载。用户可能在别处（设置弹框、另一个标签页）解除了
+   * 授权，只有重拉才能反映真实状态——否则列表会一直是打开过的那一份缓存。
+   */
+  const reloadRoots = useCallback(async (): Promise<void> => {
+    try {
+      const result = await requestAuthorizedEntries()
+      applyEntries(result)
+    } catch {
+      setTreeData([])
+      entries.current.clear()
+    }
   }, [applyEntries])
+
+  useEffect(() => {
+    if (!open) return
+    /*
+      不需要 cancelled 标志：`reloadRoots` 内部已经把失败折成「清空」，
+      迟到的结果只会写一次 state——组件卸载后 React 会忽略，不会报错。
+      面板是开关式复用，这个 effect 会在每次「收起 → 再打开」时重跑一遍。
+    */
+    void reloadRoots()
+  }, [open, reloadRoots])
 
 
   // 展开/收起的两侧状态都在这里重置：展开时清掉上一次会话级的残留，收起时
