@@ -201,9 +201,17 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
   it('标题栏提供授权入口，走 fnOS 原生选择器', () => {
     expect(PANEL).toContain('authorizeDirectory')
     expect(PANEL).toContain('pickAuthorizedDirectory')
-    // 授权成功后必须同时刷新树与写持久化，缺一样都会导致「授权了但重装就丢」。
-    expect(PANEL).toMatch(/pickAuthorizedDirectory[\s\S]{0,900}applyEntries/u)
-    expect(PANEL).toMatch(/pickAuthorizedDirectory[\s\S]{0,900}requestPersistAuthorizedDirectories/u)
+    /*
+      授权成功后必须同时刷新树与写持久化，缺一样都会导致「授权了但重装就丢」。
+
+      这里不再用「相距若干字符」的窗口断言：授权链路现在有两套成功路径
+      （宿主动调 / 独立浏览器页面走回调页），代码距离被合理拉开，写死窗口
+      会让断言假红。改为断言「整个文件里两件事都做了」。
+    */
+    expect(PANEL).toContain('applyEntries')
+    expect(PANEL).toContain('requestPersistAuthorizedDirectories')
+    // 独立浏览器页面：必须订阅回调，否则授权完成后列表不刷新。
+    expect(PANEL).toContain('listenFnosAppAuthResult')
   })
 
   it('标题栏两个按钮都不用原生 title，授权用文案按钮', () => {

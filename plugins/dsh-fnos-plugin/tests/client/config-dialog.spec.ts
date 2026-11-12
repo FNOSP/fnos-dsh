@@ -36,8 +36,13 @@ describe('fnOS 配置弹框', () => {
     expect(INDEX).not.toContain("ctx.slots.inject('sidebar.panellist.actions'")
     expect(INDEX).not.toContain("ctx.slots.inject('main'")
     expect(INDEX).not.toContain('FNOS_CONFIG_PANEL_ID')
-    // 入口与菜单首项都叫「设置」（用户要求：不再出现「飞牛 OS」字样）。
-    expect(LOCALES).toContain("configMenuEntry: '设置'")
+    /*
+      两个文案键职责不同，别混：
+      - `configMenuEntry`：**侧栏入口**的按钮文字，保持「飞牛 OS」——它说的是
+        「这是飞牛 OS」，不是「这是一个设置按钮」；
+      - `configDialogTitle`：下拉菜单首项与弹框标题，用「设置」。
+    */
+    expect(LOCALES).toContain("configMenuEntry: '飞牛 OS'")
     expect(LOCALES).toContain("configDialogTitle: '设置'")
   })
 

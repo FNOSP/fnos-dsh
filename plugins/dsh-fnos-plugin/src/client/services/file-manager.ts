@@ -18,6 +18,28 @@ export interface FileManagerSdk {
   readonly isStandaloneWeb: boolean
   ready(): Promise<unknown>
   openFileManager(path: string): Promise<unknown>
+  /** 独立浏览器页面里唯一还能用的「打开」通道（内部即 `window.open`）。 */
+  openURL?(url: string, target?: string, features?: string): Promise<unknown>
+}
+
+/**
+ * fnOS 桌面首页地址（去掉应用前缀）。
+ *
+ * 页面在 fnOS 里时 `<base>` 是 `<origin>/app/<应用>/`；桌面是它的上一级。
+ * 没有 `<base>` 时退回当前 origin。
+ * @returns 桌面首页 URL。
+ */
+function fnosDesktopUrl(): string {
+  if (typeof document === 'undefined' || typeof location === 'undefined') return '/'
+  const base = document.querySelector('base')?.href
+  if (base !== undefined) {
+    try {
+      const url = new URL(base)
+      // `/app/<应用>/` → `/`
+      return url.origin + '/'
+    } catch { /* 落到下面 */ }
+  }
+  return location.origin + '/'
 }
 
 /**
@@ -40,13 +62,21 @@ export async function openFnosFileManager(
 ): Promise<void> {
   const sdk = createSdk()
   await sdk.ready()
-  /*
-    独立浏览器页面（`isStandaloneWeb`）没有宿主桥，`openFileManager` 只会抛
-    `Host bridge is not available`。这种情况不该当成「SDK 没初始化」——环境
-    本身就不提供这个能力，提示要说清楚是「请在 fnOS 应用内打开」。
-  */
   if (!sdk.isWeb) throw new Error('fnOS iframe SDK did not initialize its web carrier')
-  if (sdk.isStandaloneWeb) throw new Error('fnOS file manager is unavailable in a standalone browser page')
+  /*
+    **独立浏览器页面走 `openURL`。**
+    这一形态没有宿主桥，`openFileManager` 只会抛
+    `Host bridge is not available`；但 `openURL` 在 Web 宿主里就是
+    `window.open`，不依赖宿主桥，因此用它把 fnOS 文件管理器开成新标签页。
+
+    URL 用 fnOS 桌面自身的地址（`<origin>/`）——文件管理器是桌面 SPA 的内部
+    路由，没有可外部直达的稳定路径，能可靠打开的就只有桌面首页。
+  */
+  if (sdk.isStandaloneWeb) {
+    if (sdk.openURL === undefined) throw new Error('fnOS openURL is unavailable in a standalone browser page')
+    await sdk.openURL(fnosDesktopUrl(), '_blank', 'noopener')
+    return
+  }
   // 不预检插件自己展示的授权目录列表：该列表用于浏览和选择，可能滞后于 fnOS
   // ACL 状态，预检会误拒合法路径。是否允许由 fnOS 自行判断。
   await sdk.openFileManager(path)

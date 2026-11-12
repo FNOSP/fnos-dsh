@@ -26,7 +26,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { IconChevronDownOutlineRegular, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FnosFileManagerIcon } from './FnosFileManagerIcon.tsx'
-import { hasFnosHostBridge } from '../client/services/environment.ts'
+import { isFnosHosted } from '../client/services/environment.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
@@ -104,12 +104,13 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
   }, [cwd])
 
   /*
-    只在宿主桥可用时渲染：这个入口的动作全是 `openFileManager`/`openFile`，
-    独立浏览器页面里 SDK 没有宿主桥，调用必然抛错。座位本身仍然照常注册
-    （见 `client/index.ts` 的 `isFnosHosted()` 判断），只是这个具体入口按能力
-    自我隐藏——注册是「有没有这个座位」，渲染是「这台环境能不能用」。
+    **两种形态都渲染。**
+    早前这里按 `hasFnosHostBridge()` 自我隐藏，理由是「独立浏览器页面调
+    `openFileManager` 必然抛错」。但用户要的是「这个入口在哪儿都在」，能力差异
+    应该在动作里消化：宿主内直调 SDK，独立页面走 `openURL` 开新标签页
+    （见 `file-manager.ts` 的 standalone 分支）。
   */
-  if (!hasFnosHostBridge()) return null
+  if (!isFnosHosted()) return null
   // 工作目录未知时打开没有意义，直接不渲染，避免给出一个必然失败的操作。
   if (cwd === undefined || cwd === '') return null
 

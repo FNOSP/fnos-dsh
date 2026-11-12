@@ -31,6 +31,7 @@ import {
   DshTypography as Typography,
 } from '@tnnevol/dsh-semi-ui'
 import { createAuthorizedEntry, deleteAuthorizedEntry, renameAuthorizedEntry, requestAuthorizedEntries, requestPersistAuthorizedDirectories, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
+import { listenFnosAppAuthResult } from '../client/services/app-auth.ts'
 import { pickAuthorizedDirectory } from '../client/services/authorized-directory-picker.ts'
 import { openFnosEntry } from '../client/services/file-opener.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
@@ -262,6 +263,14 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   const [creating, setCreating] = useState(false)
   // 授权动作进行中：期间禁用授权按钮，避免并发唤起多个原生死选择器。
   const [authorizing, setAuthorizing] = useState(false)
+  /**
+   * 授权回调的订阅解绑函数。
+   *
+   * 独立浏览器页面的授权是异步的：点「新增授权」只负责打开系统授权页，结果要等
+   * 回调页 `postMessage` 回来。早前面板只把状态置成 pending 就 `return`，**没有
+   * 订阅回调**，于是用户授权完成后列表一直是旧的——只有设置弹框里的卡片会刷新。
+   */
+  const authListenerRef = useRef<(() => void) | undefined>(undefined)
   // 右键上下文菜单：命中的条目与鼠标坐标（菜单定位）。
   const [contextMenu, setContextMenu] = useState<{
     path: string
@@ -300,6 +309,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     })
     return () => { cancelled = true }
   }, [applyEntries])
+
 
   // 展开/收起的两侧状态都在这里重置：展开时清掉上一次会话级的残留，收起时
   // 放掉 `desiredPaths`，让下一次展开从空白选择开始，而不是回放旧勾选。
@@ -529,7 +539,30 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         早前这里没有这一支，会直接往下走「刷新列表 + 提示授权成功」，于是用户
         什么都没点就看到「已授权」，而列表里并没有新目录。
       */
-      if (outcome.status === 'authorization-pending') return
+      if (outcome.status === 'authorization-pending') {
+        /*
+          独立浏览器页面：授权页已打开，结果会经同源回调页 `postMessage` 回来。
+          在这里**立即订阅**——晚一步就可能漏掉已经到达的结果。
+
+          早前面板只把状态置成 pending 就返回，**没有订阅**，于是用户授权完成后
+          列表一直是旧的（只有设置弹框里的卡片会刷新）。
+        */
+        const state = outcome.state
+        const off = listenFnosAppAuthResult(state, (result) => {
+          if (result.status === 'error' || result.status === 'cancel') return
+          void requestAuthorizedEntries().then((fresh) => {
+            applyEntries(fresh)
+            const paths = fresh.entries
+              .filter(entry => entry.kind === 'directory')
+              .map(entry => entry.path)
+            void requestPersistAuthorizedDirectories(paths).catch(() => undefined)
+          }).catch(() => undefined)
+        })
+        // 组件卸载或下一次授权时解除上一次的订阅。
+        authListenerRef.current?.()
+        authListenerRef.current = off
+        return
+      }
       if (outcome.status === 'failed') {
         Toast.error({ content: authorizeErrorMessage(outcome.code, t) })
         return
@@ -602,6 +635,16 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       document.removeEventListener('keydown', onKeyDown)
     }
   }, [contextMenu])
+
+  /*
+    卸载时解绑授权回调订阅：面板收起会卸载子树，留着订阅会让回调打在已经
+    卸载的组件上（`applyEntries` 里的 setState 变成空操作，但闭包与消息监听
+    一直留着）。
+  */
+  useEffect(() => () => {
+    authListenerRef.current?.()
+    authListenerRef.current = undefined
+  }, [])
 
   /** 从上下文菜单进入新建弹框；菜单随即收起。 */
   const createFromContextMenu = useCallback((kind: AuthorizedCreateKind) => {

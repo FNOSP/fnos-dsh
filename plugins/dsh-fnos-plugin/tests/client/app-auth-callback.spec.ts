@@ -104,3 +104,45 @@ describe('standalone 授权链路', () => {
     expect(service).toContain('data.result.state !== state')
   })
 })
+
+describe('独立浏览器页面：授权后列表必须刷新', () => {
+  it('输入区面板订阅了授权回调（早前漏了这一步）', () => {
+    /*
+      这是「授权完成后列表不更新」的根因：设置弹框里的卡片有监听，而输入区的
+      授权面板没有——它只把状态置成 `authorization-pending` 就 return，回调到达
+      时无人处理，列表于是停留在旧数据。
+    */
+    const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+    expect(panel).toContain('listenFnosAppAuthResult')
+    expect(panel).toContain('authListenerRef')
+    // 收到结果后要真的重新拉一次根列表。
+    expect(panel).toContain('requestAuthorizedEntries')
+    // 订阅必须在打开授权页的那一支里建立，晚了会漏掉已经到达的结果。
+    expect(panel).toMatch(/authorization-pending[\s\S]{0,800}listenFnosAppAuthResult/u)
+  })
+
+  it('面板卸载时解绑订阅', () => {
+    const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+    expect(panel).toContain('authListenerRef.current?.()')
+  })
+})
+
+describe('独立浏览器页面：文件入口用 openURL', () => {
+  it('文件管理器服务在 standalone 下改走 openURL，不再直接抛错', () => {
+    const service = read('../../src/client/services/file-manager.ts')
+    expect(service).toContain('openURL')
+    expect(service).toContain('isStandaloneWeb')
+    // 不再用「该环境不提供」这种一拒了之的写法。
+    expect(service).not.toContain('fnOS file manager is unavailable in a standalone browser page')
+  })
+
+  it('会话头部的文件入口两种形态都渲染', () => {
+    const action = read('../../src/components/FnosOpenInHeaderAction.tsx')
+    // 早前按 hasFnosHostBridge 自我隐藏，独立页面里整个入口消失；现在改为
+    // 「属于 fnOS 就渲染」，能力差异放进动作内部消化。
+    expect(action).toContain('isFnosHosted')
+    // 注释里可以提到旧判据（解释为什么改），但**代码**不能再用它做渲染门控。
+    const actionCode = action.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
+    expect(actionCode).not.toContain('hasFnosHostBridge')
+  })
+})
