@@ -36,7 +36,9 @@ describe('fnOS 配置弹框', () => {
     expect(INDEX).not.toContain("ctx.slots.inject('sidebar.panellist.actions'")
     expect(INDEX).not.toContain("ctx.slots.inject('main'")
     expect(INDEX).not.toContain('FNOS_CONFIG_PANEL_ID')
-    expect(LOCALES).toContain("configMenuEntry: '飞牛 OS'")
+    // 入口与菜单首项都叫「设置」（用户要求：不再出现「飞牛 OS」字样）。
+    expect(LOCALES).toContain("configMenuEntry: '设置'")
+    expect(LOCALES).toContain("configDialogTitle: '设置'")
   })
 
   it('入口行高按实测与侧栏其它行对齐（36px，不是抄官方源码的 42px）', () => {
@@ -62,7 +64,7 @@ describe('fnOS 配置弹框', () => {
     expect(triggerBlock).not.toContain('height: 42px')
   })
 
-  it('入口右侧显示快捷键提示，且按平台给对应修饰键', () => {
+  it('「设置」菜单项显示快捷键提示，且按平台给对应修饰键', () => {
     /*
       官方设置行右侧就有快捷键提示（`ShortcutKeys` + `shortcutKeys` prop）。
       入口在同一位置做同样的事，两者并排才像同一种控件。
@@ -70,9 +72,13 @@ describe('fnOS 配置弹框', () => {
       修饰键必须按平台给：macOS 是 `⌘ ,`，其余是 `Ctrl ,`。写死一个，
       另一半用户照着按没反应。
     */
-    expect(ENTRY).toContain('ShortcutKeys')
     expect(ENTRY).toContain('detectShortcutPlatform')
     expect(ENTRY).toContain('fnosSettingsShortcutKeys')
+    /*
+      提示**挂在「设置」菜单项上**（官方 `MenuItemButton` 的 `shortcut` prop），
+      不是入口行尾巴。官方账号菜单里「设置」右侧就带着键帽，形态一致。
+    */
+    expect(ENTRY).toContain('shortcut={{ keys: shortcutKeys, aria: shortcutAria }}')
 
     const SHORTCUT = read('../../src/client/shortcuts/fnos-settings-shortcut.ts')
     expect(SHORTCUT).toContain("'mac'")
@@ -95,14 +101,22 @@ describe('fnOS 配置弹框', () => {
     expect(ENTRY).toContain("t('webRestart')")
   })
 
-  it('下拉复用官方 Menu 原语，宽度对齐「更多」菜单', () => {
-    // 与侧栏「更多」是同一套实现：行高、图标列、键盘与浮层定位都不必重写。
+  it('下拉复用官方 Menu 原语，宽度交给内容自适应（不写死）', () => {
+    /*
+      与侧栏「更多」是同一套实现：行高、图标列、键盘与浮层定位都不必重写。
+
+      宽度**不写死**：官方 `.moreMenu` 本身没有任何 width 声明，宽度由最宽一行
+      决定。早先我们写死 288px 去「对齐」，结果三行短文案会撑出一块空白，
+      反而与官方观感不同。
+    */
     expect(ENTRY).toContain('Menu')
     expect(ENTRY).toContain('MenuItemButton')
     expect(ENTRY).toContain('side="top"')
     const css = SCSS.slice(SCSS.indexOf('.dsh-fnos-footer-menu'))
     const block = css.slice(0, css.indexOf('\n}'))
-    expect(block).toContain('288px')
+    expect(block).not.toContain('width: 288px')
+    // 仍保留视口上限，避免窄屏溢出。
+    expect(block).toContain('max-width: calc(100vw - 24px)')
   })
 
   it('触发器用飞牛标记', () => {
@@ -477,8 +491,9 @@ describe('fnOS 配置弹框', () => {
   })
 
   it('两种语言都有四个新文案键', () => {
-    expect(LOCALES).toContain("configDialogTitle: 'fnOS settings'")
-    expect(LOCALES).toContain("configDialogTitle: '飞牛 OS 设置'")
+    // 标题与入口统一叫「设置」：弹框标题就是入口点开后的落点，两处不一致会让人疑惑。
+    expect(LOCALES).toContain("configDialogTitle: 'Settings'")
+    expect(LOCALES).toContain("configDialogTitle: '设置'")
     expect(LOCALES).toContain("configSectionDirectories: '授权目录'")
     // 导航分组名与卡片标题统一到「插件安装」语境，不再叫「依赖修复」——
     // 用户遇到的是「插件装不上」，不是「依赖坏了」。

@@ -23,7 +23,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react'
-import { Menu, MenuItemButton, ShortcutKeys, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Menu, MenuItemButton, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { configDialogStore } from '../client/config-dialog-store.ts'
 import { getFnosWebActions } from '../client/services/web-actions.ts'
@@ -132,17 +132,14 @@ export function FnosFooterEntry({ wide, t }: FnosFooterEntryProps): React.ReactN
               <FnosMonoLogo size={wide ? 16 : 18} />
             </span>
             {wide && <span className="dsh-fnos-footer-title">{t('configMenuEntry')}</span>}
-            {wide && (
-              <span className="dsh-fnos-footer-shortcut" aria-hidden="true">
-                <ShortcutKeys keys={shortcutKeys} />
-              </span>
-            )}
           </button>
         </Tooltip>
       )}
     >
+      {/* 快捷键提示挂在「设置」这一行上，与官方菜单的 `shortcut` 形态一致。 */}
       <MenuItemButton
         icon={<IconifyIcon name="lucide:settings" />}
+        shortcut={{ keys: shortcutKeys, aria: shortcutAria }}
         onSelect={openConfig}
       >
         {t('configDialogTitle')}

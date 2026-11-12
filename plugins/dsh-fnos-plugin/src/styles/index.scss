@@ -3127,25 +3127,13 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
 }
 
 /*
- * 下拉面板宽度与「更多」菜单一致（官方 `.moreMenu` 也是 288px）：
- * 两个菜单都是侧栏的应用级动作列表，宽度不同会显得像两套控件。
+ * 下拉面板**不写死宽度**，交给官方 `Menu` 按内容自适应。
+ *
+ * 先前写死 288px 与「更多」菜单对齐，但那样在只有三行短文案时会撑出一块空白，
+ * 与官方「更多」的紧凑观感不同——官方那边没有任何 width 声明，宽度由最宽的
+ * 一行决定。这里跟随官方口径。
  */
 .dsh-fnos-footer-menu {
-  width: 288px;
   max-width: calc(100vw - 24px);
 }
 
-
-/*
- * 入口行右侧的快捷键提示。
- *
- * 与官方设置行同一形态：靠右、弱化色、只在展开态出现。`margin-left: auto`
- * 把它推到行尾，标题再长也不会把它挤走。
- */
-.dsh-fnos-footer-shortcut {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  margin-left: auto;
-  color: var(--dsw-alias-label-tertiary);
-}
