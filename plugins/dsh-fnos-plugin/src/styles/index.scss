@@ -3142,7 +3142,20 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
  * 与官方「更多」的紧凑观感不同——官方那边没有任何 width 声明，宽度由最宽的
  * 一行决定。这里跟随官方口径。
  */
+/*
+ * 下拉菜单宽度与官方「更多」一致。
+ *
+ * 实测官方两种写法都存在：`.moreMenu { width: 288px }` 与
+ * `.moreMenu { width: max-content }`。本菜单只有三行短文案，`max-content`
+ * 算出的自然宽度小于组件默认的 `min-width: 144px`，会被卡在 144px ——
+ * 只有官方宽度的一半，行内 label 可用空间也只剩一半。
+ *
+ * 所以这里给 `width` 一个与官方一致的下限：不写死具体像素，而是用
+ * `min-width` 表达「至少和官方一样宽」，内容更长时由 `max-content` 继续撑开。
+ */
 .dsh-fnos-footer-menu {
-  max-width: calc(100vw - 24px);
+  width: max-content;
+  min-width: 288px;
+  max-width: min(480px, calc(100vw - 24px));
 }
 

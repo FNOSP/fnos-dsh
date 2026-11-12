@@ -106,22 +106,29 @@ describe('fnOS 配置弹框', () => {
     expect(ENTRY).toContain("t('webRestart')")
   })
 
-  it('下拉复用官方 Menu 原语，宽度交给内容自适应（不写死）', () => {
+  it('下拉复用官方 Menu 原语，宽度与官方 `.moreMenu` 同规则', () => {
     /*
-      与侧栏「更多」是同一套实现：行高、图标列、键盘与浮层定位都不必重写。
+      与侧栏「更多」是同一套原语：行高、图标列、键盘与浮层定位都不必重写。
 
-      宽度**不写死**：官方 `.moreMenu` 本身没有任何 width 声明，宽度由最宽一行
-      决定。早先我们写死 288px 去「对齐」，结果三行短文案会撑出一块空白，
-      反而与官方观感不同。
+      宽度**照抄官方规则**：官方 `.moreMenu` 的 CSS 是
+      `width: max-content; max-width: min(480px, 100vw - 24px)`。
+      早先这里写着「官方没有任何 width 声明」，实测是错的——正因为漏了这条，
+      菜单塌到组件默认的 `min-width: 144px`，只有官方宽度的一半。
+
+      不写死 288px：菜单项是数组驱动的，将来加更长的条目时宽度应当跟着长。
     */
     expect(ENTRY).toContain('Menu')
     expect(ENTRY).toContain('MenuItemButton')
     expect(ENTRY).toContain('side="top"')
+    // 从**类名之后**截取：注释里也有 `}`，从头 slice 会截错。
     const css = SCSS.slice(SCSS.indexOf('.dsh-fnos-footer-menu'))
     const block = css.slice(0, css.indexOf('\n}'))
-    expect(block).not.toContain('width: 288px')
-    // 仍保留视口上限，避免窄屏溢出。
-    expect(block).toContain('max-width: calc(100vw - 24px)')
+    expect(block).toContain('width: max-content')
+    // 只有三行短文案时 `max-content` 会小于组件默认 min-width，必须显式抬到官方宽度。
+    expect(block).toContain('min-width: 288px')
+    expect(block).toContain('max-width: min(480px, calc(100vw - 24px))')
+    // 不许写死宽度：`min-width: 288px` 含有子串 `width: 288px`，所以精确匹配行首。
+    expect(block).not.toMatch(/^\s*width:\s*288px/mu)
   })
 
   it('触发器用飞牛标记', () => {
