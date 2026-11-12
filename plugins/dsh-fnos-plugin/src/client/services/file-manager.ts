@@ -18,28 +18,6 @@ export interface FileManagerSdk {
   readonly isStandaloneWeb: boolean
   ready(): Promise<unknown>
   openFileManager(path: string): Promise<unknown>
-  /** 独立浏览器页面里唯一还能用的「打开」通道（内部即 `window.open`）。 */
-  openURL?(url: string, target?: string, features?: string): Promise<unknown>
-}
-
-/**
- * fnOS 桌面首页地址（去掉应用前缀）。
- *
- * 页面在 fnOS 里时 `<base>` 是 `<origin>/app/<应用>/`；桌面是它的上一级。
- * 没有 `<base>` 时退回当前 origin。
- * @returns 桌面首页 URL。
- */
-function fnosDesktopUrl(): string {
-  if (typeof document === 'undefined' || typeof location === 'undefined') return '/'
-  const base = document.querySelector('base')?.href
-  if (base !== undefined) {
-    try {
-      const url = new URL(base)
-      // `/app/<应用>/` → `/`
-      return url.origin + '/'
-    } catch { /* 落到下面 */ }
-  }
-  return location.origin + '/'
 }
 
 /**
@@ -63,28 +41,16 @@ export async function openFnosFileManager(
   const sdk = createSdk()
 
   /*
-    **独立浏览器页面必须在 `await` 之前就打开新标签页。**
+    **独立浏览器页面不提供「打开」能力。**
 
-    实测：`window.open` 只有在**用户点击的同步调用栈**里才放行，脱离手势后一律
-    返回 null（弹窗拦截）。早前写成 `await sdk.ready()` 之后再 `openURL`，已经
-    不在手势里，于是新标签页打不开、也没有任何报错。
+    这条路没有宿主桥，`openFileManager(path)` 不可用。曾退而用 `openURL` 打开
+    fnOS 桌面首页，但那是「打开了个网页」而不是「定位到这个目录」——用户点
+    「打开」却被丢回桌面，还得自己再找一遍，比没有这个按钮更差。
 
-    所以这里先开窗、再补地址：先用 `about:blank` 占住窗口（这一步仍在手势内），
-    等拿到地址后写入 `location`。`noopener` 下拿不到句柄，因此这里**不用**
-    `noopener`（同源页面，且我们会立即导航到固定地址）。
+    因此改为明确失败，由界面侧按 `hasFnosHostBridge()` 直接不渲染入口。
   */
   if (sdk.isStandaloneWeb) {
-    const target = fnosDesktopUrl()
-    const opened = typeof window === 'undefined' ? null : window.open('about:blank', '_blank')
-    if (opened !== null) {
-      opened.location.href = target
-      return
-    }
-    /*
-      窗口没开出来（弹窗拦截器仍拦住了，或浏览器限制）：退回给一个可点击的
-      链接式导航，而不是静默失败。
-    */
-    throw new Error('fnos-open-blocked: popup was blocked; allow popups for this site and retry')
+    throw new Error('fnos-open-unavailable: file manager is unavailable without the fnOS host bridge')
   }
 
   await sdk.ready()

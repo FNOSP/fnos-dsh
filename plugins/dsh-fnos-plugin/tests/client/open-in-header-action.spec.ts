@@ -52,54 +52,14 @@ describe('fnOS 文件管理器调用', () => {
       .rejects.toThrow('web carrier')
   })
 
-  it('standalone web 时改走 window.open 开新标签页，不再直接失败', async () => {
+  it('standalone web 时明确失败，不打开桌面', async () => {
     /*
-      这一形态没有宿主桥，`openFileManager` 必然抛错；但 `window.open` 不依赖
-      宿主桥，能替用户把 fnOS 桌面开出来。
-
-      关键是**必须在第一个 `await` 之前同步开窗**：脱离用户点击的同步栈后，
-      浏览器会把它当弹窗拦掉（实测返回 null）。这条用例同时钉住「先开窗」。
+      独立浏览器页面没有宿主桥，`openFileManager` 不可用。曾试过用 `openURL`
+      打开 fnOS 桌面首页，但那定位不到目标目录——用户点「打开」被丢回桌面，
+      比没有这个按钮更差。改为明确失败，界面侧按能力直接不渲染入口。
     */
-    const opened: string[] = []
-    const previous = (globalThis as { window?: unknown }).window
-    Object.defineProperty(globalThis, 'window', {
-      configurable: true,
-      value: {
-        location: { origin: 'http://nas:5666' },
-        open: (url: string) => {
-          opened.push(url)
-          return { location: { href: '' } }
-        },
-      },
-    })
-    Object.defineProperty(globalThis, 'location', {
-      configurable: true,
-      value: { origin: 'http://nas:5666' },
-    })
-    try {
-      await openFnosFileManager('/vol1/1000', factory(sdk({ isStandaloneWeb: true })))
-      // 用 about:blank 先占住窗口，再补地址——占位本身就在手势内。
-      expect(opened).toEqual(['about:blank'])
-    } finally {
-      if (previous === undefined) delete (globalThis as { window?: unknown }).window
-      else Object.defineProperty(globalThis, 'window', { configurable: true, value: previous })
-      delete (globalThis as { location?: unknown }).location
-    }
-  })
-
-  it('弹窗被拦截时给出可指导用户的错误', async () => {
-    const previous = (globalThis as { window?: unknown }).window
-    Object.defineProperty(globalThis, 'window', {
-      configurable: true,
-      value: { location: { origin: 'http://nas:5666' }, open: () => null },
-    })
-    try {
-      await expect(openFnosFileManager('/vol1/1000', factory(sdk({ isStandaloneWeb: true }))))
-        .rejects.toThrow('fnos-open-blocked')
-    } finally {
-      if (previous === undefined) delete (globalThis as { window?: unknown }).window
-      else Object.defineProperty(globalThis, 'window', { configurable: true, value: previous })
-    }
+    await expect(openFnosFileManager('/vol1/1000', factory(sdk({ isStandaloneWeb: true }))))
+      .rejects.toThrow('fnos-open-unavailable')
   })
 
   it('SDK 自身失败时向上传播，不回退到 DSH 原生打开', async () => {

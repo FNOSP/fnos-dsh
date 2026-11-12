@@ -7,6 +7,7 @@ import { diagnosePickerResult, isPickerCancellation, isPickerNoSelection, logPic
 import { createTrimApp } from '../client/services/sdk.ts'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import { createAuthState, listenFnosAppAuthResult, openFnosAppAuth, usesAppAuthFlow } from '../client/services/app-auth.ts'
+import { hasFnosHostBridge } from '../client/services/environment.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import {
   DirectoryRequestError,
@@ -508,17 +509,26 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
                     {directory.semanticPath}
                   </DshTypographyText>
                   {/*
-                    「打开」对每个目录都有意义——包括只读的应用共享目录：用户想确认
-                    目录里到底有什么，不该被「不能取消授权」顺带禁掉浏览。
+                    「打开」只在**宿主桥可用**时出现（即 fnOS 应用中心内嵌）。
+
+                    独立浏览器页面里没有宿主桥，`openFileManager(path)` 不可用；
+                    退而用 `openURL` 只能打开 fnOS **桌面首页**，无法定位到目标
+                    目录——用户点「打开」却被丢回桌面，还得自己再找一遍，比没有
+                    这个按钮更差。所以这一形态下直接不渲染它。
+
+                    只读的应用共享目录同样保留「打开」：用户想确认目录里有什么，
+                    不该因为「不能取消授权」被顺带禁掉浏览。
                   */}
-                  <button
-                    type="button"
-                    className="dsh-fnos-authorized-button dsh-fnos-authorized-button--open"
-                    disabled={busy || openingPath === directory.path}
-                    onClick={() => { void openDirectory(directory.path) }}
-                  >
-                    {t('open')}
-                  </button>
+                  {hasFnosHostBridge() && (
+                    <button
+                      type="button"
+                      className="dsh-fnos-authorized-button dsh-fnos-authorized-button--open"
+                      disabled={busy || openingPath === directory.path}
+                      onClick={() => { void openDirectory(directory.path) }}
+                    >
+                      {t('open')}
+                    </button>
+                  )}
                   {directory.removable ? (
                     <button type="button" className="dsh-fnos-authorized-button dsh-fnos-authorized-button--danger" disabled={busy} onClick={() => { setPendingDeletePath(directory.path) }}>
                       {t('delete')}

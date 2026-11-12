@@ -125,25 +125,34 @@ describe('独立浏览器页面：授权后列表必须刷新', () => {
     const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
     expect(panel).toContain('authListenerRef.current?.()')
   })
+
+  it('会话头部的文件入口按宿主桥能力渲染', () => {
+    // 这个入口的动作全是 openFileManager/openFile，独立页面里没有宿主桥，
+    // 调用必然失败；给一个必然失败的入口比不渲染更差。
+    const action = read('../../src/components/FnosOpenInHeaderAction.tsx')
+    const actionCode = action.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
+    expect(actionCode).toContain('hasFnosHostBridge()')
+    expect(actionCode).not.toContain('isFnosHosted()')
+  })
 })
 
-describe('独立浏览器页面：文件入口用 openURL', () => {
-  it('文件管理器服务在 standalone 下改走 openURL，不再直接抛错', () => {
-    const service = read('../../src/client/services/file-manager.ts')
-    expect(service).toContain('openURL')
-    expect(service).toContain('isStandaloneWeb')
-    // 不再用「该环境不提供」这种一拒了之的写法。
-    expect(service).not.toContain('fnOS file manager is unavailable in a standalone browser page')
-  })
-
-  it('会话头部的文件入口两种形态都渲染', () => {
-    const action = read('../../src/components/FnosOpenInHeaderAction.tsx')
-    // 早前按 hasFnosHostBridge 自我隐藏，独立页面里整个入口消失；现在改为
-    // 「属于 fnOS 就渲染」，能力差异放进动作内部消化。
-    expect(action).toContain('isFnosHosted')
-    // 注释里可以提到旧判据（解释为什么改），但**代码**不能再用它做渲染门控。
-    const actionCode = action.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
-    expect(actionCode).not.toContain('hasFnosHostBridge')
+describe('独立页面：浏览入口一律不渲染', () => {
+  it('三处「打开」入口全部按宿主桥能力门控', () => {
+    /*
+      独立浏览器页面没有宿主桥，`openFileManager` / `openFile` 全都不可用。
+      曾退而用 `openURL` 打开 fnOS 桌面首页，但那是「打开了个网页」而不是
+      「定位到这个目录」——用户点了被丢回桌面，还得自己再找一遍，
+      比没有这个按钮更差。三处入口统一按能力隐藏。
+    */
+    const sources = [
+      '../../src/components/AuthorizedDirectoriesCard.tsx',   // 设置卡片每行的「打开」
+      '../../src/components/FnosAuthorizedPathPicker.tsx',    // 输入区右键菜单的「打开」
+      '../../src/components/FnosOpenInHeaderAction.tsx',      // 会话头部的「文件管理」
+    ]
+    for (const file of sources) {
+      const code = read(file).replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
+      expect(code, file).toContain('hasFnosHostBridge()')
+    }
   })
 })
 
@@ -161,29 +170,6 @@ describe('授权回调的订阅时机', () => {
 
     const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
     expect(panel).toMatch(/authorization-pending[\s\S]{0,900}listenFnosAppAuthResult/u)
-  })
-})
-
-describe('独立页面打开新标签页', () => {
-  it('必须在第一个 await 之前同步开窗', () => {
-    /*
-      `window.open` 只在用户点击的同步调用栈里放行；`await` 之后就脱离手势，
-      浏览器按弹窗拦截处理（实测返回 null，且没有任何报错）。
-    */
-    const raw = read('../../src/client/services/file-manager.ts')
-    // 先剥注释：说明文字里也会出现 `await sdk.ready()`，不剥会匹配到注释。
-    const service = raw.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
-    const openIndex = service.indexOf('window.open(')
-    const firstAwait = service.indexOf('await sdk.ready()')
-    expect(openIndex).toBeGreaterThan(-1)
-    expect(firstAwait).toBeGreaterThan(-1)
-    // 开窗必须早于第一个 await，否则已脱离用户手势。
-    expect(openIndex).toBeLessThan(firstAwait)
-  })
-
-  it('被拦截时给出可指导用户的错误码', () => {
-    const service = read('../../src/client/services/file-manager.ts')
-    expect(service).toContain('fnos-open-blocked')
   })
 })
 
@@ -238,5 +224,32 @@ describe('授权列表缓存：解除授权后必须消失', () => {
   it('拉取失败时清空树与缓存，不留半截旧数据', () => {
     const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
     expect(panel).toMatch(/catch \{[\s\S]{0,120}setTreeData\(\[\]\)[\s\S]{0,80}entries\.current\.clear\(\)/u)
+  })
+})
+
+describe('独立页面的浏览入口：直接不渲染', () => {
+  it('两个调用方都按宿主桥能力隐藏「打开」', () => {
+    /*
+      独立浏览器页面没有宿主桥，`openFileManager` / `openFile` 都不可用。
+      曾退而用 `openURL` 打开 fnOS 桌面首页，但那是「打开了个网页」而不是
+      「定位到这个目录」——用户点「打开」被丢回桌面，还得自己再找一遍，
+      比没有这个按钮更差。因此不渲染。
+    */
+    const card = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+    expect(card).toContain('hasFnosHostBridge()')
+    // 按钮必须在能力判断里面。
+    expect(card).toMatch(/hasFnosHostBridge\(\) && \([\s\S]{0,400}dsh-fnos-authorized-button--open/u)
+
+    const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+    expect(panel).toContain('hasFnosHostBridge()')
+    expect(panel).toMatch(/hasFnosHostBridge\(\) && \([\s\S]{0,400}openFromContextMenu/u)
+  })
+
+  it('服务层在 standalone 下明确失败，不再跳转到桌面', () => {
+    const service = read('../../src/client/services/file-manager.ts')
+    expect(service).toContain('fnos-open-unavailable')
+    // 去掉只打开桌面的退路。
+    expect(service).not.toContain("window.open('about:blank'")
+    expect(service).not.toContain('fnosDesktopUrl')
   })
 })

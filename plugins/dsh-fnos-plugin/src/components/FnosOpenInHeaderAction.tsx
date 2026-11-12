@@ -26,7 +26,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { IconChevronDownOutlineRegular, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FnosFileManagerIcon } from './FnosFileManagerIcon.tsx'
-import { isFnosHosted } from '../client/services/environment.ts'
+import { hasFnosHostBridge } from '../client/services/environment.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
@@ -109,13 +109,14 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
   }, [cwd])
 
   /*
-    **两种形态都渲染。**
-    早前这里按 `hasFnosHostBridge()` 自我隐藏，理由是「独立浏览器页面调
-    `openFileManager` 必然抛错」。但用户要的是「这个入口在哪儿都在」，能力差异
-    应该在动作里消化：宿主内直调 SDK，独立页面走 `openURL` 开新标签页
-    （见 `file-manager.ts` 的 standalone 分支）。
+    只在**宿主桥可用**时渲染。
+
+    这个入口的动作全是 `openFileManager` / `openFile`，独立浏览器页面里没有
+    宿主桥，调用必然失败。曾试过退而用 `openURL` 打开 fnOS 桌面首页，但那是
+    「打开了个网页」而不是「定位到这个目录」——用户点了被丢回桌面，还得自己
+    再找一遍，比没有这个按钮更差。所以不渲染，而不是给一个必然失败的入口。
   */
-  if (!isFnosHosted()) return null
+  if (!hasFnosHostBridge()) return null
   // 工作目录未知时打开没有意义，直接不渲染，避免给出一个必然失败的操作。
   if (cwd === undefined || cwd === '') return null
 

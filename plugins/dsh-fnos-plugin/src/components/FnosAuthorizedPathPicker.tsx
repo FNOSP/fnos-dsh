@@ -35,6 +35,7 @@ import {
 import { createAuthorizedEntry, deleteAuthorizedEntry, renameAuthorizedEntry, requestAuthorizedEntries, requestPersistAuthorizedDirectories, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { listenFnosAppAuthResult } from '../client/services/app-auth.ts'
 import { pickAuthorizedDirectory } from '../client/services/authorized-directory-picker.ts'
+import { hasFnosHostBridge } from '../client/services/environment.ts'
 import { openFnosEntry } from '../client/services/file-opener.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import { FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
@@ -899,16 +900,22 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
           {/*
             打开：目录交给 fnOS 文件管理器定位，文件交给 fnOS 的打开/预览能力。
             与新建/删除同为「对这一个条目做事」，因此排在菜单最前面。
+
+            只在**宿主桥可用**时出现。独立浏览器页面里这些能力全都不存在，
+            退而用 `openURL` 只能打开 fnOS 桌面首页，定位不到目标条目——用户
+            点了却被丢回桌面，比没有这个入口更差。
           */}
-          <button
-            type="button"
-            className="dsh-fnos-path-context-item"
-            role="menuitem"
-            onClick={() => { void openFromContextMenu() }}
-          >
-            {contextMenu.kind === 'directory' ? <IconFolderOpen size="small" /> : <IconFile size="small" />}
-            {t('openEntry')}
-          </button>
+          {hasFnosHostBridge() && (
+            <button
+              type="button"
+              className="dsh-fnos-path-context-item"
+              role="menuitem"
+              onClick={() => { void openFromContextMenu() }}
+            >
+              {contextMenu.kind === 'directory' ? <IconFolderOpen size="small" /> : <IconFile size="small" />}
+              {t('openEntry')}
+            </button>
+          )}
           <button
             type="button"
             className="dsh-fnos-path-context-item"
