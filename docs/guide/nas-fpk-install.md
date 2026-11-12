@@ -192,45 +192,15 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 | 桥调用超时 | `Bridge call timeout after 30000ms: getBrowserTabList` |
 | 重规划死循环 | `planning cycle limit (20) has been reached`（模型反复找桌面上的应用中心图标） |
 
-界面上必须知道的六个事实（第 3、5 条会让注入「看起来成功但应用不消费」）：
+界面上的**四个坑**（2026-11-12 实测，两轮复现）：
 
-1. **`<input type=file accept=".fpk">` 在打开应用中心时就已经存在**，不需要先开「手动安装」对话框去「等它出现」。它常驻在 `div.hidden` 里，一直 `0×0`。
-2. **注入不需要元素可见。** `input.files = dataTransfer.files` 是普通 DOM 属性赋值，与可见性、无障碍树无关。Chrome MCP 路线就是纯页面 JS：
+1. **`upload_file` 作用于会打开选择器的元素会崩掉标签页**（`RESULT_CODE_KILLED_BAD_MESSAGE`，[issue #2310](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/2310)）。
+   先断掉 `input.click()`（元素级 + `MutationObserver` 跟随新节点），同时解决「弹系统窗口」与「崩溃」——两者同源。
+2. **必须点一次「从电脑上传」**。不点就注入，`input.files` 有值但应用不消费、不弹安全提示。点它会卸载对话框，所以要重开「手动安装」再注入。
+3. **`display:none` 的元素取不到 uid**，而子元素无法自救（祖先 `none` 使整棵子树不渲染）。解法是只放开目标自己的容器——**同容器里还有一枚目录 input，必须单独藏掉**，否则两枚会一起露出来。
+4. **不要改 `HTMLInputElement.prototype.click`**。那是全局劫持，补丁没恢复时 fnOS 自身逻辑静默失效、页面跳回 `/login`。
 
-   ```js
-   const input = document.querySelector('input[type="file"][accept=".fpk"]:not([webkitdirectory])')
-   const dt = new DataTransfer()
-   dt.items.add(new File([bytes], NAME, { type: 'application/octet-stream' }))
-   input.files = dt.files
-   ```
-
-   可复用实现见 `packages/dsh-e2e-kit/src/upload-input.ts` 的 `injectUpload()`。
-3. **时序：先点一次「从电脑上传」，再开对话框注入。**
-
-   2026-11-12 同一天内两次实测的差异，最终定位到这一步：
-
-   | 做法 | 结果 |
-   | --- | --- |
-   | 直接往常驻 input 注入 | `input.files` 有值（`filesAfter: 1`），但**应用不消费**、不弹安全提示 |
-   | **先点一次「从电脑上传」→ 再开对话框 → 注入** | `filesAfter: 0`（应用已接管）、安全提示弹出 |
-
-   「点一次」的作用是把应用切到「电脑上传」形态、给那枚 input 接上处理器。
-   点它会打开一次系统文件选择器，**关掉即可**（不需要真选文件）；它同时会
-   卸载当前对话框，所以顺序是：点来源 → 对话框消失 → 重新点「手动安装」→ 注入。
-
-   注意：**仍然不需要拦 `input.click()`，也不需要改 DOM 可见性**——那两件事是
-   CDP `upload_file` 路线的限制，与「点来源」是两回事。
-4. **页面里还有一个 `webkitdirectory` 的目录 input**，必须按属性排除，否则会注进目录选择器。
-5. **事件序列必须完整**：`pointerdown → pointerup → click → input → change`。只派发 `input`/`change` 时 fnOS 收不到文件——不弹安全提示，`input.files` 也不会被清空。应用在 `change` 之外还靠指针事件判定「这次是用户选的」。
-
-   **两个已作废的做法**（2026-11-12 真机否定）：
-
-   | 作废 | 为什么错 |
-   | --- | --- |
-   | 把祖先 `display:none` 改成 `block`，或把 input `appendChild` 到 `body` | 两枚 input 在**同一个** `display:none` 容器里，放开容器会**连带放出目录 input**，应用中心顶部凭空多出一个可见的「选择文件」按钮。祖先样式属于页面 |
-   | 拦 `input.click()`，尤其改 `HTMLInputElement.prototype` | 纯 JS 注入**不需要**拦 click。改原型是全局副作用：页面里所有 input 的 `click()` 都被劫持，补丁没恢复时 fnOS 自身逻辑静默失效、页面跳回 `/login` |
-
-6. **单次页面脚本不能长等**：Bridge 单次调用上限 30 秒。把「开对话框」与「注入」分步，等待判定放到 Node 侧轮询（`expectText` + `timeoutMs` 就是干这个的）。
+完整六步与可复制代码见 `docs/charter/tests-spec.md`「用 Chrome MCP 安装 FPK」。
 
 文件被接收的可观察证据：fnOS 立刻弹出「未经验证应用的安全提示」；随后 React 会**清空 input**（`files.length` 归 0），这是正常现象，不要据此判失败。
 
@@ -284,7 +254,7 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 | 模型报 `502` / `Connection error` | 上游模型瞬时故障 | 重试；flash 模型做长规划容易翻车，换更强的模型 |
 | 上传步骤 `429` / `502 额度已用尽` | 视觉模型额度或频率限制 | 改用 `dsh.uploadFile`（§4.4，零模型调用） |
 | 上传步骤 `Connection lost` / `Bridge call timeout` | 扩展断连或单次调用超 30 秒 | 同上改用 `dsh.uploadFile`；单次页面脚本不要长等 |
-| 注入后不弹安全提示（`input.files` 却有值，`filesAfter` 停在 1） | **没有先点一次「从电脑上传」**。那一步把应用切到「电脑上传」形态并给 input 接上处理器；不点它，文件塞进去也没人消费。点完会弹一次系统选择器（关掉即可）并卸载对话框，所以要重新打开「手动安装」再注入（§4.4 事实 3） |
+| 注入后不弹安全提示（`input.files` 却有值） | **没有先点一次「从电脑上传」**——应用要靠那一步才挂上 change 处理器。点完对话框会被卸载，重开后再注入（§4.4 坑 2） |
 | 注入后不弹安全提示（来源已切） | 事件序列不完整，或注入到了目录 input | 补齐 `pointerdown → pointerup → click → input → change`；排除 `webkitdirectory` |
 | 报「既无『手动安装』也无『应用中心』入口」 | 页面刚被导航回目标地址、SPA 还没渲染完 | 轮询等待（§4.4 事实 2），不要一次性查找 |
 | 桥端口 `EADDRINUSE 126.0.0.1:3766` | 另一个会话/进程占着桥 | 先确认是谁的再决定是否接管；不要直接杀 |

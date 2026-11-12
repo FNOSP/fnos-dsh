@@ -335,7 +335,7 @@ FPK 上传是应用级验收里最容易卡住的一步。**用哪个工具，�
 | 工具 | 路线 | 说明 |
 | --- | --- | --- |
 | Midscene Test（`dsh.uploadFile` 节点） | Node 读文件 → base64 → 页面内造 `File` → 派发完整事件序列 | 见本节，零模型调用 |
-| **Chrome MCP（2026-11-12 定稿）** | 页面内 JS 直接赋 `input.files` 并派发事件序列（**不需要元素可见**） | 见下文「用 Chrome MCP 安装 FPK」 |
+| **Chrome MCP（2026-11-12 定稿）** | 断 `input.click()` → `upload_file` 注入 → 补派发事件 | 见下文「用 Chrome MCP 安装 FPK」 |
 
 **不要**用 `aiAct` + `fileChooserAccept`（走系统文件选择器）：2026-10-26 在真实 NAS 上
 连续失败，失败全部发生在**视觉与文件选择器**环节，与被测物无关：
@@ -371,89 +371,51 @@ Midscene 路线用共享包的 `dsh.uploadFile` 节点：Node 侧读本地文件
 - **单次页面脚本不能长等**：Bridge 单次调用上限 30 秒。把「开对话框」与「注入」分步，
   等待判定放到 Node 侧轮询（即 `expectText` + `timeoutMs`）。
 
-#### 用 Chrome MCP 安装 FPK：纯页面 JS 注入（**不需要元素可见**）
+#### 用 Chrome MCP 安装 FPK：断开 click + upload_file
 
-**2026-11-12 实测确定的最终做法。** 关键事实：
+**2026-11-12 实测，两轮复现。** 六步：
 
-> `input.files = dataTransfer.files` 是普通 DOM 属性赋值，**与元素是否可见、
-> 是否在无障碍树里完全无关**。赋值后派发 `change`，React 的处理器照常触发。
+```js
+// ① 先断开 input.click()（元素级，并跟随未来新挂的节点）
+const block = (el) => {
+  if (el.__np) return
+  el.__np = true
+  el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation() }, true)
+  el.click = () => {}
+}
+document.querySelectorAll('input[type="file"]').forEach(block)
+new MutationObserver((ms) => {
+  for (const m of ms) for (const n of m.addedNodes) {
+    if (n.nodeType !== 1) continue
+    if (n.matches?.('input[type="file"]')) block(n)
+    n.querySelectorAll?.('input[type="file"]').forEach(block)
+  }
+}).observe(document.body, { childList: true, subtree: true })
 
-这条事实推翻了此前一整套做法（已删除）：给元素设 1px 尺寸、把祖先的
-`display:none` 改掉、`appendChild` 到 `body`。那些操作全部服务于「让 CDP 的
-`upload_file` 能按无障碍树找到元素」——而那只是**一条注入通道的限制**，不是
-「往 input 里放文件」的必要条件。
+// ② 应用中心 → 手动安装
+// ③ 点「从电脑上传」（click 已断，不弹系统窗口；对话框会被卸载，属正常）
+// ④ 重开「手动安装」
+// ⑤ 让目标可寻址：藏目录 input，放开目标容器 + 目标自身给 1px
+dir.style.setProperty('display', 'none', 'important')
+target.parentElement.style.setProperty('display', 'block', 'important')
+target.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01'
 
-四步：
+// ⑥ upload_file 注入，再补派发事件
+el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
+el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+el.dispatchEvent(new Event('input', { bubbles: true }))
+el.dispatchEvent(new Event('change', { bubbles: true }))
+```
 
-1. **开应用中心**（`【accept=".fpk"】` 的 input 在这一步就已存在，不必先开对话框）。
-2. **点「手动安装」**打开对话框。注入要在对话框**已打开**的状态下进行。
-3. **纯 JS 定位并注入**（不设 id、不改样式、不碰祖先）：
+判据：`input.files` 归 0（应用已接管）+ 出现「未经验证应用的安全提示」。
 
-   ```js
-   const input = document.querySelector('input[type="file"][accept=".fpk"]:not([webkitdirectory])')
-   const bin = atob(B64)
-   const buf = new Uint8Array(bin.length)
-   for (let i = 0; i < bin.length; i += 1) buf[i] = bin.charCodeAt(i)
-   const file = new File([buf], NAME, { type: 'application/octet-stream' })
-   const dt = new DataTransfer()
-   dt.items.add(file)
-   input.files = dt.files          // ← 元素不可见也照样生效
-   ```
+**四个坑，都是实测踩出来的**：
 
-4. **派发完整事件序列**（这一步是必须的）：
-
-   ```js
-   input.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
-   input.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
-   input.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-   input.dispatchEvent(new Event('input', { bubbles: true }))
-   input.dispatchEvent(new Event('change', { bubbles: true }))
-   ```
-
-   只派发 `input` / `change` 时 fnOS 收不到文件——不弹安全提示，`input.files` 也
-   不会被清空。应用在 `change` 之外还靠指针事件判定「这次是用户选的」。
-
-可复用的实现见 `packages/dsh-e2e-kit/src/upload-input.ts` 的 `injectUpload()`。
-
-**实测数据（2026-11-12，NAS 192.168.0.17）**：
-
-| 项 | 值 | 含义 |
-| --- | --- | --- |
-| `visible` | `false` | 目标元素全程不可见 |
-| `ancestorDisplay` | `none` | 祖先**没有被改动** |
-| `bytes` | 1 259 096 | 文件完整注入 |
-| `filesAfter` | `0` | 应用已接管并清空，属正常现象 |
-| 安全提示 | 出现 | fnOS 确实收到了文件 |
-
-**两个曾经踩过的坑，都已作废**：
-
-| 作废的做法 | 为什么错 |
-| --- | --- |
-| 把祖先 `display:none` 改成 `block` | fnOS 把「从电脑上传」与「从 NAS 添加」两枚 input 放在**同一个** `display:none` 容器里，放开容器会**连带放出目录 input**，页面上凭空多出一个可见的「选择文件」按钮 |
-| 拦截 `input.click()`（尤其改 `HTMLInputElement.prototype`） | 改用纯 JS 注入后**完全不需要**拦 click。改原型更是全局副作用：页面里所有 input 的 `click()` 都被劫持，补丁没恢复时 fnOS 自身逻辑静默失效、页面跳回 `/login` |
-
-**时序要点（2026-11-12 实测修正）**：
-
-| 做法 | `filesAfter` | 安全提示 |
-| --- | --- | --- |
-| 直接往常驻 input 注入 | `1`（未被消费） | 不弹 |
-| **先点一次「从电脑上传」→ 重开对话框 → 注入** | `0` | 弹出 |
-
-「点一次『从电脑上传』」是把应用切到「电脑上传」形态、给那枚 input 接上处理器
-的必要一步。点它会打开一次系统选择器（关掉即可）并卸载对话框，所以顺序是：
-**点来源 → 对话框消失 → 重新点「手动安装」→ 注入**。
-
-这一步与「拦 `input.click()`」不是一回事：拦 click 服务于 CDP `upload_file`
-按无障碍树取 uid，纯 JS 路线不需要。
-
-判定成功的唯一依据：页面出现「未经验证应用的安全提示」。随后 React 会清空 input
-（`files.length` 归 0），属正常现象，**不要**据此判失败。
-
-完整可执行用例见 `apps/fn-deepseek-harness/tests/e2e/cases/FNOS-013-nas-install-from-computer.yaml`，
-操作手册见[从电脑上传 FPK 到 NAS 并安装](/guide/nas-fpk-install)第 4.4 节。
-
-**为什么不能用 SSH 代替**：能连上（若已配置免密）也不该走——上传是**界面验收**的一部分，
-跳过它就无法证明「用户在应用中心能装成功」。SSH 只用于安装后的日志取证。
+1. **`upload_file` 作用于会打开选择器的元素会崩掉标签页**（`RESULT_CODE_KILLED_BAD_MESSAGE`，见 [issue #2310](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/2310)）。断 `click()` 同时解决「弹系统窗口」与「标签页崩溃」——两者同源。
+2. **必须点一次「从电脑上传」**。不点就注入，`input.files` 有值但应用不消费、不弹安全提示；补派发事件也无效。点它会卸载对话框，所以要重开。
+3. **`display:none` 的元素取不到 uid**（不进无障碍树），而子元素无法自救（祖先 `none` 使整棵子树不渲染）。解法是**只放开目标元素的祖先容器**，同时把同容器里的目录 input 单独藏掉——两枚 input 在**同一个** `display:none` 容器里，不藏就会一起露出来。
+4. **`click()` 补丁必须跟随节点重建**。切换来源会让应用重挂 input，旧节点上的实例补丁不跟随，所以要用 `MutationObserver`，或每次重挂后重装。**不要改 `HTMLInputElement.prototype`**：那是全局劫持，补丁没恢复时 fnOS 自身逻辑静默失效、页面跳回 `/login`。
 
 **`DSH_FPK_DIR` 只放待装的那一个 FPK**。这个变量既是文件选择器的授权范围，也是
 `${fpkDir}` 的来源；把整个仓库或下载目录指过去，等于把无关文件暴露给被测环境，也让
@@ -969,7 +931,7 @@ Codex Auth 插件的**已登录账号配置文件可直接用作测试账号**�
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
 | 2026-11-10 | 改正 Chrome MCP 传 FPK 的结论：`upload_file` 可用，关键在临时目录与拦 `click()` | 此前两处判断都错，一并纠正：① 原写「Chrome MCP 的 `upload_file` 受工作区根白名单限制，`/tmp`、`~/Downloads`、仓库内路径全被拒，故不能指望 MCP 传文件」——实测 MCP 的 roots **只包含 `os.tmpdir()`**，把 FPK `cp` 到该目录后 `upload_file` 正常工作；被拒的是仓库路径与 `~/.dsh/profiles/desktop`。② 原写「『从电脑上传』的 `onClick` 只切换来源枚举、不调用 `input.click()`」——同机重测**确会调用**（拦截计数 1），系统文件选择器就是这么弹出来的，正是「每次安装都被上传窗口打断」的根因。正解四步：开对话框 → 把 `HTMLInputElement.prototype.click` 换成只打标记的实现 → 点「从电脑上传」切来源 → 对带标记的非目录 input 用 `upload_file` 注入。另登记一个易漏前置：该 input 常驻在 `hidden` 祖先里、尺寸 `0×0` 时不被快照收录，需 `document.body.appendChild()` 并给可见尺寸才拿得到 uid。 |
-| 2026-11-12 | **推翻上一版：注入根本不需要元素可见，改纯页面 JS** | 上一版（2026-11-10）把「让 CDP `upload_file` 能按无障碍树取到 uid」当成了注入的必要条件，于是发明了一串 DOM 操作：给元素设 1px 尺寸、把祖先 `display:none` 改成 `block`、`appendChild` 到 `body`、拦截 `input.click()`（甚至改 `HTMLInputElement.prototype`）。**全部不必要。** 实测：`input.files = dataTransfer.files` 是普通属性赋值，与可见性、无障碍树无关；赋值后派发 `pointerdown → pointerup → click → input → change` 即可，`visible: false`、`ancestorDisplay: none` 时照样成功（`filesAfter: 0` 表示应用已接管）。那些多余操作造成过两次真实事故：① 把祖先改 `block` 会连带放出同容器内的目录 input，应用中心顶部凭空多出一个可见的「选择文件」按钮；② 改 `HTMLInputElement.prototype.click` 是全局劫持，补丁没恢复时 fnOS 自身逻辑静默失效、页面跳回 `/login`。另修正一个时序结论：input 在**打开应用中心时**就存在，但要等「手动安装」对话框**打开之后**再注入才会被消费。 |
+| 2026-11-12 | **定稿：断 `input.click()` + `upload_file` 注入** | 两个关键事实（两轮真机复现）：① `upload_file` 作用于会打开选择器的元素会崩标签页（`RESULT_CODE_KILLED_BAD_MESSAGE`，[issue #2310](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/2310)）；断掉 `input.click()` 同时解决「弹系统窗口」与「崩溃」——两者同源。② 目标元素在 `display:none` 祖先里取不到 uid，而**只放开目标自己的容器**是安全的；同容器里还有一枚目录 input，必须单独藏掉，否则会一起露出来。另：必须点一次「从电脑上传」应用才挂上 change 处理器，不点则注入无效。不要改 `HTMLInputElement.prototype.click`（全局劫持，曾导致页面跳回 `/login`）。 |
 | 2026-10-23 | 补「同一 profile 同时只能一个实例」强制条款 | 开发态 Desktop 与 `dsh web` 共用 `<repo>/.dsh` 时会争抢同一会话，后发起的客户端发送被拒并提示「当前会话已被占用」。该现象是会话占用而非端口冲突——两实例都能正常启动、界面都能打开，只有发送失败，容易被误判成插件缺陷（实测踩到，白查了一轮）。规范写明先释放另一侧、Desktop 测试期间不起 `dsh web`，并给出用 `lsof` 按端口反查 PID 的收尾方式。 |
 | 2026-10-23 | 纠正 Desktop 口径：只用开发态，不涉及发行版 | 两处会误导的表述已改正：① 「测试环境执行方式」表格里的 Desktop 一栏原写「在安装的 DSH Desktop 客户端中加载待测插件版本」，与后文「不使用系统安装的发行版」自相矛盾，改为「在上游检出的开发态 Desktop 里加载」；② 「测试完成后必须把 Desktop 改回全局 profile」把开发态实例与使用者的发行版混为一谈，改为「收尾只退出开发态实例，不启动/重启发行版」，仅当测试者本人另外启动过发行版做对照时才适用交还动作。启动命令、`ELECTRON_RUN_AS_NODE` 与 profile 装配三件事另在[开发环境](../development/environment)新增「DSH Desktop 联调」小节陈述。 |
 | 2026-10-23 | 补 DSH Web 取 token URL、Desktop 启动环境与进程清理三类实测教训 | ① Web：裸访问 8070 返回 401，取证须用启动日志里带 `?token=` 的地址，且不要把启动输出接进管道（会缓冲到进程结束、吞掉那一行）；② Desktop：宿主注入的 `ELECTRON_RUN_AS_NODE=1` 会让 Electron 以 Node 模式启动并报 `bad option: --remote-debugging-port=…`，启动前须 unset；③ Desktop 插件页显示「不兼容/异常」多半是 profile 把插件以 `link:` 指向源码、peer 里是 `catalog:dsh` 解析不出语义化版本，处置是实体副本 + 规范化 peer，而非改源码；④ 结束 Desktop 进程只能按检出路径精确匹配，禁止用 `dsh-desktop` 等宽模式——会误杀用户日常发行版（其子进程命令行含 `@deepseek-ai/dsh-desktop`），且被误杀后 agent 无法恢复（沙箱内报 `task_name_for_pid` failure 5），只能请用户手动启动。 |
