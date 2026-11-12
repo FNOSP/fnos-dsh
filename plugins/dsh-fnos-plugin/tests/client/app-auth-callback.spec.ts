@@ -146,3 +146,43 @@ describe('独立浏览器页面：文件入口用 openURL', () => {
     expect(actionCode).not.toContain('hasFnosHostBridge')
   })
 })
+
+describe('授权回调的订阅时机', () => {
+  it('两个调用方都在「发起授权」的同一处建立订阅', () => {
+    /*
+      踩过的坑：把 `state` 存进 `useRef` 再指望一个 effect 去装监听。ref 变化
+      不触发重渲染，那个 effect 永远不重跑——监听自始至终没装上，用户授权完成
+      后列表一直是旧的。订阅必须和「打开授权页」写在一起。
+    */
+    const card = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+    expect(card).toMatch(/usesAppAuthFlow\(\)[\s\S]{0,1600}listenFnosAppAuthResult/u)
+    // 不许再出现「存 ref 等 effect」的写法。
+    expect(card).not.toContain('pendingAuthState')
+
+    const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+    expect(panel).toMatch(/authorization-pending[\s\S]{0,900}listenFnosAppAuthResult/u)
+  })
+})
+
+describe('独立页面打开新标签页', () => {
+  it('必须在第一个 await 之前同步开窗', () => {
+    /*
+      `window.open` 只在用户点击的同步调用栈里放行；`await` 之后就脱离手势，
+      浏览器按弹窗拦截处理（实测返回 null，且没有任何报错）。
+    */
+    const raw = read('../../src/client/services/file-manager.ts')
+    // 先剥注释：说明文字里也会出现 `await sdk.ready()`，不剥会匹配到注释。
+    const service = raw.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
+    const openIndex = service.indexOf('window.open(')
+    const firstAwait = service.indexOf('await sdk.ready()')
+    expect(openIndex).toBeGreaterThan(-1)
+    expect(firstAwait).toBeGreaterThan(-1)
+    // 开窗必须早于第一个 await，否则已脱离用户手势。
+    expect(openIndex).toBeLessThan(firstAwait)
+  })
+
+  it('被拦截时给出可指导用户的错误码', () => {
+    const service = read('../../src/client/services/file-manager.ts')
+    expect(service).toContain('fnos-open-blocked')
+  })
+})

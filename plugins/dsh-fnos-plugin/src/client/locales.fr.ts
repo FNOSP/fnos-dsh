@@ -33,6 +33,7 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   openInAppTooltip: 'Ouvrir dans {app}',
   openFileManager: 'Ouvrir le gestionnaire de fichiers',
   openFileManagerFailed: "Impossible d'ouvrir le gestionnaire de fichiers du NAS.",
+  openFileManagerBlocked: "Le navigateur a bloqué le nouvel onglet. Autorisez les fenêtres pop-up pour ce site, puis réessayez.",
   sessionLogNasTitle: 'Exporter le journal de session vers le NAS',
   sessionLogNasConfirm: 'Exporter',
   sessionLogNasCancel: 'Annuler',

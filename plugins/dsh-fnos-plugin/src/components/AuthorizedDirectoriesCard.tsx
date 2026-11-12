@@ -199,32 +199,6 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
     void refresh()
   }, [refresh])
 
-  /**
-   * 监听授权页回调。
-   *
-   * 只有独立浏览器页面会用到：结果由网关的回调页 `postMessage` 回来，`state`
-   * 已在发起授权时存进 `pendingAuthState`，这里校验后刷新列表。
-   *
-   * 浏览器可能拦截 `postMessage` 或干脆不给 `opener`（移动端分屏最常见），
-   * 所以界面上的刷新按钮必须保留——用户回到页面后能自己补一次。
-   */
-  useEffect(() => {
-    if (!usesAppAuthFlow()) return
-    const state = pendingAuthState.current
-    if (state === undefined) return
-    return listenFnosAppAuthResult(state, (result) => {
-      pendingAuthState.current = undefined
-      if (result.status === 'error') {
-        setValidateNotice(result.error === 'access_denied'
-          ? t('permissionDenied')
-          : t('pickFailed'))
-        return
-      }
-      if (result.status === 'cancel') return
-      setValidateNotice(undefined)
-      void refresh()
-    })
-  }, [refresh, t])
 
 
 
@@ -247,13 +221,19 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
   }, [])
 
   /**
-   * 等待授权页回调时保存的 `state`。
+   * 授权回调的订阅解绑函数。
    *
-   * 独立浏览器页面里没有宿子弹窗：`pickSharedFile` 的分支根本不可用，取而代之
-   * 是打开系统授权页，结果通过回调页的 `postMessage` 异步返回。用 ref 保存
-   * 本次 `state`，回调到达时用它确认消息来自本次请求。
+   * 独立浏览器页面里没有宿子弹窗：`pickSharedFile` 的分支不可用，取而代之是
+   * 打开系统授权页，结果通过回调页的 `postMessage` 异步返回。订阅在**发起授权
+   * 的那一刻**建立（见 `addDirectory`），这里只保存解绑函数以便复用与卸载清理。
    */
-  const pendingAuthState = useRef<string | undefined>(undefined)
+  const authListenerRef = useRef<(() => void) | undefined>(undefined)
+
+  /* 卸载时解绑授权回调订阅：留着会让回调打在已卸载的组件上。 */
+  useEffect(() => () => {
+    authListenerRef.current?.()
+    authListenerRef.current = undefined
+  }, [])
 
   const addDirectory = useCallback(async (): Promise<void> => {
     setBusy(true)
@@ -283,12 +263,34 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         独立浏览器页面没有宿主桥：`pickSharedFile` 只会抛
         `Host bridge is not available outside iframe or app runtime`。
         改走官方给的路子——打开系统授权页，用户在那里确认目录，结果经回调页
-        异步返回（监听见下方的 `listenFnosAppAuthResult` effect）。
+        异步返回（监听在下方 `usesAppAuthFlow()` 分支里当场建立）。
       */
       if (usesAppAuthFlow()) {
         phase = 'openAppAuth'
         const state = createAuthState()
-        pendingAuthState.current = state
+        /*
+          **在这里直接订阅，而不是「存进 ref 再等 effect」。**
+
+          踩过的坑：早前把 `state` 存进 `useRef` 就返回，指望一个依赖它的
+          `useEffect` 去装监听。但 ref 变化**不触发重渲染**，那个 effect 永远
+          不会重跑——监听自始至终没装上，于是用户授权完成后列表一直是旧的。
+
+          订阅放在这里也符合时序：授权页已经打开，结果随时可能回来。
+        */
+        authListenerRef.current?.()
+        authListenerRef.current = listenFnosAppAuthResult(state, (result) => {
+          authListenerRef.current?.()
+          authListenerRef.current = undefined
+          if (result.status === 'error') {
+            setValidateNotice(result.error === 'access_denied' ? t('permissionDenied') : t('pickFailed'))
+            return
+          }
+          if (result.status === 'cancel') return
+          setValidateNotice(undefined)
+          // 结果到了：重新拉一次列表，新授权的目录立刻出现。
+          void refresh().then(() => persistCurrentDirectories())
+        })
+
         const url = await openFnosAppAuth(
           (method, authParams, options) => sdk.openAppAuth(method, authParams, options),
           state,

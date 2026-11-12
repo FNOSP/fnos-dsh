@@ -37,6 +37,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   openInAppTooltip: '{app}에서 열기',
   openFileManager: '파일 관리자 열기',
   openFileManagerFailed: 'NAS 파일 관리자를 열 수 없습니다.',
+  openFileManagerBlocked: '브라우저가 새 탭을 차단했습니다. 이 사이트의 팝업을 허용한 뒤 다시 시도하세요.',
   sessionLogNasTitle: '세션 로그를 NAS로 내보내기',
   sessionLogNasConfirm: '내보내기',
   sessionLogNasCancel: '취소',

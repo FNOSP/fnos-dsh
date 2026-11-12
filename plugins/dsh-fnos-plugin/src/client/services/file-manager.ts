@@ -61,22 +61,34 @@ export async function openFnosFileManager(
   createSdk: () => FileManagerSdk,
 ): Promise<void> {
   const sdk = createSdk()
-  await sdk.ready()
-  if (!sdk.isWeb) throw new Error('fnOS iframe SDK did not initialize its web carrier')
-  /*
-    **独立浏览器页面走 `openURL`。**
-    这一形态没有宿主桥，`openFileManager` 只会抛
-    `Host bridge is not available`；但 `openURL` 在 Web 宿主里就是
-    `window.open`，不依赖宿主桥，因此用它把 fnOS 文件管理器开成新标签页。
 
-    URL 用 fnOS 桌面自身的地址（`<origin>/`）——文件管理器是桌面 SPA 的内部
-    路由，没有可外部直达的稳定路径，能可靠打开的就只有桌面首页。
+  /*
+    **独立浏览器页面必须在 `await` 之前就打开新标签页。**
+
+    实测：`window.open` 只有在**用户点击的同步调用栈**里才放行，脱离手势后一律
+    返回 null（弹窗拦截）。早前写成 `await sdk.ready()` 之后再 `openURL`，已经
+    不在手势里，于是新标签页打不开、也没有任何报错。
+
+    所以这里先开窗、再补地址：先用 `about:blank` 占住窗口（这一步仍在手势内），
+    等拿到地址后写入 `location`。`noopener` 下拿不到句柄，因此这里**不用**
+    `noopener`（同源页面，且我们会立即导航到固定地址）。
   */
   if (sdk.isStandaloneWeb) {
-    if (sdk.openURL === undefined) throw new Error('fnOS openURL is unavailable in a standalone browser page')
-    await sdk.openURL(fnosDesktopUrl(), '_blank', 'noopener')
-    return
+    const target = fnosDesktopUrl()
+    const opened = typeof window === 'undefined' ? null : window.open('about:blank', '_blank')
+    if (opened !== null) {
+      opened.location.href = target
+      return
+    }
+    /*
+      窗口没开出来（弹窗拦截器仍拦住了，或浏览器限制）：退回给一个可点击的
+      链接式导航，而不是静默失败。
+    */
+    throw new Error('fnos-open-blocked: popup was blocked; allow popups for this site and retry')
   }
+
+  await sdk.ready()
+  if (!sdk.isWeb) throw new Error('fnOS iframe SDK did not initialize its web carrier')
   // 不预检插件自己展示的授权目录列表：该列表用于浏览和选择，可能滞后于 fnOS
   // ACL 状态，预检会误拒合法路径。是否允许由 fnOS 自行判断。
   await sdk.openFileManager(path)

@@ -33,6 +33,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   openInAppTooltip: 'Открыть в {app}',
   openFileManager: 'Открыть файловый менеджер',
   openFileManagerFailed: 'Не удалось открыть файловый менеджер NAS.',
+  openFileManagerBlocked: 'Браузер заблокировал новую вкладку. Разрешите всплывающие окна для этого сайта и повторите попытку.',
   sessionLogNasTitle: 'Экспорт журнала сеанса на NAS',
   sessionLogNasConfirm: 'Экспортировать',
   sessionLogNasCancel: 'Отмена',

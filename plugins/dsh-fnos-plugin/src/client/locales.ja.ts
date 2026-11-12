@@ -37,6 +37,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   openInAppTooltip: '{app} で開く',
   openFileManager: 'ファイルマネージャーを開く',
   openFileManagerFailed: 'NAS のファイルマネージャーを開けませんでした。',
+  openFileManagerBlocked: 'ブラウザが新しいタブをブロックしました。このサイトのポップアップを許可してから再試行してください。',
   sessionLogNasTitle: 'セッションログを NAS にエクスポート',
   sessionLogNasConfirm: 'エクスポート',
   sessionLogNasCancel: 'キャンセル',

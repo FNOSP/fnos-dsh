@@ -17,7 +17,7 @@
  * 菜单项由数组驱动，后续追加 fnOS 文件能力时只需增加一项并补文案。
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: 拉入 ui-session 对 GlobalStandardProps/SessionStandardProps 的合并，
@@ -94,12 +94,17 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
   const cwd = useSessions((state: SessionListStateLike) => state.byId[String(sessionId)]?.cwd)
   const current = OPEN_FILE_MANAGER
 
+  const lastErrorRef = useRef<string | undefined>(undefined)
+
   const launch = useCallback((action: FnosFileAction) => {
     if (cwd === undefined || cwd === '') return
     setPhase('busy')
     void action.run(cwd).then(
-      () => { setPhase('idle') },
-      () => { setPhase('error') },
+      () => { lastErrorRef.current = undefined; setPhase('idle') },
+      (error: unknown) => {
+        lastErrorRef.current = error instanceof Error ? error.message : String(error)
+        setPhase('error')
+      },
     )
   }, [cwd])
 
@@ -120,7 +125,15 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
     icon: action.icon(18),
   }))
   const currentLabel = current.label(t)
-  const title = phase === 'error' ? t('openFileManagerFailed') : current.tooltip(t, currentLabel)
+  /*
+    失败原因分两种：被弹窗拦截（可指导用户放行）与其它失败。混成一句话会让
+    「浏览器拦截」看起来像插件坏了。
+  */
+  const title = phase === 'error'
+    ? (lastErrorRef.current?.includes('fnos-open-blocked') === true
+        ? t('openFileManagerBlocked')
+        : t('openFileManagerFailed'))
+    : current.tooltip(t, currentLabel)
 
   return (
     <Menu

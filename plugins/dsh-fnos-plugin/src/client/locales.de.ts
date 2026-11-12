@@ -33,6 +33,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   openInAppTooltip: 'In {app} öffnen',
   openFileManager: 'Dateimanager öffnen',
   openFileManagerFailed: 'Der Dateimanager des NAS konnte nicht geöffnet werden.',
+  openFileManagerBlocked: 'Der Browser hat den neuen Tab blockiert. Erlauben Sie Pop-ups für diese Seite und versuchen Sie es erneut.',
   sessionLogNasTitle: 'Sitzungsprotokoll auf das NAS exportieren',
   sessionLogNasConfirm: 'Exportieren',
   sessionLogNasCancel: 'Abbrechen',
