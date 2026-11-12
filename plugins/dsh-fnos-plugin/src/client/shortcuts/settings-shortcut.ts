@@ -53,8 +53,13 @@ export function installFnosSettingsShortcut(): () => void {
     if (handling) return
     if (!isSettingsShortcut(event)) return
     /*
-      只认「不带 alt」的那一种：带 `alt` 的组合属于 DSH 官方设置（Web 运行时
-      的默认绑定就是 `primary + alt + Comma`），必须原样放行给它。
+      **带 `alt` 的组合必须放行给 DSH 官方。** Web 运行时官方的 `settings.open`
+      就绑在 `primary + alt + Comma` 上，抢走它等于把官方设置废掉。
+
+      ⚠️ 这个判断只能放在「事件到达本回调之前」，不能放进来：实机验证过，
+      `DshHotKeys` 在调用 `onHotKey` **之前**就已经 `preventDefault` 了，
+      到这里再 return 时浏览器默认行为已经被吃掉——表现为官方设置也不开。
+      所以下面同时把 `preventDefault: false` 传给组件，由本回调自己决定。
     */
     if (event.altKey) return
     event.preventDefault()
@@ -80,14 +85,18 @@ export function installFnosSettingsShortcut(): () => void {
     null,
     createElement(DshHotKeys, {
       hotKeys: [DshHotKeys.Keys.Control, DshHotKeys.Keys.Comma],
-      preventDefault: true,
+      /*
+        交给本回调决定是否 preventDefault：组件自带的 preventDefault 在回调
+        **之前**执行，会连带把要放行给官方的 `primary + alt + Comma` 一起吃掉。
+      */
+      preventDefault: false,
       onHotKey: handleHotKey,
       getListenerTarget: listenerTarget,
       render: null,
     }),
     createElement(DshHotKeys, {
       hotKeys: [DshHotKeys.Keys.Meta, DshHotKeys.Keys.Comma],
-      preventDefault: true,
+      preventDefault: false,
       onHotKey: handleHotKey,
       getListenerTarget: listenerTarget,
       render: null,

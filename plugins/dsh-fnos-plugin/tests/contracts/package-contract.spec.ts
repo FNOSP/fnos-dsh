@@ -250,6 +250,13 @@ describe('dsh-fnos package contract', () => {
     expect(settingsShortcut).not.toContain('sidebarRight')
     // 自身监听上必须防止递归。
     expect(settingsShortcut).toContain('if (handling) return')
+    /*
+      `preventDefault` 不能交给 `DshHotKeys`：它在调用 `onHotKey` **之前**就执行，
+      会把要放行给官方的 `primary + alt + Comma` 一起吃掉——实机验证过，表现为
+      官方设置也不开。必须由本回调自己按 alt 决定。
+    */
+    expect(settingsShortcut).toContain('preventDefault: false')
+    expect(settingsShortcut).not.toContain('preventDefault: true')
   })
 
   it('keeps the cancel-authorization label stable while adding a directory', async () => {
