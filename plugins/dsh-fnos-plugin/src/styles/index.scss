@@ -3048,10 +3048,11 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
     `display:flex; flex-direction:column` 的容器，它默认由内容撑开；而按钮自己写了
     `height`，容器一旦被收缩到 20px，按钮就跟着被压扁。实测不指定时按钮只有 20px。
 
-    取值以**实测**为准，不抄官方源码：本机 fnOS 上设置行是 32px、侧栏「更多」行是
-    36px。入口紧贴在设置行上方，对齐它才有意义，所以取 32px。
+    取值以**实测**为准，不抄官方源码：本机 fnOS 上侧栏行（「插件」「自动化任务」
+    「更多」）统一是 36px，设置行是 32px。入口在视觉上属于「侧栏行」，跟着 36px
+    走才与上面那几行齐平——贴着的设置行矮 4px 是官方自己那行的特征。
   */
-  height: 32px;
+  height: 36px;
   flex: none;
 }
 
@@ -3062,7 +3063,7 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
   gap: var(--dsh-sidebar-label-gap);
   width: 100%;
   min-width: 0;
-  height: 32px;
+  height: 36px;
   margin: 0;
   padding: 0 calc(var(--dsh-sidebar-row-padding) - var(--dsh-sidebar-paint-inset));
   box-sizing: border-box;
@@ -3132,4 +3133,19 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
 .dsh-fnos-footer-menu {
   width: 288px;
   max-width: calc(100vw - 24px);
+}
+
+
+/*
+ * 入口行右侧的快捷键提示。
+ *
+ * 与官方设置行同一形态：靠右、弱化色、只在展开态出现。`margin-left: auto`
+ * 把它推到行尾，标题再长也不会把它挤走。
+ */
+.dsh-fnos-footer-shortcut {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  margin-left: auto;
+  color: var(--dsw-alias-label-tertiary);
 }

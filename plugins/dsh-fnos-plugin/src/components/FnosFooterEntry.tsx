@@ -23,10 +23,15 @@
  */
 
 import { useCallback, useRef, useState } from 'react'
-import { Menu, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Menu, MenuItemButton, ShortcutKeys, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { configDialogStore } from '../client/config-dialog-store.ts'
 import { getFnosWebActions } from '../client/services/web-actions.ts'
+import {
+  detectShortcutPlatform,
+  fnosSettingsAriaKeys,
+  fnosSettingsShortcutKeys,
+} from '../client/shortcuts/fnos-settings-shortcut.ts'
 import { FnosMonoLogo } from './FnosLogo.tsx'
 import { IconifyIcon } from './IconifyIcon.tsx'
 
@@ -52,6 +57,14 @@ export interface FnosFooterEntryProps {
  * @returns 入口按钮与其下拉菜单。
  */
 export function FnosFooterEntry({ wide, t }: FnosFooterEntryProps): React.ReactNode {
+  /*
+    快捷键提示要显示用户真按得到的键：macOS 是 `⌘ ,`，其余是 `Ctrl ,`。
+    写死其中一个，另一半用户照着按却没反应。
+  */
+  const platform = detectShortcutPlatform()
+  const shortcutKeys = fnosSettingsShortcutKeys(platform)
+  const shortcutAria = fnosSettingsAriaKeys(platform)
+
   const [open, setOpen] = useState(false)
   const [restarting, setRestarting] = useState(false)
   const [restartFailed, setRestartFailed] = useState(false)
@@ -96,24 +109,36 @@ export function FnosFooterEntry({ wide, t }: FnosFooterEntryProps): React.ReactN
       className="dsh-fnos-footer-anchor"
       listClassName="dsh-fnos-footer-menu"
       anchor={(
-        <button
-          ref={triggerRef}
-          type="button"
-          /*
-            折叠态必须给 aria-label：图标按钮没有可见文字，缺了它读屏软件只会
-            念「按钮」。
-          */
-          aria-label={t('configMenuEntry')}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          className={wide ? 'dsh-fnos-footer-trigger' : 'dsh-fnos-footer-trigger dsh-fnos-footer-trigger--rail'}
-          onClick={() => { setOpen(value => !value) }}
-        >
-          <span className="dsh-fnos-footer-glyph" aria-hidden="true">
-            <FnosMonoLogo size={wide ? 16 : 18} />
-          </span>
-          {wide && <span className="dsh-fnos-footer-title">{t('configMenuEntry')}</span>}
-        </button>
+        /*
+          折叠态是纯图标按钮，唯一的说明来源就是 Tooltip（官方设置行同样如此）。
+          展开态把键帽显示在行内，与官方「设置」行右侧的快捷键提示同一形态。
+        */
+        <Tooltip label={t('configMenuEntry')} shortcutKeys={wide ? undefined : shortcutKeys} delayMs={500}>
+          <button
+            ref={triggerRef}
+            type="button"
+            /*
+              折叠态必须给 aria-label：图标按钮没有可见文字，缺了它读屏软件只会
+              念「按钮」。
+            */
+            aria-label={t('configMenuEntry')}
+            aria-haspopup="menu"
+            aria-expanded={open}
+            aria-keyshortcuts={shortcutAria}
+            className={wide ? 'dsh-fnos-footer-trigger' : 'dsh-fnos-footer-trigger dsh-fnos-footer-trigger--rail'}
+            onClick={() => { setOpen(value => !value) }}
+          >
+            <span className="dsh-fnos-footer-glyph" aria-hidden="true">
+              <FnosMonoLogo size={wide ? 16 : 18} />
+            </span>
+            {wide && <span className="dsh-fnos-footer-title">{t('configMenuEntry')}</span>}
+            {wide && (
+              <span className="dsh-fnos-footer-shortcut" aria-hidden="true">
+                <ShortcutKeys keys={shortcutKeys} />
+              </span>
+            )}
+          </button>
+        </Tooltip>
       )}
     >
       <MenuItemButton

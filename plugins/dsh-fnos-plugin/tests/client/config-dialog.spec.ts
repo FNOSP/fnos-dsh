@@ -39,26 +39,47 @@ describe('fnOS 配置弹框', () => {
     expect(LOCALES).toContain("configMenuEntry: '飞牛 OS'")
   })
 
-  it('入口高度按实测对齐设置行（不是抄官方源码的 42px）', () => {
+  it('入口行高按实测与侧栏其它行对齐（36px，不是抄官方源码的 42px）', () => {
     /*
-      真机实测：本机 fnOS 上设置行是 32px、侧栏「更多」行是 36px，
-      而官方源码里写的是 42px。抄源码会得到一个高出一截的入口——两者紧贴在一起，
-      一眼就能看出来。这里钉住「以实测值为准」这条规则。
+      真机实测（192.168.0.17）：侧栏行「插件」「自动化任务」「更多」统一是 **36px**，
+      设置行是 32px，而官方源码里写的是 42px。
+
+      入口在视觉上属于「侧栏行」，跟着 36px 走才与上面那几行齐平；贴着的设置行矮
+      4px 是官方那行自己的特征，跟着它反而会显得本行被压扁。
 
       另一个易漏点：`Menu` 会给 anchor 包一层 flex 容器，容器高度不显式给就会
       收缩到内容高度（实测 20px），把按钮一起压扁。所以 anchor 也必须写死高度。
     */
     const anchor = SCSS.slice(SCSS.indexOf('.dsh-fnos-footer-anchor {'))
     const anchorBlock = anchor.slice(0, anchor.indexOf('\n}'))
-    expect(anchorBlock).toContain('height: 32px')
+    expect(anchorBlock).toContain('height: 36px')
     expect(anchorBlock).toContain('flex: none')
 
     const trigger = SCSS.slice(SCSS.indexOf('.dsh-fnos-footer-trigger {'))
     const triggerBlock = trigger.slice(0, trigger.indexOf('\n}'))
-    expect(triggerBlock).toContain('height: 32px')
+    expect(triggerBlock).toContain('height: 36px')
     // 抄官方源码的 42px 不该再出现。
     expect(triggerBlock).not.toContain('height: 42px')
   })
+
+  it('入口右侧显示快捷键提示，且按平台给对应修饰键', () => {
+    /*
+      官方设置行右侧就有快捷键提示（`ShortcutKeys` + `shortcutKeys` prop）。
+      入口在同一位置做同样的事，两者并排才像同一种控件。
+
+      修饰键必须按平台给：macOS 是 `⌘ ,`，其余是 `Ctrl ,`。写死一个，
+      另一半用户照着按没反应。
+    */
+    expect(ENTRY).toContain('ShortcutKeys')
+    expect(ENTRY).toContain('detectShortcutPlatform')
+    expect(ENTRY).toContain('fnosSettingsShortcutKeys')
+
+    const SHORTCUT = read('../../src/client/shortcuts/fnos-settings-shortcut.ts')
+    expect(SHORTCUT).toContain("'mac'")
+    expect(SHORTCUT).toContain('userAgentData')
+    expect(SHORTCUT).toContain("platform === 'mac' ? ['⌘', ','] : ['Ctrl', ',']")
+  })
+
 
   it('折叠态与展开态都带无障碍名', () => {
     // 图标按钮没有可见文字，缺 aria-label 时读屏只会念「按钮」。
