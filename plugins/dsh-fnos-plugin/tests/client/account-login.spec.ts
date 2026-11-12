@@ -38,6 +38,17 @@ describe('账号登录：回调改道', () => {
     expect(HOST).toContain("attempt?.phase === 'waiting-browser'")
   })
 
+  it('账号服务实例由注入回调登记，不从根 ctx 读', () => {
+    /*
+      根上下文的 `ctx` 上没有 `deepseekAccount`——那个属性只存在于
+      `ctx.inject(['deepseekAccount'], …)` 的子上下文。从根 ctx 读会永远拿到
+      undefined，路由一律回 400（空 body，没有任何错误信息）。
+    */
+    expect(HOST).toContain('let accountService')
+    expect(HOST).toContain('accountService = service')
+    expect(HOST).not.toContain('(ctx as unknown as { deepseekAccount')
+  })
+
   it('所有路由都过同源校验', () => {
     const handlers = HOST.match(/handler: async \(req, res\)/gu) ?? []
     const guards = HOST.match(/if \(!trusted\(req\)\)/gu) ?? []

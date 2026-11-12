@@ -155,7 +155,7 @@ export function registerAccountLoginRelay(ctx: Context): void {
     handler: async (req, res) => {
       if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
       if (req.method !== 'POST') return send(res, 405, { error: 'method-not-allowed' })
-      const service = readAccountService(ctx)
+      const service = readAccountService()
       if (service === undefined) return send(res, 503, { error: 'account-service-unavailable' })
       try {
         /*
@@ -212,7 +212,7 @@ export function registerAccountLoginRelay(ctx: Context): void {
     path: FNOS_ACCOUNT_LOGIN_STATE_ROUTE,
     handler: async (req, res) => {
       if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
-      const service = readAccountService(ctx)
+      const service = readAccountService()
       if (service === undefined) return send(res, 503, { error: 'account-service-unavailable' })
       try {
         const state = await service.getState() as { attempt?: { phase?: string, authorizeUrl?: string, id?: string } } | undefined
@@ -234,7 +234,7 @@ export function registerAccountLoginRelay(ctx: Context): void {
     handler: async (req, res) => {
       if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
       if (req.method !== 'POST') return send(res, 405, { error: 'method-not-allowed' })
-      const service = readAccountService(ctx)
+      const service = readAccountService()
       if (service === undefined) return send(res, 503, { error: 'account-service-unavailable' })
       try {
         await service.cancel?.()
@@ -254,6 +254,8 @@ export function registerAccountLoginRelay(ctx: Context): void {
   ctx.inject(['deepseekAccount'], child => {
     const service = (child as unknown as { deepseekAccount?: AccountServiceLike }).deepseekAccount
     if (service === undefined || typeof service.startSignIn !== 'function') return
+    accountService = service
+    child.effect(() => () => { accountService = undefined })
     const port = ctx.webServer.port
     if (port === undefined || !Number.isSafeInteger(port) || port <= 0) return
     const loopback = `http://127.0.0.1:${port}`
@@ -263,12 +265,24 @@ export function registerAccountLoginRelay(ctx: Context): void {
 }
 
 /**
- * 从上下文读账号服务实例。
+ * 当前可用的账号服务实例。
  *
- * @param ctx - 宿主上下文。
+ * **不能从路由 handler 里直接读 `ctx.deepseekAccount`**：那个属性只在
+ * `ctx.inject(['deepseekAccount'], …)` 的子上下文里存在，根上下文的 `ctx` 上没有。
+ * 第一版就是这么写的，结果路由一律回 400（DSH webserver 在 handler 抛错时的
+ * 表现是空 body 的 400，不带任何错误信息）。
+ *
+ * 改为在注入回调里登记、在这里读取。
+ */
+let accountService: AccountServiceLike | undefined
+
+/**
+ * 读账号服务实例。
+ *
  * @returns 服务实例；不可用时为 undefined。
  */
-function readAccountService(ctx: Context): AccountServiceLike | undefined {
-  const service = (ctx as unknown as { deepseekAccount?: AccountServiceLike }).deepseekAccount
-  return service !== undefined && typeof service.startSignIn === 'function' ? service : undefined
+function readAccountService(): AccountServiceLike | undefined {
+  return accountService !== undefined && typeof accountService.startSignIn === 'function'
+    ? accountService
+    : undefined
 }
