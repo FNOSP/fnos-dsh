@@ -338,6 +338,17 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                       loading 并保持弹层打开——卸载是异步的后端操作（改 profile、
                       跑 `pnpm remove`），点了就关会让用户以为瞬间完成。
                     */
+                    /*
+                      触发元素**只包 Popconfirm，不再套 Tooltip**。
+
+                      实测：Tooltip 与 Popconfirm 同时包着同一个按钮时，Tooltip 的
+                      hover 层抢在 Popconfirm 之前接管了指针事件，点击唤不出确认层
+                      （`.semi-popconfirm` 始终不出现）。而且这里是冗余的——确认层
+                      的标题已经写明「卸载「X」？」，再挂一个「卸载」气泡没有信息量。
+
+                      `aria-label` 保留：图标按钮没有可见文字，缺了它读屏只会念
+                      「按钮」。
+                    */
                     <Popconfirm
                       title={t('pluginRemoveTitle')}
                       content={`${t('pluginRemoveConfirm')}${plugin.name}`}
@@ -347,17 +358,15 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                       position="topRight"
                       onConfirm={() => removePluginFromCard(plugin.name)}
                     >
-                      <DshTooltip content={t('uninstall')}>
-                        <button
-                          type="button"
-                          className="dsh-fnos-icon-button dsh-fnos-icon-button--danger"
-                          aria-label={t('uninstall')}
-                          /* 正在卸载（或正在装）这个插件时不许再点。 */
-                          disabled={removingName === plugin.name || installing === plugin.name}
-                        >
-                          <IconifyIcon name="lucide:trash" />
-                        </button>
-                      </DshTooltip>
+                      <button
+                        type="button"
+                        className="dsh-fnos-icon-button dsh-fnos-icon-button--danger"
+                        aria-label={t('uninstall')}
+                        /* 正在卸载（或正在装）这个插件时不许再点。 */
+                        disabled={removingName === plugin.name || installing === plugin.name}
+                      >
+                        <IconifyIcon name="lucide:trash" />
+                      </button>
                     </Popconfirm>
                   )}
                 </div>
