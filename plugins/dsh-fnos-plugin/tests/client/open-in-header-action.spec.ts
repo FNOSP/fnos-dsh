@@ -52,9 +52,9 @@ describe('fnOS 文件管理器调用', () => {
       .rejects.toThrow('web carrier')
   })
 
-  it('standalone web 时同样抛出（未连上 fnOS 宿主）', async () => {
+  it('standalone web 时抛出，并说清是该环境不提供', async () => {
     await expect(openFnosFileManager('/vol1/1000', factory(sdk({ isStandaloneWeb: true }))))
-      .rejects.toThrow('web carrier')
+      .rejects.toThrow('standalone browser page')
   })
 
   it('SDK 自身失败时向上传播，不回退到 DSH 原生打开', async () => {

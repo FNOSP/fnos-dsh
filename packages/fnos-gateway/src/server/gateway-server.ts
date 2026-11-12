@@ -8,6 +8,7 @@ import { pathRewriteMiddleware, rewritePath } from '../middleware/path-rewrite.j
 import { createProxyHandler, browserSessionCookieName } from './proxy.js'
 import { UpstreamSession } from './upstream-session.js'
 import { PATH_ALLOWLIST_EVENTS_PATH } from './path-allowlist.js'
+import { appAuthCallback } from '../middleware/app-auth-callback.js'
 import { WEB_CONTROL_RESTART_PATH, WEB_CONTROL_START_PATH, WEB_CONTROL_STATUS_PATH } from './web-process.js'
 import { attachSseKeepalive } from '../middleware/sse-keepalive.js'
 
@@ -100,6 +101,11 @@ export function createGateway(options: GatewayOptions): GatewayServer {
 
   const app = connect()
   app.use(pathRewriteMiddleware(gatewayPrefix))
+  /*
+    授权回调页排在转发之前：它是应用自己的页面，不该被转到上游 DSH。
+    必须放在 pathRewrite 之后——那时前缀已被剥掉，这里匹配的是 `/fnos-auth-callback`。
+  */
+  app.use(appAuthCallback())
   app.use(webControl(options, session))
   app.use(pathAllowlistEvents(options))
   app.use(upstreamSessionReady(options, session))

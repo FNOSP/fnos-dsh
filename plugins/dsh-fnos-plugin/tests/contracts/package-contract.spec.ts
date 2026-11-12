@@ -188,27 +188,35 @@ describe('dsh-fnos package contract', () => {
     expect(patch).not.toContain('@deepseek-ai/dsh-host-directory-picker-browse')
   })
 
-  it('配置入口在「更多」菜单里，详情页不再挂配置块', async () => {
+  it('配置入口在侧栏底部（sidebar.footer.action），详情页不再挂配置块', async () => {
     const source = await readFile(new URL('../../src/client/index.ts', import.meta.url), 'utf8')
     /*
-      「插件」「自动化任务」那一组由 `sidebar.panellist` 渲染，「更多」是 panelList
-      里固定的最后一项——要排在它上方，就得注册成本槽位的一行。
+      入口位置最终落在 `sidebar.footer.action`：侧栏里唯一「应用级、可叠加、
+      与设置同级」的座位，展开态与设置行同高同宽，折叠态同为 36×36 rail 控件。
 
-      代价：该槽位的行点击会走 `layout.selectPanel(id)`，而它先校验
-      `hasMainPanel(id)`、没有配对主视图直接抛错，所以必须同时注册 `main`。
+      走过的两条弯路都留在实现注释里：面板行（`sidebar.panellist`）要求配对
+      `main` 视图且点击会切主区域；「更多」菜单（`sidebar.panellist.actions`）
+      属于全局面板分组，把应用入口埋进了两级菜单。
     */
-    expect(source).toContain("ctx.slots.inject('sidebar.panellist.actions'")
-    expect(source).toContain("id: 'dsh-fnos-config-entry'")
+    expect(source).toContain("ctx.slots.inject('sidebar.footer.action'")
+    expect(source).toContain("id: 'dsh-fnos-footer-entry'")
+    // 入口已搬走：「更多」菜单里不再有飞牛 OS / 刷新 / 重启任何一行。
+    expect(source).not.toContain("ctx.slots.inject('sidebar.panellist.actions'")
     expect(source).not.toContain("ctx.slots.inject('plugins.detail.section'")
     expect(source).not.toContain("ctx.slots.inject('settings.plugins.tab'")
-    // 刷新 / 重启已从侧栏底部移入会话头部的「…」菜单（FNOS-042 那个菜单）。
-    expect(source).not.toContain("ctx.slots.inject('sidebar.footer.action'")
     expect(source).toContain('installFnosBrowserRefreshShortcut')
+    /*
+      刷新与重启**已不在会话头部菜单里**：它们是应用级动作，与当前会话无关，
+      现在由侧栏底部「飞牛 OS」下拉菜单承载（`FnosFooterEntry` →
+      `services/web-actions.ts`）。
+    */
     const headerAction = await readFile(new URL('../../src/components/FnosSessionLogHeaderAction.tsx', import.meta.url), 'utf8')
-    expect(headerAction).toContain('window.location.reload()')
-    expect(headerAction).toContain('/__fnos-gateway/control/web/restart')
-    expect(headerAction).toContain("id: 'refresh'")
-    expect(headerAction).toContain("id: 'restart'")
+    expect(headerAction).not.toContain("id: 'refresh'")
+    expect(headerAction).not.toContain("id: 'restart'")
+    expect(headerAction).not.toContain('__fnos-gateway/control/web/restart')
+    const webActions = await readFile(new URL('../../src/client/services/web-actions.ts', import.meta.url), 'utf8')
+    expect(webActions).toContain('/__fnos-gateway/control/web/restart')
+    expect(webActions).toContain('location.reload()')
     const refreshShortcut = await readFile(new URL('../../src/client/shortcuts/browser-refresh-shortcut.ts', import.meta.url), 'utf8')
     expect(refreshShortcut).toContain('DshHotKeys')
     expect(refreshShortcut).toContain('DshHotKeys.Keys.F5')

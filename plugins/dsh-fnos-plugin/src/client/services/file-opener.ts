@@ -36,9 +36,9 @@ export async function openFnosEntry(
 ): Promise<void> {
   const sdk = createSdk()
   await sdk.ready()
-  if (!sdk.isWeb || sdk.isStandaloneWeb) {
-    throw new Error('fnOS iframe SDK did not initialize its web carrier')
-  }
+  // 独立浏览器页面没有宿主桥：区分「SDK 未初始化」与「该环境不提供此能力」。
+  if (!sdk.isWeb) throw new Error('fnOS iframe SDK did not initialize its web carrier')
+  if (sdk.isStandaloneWeb) throw new Error('fnOS file opening is unavailable in a standalone browser page')
   if (kind === 'directory') await sdk.openFileManager(path)
   else await sdk.openFile(path)
 }

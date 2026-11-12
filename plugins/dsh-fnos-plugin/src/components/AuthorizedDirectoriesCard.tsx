@@ -6,6 +6,7 @@ import type { FnosLocaleKey } from '../client/locales.ts'
 import { diagnosePickerResult, isPickerCancellation, isPickerNoSelection, logPickerSdkEvent, logPickerSdkValue } from '../client/input-references/picker-result.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import { IconifyIcon } from './IconifyIcon.tsx'
+import { createAuthState, listenFnosAppAuthResult, openFnosAppAuth, usesAppAuthFlow } from '../client/services/app-auth.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import {
   DirectoryRequestError,
@@ -198,6 +199,33 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
     void refresh()
   }, [refresh])
 
+  /**
+   * 监听授权页回调。
+   *
+   * 只有独立浏览器页面会用到：结果由网关的回调页 `postMessage` 回来，`state`
+   * 已在发起授权时存进 `pendingAuthState`，这里校验后刷新列表。
+   *
+   * 浏览器可能拦截 `postMessage` 或干脆不给 `opener`（移动端分屏最常见），
+   * 所以界面上的刷新按钮必须保留——用户回到页面后能自己补一次。
+   */
+  useEffect(() => {
+    if (!usesAppAuthFlow()) return
+    const state = pendingAuthState.current
+    if (state === undefined) return
+    return listenFnosAppAuthResult(state, (result) => {
+      pendingAuthState.current = undefined
+      if (result.status === 'error') {
+        setValidateNotice(result.error === 'access_denied'
+          ? t('permissionDenied')
+          : t('pickFailed'))
+        return
+      }
+      if (result.status === 'cancel') return
+      setValidateNotice(undefined)
+      void refresh()
+    })
+  }, [refresh, t])
+
 
 
   /**
@@ -217,6 +245,15 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
       })
     }
   }, [])
+
+  /**
+   * 等待授权页回调时保存的 `state`。
+   *
+   * 独立浏览器页面里没有宿子弹窗：`pickSharedFile` 的分支根本不可用，取而代之
+   * 是打开系统授权页，结果通过回调页的 `postMessage` 异步返回。用 ref 保存
+   * 本次 `state`，回调到达时用它确认消息来自本次请求。
+   */
+  const pendingAuthState = useRef<string | undefined>(undefined)
 
   const addDirectory = useCallback(async (): Promise<void> => {
     setBusy(true)
@@ -241,6 +278,24 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
       phase = 'ready'
       await sdk.ready()
       logPickerSdkEvent('ready', { isWeb: sdk.isWeb, isStandaloneWeb: sdk.isStandaloneWeb })
+
+      /*
+        独立浏览器页面没有宿主桥：`pickSharedFile` 只会抛
+        `Host bridge is not available outside iframe or app runtime`。
+        改走官方给的路子——打开系统授权页，用户在那里确认目录，结果经回调页
+        异步返回（监听见下方的 `listenFnosAppAuthResult` effect）。
+      */
+      if (usesAppAuthFlow()) {
+        phase = 'openAppAuth'
+        const state = createAuthState()
+        pendingAuthState.current = state
+        const url = await openFnosAppAuth(
+          (method, authParams, options) => sdk.openAppAuth(method, authParams, options),
+          state,
+        )
+        logAuthorizedDirectoryEvent('app-auth-opened', { opened: url !== undefined })
+        return
+      }
 
       phase = 'pickSharedFile'
       const result = await sdk.pickSharedFile(params)

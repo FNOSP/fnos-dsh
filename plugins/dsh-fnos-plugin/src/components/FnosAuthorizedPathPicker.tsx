@@ -523,6 +523,13 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         okText: t('inputPickerConfirm'),
       })
       if (outcome.status === 'cancelled') return
+      /*
+        独立浏览器页面：授权页刚被打开，用户还没确认。这时既不是成功也不是失败，
+        什么都不做——结果会通过回调页的 `postMessage` 异步回来。
+        早前这里没有这一支，会直接往下走「刷新列表 + 提示授权成功」，于是用户
+        什么都没点就看到「已授权」，而列表里并没有新目录。
+      */
+      if (outcome.status === 'authorization-pending') return
       if (outcome.status === 'failed') {
         Toast.error({ content: authorizeErrorMessage(outcome.code, t) })
         return

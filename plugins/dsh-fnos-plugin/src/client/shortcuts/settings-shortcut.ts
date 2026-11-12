@@ -1,9 +1,9 @@
 /**
- * 让官方「打开设置」快捷键在 fnOS iframe 内不被浏览器吞掉。
+ * 让官方「打开设置」快捷键在 fnOS 页面（内嵌与独立浏览器）里不被浏览器吞掉。
  *
  * 背景：DSH 的设置命令 `settings.open` 在 **Desktop** 运行时绑定 `primary + ,`
  * （`Cmd/Ctrl + ,`），在 **Web** 运行时绑定 `primary + alt + ,`。fnOS 应用跑在
- * iframe 里、运行时被识别为 Web，但用户在浏览器里按 `Ctrl/Cmd + ,` 时，该组合
+ * 页面里、运行时被识别为 Web，但用户在浏览器里按 `Ctrl/Cmd + ,` 时，该组合
  * 会先被浏览器当成「浏览器设置」处理，等不到 DSH 的快捷键适配器。
  *
  * 本模块在 **window 捕获阶段**先一步截获这两个组合，`preventDefault` 掉浏览器
@@ -18,13 +18,17 @@
 import { createElement, Fragment } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { DshHotKeys } from '@tnnevol/dsh-semi-ui'
-import { isEmbeddedFnosFrame } from '../services/sdk-carrier.ts'
+import { isFnosHosted } from '../services/environment.ts'
 import { isSettingsShortcut } from './settings-shortcut-matcher.ts'
 
 export { isSettingsShortcut } from './settings-shortcut-matcher.ts'
 
 export function installFnosSettingsShortcut(): () => void {
-  if (!isEmbeddedFnosFrame() || typeof document === 'undefined' || document.body === null) return () => {}
+  /*
+    判据是「fnOS 托管」而不是「在 iframe 里」：独立浏览器页面同样是 fnOS 应用，
+    浏览器一样会把 `Ctrl/Cmd + ,` 抢去开浏览器设置，这里同样需要抢先截获。
+  */
+  if (!isFnosHosted() || typeof document === 'undefined' || document.body === null) return () => {}
 
   /**
    * 截获后主动补发一次事件。

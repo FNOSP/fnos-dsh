@@ -61,6 +61,7 @@ export type UsedIconName =
   | 'lucide:route'
   | 'lucide:blocks'
   | 'lucide:trash'
+  | 'lucide:settings'
 
 /** 默认尺寸（px）；菜单行图标按官方 16px 对齐。 */
 const DEFAULT_SIZE = 16

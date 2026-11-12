@@ -420,6 +420,10 @@ const requirementsSidebar = [
         link: '/requirements/FNOS-045-app-plugin-i18n'
       },
       {
+        text: 'FNOS-052 侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐',
+        link: '/requirements/FNOS-052-fnos-footer-entry-standalone'
+      },
+      {
         text: 'FNOS-046 DSH 0.2.2-rc.1 插件适配与基线升级',
         link: '/requirements/FNOS-046-dsh-022-rc1-adaptation'
       },
@@ -773,6 +777,10 @@ const testsSidebar = [
       {
         text: 'FNOS-045 应用与插件多语言支持',
         link: '/tests/FNOS-045-app-plugin-i18n'
+      },
+      {
+        text: 'FNOS-052 侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐',
+        link: '/tests/FNOS-052-fnos-footer-entry-standalone'
       },
     ]
   }

@@ -41,8 +41,11 @@ describe('复制会话为 Markdown', () => {
   it('菜单项排在最上面（与官方顺序一致），并带复制图标', () => {
     const start = HEADER.indexOf('const menuItems: MenuItem[] = [')
     const block = HEADER.slice(start, HEADER.indexOf('const copyMarkdown'))
-    expect(block.indexOf("id: 'copy'")).toBeGreaterThan(-1)
-    expect(block.indexOf("id: 'copy'")).toBeLessThan(block.indexOf("id: 'refresh'"))
+    const copyAt = block.indexOf("id: 'copy'")
+    expect(copyAt).toBeGreaterThan(-1)
+    // 复制在最上面：下载（父项）与反馈都排在它之后。
+    expect(copyAt).toBeLessThan(block.indexOf("id: 'download'"))
+    expect(copyAt).toBeLessThan(block.indexOf("id: 'feedback'"))
     expect(HEADER).toContain('IconCopyOutlineRegular')
   })
 

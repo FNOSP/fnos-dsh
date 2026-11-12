@@ -26,7 +26,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { IconChevronDownOutlineRegular, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FnosFileManagerIcon } from './FnosFileManagerIcon.tsx'
-import { isEmbeddedFnosFrame } from '../client/services/sdk-carrier.ts'
+import { hasFnosHostBridge } from '../client/services/environment.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
@@ -103,9 +103,13 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
     )
   }, [cwd])
 
-  // 独立浏览器不注册这个入口（注册处已按 iframe 判定），这里再判一次，让组件
-  // 被单独渲染时也不会误触发宿主调用。
-  if (!isEmbeddedFnosFrame()) return null
+  /*
+    只在宿主桥可用时渲染：这个入口的动作全是 `openFileManager`/`openFile`，
+    独立浏览器页面里 SDK 没有宿主桥，调用必然抛错。座位本身仍然照常注册
+    （见 `client/index.ts` 的 `isFnosHosted()` 判断），只是这个具体入口按能力
+    自我隐藏——注册是「有没有这个座位」，渲染是「这台环境能不能用」。
+  */
+  if (!hasFnosHostBridge()) return null
   // 工作目录未知时打开没有意义，直接不渲染，避免给出一个必然失败的操作。
   if (cwd === undefined || cwd === '') return null
 

@@ -1,11 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { installFnosPresentedOpen } from '../../src/client/services/present-open.ts'
+import { stubEmbeddedFnos } from './fnos-env.ts'
 
 const originalFetch = globalThis.fetch
 
+/**
+ * 应用中心内嵌形态。
+ *
+ * 环境判据现在读 `<base href="/app/...">`（网关注入），所以夹具必须同时伪造
+ * iframe 与 base——只伪造 `window.parent` 会被判成「本地开发」，测不到 fnOS 行为。
+ */
 function embedFrame(): void {
-  vi.stubGlobal('window', { parent: {} })
-  vi.stubGlobal('location', { href: 'http://nas.example/app/fn-deepseek-harness/' })
+  stubEmbeddedFnos()
 }
 
 afterEach(() => {

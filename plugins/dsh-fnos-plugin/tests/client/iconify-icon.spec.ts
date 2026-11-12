@@ -15,6 +15,7 @@ import { ICON_BODIES } from '../../src/generated/icons.ts'
 const read = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
 const COMPONENT = read('../../src/components/IconifyIcon.tsx')
 const HEADER = read('../../src/components/FnosSessionLogHeaderAction.tsx')
+const FOOTER = read('../../src/components/FnosFooterEntry.tsx')
 const BUILD = read('../../tsdown.config.ts')
 
 describe('Iconify 图标：离线内联与按需抽取', () => {
@@ -59,6 +60,7 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
       'lucide:refresh-cw',
       'lucide:route',
       'lucide:scroll-text',
+      'lucide:settings',
       'lucide:trash',
       'lucide:wrench',
       'lucide:x',
@@ -73,11 +75,16 @@ describe('Iconify 图标：离线内联与按需抽取', () => {
   })
 
   it('刷新与重启用不同图标（这是本次改动的目的）', () => {
-    // 改之前两者都是 IconRefreshOutlineRegular，用户无法凭图标分辨。
-    expect(HEADER).toContain('lucide:refresh-cw')
-    expect(HEADER).toContain('lucide:power')
-    // 旧的共用图标已不再出现在菜单项里。
+    /*
+      改之前两者都是 IconRefreshOutlineRegular，用户无法凭图标分辨。
+      这两个动作已从会话头部菜单移到侧栏底部的「飞牛 OS」下拉菜单，断言随之
+      跟着新宿主走——图标区分的目的不变。
+    */
+    expect(FOOTER).toContain('lucide:refresh-cw')
+    expect(FOOTER).toContain('lucide:power')
+    // 旧的共用图标不再出现在这两处菜单里。
     expect(HEADER).not.toContain('IconRefreshOutlineRegular')
+    expect(FOOTER).not.toContain('IconRefreshOutlineRegular')
   })
 
   it('图标是纯装饰，不干扰读屏', () => {

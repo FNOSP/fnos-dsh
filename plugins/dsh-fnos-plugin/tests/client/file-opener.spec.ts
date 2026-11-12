@@ -42,8 +42,10 @@ describe('FNOS-040-01 按条目类型选择打开方式', () => {
   })
 
   it('standalone 模式下明确失败，而不是静默无效', async () => {
+    // 独立浏览器页面没有宿主桥：提示要说清是「该环境不提供」，而不是含糊的
+    // 「SDK 没初始化」——后者会让用户去查一个根本没坏的东西。
     const sdk = fakeSdk({ isStandaloneWeb: true })
-    await expect(openFnosEntry('/vol2/1000', 'directory', () => sdk)).rejects.toThrow(/web carrier/u)
+    await expect(openFnosEntry('/vol2/1000', 'directory', () => sdk)).rejects.toThrow(/standalone browser page/u)
     expect(sdk.calls).toEqual(['ready'])
   })
 

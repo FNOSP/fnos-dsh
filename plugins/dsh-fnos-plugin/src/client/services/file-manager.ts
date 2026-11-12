@@ -40,9 +40,13 @@ export async function openFnosFileManager(
 ): Promise<void> {
   const sdk = createSdk()
   await sdk.ready()
-  if (!sdk.isWeb || sdk.isStandaloneWeb) {
-    throw new Error('fnOS iframe SDK did not initialize its web carrier')
-  }
+  /*
+    独立浏览器页面（`isStandaloneWeb`）没有宿主桥，`openFileManager` 只会抛
+    `Host bridge is not available`。这种情况不该当成「SDK 没初始化」——环境
+    本身就不提供这个能力，提示要说清楚是「请在 fnOS 应用内打开」。
+  */
+  if (!sdk.isWeb) throw new Error('fnOS iframe SDK did not initialize its web carrier')
+  if (sdk.isStandaloneWeb) throw new Error('fnOS file manager is unavailable in a standalone browser page')
   // 不预检插件自己展示的授权目录列表：该列表用于浏览和选择，可能滞后于 fnOS
   // ACL 状态，预检会误拒合法路径。是否允许由 fnOS 自行判断。
   await sdk.openFileManager(path)

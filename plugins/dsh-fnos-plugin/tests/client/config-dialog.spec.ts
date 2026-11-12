@@ -13,35 +13,61 @@ import { readFileSync } from 'node:fs'
  */
 const read = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
 const DIALOG = read('../../src/components/FnosConfigDialog.tsx')
-const ENTRY = read('../../src/components/FnosConfigMenuEntry.tsx')
+const ENTRY = read('../../src/components/FnosFooterEntry.tsx')
 const SCSS = read('../../src/styles/index.scss')
 const LOCALES = read('../../src/client/locales.ts')
 
 describe('fnOS 配置弹框', () => {
-  it('是「更多」菜单里的入口，不注册面板行', () => {
+  it('入口注册到 sidebar.footer.action，不注册面板行也不占「更多」菜单', () => {
     /*
-      曾注册到 `sidebar.panellist` 以排到「更多」之上，但那条路走不通：
-      面板行假设「点它 = 切换到长期存在的主视图」，而「打开弹框」是一次性动作。
-      真机上表现为先闪一帧空白页、`main` 槽报错、关掉弹框后再点也不打开。
+      入口位置试过三次：
+
+      1. `sidebar.panellist`（面板行）：走不通——该槽位的行点击会走
+         `layout.selectPanel(id)`，必须同时注册 `main` 视图；真机上先闪一帧
+         空白页、`main` 槽报错，关掉弹框后再点也不打开。
+      2. `sidebar.panellist.actions`（「更多」菜单）：语义不对，飞牛 OS 不是面板，
+         而且埋了两层菜单。
+      3. `sidebar.footer.action`（侧栏底部，设置行正上方）：应用级、可叠加、
+         与设置同级——这才是入口该在的位置。
     */
     const INDEX = read('../../src/client/index.ts')
-    expect(INDEX).toContain("ctx.slots.inject('sidebar.panellist.actions'")
+    expect(INDEX).toContain("ctx.slots.inject('sidebar.footer.action'")
+    expect(INDEX).toContain("id: 'dsh-fnos-footer-entry'")
+    expect(INDEX).not.toContain("ctx.slots.inject('sidebar.panellist.actions'")
     expect(INDEX).not.toContain("ctx.slots.inject('main'")
     expect(INDEX).not.toContain('FNOS_CONFIG_PANEL_ID')
     expect(LOCALES).toContain("configMenuEntry: '飞牛 OS'")
   })
 
-  it('用 MenuItemButton，图标是飞牛标记', () => {
-    // 与「刷新/重启」两行同款，行高、内边距与键盘行为才能对齐。
+  it('折叠态与展开态都带无障碍名', () => {
+    // 图标按钮没有可见文字，缺 aria-label 时读屏只会念「按钮」。
+    expect(ENTRY).toContain('aria-label={t(\'configMenuEntry\')}')
+    expect(ENTRY).toContain('aria-haspopup="menu"')
+    expect(ENTRY).toContain('aria-expanded={open}')
+  })
+
+  it('三个菜单行：设置 / 刷新 / 重启', () => {
+    expect(ENTRY).toContain('configDialogStore.set(true)')
+    expect(ENTRY).toContain("t('configDialogTitle')")
+    expect(ENTRY).toContain("t('refresh')")
+    expect(ENTRY).toContain("t('webRestart')")
+  })
+
+  it('下拉复用官方 Menu 原语，宽度对齐「更多」菜单', () => {
+    // 与侧栏「更多」是同一套实现：行高、图标列、键盘与浮层定位都不必重写。
+    expect(ENTRY).toContain('Menu')
     expect(ENTRY).toContain('MenuItemButton')
+    expect(ENTRY).toContain('side="top"')
+    const css = SCSS.slice(SCSS.indexOf('.dsh-fnos-footer-menu'))
+    const block = css.slice(0, css.indexOf('\n}'))
+    expect(block).toContain('288px')
+  })
+
+  it('触发器用飞牛标记', () => {
+    // 飞牛标记代表「飞牛 OS」整体，通用齿轮会被误读成「应用设置」。
     expect(ENTRY).toContain('FnosMonoLogo')
   })
 
-  it('入口用飞牛标记而不是通用设置齿轮', () => {
-    // 这个入口代表「飞牛 OS」整体，齿轮会被误读成「应用设置」。
-    expect(ENTRY).toContain('FnosMonoLogo')
-    expect(ENTRY).not.toContain('lucide:settings-2')
-  })
 
   it('飞牛标记自带黑白主题适配', () => {
     // mono 版本用 brightness(0) 变黑、暗色主题反转成白，亮暗下都读得清。
@@ -56,8 +82,8 @@ describe('fnOS 配置弹框', () => {
   it('先关菜单再开弹框，避免 portaled 浮层抢焦点', () => {
     // 只看 openConfig 块。
     const open = ENTRY.slice(ENTRY.indexOf('const openConfig'), ENTRY.indexOf('return ('))
-    expect(open).toContain('onDismiss?.()')
-    expect(open.indexOf('onDismiss?.()')).toBeLessThan(open.indexOf('configDialogStore.set(true)'))
+    expect(open).toContain('dismiss()')
+    expect(open.indexOf('dismiss()')).toBeLessThan(open.indexOf('configDialogStore.set(true)'))
   })
 
   it('弹框挂在 shell.overlay，不在菜单子树里', () => {

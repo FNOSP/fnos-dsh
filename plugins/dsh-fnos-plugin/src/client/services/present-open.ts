@@ -2,7 +2,7 @@
 
 import type { FnosPresentedPathResolveResponse } from '../../contracts/presented-open-contract.ts'
 import { FNOS_PRESENTED_PATH_RESOLVE_PATH } from '../../contracts/presented-open-contract.ts'
-import { isEmbeddedFnosFrame } from './sdk-carrier.ts'
+import { hasFnosHostBridge, isFnosHosted } from './environment.ts'
 
 const DSH_PRESENT_HOST_PATH = '/api/present.host'
 const DSH_PRESENT_OPEN_PATH = '/api/present.open'
@@ -77,6 +77,9 @@ async function openPresentedPath(
   const value = await resolved.json().catch(() => undefined) as FnosPresentedPathResolveResponse | undefined
   if (value === undefined || typeof value.path !== 'string' || value.path.length === 0) return unavailableResponse()
 
+  // 无宿主桥时明确失败（503），而不是让 SDK 抛一个对用户无意义的桥接错误。
+  if (!hasFnosHostBridge()) return unavailableResponse(503)
+
   const sdk = createSdk()
   await sdk.ready()
   if (action === 'reveal') await sdk.openFileManager(value.path)
@@ -84,9 +87,20 @@ async function openPresentedPath(
   return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } })
 }
 
-/** Intercept DSH `present.open` only inside an embedded fnOS page. */
+/**
+ * Intercept DSH `present.open` inside an fnOS page.
+ *
+ * 注册范围是「fnOS 托管」（内嵌 + 独立浏览器页面），而不是「在 iframe 里」：
+ * 独立浏览器页面同样是 fnOS 应用，只是没有宿主桥。
+ *
+ * 能力按宿主桥分两档，不能一概而论：
+ *  - 有桥：`present.host` 报可用，`present.open` 真正调 SDK 打开；
+ *  - 无桥（standalone）：`present.host` 必须报**不可用**，否则 DSH 会显示
+ *    「打开 / 在文件夹中显示」按钮，点下去必然失败；`present.open` 返回明确
+ *    的 503 而不是假装成功。
+ */
 export function installFnosPresentedOpen(createSdk: () => FnosPresentedOpenSdk): () => void {
-  if (!isEmbeddedFnosFrame()) return () => undefined
+  if (!isFnosHosted()) return () => undefined
   const originalFetch = globalThis.fetch
   const wrappedFetch: typeof fetch = async (input, init) => {
     const url = requestUrl(input)
@@ -95,9 +109,14 @@ export function installFnosPresentedOpen(createSdk: () => FnosPresentedOpenSdk):
       // DSH's native desktop probe runs inside the NAS process and is therefore
       // unavailable. The actual capability is the fnOS iframe SDK, which is
       // exercised when the user clicks the action.
-      return Response.json({ name: 'fnOS', available: true, fileManager: 'directory' }, {
-        headers: { 'cache-control': 'no-store' },
-      })
+      /*
+        只有宿主桥存在时才能声称「可用」：独立浏览器页面里 `openFile` 会抛
+        `Host bridge is not available`，先把按钮显示出来再失败，比直接不显示更糟。
+      */
+      return Response.json(
+        { name: 'fnOS', available: hasFnosHostBridge(), fileManager: 'directory' },
+        { headers: { 'cache-control': 'no-store' } },
+      )
     }
     if (url.pathname !== DSH_PRESENT_OPEN_PATH || requestMethod(input, init) !== 'POST') {
       return originalFetch(input, init)

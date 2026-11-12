@@ -6,8 +6,8 @@ import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots
 import { IconCopyOutlineRegular, IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DshIconFolder, DshModal, DshTree } from '@tnnevol/dsh-semi-ui'
-import { IconifyIcon } from './IconifyIcon.tsx'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
+import { hasFnosHostBridge } from '../client/services/environment.ts'
 import { exportSessionLogToNas } from '../client/services/session-log-export-client.ts'
 import { copySessionMarkdown } from '../client/services/session-markdown-copy.ts'
 import type { AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
@@ -44,21 +44,6 @@ interface DirectoryTreeNode {
   label: ReactNode
   isLeaf: boolean
   children?: DirectoryTreeNode[]
-}
-
-/**
- * 网关控制接口的绝对地址。
- *
- * 相对 `<base>` 解析：DSH 在 fnOS 里跑在 iframe 中，`/__fnos-gateway/...` 需要带上
- * 宿主前缀才命中网关。
- */
-function gatewayControlUrl(path: string): string {
-  if (typeof document === 'undefined') return path
-  const base = document.querySelector('base')?.href
-  if (base !== undefined) {
-    try { return new URL(path.slice(1), base).toString() } catch {}
-  }
-  return path
 }
 
 function displayName(path: string): string {
@@ -102,8 +87,6 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string>()
-  const [restarting, setRestarting] = useState(false)
-  const [restartFailed, setRestartFailed] = useState(false)
   /** 复制动作的瞬时反馈：菜单关掉后由触发按钮的 aria-busy 与提示承载。 */
   const [copying, setCopying] = useState(false)
   const browserDownload = useSessionLogDownload(state => state.bySession[String(sessionId)])
@@ -183,25 +166,16 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
   }, [])
 
   const nasExportEnabled = selectedDirectory !== undefined && !loading
-  // 与官方 session-log-export 一致：菜单项自带图标，触发按钮不带文字。
-  // 结构也对齐官方：第一项是「下载 Session 日志」，本插件额外提供的两种落点
-  // （电脑 / NAS）挂在它的子菜单里，而不是平铺成两个同级项；第二项是反馈。
-  //
-  // 刷新与重启也在这个菜单里，**刷新紧邻重启、排在它上面**：两者都是「让界面或
-  // 服务重新开始」，放在一起便于对照；刷新更轻（一次重载），重启更重（会中断
-  // 当前所有会话），按「由轻到重」排序符合操作预期。两者原先常驻在侧栏底部，
-  // 占掉两个按钮位——都是低频动作，收进这里更划算。
-  // 重启失败时把该行文案换成失败提示：菜单里不弹窗，否则会打断用户操作，
-  // 但静默失败又等于没做——所以借这一行的标签承载结果。
-  // 重启用电源图标（lucide:power）：与「刷新」的循环箭头一眼可分。官方 primitives
-  // 里没有电源字形，Semi 的 IconRestart 实为「跳过/重播」，语义不符。
-  const restartItem: MenuItem = restarting
-    ? { id: 'restart', label: t('webRestarting'), icon: <IconifyIcon name="lucide:power" />, disabled: true }
-    : {
-        id: 'restart',
-        label: restartFailed ? t('webRestartFailed') : t('webRestart'),
-        icon: <IconifyIcon name="lucide:power" />,
-      }
+  /*
+    与官方 session-log-export 一致：菜单项自带图标，触发按钮不带文字。
+    结构也对齐官方：第一项是「下载 Session 日志」，本插件额外提供的两种落点
+    （电脑 / NAS）挂在它的子菜单里，而不是平铺成两个同级项；第二项是反馈。
+
+    「导出到 NAS」需要宿主桥（走 `openFileManager` 让用户挑目录），独立浏览器
+    页面里没有宿主桥，因此该子项按能力隐藏——菜单本身与「下载到电脑」照常可用。
+    刷新与重启已移到侧栏底部的「飞牛 OS」下拉菜单：它们是应用级动作，不该和
+    当前会话绑在一起。
+  */
   const menuItems: MenuItem[] = [
     {
       id: 'copy',
@@ -215,14 +189,12 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
       icon: <IconDownloadOutlineRegular />,
       submenu: [
         { id: 'computer', label: t('sessionLogExportComputer'), icon: <IconDownloadOutlineRegular /> },
-        { id: 'nas', label: t('sessionLogExportNas'), icon: <IconFolderOpenOutlineRegular /> },
+        ...(hasFnosHostBridge()
+          ? [{ id: 'nas', label: t('sessionLogExportNas'), icon: <IconFolderOpenOutlineRegular /> }]
+          : []),
       ],
     },
     { id: 'feedback', label: t('sessionLogFeedback'), icon: <IconPaperPlaneOutlineRegular /> },
-    // 刷新紧邻重启：两者都是「让界面/服务重新开始」，放一起便于对照；
-    // 刷新在前是因为它更轻（一次重载），重启更重（会中断当前所有会话）。
-    { id: 'refresh', label: t('refresh'), icon: <IconifyIcon name="lucide:refresh-cw" /> },
-    restartItem,
   ]
 
   /**
@@ -241,40 +213,6 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
     }
   }, [sessionId])
 
-  const refreshPage = useCallback(() => {
-    setOpen(false)
-    window.location.reload()
-  }, [])
-
-  const restartWeb = useCallback(() => {
-    setOpen(false)
-    setRestarting(true)
-    setRestartFailed(false)
-    void (async () => {
-      try {
-        const response = await fetch(gatewayControlUrl('/__fnos-gateway/control/web/restart'), {
-          method: 'POST',
-          headers: { 'x-requested-with': 'fetch' },
-          credentials: 'same-origin',
-        })
-        const value: unknown = await response.json().catch(() => undefined)
-        if (!response.ok) {
-          throw new Error(
-            typeof value === 'object' && value !== null && 'error' in value && typeof value.error === 'string'
-              ? value.error
-              : `HTTP ${response.status}`,
-          )
-        }
-        // 重启会断开当前连接，重载放在断连前，避免界面停在忙碌态。
-        window.setTimeout(() => { window.location.reload() }, 300)
-      } catch {
-        setRestartFailed(true)
-      } finally {
-        setRestarting(false)
-      }
-    })()
-  }, [])
-
   return (
     <>
       <Menu
@@ -289,8 +227,6 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
         onSelect={(id) => {
           setOpen(false)
           if (id === 'copy') void copyMarkdown()
-          else if (id === 'refresh') refreshPage()
-          else if (id === 'restart') restartWeb()
           else if (id === 'computer') void exportToComputer(sessionId)
           else if (id === 'nas') openNasDialog()
           else if (id === 'feedback') openFeedbackPage()

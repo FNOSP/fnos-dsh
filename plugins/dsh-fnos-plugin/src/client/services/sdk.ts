@@ -1,7 +1,8 @@
 /** Shared access to the fnOS SDK bundled into the plugin client. */
 
 import { TrimApp, type TrimAppOptions } from '@trimjs/web-app'
-import { isEmbeddedFnosFrame, shouldForceWebCarrier } from './sdk-carrier.ts'
+import { shouldForceWebCarrier } from './sdk-carrier.ts'
+import { isFnosFrame } from './environment.ts'
 
 export type FnosTrimApp = InstanceType<typeof TrimApp>
 
@@ -12,7 +13,7 @@ export type FnosTrimApp = InstanceType<typeof TrimApp>
  * real iframe; standalone browser debugging keeps the original User-Agent.
  */
 function withWebCarrierUserAgent<T>(run: () => T): T {
-  if (!isEmbeddedFnosFrame() || typeof navigator === 'undefined') return run()
+  if (!isFnosFrame() || typeof navigator === 'undefined') return run()
   const original = navigator.userAgent
   if (!shouldForceWebCarrier(original, true)) return run()
 

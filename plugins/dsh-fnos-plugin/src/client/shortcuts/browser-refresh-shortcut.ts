@@ -9,6 +9,11 @@ import { isEmbeddedFnosFrame } from '../services/sdk-carrier.ts'
 export { isBrowserRefreshShortcut } from './browser-refresh-shortcut-matcher.ts'
 
 export function installFnosBrowserRefreshShortcut(): () => void {
+  /*
+    **刻意只在 iframe 内注册。** 独立浏览器页面里浏览器自身的刷新就是可用的，
+    再拦一层反而把「用户按 F5 想刷新」变成插件代劳，还得自己维护与浏览器行为
+    的一致性。这条不是遗漏，是有意为之。
+  */
   if (!isEmbeddedFnosFrame() || typeof document === 'undefined' || document.body === null) return () => {}
 
   const handleHotKey = (event: KeyboardEvent): void => {

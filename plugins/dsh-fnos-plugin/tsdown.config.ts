@@ -117,6 +117,8 @@ const ICON_NAMES = [
   'lucide:route',
   'lucide:blocks',
   'lucide:trash',
+  // 侧栏底部入口的下拉菜单：「设置」一行。
+  'lucide:settings',
 ] as const
 
 async function generateIcons(): Promise<void> {

@@ -1,6 +1,6 @@
 /** Route DSH's existing path-open action through the fnOS iframe bridge. */
 
-import { isEmbeddedFnosFrame } from './sdk-carrier.ts'
+import { hasFnosHostBridge, isFnosHosted } from './environment.ts'
 
 export interface PathOpenerWorkspaces {
   openPath(path: string): Promise<void>
@@ -31,8 +31,8 @@ const defaultMessages: Record<PathOpenerMessageKey, string> = {
 
 /**
  * Decorate the public DSH workspaces service and return a lifecycle disposer.
- * Standalone browser sessions retain DSH's original native opener for local
- * development; fnOS iframe sessions use the app bridge instead of xdg-open.
+ * 只有**不在 fnOS 里**（本地开发）才保留 DSH 原生 opener；fnOS 下无论内嵌还是
+ * 独立浏览器页面，都不回落到 xdg-open——NAS 容器里没有它。
  */
 export function installFnosPathOpener(
   workspaces: PathOpenerWorkspaces,
@@ -57,15 +57,24 @@ export function installFnosPathOpener(
       throw new Error(message('pathOpenUnavailable'), { cause: error })
     }
 
-    const embeddedFnosFrame = isEmbeddedFnosFrame()
-    if ((!sdk.isWeb || sdk.isStandaloneWeb) && !embeddedFnosFrame) {
+    /*
+      回落原生只在「根本不在 fnOS 里」时成立（本地 `dsh web` 开发）。
+      独立浏览器页面**是** fnOS 应用，但宿主桥不可用；此时回落到原生 opener 会
+      在 NAS 上跑 `xdg-open`——容器里没有这个命令，用户看到的是一个与真实原因
+      无关的失败。这种情况必须走下面的明确报错。
+    */
+    if (!isFnosHosted()) {
       await originalOpenPath.call(workspaces, path)
       return
     }
 
     try {
-      // Never fall back to DSH's native opener inside fnOS. That opener runs
-      // xdg-open in the NAS service container, where the command is absent.
+      /*
+        Never fall back to DSH's native opener inside fnOS. That opener runs
+        xdg-open in the NAS service container, where the command is absent.
+        独立浏览器页面同样在这里失败：没有宿主桥，`openFile` 不可能成功。
+      */
+      if (!hasFnosHostBridge()) throw new Error('Opening files requires the fnOS app')
       if (!sdk.isWeb) throw new Error('fnOS iframe SDK did not initialize its web carrier')
       // The SDK is the authority for opening a path. Do not preflight against
       // the plugin's displayed authorization roots: the list is intended for
@@ -107,19 +116,29 @@ export function installFnosRemotePathOpener(
     request: { path: string },
     signal?: AbortSignal,
   ): Promise<unknown> => {
-    const embeddedFnosFrame = isEmbeddedFnosFrame()
+    // 不在 fnOS 里（本地开发）：保留 DSH 原生行为。
+    if (!isFnosHosted()) return originalOpenWorkspacePath.call(remote, request, signal)
+
+    /*
+      在 fnOS 里但没有宿主桥（独立浏览器页面）：**不回落原生**。
+      回落会在 NAS 服务容器里跑 `xdg-open`，那里没有桌面环境，失败信息与真实
+      原因无关。给一条能指导用户的错误，比一个查不出所以然的系统错误有用。
+    */
+    if (!hasFnosHostBridge()) {
+      return {
+        ok: false,
+        error: {
+          code: 'gateway/internal',
+          message: 'Opening files requires the fnOS app; open this session inside fnOS.',
+        },
+      }
+    }
+
     let sdk: PathOpenerSdk
     try {
       sdk = await getSdk()
     } catch (error) {
-      if (!embeddedFnosFrame) {
-        return originalOpenWorkspacePath.call(remote, request, signal)
-      }
       return { ok: false, error: { code: 'gateway/internal', message: String(error) } }
-    }
-
-    if ((!sdk.isWeb || sdk.isStandaloneWeb) && !embeddedFnosFrame) {
-      return originalOpenWorkspacePath.call(remote, request, signal)
     }
 
     try {

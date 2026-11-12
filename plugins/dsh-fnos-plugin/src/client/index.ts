@@ -27,8 +27,7 @@ import { FnosInputPickerButton } from '../components/FnosInputPickerButton.tsx'
 import { FnosAuthorizedPathPanel } from '../components/FnosAuthorizedPathPicker.tsx'
 import { FnosOpenInHeaderAction } from '../components/FnosOpenInHeaderAction.tsx'
 import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAction.tsx'
-import { FnosConfigMenuEntry } from '../components/FnosConfigMenuEntry.tsx'
-import { FnosRefreshMenuEntry, FnosRestartMenuEntry } from '../components/FnosWebActionsMenuEntry.tsx'
+import { FnosFooterEntry } from '../components/FnosFooterEntry.tsx'
 import { FnosConfigOverlay } from '../components/FnosConfigOverlay.tsx'
 import { FNOS_OPEN_IN_APP_SEAT, FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
 import { createPickerOpenStore } from './input-references/picker-store.ts'
@@ -50,7 +49,7 @@ import { installFnosPresentedOpen } from './services/present-open.ts'
 import { FnosSettingsDocumentAction } from '../components/FnosSettingsDocumentAction.tsx'
 import { installFnosBrowserRefreshShortcut } from './shortcuts/browser-refresh-shortcut.ts'
 import { installFnosSettingsShortcut } from './shortcuts/settings-shortcut.ts'
-import { isEmbeddedFnosFrame } from './services/sdk-carrier.ts'
+import { isFnosHosted } from './services/environment.ts'
 import { createTrimApp } from './services/sdk.ts'
 import { installFnosPageTitle } from './services/sdk-title.ts'
 import { createThemeBridge } from './services/theme-bridge.ts'
@@ -171,7 +170,17 @@ export function apply(ctx: ClientContext): void {
     )), 'dsh-fnos: /fn command contribution')
   })
 
-  if (isEmbeddedFnosFrame()) {
+  /*
+   * 这些座位在**两种 fnOS 形态下都要注册**：内嵌 iframe 与独立浏览器页面。
+   *
+   * 原先这里判的是 `isEmbeddedFnosFrame()`（`window.parent !== window`），
+   * 于是独立浏览器页面被当成「本地开发」整支跳过——用户在新标签页打开应用时，
+   * 会话头部的日志/文件入口与设置里的「打开配置文件」全都不出现，而且没有任何
+   * 报错。改用 `isFnosHosted()`：网关托管即是 fnOS 应用，与是否 iframe 无关。
+   *
+   * 能力差异留在各组件内部处理（standalone 没有宿主桥，授权类改走 openAppAuth）。
+   */
+  if (isFnosHosted()) {
     ctx.effect(() => installFnosPresentedOpen(createTrimApp), 'dsh-fnos: presented-file opener')
     ctx.slots.inject('conversation.session.header.utilities', () => {
       const sessionLogDownload = ctx.get('sessionLogDownload') as SessionLogDownloadController | undefined
@@ -210,13 +219,9 @@ export function apply(ctx: ClientContext): void {
     }, FnosSettingsDocumentAction))
   }
   /*
-   * 详情页不再挂配置块：授权目录与依赖修复已收进「更多」菜单打开的配置弹框
-   * （`FnosConfigMenuEntry`）。同一份设置只保留一个入口，避免两处都能改。
-   */
-
-  /*
-   * 刷新 / 重启不再挂在侧栏底部：它们已并入会话头部的「…」菜单
-   * （`FnosSessionLogHeaderAction`）。两个都是低频动作，常驻两个按钮位不划算。
+   * 详情页不再挂配置块：授权目录与依赖修复已收进侧栏底部「飞牛 OS」入口打开的
+   * 配置弹框（`FnosFooterEntry` + `FnosConfigOverlay`）。同一份设置只保留一个
+   * 入口，避免两处都能改。
    */
 
   /**
@@ -233,53 +238,29 @@ export function apply(ctx: ClientContext): void {
   const pickerStore = createPickerOpenStore()
   ctx.effect(() => () => { pickerStore.closeAll() }, 'dsh-fnos: picker store')
   /**
-   * 「飞牛 OS」入口：**放在「更多」菜单里**（`sidebar.panellist.actions`）。
+   * 「飞牛 OS」入口：注册到 `sidebar.footer.action`（设置行正上方）。
    *
-   * ## 为什么不能注册成面板行
+   * ## 位置的选择过程
    *
-   * 曾试过注册到 `sidebar.panellist` 把它排到「更多」之上，代价是必须同时注册
-   * `main` 视图——因为 `layout.selectPanel(id)` 会校验 `hasMainPanel(id)`，
-   * 没有配对主视图直接抛错。
+   * 试过两个位置都不合适：
    *
-   * 真机验证这条路**走不通**：
+   * 1. **`sidebar.panellist`（面板行）**：必须同时注册 `main` 视图，因为
+   *    `layout.selectPanel(id)` 会校验 `hasMainPanel(id)`。真机上点它会先闪一帧
+   *    空白主区域、`main` 槽渲染报错，而且关闭弹框后再点无反应（相同 id 不重新
+   *    挂载）。面板行假设「点它 = 切换长期主视图」，与「打开一个菜单」语义不兼容。
+   * 2. **`sidebar.panellist.actions`（「更多」菜单）**：那是「全局面板」分组，
+   *    飞牛 OS 不是面板，语义不对，而且埋了两层菜单。
    *
-   * 1. 点它会把主区域切到我们的面板（`data-global-panel`），而弹框随即覆盖上来，
-   *    用户先看到一帧空白页；
-   * 2. `main` 槽渲染时直接报错（DOM 里留下 `data-slot-error="main"` 的空 div），
-   *    占位组件没渲染出来；
-   * 3. 关闭弹框后停在空白面板，**再点侧栏也不再打开弹框**——因为该行已是激活态，
-   *    `selectPanel` 相同 id 不触发重新挂载，effect 不再执行。
-   *
-   * 面板行天生假设「点它 = 切换到一个长期存在的主视图」。而「打开弹框」是一次性
-   * 动作，两者语义不兼容。放回「更多」菜单，点击即开弹框、无需任何主视图。
+   * `sidebar.footer.action` 是侧栏里唯一「应用级、可叠加、与设置同级」的座位：
+   * 它就排在设置行上方，注册进去自然获得与设置一致的宽高与折叠表现。
    */
-  ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register({
-    name: 'sidebar.panellist.actions',
-    id: 'dsh-fnos-config-entry',
-    order: 90,
+  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
+    name: 'sidebar.footer.action',
+    id: 'dsh-fnos-footer-entry',
+    order: 10,
     locale: namespace,
     inject: () => ({ t }),
-  }, (props: { onDismiss?: () => void }) => FnosConfigMenuEntry({ ...props, t })))
-  /**
-   * 「刷新页面」与「重启服务」两行仍留在「更多」菜单里（order 91/92）。
-   *
-   * 它们都是「整个应用」级别的操作，与会话无关——原先挂在会话头部工具条，
-   * 语义不对且占用头部宽度。放进同一菜单后与面板动作归为一类。
-   */
-  ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register({
-    name: 'sidebar.panellist.actions',
-    id: 'dsh-fnos-refresh-entry',
-    order: 91,
-    locale: namespace,
-    inject: () => ({ t }),
-  }, (props: { onDismiss?: () => void }) => FnosRefreshMenuEntry({ ...props, t })))
-  ctx.slots.inject('sidebar.panellist.actions', () => ctx.slots.register({
-    name: 'sidebar.panellist.actions',
-    id: 'dsh-fnos-restart-entry',
-    order: 92,
-    locale: namespace,
-    inject: () => ({ t }),
-  }, (props: { onDismiss?: () => void }) => FnosRestartMenuEntry({ ...props, t })))
+  }, (props: { wide?: boolean }) => FnosFooterEntry({ wide: props.wide === true, t })))
 
   /**
    * 配置弹框本体挂在 `shell.overlay`（官方挂 portal 弹框的槽位），不挂在菜单项的

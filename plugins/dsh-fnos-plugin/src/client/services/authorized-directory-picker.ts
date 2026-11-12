@@ -11,6 +11,7 @@
 
 import { diagnosePickerResult, isPickerNoSelection, logPickerSdkEvent, logPickerSdkValue } from '../input-references/picker-result.ts'
 import { createTrimApp } from './sdk.ts'
+import { createAuthState, openFnosAppAuth, usesAppAuthFlow } from './app-auth.ts'
 
 /** 选择器返回的授权结果。 */
 export type AuthorizedPickOutcome =
@@ -18,6 +19,11 @@ export type AuthorizedPickOutcome =
   | { readonly status: 'picked', readonly path: string }
   /** 用户取消或未选任何目录（非错误，调用方静默处理）。 */
   | { readonly status: 'cancelled' }
+  /**
+   * 已打开授权页（独立浏览器页面）。授权结果异步回到回调页，调用方应监听
+   * `listenFnosAppAuthResult` 并在结果到达后刷新目录列表，而不是等待本函数。
+   */
+  | { readonly status: 'authorization-pending', readonly state: string }
   /** 授权失败（权限拒绝或接口异常）。 */
   | { readonly status: 'failed', readonly code: string, readonly message?: string }
 
@@ -45,6 +51,39 @@ export async function pickAuthorizedDirectory(
     okText: options.okText,
     sidebarGroup: SIDEBAR_GROUPS,
   } as const
+
+  /*
+   * 独立浏览器页面没有宿主桥：`pickSharedFile` 在这里只会抛
+   * `Host bridge is not available outside iframe or app runtime`。
+   *
+   * 官方文档给的路子是 `openAppAuth`——打开 fnOS 授权页，用户在那里确认目录，
+   * 结果经 `redirectUri` 回到回调页，回调页再通知原页面刷新。这条路径不是
+   * 「降级」：用户拿到的授权结果和宿子弹窗完全一样，只是交互多一个标签页。
+   */
+  if (usesAppAuthFlow()) {
+    try {
+      const sdk = createTrimApp()
+      const state = createAuthState()
+      logPickerSdkEvent('created', { via: 'app-auth', isWeb: sdk.isWeb, isStandaloneWeb: sdk.isStandaloneWeb })
+      /*
+        用箭头函数把泛型 `openAppAuth` 适配成 `OpenAppAuthFn`：真实方法把 method
+        与 params 绑在一个泛型里，直接传会因参数逆变而类型不兼容。
+      */
+      const url = await openFnosAppAuth(
+        (method, authParams, options) => sdk.openAppAuth(method, authParams, options),
+        state,
+      )
+      logPickerSdkValue('resolved', { via: 'app-auth', opened: url !== undefined })
+      return url === undefined ? { status: 'cancelled' } : { status: 'authorization-pending', state }
+    } catch (error: unknown) {
+      logPickerSdkValue('rejected', error)
+      return {
+        status: 'failed',
+        code: 'fnos-authorized-directory-request-failed',
+        ...(error instanceof Error ? { message: error.message } : {}),
+      }
+    }
+  }
 
   let result: unknown
   try {
