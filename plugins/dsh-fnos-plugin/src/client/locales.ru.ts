@@ -236,6 +236,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   pluginRemoveConfirm: "Плагин будет удалён из профиля, настройки и данные будут потеряны. Удалить: ",
   pluginRemoveNeedRestart: "Плагин удалён. Полностью применится после перезапуска Web.",
   pluginRemoved: "Плагин удалён.",
+  pluginRemoveInProgress: "Этот плагин уже удаляется. Подождите.",
   indexToggleDone: "Индекс переключён.",
   mirrorSwitched: "Реестр переключён",
   mirrorTitle: "Управление зеркалами npm",

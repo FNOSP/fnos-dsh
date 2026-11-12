@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshModal, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
+import { DshPopconfirm as Popconfirm, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
 import { PluginInstallInline } from './PluginInstallInline.tsx'
@@ -63,8 +63,8 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   const [installing, setInstalling] = useState<string>()
   /** 正在切换启用状态的包名（期间禁用该卡片的按钮，避免连点）。 */
   const [toggling, setToggling] = useState<string>()
-  /** 待确认卸载的包名；undefined 表示确认框关闭。 */
-  const [removing, setRemoving] = useState<string>()
+  /** 正在卸载的包名：期间它的卸载按钮不可再点。 */
+  const [removingName, setRemovingName] = useState<string>()
   const [error, setError] = useState<string>()
 
   const load = useCallback(async () => {
@@ -110,13 +110,24 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
     if (ok) void load()
   }, [load])
 
-  const confirmRemove = useCallback(async () => {
-    const name = removing
-    if (name === undefined) return
-    setToggling(name)
+  /**
+   * 卸载一个插件。
+   *
+   * **返回 Promise**：Popconfirm 的 `onConfirm` 拿到 Promise 后会自己给确认按钮
+   * 加 loading 并保持弹层打开——卸载要改 profile、跑 `pnpm remove`，点了就关会
+   * 让用户以为瞬间完成。不要手写 `loading` / `disabled`：`disabled` 会让按钮
+   * 变成灰色不可点态，看起来像坏了。
+   *
+   * 同时在后端有同名进程内锁：即便前端被绕过（多标签页、连点），第二次请求会
+   * 拿到 409，转成「请勿重复操作」的提示。
+   *
+   * @param name - 包名。
+   */
+  const removePluginFromCard = useCallback(async (name: string): Promise<void> => {
+    if (removingName === name) return
+    setRemovingName(name)
     try {
       const result = await removePluginByName(name)
-      setRemoving(undefined)
       await load()
       /*
         卸载已完成，但已加载的模块仍在当前进程里——没有热更新通道，必须重启 Web
@@ -126,11 +137,13 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
       if (result.needRestart) notifySuccess(t('pluginRemoveNeedRestart'))
       else notifySuccess(t('pluginRemoved'))
     } catch (cause) {
-      notifyFailure(cause instanceof Error ? cause.message : String(cause))
+      const message = cause instanceof Error ? cause.message : String(cause)
+      // 后端并发锁的拒绝：说清「是重复操作」，而不是「卸载失败」。
+      notifyFailure(message.includes('plugin-remove-in-progress') ? t('pluginRemoveInProgress') : message)
     } finally {
-      setToggling(undefined)
+      setRemovingName(undefined)
     }
-  }, [removing, load, t])
+  }, [removingName, load, t])
 
   useEffect(() => { void load() }, [load])
 
@@ -314,17 +327,38 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                     通过「重新安装插件」恢复（要重装整个应用）。
                   */}
                   {plugin.bundled ? null : (
-                    <DshTooltip content={t('uninstall')}>
-                      <button
-                        type="button"
-                        className="dsh-fnos-icon-button dsh-fnos-icon-button--danger"
-                        aria-label={t('uninstall')}
-                        disabled={toggling === plugin.name}
-                        onClick={() => { setRemoving(plugin.name) }}
-                      >
-                        <IconifyIcon name="lucide:trash" />
-                      </button>
-                    </DshTooltip>
+                    /*
+                      二次确认用 **Popconfirm**，不是模态弹框。
+
+                      卸载是一个「点一个图标 → 确认」的短流程，模态弹框会把整页
+                      盖住、还需要处理焦点归还；Popconfirm 贴着触发点出现，确认完
+                      就地消失，与这个动作的分量相称。
+
+                      `onConfirm` 返回 Promise 时，Popconfirm 的确认按钮自己进
+                      loading 并保持弹层打开——卸载是异步的后端操作（改 profile、
+                      跑 `pnpm remove`），点了就关会让用户以为瞬间完成。
+                    */
+                    <Popconfirm
+                      title={t('pluginRemoveTitle')}
+                      content={`${t('pluginRemoveConfirm')}${plugin.name}`}
+                      okText={t('uninstall')}
+                      cancelText={t('cancel')}
+                      okButtonProps={{ type: 'danger' }}
+                      position="topRight"
+                      onConfirm={() => removePluginFromCard(plugin.name)}
+                    >
+                      <DshTooltip content={t('uninstall')}>
+                        <button
+                          type="button"
+                          className="dsh-fnos-icon-button dsh-fnos-icon-button--danger"
+                          aria-label={t('uninstall')}
+                          /* 正在卸载（或正在装）这个插件时不许再点。 */
+                          disabled={removingName === plugin.name || installing === plugin.name}
+                        >
+                          <IconifyIcon name="lucide:trash" />
+                        </button>
+                      </DshTooltip>
+                    </Popconfirm>
                   )}
                 </div>
               </div>
@@ -353,22 +387,6 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
           )
         })}
       </ul>
-
-      <DshModal
-        visible={removing !== undefined}
-        title={t('pluginRemoveTitle')}
-        /*
-          **不能复用 `t('confirm')`**：它在授权目录场景下是「确认授权」，放到卸载
-          确认框里读起来像「确认授权卸载」——语义不对。用一个专门的「卸载」动词键。
-        */
-        okText={t('uninstall')}
-        cancelText={t('cancel')}
-        onOk={() => { void confirmRemove() }}
-        onCancel={() => { setRemoving(undefined) }}
-      >
-        <p>{`${t('pluginRemoveConfirm')}${removing ?? ''}`}</p>
-      </DshModal>
-
     </>
   )
 }

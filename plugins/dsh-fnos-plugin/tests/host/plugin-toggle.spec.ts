@@ -546,3 +546,51 @@ describe('接口', () => {
     expect(ROUTES).toContain('validName')
   })
 })
+
+describe('卸载：Popconfirm 二次确认 + 异步 loading + 后端并发锁', () => {
+  const PANEL_SRC = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+  const HOST_SRC = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+  const ROUTE_SRC = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
+
+  it('二次确认用 Popconfirm，不再是模态弹框', () => {
+    // 卸载是「点图标 → 确认」的短流程，模态弹框盖住整页、还要处理焦点归还。
+    expect(PANEL_SRC).toContain('<Popconfirm')
+    expect(PANEL_SRC).not.toContain('<DshModal')
+    expect(PANEL_SRC).toContain('okButtonProps={{ type: \'danger\' }}')
+    // 文案对齐截图：标题「卸载「X」？」、正文「卸载后它提供的功能会消失。」
+    expect(PANEL_SRC).toContain("title={t('pluginRemoveTitle')}")
+    expect(PANEL_SRC).toMatch(/content=\{`\$\{t\('pluginRemoveConfirm'\)\}/u)
+  })
+
+  it('onConfirm 返回 Promise，由组件自己接管 loading', () => {
+    /*
+      卸载要改 profile、跑 `pnpm remove`，耗时数秒到数十秒。点了就关会让用户
+      以为瞬间完成。Popconfirm 拿到 Promise 后会自己给确认按钮加 loading 并
+      保持弹层打开——不要手写 loading / disabled（disabled 是灰色不可点态）。
+    */
+    expect(PANEL_SRC).toContain('onConfirm={() => removePluginFromCard(plugin.name)}')
+    expect(PANEL_SRC).toMatch(/const removePluginFromCard = useCallback\(async \(name: string\): Promise<void>/u)
+    // 不许给确认按钮手写 loading/disabled。
+    expect(PANEL_SRC).not.toMatch(/okButtonProps=\{\{[^}]*disabled/u)
+  })
+
+  it('正在卸载时该插件的按钮不可再点', () => {
+    expect(PANEL_SRC).toContain('disabled={removingName === plugin.name || installing === plugin.name}')
+    expect(PANEL_SRC).toContain('if (removingName === name) return')
+  })
+
+  it('后端有进程内锁，重复请求返回 409', () => {
+    // 前端被绕过（多标签页、连点）时，靠后端兜住。
+    expect(HOST_SRC).toContain('removingPlugins')
+    expect(HOST_SRC).toContain("if (removingPlugins.has(name)) return { ok: false, error: 'plugin-remove-in-progress' }")
+    // 锁必须在 finally 里释放，否则一次失败会把插件永久锁死。
+    expect(HOST_SRC).toMatch(/finally \{\s*removingPlugins\.delete\(name\)/u)
+    expect(ROUTE_SRC).toContain('409')
+    expect(ROUTE_SRC).toContain("error: 'plugin-remove-in-progress'")
+  })
+
+  it('重复操作给出明确提示，而不是「卸载失败」', () => {
+    expect(PANEL_SRC).toContain('plugin-remove-in-progress')
+    expect(PANEL_SRC).toContain("t('pluginRemoveInProgress')")
+  })
+})

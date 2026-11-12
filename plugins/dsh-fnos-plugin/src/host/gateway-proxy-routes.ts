@@ -330,6 +330,14 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
       const payload = await body(req) as { name?: unknown } | undefined
       if (!validName(payload?.name)) return send(res, 400, { error: 'invalid-plugin-name' })
       const result = await removePlugin(payload.name)
+      /*
+        并发卸载用 **409** 回应，而不是和普通失败一起塞进 500：这不是「卸载失败」，
+        而是「这次请求不该被受理」。调用方据此给出「请勿重复操作」，也便于以后
+        在别的入口里区分处理。
+      */
+      if (!result.ok && result.error === 'plugin-remove-in-progress') {
+        return send(res, 409, { error: 'plugin-remove-in-progress' })
+      }
       send(res, result.ok ? 200 : 500, result.ok
         // needRestart：已卸载但组合仍持有旧模块，重启 Web 后才完全消失。
         ? { ok: true, needRestart: result.needRestart === true }

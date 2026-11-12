@@ -376,10 +376,53 @@ export async function installPlugin(name: string): Promise<PluginInstallState> {
  * @param name - 包名。
  * @returns 是否成功，以及是否需要重启才完全生效。
  */
+/**
+ * 正在卸载的包名集合。
+ *
+ * 卸载要跑 `pnpm remove`（会改 `node_modules` 与 lockfile），耗时数秒到数十秒。
+ * 这期间用户完全可能再点一次——两次 `pnpm remove` 并发写同一个 profile 会让
+ * lockfile 与磁盘状态互相覆盖，轻则报错，重则留下半卸状态。
+ *
+ * 用进程内集合而不是文件锁：插件跑在网关的单个 Node 进程里，同一进程内判重
+ * 足够；文件锁还要处理残留与跨平台锁语义，代价不成比例。
+ */
+const removingPlugins = new Set<string>()
+
 export async function removePlugin(name: string): Promise<{ ok: boolean, error?: string, needRestart?: boolean }> {
+  /*
+    **同一插件禁止并发卸载。**
+    在进入任何 IO 之前判重，把它当作一次明确的拒绝而不是静默忽略——调用方要能
+    把这个结果转成「请勿重复操作」的提示，而不是看到一个空成功。
+  */
+  if (removingPlugins.has(name)) return { ok: false, error: 'plugin-remove-in-progress' }
+  removingPlugins.add(name)
+
   const environment = resolveRepairEnvironment()
-  if (environment === undefined || environment.pnpmBin === undefined) return { ok: false, error: 'pnpm-unavailable' }
+  if (environment === undefined || environment.pnpmBin === undefined) {
+    removingPlugins.delete(name)
+    return { ok: false, error: 'pnpm-unavailable' }
+  }
   const profile = environment.profileDirectory
+  try {
+    return await removePluginUnlocked(name, profile, environment.pnpmBin)
+  } finally {
+    removingPlugins.delete(name)
+  }
+}
+
+/**
+ * 真正执行卸载，调用方必须已持有 `removingPlugins` 里的占位。
+ *
+ * @param name - 包名。
+ * @param profile - profile 目录。
+ * @param pnpmBin - pnpm 可执行文件路径，由调用方解析后传入。
+ * @returns 是否成功，以及是否需要重启才完全生效。
+ */
+async function removePluginUnlocked(
+  name: string,
+  profile: string,
+  pnpmBin: string,
+): Promise<{ ok: boolean, error?: string, needRestart?: boolean }> {
 
   // 第一步：从 profile 的 bundles 里移出（停用整层）。
   const manifestPath = join(profile, 'package.json')
@@ -401,7 +444,7 @@ export async function removePlugin(name: string): Promise<{ ok: boolean, error?:
 
   // 第二步：删掉依赖本身。
   const removed = await new Promise<{ ok: boolean, error?: string }>(resolve => {
-    execFile(environment.pnpmBin ?? 'pnpm', ['remove', name], {
+    execFile(pnpmBin, ['remove', name], {
       cwd: profile,
       timeout: 120_000,
       env: process.env,

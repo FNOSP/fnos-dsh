@@ -245,6 +245,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   pluginRemoveConfirm: "프로필에서 제거되며 설정과 데이터도 사라집니다. 제거할까요: ",
   pluginRemoveNeedRestart: "플러그인을 제거했습니다. Web 을 다시 시작하면 완전히 반영됩니다.",
   pluginRemoved: "플러그인을 제거했습니다.",
+  pluginRemoveInProgress: "이 플러그인은 이미 제거 중입니다. 잠시 기다려 주세요.",
   indexToggleDone: "인덱스를 전환했습니다.",
   mirrorSwitched: "레지스트리를 전환했습니다",
   mirrorTitle: "npm 미러 관리",

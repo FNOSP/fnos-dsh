@@ -245,6 +245,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   pluginRemoveConfirm: "プロファイルから削除され、設定とデータも失われます。実行しますか: ",
   pluginRemoveNeedRestart: "プラグインを削除しました。Web を再起動すると完全に反映されます。",
   pluginRemoved: "プラグインを削除しました。",
+  pluginRemoveInProgress: "このプラグインは削除中です。しばらくお待ちください。",
   indexToggleDone: "インデックスを切り替えました。",
   mirrorSwitched: "レジストリを切り替えました",
   mirrorTitle: "npm ミラー管理",

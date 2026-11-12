@@ -237,6 +237,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   pluginRemoveConfirm: "Das Plugin wird aus dem Profil entfernt; Konfiguration und Daten gehen verloren. Deinstallieren: ",
   pluginRemoveNeedRestart: "Plugin deinstalliert. Vollstaendig wirksam nach einem Web-Neustart.",
   pluginRemoved: "Plugin entfernt.",
+  pluginRemoveInProgress: "Dieses Plugin wird bereits entfernt. Bitte warten.",
   indexToggleDone: "Index umgeschaltet.",
   mirrorSwitched: "Registry gewechselt",
   mirrorTitle: "npm-Spiegelverwaltung",

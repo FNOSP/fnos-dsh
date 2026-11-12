@@ -237,6 +237,7 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   pluginRemoveConfirm: "Le plugin sera retire du profil ; configuration et donnees seront perdues. Desinstaller : ",
   pluginRemoveNeedRestart: "Plugin desinstalle. Pleinement effectif apres un redemarrage du Web.",
   pluginRemoved: "Plugin desinstalle.",
+  pluginRemoveInProgress: "Ce plugin est déjà en cours de suppression. Veuillez patienter.",
   indexToggleDone: "Index bascule.",
   mirrorSwitched: "Registre change",
   mirrorTitle: "Gestion des miroirs npm",
