@@ -2744,18 +2744,22 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
 
 .dsh-fnos-card .semi-switch.semi-switch-disabled {
   /*
-    禁用态**沿用当前颜色、只降低透明度**，不换成另一种颜色。
+    禁用态：**轨道与旋钮保持可辨识，只弱化颜色**，不对整块施加 `opacity`。
 
-    早前把禁用的「开」状态染成绿色（`--state-success` 45%）——那是在切换语义：
-    绿色读作「启用成功」，而这里只是「开着但不能动」。
+    早前用的是 `opacity: 0.45`。浅色主题下还看得过去，暗色主题下就糊了：
+    轨道底色与卡片底色本来就接近，再整体乘 0.45，直接变成一块看不出是「开着」
+    还是「关着」、也看不出处于禁用的圆角色块。
+
+    改成分部件表达：轨道用 `--semi-color-success-disabled`（品牌色向
+    bg-layer-3 混合），旋钮保持不透明——「能读出这是开着的，但明显弱于可用态」。
   */
-  opacity: 0.45;
   border-color: transparent;
+  cursor: not-allowed;
 }
 
-/* 开着但禁用：保留原本的成功色，只是变淡——由上面的 `opacity` 统一处理。 */
+/* 禁用但开着：轨道走禁用色，旋钮不透明。 */
 .dsh-fnos-card .semi-switch.semi-switch-disabled.semi-switch-checked {
-  background-color: var(--semi-color-success);
+  background-color: var(--semi-color-success-disabled);
 }
 
 .dsh-fnos-card .semi-switch .semi-switch-knob {

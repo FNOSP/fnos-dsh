@@ -150,6 +150,17 @@ body[data-dsh-semi-theme] .semi-switch {
   --semi-color-success: var(--dsw-alias-brand-primary);
   --semi-color-success-hover: var(--dsw-alias-brand-primary);
   --semi-color-success-active: var(--dsw-alias-brand-primary);
+  /*
+    禁用态必须单独给，否则落回全局的 `--dsw-alias-label-dimmed`（一个暗淡的
+    **文字**色）。暗色主题下那个值几乎是页面色，再叠 Semi 自带的 `opacity: .45`，
+    选中态开关就是一块与背景同色的圆角块——看不出它「开着」，也看不出它「禁用」。
+    这里用品牌色与中性色的混合：仍能读作「开」，但明显弱于可用态。
+  */
+  --semi-color-success-disabled: color-mix(
+    in srgb,
+    var(--dsw-alias-brand-primary) 45%,
+    var(--dsw-alias-bg-layer-3)
+  );
   --semi-color-fill-0: var(--dsw-alias-label-tertiary);
   --semi-color-fill-1: var(--dsw-alias-label-tertiary);
   --semi-color-fill-2: var(--dsw-alias-label-tertiary);
