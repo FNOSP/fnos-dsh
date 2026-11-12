@@ -71,8 +71,19 @@ const OFFICIAL_TITLES = [
  * @returns 命中时为对应的 dialog 元素。
  */
 function matchOfficialSignInDialog(node: Element): Element | undefined {
-  if (node.getAttribute('role') !== 'presentation') return undefined
+  /*
+    **不能只认 `role="presentation"`。**
+
+    真机实测：官方弹框的外层容器是个普通 `div`，`role` 为 null；`role="presentation"`
+    只出现在某些变体上。按 role 过滤会让拦截在真机上完全不生效——这正是第一版
+    翻过的车（授权页都打开了，官方框却留在原地）。
+
+    改为认「`#root` 之后的节点里有 `[role="dialog"]` 且文案命中标题」。`#root`
+    之后的区域本来就是弹层专属（官方与我们都用它），不会误伤应用内容。
+  */
   if (node.getAttribute('data-dsh-fnos-captured') === '1') return undefined
+  // 我们自己的对话框也在这个区域，必须排除，否则会被自己收掉。
+  if (node.querySelector('.dsh-fnos-account-login') !== null) return undefined
   const dialog = node.querySelector('[role="dialog"]')
   if (dialog === null) return undefined
   const text = dialog.textContent ?? ''

@@ -47,11 +47,21 @@ describe('账号登录：回调改道', () => {
 })
 
 describe('账号登录：官方框拦截', () => {
-  it('认 #root 之后的 presentation 节点', () => {
-    // 官方弹层用 portal 挂到 body、排在 #root 后面；应用内容都在 #root 里。
+  it('认 #root 之后的 dialog，而不是只认 presentation', () => {
+    /*
+      真机实测：官方弹框的外层容器 role 是 null，`presentation` 只出现在某些
+      变体上。按 role 过滤会让拦截在真机上完全不生效。
+    */
     expect(CLIENT).toContain("getElementById('root')")
     expect(CLIENT).toContain('nextElementSibling')
-    expect(CLIENT).toContain("getAttribute('role') !== 'presentation'")
+    expect(CLIENT).toContain('querySelector(\'[role="dialog"]\')')
+    // 不能把 role 当成硬性前提。
+    expect(CLIENT).not.toContain("getAttribute('role') !== 'presentation'")
+  })
+
+  it('不把自己收掉', () => {
+    // 我们的对话框也在 #root 之后，必须排除。
+    expect(CLIENT).toContain("querySelector('.dsh-fnos-account-login') !== null")
   })
 
   it('点官方自己的关闭按钮，而不是 remove 节点', () => {
