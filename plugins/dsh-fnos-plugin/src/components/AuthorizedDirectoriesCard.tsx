@@ -14,6 +14,7 @@ import {
   requestPersistAuthorizedDirectories,
 } from '../client/services/authorized-directories-client.ts'
 import { evictInvalidAuthorizedDirectories } from '../client/services/authorized-directories-eviction.ts'
+import { notifySuccess } from '../client/notify.ts'
 import {
   FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
   type AuthorizedDirectory,
@@ -288,8 +289,16 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
           }
           if (result.status === 'cancel') return
           setValidateNotice(undefined)
-          // 结果到了：重新拉一次列表，新授权的目录立刻出现。
-          void refresh().then(() => persistCurrentDirectories())
+          /*
+            结果到了：重新拉一次列表，新授权的目录立刻出现。
+
+            与宿主动调那条路一样给成功回执——用户从授权页切回来时，如果列表
+            只是「悄悄多了一行」，他无法确认这次操作是否真的生效。
+          */
+          void refresh()
+            .then(() => persistCurrentDirectories())
+            .then(() => { notifySuccess(t('authorizeSucceeded')) })
+            .catch(() => undefined)
         })
 
         const url = await openFnosAppAuth(

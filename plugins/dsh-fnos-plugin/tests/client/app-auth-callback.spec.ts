@@ -186,3 +186,33 @@ describe('独立页面打开新标签页', () => {
     expect(service).toContain('fnos-open-blocked')
   })
 })
+
+describe('独立浏览器页面授权：结果反馈', () => {
+  it('成功后有回执，与宿主动调那条路一致', () => {
+    /*
+      从授权页切回来时，如果列表只是「悄悄多了一行」，用户无法确认操作是否生效。
+      两条成功路径都要给同样的回执。
+    */
+    const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+    expect(panel).toContain("Toast.success({ content: t('authorizeSucceeded') })")
+
+    const card = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+    expect(card).toContain("notifySuccess(t('authorizeSucceeded'))")
+  })
+
+  it('取消与失败要分流，不能都当成功', () => {
+    // 早前只判「不是 error/cancel 就刷新」，取消也走成功分支，容易误导。
+    const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+    expect(panel).toContain("if (result.status === 'cancel') return")
+    expect(panel).toContain("if (result.status === 'error')")
+
+    const card = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+    expect(card).toContain("if (result.status === 'cancel') return")
+  })
+
+  it('持久化失败只警告，不掩盖授权已生效', () => {
+    // 授权本身已在 fnOS 侧生效，写记录失败不该让用户以为整个操作失败。
+    const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
+    expect(panel).toContain("Toast.warning({ content: t('authorizePersistFailed') })")
+  })
+})

@@ -549,14 +549,31 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         */
         const state = outcome.state
         const off = listenFnosAppAuthResult(state, (result) => {
-          if (result.status === 'error' || result.status === 'cancel') return
+          /*
+            结果可能是 success / cancel / error 三态。
+            早前只判了「不是 error/cancel 就刷新」，于是用户点了「取消」也走刷新
+            分支——虽然结果无害，但会让人误以为授权成功了。这里显式分流。
+          */
+          if (result.status === 'error') {
+            Toast.error({ content: authorizeErrorMessage(result.error ?? '', t) })
+            return
+          }
+          if (result.status === 'cancel') return
           void requestAuthorizedEntries().then((fresh) => {
             applyEntries(fresh)
             const paths = fresh.entries
               .filter(entry => entry.kind === 'directory')
               .map(entry => entry.path)
-            void requestPersistAuthorizedDirectories(paths).catch(() => undefined)
-          }).catch(() => undefined)
+            /*
+              与宿主动调那条路保持一致：成功要有回执，否则用户从授权页回来时
+              只看到列表「悄悄多了一行」，不知道刚才那次操作到底成没成。
+            */
+            void requestPersistAuthorizedDirectories(paths)
+              .then(() => { Toast.success({ content: t('authorizeSucceeded') }) })
+              .catch(() => { Toast.warning({ content: t('authorizePersistFailed') }) })
+          }).catch((error: unknown) => {
+            Toast.error({ content: authorizeErrorMessage(error instanceof Error ? error.message : '', t) })
+          })
         })
         // 组件卸载或下一次授权时解除上一次的订阅。
         authListenerRef.current?.()
