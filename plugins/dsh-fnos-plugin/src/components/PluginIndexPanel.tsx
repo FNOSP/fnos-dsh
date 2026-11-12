@@ -140,10 +140,20 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
           disabled={busy}
           onChange={next => { void toggle(next) }}
         />
-        {/*
-          手动刷新：状态来自磁盘上的 `bundles` 数组，外部改动（命令行、其它插件页）
-          不会自动反映过来。一个显式刷新比「等它自己变」可靠。
-        */}
+      </div>
+
+      {/*
+        刷新按钮**独立成一条工具条**，与「已安装的插件」页签同一位置（右对齐、
+        卡片之外）。
+
+        它原先塞在索引源卡片里、紧挨着开关：语义上属于「工具条动作」却混进了
+        「这一项的状态与开关」之间，与另一个页签的位置也不一致——用户在两个
+        页签之间切换时会发现同一个按钮换了地方。
+
+        状态来自磁盘上的 `bundles` 数组，外部改动（命令行、其它插件页）不会自动
+        反映过来，所以显式刷新必须保留。
+      */}
+      <div className="dsh-fnos-installed-toolbar">
         <DshTooltip content={t('refresh')}>
           <button
             type="button"

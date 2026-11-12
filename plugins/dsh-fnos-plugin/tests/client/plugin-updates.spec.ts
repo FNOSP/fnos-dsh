@@ -306,3 +306,31 @@ describe('已安装列表：更新三态', () => {
     expect(inorder).toBeLessThan(update)
   })
 })
+
+describe('索引源页签：刷新按钮与「已安装的插件」同位置', () => {
+  const INDEX_SRC = readFileSync(new URL('../../src/components/PluginIndexPanel.tsx', import.meta.url), 'utf8')
+  const INSTALLED_SRC = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+
+  it('刷新按钮在卡片之外的独立工具条里', () => {
+    /*
+      原先它塞在索引源卡片内、紧挨着开关：语义上属于「工具条动作」却混进了
+      「这一项的状态与开关」之间。两个页签之间切换时同一个按钮换个地方，很跳。
+    */
+    expect(INDEX_SRC).toContain('dsh-fnos-installed-toolbar')
+    expect(INSTALLED_SRC).toContain('dsh-fnos-installed-toolbar')
+
+    // 工具条必须在索引源卡片（`.dsh-fnos-idx-row`）**之后**闭合，而不是里面。
+    const rowEnd = INDEX_SRC.indexOf('dsh-fnos-installed-toolbar')
+    const cardStart = INDEX_SRC.indexOf('dsh-fnos-idx-row')
+    expect(cardStart).toBeGreaterThan(-1)
+    expect(rowEnd).toBeGreaterThan(cardStart)
+    // 刷新按钮不应出现在 card 的开关之后、工具条之前。
+    const between = INDEX_SRC.slice(cardStart, rowEnd)
+    expect(between).not.toContain('lucide:refresh-cw')
+  })
+
+  it('两个页签用同一个类，右对齐由样式统一决定', () => {
+    // 用同一个类而不是各写一套对齐，避免以后又漂走。
+    expect(INDEX_SRC).not.toContain('dsh-fnos-idx-toolbar')
+  })
+})
