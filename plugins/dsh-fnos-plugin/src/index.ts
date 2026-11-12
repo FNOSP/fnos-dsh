@@ -11,6 +11,7 @@ import { FnosSettingsSchema } from './contracts/theme-schema.ts'
 import { registerGatewayProxyRoutes } from './host/gateway-proxy-routes.ts'
 import { registerDependencyRepairRoutes } from './host/dependency-repair-routes.ts'
 import { registerRuntimeStatusRoutes } from './host/runtime-status-routes.ts'
+import { registerAccountLoginRelay } from './host/account-login-relay.ts'
 import { registerLogCollector } from './host/runtime-logs.ts'
 import { registerStaticAssetRoute } from './host/static-assets.ts'
 import { registerPresentedPathRoute } from './host/presented-open.ts'
@@ -54,6 +55,7 @@ export function apply(ctx: Context, config?: FnosConfig): void {
   registerDependencyRepairRoutes(ctx)
   registerLogCollector(ctx)
   registerRuntimeStatusRoutes(ctx)
+  registerAccountLoginRelay(ctx)
   registerStaticAssetRoute(ctx)
   registerPresentedPathRoute(ctx)
   ctx.inject(['webServer'], httpCtx => {

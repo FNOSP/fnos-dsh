@@ -29,6 +29,7 @@ import { FnosOpenInHeaderAction } from '../components/FnosOpenInHeaderAction.tsx
 import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAction.tsx'
 import { FnosFooterEntry } from '../components/FnosFooterEntry.tsx'
 import { FnosConfigOverlay } from '../components/FnosConfigOverlay.tsx'
+import { FnosAccountLoginOverlay } from '../components/FnosAccountLoginOverlay.tsx'
 import { FNOS_OPEN_IN_APP_SEAT, FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
 import { createPickerOpenStore } from './input-references/picker-store.ts'
 import { insertFnosReferences } from './input-references/input-reference-actions.ts'
@@ -272,6 +273,21 @@ export function apply(ctx: ClientContext): void {
     locale: namespace,
     inject: () => ({ t }),
   }, FnosConfigOverlay))
+
+  /*
+    账号登录浮层：官方登录框出现时收起它，改由本插件接管。
+
+    与配置弹框同挂 `shell.overlay`，但用独立 id 与更高 order——两者互斥：配置
+    弹框是用户主动打开的，登录浮层是被官方框触发的，同时出现的概率极低，但
+    id 分开后各自的挂载与卸载互不牵连。
+  */
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'dsh-fnos-account-login',
+    order: 20,
+    locale: namespace,
+    inject: () => ({ t }),
+  }, FnosAccountLoginOverlay))
 
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left',

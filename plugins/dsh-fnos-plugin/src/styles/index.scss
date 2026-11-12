@@ -3262,3 +3262,36 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-ports > div,
 body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
   background: var(--dsw-alias-bg-layer-2);
 }
+
+/*
+ * 账号登录对话框。
+ *
+ * 内容区只有一段说明、一个输入框与一行按钮，不需要卡片或分隔线；间距统一交给
+ * 这里的 `gap`，避免每块自己写 margin 后互相叠出双倍空隙。
+ */
+.dsh-fnos-account-login {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dsh-fnos-account-login-hint {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dsh-fnos-account-login-error {
+  margin: 0;
+  color: var(--dsw-alias-state-error-primary, #e5484d);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* 按钮右对齐：与 Semi 弹框的 footer 一致，主操作在最右。 */
+.dsh-fnos-account-login-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
