@@ -3,7 +3,7 @@
   "plugins": [
     {
       "name": "@tnnevol/dsh-fnos",
-      "version": "8.1.98"
+      "version": "8.1.99"
     }
   ]
 }
