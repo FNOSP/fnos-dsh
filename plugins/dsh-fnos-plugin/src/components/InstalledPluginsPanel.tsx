@@ -350,8 +350,8 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                       「按钮」。
                     */
                     <Popconfirm
-                      title={t('pluginRemoveTitle')}
-                      content={`${t('pluginRemoveConfirm')}${plugin.name}`}
+                      title={t('pluginRemoveTitle').replace('{name}', plugin.name)}
+                      content={t('pluginRemoveConfirm')}
                       okText={t('uninstall')}
                       cancelText={t('cancel')}
                       okButtonProps={{ type: 'danger' }}

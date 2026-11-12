@@ -571,9 +571,11 @@ describe('卸载：Popconfirm 二次确认 + 异步 loading + 后端并发锁', 
     expect(PANEL_SRC).toContain('<Popconfirm')
     expect(PANEL_SRC).not.toContain('<DshModal')
     expect(PANEL_SRC).toContain('okButtonProps={{ type: \'danger\' }}')
-    // 文案对齐截图：标题「卸载「X」？」、正文「卸载后它提供的功能会消失。」
-    expect(PANEL_SRC).toContain("title={t('pluginRemoveTitle')}")
-    expect(PANEL_SRC).toMatch(/content=\{`\$\{t\('pluginRemoveConfirm'\)\}/u)
+    // 文案对齐截图：标题「卸载「X」？」（插件名代入占位符）、正文「卸载后它提供的功能会消失。」
+    expect(PANEL_SRC).toContain("t('pluginRemoveTitle').replace('{name}', plugin.name)")
+    expect(PANEL_SRC).toContain("content={t('pluginRemoveConfirm')}")
+    // 正文不再拼接插件名（标题已经有名字了）。
+    expect(PANEL_SRC).not.toMatch(/content=\{`\$\{t\('pluginRemoveConfirm'\)/u)
   })
 
   it('onConfirm 返回 Promise，由组件自己接管 loading', () => {
