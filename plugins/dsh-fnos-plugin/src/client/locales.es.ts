@@ -64,6 +64,7 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyPlaceholder: 'Un prefijo de ruta absoluto por línea, por ejemplo /plugin-api\nPulsa Ctrl+S (⌘S en macOS) para guardar',
   save: 'Guardar',
   discard: 'Descartar',
+  confirmAction: 'Confirmar',
   gatewayProxySaved: 'Reglas de proxy guardadas.',
   gatewayProxyInvalid: 'Introduce un prefijo de ruta absoluto por línea. No se admiten rutas reservadas como /api y /plugins.',
   gatewayProxyFailed: 'No se han podido cargar o guardar las reglas de proxy.',

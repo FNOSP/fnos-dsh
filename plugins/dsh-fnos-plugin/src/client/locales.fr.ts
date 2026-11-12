@@ -64,6 +64,7 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyPlaceholder: 'Un préfixe de chemin absolu par ligne, par exemple /plugin-api\nAppuyez sur Ctrl+S (⌘S sous macOS) pour enregistrer',
   save: 'Enregistrer',
   discard: 'Abandonner',
+  confirmAction: 'Confirmer',
   gatewayProxySaved: 'Règles de proxy enregistrées.',
   gatewayProxyInvalid: 'Indiquez un préfixe de chemin absolu par ligne. Les chemins réservés comme /api et /plugins ne sont pas autorisés.',
   gatewayProxyFailed: "Impossible de charger ou d'enregistrer les règles de proxy.",

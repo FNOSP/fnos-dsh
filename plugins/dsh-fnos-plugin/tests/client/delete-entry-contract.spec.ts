@@ -78,3 +78,53 @@ describe('FNOS-034 删除提示：使用 Popconfirm 默认尺寸', () => {
     expect([...(match?.[1] ?? '')].length).toBeLessThanOrEqual(30)
   })
 })
+
+/**
+ * 取消授权的确认弹框：异步期间不能立即关闭。
+ *
+ * 撤销授权是后端操作（撤 ACL → 重拉列表 → 回写持久化）。早前 `onOk` 里先
+ * `setPendingDeletePath(undefined)` 就返回，弹层瞬间消失而后台还在跑：用户看不到
+ * 进度，容易以为没生效而重复点击；失败时错误也只落到列表上，与「已取消」的观感冲突。
+ */
+describe('取消授权：确认后保持打开并显示 loading', () => {
+  const CARD = readFileSync(new URL('../../src/components/AuthorizedDirectoriesCard.tsx', import.meta.url), 'utf8')
+
+  it('确认时进入 loading，而不是立刻关闭', () => {
+    expect(CARD).toContain('confirmLoading={deletePending}')
+    expect(CARD).toContain('okButtonProps={{ loading: deletePending, disabled: deletePending }}')
+    // onOk 只能调异步处理器，不能直接置空 visible。
+    expect(CARD).toContain('onOk={() => { void confirmDelete() }}')
+    expect(CARD).not.toContain("void removeDirectory(pendingDeletePath)\n          setPendingDeletePath(undefined)")
+  })
+
+  it('loading 期间不能被打断（取消、遮罩、Esc）', () => {
+    // 中途关闭会让用户以为操作被取消，但请求其实还在跑。
+    expect(CARD).toContain('cancelButtonProps={{ disabled: deletePending }}')
+    expect(CARD).toContain('closeOnEsc={!deletePending}')
+    expect(CARD).toContain('maskClosable={!deletePending}')
+    expect(CARD).toContain('if (!deletePending) setPendingDeletePath(undefined)')
+  })
+
+  it('等操作真正结束才关闭弹层', () => {
+    // confirmDelete 用 finally 关闭：成功失败都要收尾，不能卡在 loading。
+    const block = CARD.slice(CARD.indexOf('const confirmDelete'), CARD.indexOf('const confirmDelete') + 900)
+    expect(block).toContain('await removeDirectory(path)')
+    expect(block).toContain('setDeletePending(false)')
+    expect(block).toContain('setPendingDeletePath(undefined)')
+    // 重复提交要短路。
+    expect(block).toContain('deletePending) return')
+  })
+
+  it('按钮文案是「确认」，不是「确认授权」', () => {
+    /*
+      「确认授权」只适用于**申请**授权的场景（如选择器弹窗的 okText）。
+      这里是**取消**授权，说「确认授权」正好相反。所以另立 `confirmAction`，
+      不改 `confirm`——它仍被添加目录的选择器使用。
+    */
+    expect(CARD).toContain("okText={t('confirmAction')}")
+    expect(LOCALES).toContain("confirmAction: '确认'")
+    expect(LOCALES).toContain("confirmAction: 'Confirm'")
+    // 原键保持「确认授权」不变。
+    expect(LOCALES).toContain("confirm: '确认授权'")
+  })
+})

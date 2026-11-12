@@ -72,6 +72,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyPlaceholder: '한 줄에 절대 경로 접두사 하나 (예: /plugin-api)\nCtrl+S(macOS는 ⌘S)로 저장',
   save: '저장',
   discard: '버리기',
+  confirmAction: '확인',
   gatewayProxySaved: '프록시 규칙을 저장했습니다.',
   gatewayProxyInvalid: '한 줄에 절대 경로 접두사 하나를 입력하세요. /api, /plugins 같은 예약된 경로는 사용할 수 없습니다.',
   gatewayProxyFailed: '프록시 규칙을 불러오거나 저장할 수 없습니다.',

@@ -229,6 +229,7 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
    */
   const authListenerRef = useRef<(() => void) | undefined>(undefined)
 
+
   /* 卸载时解绑授权回调订阅：留着会让回调打在已卸载的组件上。 */
   useEffect(() => () => {
     authListenerRef.current?.()
@@ -348,6 +349,16 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
     }
   }, [refresh, t, persistCurrentDirectories])
 
+  /**
+   * 取消一个目录的授权。
+   *
+   * **这是一个异步的后端操作**：撤销 ACL、重拉列表、回写持久化三步都要等。
+   * 因此调用方（确认弹框）必须等它结束再关闭弹层，而不是点了就关——否则用户
+   * 看到的界面与真实状态对不上，还会以为操作没生效而反复点击。
+   *
+   * @param path - 目录的原始绝对路径。
+   * @returns 操作完成（成功或失败）时 resolve；失败已转成可见错误。
+   */
   const removeDirectory = useCallback(async (path: string): Promise<void> => {
     setBusy(true)
     try {
@@ -361,6 +372,27 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
       setBusy(false)
     }
   }, [refresh, t, persistCurrentDirectories])
+
+  /** 取消授权进行中：弹层不关闭、按钮显示 loading。 */
+  const [deletePending, setDeletePending] = useState(false)
+
+  /**
+   * 确认取消授权：等后端真正结束再关闭弹层。
+   *
+   * 用 state 而不是直接 await 在 `onOk` 里，是因为 Semi 的 `onOk` 不消费返回值，
+   * 关闭时机必须由 `visible` 自己控制。
+   */
+  const confirmDelete = useCallback(async (): Promise<void> => {
+    const path = pendingDeletePath
+    if (path === undefined || deletePending) return
+    setDeletePending(true)
+    try {
+      await removeDirectory(path)
+    } finally {
+      setDeletePending(false)
+      setPendingDeletePath(undefined)
+    }
+  }, [deletePending, pendingDeletePath, removeDirectory])
 
   return (
     <div className="dsh-fnos-authorized-card">
@@ -380,17 +412,30 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         下方 `.dsh-fnos-authorized-card-body` 自带 `border-top` 作为与面板顶部分隔
         的那条线；移除标题后它直接贴到面板的 16px 上内边距之下，间距仍然成立。
       */}
+      {/*
+        取消授权是**异步**的（撤销 ACL → 重拉列表 → 回写持久化）。因此：
+
+        - 点「确认」后**不立即关闭**弹层，按钮进入 loading；
+        - 等 `removeDirectory` 真正结束再关；
+        - loading 期间不允许再次提交，也不允许用取消/关闭打断。
+
+        早前是「点了就关」：弹层瞬间消失，而后台还在跑。用户看不到进度，
+        容易以为没生效而重复点击；失败时错误也只落在列表上，与「已取消」的
+        观感冲突。
+      */}
       <DshModal
         visible={pendingDeletePath !== undefined}
         title={t('delete')}
         content={t('deleteConfirm')}
-        okText={t('confirm')}
+        okText={t('confirmAction')}
         cancelText={t('discard')}
-        onOk={() => {
-          if (pendingDeletePath !== undefined) void removeDirectory(pendingDeletePath)
-          setPendingDeletePath(undefined)
-        }}
-        onCancel={() => { setPendingDeletePath(undefined) }}
+        confirmLoading={deletePending}
+        okButtonProps={{ loading: deletePending, disabled: deletePending }}
+        cancelButtonProps={{ disabled: deletePending }}
+        closeOnEsc={!deletePending}
+        maskClosable={!deletePending}
+        onOk={() => { void confirmDelete() }}
+        onCancel={() => { if (!deletePending) setPendingDeletePath(undefined) }}
       />
       <div id="dsh-fnos-authorized-directories-body" className="dsh-fnos-authorized-card-body">
           <div className="dsh-fnos-authorized-row">

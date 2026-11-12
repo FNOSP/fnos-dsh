@@ -64,6 +64,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyPlaceholder: 'Pro Zeile ein absolutes Pfadpräfix, z. B. /plugin-api\nZum Speichern Ctrl+S drücken (⌘S unter macOS)',
   save: 'Speichern',
   discard: 'Verwerfen',
+  confirmAction: 'Bestätigen',
   gatewayProxySaved: 'Proxy-Regeln gespeichert.',
   gatewayProxyInvalid: 'Pro Zeile ein absolutes Pfadpräfix. Reservierte Pfade wie /api und /plugins sind nicht zulässig.',
   gatewayProxyFailed: 'Proxy-Regeln konnten nicht geladen oder gespeichert werden.',

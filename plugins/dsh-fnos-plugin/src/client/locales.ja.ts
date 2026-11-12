@@ -72,6 +72,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyPlaceholder: '1 行に 1 つ、絶対パスのプレフィックスを入力（例：/plugin-api）\nCtrl+S（macOS は ⌘S）で保存',
   save: '保存',
   discard: '破棄',
+  confirmAction: '確認',
   gatewayProxySaved: 'プロキシ規則を保存しました。',
   gatewayProxyInvalid: '1 行に 1 つ、絶対パスのプレフィックスを入力してください。/api や /plugins などの予約済みパスは使用できません。',
   gatewayProxyFailed: 'プロキシ規則を読み込むか保存できませんでした。',

@@ -63,6 +63,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyPlaceholder: 'По одному абсолютному префиксу пути на строку, например /plugin-api\nЧтобы сохранить, нажмите Ctrl+S (⌘S в macOS)',
   save: 'Сохранить',
   discard: 'Отменить',
+  confirmAction: 'Подтвердить',
   gatewayProxySaved: 'Правила прокси сохранены.',
   gatewayProxyInvalid: 'Укажите по одному абсолютному префиксу пути на строку. Зарезервированные пути, такие как /api и /plugins, недопустимы.',
   gatewayProxyFailed: 'Не удалось загрузить или сохранить правила прокси.',
