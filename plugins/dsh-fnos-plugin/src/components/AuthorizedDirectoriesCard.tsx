@@ -399,6 +399,7 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
       await removeDirectory(path)
     } finally {
       setDeletePending(false)
+      // Semi 在 onOk 的 Promise resolve 后自动关闭；这里只清选中的目标。
       setPendingDeletePath(undefined)
     }
   }, [deletePending, pendingDeletePath, removeDirectory])
@@ -438,12 +439,17 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         content={t('deleteConfirm')}
         okText={t('confirmAction')}
         cancelText={t('discard')}
-        confirmLoading={deletePending}
-        okButtonProps={{ loading: deletePending, disabled: deletePending }}
-        cancelButtonProps={{ disabled: deletePending }}
+        /*
+          **`onOk` 返回 Promise 时，Semi 自己给确认按钮加 loading 态**（Modal 文档：
+          「点击确认按钮时的回调函数，返回 Promise 时，确认按钮会出现 loading 态」）。
+
+          不需要手动传 `confirmLoading` / `okButtonProps.loading`，更不能传
+          `disabled` —— 那会让按钮变成灰色不可点态，看起来像「坏了」而不是
+          「正在处理」。
+        */
         closeOnEsc={!deletePending}
         maskClosable={!deletePending}
-        onOk={() => { void confirmDelete() }}
+        onOk={() => confirmDelete()}
         onCancel={() => { if (!deletePending) setPendingDeletePath(undefined) }}
       />
       <div id="dsh-fnos-authorized-directories-body" className="dsh-fnos-authorized-card-body">

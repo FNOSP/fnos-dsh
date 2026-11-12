@@ -90,16 +90,25 @@ describe('取消授权：确认后保持打开并显示 loading', () => {
   const CARD = readFileSync(new URL('../../src/components/AuthorizedDirectoriesCard.tsx', import.meta.url), 'utf8')
 
   it('确认时进入 loading，而不是立刻关闭', () => {
-    expect(CARD).toContain('confirmLoading={deletePending}')
-    expect(CARD).toContain('okButtonProps={{ loading: deletePending, disabled: deletePending }}')
-    // onOk 只能调异步处理器，不能直接置空 visible。
-    expect(CARD).toContain('onOk={() => { void confirmDelete() }}')
-    expect(CARD).not.toContain("void removeDirectory(pendingDeletePath)\n          setPendingDeletePath(undefined)")
+    /*
+      Semi Modal 文档：「点击确认按钮时的回调函数，**返回 Promise 时，确认按钮
+      会出现 loading 态**」。所以正解是让 `onOk` 返回 Promise，由组件自己管
+      loading 与关闭时机。
+
+      不要手写 `confirmLoading` / `okButtonProps.loading`，更不能传 `disabled`
+      —— 那会让按钮变成灰色不可点态，看起来像「坏了」而不是「正在处理」。
+    */
+    expect(CARD).toContain('onOk={() => confirmDelete()}')
+    expect(CARD).toContain('async (): Promise<void> =>')
+    expect(CARD).not.toContain('okButtonProps={{ loading: deletePending, disabled: deletePending }}')
+    expect(CARD).not.toContain('confirmLoading={deletePending}')
+    // 更不能把确认按钮 disable 掉——那是灰色不可点态，与 loading 视觉完全不同。
+    expect(CARD).not.toContain('okButtonProps=')
+    expect(CARD).not.toContain('cancelButtonProps={{ disabled')
   })
 
   it('loading 期间不能被打断（取消、遮罩、Esc）', () => {
     // 中途关闭会让用户以为操作被取消，但请求其实还在跑。
-    expect(CARD).toContain('cancelButtonProps={{ disabled: deletePending }}')
     expect(CARD).toContain('closeOnEsc={!deletePending}')
     expect(CARD).toContain('maskClosable={!deletePending}')
     expect(CARD).toContain('if (!deletePending) setPendingDeletePath(undefined)')
