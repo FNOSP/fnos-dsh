@@ -304,7 +304,8 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
             <p className="dsh-fnos-account-login-hint">{t('accountLoginPasteHint')}</p>
             <DshInput
               value={pasted}
-              placeholder="http://127.0.0.1:3080/oauth/callback?code=…&state=…"
+              /* 端口由宿主转发时决定，这里只给形状；写死端口会与实际改写的值对不上。 */
+              placeholder="http://127.0.0.1:<端口>/oauth/callback?code=…&state=…"
               onChange={(value: string) => { setPasted(value) }}
             />
           </>
