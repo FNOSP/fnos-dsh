@@ -18,7 +18,7 @@ trustedHostsHelpText="填浏览器打开 NAS Web 时地址栏里的 host 或 hos
 trustedHostsRequiredMessage="请输入 NAS Web 的 host 或 host:port"
 trustedHostsPatternMessage="只能填 host 或 host:port（可多个，用英文逗号分隔）：不要带 http:// 或 https://，不要带路径，端口 1-65535 且不能有前导零"
 npmRegistryLabel="npm 镜像源"
-npmRegistryHelpText="留空使用 npm 官方源。安装失败不会自动换源，请按当前网络选一个后重试。"
+npmRegistryHelpText="默认使用 npm 官方源；已选过镜像的沿用上次的选择。安装失败不会自动换源，请按当前网络选一个后重试。"
 
 [upgrade]
 stepTitle="服务配置"
@@ -32,7 +32,7 @@ trustedHostsHelpText="填浏览器打开 NAS Web 时地址栏里的 host 或 hos
 trustedHostsRequiredMessage="请输入 NAS Web 的 host 或 host:port"
 trustedHostsPatternMessage="只能填 host 或 host:port（可多个，用英文逗号分隔）：不要带 http:// 或 https://，不要带路径，端口 1-65535 且不能有前导零"
 npmRegistryLabel="npm 镜像源"
-npmRegistryHelpText="留空使用 npm 官方源。安装失败不会自动换源，请按当前网络选一个后重试。"
+npmRegistryHelpText="默认使用 npm 官方源；已选过镜像的沿用上次的选择。安装失败不会自动换源，请按当前网络选一个后重试。"
 
 [config]
 stepTitle="服务配置"
@@ -46,7 +46,7 @@ trustedHostsHelpText="填浏览器打开 NAS Web 时地址栏里的 host 或 hos
 trustedHostsRequiredMessage="请输入 NAS Web 的 host 或 host:port"
 trustedHostsPatternMessage="只能填 host 或 host:port（可多个，用英文逗号分隔）：不要带 http:// 或 https://，不要带路径，端口 1-65535 且不能有前导零"
 npmRegistryLabel="npm 镜像源"
-npmRegistryHelpText="留空使用 npm 官方源。安装失败不会自动换源，请按当前网络选一个后重试。"
+npmRegistryHelpText="默认使用 npm 官方源；已选过镜像的沿用上次的选择。安装失败不会自动换源，请按当前网络选一个后重试。"
 
 [uninstall]
 stepTitle="卸载设置"

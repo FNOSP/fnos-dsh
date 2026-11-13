@@ -18,7 +18,7 @@ trustedHostsHelpText="Enter the host or host:port from the address bar you use t
 trustedHostsRequiredMessage="Enter the host or host:port of NAS Web"
 trustedHostsPatternMessage="Only a host or host:port is allowed (several separated by commas): no http:// or https://, no path, port 1-65535 without leading zeros"
 npmRegistryLabel="npm registry"
-npmRegistryHelpText="Leave empty to use the official npm registry. Installation never switches registry automatically, so pick one that matches your network and retry."
+npmRegistryHelpText="Defaults to the official npm registry; a previously chosen mirror is kept. Installation never switches registry automatically, so pick one that matches your network and retry."
 
 [upgrade]
 stepTitle="Service configuration"
@@ -32,7 +32,7 @@ trustedHostsHelpText="Enter the host or host:port from the address bar you use t
 trustedHostsRequiredMessage="Enter the host or host:port of NAS Web"
 trustedHostsPatternMessage="Only a host or host:port is allowed (several separated by commas): no http:// or https://, no path, port 1-65535 without leading zeros"
 npmRegistryLabel="npm registry"
-npmRegistryHelpText="Leave empty to use the official npm registry. Installation never switches registry automatically, so pick one that matches your network and retry."
+npmRegistryHelpText="Defaults to the official npm registry; a previously chosen mirror is kept. Installation never switches registry automatically, so pick one that matches your network and retry."
 
 [config]
 stepTitle="Service configuration"
@@ -46,7 +46,7 @@ trustedHostsHelpText="Enter the host or host:port from the address bar you use t
 trustedHostsRequiredMessage="Enter the host or host:port of NAS Web"
 trustedHostsPatternMessage="Only a host or host:port is allowed (several separated by commas): no http:// or https://, no path, port 1-65535 without leading zeros"
 npmRegistryLabel="npm registry"
-npmRegistryHelpText="Leave empty to use the official npm registry. Installation never switches registry automatically, so pick one that matches your network and retry."
+npmRegistryHelpText="Defaults to the official npm registry; a previously chosen mirror is kept. Installation never switches registry automatically, so pick one that matches your network and retry."
 
 [uninstall]
 stepTitle="Uninstall options"

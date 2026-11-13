@@ -233,6 +233,19 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(locales).not.toContain('完成授权后，把地址粘回来')
   })
 
+  it('授权页地址还没生成时有界重试', () => {
+    /*
+      地址由宿主在创建登录尝试的过程中才产生，而我们的弹框在官方弹框出现时就
+      打开了——第一读经常还是空的（真机实测就是空，「复制重新打开」压根不渲染）。
+
+      只在拿不到时重试，拿到即停，最多 12 次（约 10 秒）。这是等一份数据，不是
+      用轮询判断状态：显隐仍由 DOM 监听决定。
+    */
+    expect(CLIENT).toContain('readAuthorizeUrlOnce')
+    expect(CLIENT).toMatch(/attempts \+= 1/u)
+    expect(CLIENT).toMatch(/if \(attempts >= 12\) return/u)
+  })
+
   it('「复制重新打开」是 Semi 的可复制文字，不另设按钮', () => {
     /*
       用户要的是「这条授权地址能被复制走」。先试过单独一行的按钮，又试过把整条

@@ -136,12 +136,36 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
     if (!open) return
     closedRef.current = false
     let cancelled = false
-    void readAuthorizeUrlOnce().then((url) => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let attempts = 0
+
+    /*
+      **有界重试，不是状态轮询。**
+
+      授权页地址由宿主在创建登录尝试的过程中才产生，而我们的弹框在官方弹框出现
+      时就打开了——第一读经常还是空的（实测就是空，导致「复制重新打开」不渲染）。
+      这里只在**地址还拿不到**时重试，拿到即停，最多 12 次（约 10 秒）就放弃，
+      不影响粘贴本身。
+    */
+    const load = async (): Promise<void> => {
       if (cancelled) return
-      authorizeUrlRef.current = url
-      setAuthorizeUrl(url)
-    })
-    return () => { cancelled = true }
+      const url = await readAuthorizeUrlOnce()
+      if (cancelled) return
+      if (url !== undefined) {
+        authorizeUrlRef.current = url
+        setAuthorizeUrl(url)
+        return
+      }
+      attempts += 1
+      if (attempts >= 12) return
+      timer = setTimeout(() => { void load() }, 800)
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+      if (timer !== undefined) clearTimeout(timer)
+    }
   }, [open])
 
   /*
