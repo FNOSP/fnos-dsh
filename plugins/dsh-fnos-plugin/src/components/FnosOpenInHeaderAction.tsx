@@ -26,7 +26,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { IconChevronDownOutlineRegular, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FnosFileManagerIcon } from './FnosFileManagerIcon.tsx'
-import { hasFnosHostBridge } from '../client/services/environment.ts'
+import { hasFnosHostBridge, readSdkCapabilityFlags } from '../client/services/host-bridge.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
@@ -111,12 +111,16 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
   /*
     只在**宿主桥可用**时渲染。
 
-    这个入口的动作全是 `openFileManager` / `openFile`，独立浏览器页面里没有
-    宿主桥，调用必然失败。曾试过退而用 `openURL` 打开 fnOS 桌面首页，但那是
-    「打开了个网页」而不是「定位到这个目录」——用户点了被丢回桌面，还得自己
-    再找一遍，比没有这个按钮更差。所以不渲染，而不是给一个必然失败的入口。
+    判据读 SDK 的运行时标志，不是「是不是 iframe」：`isWeb === false`（mobile /
+    原生宿主）时宿主桥是可用的，即便 `window.parent === window`。早前只看 DOM，
+    这类环境下整个入口会消失。
+
+    独立浏览器页面里没有宿主桥，调用必然失败。曾试过退而用 `openURL` 打开 fnOS
+    桌面首页，但那是「打开了个网页」而不是「定位到这个目录」——用户点了被丢回
+    桌面，还得自己再找一遍，比没有这个按钮更差。所以不渲染，而不是给一个必然
+    失败的入口。
   */
-  if (!hasFnosHostBridge()) return null
+  if (!hasFnosHostBridge(readSdkCapabilityFlags())) return null
   // 工作目录未知时打开没有意义，直接不渲染，避免给出一个必然失败的操作。
   if (cwd === undefined || cwd === '') return null
 

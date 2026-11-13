@@ -2,7 +2,8 @@
 
 import type { FnosPresentedPathResolveResponse } from '../../contracts/presented-open-contract.ts'
 import { FNOS_PRESENTED_PATH_RESOLVE_PATH } from '../../contracts/presented-open-contract.ts'
-import { hasFnosHostBridge, isFnosHosted } from './environment.ts'
+import { isFnosHosted } from './environment.ts'
+import { fnosHostBridgeAvailable } from './host-bridge.ts'
 
 const DSH_PRESENT_HOST_PATH = '/api/present.host'
 const DSH_PRESENT_OPEN_PATH = '/api/present.open'
@@ -78,7 +79,7 @@ async function openPresentedPath(
   if (value === undefined || typeof value.path !== 'string' || value.path.length === 0) return unavailableResponse()
 
   // 无宿主桥时明确失败（503），而不是让 SDK 抛一个对用户无意义的桥接错误。
-  if (!hasFnosHostBridge()) return unavailableResponse(503)
+  if (!fnosHostBridgeAvailable()) return unavailableResponse(503)
 
   const sdk = createSdk()
   await sdk.ready()
@@ -114,7 +115,7 @@ export function installFnosPresentedOpen(createSdk: () => FnosPresentedOpenSdk):
         `Host bridge is not available`，先把按钮显示出来再失败，比直接不显示更糟。
       */
       return Response.json(
-        { name: 'fnOS', available: hasFnosHostBridge(), fileManager: 'directory' },
+        { name: 'fnOS', available: fnosHostBridgeAvailable(), fileManager: 'directory' },
         { headers: { 'cache-control': 'no-store' } },
       )
     }

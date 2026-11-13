@@ -35,7 +35,7 @@ import {
 import { createAuthorizedEntry, deleteAuthorizedEntry, renameAuthorizedEntry, requestAuthorizedEntries, requestPersistAuthorizedDirectories, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { listenFnosAppAuthResult } from '../client/services/app-auth.ts'
 import { pickAuthorizedDirectory } from '../client/services/authorized-directory-picker.ts'
-import { hasFnosHostBridge } from '../client/services/environment.ts'
+import { fnosHostBridgeAvailable } from '../client/services/host-bridge.ts'
 import { openFnosEntry } from '../client/services/file-opener.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import { FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
@@ -905,7 +905,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
             退而用 `openURL` 只能打开 fnOS 桌面首页，定位不到目标条目——用户
             点了却被丢回桌面，比没有这个入口更差。
           */}
-          {hasFnosHostBridge() && (
+          {fnosHostBridgeAvailable() && (
             <button
               type="button"
               className="dsh-fnos-path-context-item"

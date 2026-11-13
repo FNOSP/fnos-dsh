@@ -86,10 +86,15 @@ export function isFnosHosted(): boolean {
 }
 
 /**
- * fnOS 宿主桥是否可用（文件选择、打开文件等）。
+ * 宿主桥是否可用（**仅按 DOM 判断**）。
  *
- * `standalone` 下宿主桥被 SDK 主动跳过，调用只会抛错，因此调用前必须先判断。
- * @returns 宿主桥是否可用。
+ * 这是纯 DOM 的保守判据：只有 iframe 里才算有宿主桥。需要感知
+ * `@trimjs/web-app` 的 `isWeb` 标志（`isWeb === false` 时即便不是 iframe 也有
+ * 宿主桥）请用 `host-bridge.ts` 的 `fnosHostBridgeAvailable()`。
+ *
+ * 留在这里是因为本模块不依赖 SDK，纯 DOM 判断没有循环依赖风险。
+ *
+ * @returns 是否处于 iframe（`embedded`）。
  */
 export function hasFnosHostBridge(): boolean {
   return detectFnosEnvironment() === 'embedded'

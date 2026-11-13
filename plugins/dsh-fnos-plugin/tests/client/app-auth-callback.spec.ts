@@ -136,7 +136,7 @@ describe('独立浏览器页面：授权后列表必须刷新', () => {
     // 调用必然失败；给一个必然失败的入口比不渲染更差。
     const action = read('../../src/components/FnosOpenInHeaderAction.tsx')
     const actionCode = action.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
-    expect(actionCode).toContain('hasFnosHostBridge()')
+    expect(actionCode).toContain('hasFnosHostBridge(readSdkCapabilityFlags())')
     expect(actionCode).not.toContain('isFnosHosted()')
   })
 })
@@ -156,7 +156,7 @@ describe('独立页面：浏览入口一律不渲染', () => {
     ]
     for (const file of sources) {
       const code = read(file).replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
-      expect(code, file).toContain('hasFnosHostBridge()')
+      expect(code, file).toMatch(/fnosHostBridgeAvailable\(\)|hasFnosHostBridge\(readSdkCapabilityFlags\(\)\)/u)
     }
   })
 })
@@ -241,13 +241,13 @@ describe('独立页面的浏览入口：直接不渲染', () => {
       比没有这个按钮更差。因此不渲染。
     */
     const card = read('../../src/components/AuthorizedDirectoriesCard.tsx')
-    expect(card).toContain('hasFnosHostBridge()')
+    expect(card).toContain('fnosHostBridgeAvailable()')
     // 按钮必须在能力判断里面。
-    expect(card).toMatch(/hasFnosHostBridge\(\) && \([\s\S]{0,400}dsh-fnos-authorized-button--open/u)
+    expect(card).toMatch(/fnosHostBridgeAvailable\(\) && \([\s\S]{0,400}dsh-fnos-authorized-button--open/u)
 
     const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
-    expect(panel).toContain('hasFnosHostBridge()')
-    expect(panel).toMatch(/hasFnosHostBridge\(\) && \([\s\S]{0,400}openFromContextMenu/u)
+    expect(panel).toContain('fnosHostBridgeAvailable()')
+    expect(panel).toMatch(/fnosHostBridgeAvailable\(\) && \([\s\S]{0,400}openFromContextMenu/u)
   })
 
   it('服务层在 standalone 下明确失败，不再跳转到桌面', () => {
@@ -310,5 +310,45 @@ describe('SDK 标志语义：其余能力判据同步', () => {
       // 不许再把 isWeb 与 isStandaloneWeb 或成一个短路条件。
       expect(source, name).not.toContain('!sdk.isWeb || sdk.isStandaloneWeb')
     }
+  })
+})
+
+describe('宿主桥判据：isWeb=false 时能力在内嵌侧', () => {
+  it('三个标志组合的结论', () => {
+    /*
+      | isWeb | isStandaloneWeb | 含义 | 宿主桥 |
+      | true  | false           | iframe / 应用运行时 | 可用 |
+      | true  | true            | 独立浏览器页面      | 不可用 |
+      | false | 任意            | mobile / 原生宿主    | 可用 |
+
+      第三行是关键：`isWeb === false` 时即便不是 iframe，能力也在内嵌宿主那边。
+      早前只看 DOM，把这类环境误判成「没有宿主桥」，右上角入口整个消失。
+
+      这里断言实现的三元表达式本身：`sdk.ts` 依赖 `@trimjs/web-app`，后者在
+      node 环境没有 `window`，直接 import 会抛。
+    */
+    const source = read('../../src/client/services/host-bridge.ts')
+    expect(source).toContain('return flags.isWeb ? !flags.isStandaloneWeb : true')
+    // 调用方不再用无参形式（那会退回 DOM 判据，丢掉 isWeb=false 这一支）。
+    const action = read('../../src/components/FnosOpenInHeaderAction.tsx')
+    expect(action).toContain('hasFnosHostBridge(readSdkCapabilityFlags())')
+    expect(action).not.toContain('hasFnosHostBridge()')
+  })
+
+  it('判断拆到独立模块，不形成循环依赖', () => {
+    // 早前把它写在 environment.ts 里并 import sdk.ts，与 sdk.ts → environment.ts
+    // 构成循环，整个模块加载失败（测试一条都跑不起来）。
+    const env = read('../../src/client/services/environment.ts')
+    // 环境识别模块不依赖 SDK：import 了就会与 sdk.ts 形成循环。
+    expect(env).not.toContain('createTrimApp')
+    expect(env).not.toContain("from './sdk.ts'")
+    // 那里只有一个纯 DOM 的保守判据（仅供无法拿到 SDK 标志的场景）。
+    expect(env).toContain("return detectFnosEnvironment() === 'embedded'")
+    // 判断住在独立模块里，且**延迟**取 SDK：静态 import 会让 node 环境下
+    // import 本模块的代码直接抛 `window is not defined`。
+    const bridge = read('../../src/client/services/host-bridge.ts')
+    expect(bridge).toContain("from './environment.ts'")
+    expect(bridge).toContain("require('./sdk.ts')")
+    expect(bridge).not.toMatch(/^import[\s\S]{0,200}from '\.\/sdk\.ts'/mu)
   })
 })

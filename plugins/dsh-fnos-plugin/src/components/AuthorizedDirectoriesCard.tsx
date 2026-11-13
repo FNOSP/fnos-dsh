@@ -7,7 +7,7 @@ import { diagnosePickerResult, isPickerCancellation, isPickerNoSelection, logPic
 import { createTrimApp } from '../client/services/sdk.ts'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import { createAuthState, listenFnosAppAuthResult, openFnosAppAuth, usesAppAuthFlow } from '../client/services/app-auth.ts'
-import { hasFnosHostBridge } from '../client/services/environment.ts'
+import { fnosHostBridgeAvailable } from '../client/services/host-bridge.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import {
   DirectoryRequestError,
@@ -551,7 +551,7 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
                     只读的应用共享目录同样保留「打开」：用户想确认目录里有什么，
                     不该因为「不能取消授权」被顺带禁掉浏览。
                   */}
-                  {hasFnosHostBridge() && (
+                  {fnosHostBridgeAvailable() && (
                     <button
                       type="button"
                       className="dsh-fnos-authorized-button dsh-fnos-authorized-button--open"

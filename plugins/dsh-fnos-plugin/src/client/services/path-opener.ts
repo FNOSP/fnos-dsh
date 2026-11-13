@@ -1,6 +1,7 @@
 /** Route DSH's existing path-open action through the fnOS iframe bridge. */
 
-import { hasFnosHostBridge, isFnosHosted } from './environment.ts'
+import { isFnosHosted } from './environment.ts'
+import { fnosHostBridgeAvailable } from './host-bridge.ts'
 
 export interface PathOpenerWorkspaces {
   openPath(path: string): Promise<void>
@@ -74,7 +75,7 @@ export function installFnosPathOpener(
         xdg-open in the NAS service container, where the command is absent.
         独立浏览器页面同样在这里失败：没有宿主桥，`openFile` 不可能成功。
       */
-      if (!hasFnosHostBridge()) throw new Error('Opening files requires the fnOS app')
+      if (!fnosHostBridgeAvailable()) throw new Error('Opening files requires the fnOS app')
       if (!sdk.isWeb) throw new Error('fnOS iframe SDK did not initialize its web carrier')
       // The SDK is the authority for opening a path. Do not preflight against
       // the plugin's displayed authorization roots: the list is intended for
@@ -124,7 +125,7 @@ export function installFnosRemotePathOpener(
       回落会在 NAS 服务容器里跑 `xdg-open`，那里没有桌面环境，失败信息与真实
       原因无关。给一条能指导用户的错误，比一个查不出所以然的系统错误有用。
     */
-    if (!hasFnosHostBridge()) {
+    if (!fnosHostBridgeAvailable()) {
       return {
         ok: false,
         error: {
