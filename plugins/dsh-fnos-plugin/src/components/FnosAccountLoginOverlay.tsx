@@ -150,8 +150,16 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
 
     sync()
     queueMicrotask(sync)
+    /*
+      **只监听 `body` 的直接子节点，不下潜。**
+
+      官方弹层由 portal 挂在 `body` 直下，所以「弹框出现 / 消失」正好是一次
+      `body` 的子节点增删，这一层就够。开 `subtree` 会把弹框内部每次重渲染
+      （按钮 loading、文案切换）都算成变化，回调被高频触发，而判断结果完全
+      不变——`findSignInDialog()` 查的也只是这一层。
+    */
     const observer = new MutationObserver(sync)
-    observer.observe(document.body, { childList: true, subtree: true })
+    observer.observe(document.body, { childList: true })
     return () => { observer.disconnect() }
   }, [])
 

@@ -99,6 +99,16 @@ describe('账号登录：只补官方缺的那一屏', () => {
     expect(overlay).toContain('readAuthorizeUrlOnce')
   })
 
+  it('监听只做 body 一层，不开 subtree', () => {
+    /*
+      官方弹层挂在 `body` 直下，「出现 / 消失」就是一次子节点增删。开 `subtree`
+      会把弹框内部每次重渲染都算成变化，回调高频触发而判断结果不变。
+    */
+    const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    expect(overlay).toContain('observer.observe(document.body, { childList: true })')
+    expect(overlay).not.toContain('subtree: true')
+  })
+
   it('在 body 直接子节点里找，不用链表遍历', () => {
     /*
       官方弹层由 portal 挂到 `body` 直下，看这一层就够。用数组语义遍历，
