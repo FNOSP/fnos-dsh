@@ -242,8 +242,12 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
       用轮询判断状态：显隐仍由 DOM 监听决定。
     */
     expect(CLIENT).toContain('readAuthorizeUrlOnce')
-    expect(CLIENT).toMatch(/attempts \+= 1/u)
-    expect(CLIENT).toMatch(/if \(attempts >= 12\) return/u)
+    /*
+      上限按**时间**而不是次数：真机实测地址在授权流程推进后约 30-40 秒才出现，
+      按次数的短间隔会在十几秒就放弃、之后再也不补。
+    */
+    expect(CLIENT).toContain('Date.now() - startedAt > 90_000')
+    expect(CLIENT).not.toContain('attempts += 1')
   })
 
   it('「复制重新打开」是 Semi 的可复制文字，不另设按钮', () => {

@@ -127,25 +127,26 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
 
 
   /*
-    打开时取**一次**授权页地址。
+    取授权页地址，供正文里「复制重新打开」使用。
 
-    只读取、不推断相位：是否显示由浮层容器用 DOM 监听决定（官方弹框进入
-    「等待登录」才显示）。地址只用于「复制链接」按钮，取不到就不显示那一段。
+    **显隐不由这里决定**——`open` 由浮层容器的 DOM 监听驱动。这里只负责拿到那段
+    地址：宿主在授权流程推进后才写入 `authorizeUrl`，所以要等一会儿。
   */
   useEffect(() => {
-    if (!open) return
+    if (!open) return undefined
     closedRef.current = false
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
-    let attempts = 0
+    const startedAt = Date.now()
 
     /*
-      **有界重试，不是状态轮询。**
+      **上限按时间，不按次数。**
 
-      授权页地址由宿主在创建登录尝试的过程中才产生，而我们的弹框在官方弹框出现
-      时就打开了——第一读经常还是空的（实测就是空，导致「复制重新打开」不渲染）。
-      这里只在**地址还拿不到**时重试，拿到即停，最多 12 次（约 10 秒）就放弃，
-      不影响粘贴本身。
+      真机实测：`authorizeUrl` 在 `waiting-browser` 之后约 30-40 秒才出现。早前
+      按次数限制（12 次 × 800ms ≈ 10 秒），会在地址出现之前就放弃，之后再也不补，
+      「复制重新打开」这段永远不显示。
+
+      给到 90 秒、间隔 1.5 秒：既不会空转太密，也覆盖得住真实等待。拿到即停。
     */
     const load = async (): Promise<void> => {
       if (cancelled) return
@@ -156,9 +157,8 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
         setAuthorizeUrl(url)
         return
       }
-      attempts += 1
-      if (attempts >= 12) return
-      timer = setTimeout(() => { void load() }, 800)
+      if (Date.now() - startedAt > 90_000) return
+      timer = setTimeout(() => { void load() }, 1500)
     }
 
     void load()
