@@ -128,6 +128,37 @@ function findSignInDialog(): { dialog: Element, host: Element } | undefined {
   return dialog === null ? undefined : { dialog, host }
 }
 
+/**
+ * 真正关闭官方弹框：点它自己的关闭按钮，让 React 正常卸载。
+ *
+ * 与 {@link hideOfficial} 的分工：
+ *
+ * | 时机 | 动作 | 理由 |
+ * | --- | --- | --- |
+ * | 命中判据那一刻 | **隐藏** | 官方节点必须活着，我们只是不让它占屏幕 |
+ * | 我们的弹框被关掉 | **关闭** | 用户已经放弃这次登录，官方框不该继续留着 |
+ *
+ * 关闭前先解除隐藏：`display: none` 的元素派发 `click` 不会触发 React 的处理
+ * 函数。两次样式变更在同一帧内完成，视觉上不会闪。
+ *
+ * @param found - 官方弹框的宿主与内容节点。
+ */
+function dismissOfficial(found: { dialog: Element, host: Element }): void {
+  showOfficial(found.host)
+  /*
+    官方结构（`ui-primitives/src/Modal.tsx`）：关闭按钮在 header 里、紧随 `<h2>`
+    之后，是 `<button aria-label={closeLabel}>`。取 dialog 内第一个带 aria-label
+    的按钮就是这个。
+  */
+  const button = found.dialog.querySelector('button[aria-label]')
+  if (button instanceof HTMLElement) {
+    button.click()
+    return
+  }
+  // 兜底：headless 变体没有 header，改派 Esc（官方用 `useModalLayer` 监听）。
+  found.dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+}
+
 /** 隐藏标记：既是幂等保护，也方便在调试时识别「这一层是我们压下去的」。 */
 const HIDDEN_ATTR = 'data-dsh-fnos-hidden'
 
@@ -189,11 +220,20 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
   const hiddenHostRef = useRef<Element>()
 
   const close = useCallback((): void => {
-    dismissedNodeRef.current = findSignInDialog()?.dialog
-    if (hiddenHostRef.current !== undefined) {
+    const found = findSignInDialog()
+    /*
+      记住「关掉的是哪一屏」：官方框卸载后 `findSignInDialog()` 会返回
+      undefined，压制标记随之自然失效，不会一关闭又弹回来。
+    */
+    dismissedNodeRef.current = found?.dialog
+    if (found !== undefined) {
+      // 用户已放弃这次登录：连官方框一起关掉，不留一个「看不见但活着」的弹层。
+      dismissOfficial(found)
+    } else if (hiddenHostRef.current !== undefined) {
+      // 找不到官方框但宿主还压着：至少把可见性恢复，别让它永久隐藏。
       showOfficial(hiddenHostRef.current)
-      hiddenHostRef.current = undefined
     }
+    hiddenHostRef.current = undefined
     setOpen(false)
   }, [])
 

@@ -82,7 +82,15 @@ describe('账号登录：只补官方缺的那一屏', () => {
     */
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
     expect(overlay).toContain('hideOfficial(found.host)')
-    expect(overlay).toContain('showOfficial(hiddenHostRef.current)')
+    /*
+      关闭我方弹框时要**真正关掉**官方框（点它自己的关闭按钮），不是恢复显示：
+      用户已经放弃这次登录，官方框不该继续留在 DOM 里。
+    */
+    expect(overlay).toContain('dismissOfficial(found)')
+    expect(overlay).toContain("querySelector('button[aria-label]')")
+    // 关闭前必须先解除隐藏，否则 click 不触发 React 处理函数。
+    expect(overlay.indexOf("found.host")).toBeGreaterThan(-1)
+    expect(overlay).toContain('showOfficial(found.host)')
     // 压的是宿主，不是 dialog 本身——只藏内容会留下一层拦截点击的透明遮罩。
     expect(overlay).toContain("host.style.display = 'none'")
     expect(overlay).toContain('HIDDEN_ATTR')
