@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshModal, DshInput, DshButton } from '@tnnevol/dsh-semi-ui'
+import { DshModal, DshInput, DshButton, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   FNOS_ACCOUNT_LOGIN_CANCEL_ROUTE,
@@ -192,14 +192,42 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
         链接用 `user-select: all`：单击一次就整条选中，省掉拖选的麻烦；
         `word-break: break-all` 保证长地址不会撑破版心。
       */}
+      {/*
+        正文：说明 + 一个**可直接点按的「复制重新打开」文字**。
+
+        用户要的是「这条授权地址能被复制走」。之前先试过单独一行的按钮，又试过
+        把整条地址铺在正文里让用户自己拖选，都不如一句话里那个能点的词直接。
+
+        这里用 Semi `Typography.Text` 的 `copyable.render`：Semi 负责写剪贴板与
+        「已复制」的短暂反馈，我们只把那段文字渲染成一个可点的节点。地址本身不
+        再铺在正文里——它又长又打断阅读，复制走就够了。
+      */}
       <p className="dsh-fnos-account-login-desc">
         {t('accountLoginPasteHint')}
         {authorizeUrl === undefined ? null : (
           <>
             {' '}
-            {t('accountLoginReopenLabel')}
-            {' '}
-            <span className="dsh-fnos-account-login-url">{authorizeUrl}</span>
+            {t('accountLoginReopenPrefix')}
+            <DshTypography.Text
+              copyable={{
+                content: authorizeUrl,
+                copyTip: t('accountLoginCopyTip'),
+                render: (copied: boolean, doCopy: (event: React.MouseEvent) => void) => (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="dsh-fnos-account-login-copy"
+                    onClick={event => { doCopy(event) }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') doCopy(event as unknown as React.MouseEvent)
+                    }}
+                  >
+                    {copied ? t('accountLoginCopiedTip') : t('accountLoginReopenAction')}
+                  </span>
+                ),
+              }}
+            />
+            。
           </>
         )}
       </p>

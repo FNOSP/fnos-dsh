@@ -233,18 +233,27 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(locales).not.toContain('完成授权后，把地址粘回来')
   })
 
-  it('授权链接并进正文，文字可选，不配单独按钮', () => {
+  it('「复制重新打开」是 Semi 的可复制文字，不另设按钮', () => {
     /*
-      用户要复制的是地址本身，单独一个「复制链接」按钮只是多一步。改成把地址
-      并进说明文字，读说明时顺手就能选中复制。
+      用户要的是「这条授权地址能被复制走」。先试过单独一行的按钮，又试过把整条
+      地址铺在正文里让用户自己拖选；现在用 Semi `Typography.Text` 的
+      `copyable.render`，把那段文字本身做成可点的节点——Semi 负责写剪贴板与
+      「已复制」的短暂反馈。
+
+      地址不再铺在正文里：它又长又打断阅读，复制走就够了。
     */
-    expect(CLIENT).toContain('dsh-fnos-account-login-url')
+    expect(CLIENT).toContain('DshTypography')
+    expect(CLIENT).toContain('copyable={{')
+    expect(CLIENT).toContain('render: (copied: boolean')
+    expect(CLIENT).toContain('dsh-fnos-account-login-copy')
+    // 自己写剪贴板那套不需要了。
     expect(CLIENT).not.toContain('navigator.clipboard')
+    // 地址不再以纯文本形式铺在正文里。
+    expect(CLIENT).not.toContain('dsh-fnos-account-login-url')
     // 独立的那一行与按钮都不该再有。
     expect(SCSS).not.toContain('.dsh-fnos-account-login-relink')
-    // 链接要能一次整条选中，长地址不能撑破版心。
-    expect(SCSS).toContain('user-select: all')
-    expect(SCSS).toContain('word-break: break-all')
+    // 可点文字要有聚焦态，键盘用户也能按到。
+    expect(SCSS).toContain('.dsh-fnos-account-login-copy:focus-visible')
     expect(SCSS).toContain('user-select: text')
   })
 

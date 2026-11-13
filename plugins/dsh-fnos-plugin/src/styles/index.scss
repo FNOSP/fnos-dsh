@@ -3380,16 +3380,27 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 }
 
 /*
- * 正文里的授权链接：并进说明文字，不单独占行、不配按钮。
+ * 正文里那段「复制重新打开」：可点、可聚焦，样式跟着正文走。
  *
- * `user-select: all` 让单击一次就整条选中——用户要的就是把这条地址复制走。
- * `word-break: break-all` 保证长地址不撑破版心。
+ * 它是 Semi `Typography.Text` 的 `copyable.render` 渲染出来的节点，剪贴板写入与
+ * 「已复制」的短暂反馈都由 Semi 负责，这里只管外观——做成链接色 + 下划线，
+ * 跟普通正文区分开，让人看得出来能点。
  */
-.dsh-fnos-account-login-url {
-  user-select: all;
-  word-break: break-all;
-  font-family: var(--dsw-font-family-mono, ui-monospace, monospace);
-  color: var(--dsw-alias-label-secondary);
+.dsh-fnos-account-login-copy {
+  color: var(--dsw-alias-label-link, var(--dsw-alias-brand-primary));
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.dsh-fnos-account-login-copy:hover {
+  color: var(--dsw-alias-brand-primary-hover, var(--dsw-alias-brand-primary));
+}
+
+.dsh-fnos-account-login-copy:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* 正文文字本身要可选：用户读到「复制那一整条地址」时可以直接选。 */
