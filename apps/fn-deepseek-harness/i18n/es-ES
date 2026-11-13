@@ -18,7 +18,7 @@ trustedHostsHelpText="Introduce el host o host:port que aparece en la barra de d
 trustedHostsRequiredMessage="Introduce el host o host:port de la interfaz web del NAS"
 trustedHostsPatternMessage="Solo se acepta host o host:port (varios posibles, separados por comas): sin http:// ni https://, sin ruta, puerto entre 1 y 65535 y sin ceros iniciales"
 npmRegistryLabel="Fuente espejo de npm"
-npmRegistryHelpText="Déjalo vacío para usar la fuente oficial de npm. Si la instalación falla no se cambia de fuente automáticamente; elige una fuente acorde a tu red actual y vuelve a intentarlo."
+npmRegistryHelpText="De forma predeterminada se usa la fuente oficial de npm. Si la instalación falla no se cambia de fuente automáticamente; elige una fuente acorde a tu red actual y vuelve a intentarlo."
 
 [upgrade]
 stepTitle="Configuración del servicio"
@@ -32,7 +32,7 @@ trustedHostsHelpText="Introduce el host o host:port que aparece en la barra de d
 trustedHostsRequiredMessage="Introduce el host o host:port de la interfaz web del NAS"
 trustedHostsPatternMessage="Solo se acepta host o host:port (varios posibles, separados por comas): sin http:// ni https://, sin ruta, puerto entre 1 y 65535 y sin ceros iniciales"
 npmRegistryLabel="Fuente espejo de npm"
-npmRegistryHelpText="Déjalo vacío para usar la fuente oficial de npm. Si la instalación falla no se cambia de fuente automáticamente; elige una fuente acorde a tu red actual y vuelve a intentarlo."
+npmRegistryHelpText="De forma predeterminada se usa la fuente oficial de npm. Si la instalación falla no se cambia de fuente automáticamente; elige una fuente acorde a tu red actual y vuelve a intentarlo."
 
 [config]
 stepTitle="Configuración del servicio"
@@ -46,7 +46,7 @@ trustedHostsHelpText="Introduce el host o host:port que aparece en la barra de d
 trustedHostsRequiredMessage="Introduce el host o host:port de la interfaz web del NAS"
 trustedHostsPatternMessage="Solo se acepta host o host:port (varios posibles, separados por comas): sin http:// ni https://, sin ruta, puerto entre 1 y 65535 y sin ceros iniciales"
 npmRegistryLabel="Fuente espejo de npm"
-npmRegistryHelpText="Déjalo vacío para usar la fuente oficial de npm. Si la instalación falla no se cambia de fuente automáticamente; elige una fuente acorde a tu red actual y vuelve a intentarlo."
+npmRegistryHelpText="De forma predeterminada se usa la fuente oficial de npm. Si la instalación falla no se cambia de fuente automáticamente; elige una fuente acorde a tu red actual y vuelve a intentarlo."
 
 [uninstall]
 stepTitle="Configuración de la desinstalación"

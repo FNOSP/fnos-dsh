@@ -18,7 +18,7 @@ trustedHostsHelpText="Hier den host oder host:port aus der Adresszeile eintragen
 trustedHostsRequiredMessage="Bitte host oder host:port der NAS-Weboberfläche eingeben"
 trustedHostsPatternMessage="Nur host oder host:port zulässig (mehrere möglich, durch Kommas getrennt): kein http:// oder https://, kein Pfad, Port zwischen 1 und 65535 ohne führende Nullen"
 npmRegistryLabel="npm-Spiegelquelle"
-npmRegistryHelpText="Leer lassen, um die offizielle npm-Quelle zu verwenden. Bei einer fehlgeschlagenen Installation wird die Quelle nicht automatisch gewechselt; bitte passend zum aktuellen Netzwerk eine Quelle wählen und erneut versuchen."
+npmRegistryHelpText="Standardmäßig wird die offizielle npm-Quelle verwendet. Bei einer fehlgeschlagenen Installation wird die Quelle nicht automatisch gewechselt; bitte passend zum aktuellen Netzwerk eine Quelle wählen und erneut versuchen."
 
 [upgrade]
 stepTitle="Dienstkonfiguration"
@@ -32,7 +32,7 @@ trustedHostsHelpText="Hier den host oder host:port aus der Adresszeile eintragen
 trustedHostsRequiredMessage="Bitte host oder host:port der NAS-Weboberfläche eingeben"
 trustedHostsPatternMessage="Nur host oder host:port zulässig (mehrere möglich, durch Kommas getrennt): kein http:// oder https://, kein Pfad, Port zwischen 1 und 65535 ohne führende Nullen"
 npmRegistryLabel="npm-Spiegelquelle"
-npmRegistryHelpText="Leer lassen, um die offizielle npm-Quelle zu verwenden. Bei einer fehlgeschlagenen Installation wird die Quelle nicht automatisch gewechselt; bitte passend zum aktuellen Netzwerk eine Quelle wählen und erneut versuchen."
+npmRegistryHelpText="Standardmäßig wird die offizielle npm-Quelle verwendet. Bei einer fehlgeschlagenen Installation wird die Quelle nicht automatisch gewechselt; bitte passend zum aktuellen Netzwerk eine Quelle wählen und erneut versuchen."
 
 [config]
 stepTitle="Dienstkonfiguration"
@@ -46,7 +46,7 @@ trustedHostsHelpText="Hier den host oder host:port aus der Adresszeile eintragen
 trustedHostsRequiredMessage="Bitte host oder host:port der NAS-Weboberfläche eingeben"
 trustedHostsPatternMessage="Nur host oder host:port zulässig (mehrere möglich, durch Kommas getrennt): kein http:// oder https://, kein Pfad, Port zwischen 1 und 65535 ohne führende Nullen"
 npmRegistryLabel="npm-Spiegelquelle"
-npmRegistryHelpText="Leer lassen, um die offizielle npm-Quelle zu verwenden. Bei einer fehlgeschlagenen Installation wird die Quelle nicht automatisch gewechselt; bitte passend zum aktuellen Netzwerk eine Quelle wählen und erneut versuchen."
+npmRegistryHelpText="Standardmäßig wird die offizielle npm-Quelle verwendet. Bei einer fehlgeschlagenen Installation wird die Quelle nicht automatisch gewechselt; bitte passend zum aktuellen Netzwerk eine Quelle wählen und erneut versuchen."
 
 [uninstall]
 stepTitle="Deinstallationseinstellungen"

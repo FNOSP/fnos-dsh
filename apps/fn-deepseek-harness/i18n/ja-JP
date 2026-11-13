@@ -18,7 +18,7 @@ trustedHostsHelpText="ブラウザで NAS Web を開くときのアドレスバ�
 trustedHostsRequiredMessage="NAS Web の host または host:port を入力してください"
 trustedHostsPatternMessage="host または host:port のみ入力できます（複数可、半角カンマ区切り）：http:// や https:// は付けず、パスも含めないでください。ポートは 1〜65535 で、先頭に 0 は付けられません"
 npmRegistryLabel="npm ミラー"
-npmRegistryHelpText="空欄の場合は npm 公式レジストリを使用します。インストールに失敗しても自動で切り替わることはありません。現在のネットワークに合うものを選んでから再試行してください。"
+npmRegistryHelpText="既定では npm 公式レジストリを使用します。インストールに失敗しても自動で切り替わることはありません。現在のネットワークに合うものを選んでから再試行してください。"
 
 [upgrade]
 stepTitle="サービス設定"
@@ -32,7 +32,7 @@ trustedHostsHelpText="ブラウザで NAS Web を開くときのアドレスバ�
 trustedHostsRequiredMessage="NAS Web の host または host:port を入力してください"
 trustedHostsPatternMessage="host または host:port のみ入力できます（複数可、半角カンマ区切り）：http:// や https:// は付けず、パスも含めないでください。ポートは 1〜65535 で、先頭に 0 は付けられません"
 npmRegistryLabel="npm ミラー"
-npmRegistryHelpText="空欄の場合は npm 公式レジストリを使用します。インストールに失敗しても自動で切り替わることはありません。現在のネットワークに合うものを選んでから再試行してください。"
+npmRegistryHelpText="既定では npm 公式レジストリを使用します。インストールに失敗しても自動で切り替わることはありません。現在のネットワークに合うものを選んでから再試行してください。"
 
 [config]
 stepTitle="サービス設定"
@@ -46,7 +46,7 @@ trustedHostsHelpText="ブラウザで NAS Web を開くときのアドレスバ�
 trustedHostsRequiredMessage="NAS Web の host または host:port を入力してください"
 trustedHostsPatternMessage="host または host:port のみ入力できます（複数可、半角カンマ区切り）：http:// や https:// は付けず、パスも含めないでください。ポートは 1〜65535 で、先頭に 0 は付けられません"
 npmRegistryLabel="npm ミラー"
-npmRegistryHelpText="空欄の場合は npm 公式レジストリを使用します。インストールに失敗しても自動で切り替わることはありません。現在のネットワークに合うものを選んでから再試行してください。"
+npmRegistryHelpText="既定では npm 公式レジストリを使用します。インストールに失敗しても自動で切り替わることはありません。現在のネットワークに合うものを選んでから再試行してください。"
 
 [uninstall]
 stepTitle="アンインストール設定"

@@ -18,7 +18,7 @@ trustedHostsHelpText="Indiquez le host ou host:port présent dans la barre d'adr
 trustedHostsRequiredMessage="Saisissez le host ou host:port de l'interface web du NAS"
 trustedHostsPatternMessage="Seuls host ou host:port sont acceptés (plusieurs possibles, séparés par des virgules) : pas de http:// ni https://, pas de chemin, port entre 1 et 65535 sans zéro initial"
 npmRegistryLabel="Source miroir npm"
-npmRegistryHelpText="Laissez vide pour utiliser la source npm officielle. Une installation en échec ne change pas de source automatiquement ; choisissez une source adaptée à votre réseau actuel, puis réessayez."
+npmRegistryHelpText="La source npm officielle est utilisée par défaut. Une installation en échec ne change pas de source automatiquement ; choisissez une source adaptée à votre réseau actuel, puis réessayez."
 
 [upgrade]
 stepTitle="Configuration du service"
@@ -32,7 +32,7 @@ trustedHostsHelpText="Indiquez le host ou host:port présent dans la barre d'adr
 trustedHostsRequiredMessage="Saisissez le host ou host:port de l'interface web du NAS"
 trustedHostsPatternMessage="Seuls host ou host:port sont acceptés (plusieurs possibles, séparés par des virgules) : pas de http:// ni https://, pas de chemin, port entre 1 et 65535 sans zéro initial"
 npmRegistryLabel="Source miroir npm"
-npmRegistryHelpText="Laissez vide pour utiliser la source npm officielle. Une installation en échec ne change pas de source automatiquement ; choisissez une source adaptée à votre réseau actuel, puis réessayez."
+npmRegistryHelpText="La source npm officielle est utilisée par défaut. Une installation en échec ne change pas de source automatiquement ; choisissez une source adaptée à votre réseau actuel, puis réessayez."
 
 [config]
 stepTitle="Configuration du service"
@@ -46,7 +46,7 @@ trustedHostsHelpText="Indiquez le host ou host:port présent dans la barre d'adr
 trustedHostsRequiredMessage="Saisissez le host ou host:port de l'interface web du NAS"
 trustedHostsPatternMessage="Seuls host ou host:port sont acceptés (plusieurs possibles, séparés par des virgules) : pas de http:// ni https://, pas de chemin, port entre 1 et 65535 sans zéro initial"
 npmRegistryLabel="Source miroir npm"
-npmRegistryHelpText="Laissez vide pour utiliser la source npm officielle. Une installation en échec ne change pas de source automatiquement ; choisissez une source adaptée à votre réseau actuel, puis réessayez."
+npmRegistryHelpText="La source npm officielle est utilisée par défaut. Une installation en échec ne change pas de source automatiquement ; choisissez une source adaptée à votre réseau actuel, puis réessayez."
 
 [uninstall]
 stepTitle="Paramètres de désinstallation"

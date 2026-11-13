@@ -282,23 +282,35 @@ describe('FNOS-007 DSH baseline', () => {
     }
   })
 
-  it('升级与改配置时沿用上次选的 npm 源', async () => {
+  it('向导的 npm 源在九种语言里都有标签与说明', async () => {
     /*
-      规则：向导提交的是默认的官方源（等于没动），就沿用已持久化的源；只有明确
-      选了别的镜像才覆盖。三个回调都按这条规则走。
+      向导文案走 i18n 的 `[install]` / `[upgrade]` / `[config]` 三组。新增一个
+      选项就必须补齐九种语言，否则非中文/英文环境会看到空标签。
+
+      默认值由框架按上次提交的值回填，应用侧不需要「记住上次选择」的逻辑。
     */
-    const install = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/install_callback', import.meta.url), 'utf8')
-    expect(install).toContain('resolve_npm_registry()')
-    expect(install).toContain(['"', '$', '{submitted}" = "https://registry.npmjs.org/"'].join(''))
-    expect(install).toContain('NPM_REGISTRY="$(resolve_npm_registry)"')
-
-    const upgrade = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/upgrade_callback', import.meta.url), 'utf8')
-    expect(upgrade).toContain(['[ "', '$', '{wizard_npm_registry}" != "https://registry.npmjs.org/" ]'].join(''))
-
-    // 改配置也要真的落盘，否则这个字段形同虚设。
-    const config = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/config_callback', import.meta.url), 'utf8')
-    expect(config).toContain('apply_npm_registry')
-    expect(config).toContain('config set registry')
+    const locales = ['zh-CN', 'en-US', 'de-DE', 'es-ES', 'fr-FR', 'it-IT', 'ja-JP', 'ko-KR', 'ru-RU']
+    for (const locale of locales) {
+      const text = await readFile(new URL(`../../../apps/fn-deepseek-harness/i18n/${locale}`, import.meta.url), 'utf8')
+      for (const group of ['install', 'upgrade', 'config']) {
+        // 按行切段，避免在模板串里堆正则转义（很容易写错一层）。
+        const lines = text.split('\n')
+        const head = `[${group}]`
+        const begin = lines.indexOf(head)
+        expect(begin, `${locale}${head}`).toBeGreaterThanOrEqual(0)
+        const section: string[] = []
+        for (let i = begin + 1; i < lines.length; i += 1) {
+          if (/^\[/u.test(lines[i] ?? '')) break
+          section.push(lines[i] ?? '')
+        }
+        for (const key of ['npmRegistryLabel', 'npmRegistryHelpText']) {
+          const line = section.find(entry => entry.startsWith(`${key}="`))
+          expect(line, `${locale}:${group}.${key}`).toBeDefined()
+          const value = line?.slice(key.length + 2, -1).trim() ?? ''
+          expect(value.length, `${locale}:${group}.${key}`).toBeGreaterThan(0)
+        }
+      }
+    }
   })
 
   it('declares every DSH dependency through the pnpm catalog', async () => {

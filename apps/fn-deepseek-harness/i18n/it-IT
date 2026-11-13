@@ -18,7 +18,7 @@ trustedHostsHelpText="Inserire l'host o host:porta che compare nella barra degli
 trustedHostsRequiredMessage="Inserire l'host o host:porta del NAS Web"
 trustedHostsPatternMessage="Sono ammessi solo host o host:porta (anche più di uno, separati da virgola): niente http:// o https://, niente percorsi, porta tra 1 e 65535 senza zeri iniziali"
 npmRegistryLabel="Mirror npm"
-npmRegistryHelpText="Lasciare vuoto per usare il registry npm ufficiale. In caso di installazione non riuscita il mirror non viene cambiato automaticamente: sceglierne uno adatto alla propria rete e riprovare."
+npmRegistryHelpText="Per impostazione predefinita viene usato il registry npm ufficiale. In caso di installazione non riuscita il mirror non viene cambiato automaticamente: sceglierne uno adatto alla propria rete e riprovare."
 
 [upgrade]
 stepTitle="Configurazione del servizio"
@@ -32,7 +32,7 @@ trustedHostsHelpText="Inserire l'host o host:porta che compare nella barra degli
 trustedHostsRequiredMessage="Inserire l'host o host:porta del NAS Web"
 trustedHostsPatternMessage="Sono ammessi solo host o host:porta (anche più di uno, separati da virgola): niente http:// o https://, niente percorsi, porta tra 1 e 65535 senza zeri iniziali"
 npmRegistryLabel="Mirror npm"
-npmRegistryHelpText="Lasciare vuoto per usare il registry npm ufficiale. In caso di installazione non riuscita il mirror non viene cambiato automaticamente: sceglierne uno adatto alla propria rete e riprovare."
+npmRegistryHelpText="Per impostazione predefinita viene usato il registry npm ufficiale. In caso di installazione non riuscita il mirror non viene cambiato automaticamente: sceglierne uno adatto alla propria rete e riprovare."
 
 [config]
 stepTitle="Configurazione del servizio"
@@ -46,7 +46,7 @@ trustedHostsHelpText="Inserire l'host o host:porta che compare nella barra degli
 trustedHostsRequiredMessage="Inserire l'host o host:porta del NAS Web"
 trustedHostsPatternMessage="Sono ammessi solo host o host:porta (anche più di uno, separati da virgola): niente http:// o https://, niente percorsi, porta tra 1 e 65535 senza zeri iniziali"
 npmRegistryLabel="Mirror npm"
-npmRegistryHelpText="Lasciare vuoto per usare il registry npm ufficiale. In caso di installazione non riuscita il mirror non viene cambiato automaticamente: sceglierne uno adatto alla propria rete e riprovare."
+npmRegistryHelpText="Per impostazione predefinita viene usato il registry npm ufficiale. In caso di installazione non riuscita il mirror non viene cambiato automaticamente: sceglierne uno adatto alla propria rete e riprovare."
 
 [uninstall]
 stepTitle="Impostazioni di disinstallazione"

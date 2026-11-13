@@ -18,7 +18,7 @@ trustedHostsHelpText="브라우저에서 NAS Web을 열 때 주소 표시줄에 
 trustedHostsRequiredMessage="NAS Web의 host 또는 host:port를 입력하세요"
 trustedHostsPatternMessage="host 또는 host:port만 입력할 수 있습니다(여러 개 가능, 쉼표로 구분): http:// 또는 https://는 붙이지 말고 경로도 포함하지 마세요. 포트는 1~65535이며 앞에 0을 붙일 수 없습니다"
 npmRegistryLabel="npm 미러"
-npmRegistryHelpText="비워 두면 npm 공식 레지스트리를 사용합니다. 설치에 실패해도 자동으로 레지스트리를 바꾸지 않으니, 현재 네트워크에 맞는 것을 선택한 뒤 다시 시도하세요."
+npmRegistryHelpText="기본값은 npm 공식 레지스트리입니다. 설치에 실패해도 자동으로 레지스트리를 바꾸지 않으니, 현재 네트워크에 맞는 것을 선택한 뒤 다시 시도하세요."
 
 [upgrade]
 stepTitle="서비스 설정"
@@ -32,7 +32,7 @@ trustedHostsHelpText="브라우저에서 NAS Web을 열 때 주소 표시줄에 
 trustedHostsRequiredMessage="NAS Web의 host 또는 host:port를 입력하세요"
 trustedHostsPatternMessage="host 또는 host:port만 입력할 수 있습니다(여러 개 가능, 쉼표로 구분): http:// 또는 https://는 붙이지 말고 경로도 포함하지 마세요. 포트는 1~65535이며 앞에 0을 붙일 수 없습니다"
 npmRegistryLabel="npm 미러"
-npmRegistryHelpText="비워 두면 npm 공식 레지스트리를 사용합니다. 설치에 실패해도 자동으로 레지스트리를 바꾸지 않으니, 현재 네트워크에 맞는 것을 선택한 뒤 다시 시도하세요."
+npmRegistryHelpText="기본값은 npm 공식 레지스트리입니다. 설치에 실패해도 자동으로 레지스트리를 바꾸지 않으니, 현재 네트워크에 맞는 것을 선택한 뒤 다시 시도하세요."
 
 [config]
 stepTitle="서비스 설정"
@@ -46,7 +46,7 @@ trustedHostsHelpText="브라우저에서 NAS Web을 열 때 주소 표시줄에 
 trustedHostsRequiredMessage="NAS Web의 host 또는 host:port를 입력하세요"
 trustedHostsPatternMessage="host 또는 host:port만 입력할 수 있습니다(여러 개 가능, 쉼표로 구분): http:// 또는 https://는 붙이지 말고 경로도 포함하지 마세요. 포트는 1~65535이며 앞에 0을 붙일 수 없습니다"
 npmRegistryLabel="npm 미러"
-npmRegistryHelpText="비워 두면 npm 공식 레지스트리를 사용합니다. 설치에 실패해도 자동으로 레지스트리를 바꾸지 않으니, 현재 네트워크에 맞는 것을 선택한 뒤 다시 시도하세요."
+npmRegistryHelpText="기본값은 npm 공식 레지스트리입니다. 설치에 실패해도 자동으로 레지스트리를 바꾸지 않으니, 현재 네트워크에 맞는 것을 선택한 뒤 다시 시도하세요."
 
 [uninstall]
 stepTitle="제거 설정"
