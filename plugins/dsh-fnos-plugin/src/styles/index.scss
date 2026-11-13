@@ -3612,9 +3612,21 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
   }
 
   html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-nav-item {
-    /* 横排时不换行、不被压缩，宽度由内容决定。 */
+    /*
+      **必须清掉 `width: 100%`。**
+
+      桌面形态是竖排，每项占满整列（`width: 100%`）。横排后这个 100% 仍然生效，
+      每项都把整行撑满——实测一行只放得下一个，横向滚动条也就失去意义。
+
+      `flex: 0 0 auto` 只解决「不伸展」，不解决「基础上就有 100% 宽」。
+    */
+    width: auto;
     flex: 0 0 auto;
     white-space: nowrap;
+    /* 横排不需要图标与文字的 8px 间隙那么大——窄屏每像素都紧张。 */
+    gap: 6px;
+    /* 左右内边距收窄：横排时相邻项之间已有 4px gap，不必留 16。 */
+    padding: 9px 12px;
   }
 
   html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-panel {

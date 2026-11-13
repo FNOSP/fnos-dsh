@@ -128,6 +128,23 @@ describe('fnOS 配置弹框', () => {
     expect(label).toContain('line-height: 22px')
   })
 
+  it('移动端横排导航：不清掉 width: 100% 就只放得下一项', () => {
+    /*
+      桌面形态是竖排，每项 `width: 100%` 占满整列。横排后这个 100% 仍然生效，
+      每项都把整行撑满——真机实测一行只放得下一个，横向滚动条失去意义。
+
+      `flex: 0 0 auto` 只解决「不伸展」，不解决「基础上就有 100% 宽」。
+
+      375px 视口下的目标：三个完整 + 第四个露出图标（实测总宽 380，正好越界）。
+    */
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const mobileItem = scss.match(/@media \(max-width: 767px\)[\s\S]*?\.dsh-fnos-config-nav-item \{[^}]*\}/u)?.[0] ?? ''
+    expect(mobileItem).toContain('width: auto')
+    expect(mobileItem).toContain('flex: 0 0 auto')
+    // 横排时内边距收窄，窄屏每像素都紧张。
+    expect(mobileItem).toContain('padding: 9px 12px')
+  })
+
   it('空状态一律用缺省组件，不用纯文案', () => {
     /*
       一行灰字在一堆有插画的空状态里显得像排版错误或「加载失败」，用户分不清
