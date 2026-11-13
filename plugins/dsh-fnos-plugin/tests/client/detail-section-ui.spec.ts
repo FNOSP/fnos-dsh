@@ -365,16 +365,23 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
     expect(REPAIR_CARD).toContain('runDependencyRepair')
   })
 
-  it('按钮直接弹确认框，确认后执行修复', () => {
-    // 按钮不再走「先诊断」的 requestRepair，直接开确认框。
-    const onClick = /onClick=\{\(\) => \{ (setConfirmOpen\(true\)) \}\}/.exec(REPAIR_CARD)
-    expect(onClick?.[1]).toBe('setConfirmOpen(true)')
-    // 确认动作直接调 repair，中间没有诊断分叉。
-    expect(REPAIR_CARD).toContain('void repair()')
-    const repairBlock = REPAIR_CARD.slice(REPAIR_CARD.indexOf('const repair = useCallback('))
-    expect(repairBlock.slice(0, 600)).toContain('runDependencyRepair')
-  })
+  it('点按钮直接执行修复，不再二次确认', () => {
+    /*
+      确认弹框里的三行说明已移到卡片自身的 tip 与描述里——用户点按钮前就能读到
+      「会重建什么、不会动什么」。信息在场上，再弹一次只是多一次点击；而这一步
+      可重入、不含不可撤销的数据删除（只清可重建产物）。
 
+      按钮在 running 时显示 loading，视觉上就是「已经在做了」。
+    */
+    expect(REPAIR_CARD).not.toContain('setConfirmOpen')
+    expect(REPAIR_CARD).not.toContain('confirmOpen')
+    // 按钮直接调 repair。
+    const onClick = /onClick=\{\(\) => \{ void repair\(\) \}\}/.exec(REPAIR_CARD)
+    expect(onClick).not.toBeNull()
+    // loading 由 busy 驱动。
+    expect(REPAIR_CARD).toContain('loading={busy}')
+    expect(REPAIR_CARD).toContain("dependencyRepairRunning")
+  })
   it('中文文案里「检查」两键已随按钮一起移除', () => {
     const start = LOCALES.indexOf('export const zh')
     const zhBlock = LOCALES.slice(start)

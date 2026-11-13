@@ -243,27 +243,34 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
         标题由左侧菜单承担（「插件管理」），这里不再重复一遍「三方插件 proxy」。
         一栏标题 + 一栏 tab 会形成两级标题，而它们说的是同一件事。
       */}
+      {/*
+        Tab 顺序：工具箱 → 已安装插件 → 反代。
+
+        「工具箱」放排查类工具（npm 镜像、修复安装异常、自定义插件索引），是遇到
+        问题时第一个要看的地方，所以排第一；「已安装插件」是日常查看；「反代」是
+        配置项，改动频率最低。
+      */}
       <DshTabs type="line" className="dsh-fnos-plugins-tabs">
-        {/* 第一个 tab 默认选中：反代是这里最常改的东西。 */}
-        <DshTabs.TabPane tab={t('gatewayProxyTabProxy')} itemKey="proxy">
-          {proxyPanel}
-        </DshTabs.TabPane>
-        <DshTabs.TabPane tab={t('gatewayProxyTabRepair')} itemKey="repair">
+        <DshTabs.TabPane tab={t('gatewayProxyTabToolbox')} itemKey="toolbox">
           {/*
-            npm 镜像管理放在前面：它是「装不上」最常见的原因（国内直连 registry 慢
-            或被限流），先排查网络再谈修复，顺序与排查路径一致。
+            顺序按「排查路径」排：先看网络（npm 源），再修安装，最后是扩展来源。
           */}
           <div className="dsh-fnos-repair-tab">
             <NpmMirrorCard t={t} />
             <DependencyRepairCard t={t} />
+            {/*
+              自定义插件索引原先独占一个 tab，但它也是一个「工具」——用来添加
+              额外的插件来源，与 npm 源、修复安装同类。合并进工具箱，位置在
+              修复之后。
+            */}
+            <PluginIndexPanel t={t} />
           </div>
         </DshTabs.TabPane>
         <DshTabs.TabPane tab={t('gatewayProxyTabInstalled')} itemKey="installed">
           <InstalledPluginsPanel t={t} />
         </DshTabs.TabPane>
-        {/* 索引放最后：它是「扩展来源」，前三项是当前已有的插件。 */}
-        <DshTabs.TabPane tab={t('gatewayProxyTabIndex')} itemKey="index">
-          <PluginIndexPanel t={t} />
+        <DshTabs.TabPane tab={t('gatewayProxyTabProxy')} itemKey="proxy">
+          {proxyPanel}
         </DshTabs.TabPane>
       </DshTabs>
     </section>

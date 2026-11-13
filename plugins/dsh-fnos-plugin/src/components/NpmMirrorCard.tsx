@@ -149,9 +149,13 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
       */}
       {status !== undefined && !status.available ? (
         <div className="dsh-fnos-mirror-missing">
+          {/*
+            与「修复安装异常」的按钮同一形态：default 尺寸 + solid primary。
+            早前这里是 `size="small"`，同屏两个主操作按钮一大一小，看着像从两个
+            组件库里拼出来的。
+          */}
           <DshButton
             htmlType="button"
-            size="small"
             theme="solid"
             type="primary"
             loading={installing}

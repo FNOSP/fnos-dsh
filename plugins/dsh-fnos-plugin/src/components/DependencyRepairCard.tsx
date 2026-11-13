@@ -20,7 +20,7 @@
  */
 
 import { useCallback, useState } from 'react'
-import { DshButton, DshIconInfoCircle, DshModal, DshTooltip } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshIconInfoCircle, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { runDependencyRepair } from '../client/services/dependency-repair-client.ts'
 import type { DependencyRepairResult } from '../contracts/dependency-repair-contract.ts'
@@ -44,11 +44,9 @@ type Phase =
  */
 export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.ReactNode {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
-  const [confirmOpen, setConfirmOpen] = useState(false)
 
   /** 执行修复。 */
   const repair = useCallback(async () => {
-    setConfirmOpen(false)
     setPhase({ kind: 'running' })
     try {
       setPhase({ kind: 'done', result: await runDependencyRepair() })
@@ -88,7 +86,17 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
             type="primary"
             disabled={busy}
             loading={busy}
-            onClick={() => { setConfirmOpen(true) }}
+            /*
+              **直接执行，不再二次确认。**
+
+              确认弹框里的三行说明已经移到卡片自身的 tip 与描述里——用户点按钮前
+              就能读到「会重建什么、不会动什么」。既然信息在场上，再弹一次只是
+              多一次点击；而这一步本身可重入、不含不可撤销的数据删除（只清可重建
+              产物），不值得拦一道。
+
+              按钮在 `busy` 时显示 loading，视觉上就是「已经在做了」。
+            */
+            onClick={() => { void repair() }}
           >
             {busy ? t('dependencyRepairRunning') : t('dependencyRepairRun')}
           </DshButton>
@@ -129,22 +137,6 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
         ) : null}
       </div>
 
-      <DshModal
-        visible={confirmOpen}
-        title={t('dependencyRepairConfirmTitle')}
-        onCancel={() => setConfirmOpen(false)}
-        onOk={() => { void repair() }}
-        okText={t('dependencyRepairRun')}
-        cancelText={t('dependencyRepairCancel')}
-      >
-        <p className="dsh-fnos-repair-muted">{t('dependencyRepairConfirmBody')}</p>
-        <ol className="dsh-fnos-repair-steps">
-          <li>{t('dependencyRepairStepClear')}</li>
-          <li>{t('dependencyRepairStepRebuild')}</li>
-          <li>{t('dependencyRepairStepReinstall')}</li>
-        </ol>
-        <p className="dsh-fnos-repair-muted">{t('dependencyRepairConfirmSafe')}</p>
-      </DshModal>
     </section>
   )
 }

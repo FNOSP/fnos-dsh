@@ -182,7 +182,7 @@ export function RuntimeProcessList({ t, processes, available }: RuntimeProcessLi
           if (target !== undefined) void kill(target.item, target.signal)
         }}
         okText={confirming?.signal === 'SIGKILL' ? t('runtimeKillForce') : t('runtimeKill')}
-        cancelText={t('dependencyRepairCancel')}
+        cancelText={t('cancel')}
       >
         <p className="dsh-fnos-repair-muted">
           {confirming?.signal === 'SIGKILL' ? t('runtimeKillForceConfirm') : t('runtimeKillConfirm')}

@@ -228,15 +228,31 @@ describe('fnOS 配置弹框', () => {
     expect(DIALOG).toContain("id: 'logs'")
   })
 
-  it('插件管理用三个 tab：反代 / 安装异常 / 已安装', () => {
+  it('插件管理用三个 tab：工具箱 / 已安装插件 / 反代', () => {
     const PROXY = read('../../src/components/GatewayProxyCard.tsx')
     expect(PROXY).toContain('DshTabs')
-    // 顺序是产品决定的：反代最常用，排在第一个并默认选中。
-    expect(PROXY).toContain("tab={t('gatewayProxyTabProxy')}")
-    expect(PROXY).toContain("tab={t('gatewayProxyTabRepair')}")
-    expect(PROXY).toContain("tab={t('gatewayProxyTabInstalled')}")
-    expect(PROXY).toContain('DependencyRepairCard')
-    expect(PROXY).toContain('InstalledPluginsPanel')
+    /*
+      顺序是产品决定的：工具箱（排查类）→ 已安装插件（日常查看）→ 反代（配置项）。
+      反代改动频率最低，排最后。
+
+      按**行号**比较：`indexOf` 会先命中顶部的 import 语句。
+    */
+    const lineOf = (needle: string): number => PROXY.split('\n').findIndex(line => line.includes(needle))
+    const toolboxAt = lineOf("tab={t('gatewayProxyTabToolbox')}")
+    const installedAt = lineOf("tab={t('gatewayProxyTabInstalled')}")
+    const proxyAt = lineOf("tab={t('gatewayProxyTabProxy')}")
+    expect(toolboxAt).toBeGreaterThan(-1)
+    expect(toolboxAt).toBeLessThan(installedAt)
+    expect(installedAt).toBeLessThan(proxyAt)
+
+    // 自定义插件索引并入工具箱，不再独占 tab；位置在修复之后。
+    expect(PROXY).not.toContain("tab={t('gatewayProxyTabIndex')}")
+    const npmAt = lineOf('<NpmMirrorCard')
+    const repairAt = lineOf('<DependencyRepairCard')
+    const indexAt = lineOf('<PluginIndexPanel')
+    expect(npmAt).toBeGreaterThan(-1)
+    expect(npmAt).toBeLessThan(repairAt)
+    expect(repairAt).toBeLessThan(indexAt)
   })
 
   it('菜单选中态有可见指示（纯底色在亮色主题下太弱）', () => {
