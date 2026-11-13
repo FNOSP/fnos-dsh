@@ -18,7 +18,9 @@
 
 import { useState } from 'react'
 import type { UsedIconName } from './IconifyIcon.tsx'
-import { isFnosHosted } from '../client/services/environment.ts'
+import { fnosHostBridgeAvailable } from '../client/services/host-bridge.ts'
+import { DshEmpty } from '@tnnevol/dsh-semi-ui'
+import { FnosEmptyIllustration } from './FnosEmptyIllustration.tsx'
 import { DshModal } from '@tnnevol/dsh-semi-ui'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import type { FnosLocaleKey } from '../client/locales.ts'
@@ -107,16 +109,29 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
         </nav>
         <div className="dsh-fnos-config-panel">
           {/*
-            非 fnOS 环境下给一条说明。
+            **只有「授权目录」依赖 fnOS 宿主，其余分组在本地 DSH Web 里照常可用。**
 
-            插件现在也能在本地 DSH Web 里跑（改样式不必每次装到 NAS 上），但
-            「选 NAS 目录」「打开文件」这类能力依赖宿主桥，本地没有。以前这些分支
-            只是静默不渲染，看起来像功能坏了；这里直接说清楚是环境问题。
+            四个分组的实际依赖不同：
+
+            | 分组 | 数据来源 | 本地可用 |
+            | --- | --- | --- |
+            | 授权目录 | fnOS 宿主桥（选目录、ACL） | 否 |
+            | 插件管理 | 插件自己的网关代理路由 | 是 |
+            | 运行 | 插件自己的 runtime-status 路由 | 是 |
+            | 日志 | 插件自己的 runtime-logs 路由 | 是 |
+
+            所以不能按环境整体屏蔽——那样会把三个本来能用的面板一起换成缺省页。
+            只在需要 fnOS 的那个分组里给缺省页，并说明原因。
           */}
-          {isFnosHosted() ? null : (
-            <p className="dsh-fnos-config-host-hint" role="note">{t('fnosHostUnavailable')}</p>
-          )}
-          {section === 'directories' ? <AuthorizedDirectoriesCard t={t} /> : null}
+          {section === 'directories' && !fnosHostBridgeAvailable() ? (
+            <DshEmpty
+              className="dsh-fnos-config-empty"
+              image={<FnosEmptyIllustration size={140} />}
+              title={t('configEmptyTitle')}
+              description={t('configEmptyDescription')}
+            />
+          ) : null}
+          {section === 'directories' && fnosHostBridgeAvailable() ? <AuthorizedDirectoriesCard t={t} /> : null}
           {section === 'plugins' ? <GatewayProxyCard t={t} /> : null}
           {section === 'runtime' ? <RuntimeStatusCard t={t} /> : null}
           {section === 'logs' ? <RuntimeLogPanel t={t} /> : null}

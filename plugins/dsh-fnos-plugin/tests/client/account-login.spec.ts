@@ -315,7 +315,7 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     // 真机实测：两行 = 44px（2 × 22px line-height）。文案再长会撑到三行。
     const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
     // 取中文那条（文件里中英两份，按是否含中文字符挑）。
-    const all = [...locales.matchAll(/accountLoginPasteHint: '([^']+)'/gu)].map(m => m[1])
+    const all = [...locales.matchAll(/accountLoginPasteHint: '([^']+)'/gu)].map(m => m[1] ?? '')
     const hint = all.find(v => /[\u4E00-\u9FFF]/u.test(v)) ?? ''
     expect(hint.length).toBeGreaterThan(20)
     // 中文按字数粗估：两行约 40 字（弹框内容列约 432px / 每字 14px）。

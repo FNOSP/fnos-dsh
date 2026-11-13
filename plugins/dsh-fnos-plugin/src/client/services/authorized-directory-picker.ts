@@ -35,7 +35,7 @@ export interface PickAuthorizedDirectoryOptions {
 }
 
 /** fnOS 选择器允许出现的侧边栏分组。 */
-const SIDEBAR_GROUPS = ['myFiles', 'otherShare', 'external', 'remote', 'favorites'] as const
+const SIDEBAR_GROUPS: string[] = ['myFiles', 'otherShare', 'external', 'remote', 'favorites']
 
 /**
  * 打开原生选择器，返回用户授权的目录。

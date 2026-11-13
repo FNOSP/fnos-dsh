@@ -62,7 +62,11 @@ export interface PickSharedFileAuthParams {
   readonly appName: string
   readonly redirectUri: string
   readonly state: string
-  readonly sidebarGroup: readonly string[]
+  /*
+    SDK 的 `AppAuthPickSharedFileParams` 要求可变 `string[]`，这里不能声明成
+    `readonly string[]`——只读数组无法赋给可变数组。调用方传副本即可。
+  */
+  readonly sidebarGroup: string[]
 }
 
 /**

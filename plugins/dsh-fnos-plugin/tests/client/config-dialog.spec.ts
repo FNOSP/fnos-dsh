@@ -581,4 +581,46 @@ describe('插件卡片：没有自备图标时用官方默认图形', () => {
     // 尺寸不同会让标题行基线在有无自备图标的插件之间跳动。
     expect(SCSS_ALL).toMatch(/\.dsh-fnos-card-logo--default \{[\s\S]{0,200}display: inline-flex/u)
   })
+
+  it('只有授权目录按环境给缺省页，其余分组照常渲染', () => {
+    /*
+      四个分组的实际依赖不同：
+
+      | 分组 | 数据来源 | 本地可用 |
+      | --- | --- | --- |
+      | 授权目录 | fnOS 宿主桥（选目录、ACL） | 否 |
+      | 插件管理 | 插件自己的网关代理路由 | 是 |
+      | 运行 | 插件自己的 runtime-status 路由 | 是 |
+      | 日志 | 插件自己的 runtime-logs 路由 | 是 |
+
+      所以不能按环境整体屏蔽——那样会把三个本来能用的面板一起换成缺省页。
+    */
+    const dialog = readFileSync(new URL('../../src/components/FnosConfigDialog.tsx', import.meta.url), 'utf8')
+    // 只有 directories 分支带环境判据。
+    expect(dialog).toContain("section === 'directories' && !fnosHostBridgeAvailable()")
+    expect(dialog).toContain("section === 'directories' && fnosHostBridgeAvailable()")
+    for (const section of ['plugins', 'runtime', 'logs']) {
+      expect(dialog).toContain(`section === '${section}' ? <`)
+      // 这三个分组不得带任何环境判据。
+      expect(dialog).not.toMatch(new RegExp(`section === '${section}'[^?]*fnosHostBridgeAvailable`, 'u'))
+    }
+    // 缺省页用自绘插画，不用组件库自带。
+    expect(dialog).toContain('FnosEmptyIllustration')
+    expect(dialog).not.toContain('DshSemiIllustrations')
+  })
+
+  it('渲染阻塞用缺省页，交互失败用 Toast', () => {
+    /*
+      两类问题的承载方式不同：
+
+      - **渲染时被环境阻塞**：给缺省页（这里现在没有内容），不是一行红字；
+      - **交互中调用失败**：给 Toast（操作结果），不能只在页面上留一句静态文案。
+    */
+    const card = readFileSync(new URL('../../src/components/AuthorizedDirectoriesCard.tsx', import.meta.url), 'utf8')
+    // 加载失败 → 缺省页。
+    expect(card).toContain('FnosEmptyIllustration')
+    expect(card).toMatch(/state\.status === 'error' \? \(\s*<DshEmpty/u)
+    // 交互失败（选目录、取消授权）→ Toast。
+    expect(card).toContain('notifyFailure(message)')
+  })
 })

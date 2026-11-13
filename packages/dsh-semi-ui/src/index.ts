@@ -34,6 +34,7 @@ export {
   DshNav,
   DshTable,
   DshEmpty,
+  DshSemiIllustrations,
   DshDescriptions,
   DshCard,
   DshAvatar,

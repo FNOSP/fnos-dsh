@@ -69,6 +69,13 @@ describe('dsh-fnos client artifact', () => {
       if (specifier === 'echarts/charts' || specifier === 'echarts/components' || specifier === 'echarts/renderers') {
         return { LineChart: () => null, GridComponent: () => null, TooltipComponent: () => null, CanvasRenderer: () => null }
       }
+      /*
+        Semi 的空状态插画：`Empty` 通过 `image` / `darkModeImage` 接收它们。
+        这个用例不渲染组件，只要模块能解析、导出存在即可，所以给空组件。
+      */
+      if (specifier.startsWith('@douyinfe/semi-illustrations')) {
+        return new Proxy({}, { get: () => () => null })
+      }
       throw new Error(`unexpected client external: ${specifier}`)
     })
     expect(typeof exports?.apply).toBe('function')

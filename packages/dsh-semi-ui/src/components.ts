@@ -143,3 +143,15 @@ export { default as DshIconLabTooltip } from '@douyinfe/semi-icons-lab/lib/es/ic
 export { default as DshIconLabTree } from '@douyinfe/semi-icons-lab/lib/es/icons/IconTree.js'
 export { default as DshIconLabTreeSelect } from '@douyinfe/semi-icons-lab/lib/es/icons/IconTreeSelect.js'
 export * as DshSemiIcons from '@douyinfe/semi-icons/lib/es/icons/index.js'
+
+/*
+  Semi 官方的空状态插画。
+
+  插件不该为了「缺省页」各自去找免费插图：风格不统一、暗色主题还要自己配一套。
+  `@douyinfe/semi-illustrations` 每个插画都有对应的 Dark 变体，配 `DshEmpty` 的
+  `darkModeImage` 就能自动跟随主题。
+
+  整包透传（`export * as`）而不是逐个列举：插画有二十多个，挑着导出会让插件侧
+  出现「这个能用那个不能」的困惑。
+*/
+export * as DshSemiIllustrations from '@douyinfe/semi-illustrations/lib/es/index.js'

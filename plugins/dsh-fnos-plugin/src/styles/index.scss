@@ -3463,21 +3463,22 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
   color: var(--dsw-alias-state-error-primary, #e5484d);
 }
 
+
 /*
- * 非 fnOS 环境下的说明条。
+ * 缺省页：插画跟随主题，版心别太散。
  *
- * 插件现在也能在本地 DSH Web 里跑（改样式不必每次装到 NAS），但依赖宿主桥的
- * 能力在本地没有。这条说明放在面板顶部，说清楚是环境问题而不是功能坏了。
+ * 自绘插画用 `currentColor` 描边，这里给它一个与正文区分但不刺眼的颜色——
+ * 太深会抢标题，太浅又看不清形状。
  */
-.dsh-fnos-config-host-hint {
-  margin: 0 0 16px;
-  padding: 12px 14px;
-  border: 1px solid var(--dsw-alias-border-l1);
-  border-radius: var(--dsw-radius-md, 8px);
-  background: var(--dsw-alias-bg-layer-2);
+.dsh-fnos-config-empty,
+.dsh-fnos-authorized-empty {
+  padding: 24px 0 8px;
   color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
-  line-height: 20px;
+}
+
+.dsh-fnos-config-empty svg,
+.dsh-fnos-authorized-empty svg {
+  color: var(--dsw-alias-label-tertiary);
 }
 
 /*

@@ -15,7 +15,9 @@ import {
   requestPersistAuthorizedDirectories,
 } from '../client/services/authorized-directories-client.ts'
 import { evictInvalidAuthorizedDirectories } from '../client/services/authorized-directories-eviction.ts'
-import { notifySuccess } from '../client/notify.ts'
+import { notifyFailure, notifySuccess } from '../client/notify.ts'
+import { DshEmpty } from '@tnnevol/dsh-semi-ui'
+import { FnosEmptyIllustration } from './FnosEmptyIllustration.tsx'
 import {
   FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
   type AuthorizedDirectory,
@@ -243,11 +245,15 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
     let phase = 'createTrimApp'
     try {
       const sdk = createTrimApp()
+      /*
+        **不要 `as const`。** SDK 的 `FilePickerParams.sidebarGroup` 要求可变
+        `string[]`，`as const` 会把数组推成只读元组，赋值时类型不兼容。
+      */
       const params = {
         title: t('add'),
         okText: t('confirm'),
         sidebarGroup: ['myFiles', 'otherShare', 'external', 'remote', 'favorites'],
-      } as const
+      }
       logPickerSdkEvent('created', {
         isWeb: sdk.isWeb,
         isStandaloneWeb: sdk.isStandaloneWeb,
@@ -358,7 +364,16 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         return
       }
       if (isPickerCancellation(error)) return
-      setState(current => ({ status: 'error', directories: current.directories, code: errorMessage(error, t, 'pick') }))
+      /*
+        **交互失败必须当场反馈。**
+
+        只把错误写进 state、渲染成页面上的一行字，用户点完按钮后没有任何即时
+        回应——尤其是「当前环境没有 fnOS 接口」这种情况，看起来就像点了没反应。
+        Toast 悬浮在角落、自动消失，是这类操作结果的常规承载方式。
+      */
+      const message = errorMessage(error, t, 'pick')
+      notifyFailure(message)
+      setState(current => ({ status: 'error', directories: current.directories, code: message }))
     } finally {
       setBusy(false)
     }
@@ -382,7 +397,9 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
       // 取消授权后同步持久化，避免下次加载把已移除的目录又显示出来。
       await persistCurrentDirectories()
     } catch (error: unknown) {
-      setState(current => ({ status: 'error', directories: current.directories, code: errorMessage(error, t, 'delete') }))
+      const message = errorMessage(error, t, 'delete')
+      notifyFailure(message)
+      setState(current => ({ status: 'error', directories: current.directories, code: message }))
     } finally {
       setBusy(false)
     }
@@ -520,9 +537,28 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
               </DshSkeleton>
             </div>
           ) : null}
-          {state.status === 'error' ? <p className="dsh-fnos-authorized-error">{state.code ?? t('loadFailed')}</p> : null}
+          {/*
+            **渲染时被阻塞用缺省页，不甩一行红字。**
+
+            加载失败时这里原本只渲染一句错误文案——没有插画、没有说明层次，看起来
+            像页面坏了。缺省页是「这里现在没有内容」的标准表达，与面板里其它空状态
+            一致；具体原因放进 description，用户仍能读到。
+          */}
+          {state.status === 'error' ? (
+            <DshEmpty
+              className="dsh-fnos-authorized-empty"
+              image={<FnosEmptyIllustration size={120} />}
+              description={state.code ?? t('loadFailed')}
+            />
+          ) : null}
           {validateNotice === undefined ? null : <p className="dsh-fnos-authorized-body">{validateNotice}</p>}
-          {state.status !== 'loading' && state.directories.length === 0 ? <p className="dsh-fnos-authorized-body">{t('empty')}</p> : null}
+          {/*
+            「尚未授权」只在**没有错误**时显示。加载失败时它和错误说明讲的是两件事
+            叠在一起（一条说环境不可用、一条说没授权），读起来像重复。
+          */}
+          {state.status !== 'loading' && state.status !== 'error' && state.directories.length === 0
+            ? <p className="dsh-fnos-authorized-body">{t('empty')}</p>
+            : null}
           {state.directories.length > 0 ? (
             <ul className="dsh-fnos-authorized-path-list">
               {state.directories.map(directory => (
