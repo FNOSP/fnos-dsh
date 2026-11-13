@@ -3276,3 +3276,87 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
   font-size: 13px;
   line-height: 20px;
 }
+
+/*
+ * ===== 飞牛设置弹框：移动端适配 =====
+ *
+ * 断点与布局照官方 `ui-settings-general/src/client/SettingsRoot.module.css`：
+ * `@media (max-width: 767px)` 下切换为**全屏面板 + 横向导航条**。
+ *
+ * 判定条件也照官方：排除 Windows 自定义标题栏与 macOS 原生标题栏（那些形态自己
+ * 带窗口装饰，全屏会与外壳冲突）。官方用
+ * `html:not([data-windows-titlebar]):not([data-platform='darwin'])`，这里沿用。
+ *
+ * 桌面形态保持原样（居中 800px 卡片、左侧竖向导航），一行不动——移动端规则
+ * 全部关在媒体查询里。
+ */
+@media (max-width: 767px) {
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) .semi-modal-content.dsh-fnos-config-dialog {
+    /* 全屏：占满视口，去掉圆角与固定高度——800px 在手机上会溢出。 */
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    /* 底部留白归零：全屏面板由内容区自己管理安全边距。 */
+    padding-bottom: 0;
+  }
+
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) .semi-modal-wrap .semi-modal {
+    /* Semi 默认给 .semi-modal 上下 80px margin，全屏时会顶出滚动条。 */
+    margin: 0;
+    height: 100%;
+  }
+
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) .dsh-fnos-config-body {
+    /*
+      单列 + 三段：导航在上、内容在下，两者各自滚动。
+
+      用 `grid` 而不是继续 `flex` 横向排：移动端 nav 与 panel 是上下关系，
+      `grid-template-rows` 能直接表达「nav 按内容高度、panel 吃掉剩余」，
+      比 flex 里再套 `flex-basis` 与 `min-height: 0` 更不容易出错。
+    */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+  }
+
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) .dsh-fnos-config-nav {
+    /*
+      横向导航条：边缘到边缘，自己带左右内边距。
+
+      官方注释写得很清楚——strip runs edge to edge，第一格与标题左对齐、
+      最后一格不贴面板右沿。滚动用 `overflow-x: auto`，条目多时可横向滑。
+    */
+    flex-direction: row;
+    gap: 4px;
+    padding: 12px 16px 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* 去掉桌面形态的竖向分隔线：横排时它会变成一条莫名横线。 */
+    border-right: none;
+    border-bottom: 1px solid var(--dsw-alias-border-l1);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) .dsh-fnos-config-nav::-webkit-scrollbar {
+    /* 移动端横向条不需要可见滚动条，滑动本身已经足够。 */
+    display: none;
+  }
+
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) .dsh-fnos-config-nav-item {
+    /* 横排时不换行、不被压缩，宽度由内容决定。 */
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) .dsh-fnos-config-panel {
+    /* 内容区自己滚动，且必须 `min-height: 0`——否则 grid 子项会撑破容器。 */
+    min-height: 0;
+    overflow-y: auto;
+    /* 底部安全边距：全面屏手机的手势条会压住最后一行。 */
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+}

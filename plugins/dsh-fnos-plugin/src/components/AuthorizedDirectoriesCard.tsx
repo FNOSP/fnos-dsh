@@ -268,7 +268,11 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         改走官方给的路子——打开系统授权页，用户在那里确认目录，结果经回调页
         异步返回（监听在下方 `usesAppAuthFlow()` 分支里当场建立）。
       */
-      if (usesAppAuthFlow()) {
+      /*
+        判据用 SDK 的**运行时**标志，而不是只看 DOM：`isWeb === false` 说明 SDK
+        走了 mobile / 原生宿主分支，此时宿主 API 可用，不该换成授权页。
+      */
+      if (usesAppAuthFlow({ isWeb: sdk.isWeb, isStandaloneWeb: sdk.isStandaloneWeb })) {
         phase = 'openAppAuth'
         const state = createAuthState()
         /*
@@ -305,6 +309,7 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         const url = await openFnosAppAuth(
           (method, authParams, options) => sdk.openAppAuth(method, authParams, options),
           state,
+          { isWeb: sdk.isWeb, isStandaloneWeb: sdk.isStandaloneWeb },
         )
         logAuthorizedDirectoryEvent('app-auth-opened', { opened: url !== undefined })
         return

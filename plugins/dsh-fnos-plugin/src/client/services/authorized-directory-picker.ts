@@ -60,9 +60,16 @@ export async function pickAuthorizedDirectory(
    * 结果经 `redirectUri` 回到回调页，回调页再通知原页面刷新。这条路径不是
    * 「降级」：用户拿到的授权结果和宿子弹窗完全一样，只是交互多一个标签页。
    */
-  if (usesAppAuthFlow()) {
+  {
+    /*
+      先建 SDK 再判断：判据要用 `isWeb` / `isStandaloneWeb` 两个**运行时**标志，
+      不能只看 DOM。`isWeb === false` 说明 SDK 走了 mobile / 原生宿主分支，
+      此时宿主 API 可用，不该换成授权页。
+    */
+    const sdk = createTrimApp()
+    await sdk.ready()
+    if (usesAppAuthFlow({ isWeb: sdk.isWeb, isStandaloneWeb: sdk.isStandaloneWeb })) {
     try {
-      const sdk = createTrimApp()
       const state = createAuthState()
       logPickerSdkEvent('created', { via: 'app-auth', isWeb: sdk.isWeb, isStandaloneWeb: sdk.isStandaloneWeb })
       /*
@@ -72,6 +79,7 @@ export async function pickAuthorizedDirectory(
       const url = await openFnosAppAuth(
         (method, authParams, options) => sdk.openAppAuth(method, authParams, options),
         state,
+        { isWeb: sdk.isWeb, isStandaloneWeb: sdk.isStandaloneWeb },
       )
       logPickerSdkValue('resolved', { via: 'app-auth', opened: url !== undefined })
       return url === undefined ? { status: 'cancelled' } : { status: 'authorization-pending', state }
@@ -82,6 +90,7 @@ export async function pickAuthorizedDirectory(
         code: 'fnos-authorized-directory-request-failed',
         ...(error instanceof Error ? { message: error.message } : {}),
       }
+    }
     }
   }
 

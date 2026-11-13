@@ -49,7 +49,12 @@ export async function openFnosFileManager(
 
     因此改为明确失败，由界面侧按 `hasFnosHostBridge()` 直接不渲染入口。
   */
-  if (sdk.isStandaloneWeb) {
+  /*
+    只有 `isWeb && isStandaloneWeb` 才是「独立浏览器页面」。
+    `isWeb === false` 表示 SDK 走了 mobile / 原生宿主分支——那时宿主桥是通的，
+    走这里的 `openURL` 反而绕开了更完整的内嵌能力。
+  */
+  if (sdk.isWeb && sdk.isStandaloneWeb) {
     throw new Error('fnos-open-unavailable: file manager is unavailable without the fnOS host bridge')
   }
 

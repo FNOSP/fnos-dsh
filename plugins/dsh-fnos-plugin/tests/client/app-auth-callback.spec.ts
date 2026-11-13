@@ -76,12 +76,17 @@ describe('standalone 授权链路', () => {
       `Host bridge is not available`。必须改走 `openAppAuth` 打开系统授权页。
     */
     const picker = read('../../src/client/services/authorized-directory-picker.ts')
-    expect(picker).toContain('usesAppAuthFlow()')
+    /*
+      判据必须传 SDK 的两个运行时标志，不能只看 DOM：
+      `isWeb === false` 时 SDK 走了 mobile / 原生宿主分支，宿主 API 可用，
+      换成授权页反而是错的。
+    */
+    expect(picker).toContain('usesAppAuthFlow({ isWeb: sdk.isWeb, isStandaloneWeb: sdk.isStandaloneWeb })')
     expect(picker).toContain('openFnosAppAuth(')
     // 新增的中间态必须有对应返回，否则调用方会把它当成功。
     expect(picker).toContain("status: 'authorization-pending'")
     // 走授权页的那一支要排在直调之前。
-    expect(picker.indexOf('usesAppAuthFlow()')).toBeLessThan(picker.indexOf('await sdk.pickSharedFile'))
+    expect(picker.indexOf('usesAppAuthFlow(')).toBeLessThan(picker.indexOf('await sdk.pickSharedFile'))
   })
 
   it('两个调用方都处理了 authorization-pending，不会谎报成功', () => {
@@ -251,5 +256,59 @@ describe('独立页面的浏览入口：直接不渲染', () => {
     // 去掉只打开桌面的退路。
     expect(service).not.toContain("window.open('about:blank'")
     expect(service).not.toContain('fnosDesktopUrl')
+  })
+})
+
+describe('SDK 标志语义：isWeb=false 时宿主 API 优先', () => {
+  it('只有 isWeb && isStandaloneWeb 才走授权页', () => {
+    /*
+      | isWeb | isStandaloneWeb | 含义 | 该走哪条路 |
+      | true  | false           | iframe / 应用运行时 | 宿主直调 |
+      | true  | true            | 独立浏览器页面      | openAppAuth |
+      | false | 任意            | mobile / 原生宿主    | 宿主直调 |
+
+      第三行是关键：`isWeb === false` 说明 `@trimjs/web-app` 没走 web carrier
+      （init 里检测到 flutter_inappwebview 或 osConnector），此时即便
+      `window.parent === window` 让 isStandaloneWeb 为 true，真正的能力也在
+      内嵌宿主那边。早前只看 DOM，在移动端容器里会误判成独立页面。
+    */
+    const auth = read('../../src/client/services/app-auth.ts')
+    expect(auth).toContain('sdk.isWeb && sdk.isStandaloneWeb')
+    // 不许退回纯 DOM 判据做主要判断。
+    expect(auth).toMatch(/if \(sdk !== undefined\) return sdk\.isWeb && sdk\.isStandaloneWeb/u)
+  })
+
+  it('两个调用方都把 SDK 标志传进去', () => {
+    const picker = read('../../src/client/services/authorized-directory-picker.ts')
+    const card = read('../../src/components/AuthorizedDirectoriesCard.tsx')
+    for (const source of [picker, card]) {
+      expect(source).toContain('usesAppAuthFlow({ isWeb: sdk.isWeb, isStandaloneWeb: sdk.isStandaloneWeb })')
+    }
+    // 判据要在 sdk.ready() 之后——标志是 init 完成的产物。
+    expect(picker.indexOf('await sdk.ready()')).toBeLessThan(picker.indexOf('usesAppAuthFlow({'))
+  })
+})
+
+describe('SDK 标志语义：其余能力判据同步', () => {
+  it('文件和语言类能力不能再把 isWeb=false 当成「无宿主」', () => {
+    /*
+      这几处原先写 `isStandaloneWeb` 或 `!isWeb || isStandaloneWeb`：
+      `isWeb === false` 被当成「没有宿主」，可那是 mobile / 原生宿主分支，
+      能力恰恰在那边。统一改成「独立页面 = isWeb && isStandaloneWeb」。
+    */
+    const fileManager = read('../../src/client/services/file-manager.ts')
+    expect(fileManager).toContain('sdk.isWeb && sdk.isStandaloneWeb')
+
+    const fileOpener = read('../../src/client/services/file-opener.ts')
+    expect(fileOpener).toContain('sdk.isWeb && sdk.isStandaloneWeb')
+
+    for (const name of ['language-sync', 'sdk-title', 'theme-bridge']) {
+      // 剥掉注释再看：说明文字里会提到旧写法（解释为什么改），不算声明。
+      const source = read(`../../src/client/services/${name}.ts`)
+        .replace(/\/\*[\s\S]*?\*\//gu, '')
+        .replace(/\/\/.*$/gmu, '')
+      // 不许再把 isWeb 与 isStandaloneWeb 或成一个短路条件。
+      expect(source, name).not.toContain('!sdk.isWeb || sdk.isStandaloneWeb')
+    }
   })
 })

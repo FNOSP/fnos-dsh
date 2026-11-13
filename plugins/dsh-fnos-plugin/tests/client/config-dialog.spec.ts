@@ -43,7 +43,7 @@ describe('fnOS 配置弹框', () => {
       - `configDialogTitle`：下拉菜单首项与弹框标题，用「设置」。
     */
     expect(LOCALES).toContain("configMenuEntry: '飞牛 OS'")
-    expect(LOCALES).toContain("configDialogTitle: '设置'")
+    expect(LOCALES).toContain("configDialogTitle: '飞牛设置'")
   })
 
   it('入口行高按实测与侧栏其它行对齐（36px，不是抄官方源码的 42px）', () => {
@@ -504,8 +504,8 @@ describe('fnOS 配置弹框', () => {
 
   it('两种语言都有四个新文案键', () => {
     // 标题与入口统一叫「设置」：弹框标题就是入口点开后的落点，两处不一致会让人疑惑。
-    expect(LOCALES).toContain("configDialogTitle: 'Settings'")
-    expect(LOCALES).toContain("configDialogTitle: '设置'")
+    expect(LOCALES).toContain("configDialogTitle: 'fnOS settings'")
+    expect(LOCALES).toContain("configDialogTitle: '飞牛设置'")
     expect(LOCALES).toContain("configSectionDirectories: '授权目录'")
     // 导航分组名与卡片标题统一到「插件安装」语境，不再叫「依赖修复」——
     // 用户遇到的是「插件装不上」，不是「依赖坏了」。

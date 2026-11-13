@@ -19,7 +19,9 @@ export function installFnosPageTitle(
   titleDocument: TitleDocument | undefined = typeof document === 'undefined' ? undefined : document,
 ): () => void {
   const sdk = createSdk()
-  if (!sdk.isWeb || sdk.isStandaloneWeb || titleDocument === undefined) return () => undefined
+  /* `isWeb === false` 是 mobile / 原生宿主，能力仍在内嵌侧，不能跳过。 */
+  if (!sdk.isWeb) return () => undefined
+  if (sdk.isStandaloneWeb || titleDocument === undefined) return () => undefined
 
   let active = true
   let lastTitle: string | undefined

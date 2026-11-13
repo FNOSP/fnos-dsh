@@ -123,8 +123,10 @@ export function appAuthRedirectUri(): string {
 export async function openFnosAppAuth(
   openAppAuth: OpenAppAuthFn,
   state: string,
+  sdk?: FnosSdkFlags,
 ): Promise<string | undefined> {
-  if (detectFnosEnvironment() !== 'standalone') return undefined
+  // 与 `usesAppAuthFlow` 同一判据：`isWeb === false` 时宿主 API 仍可用，不该走这里。
+  if (!usesAppAuthFlow(sdk)) return undefined
   const params: PickSharedFileAuthParams = {
     appName: FNOS_APP_NAME,
     redirectUri: appAuthRedirectUri(),
@@ -144,8 +146,37 @@ export async function openFnosAppAuth(
  * 当前环境是否走授权页路径（而不是宿主直调）。
  * @returns 是否为独立浏览器页面。
  */
-export function usesAppAuthFlow(): boolean {
+export function usesAppAuthFlow(sdk?: FnosSdkFlags): boolean {
+  /*
+    **判据必须落在 SDK 的两个标志上，不能只看 DOM。**
+
+    语义（`@trimjs/web-app`）：
+
+    | `isWeb` | `isStandaloneWeb` | 含义 | 该走哪条路 |
+    | --- | --- | --- | --- |
+    | `true` | `false` | iframe / 应用运行时，宿主桥可用 | **宿主直调**（`pickSharedFile`） |
+    | `true` | `true` | 独立浏览器页面，宿主桥不可用 | **`openAppAuth`** 打开授权页 |
+    | `false` | 任意 | SDK 走了 mobile / 原生宿主分支 | **仍走宿主直调** |
+
+    第三行是关键：`isWeb === false` 表示 `@trimjs/web-app` 没走 web carrier
+    （`init` 里检测到 `flutter_inappwebview` 或 osConnector），此时即便
+    `window.parent === window` 让 `isStandaloneWeb` 为 true，**真正的能力也在
+    内嵌宿主那边**。早前这里只看 DOM（`detectFnosEnvironment() === 'standalone'`），
+    在移动端容器里会误判成「独立页面」，把本来可用的宿主 API 换成授权页。
+
+    @param sdk - SDK 的两个标志；省略时退回 DOM 判据（仅供无法拿到 SDK 的调用方）。
+    @returns 是否应走 `openAppAuth` 授权页路径。
+  */
+  if (sdk !== undefined) return sdk.isWeb && sdk.isStandaloneWeb
   return detectFnosEnvironment() === 'standalone'
+}
+
+/** 判断路径所需的 SDK 最小标志面。 */
+export interface FnosSdkFlags {
+  /** web carrier 是否就绪；`false` 表示走了 mobile / 原生宿主分支。 */
+  readonly isWeb: boolean
+  /** 是否不在宿主容器内（`window.parent === window`）。 */
+  readonly isStandaloneWeb: boolean
 }
 
 /**

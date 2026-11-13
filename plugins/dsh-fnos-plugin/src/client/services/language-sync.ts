@@ -67,7 +67,14 @@ export async function installFnosLanguageSync(
 ): Promise<() => void | Promise<void>> {
   const sdk = options.createSdk()
   await sdk.ready()
-  if (!sdk.isWeb || sdk.isStandaloneWeb) return () => {}
+  /*
+    只在**真正**的独立浏览器页面跳过。
+
+    原判据是 `!sdk.isWeb || sdk.isStandaloneWeb`——`isWeb === false` 被当成
+    「没有宿主」，但那是 mobile / 原生宿主分支，能力恰恰在那边。
+  */
+  if (!sdk.isWeb) return () => {}
+  if (sdk.isStandaloneWeb) return () => {}
 
   const apply = (language: unknown): void => {
     const target = resolveDshLocale(language)

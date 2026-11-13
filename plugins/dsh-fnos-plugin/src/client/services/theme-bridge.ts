@@ -60,7 +60,16 @@ export function createThemeBridge(): ThemeBridge {
     try {
       const sdk = createTrimApp()
       await sdk.ready()
-      if (!sdk.isWeb || sdk.isStandaloneWeb) {
+      /*
+        **只有真正的独立浏览器页面才跳过主题桥。**
+
+        `isWeb === false` 表示 SDK 走了 mobile / 原生宿主分支（init 里检出
+        `flutter_inappwebview` 或 osConnector）——那时 `getPlatformConfig()`
+        与 `$on('os/theme')` 恰恰是可用的，跳过反而丢了跟随系统主题的能力。
+
+        早前写成 `!sdk.isWeb || sdk.isStandaloneWeb`，把这两件事混成一件事。
+      */
+      if (sdk.isWeb && sdk.isStandaloneWeb) {
         if (generation === connectionGeneration) connectionStarted = false
         return () => {}
       }
