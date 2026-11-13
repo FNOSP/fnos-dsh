@@ -83,14 +83,27 @@ describe('账号登录：只补官方缺的那一屏', () => {
     expect(CLIENT).not.toContain('OFFICIAL_API_KEY_LABELS')
   })
 
-  it('由宿主状态驱动，不监听 DOM', () => {
+  it('用 DOM 监听触发，不轮询', () => {
+    /*
+      触发信号是**官方弹框自己**：它进入「等待登录」态就说明授权页已开、正等
+      用户粘贴。轮询只能靠固定间隔猜状态，既多打请求，又会在「用户刚关掉、
+      下一轮又弹回来」这种时序上出错。DOM 变化是事件，什么时候发生就什么时候响应。
+    */
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
-    expect(overlay).toContain('FNOS_ACCOUNT_LOGIN_STATE_ROUTE')
-    expect(overlay).toContain("state?.phase === 'waiting-browser'")
-    // 轮询而不是订阅：宿主没有推 attempt 变化的通道。
-    expect(overlay).toContain('POLL_MS')
-    // 停止标志要能真正停下轮询。
-    expect(overlay).toContain('stopped = true')
+    expect(overlay).toContain('MutationObserver')
+    expect(overlay).toContain('findWaitingDialog')
+    // 不许再出现定时轮询。
+    expect(overlay).not.toContain('POLL_MS')
+    expect(overlay).not.toContain('setTimeout(() => { void poll')
+    // 宿主状态只读一次，用来填「复制链接」的地址，不参与显隐判断。
+    expect(overlay).toContain('readAuthorizeUrlOnce')
+  })
+
+  it('关闭后不再被同一屏弹回来', () => {
+    // 记住「关闭时那一屏」的节点；同一节点还在就不再显示，节点消失则标记失效。
+    const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    expect(overlay).toContain('dismissedNodeRef')
+    expect(overlay).toContain('setOpen(dialog !== dismissedNodeRef.current)')
   })
 })
 

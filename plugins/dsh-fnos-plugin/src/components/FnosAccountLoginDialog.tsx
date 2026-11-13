@@ -29,10 +29,9 @@ import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   FNOS_ACCOUNT_LOGIN_CANCEL_ROUTE,
   FNOS_ACCOUNT_LOGIN_RELAY_ROUTE,
-  FNOS_ACCOUNT_LOGIN_STATE_ROUTE,
-  type AccountLoginAttemptView,
   type AccountLoginRelayResult,
 } from '../contracts/account-login-contract.ts'
+import { readAuthorizeUrlOnce } from './FnosAccountLoginOverlay.tsx'
 import { parseCallbackInput } from '../client/account-login-callback.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -63,6 +62,10 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
   const [phase, setPhase] = useState<Phase>('idle')
   const [pasted, setPasted] = useState('')
   const [message, setMessage] = useState<string>()
+  /** 授权页地址；「复制链接」用它，没有就不显示那一段。 */
+  const [authorizeUrl, setAuthorizeUrl] = useState<string>()
+  /** 复制结果：两秒后复位，让按钮文字回到常态。 */
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const authorizeUrlRef = useRef<string>()
   const closedRef = useRef(false)
 
@@ -119,37 +122,22 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
     onClose()
   }, [onClose])
 
+
   /*
-    打开时对齐宿主状态：如果已经有一轮进行中的尝试（例如页面刷新后），
-    直接进「等待粘贴」而不是让用户再点一次登录——那会白白作废上一轮。
+    打开时取**一次**授权页地址。
+
+    只读取、不推断相位：是否显示由浮层容器用 DOM 监听决定（官方弹框进入
+    「等待登录」才显示）。地址只用于「复制链接」按钮，取不到就不显示那一段。
   */
   useEffect(() => {
     if (!open) return
     closedRef.current = false
     let cancelled = false
-    /*
-      **双向对齐**：宿主有进行中的尝试就进粘贴态，没有就回到初始态。
-
-      早前只处理了「有」这一支、没有处理「没有」：本地 `phase` 会停留在上一次
-      的 `waiting`，于是下次打开直接显示粘贴框，用户看不到「登录」按钮。宿主侧
-      明明已经是 `cancelled`（实测 `{"phase":"cancelled"}`），界面却还是旧状态。
-    */
-    void fetch(FNOS_ACCOUNT_LOGIN_STATE_ROUTE, { credentials: 'same-origin' })
-      .then(response => response.json())
-      .then((state: AccountLoginAttemptView | undefined) => {
-        if (cancelled) return
-        if (state?.phase === 'waiting-browser' && state.authorizeUrl !== undefined) {
-          authorizeUrlRef.current = state.authorizeUrl
-          setPhase('waiting')
-          return
-        }
-        // 宿主没有进行中的尝试：清掉本地残留，从初始态开始。
-        authorizeUrlRef.current = undefined
-        setPhase('idle')
-        setPasted('')
-        setMessage(undefined)
-      })
-      .catch(() => undefined)
+    void readAuthorizeUrlOnce().then((url) => {
+      if (cancelled) return
+      authorizeUrlRef.current = url
+      setAuthorizeUrl(url)
+    })
     return () => { cancelled = true }
   }, [open])
 
@@ -185,7 +173,7 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
       visible
       onCancel={close}
       footer={null}
-      width={380}
+      width={480}
       centered
       maskClosable={false}
       getPopupContainer={() => document.body}
@@ -193,6 +181,35 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
       title={t('accountLoginPasteTitle')}
     >
       <p className="dsh-fnos-account-login-desc">{t('accountLoginPasteHint')}</p>
+      {/*
+        「重新打开授权页」的自助出口。
+
+        授权页是普通标签页，用户很容易顺手关掉；关掉之后官方那一屏只剩「复制
+        登录链接」，而这里直接把链接摆出来，点一下就能重开，不用退回去找。
+
+        用 `navigator.clipboard.writeText`（与官方 `SignInDialog` 同一手法），
+        失败时退回提示文案而不是静默。
+      */}
+      <div className="dsh-fnos-account-login-relink">
+        <span className="dsh-fnos-account-login-relabel">{t('accountLoginReopenLabel')}</span>
+        {authorizeUrl === undefined ? null : (
+          <DshButton
+            size="small"
+            onClick={() => {
+              void navigator.clipboard.writeText(authorizeUrl).then(
+                () => { setCopyState('copied') },
+                () => { setCopyState('failed') },
+              ).then(() => {
+                window.setTimeout(() => { setCopyState('idle') }, 2000)
+              })
+            }}
+          >
+            {copyState === 'copied'
+              ? t('accountLoginLinkCopied')
+              : copyState === 'failed' ? t('accountLoginLinkCopyFailed') : t('accountLoginCopyLink')}
+          </DshButton>
+        )}
+      </div>
       <DshInput
         value={pasted}
         /* 端口由宿主转发时决定，这里只给形状；写死端口与实际改写的值对不上。 */

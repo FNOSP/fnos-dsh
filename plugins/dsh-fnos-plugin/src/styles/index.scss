@@ -3375,6 +3375,27 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
   margin-top: 20px;
 }
 
+/*
+ * 「复制授权链接」那一行：说明文字左、按钮右，与描述之间留 12px。
+ *
+ * 它是给「授权页被误关」准备的出口，所以位置要贴着描述——用户读到「会跳到
+ * 127.0.0.1」时，紧接着就能看到怎么重开。
+ */
+.dsh-fnos-account-login-relink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dsh-fnos-account-login-relabel {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
 /* 粘贴态的输入框与描述之间留 12px，避免两段文字贴在一起。 */
 .dsh-fnos-account-login-desc + .semi-input-wrapper {
   margin-top: 12px;
