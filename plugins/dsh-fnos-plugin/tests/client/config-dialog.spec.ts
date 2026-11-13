@@ -308,13 +308,14 @@ describe('fnOS 配置弹框', () => {
     expect(repairAt).toBeLessThan(indexAt)
   })
 
-  it('菜单选中态有可见指示（纯底色在亮色主题下太弱）', () => {
+  it('菜单选中态只用底色与字重', () => {
+    // 左侧竖条已按产品要求去掉：它与底色是两套冗余指示，横排时还贴不齐圆角。
     const item = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-nav-item {'))
     const block = item.slice(0, item.indexOf('\n}'))
-    // 实测截图里纯底色完全看不出选中；加左侧竖条后两种主题都清晰。
     expect(block).toContain('&--active')
-    expect(block).toContain('&::before')
-    expect(block).toContain('--dsw-alias-state-business-primary')
+    expect(block).toContain('--dsw-alias-interactive-bg-active')
+    expect(block).toContain('font-weight: 600')
+    expect(block).not.toContain('&::before')
   })
 
   it('复用原组件，不复制实现', () => {

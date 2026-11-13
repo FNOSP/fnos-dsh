@@ -1473,21 +1473,15 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
     加一条 3px 的实色竖条，两种主题下都有明确的指示，且不依赖底色对比度。
   */
   &--active {
-    position: relative;
+    /*
+      选中态只用底色 + 加粗。
+
+      早前这里还有一个 `::before` 的左侧竖条（3×18 圆角小条）。它与底色是两套冗余
+      的指示，叠在一起反而显得吵；横排导航里那个小条还会贴在条目左边缘、与圆角
+      对不齐。去掉之后选中态仍清晰可辨（底色对比 + 字重变化）。
+    */
     background: var(--dsw-alias-interactive-bg-active);
     font-weight: 600;
-
-    &::before {
-      position: absolute;
-      top: 50%;
-      left: 0;
-      width: 3px;
-      height: 18px;
-      border-radius: 0 2px 2px 0;
-      background: var(--dsw-alias-state-business-primary);
-      content: '';
-      transform: translateY(-50%);
-    }
   }
 }
 
