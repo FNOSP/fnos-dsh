@@ -256,6 +256,51 @@ describe('FNOS-007 DSH baseline', () => {
     expect(upgradeItems.find(item => item.field === 'wizard_npm_registry')?.label).not.toContain('（可选）')
   })
 
+  it('向导的 npm 源列表包含官方并默认选中', async () => {
+    /*
+      原先 `initValue` 为空，而选项里没有空值，界面上就多出一个空白行（用户看到
+      的选择器顶着一行空条目）。这里把 npm 官方源补成第一项并设为默认。
+
+      **默认值等于「没改」**：升级用户上次选过镜像时，后端要沿用上次的值，不能
+      因为向导默认是官方源就把他选的镜像冲掉——见下面那条规则测试。
+    */
+    const OFFICIAL = 'https://registry.npmjs.org/'
+    type WizardEntry = { field?: string, initValue?: string, options?: Array<{ label: string, value: string }> }
+    for (const name of ['install', 'config', 'upgrade']) {
+      const wizard = JSON.parse(await readFile(new URL(`../../../apps/fn-deepseek-harness/wizard/${name}`, import.meta.url), 'utf8')) as Array<{ items: WizardEntry[] }>
+      const item = wizard[0]?.items.find(entry => entry.field === 'wizard_npm_registry')
+      expect(item, name).toBeDefined()
+      expect(item?.initValue, name).toBe(OFFICIAL)
+      const options = item?.options ?? []
+      // 官方源必须在列表里，而且排第一（默认选项）。
+      expect(options[0], name).toEqual({ label: 'npm', value: OFFICIAL })
+      expect(options.some(option => option.value === OFFICIAL), name).toBe(true)
+      // 原有的镜像不能被删掉。
+      for (const mirror of ['yarn', 'tencent', 'cnpm', 'taobao', 'npmMirror', 'huawei']) {
+        expect(options.some(option => option.label === mirror), `${name}:${mirror}`).toBe(true)
+      }
+    }
+  })
+
+  it('升级与改配置时沿用上次选的 npm 源', async () => {
+    /*
+      规则：向导提交的是默认的官方源（等于没动），就沿用已持久化的源；只有明确
+      选了别的镜像才覆盖。三个回调都按这条规则走。
+    */
+    const install = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/install_callback', import.meta.url), 'utf8')
+    expect(install).toContain('resolve_npm_registry()')
+    expect(install).toContain(['"', '$', '{submitted}" = "https://registry.npmjs.org/"'].join(''))
+    expect(install).toContain('NPM_REGISTRY="$(resolve_npm_registry)"')
+
+    const upgrade = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/upgrade_callback', import.meta.url), 'utf8')
+    expect(upgrade).toContain(['[ "', '$', '{wizard_npm_registry}" != "https://registry.npmjs.org/" ]'].join(''))
+
+    // 改配置也要真的落盘，否则这个字段形同虚设。
+    const config = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/config_callback', import.meta.url), 'utf8')
+    expect(config).toContain('apply_npm_registry')
+    expect(config).toContain('config set registry')
+  })
+
   it('declares every DSH dependency through the pnpm catalog', async () => {
     // Versions live in pnpm-workspace.yaml only; a literal in a plugin manifest
     // is a second place to forget on the next baseline bump.

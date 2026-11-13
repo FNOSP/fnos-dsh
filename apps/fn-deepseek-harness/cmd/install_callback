@@ -160,6 +160,24 @@ read_persisted_npm_registry() {
     printf '%s' "${registry:-https://registry.npmjs.org/}"
 }
 
+# 解析最终要用的源。
+#
+# 规则：向导里选了「默认值（npm 官方源）」或干脆没提交，就认为用户没有主动改，
+# 沿用上次持久化的源；只有明确选了别的镜像才覆盖。
+#
+# 这样「老用户升级保持上次选择、新装默认 npm」两件事同时成立，而升级不会把
+# 用户自己选的镜像冲掉。
+resolve_npm_registry() {
+    local submitted="${wizard_npm_registry:-}"
+    local persisted
+    persisted="$(read_persisted_npm_registry)"
+    if [ -z "${submitted}" ] || [ "${submitted}" = "https://registry.npmjs.org/" ]; then
+        printf '%s' "${persisted:-https://registry.npmjs.org/}"
+        return 0
+    fi
+    printf '%s' "${submitted}"
+}
+
 persist_npm_registry() {
     "${NPM_BIN}" config set registry "${NPM_REGISTRY}" --location=user ||
         fail_install "Unable to persist npm registry in ${NPM_USER_CONFIG_FILE}"
@@ -522,8 +540,10 @@ main() {
     /bin/mkdir -p "${DSH_HOME}/.npm-cache" "${NPM_CONFIG_PREFIX}" "${HOME}" ||
         fail_install "Unable to prepare the dsh package manager directories"
 
-    NPM_REGISTRY="${wizard_npm_registry:-$(read_persisted_npm_registry)}"
-    NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org/}"
+    # 向导的默认选项就是 npm 官方源。用户没动过向导时提交的正是这个默认值，
+    # 此时沿用上次持久化的源——升级与改配置都不该把用户选的镜像悄悄改回官方源。
+    # 新装没有持久化值，自然落到官方源。
+    NPM_REGISTRY="$(resolve_npm_registry)"
     persist_npm_registry
 
     if has_required_pnpm; then

@@ -44,9 +44,13 @@
                 "type": "select",
                 "field": "wizard_npm_registry",
                 "label": "${install.npmRegistryLabel}",
-                "initValue": "",
+                "initValue": "https://registry.npmjs.org/",
                 "helpText": "${install.npmRegistryHelpText}",
                 "options": [
+                    {
+                        "label": "npm",
+                        "value": "https://registry.npmjs.org/"
+                    },
                     {
                         "label": "yarn",
                         "value": "https://registry.yarnpkg.com/"

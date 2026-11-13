@@ -16,6 +16,46 @@ log_error() {
     log_message ERROR "$@" >&2
 }
 
+# 向导里可以改 npm 源。这里把它落盘到 npm 用户配置，重启后的安装与插件拉取都用新值。
+#
+# 与 install/upgrade 同一条规则：向导的默认选项就是 npm 官方源，提交它等于「没改」，
+# 沿用上次持久化的源；只有明确选了别的镜像才覆盖。否则每次改端口之类的配置都会把
+# 用户自己选的镜像冲掉。
+NODE_BIN="/var/apps/nodejs_v24/target/bin"
+APP_HOME="${TRIM_APPDEST_VOL}/@appshare/fn-deepseek-harness"
+NPM_BIN="${NODE_BIN}/npm"
+NPM_USER_CONFIG_FILE="${APP_HOME}/.npmrc"
+
+read_persisted_npm_registry() {
+    local registry
+    if [ -f "${NPM_USER_CONFIG_FILE}" ]; then
+        registry="$(NPM_CONFIG_USERCONFIG="${NPM_USER_CONFIG_FILE}" "${NPM_BIN}" config get registry --location=user 2>/dev/null || true)"
+    fi
+    printf '%s' "${registry:-https://registry.npmjs.org/}"
+}
+
+apply_npm_registry() {
+    local submitted="${wizard_npm_registry:-}"
+    local target
+    if [ -z "${submitted}" ] || [ "${submitted}" = "https://registry.npmjs.org/" ]; then
+        target="$(read_persisted_npm_registry)"
+    else
+        target="${submitted}"
+    fi
+    if [ -z "${target}" ]; then
+        return 0
+    fi
+    mkdir -p "${APP_HOME}" || {
+        log_error "Failed to prepare the npm configuration directory."
+        return 0
+    }
+    NPM_CONFIG_USERCONFIG="${NPM_USER_CONFIG_FILE}" "${NPM_BIN}" config set registry "${target}" --location=user ||
+        log_error "Failed to persist npm registry ${target}."
+    log_info "npm registry set to ${target}."
+}
+
+apply_npm_registry
+
 APP_MAIN="${TRIM_APPDEST:-}/cmd/main"
 if [ -x "${APP_MAIN}" ] && "${APP_MAIN}" status >/dev/null 2>&1; then
     log_info "Restarting DeepSeek Harness after configuration changes."

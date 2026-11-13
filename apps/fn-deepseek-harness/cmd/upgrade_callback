@@ -43,6 +43,11 @@ if [ -f "${NPM_USER_CONFIG_FILE}" ]; then
 else
     NPM_REGISTRY="$(tr -d '[:space:]' <"${LEGACY_NPM_REGISTRY_FILE}" 2>/dev/null || true)"
 fi
+# 向导里明确选了别的镜像就以它为准；没选（或选了默认的 npm 官方源）沿用上次的源，
+# 升级不该把用户自己选的镜像悄悄改回官方源。
+if [ -n "${wizard_npm_registry:-}" ] && [ "${wizard_npm_registry}" != "https://registry.npmjs.org/" ]; then
+    NPM_REGISTRY="${wizard_npm_registry}"
+fi
 NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org/}"
 log_info "Using npm registry ${NPM_REGISTRY}."
 
