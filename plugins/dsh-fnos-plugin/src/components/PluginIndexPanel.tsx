@@ -19,7 +19,7 @@ import { notifySuccess } from '../client/notify.ts'
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshButton, DshImage, DshTooltip } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshImage, DshSkeleton, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import { SwitchWithLoading } from './SwitchWithLoading.tsx'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import type { FnosLocaleKey } from '../client/locales.ts'
@@ -119,8 +119,48 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
   const marketMissing = status !== undefined && !status.marketEnabled
   const allConfigured = status?.marketEnabled === true && status.missing.length === 0
 
+  /*
+    **首次加载用骨架屏占位。**
+
+    `status` 还是 `undefined` 时我们什么都不知道，早前却直接按「未开启」渲染了：
+    加载慢的时候用户先看到一个**错的**「未开启」，随后跳成「已开启」，中间还空着
+    一大块——正是截图里的样子。
+
+    判据用 `status === undefined && error === undefined`：加载失败时不算 loading，
+    交给下面的错误提示，不会一直转骨架。
+  */
+  const loading = status === undefined && error === undefined
+
   return (
     <div className="dsh-fnos-idx">
+      {loading ? (
+        <div className="dsh-fnos-idx-skeleton" aria-busy="true" aria-live="polite">
+          <span className="dsh-fnos-visually-hidden">{t('loading')}</span>
+          {/*
+            必须包在 `<DshSkeleton active>` 里：shimmer 动画是
+            `.semi-skeleton-active .semi-skeleton-title` 这类**后代**规则，子组件
+            没有自己的 `active`；只写子组件会得到几块静止的灰条（`animationName`
+            为 `none`），看起来像加载失败。
+          */}
+          <DshSkeleton active>
+            {/* 开关行：左侧标题、右侧开关，与真实行同高。 */}
+            <div className="dsh-fnos-idx-row dsh-fnos-idx-skeleton-row">
+              <DshSkeleton.Title className="dsh-fnos-idx-skeleton-title" />
+              <DshSkeleton.Button className="dsh-fnos-idx-skeleton-switch" />
+            </div>
+            {/* 索引源清单：两条，占住真实条目将要出现的位置。 */}
+            {[0, 1].map(index => (
+              <div key={index} className="dsh-fnos-idx-skeleton-row">
+                <DshSkeleton.Title className="dsh-fnos-idx-skeleton-line" />
+              </div>
+            ))}
+          </DshSkeleton>
+        </div>
+      ) : null}
+
+      {/* 状态未就绪（加载失败）时不渲染任何「未开启」之类的判断，避免给出错的结论。 */}
+      {status === undefined ? null : (
+      <>
       {/*
         状态行：Switch 开关而不是按钮。
 
@@ -243,6 +283,9 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
           )}
         </>
       ) : null}
+
+      </>
+      )}
 
       {error === undefined ? null : <p className="dsh-fnos-repair-error" role="alert">{error}</p>}
     </div>
