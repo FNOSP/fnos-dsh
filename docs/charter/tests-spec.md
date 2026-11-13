@@ -106,6 +106,27 @@ verifiedAt: 2026-09-30
 - 本地端口固定 `8070`，与 FPK 网关的 `127.0.0.1:3080` 互不冲突，可同时运行。
 - **必须用启动日志里打印的带 token 地址访问**：直接访问 `http://127.0.0.1:8070/` 会得到 `dsh web authentication required`（HTTP 401）。启动日志里有一行 `dsh web: http://127.0.0.1:8070/?token=…`，取证走这一条。启动时**不要**把输出接进 `tail` / `head` 之类的管道——管道会让日志缓冲到进程结束才可见，开头那行 token URL 因此被吞掉（实测踩到）。
 
+#### 样式与 UI 的热更验证
+
+改样式**不要走「构建 FPK → 传到 NAS → 装一遍」**——一轮十分钟起步，而样式恰恰最
+需要即时预览。本地 DSH Web 支持热更：
+
+1. `tsdown --watch` 持续重建插件产物；
+2. 改完 SCSS/CSS 后**刷新页面**，新样式即生效（实测 928ms 重建、刷新后
+   `document.getElementById('dsh-plugin-style-…').sheet.cssRules` 已是新值）；
+3. 用 Chrome MCP 读计算样式与几何做确认，或直接截图走查。
+
+三个前提，缺一则热更看不到效果：
+
+- **插件必须链接进本地 profile**。`start --web` 会做这件事，但它可能卡在拉依赖上
+  （实测 npm 源 `ECONNRESET` 时整条命令停在那里）。此时可以只跑两段：
+  `pnpm exec tsdown --watch`（在插件目录）+ `DSH_HOME="$PWD/.dsh" pnpm exec dsh web
+  --no-open --port 8070`，输出**不要接管道**，否则拿不到 token URL。
+- **刷新页面**才会重新拉 `client.js`；产物更新本身不会推送进已打开的页面。
+- **验证样式是否真的进页面，读 `sheet.cssRules` 而不是 `style.textContent`**：
+  后者是 CSSOM 序列化结果，压缩后的注释与部分写法会消失，据此判断会误报
+  「没生效」（实测踩到）。
+
 ### DSH Desktop 测试
 
 - **客户端（固定）**：Desktop 测试**不使用**系统安装的 `/Applications/DeepSeek Harness.app`，改用**上游源码检出 `fork-pj/deepseek-harness` 的开发态 Desktop**。理由有两条：一是需要跟随待测插件与其依赖的最新行为，已安装的发行版壳无法替换；二是开发态启动器天然暴露 CDP 调试端口，取证路径可脚本化。

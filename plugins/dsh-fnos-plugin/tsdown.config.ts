@@ -49,20 +49,73 @@ async function inlineClientStyles(config: { cwd: string }): Promise<void> {
     2. 把 `dispose` 挂到模块的导出上，宿主卸载插件时调用它移除标签——这样
        「禁用再启用」不会累积。
   */
+  /*
+    注入样式：**固定容器 + 容器常驻 head 末尾**。
+
+    ## 两个必须解决的问题
+
+    1. **重复**：插件会被反复加载（热更新、禁用再启用、切 profile）。无条件
+       `head.append(style)` 每加载一次就多一份 250KB 样式；本仓库多个插件还各自
+       内联了整份 Semi——实测一个页面堆出 4 份、合计约 107 万字符。
+    2. **顺序**：CSS 同一优先级下后出现的规则胜出。我们的覆盖规则必须晚于组件库
+       默认样式，但**插件加载顺序不确定**，靠 `head.append` 等于靠运气。
+
+    ## 做法
+
+    所有插件样式进同一个容器 `<div data-dsh-plugin-styles>`，容器**常驻 `head`
+    的最后一个元素**。注入时若容器被别的样式挤到前面，就挪回末尾。
+
+    于是「自定义样式恒在组件库默认之后」成为可依赖的约定，不需要堆 `!important`。
+    详见 `docs/charter/plugin-ui-standards.md` 的「样式注入顺序」。
+  */
   const styleLoader = [
     '(() => {',
     "  if (typeof document === 'undefined') return;",
     "  const ID = " + JSON.stringify('dsh-plugin-style-' + cwdName) + ";",
+    "  const CSS = " + JSON.stringify(styles) + ";",
+    "  const CONTAINER_ID = 'dsh-plugin-styles';",
+    '',
+    '  const ensureContainer = () => {',
+    '    let container = document.getElementById(CONTAINER_ID);',
+    '    if (container === null) {',
+    "      container = document.createElement('div');",
+    '      container.id = CONTAINER_ID;',
+    '      container.hidden = true;',
+    '    }',
+    '    // 必须始终是 head 的最后一个元素：我们的规则才会晚于组件库默认样式。',
+    '    if (document.head.lastElementChild !== container) document.head.append(container);',
+    '    /*',
+    '      别的插件/组件库可能在之后又往 head 追加样式，把容器挤到前面。',
+    '      用 MutationObserver 盯着，被挤走就挪回末尾——顺序必须是**持续成立**的',
+    '      约定，不能只在注入那一刻成立。',
+    '    */',
+    '    if (container.dataset.watching !== "1") {',
+    '      container.dataset.watching = "1";',
+    '      const keepLast = () => {',
+    '        const live = document.getElementById(CONTAINER_ID);',
+    '        if (live !== null && document.head.lastElementChild !== live) document.head.append(live);',
+    '      };',
+    '      new MutationObserver(keepLast).observe(document.head, { childList: true });',
+    '    }',
+    '    return container;',
+    '  };',
+    '',
     '  const existing = document.getElementById(ID);',
-    '  if (existing !== null) { existing.textContent = ' + JSON.stringify(styles) + '; return; }',
+    '  if (existing !== null) { existing.textContent = CSS; ensureContainer(); return; }',
+    '',
     "  const style = document.createElement('style');",
     '  style.id = ID;',
     "  style.dataset.dshPluginStyle = ID;",
-    '  style.textContent = ' + JSON.stringify(styles) + ';',
-    '  document.head.append(style);',
+    '  style.textContent = CSS;',
+    '  ensureContainer().append(style);',
+    '',
     '  // 卸载时移除，避免「禁用再启用」累积。',
     '  if (typeof module !== "undefined" && module.exports !== undefined) {',
-    '    module.exports.__disposeStyle = () => { document.getElementById(ID)?.remove(); };',
+    '    module.exports.__disposeStyle = () => {',
+    '      document.getElementById(ID)?.remove();',
+    '      const box = document.getElementById(CONTAINER_ID);',
+    '      if (box !== null && box.childElementCount === 0) box.remove();',
+    '    };',
     '  }',
     '})();',
     '',

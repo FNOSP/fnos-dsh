@@ -230,13 +230,13 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
       内容层跟随外层：`width: 100%` 取外层（已被 max-width 收住）的宽度，
       自己不再写死 480。`max-width` 保留一条 480 的保底，只在视口足够宽时起作用。
     */
-    const block = SCSS.slice(SCSS.indexOf('.semi-modal-content.dsh-fnos-account-login-modal {'))
+    const block = SCSS.slice(SCSS.indexOf('body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal {'))
     expect(block.slice(0, 400)).toContain('width: 100%')
   })
 
   it('样式把 Semi Modal 对齐到官方数值', () => {
     // 数值出处见 `styles/index.scss` 里这段的注释表（取自官方 Modal.module.css）。
-    expect(SCSS).toContain('.semi-modal-content.dsh-fnos-account-login-modal')
+    expect(SCSS).toContain('body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal')
     // 宽度是产品要求（480，比官方 380 宽）；组件上的 width 属性会被这条覆盖。
     expect(SCSS).toContain('width: min(480px, 100%)')
     expect(SCSS).toContain('border-radius: var(--dsw-radius-panel)')

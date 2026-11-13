@@ -3312,8 +3312,18 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
   max-width: calc(100vw - 24px);
 }
 
-/* 内容层跟着外层走：桌面 480、窄屏等于外层宽度。 */
-.semi-modal-content.dsh-fnos-account-login-modal {
+/*
+ * 内容层跟着外层走：桌面 480、窄屏等于外层宽度。
+ *
+ * **选择器带上 `body[data-dsh-semi-theme]` 前缀**：共享包的主题层把基础样式写在
+ * `body[data-dsh-semi-theme] .semi-modal-content`（特异性 0,2,1），我们若只写
+ * `.semi-modal-content.dsh-fnos-account-login-modal`（0,2,0），`border: none` 之类
+ * 就会被压掉——实测 border 仍是主题的 1px 实线。
+ *
+ * 带上同一个前缀后两者同级，再由「插件样式容器常驻 head 末尾」保证我们晚出现、
+ * 从而胜出。这正是规范里那条约定的用法：不要靠 `!important`，靠同级的顺序。
+ */
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal {
   /*
     480 是产品要求的宽度（比官方 380 宽）；窄屏时被外层 `max-width` 收住，
     这里只负责把内边距、圆角与底色对齐官方。
@@ -3329,12 +3339,12 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 }
 
 /* header：标题行左 24、上 22、下 12；右侧给关闭按钮留 14。 */
-.semi-modal-content.dsh-fnos-account-login-modal .semi-modal-header {
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .semi-modal-header {
   margin: 0;
   padding: 22px 14px 12px 24px;
 }
 
-.semi-modal-content.dsh-fnos-account-login-modal .semi-modal-title {
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .semi-modal-title {
   font-size: 16px;
   line-height: 24px;
   font-weight: 500;
@@ -3345,7 +3355,7 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
  * 关闭按钮：官方是 28×28 的裸图标、hover 才出底，且垂直居中在标题行。
  * Semi 默认带一圈浅灰底与更大的点击区，这里收货到官方形态。
  */
-.semi-modal-content.dsh-fnos-account-login-modal .semi-modal-close {
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .semi-modal-close {
   width: 28px;
   height: 28px;
   border-radius: var(--dsw-radius-sm);
@@ -3354,19 +3364,19 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 }
 
 @media (hover: hover) {
-  .semi-modal-content.dsh-fnos-account-login-modal .semi-modal-close:hover {
+  body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .semi-modal-close:hover {
     background: var(--dsw-alias-interactive-bg-hover);
   }
 }
 
 /* 正文与描述共用 24px 内容列。 */
-.semi-modal-content.dsh-fnos-account-login-modal .semi-modal-body {
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .semi-modal-body {
   padding: 0 24px;
   /* 标题行与正文之间 20px，与官方 dialog 的 `gap` 一致。 */
   margin-top: 20px;
 }
 
-.semi-modal-content.dsh-fnos-account-login-modal .dsh-fnos-account-login-desc {
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-fnos-account-login-desc {
   margin: 0;
   padding: 0;
   font-size: 14px;
