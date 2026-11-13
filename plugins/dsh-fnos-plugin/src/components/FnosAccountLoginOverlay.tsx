@@ -23,7 +23,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FnosAccountLoginDialog } from './FnosAccountLoginDialog.tsx'
-import { FNOS_ACCOUNT_LOGIN_STATE_ROUTE, type AccountLoginAttemptView } from '../contracts/account-login-contract.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -164,22 +163,4 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
   }, [])
 
   return <FnosAccountLoginDialog open={open} t={t} onClose={close} />
-}
-
-/**
- * 读一次宿主的授权页地址。
- *
- * **单次读取，不是轮询**：只在 DOM 监听到「等待登录」时取一次，用来给
- * 「复制链接」按钮提供地址。失败不影响粘贴框本身。
- *
- * @returns 授权页地址；不可用时为 undefined。
- */
-export async function readAuthorizeUrlOnce(): Promise<string | undefined> {
-  try {
-    const response = await fetch(FNOS_ACCOUNT_LOGIN_STATE_ROUTE, { credentials: 'same-origin' })
-    const state = await response.json() as AccountLoginAttemptView | undefined
-    return state?.authorizeUrl
-  } catch {
-    return undefined
-  }
 }

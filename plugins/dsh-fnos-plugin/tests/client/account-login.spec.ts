@@ -65,7 +65,9 @@ describe('账号登录：只补官方缺的那一屏', () => {
       一样的框。这里补的是官方**没有**的那一步：授权后浏览器跳到 127.0.0.1
       打不开，需要把地址粘回来。
     */
-    expect(CLIENT).toContain('if (!waiting) return null')
+    // 显隐只看 open：早前这里还有一道按内部阶段的门控，阶段推进被删后永远不渲染。
+    expect(CLIENT).toContain('visible={open}')
+    expect(CLIENT).not.toContain('if (!waiting) return null')
     // 不许再渲染初始态的标题/按钮。
     expect(CLIENT).not.toContain("t('accountLoginTitle')")
     expect(CLIENT).not.toContain("t('accountLoginSignIn')")
@@ -95,8 +97,18 @@ describe('账号登录：只补官方缺的那一屏', () => {
     // 不许再出现定时轮询。
     expect(overlay).not.toContain('POLL_MS')
     expect(overlay).not.toContain('setTimeout(() => { void poll')
-    // 宿主状态只读一次，用来填「复制链接」的地址，不参与显隐判断。
-    expect(overlay).toContain('readAuthorizeUrlOnce')
+    /*
+      宿主状态只读一次，用来填「复制链接」的地址，不参与显隐判断。
+
+      读取函数放在 `client/services/account-login-state.ts`：早前它和浮层组件
+      互相 import 形成循环依赖，现在依赖方向是单向的
+      `overlay → dialog → account-login-state`。
+    */
+    const state = readFileSync(new URL('../../src/client/services/account-login-state.ts', import.meta.url), 'utf8')
+    expect(state).toContain('readAuthorizeUrlOnce')
+    expect(CLIENT).toContain("from '../client/services/account-login-state.ts'")
+    // 浮层不许再反向依赖对话组件之外的实现细节（循环依赖的入口）。
+    expect(overlay).not.toContain('export async function readAuthorizeUrlOnce')
   })
 
   it('监听只做 body 一层，不开 subtree', () => {

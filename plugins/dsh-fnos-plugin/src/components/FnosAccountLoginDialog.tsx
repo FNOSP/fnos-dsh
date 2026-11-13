@@ -31,13 +31,18 @@ import {
   FNOS_ACCOUNT_LOGIN_RELAY_ROUTE,
   type AccountLoginRelayResult,
 } from '../contracts/account-login-contract.ts'
-import { readAuthorizeUrlOnce } from './FnosAccountLoginOverlay.tsx'
+import { readAuthorizeUrlOnce } from '../client/services/account-login-state.ts'
 import { parseCallbackInput } from '../client/account-login-callback.ts'
 
 type Translate = (key: FnosLocaleKey) => string
 
-/** 对话框所处阶段。 */
-type Phase = 'idle' | 'starting' | 'waiting' | 'submitting' | 'error'
+/**
+ * 提交状态。
+ *
+ * **显隐不由阶段决定**——`open` 由浮层容器的 DOM 监听驱动。这里只留「是否正在
+ * 提交」一件事给按钮扛加载态。
+ */
+type Phase = 'idle' | 'submitting'
 
 /** 组件参数。 */
 export interface FnosAccountLoginDialogProps {
@@ -92,10 +97,10 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
         onClose()
         return
       }
-      setPhase('waiting')
+      setPhase('idle')
       setMessage(t('accountLoginFailed'))
     } catch (error) {
-      setPhase('waiting')
+      setPhase('idle')
       setMessage(error instanceof Error ? error.message : String(error))
     }
   }, [pasted, t, onClose])
@@ -141,8 +146,6 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
     return () => { cancelled = true }
   }, [open])
 
-  const waiting = phase === 'waiting' || phase === 'submitting'
-
   /*
     **用 Semi 的 Modal，并显式挂到 `body`。**
 
@@ -157,20 +160,21 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
     把这件事钉死，不依赖默认值。
   */
   /*
-    **只渲染「粘贴回调地址」这一屏，不画官方的登录初始态。**
+    **只画「填写授权地址」这一屏，不画官方的登录界面。**
 
-    官方的 `SignInDialog` 自带初始态（标题「登录 DeepSeek 账号」+ 两个按钮）与
-    「等待登录」态，界面本来就是对的——多画一个只会跟官方抢屏幕，用户看到两个
-    一样的框。
+    官方的 `SignInDialog` 自带初始态与「等待登录」态，界面本来就是对的——多画
+    一个只会跟官方抢屏幕，用户看到两个一样的框。
 
-    这里补的是官方**没有**的那一屏：授权后浏览器跳到 `127.0.0.1` 打不开，
-    需要把地址粘回来。所以组件只在 `waiting` 时渲染。
+    这里补的是官方**没有**的那一步：授权后浏览器跳到 `127.0.0.1` 打不开，需要
+    把地址粘回来。
+
+    **显隐只看 `open`。** 早前这里还有一道按内部阶段判的门控，而阶段推进代码在
+    改 DOM 驱动时被删掉了，于是那道门永远关闭，弹框一次都没渲染过——`open` 明明
+    是 true。显隐的唯一依据就是 `open`。
   */
-  if (!waiting) return null
-
   return (
     <DshModal
-      visible
+      visible={open}
       onCancel={close}
       footer={null}
       width={480}
