@@ -20,7 +20,8 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshTabs } from '@tnnevol/dsh-semi-ui'
+import { DshEmpty, DshTabs } from '@tnnevol/dsh-semi-ui'
+import { FnosEmptyIllustration } from './FnosEmptyIllustration.tsx'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import type { GatewayAutoPathsStatus } from '../contracts/gateway-proxy-contract.ts'
 import { DependencyRepairCard } from './DependencyRepairCard.tsx'
@@ -64,6 +65,8 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
   const [message, setMessage] = useState<string>()
   const [auto, setAuto] = useState<GatewayAutoPathsStatus>()
   const [busy, setBusy] = useState(false)
+  /** 读取配置失败（能力不可用）。与「保存失败」是两回事，见 `load`。 */
+  const [loadFailed, setLoadFailed] = useState(false)
 
   /** 载入当前配置与自动识别状态。 */
   const load = useCallback(async () => {
@@ -73,11 +76,23 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
       setSaved(text)
       setDraft(text)
       setAuto(snapshot.auto)
+      setLoadFailed(false)
       setMessage(undefined)
     } catch {
-      setMessage(t('gatewayProxyFailed'))
+      /*
+        **「读不到配置」和「保存失败」必须分开。**
+
+        反代前缀依赖 fnOS 侧注入的脚本配合；没有注入时这个接口整体不可用。早前把
+        它和保存失败塞进同一个 `message`，于是读取失败时仍然渲染出完整的编辑界面
+        ——一个填不进内容的文本框、两个永远是灰的按钮，底下一行红字。看起来像功能
+        坏了，而不是「这个环境不支持」。
+
+        读取失败时整块换成缺省页并给出重试入口。
+      */
+      setLoadFailed(true)
     }
-  }, [t])
+    // 不再依赖 `t`：读取失败只切状态，文案由渲染层给。
+  }, [])
 
   useEffect(() => { void load() }, [load])
 
@@ -130,8 +145,31 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
   const [expandedGroups, setExpandedGroups] = useState<ReadonlySet<string>>(() => new Set())
   const hasAuto = groups.length > 0
 
-  /** 「插件反代」面板：自动识别 + 手动补充。 */
-  const proxyPanel = (
+  /** 「插件反代」面板：自动识别 + 手动补充；能力不可用时整块换成缺省页。 */
+  const proxyPanel = loadFailed ? (
+    /*
+      **能力不可用用缺省页，不渲染半残的编辑器。**
+
+      反代前缀依赖 fnOS 侧注入的脚本；没有注入时读接口直接失败。此时保留编辑器会
+      得到「填不进内容的文本框 + 两个永远是灰的按钮 + 一行红字」，看着像功能坏了。
+
+      缺省页是「这里现在没有内容」的标准表达，与面板里其它空状态一致；原因放进
+      description，重试放在下面——能力恢复后（注入脚本就位）点一下即可。
+    */
+    <DshEmpty
+      className="dsh-fnos-proxy-empty"
+      image={<FnosEmptyIllustration size={120} />}
+      title={t('gatewayProxyUnavailableTitle')}
+      description={(
+        <span className="dsh-fnos-proxy-empty-desc">
+          {t('gatewayProxyUnavailableHint')}
+          <button type="button" className="dsh-fnos-authorized-button" onClick={() => { void load() }}>
+            {t('retry')}
+          </button>
+        </span>
+      )}
+    />
+  ) : (
     <div className="dsh-fnos-proxy-panel">
     {/*
       自动识别区。

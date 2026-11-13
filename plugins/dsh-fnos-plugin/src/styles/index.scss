@@ -3609,15 +3609,40 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
 
 .dsh-fnos-config-empty,
 .dsh-fnos-authorized-empty,
-.dsh-fnos-picker-empty {
+.dsh-fnos-picker-empty,
+.dsh-fnos-proxy-empty {
   padding: 24px 0 8px;
   color: var(--dsw-alias-label-secondary);
 }
 
 .dsh-fnos-config-empty svg,
 .dsh-fnos-authorized-empty svg,
-.dsh-fnos-picker-empty svg {
+.dsh-fnos-picker-empty svg,
+.dsh-fnos-proxy-empty svg {
   color: var(--dsw-alias-label-tertiary);
+}
+
+/*
+ * 「反代」能力不可用的缺省页。
+ *
+ * 反代前缀依赖 fnOS 侧注入的脚本，没有注入时读接口直接失败。这一块整块换成缺省页，
+ * 而不是保留半残的编辑器（填不进内容的文本框 + 永远灰的按钮 + 一行红字）。
+ *
+ * 说明与重试按钮竖排：说明是两句完整的话，横排会把按钮挤到行尾、与正文混在一行读。
+ */
+.dsh-fnos-proxy-empty {
+  padding: 40px 0 24px;
+}
+
+.dsh-fnos-proxy-empty-desc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  /* 说明文字较长，限一下行宽，避免在宽屏上拉成一整行。 */
+  max-width: 42ch;
+  margin: 0 auto;
+  line-height: 1.6;
 }
 
 /* 选择面板里的空态挤在窄条里，内边距收一点，插画也小一号。 */

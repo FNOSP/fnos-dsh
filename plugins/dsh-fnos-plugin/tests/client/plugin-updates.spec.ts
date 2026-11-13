@@ -389,3 +389,44 @@ describe('移动端面板：左右内边距对称', () => {
     expect(SCSS_SRC).toMatch(/\.dsh-fnos-authorized-card-body \{\s*margin-inline: 0;/u)
   })
 })
+
+describe('反代面板：能力不可用走缺省页', () => {
+  const CARD = readFileSync(new URL('../../src/components/GatewayProxyCard.tsx', import.meta.url), 'utf8')
+  const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+  const LOCALES = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
+
+  it('读取失败与保存失败分开', () => {
+    /*
+      反代前缀依赖 fnOS 侧注入的脚本；没有注入时读接口整体失败。早前把它和保存失败
+      塞进同一个 message，于是读取失败仍然渲染完整编辑器——填不进内容的文本框、
+      两个永远是灰的按钮、底下一行红字，看着像功能坏了。
+    */
+    expect(CARD).toContain('const [loadFailed, setLoadFailed] = useState(false)')
+    expect(CARD).toContain('setLoadFailed(true)')
+    // 读取失败的 catch 里不应再写 message。
+    const loadCatch = CARD.slice(CARD.indexOf('const load = useCallback'), CARD.indexOf('useEffect(() => { void load() }'))
+    expect(loadCatch).not.toContain("setMessage(t('gatewayProxyFailed'))")
+  })
+
+  it('不可用时渲染缺省组件，不渲染编辑器', () => {
+    expect(CARD).toContain('const proxyPanel = loadFailed ? (')
+    expect(CARD).toContain('<DshEmpty')
+    expect(CARD).toContain('dsh-fnos-proxy-empty')
+    expect(CARD).toContain('FnosEmptyIllustration')
+    // 缺省页要带重试，能力恢复后不必重开面板。
+    expect(CARD).toContain("t('retry')")
+  })
+
+  it('九种语言都有新增的三条文案', () => {
+    for (const key of ['gatewayProxyUnavailableTitle', 'gatewayProxyUnavailableHint', 'retry']) {
+      expect(LOCALES).toContain(`${key}:`)
+    }
+    expect(LOCALES).toContain("gatewayProxyUnavailableTitle: '当前环境不支持反代配置'")
+    expect(LOCALES).toContain("retry: '重试'")
+  })
+
+  it('缺省页样式与其它空状态同一套', () => {
+    expect(SCSS).toMatch(/\.dsh-fnos-picker-empty,\s*\.dsh-fnos-proxy-empty \{/u)
+    expect(SCSS).toContain('.dsh-fnos-proxy-empty-desc')
+  })
+})
