@@ -424,6 +424,10 @@ const requirementsSidebar = [
         link: '/requirements/FNOS-052-fnos-footer-entry-standalone'
       },
       {
+        text: 'FNOS-053 拦截官方账号登录，改为粘贴回调地址完成授权',
+        link: '/requirements/FNOS-053-account-login-callback-relay'
+      },
+      {
         text: 'FNOS-046 DSH 0.2.2-rc.1 插件适配与基线升级',
         link: '/requirements/FNOS-046-dsh-022-rc1-adaptation'
       },
@@ -781,6 +785,10 @@ const testsSidebar = [
       {
         text: 'FNOS-052 侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐',
         link: '/tests/FNOS-052-fnos-footer-entry-standalone'
+      },
+      {
+        text: 'FNOS-053 拦截官方账号登录，改为粘贴回调地址完成授权',
+        link: '/tests/FNOS-053-account-login-callback-relay'
       },
     ]
   }

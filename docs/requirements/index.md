@@ -106,4 +106,6 @@ flowchart TD
 | FNOS-051 | [OpenCode 模型思考能力与上下文对齐真实接口](/requirements/FNOS-051-opencode-capability-alignment) | 待验收（能力取自账号接口，覆盖 30/30；toggle 型不再显示档位；zen 统一改名 console；367 条用例通过） |
 | FNOS-052 | [侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐](/requirements/FNOS-052-fnos-footer-entry-standalone) | 部分通过（包级 748+182 条全绿；入口与下拉菜单已在本地 DSH Web 实测；真机待验，授权回调链路只有真机能证） |
 
+| FNOS-053 | [拦截官方账号登录，改为粘贴回调地址完成授权](/requirements/FNOS-053-account-login-callback-relay) | 部分通过（真机确认官方框被收起、授权页正常打开、对话框切到粘贴态；换码闭环需真实账号，未验） |
+
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

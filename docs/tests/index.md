@@ -61,4 +61,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-051 | [模型思考能力与上下文对齐真实接口](/tests/FNOS-051-opencode-capability-alignment) | [PLAN-FNOS-051](/plans/PLAN-FNOS-051-opencode-capability-alignment) | 通过（待界面目视） | 11 条用例全部通过：账号清单 30/30 覆盖、`kimi-k3.1-pro` 实测 310,093 tokens、三档 reasoning 长度递增、toggle 型全 null；BUG-01（supported:false 误判）、BUG-02（测试取错 plan 条目）均修复 |
 | FNOS-052 | [侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐](/tests/FNOS-052-fnos-footer-entry-standalone) | 部分通过 | 30 条用例：包级全部通过（插件 748 条、网关 182 条）；本地 DSH Web 用槽位探针实测入口渲染；真机全项未执行，授权回调链路待真机确认 |
 
+| FNOS-053 | [拦截官方账号登录，改为粘贴回调地址完成授权](/tests/FNOS-053-account-login-callback-relay) | 部分通过 | 17 条用例：16 条通过（13 条单测 + 3 条真机）；换码闭环需真实账号，未执行 |
+
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

@@ -91,4 +91,6 @@ flowchart TD
 | PLAN-FNOS-050 | [fnOS 插件「依赖修复」](/plans/PLAN-FNOS-050-dependency-repair) | 待完成（T1–T8 全部落地：契约 → 宿主诊断与修复 → 路由 → 客户端 → 卡片与 tip → 九语言 → 用例 → Manifest 文案；仅剩真机写操作验收与用户确认） |
 | PLAN-FNOS-051 | [模型思考能力与上下文对齐真实接口](/plans/PLAN-FNOS-051-opencode-capability-alignment) | 待完成（T1–T7 全部落地：账号清单解析 → 回落链调整 → toggle 语义 → 命名统一 → 测试；仅剩界面目视与用户确认） |
 
+| PLAN-FNOS-053 | [拦截官方账号登录，改为粘贴回调地址完成授权](/plans/PLAN-FNOS-053-account-login-callback-relay) | 待验收（功能已落地并真机验证三段链路；换码闭环待真实账号） |
+
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。
