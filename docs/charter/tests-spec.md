@@ -371,6 +371,26 @@ Midscene 路线用共享包的 `dsh.uploadFile` 节点：Node 侧读本地文件
 - **单次页面脚本不能长等**：Bridge 单次调用上限 30 秒。把「开对话框」与「注入」分步，
   等待判定放到 Node 侧轮询（即 `expectText` + `timeoutMs`）。
 
+#### 用 Chrome MCP 测试：先查已有标签页，不要重复打开
+
+**打开页面之前先 `list_pages`。** 目标页面已经存在时**复用它**，不要 `new_page`：
+
+| 情况 | 做法 |
+| --- | --- |
+| 已有目标页 | 直接用它的 `pageId`，必要时 `navigate_page`（`reload`）刷新 |
+| 没有目标页 | 才 `new_page` |
+
+理由不只是「省一步」：
+
+- **重复标签页会误导后续判断**。真机上同时开着两个应用实例时，用 `evaluate_script`
+  读到的可能是另一个标签页的状态，据此得出的结论全是错的（实测出现过：以为拦截
+  没生效，实际是量错了页面）；
+- **登录态、Cookie、会话是同一浏览器 profile 的**，多开没有收益，只会让「当前在
+  哪个页」变模糊；
+- 关闭多余标签页有副作用：页面若承载登录态或正在跑长任务，关掉就断了。
+
+判断「是不是同一个目标」看 **origin + 路径**，不看标题（标题会随会话内容变化）。
+
 #### 用 Chrome MCP 安装 FPK：断开 click + upload_file
 
 **2026-11-12 实测，两轮复现。** 六步：
@@ -930,6 +950,7 @@ Codex Auth 插件的**已登录账号配置文件可直接用作测试账号**�
 
 | 日期 | 变更 | 说明 |
 | --- | --- | --- |
+| 2026-11-13 | 新增「先查已有标签页，不要重复打开」约束 | Chrome MCP 测试原先每轮都 `new_page`，同一目标开出一堆标签页。问题不在多占内存，而在**读错页面**：`evaluate_script` 打在 A 页、结论却是给 B 页做的（实测出现过——以为登录框拦截没生效，实际量的是本地 DSH Web 那个没装插件的实例）。约束改为：打开前先 `list_pages`，目标已存在就复用（必要时 `navigate_page` 刷新），按 **origin + 路径**判定同一目标，不看标题。 |
 | 2026-11-10 | 改正 Chrome MCP 传 FPK 的结论：`upload_file` 可用，关键在临时目录与拦 `click()` | 此前两处判断都错，一并纠正：① 原写「Chrome MCP 的 `upload_file` 受工作区根白名单限制，`/tmp`、`~/Downloads`、仓库内路径全被拒，故不能指望 MCP 传文件」——实测 MCP 的 roots **只包含 `os.tmpdir()`**，把 FPK `cp` 到该目录后 `upload_file` 正常工作；被拒的是仓库路径与 `~/.dsh/profiles/desktop`。② 原写「『从电脑上传』的 `onClick` 只切换来源枚举、不调用 `input.click()`」——同机重测**确会调用**（拦截计数 1），系统文件选择器就是这么弹出来的，正是「每次安装都被上传窗口打断」的根因。正解四步：开对话框 → 把 `HTMLInputElement.prototype.click` 换成只打标记的实现 → 点「从电脑上传」切来源 → 对带标记的非目录 input 用 `upload_file` 注入。另登记一个易漏前置：该 input 常驻在 `hidden` 祖先里、尺寸 `0×0` 时不被快照收录，需 `document.body.appendChild()` 并给可见尺寸才拿得到 uid。 |
 | 2026-11-12 | **定稿：断 `input.click()` + `upload_file` 注入** | 两个关键事实（两轮真机复现）：① `upload_file` 作用于会打开选择器的元素会崩标签页（`RESULT_CODE_KILLED_BAD_MESSAGE`，[issue #2310](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/2310)）；断掉 `input.click()` 同时解决「弹系统窗口」与「崩溃」——两者同源。② 目标元素在 `display:none` 祖先里取不到 uid，而**只放开目标自己的容器**是安全的；同容器里还有一枚目录 input，必须单独藏掉，否则会一起露出来。另：必须点一次「从电脑上传」应用才挂上 change 处理器，不点则注入无效。不要改 `HTMLInputElement.prototype.click`（全局劫持，曾导致页面跳回 `/login`）。 |
 | 2026-10-23 | 补「同一 profile 同时只能一个实例」强制条款 | 开发态 Desktop 与 `dsh web` 共用 `<repo>/.dsh` 时会争抢同一会话，后发起的客户端发送被拒并提示「当前会话已被占用」。该现象是会话占用而非端口冲突——两实例都能正常启动、界面都能打开，只有发送失败，容易被误判成插件缺陷（实测踩到，白查了一轮）。规范写明先释放另一侧、Desktop 测试期间不起 `dsh web`，并给出用 `lsof` 按端口反查 PID 的收尾方式。 |
