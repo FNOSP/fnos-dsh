@@ -129,6 +129,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   authorizeDirectory: 'NAS 디렉터리 인가',
   authorizeNewDirectory: '인가 추가',
   authorizeSucceeded: '디렉터리를 인가했습니다.',
+  authorizeUnsupportedHere: 'fnOS에서 실행되고 있지 않아 폴더 인증을 사용할 수 없습니다.',
   authorizePersistFailed: '디렉터리를 인가했지만 기록을 저장하지 못했습니다. 재설치 후 사라질 수 있습니다.',
   authorizeDenied: '이 디렉터리를 인가할 권한이 없습니다.',
   authorizeFailed: '디렉터리를 인가할 수 없습니다.',

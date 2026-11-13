@@ -522,3 +522,32 @@ describe('FNOS-039 弹框与 fnOS 原生弹框的细节对齐', () => {
     expect(PANEL).toContain("placeholder={displayName(renameTarget?.semanticPath ?? '')}")
   })
 })
+
+describe('选择面板：非 fnOS 环境不发起授权', () => {
+  const PICKER = readFileSync(new URL('../../src/components/FnosAuthorizedPathPicker.tsx', import.meta.url), 'utf8')
+  const LOCALES = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
+
+  it('授权前先判断是不是 fnOS 托管，否则只给反馈', () => {
+    /*
+      授权只能由用户在 fnOS 主程序里逐级确认；本地 `dsh web` 这类环境里这条链路
+      根本不存在——继续执行只会打开一个打不开的新标签页。
+
+      判据用 `isFnosHosted()` 而不是「有没有宿主桥」：**独立浏览器页面同样属于
+      fnOS 应用**，只是没有桥，那条路要走 `openAppAuth` 授权页，是正常流程。
+    */
+    const body = PICKER.slice(PICKER.indexOf('const authorizeDirectory = useCallback'))
+    expect(body).toContain('isFnosHosted()')
+    // 守卫必须在唤起选择器之前 return。
+    const guardAt = body.indexOf('if (!isFnosHosted())')
+    const pickAt = body.indexOf('pickAuthorizedDirectory(')
+    expect(guardAt).toBeGreaterThan(-1)
+    expect(pickAt).toBeGreaterThan(guardAt)
+    // 给的是反馈而不是静默返回。
+    expect(body.slice(guardAt, pickAt)).toContain('Toast.warning')
+  })
+
+  it('文案九种语言齐备', () => {
+    expect(LOCALES).toContain("authorizeUnsupportedHere: '当前环境不是 fnOS，无法发起目录授权。'")
+    expect(LOCALES).toContain("authorizeUnsupportedHere: 'Directory authorization is unavailable")
+  })
+})

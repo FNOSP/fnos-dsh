@@ -36,6 +36,7 @@ import {
 import { createAuthorizedEntry, deleteAuthorizedEntry, renameAuthorizedEntry, requestAuthorizedEntries, requestPersistAuthorizedDirectories, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { listenFnosAppAuthResult } from '../client/services/app-auth.ts'
 import { pickAuthorizedDirectory } from '../client/services/authorized-directory-picker.ts'
+import { isFnosHosted } from '../client/services/environment.ts'
 import { fnosHostBridgeAvailable } from '../client/services/host-bridge.ts'
 import { openFnosEntry } from '../client/services/file-opener.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
@@ -556,6 +557,23 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
    */
   const authorizeDirectory = useCallback(async () => {
     if (authorizing) return
+    /*
+      **不在 fnOS 上就直接给反馈，不往下走。**
+
+      授权只能由用户在 fnOS 主程序里逐级确认；本地 `dsh web` 这类环境里这条链路
+      根本不存在——继续执行只会打开一个打不开的新标签页，用户看到一个空白页，
+      既不知道发生了什么，也不知道该不该等。
+
+      判据用 `isFnosHosted()`（fnOS 应用网关会给 HTML 注入
+      `<base href="/app/...">`）而不是「有没有宿主桥」：**独立浏览器页面同样属于
+      fnOS 应用**，只是没有桥，那条路要走 `openAppAuth` 授权页，是正常流程。
+
+      按钮不置灰：置灰之后用户点不动也没有解释，反而更困惑；点一下给出原因更清楚。
+    */
+    if (!isFnosHosted()) {
+      Toast.warning({ content: t('authorizeUnsupportedHere') })
+      return
+    }
     setAuthorizing(true)
     try {
       const outcome = await pickAuthorizedDirectory({

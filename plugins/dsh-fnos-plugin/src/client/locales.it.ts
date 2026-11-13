@@ -120,6 +120,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   authorizeDirectory: 'Autorizza una directory NAS',
   authorizeNewDirectory: 'Aggiungi autorizzazione',
   authorizeSucceeded: 'Directory autorizzata.',
+  authorizeUnsupportedHere: 'Autorizzazione delle cartelle non disponibile: non è in esecuzione su fnOS.',
   authorizePersistFailed: 'Directory autorizzata, ma non è stato possibile salvare il record: potrebbe andare perso dopo la reinstallazione.',
   authorizeDenied: 'Non hai i permessi per autorizzare questa directory.',
   authorizeFailed: 'Impossibile autorizzare la directory.',

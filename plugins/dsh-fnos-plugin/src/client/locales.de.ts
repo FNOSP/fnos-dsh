@@ -121,6 +121,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   authorizeDirectory: 'NAS-Verzeichnis freigeben',
   authorizeNewDirectory: 'Freigabe hinzufügen',
   authorizeSucceeded: 'Verzeichnis freigegeben.',
+  authorizeUnsupportedHere: 'Verzeichnis-Autorisierung nicht verfügbar: läuft nicht auf fnOS.',
   authorizePersistFailed: 'Verzeichnis freigegeben, aber der Eintrag konnte nicht gespeichert werden; er kann nach einer Neuinstallation verloren gehen.',
   authorizeDenied: 'Keine Berechtigung, dieses Verzeichnis freizugeben.',
   authorizeFailed: 'Das Verzeichnis konnte nicht freigegeben werden.',

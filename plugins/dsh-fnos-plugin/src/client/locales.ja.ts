@@ -129,6 +129,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   authorizeDirectory: 'NAS ディレクトリを認可',
   authorizeNewDirectory: '認可を追加',
   authorizeSucceeded: 'ディレクトリを認可しました。',
+  authorizeUnsupportedHere: 'fnOS 上で動作していないため、フォルダの認証は利用できません。',
   authorizePersistFailed: 'ディレクトリは認可しましたが、記録を保存できませんでした。再インストール後に失われる可能性があります。',
   authorizeDenied: 'このディレクトリを認可する権限がありません。',
   authorizeFailed: 'ディレクトリを認可できませんでした。',

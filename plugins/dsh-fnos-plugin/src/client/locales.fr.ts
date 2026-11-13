@@ -121,6 +121,7 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   authorizeDirectory: 'Autoriser un répertoire du NAS',
   authorizeNewDirectory: 'Ajouter une autorisation',
   authorizeSucceeded: 'Répertoire autorisé.',
+  authorizeUnsupportedHere: 'Autorisation de dossier indisponible : l’application ne tourne pas sous fnOS.',
   authorizePersistFailed: "Répertoire autorisé, mais l'enregistrement n'a pas pu être sauvegardé ; il peut être perdu après une réinstallation.",
   authorizeDenied: "Vous n'avez pas l'autorisation de valider ce répertoire.",
   authorizeFailed: "Impossible d'autoriser ce répertoire.",

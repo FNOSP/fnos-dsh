@@ -120,6 +120,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   authorizeDirectory: 'Авторизовать каталог NAS',
   authorizeNewDirectory: 'Добавить авторизацию',
   authorizeSucceeded: 'Каталог авторизован.',
+  authorizeUnsupportedHere: 'Авторизация каталогов недоступна: приложение работает не на fnOS.',
   authorizePersistFailed: 'Каталог авторизован, но запись сохранить не удалось; после переустановки она может быть потеряна.',
   authorizeDenied: 'Нет прав на авторизацию этого каталога.',
   authorizeFailed: 'Не удалось авторизовать каталог.',
