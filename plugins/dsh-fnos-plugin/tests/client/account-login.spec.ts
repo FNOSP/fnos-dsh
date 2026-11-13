@@ -73,8 +73,17 @@ describe('账号登录：官方框拦截', () => {
   })
 
   it('不把自己收掉', () => {
-    // 我们的对话框同样挂在 #root 之后，必须排除。
-    expect(CLIENT).toContain("querySelector('.dsh-fnos-account-login') !== null")
+    /*
+      自己的对话框同样挂在 `#root` 之后、同样 `role="presentation"`（都走官方
+      Modal），必须靠**专用属性**排除。
+
+      之前用内容类名 `.dsh-fnos-account-login`——改用官方 Modal 后那个容器被删掉，
+      自我保护静默失效，结果自己的弹框被自己收走了一次。测试钉住专用属性。
+    */
+    expect(CLIENT).toContain("querySelector('[data-dsh-fnos-account-login]')")
+    expect(CLIENT).toContain('data-dsh-fnos-account-login=""')
+    // 不许退回到内容类名判断。
+    expect(CLIENT).not.toContain("querySelector('.dsh-fnos-account-login')")
   })
 
   it('关闭我方框时，同时关掉官方框', () => {

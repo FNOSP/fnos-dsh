@@ -98,7 +98,10 @@ function matchOfficialSignInDialog(node: Element): Element | undefined {
   if (node.getAttribute('role') !== 'presentation') return undefined
   // 已隐藏的官方框跳过，否则每轮 scan 都会重复处理同一个节点。
   if (node.getAttribute('data-dsh-fnos-hidden') === '1') return undefined
-  if (node.querySelector('.dsh-fnos-account-login') !== null) return undefined
+  // 自己的对话框同样挂在 `#root` 之后、同样 role=presentation，必须靠专用属性排除
+  // ——**不能靠内容类名**：之前用 `.dsh-fnos-account-login`，改用官方 Modal 后那个
+  // 容器类被删掉了，自我保护静默失效，结果把自己的弹框也收走了。
+  if (node.querySelector('[data-dsh-fnos-account-login]') !== null) return undefined
   const dialog = node.querySelector('[role="dialog"]')
   if (dialog === null) return undefined
   const text = dialog.textContent ?? ''
@@ -424,6 +427,7 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
       open={open}
       onClose={close}
       closeLabel={t('close')}
+      className="dsh-fnos-account-login-modal"
       title={waiting ? t('accountLoginPasteTitle') : t('accountLoginTitle')}
       description={waiting ? t('accountLoginPasteHint') : t('accountLoginIntro')}
       footer={waiting
@@ -458,6 +462,12 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
           </DshButton>,
         ]}
     >
+      {/*
+        标记自己：监听器靠它把「我们的对话框」从候选里排除掉。官方 Modal 的宿主
+        同样是 `role="presentation"`、同样挂在 `#root` 之后，没有标记就分不清谁是谁
+        ——改用官方 Modal 后旧的内容类名失效，自己的弹框被自己收走过一次。
+      */}
+      <div data-dsh-fnos-account-login="">
       {waiting ? (
         <DshInput
           value={pasted}
@@ -469,6 +479,7 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
       {message === undefined ? null : (
         <p className="dsh-fnos-account-login-error" role="alert">{message}</p>
       )}
+      </div>
     </Modal>
   )
 }
