@@ -3506,6 +3506,21 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
  * 自绘插画用 `currentColor` 描边，这里给它一个与正文区分但不刺眼的颜色——
  * 太深会抢标题，太浅又看不清形状。
  */
+/*
+ * ===== 运行页：移动端隐藏指标卡片 =====
+ *
+ * 那排卡片（CPU / 内存 / 磁盘 / 下行 / 上行）是「五个数字并排」的版式，窄屏下
+ * 每格被压到只剩一个字宽，数值频繁换行（截图里「内 存」竖排、「488 MB」折成两行）。
+ *
+ * 而且它们与下方的曲线重复：曲线已经给出同样的数据，卡片只是「最新一个点」。
+ * 手机上留曲线更值（能看趋势），卡片删掉。
+ */
+@media (max-width: 767px) {
+  .dsh-fnos-runtime-now {
+    display: none;
+  }
+}
+
 .dsh-fnos-config-empty,
 .dsh-fnos-authorized-empty,
 .dsh-fnos-picker-empty {

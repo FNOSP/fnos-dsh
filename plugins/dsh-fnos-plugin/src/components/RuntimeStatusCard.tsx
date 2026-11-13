@@ -254,6 +254,20 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
       tooltip 必须带单位：只有数字时，0.02 到底是 MB/s 还是 KB/s 看不出来，
       跨量级比较会误判。这里用 valueFormatter 统一补单位，避免每条系列各写一遍。
     */
+    /*
+      **图表文字颜色必须显式给，不能用 ECharts 默认值。**
+
+      默认轴标签是深灰，在暗色主题的深底上几乎看不见——截图里纵轴刻度与单位名字
+      都是黑压压一片。
+
+      取值走 DSH 的语义变量：`getComputedStyle` 读出来的是当前主题解析后的颜色，
+      亮暗自动跟随，不需要自己判断 `data-ds-dark-theme`。
+    */
+    const themeStyles = getComputedStyle(document.body)
+    const axisColor = themeStyles.getPropertyValue('--dsw-alias-label-tertiary').trim() || '#8A8F99'
+    const nameColor = themeStyles.getPropertyValue('--dsw-alias-label-secondary').trim() || '#6E7079'
+    const splitColor = themeStyles.getPropertyValue('--dsw-alias-border-l1').trim() || 'rgba(0,0,0,0.06)'
+
     chart.setOption({
       animation: false,
       legend: { show: false },
@@ -270,7 +284,7 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
         data: axis,
         boundaryGap: false,
         showAxisLine: false,
-        axisLabel: { fontSize: 9, interval: Math.max(0, Math.floor(axis.length / 4) - 1) },
+        axisLabel: { fontSize: 10, color: axisColor, interval: Math.max(0, Math.floor(axis.length / 4) - 1) },
         axisTick: { show: false },
       })),
       yAxis: [0, 1, 2, 3].map(i => {
@@ -281,12 +295,13 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
           type: 'value',
           gridIndex: i,
           name: s.unit === '%' ? `${t(s.labelKey)} (%)` : `${t(s.labelKey)} (${s.unit})`,
-          nameTextStyle: { fontSize: 10, align: 'left', padding: [0, 0, 2, 0] },
+          nameTextStyle: { fontSize: 10, align: 'left', padding: [0, 0, 2, 0], color: nameColor },
           nameGap: 8,
           min: 0,
-          axisLabel: { fontSize: 9 },
+          axisLabel: { fontSize: 10, color: axisColor },
           splitNumber: 3,
-          splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+          // 分隔线也用语义变量：写死 rgba(0,0,0,.06) 在暗色下是黑上叠黑。
+          splitLine: { lineStyle: { color: splitColor } },
         }
       }),
       /*

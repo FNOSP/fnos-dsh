@@ -228,6 +228,29 @@ describe('fnOS 配置弹框', () => {
     expect(DIALOG).toContain("id: 'logs'")
   })
 
+  it('运行页：移动端隐藏指标卡片，图表文字跟随主题', () => {
+    /*
+      指标卡片是「五个数字并排」的版式，窄屏下每格被压到只剩一个字宽，数值频繁
+      换行（真机截图里「内 存」竖排、「488 MB」折成两行）。而它们与下方曲线重复
+      ——曲线已经给出同样的数据，卡片只是「最新一个点」。手机上留曲线更值。
+
+      图表文字必须显式给颜色：ECharts 默认轴标签是深灰，暗色主题下几乎看不见。
+      取值走 DSH 语义变量，`getComputedStyle` 读出来就是当前主题解析后的颜色。
+    */
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const mobile = scss.match(/@media \(max-width: 767px\)[\s\S]{0,400}\.dsh-fnos-runtime-now \{[^}]*\}/u)?.[0] ?? ''
+    expect(mobile).toContain('display: none')
+
+    const card = readFileSync(new URL('../../src/components/RuntimeStatusCard.tsx', import.meta.url), 'utf8')
+    expect(card).toContain("getPropertyValue('--dsw-alias-label-tertiary')")
+    expect(card).toContain("getPropertyValue('--dsw-alias-label-secondary')")
+    // 轴标签与纵轴名字都要上色，不能只给一处。
+    expect(card).toContain('color: axisColor')
+    expect(card).toContain('color: nameColor')
+    // 分隔线同理：写死 rgba(0,0,0,.06) 在暗色下是黑上叠黑。
+    expect(card).toContain('color: splitColor')
+  })
+
   it('插件管理用三个 tab：工具箱 / 已安装插件 / 反代', () => {
     const PROXY = read('../../src/components/GatewayProxyCard.tsx')
     expect(PROXY).toContain('DshTabs')
