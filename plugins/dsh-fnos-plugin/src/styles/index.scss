@@ -3515,6 +3515,35 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
   }
 
   /*
+    **日志工具条在窄屏要收：**
+
+    - 级别选择器从 120 收到 96——「全部 / 警告 / 调试」最多三个字，96 够用；
+    - 隐藏「条数」输入框：窄屏下每像素都紧张，而它是个低频设置（默认 200 已经
+      够看），要看更多可以直接在桌面端改；
+    - 搜索框自然就宽了。
+  */
+  .dsh-fnos-logs-level {
+    flex: 0 0 96px;
+  }
+
+  .dsh-fnos-logs-limit {
+    display: none;
+  }
+
+  /*
+    **窄屏隐藏来源列。**
+
+    一行里挤着「时刻 + 级别 + 来源 + 正文」四段，来源 `authorization-service` 这类
+    长标识符会把正文压到只剩几个字符，于是 `withdrawn flow failed after the fact`
+    被逐词折成竖排（实测截图）。
+
+    正文对排查更有价值，来源可以在桌面端看；窄屏让正文独占剩余宽度。
+  */
+  .dsh-fnos-logs-name {
+    display: none;
+  }
+
+  /*
     图表从 2×2 改成一行一个后需要更高：四格纵向排列，每格若按原来的 340px 均分
     只有 85px，曲线几乎压成一条直线。
 

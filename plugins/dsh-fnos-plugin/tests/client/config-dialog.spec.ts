@@ -308,6 +308,33 @@ describe('fnOS 配置弹框', () => {
     expect(repairAt).toBeLessThan(indexAt)
   })
 
+  it('日志页：移动端收窄选择器、隐藏条数与来源', () => {
+    /*
+      窄屏每像素都紧张：
+
+      - 级别选择器 120 → 96（「全部 / 警告 / 调试」最多三个字，够用）；
+      - 「条数」是低频设置，隐藏；
+      - 来源列（`authorization-service` 这类长标识符）会把正文压到只剩几个字符，
+        于是长句被逐词折成竖排——隐藏来源，让正文独占剩余宽度。
+
+      真机实测：隐藏来源后正文宽度从约 100px 提到 213px。
+    */
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const mobile = scss.match(/@media \(max-width: 767px\)[\s\S]*?\n\}/u)?.[0] ?? ''
+    expect(mobile).toContain('flex: 0 0 96px')
+    expect(mobile).toContain('.dsh-fnos-logs-limit')
+    expect(mobile).toContain('.dsh-fnos-logs-name')
+  })
+
+  it('日志条数只在被截断时显示', () => {
+    // `total` 是过滤前的缓冲总数，`entries.length` 是本次返回条数。缓冲未超过
+    // limit 时两者必然相等，显示「36 / 36」等于什么都没说。
+    const panel = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(panel).toContain('entries.length < total')
+    // 计数节点必须包在该条件里，不能无条件渲染。
+    expect(panel).toMatch(/entries\.length < total \? \(\s*<span className="dsh-fnos-logs-count">/u)
+  })
+
   it('日志级别下拉不显示勾选图标', () => {
     /*
       Semi 的 Option 默认 `showTick: true`，会在**每一项**前面留一个勾位
