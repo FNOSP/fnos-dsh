@@ -184,6 +184,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   accountLoginApiKeyHint: 'DeepSeek 계정 대신 API 키를 사용합니다.',
   accountLoginPasteTitle: '인증 주소 입력',
   accountLoginCopiedTip: '복사됨',
+  accountLoginCopyFailedTip: '복사 실패',
   accountLoginCopyTip: '인증 주소 복사',
   accountLoginReopenAction: '링크를 복사해 다시 열기',
   accountLoginReopenPrefix: '인증 페이지를 실수로 닫았다면 ',

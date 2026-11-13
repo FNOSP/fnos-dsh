@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshModal, DshInput, DshButton, DshTypography } from '@tnnevol/dsh-semi-ui'
+import { DshModal, DshInput, DshButton, DshTypography, DshToast } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   FNOS_ACCOUNT_LOGIN_CANCEL_ROUTE,
@@ -236,17 +236,33 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
               copyable={{
                 content: authorizeUrl,
                 copyTip: t('accountLoginCopyTip'),
-                render: (copied: boolean, doCopy: (event: React.MouseEvent) => void) => (
+                /*
+                  **文案不变，只用 toast 反馈。**
+
+                  早前用 `copied` 把这段文字临时改成「已复制」，看着像按钮在变形；
+                  复制是个短动作，旁边弹一条提示更合适，文字本身保持稳定。
+                */
+                onCopy: (_event: unknown, _content: string, result: boolean) => {
+                  if (result) {
+                    DshToast.success({ content: t('accountLoginCopiedTip') })
+                  } else {
+                    DshToast.error({ content: t('accountLoginCopyFailedTip') })
+                  }
+                },
+                render: (_copied: boolean, doCopy: (event: React.MouseEvent) => void) => (
                   <span
                     role="button"
                     tabIndex={0}
                     className="dsh-fnos-account-login-copy"
                     onClick={event => { doCopy(event) }}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') doCopy(event as unknown as React.MouseEvent)
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        doCopy(event as unknown as React.MouseEvent)
+                      }
                     }}
                   >
-                    {copied ? t('accountLoginCopiedTip') : t('accountLoginReopenAction')}
+                    {t('accountLoginReopenAction')}
                   </span>
                 ),
               }}

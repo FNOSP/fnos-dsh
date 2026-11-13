@@ -175,6 +175,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   accountLoginApiKeyHint: 'Использовать ключ API вместо аккаунта DeepSeek.',
   accountLoginPasteTitle: 'Введите адрес авторизации',
   accountLoginCopiedTip: 'Скопировано',
+  accountLoginCopyFailedTip: 'Не удалось скопировать',
   accountLoginCopyTip: 'Скопировать адрес авторизации',
   accountLoginReopenAction: 'скопируйте ссылку, чтобы открыть её снова',
   accountLoginReopenPrefix: 'Если вы случайно закрыли страницу авторизации, ',

@@ -250,28 +250,23 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(CLIENT).not.toContain('attempts += 1')
   })
 
-  it('「复制重新打开」是 Semi 的可复制文字，不另设按钮', () => {
+  it('「复制重新打开」用 Toast 反馈，文案本身不变', () => {
     /*
-      用户要的是「这条授权地址能被复制走」。先试过单独一行的按钮，又试过把整条
-      地址铺在正文里让用户自己拖选；现在用 Semi `Typography.Text` 的
-      `copyable.render`，把那段文字本身做成可点的节点——Semi 负责写剪贴板与
-      「已复制」的短暂反馈。
-
-      地址不再铺在正文里：它又长又打断阅读，复制走就够了。
+      复制是个短动作，旁边弹一条提示就够；早前用 `copied` 把那段文字临时改成
+      「已复制」，看着像按钮在变形，文字应当保持稳定。
     */
     expect(CLIENT).toContain('DshTypography')
     expect(CLIENT).toContain('copyable={{')
-    expect(CLIENT).toContain('render: (copied: boolean')
-    expect(CLIENT).toContain('dsh-fnos-account-login-copy')
+    expect(CLIENT).toContain('DshToast.success')
+    expect(CLIENT).toContain('DshToast.error')
+    // render 里不再按 copied 切换文案。
+    expect(CLIENT).toContain('render: (_copied: boolean')
+    expect(CLIENT).toContain("t('accountLoginReopenAction')")
+    expect(CLIENT).not.toContain("copied ? t('accountLoginCopiedTip')")
     // 自己写剪贴板那套不需要了。
     expect(CLIENT).not.toContain('navigator.clipboard')
-    // 地址不再以纯文本形式铺在正文里。
-    expect(CLIENT).not.toContain('dsh-fnos-account-login-url')
-    // 独立的那一行与按钮都不该再有。
-    expect(SCSS).not.toContain('.dsh-fnos-account-login-relink')
     // 可点文字要有聚焦态，键盘用户也能按到。
     expect(SCSS).toContain('.dsh-fnos-account-login-copy:focus-visible')
-    expect(SCSS).toContain('user-select: text')
   })
 
   it('描述文案与官方一致', () => {

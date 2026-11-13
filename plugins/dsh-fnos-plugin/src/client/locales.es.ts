@@ -176,6 +176,7 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   accountLoginApiKeyHint: 'Usar una clave de API en lugar de una cuenta de DeepSeek.',
   accountLoginPasteTitle: 'Introduce la dirección de autorización',
   accountLoginCopiedTip: 'Copiado',
+  accountLoginCopyFailedTip: 'No se pudo copiar',
   accountLoginCopyTip: 'Copiar la dirección de autorización',
   accountLoginReopenAction: 'copia el enlace para volver a abrirla',
   accountLoginReopenPrefix: 'Si cerraste la página de autorización sin querer, ',
