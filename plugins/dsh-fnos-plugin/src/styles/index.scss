@@ -3501,6 +3501,23 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
  * 太深会抢标题，太浅又看不清形状。
  */
 /*
+ * `theme="light"` 按钮的禁用态：深色主题下必须跟随主题。
+ *
+ * 共享包主题层只覆盖了 `semi-button-solid`（`theme.scss` 的 179–206 行），
+ * `theme="light"` 走的是 Semi 自己的 `--semi-color-primary-light-default` 一档。
+ * 深色下那套值来自浅色主题（近白底 + 浅灰字），落在深色面板上几乎看不见——
+ * 截图里「应用配置」就是一个灰糊糊的圆角块。
+ *
+ * 这里按语义变量重算：底色用品牌色低透明混合，文字用次要标签色。亮暗都成立，
+ * 且与插件里其它禁用态（开关、输入框）保持同一套取值口径。
+ */
+body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, var(--dsw-alias-bg-layer-3));
+  color: var(--dsw-alias-label-tertiary);
+  opacity: 1;
+}
+
+/*
  * ===== 运行页：移动端隐藏指标卡片 =====
  *
  * 那排卡片（CPU / 内存 / 磁盘 / 下行 / 上行）是「五个数字并排」的版式，窄屏下

@@ -308,6 +308,23 @@ describe('fnOS 配置弹框', () => {
     expect(repairAt).toBeLessThan(indexAt)
   })
 
+  it('light 按钮的禁用态跟随主题，深色下不糊成灰块', () => {
+    /*
+      共享包主题层只覆盖了 `semi-button-solid` 的禁用态，`theme="light"` 走的是
+      Semi 自己的 `--semi-color-primary-light-default` 一档——深色下那套值来自浅色
+      主题（近白底 + 浅灰字），落在深色面板上几乎看不见。
+
+      真机实测修前是一个灰糊糊的圆角块；修后底色 rgb(77,78,79)、文字
+      rgb(173,178,184)，对比度 9.82（AA 要求 4.5）。
+    */
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    expect(scss).toContain('.semi-button.semi-button-light.semi-button-disabled')
+    // 用语义变量重算，不写死颜色。
+    expect(scss).toMatch(/semi-button-light\.semi-button-disabled \{[^}]*var\(--dsw-alias-brand-primary\)/u)
+    // opacity 必须归 1：半透明会再叠一层，文字更糊。
+    expect(scss).toMatch(/semi-button-light\.semi-button-disabled \{[^}]*opacity: 1/u)
+  })
+
   it('日志页：移动端收窄选择器、隐藏条数与来源', () => {
     /*
       窄屏每像素都紧张：

@@ -89,6 +89,24 @@ backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%));
 
 细节与已知坑见 [DSH Semi UI 共享包](/plugins/dsh-semi-ui)。
 
+## 按钮变体都要覆盖禁用态，且跟随主题
+
+**`theme` 的每个变体在深色下都必须可见。** 共享包主题层（`theme.scss`）只覆盖了
+`semi-button-solid` 的禁用态；`theme="light"` 走的是 Semi 自己的
+`--semi-color-primary-light-default` 一档，深色下那套值来自浅色主题——近白底 +
+浅灰字，落在深色面板上就是一个灰糊糊的圆角块（实测截图：禁用按钮完全读不出文案）。
+
+三条要求：
+
+- **禁用态也要用语义变量**：底色 `color-mix(品牌色 12%, bg-layer-3)`、文字
+  `label-tertiary`，亮暗都成立，不写死颜色；
+- **`opacity` 必须归 1**：Semi 的禁用样式默认带透明度，再叠一层会让文字更糊；
+- **对比度按 AA 核对**：正文 ≥ 4.5、大字 ≥ 3。本项目实测参考：上述取值在深色下
+  得到 9.82。
+
+新增任何 `theme` 变体的按钮时，先把它在亮/暗两套主题下各禁用一个看一眼——这是
+共享包没覆盖到的地方。
+
 ## 空状态：一律用缺省组件，禁止纯文案
 
 **任何「这里没有数据」的位置都必须用缺省组件（`DshEmpty` + 插画），不能用一行
