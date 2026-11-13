@@ -185,7 +185,8 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
   it('样式把 Semi Modal 对齐到官方数值', () => {
     // 数值出处见 `styles/index.scss` 里这段的注释表（取自官方 Modal.module.css）。
     expect(SCSS).toContain('.semi-modal-content.dsh-fnos-account-login-modal')
-    expect(SCSS).toContain('width: min(380px, 100%)')
+    // 宽度是产品要求（480，比官方 380 宽）；组件上的 width 属性会被这条覆盖。
+    expect(SCSS).toContain('width: min(480px, 100%)')
     expect(SCSS).toContain('border-radius: var(--dsw-radius-panel)')
     expect(SCSS).toContain('background: var(--dsw-alias-bg-layer-2)')
     expect(SCSS).toContain('padding: 22px 14px 12px 24px')

@@ -3289,7 +3289,11 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
  * 只作用在本组件的弹框上，不影响插件里其它 Semi Modal。
  */
 .semi-modal-content.dsh-fnos-account-login-modal {
-  width: min(380px, 100%);
+  /*
+    480 是产品要求的宽度（比官方 380 宽），靠这一行生效——组件上的
+    `width={480}` 属性会被这条 CSS 覆盖，改宽度只改这里。
+  */
+  width: min(480px, 100%);
   max-width: calc(100vw - 48px);
   /* 上下留白由 `.semi-modal` 的 margin 管，这里只管卡片本身。 */
   padding: 0 0 24px;
