@@ -106,29 +106,34 @@ describe('fnOS 配置弹框', () => {
     expect(ENTRY).toContain("t('webRestart')")
   })
 
-  it('下拉复用官方 Menu 原语，宽度与官方 `.moreMenu` 同规则', () => {
+  it('下拉宽度与字号对齐官方账号菜单', () => {
     /*
-      与侧栏「更多」是同一套原语：行高、图标列、键盘与浮层定位都不必重写。
+      实测官方账号菜单（设置 / 意见反馈 / 登录）：宽度 124px，行文字 14px / 22px。
+      见 `ui-settings-account/src/client/AccountMenu.module.css`。
 
-      宽度**照抄官方规则**：官方 `.moreMenu` 的 CSS 是
-      `width: max-content; max-width: min(480px, 100vw - 24px)`。
-      早先这里写着「官方没有任何 width 声明」，实测是错的——正因为漏了这条，
-      菜单塌到组件默认的 `min-width: 144px`，只有官方宽度的一半。
+      DSH 有两套菜单字号：通用 `Menu` 原语的行文字是 13px（「更多」菜单就是），
+      账号菜单自己覆盖成 14px。我们跟账号菜单对齐——同处侧栏底部、同为应用级操作。
 
-      不写死 288px：菜单项是数组驱动的，将来加更长的条目时宽度应当跟着长。
+      **14 是偶数**：插件样式禁止奇数 `font-size`（见 plugin-ui-standards）。
     */
-    expect(ENTRY).toContain('Menu')
-    expect(ENTRY).toContain('MenuItemButton')
-    expect(ENTRY).toContain('side="top"')
-    // 从**类名之后**截取：注释里也有 `}`，从头 slice 会截错。
-    const css = SCSS.slice(SCSS.indexOf('.dsh-fnos-footer-menu'))
-    const block = css.slice(0, css.indexOf('\n}'))
-    expect(block).toContain('width: max-content')
-    // 只有三行短文案时 `max-content` 会小于组件默认 min-width，必须显式抬到官方宽度。
-    expect(block).toContain('min-width: 288px')
-    expect(block).toContain('max-width: min(480px, calc(100vw - 24px))')
-    // 不许写死宽度：`min-width: 288px` 含有子串 `width: 288px`，所以精确匹配行首。
-    expect(block).not.toMatch(/^\s*width:\s*288px/mu)
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const block = scss.match(/\.dsh-fnos-footer-menu \{[^}]*\}/u)?.[0] ?? ''
+    expect(block).toContain('min-width: 124px')
+    expect(block).toContain('max-width: min(280px')
+    expect(block).toContain('font-size: 14px')
+
+    // 行文字要单独压：官方 Menu 原语把它写死在 itemLabel 上。
+    const label = scss.match(/\[class\*='itemLabel'\][^{]*\{[^}]*\}/u)?.[0] ?? ''
+    expect(label).toContain('font-size: 14px')
+    expect(label).toContain('line-height: 22px')
+  })
+
+  it('插件样式里没有奇数字号', () => {
+    // 偶数号在非整数 DPR 下更容易落在整像素上；档位收敛后每次调整都可感知。
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const sizes = [...scss.matchAll(/font-size: (\d+)px/gu)].map(m => Number(m[1] ?? 0))
+    const odd = [...new Set(sizes.filter(n => n % 2 === 1))]
+    expect(odd, `奇数字号: ${odd.join(', ')}`).toEqual([])
   })
 
   it('触发器用飞牛标记', () => {
