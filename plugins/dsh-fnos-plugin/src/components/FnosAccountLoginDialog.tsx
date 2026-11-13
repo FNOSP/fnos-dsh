@@ -24,7 +24,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshModal, DshInput, DshButton, DshTooltip } from '@tnnevol/dsh-semi-ui'
+import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { DshInput, DshButton } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   FNOS_ACCOUNT_LOGIN_CANCEL_ROUTE,
@@ -95,7 +96,8 @@ function matchOfficialSignInDialog(node: Element): Element | undefined {
     排除自己的对话框：它同样挂在 `#root` 之后，但类名是 `.dsh-fnos-account-login`。
   */
   if (node.getAttribute('role') !== 'presentation') return undefined
-  if (node.getAttribute('data-dsh-fnos-captured') === '1') return undefined
+  // 已隐藏的官方框跳过，否则每轮 scan 都会重复处理同一个节点。
+  if (node.getAttribute('data-dsh-fnos-hidden') === '1') return undefined
   if (node.querySelector('.dsh-fnos-account-login') !== null) return undefined
   const dialog = node.querySelector('[role="dialog"]')
   if (dialog === null) return undefined
@@ -108,22 +110,26 @@ function matchOfficialSignInDialog(node: Element): Element | undefined {
  *
  * @param dialog - 官方对话框元素。
  */
-function dismissOfficialDialog(dialog: Element): void {
+function hideOfficialDialog(dialog: Element): void {
   /*
-    点官方自己的关闭按钮——让 React 正常卸载，而不是 `remove()` 节点。直接删节点
-    会让挂载状态与 DOM 脱节，后续状态更新可能把节点又插回来或直接报错。
+    **隐藏，不卸载。**
 
-    官方结构（`ui-primitives/src/Modal.tsx`）：关闭按钮在 header 里、紧随 `<h2>`
-    之后，`<button aria-label={closeLabel}>`。取 dialog 内**第一个** aria-label
-    按钮就是这个——而不是所有 aria-label 按钮里随便挑一个。
+    最初这里是点官方关闭按钮，让 React 正常卸载——DOM 干净、看着也更好。但那样
+    会断掉「添加 API Key」这条路：官方那条业务是 `AccountOnboarding` 的
+    `useApiKey()` → `setApiKey(true)`，按钮随组件一起消失之后就再也点不到了。
+
+    改为把宿主节点（`role="presentation"` 那层）设为 `display: none`：
+    视觉上只剩我们的对话框，而官方节点仍然存活，用户选「添加 API Key」时
+    可以点它真正的按钮，业务完全由官方执行。
+
+    标记 `data-dsh-fnos-hidden` 用于去重——隐藏后 node 仍在 `#root` 之后，
+    不标记的话每轮 scan 都会重复处理。
   */
-  const close = dialog.querySelector('button[aria-label]')
-  if (close instanceof HTMLElement) {
-    close.click()
-    return
+  const host = dialog.closest('[role="presentation"]') ?? dialog.parentElement
+  if (host instanceof HTMLElement) {
+    host.style.display = 'none'
+    host.setAttribute('data-dsh-fnos-hidden', '1')
   }
-  // 兜底：headless 变体没有 header，改派 Esc（官方用 `useModalLayer` 监听）。
-  dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
 }
 
 /**
@@ -153,7 +159,7 @@ export function watchOfficialSignInDialogs(onCaptured: (dialog: Element) => void
         if (dialog !== undefined) {
           seen.add(node)
           onCaptured(dialog)
-          dismissOfficialDialog(dialog)
+          hideOfficialDialog(dialog)
         }
       }
       node = node.nextElementSibling
@@ -268,7 +274,13 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
         const label = (button.textContent ?? '').trim()
         return OFFICIAL_API_KEY_LABELS.some(item => label.includes(item))
       })
-    if (target instanceof HTMLElement) {
+    if (target instanceof HTMLElement && dialog !== undefined) {
+      // 官方框被我们设成 `display: none` 了，先放出来再点——隐藏元素点不动。
+      const host = dialog.closest('[role="presentation"]') ?? dialog.parentElement
+      if (host instanceof HTMLElement) {
+        host.style.removeProperty('display')
+        host.removeAttribute('data-dsh-fnos-hidden')
+      }
       target.click()
       setPhase('idle')
       setPasted('')
@@ -348,73 +360,67 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
 
   const waiting = phase === 'waiting' || phase === 'submitting'
 
+  /*
+    **用官方 Modal，不用 Semi。**
+
+    官方登录框是 `ui-primitives` 的 `Modal`（由 `ui-primitives` index 导出），
+    它的标题字号、关闭按钮位置、332px 内容列、24px 侧内边距、22/12 的 header
+    内边距全在 `Modal.module.css` 里。用 Semi 自己拼一套，宽高与内边距都对不上，
+    放在一起一眼能看出不是同一个弹框。
+
+    官方 Modal 直接接受 `title` / `description` / `footer`，所以我们只需要提供
+    内容与按钮，几何全部由官方负责——这也顺带解决了底部间距问题。
+  */
   return (
-    <DshModal
-      visible={open}
+    <Modal
+      open={open}
+      onClose={close}
+      closeLabel={t('close')}
       title={waiting ? t('accountLoginPasteTitle') : t('accountLoginTitle')}
-      onCancel={close}
-      footer={null}
-      width={520}
+      description={waiting ? t('accountLoginPasteHint') : t('accountLoginIntro')}
+      footer={waiting
+        ? [
+          <DshButton key="cancel" onClick={close}>{t('cancel')}</DshButton>,
+          <DshButton
+            key="authorize"
+            theme="solid"
+            type="primary"
+            loading={phase === 'submitting'}
+            onClick={() => { void submitCallback() }}
+          >
+            {t('accountLoginAuthorize')}
+          </DshButton>,
+        ]
+        : [
+          /*
+            「添加 API Key」**走官方业务**：官方那条路是 `AccountOnboarding` 的
+            `useApiKey()` → `setApiKey(true)` → 切到 API Key 编辑器，属于组件内部
+            状态，插件复刻不了。所以代点官方框里的同名按钮——用户点我们的按钮
+            等于点官方的。官方框已被我们设成 `display: none`，点之前会先放出来。
+          */
+          <DshButton key="apikey" onClick={openOfficialApiKeyEditor}>{t('accountLoginApiKey')}</DshButton>,
+          <DshButton
+            key="signin"
+            theme="solid"
+            type="primary"
+            loading={phase === 'starting'}
+            onClick={() => { void startSignIn() }}
+          >
+            {t('accountLoginSignIn')}
+          </DshButton>,
+        ]}
     >
-      <div className="dsh-fnos-account-login">
-        {waiting ? (
-          <>
-            <p className="dsh-fnos-account-login-hint">{t('accountLoginPasteHint')}</p>
-            <DshInput
-              value={pasted}
-              /* 端口由宿主转发时决定，这里只给形状；写死端口会与实际改写的值对不上。 */
-              placeholder="http://127.0.0.1:<端口>/oauth/callback?code=…&state=…"
-              onChange={(value: string) => { setPasted(value) }}
-            />
-          </>
-        ) : (
-          <p className="dsh-fnos-account-login-hint">{t('accountLoginIntro')}</p>
-        )}
-
-        {message === undefined ? null : (
-          <p className="dsh-fnos-account-login-error" role="alert">{message}</p>
-        )}
-
-        <div className="dsh-fnos-account-login-actions">
-          {waiting ? (
-            <>
-              <DshButton onClick={close}>{t('cancel')}</DshButton>
-              <DshButton
-                theme="solid"
-                type="primary"
-                loading={phase === 'submitting'}
-                onClick={() => { void submitCallback() }}
-              >
-                {t('accountLoginAuthorize')}
-              </DshButton>
-            </>
-          ) : (
-            <>
-              {/*
-                「添加 API Key」**走官方业务**：官方那条路是
-                `AccountOnboarding` 里的 `useApiKey()` → `setApiKey(true)` →
-                切到 `DeepSeekOnboardingDialog` 的 API Key 编辑器。那是一个组件
-                内部状态，插件无法直接复刻。
-
-                所以这里不自己实现，而是去点官方框里的同名按钮——用户点我们的
-                按钮等于点官方的，业务完全一致。若官方框已不在（例如被关掉了），
-                退化为关闭对话框并把用户引到设置页的账号分区。
-              */}
-              <DshTooltip content={t('accountLoginApiKeyHint')}>
-                <DshButton onClick={openOfficialApiKeyEditor}>{t('accountLoginApiKey')}</DshButton>
-              </DshTooltip>
-              <DshButton
-                theme="solid"
-                type="primary"
-                loading={phase === 'starting'}
-                onClick={() => { void startSignIn() }}
-              >
-                {t('accountLoginSignIn')}
-              </DshButton>
-            </>
-          )}
-        </div>
-      </div>
-    </DshModal>
+      {waiting ? (
+        <DshInput
+          value={pasted}
+          /* 端口由宿主转发时决定，这里只给形状；写死端口与实际改写的值对不上。 */
+          placeholder="http://127.0.0.1:<端口>/oauth/callback?code=…&state=…"
+          onChange={(value: string) => { setPasted(value) }}
+        />
+      ) : null}
+      {message === undefined ? null : (
+        <p className="dsh-fnos-account-login-error" role="alert">{message}</p>
+      )}
+    </Modal>
   )
 }

@@ -77,10 +77,29 @@ describe('账号登录：官方框拦截', () => {
     expect(CLIENT).toContain("querySelector('.dsh-fnos-account-login') !== null")
   })
 
-  it('点官方自己的关闭按钮，而不是 remove 节点', () => {
-    // remove 会让 React 的挂载状态与 DOM 脱节，后续更新可能报错或重复插入。
-    expect(CLIENT).toContain('button[aria-label]')
-    expect(CLIENT).toContain('.click()')
+  it('官方框隐藏而非卸载，保住「添加 API Key」这条出口', () => {
+    /*
+      最初是点官方关闭按钮让 React 卸载（DOM 干净）。但那样会断掉「添加 API Key」：
+      官方业务是 `useApiKey()` → `setApiKey(true)`，按钮随组件消失后就点不到了。
+
+      改为把宿主节点设成 `display: none`：只剩我们的框可见，官方节点仍存活，
+      用户选「添加 API Key」时能点它真正的按钮，业务由官方执行。
+    */
+    expect(CLIENT).toContain('hideOfficialDialog')
+    expect(CLIENT).toContain("host.style.display = 'none'")
+    // 不许可去掉节点或点官方关闭按钮。
+    expect(CLIENT).not.toContain('dismissOfficialDialog')
+    expect(CLIENT).not.toContain('.remove()')
+  })
+
+  it('隐藏后要打标记，否则每轮 scan 重复处理', () => {
+    expect(CLIENT).toContain("host.setAttribute('data-dsh-fnos-hidden', '1')")
+    expect(CLIENT).toContain("getAttribute('data-dsh-fnos-hidden') === '1'")
+  })
+
+  it('代点官方按钮前先把官方框放出来', () => {
+    // `display: none` 的元素点不动。
+    expect(CLIENT).toContain('host.style.removeProperty(\'display\')')
   })
 
   it('插件加载时就扫一次，并补微任务与属性观察', () => {
@@ -155,7 +174,7 @@ describe('账号登录：三个按钮的语义', () => {
       收起之后 React 会卸载节点，`querySelector` 就找不到按钮了。
       所以回调里先存、再 dismiss。
     */
-    expect(CLIENT).toMatch(/onCaptured\(dialog\)\s*\n\s*dismissOfficialDialog\(dialog\)/u)
+    expect(CLIENT).toMatch(/onCaptured\(dialog\)\s*\n\s*hideOfficialDialog\(dialog\)/u)
     // 引用由浮层持有并传入，两边各存一份会导致「组件里的 ref 永远 undefined」。
     expect(CLIENT).toContain('officialDialogRef: { current: Element | undefined }')
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
@@ -176,21 +195,32 @@ describe('账号登录：三个按钮的语义', () => {
   })
 })
 
-describe('账号登录：弹框几何与官方一致', () => {
+describe('账号登录：弹框几何交给官方', () => {
   const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
 
-  it('按钮行底部留出与官方弹框一致的 24px', () => {
+  it('用官方 ui-primitives 的 Modal，不用 Semi', () => {
     /*
-      这里 `footer={null}`（按钮画在内容里，因为要按状态切换两组），于是 Semi 给
-      footer 的 `margin: 24px 0` 不生效，按钮会贴到弹框底边。官方
-      `ui-primitives/src/Modal.module.css` 的 dialog 是 `padding: 0 0 24px`。
+      官方登录框是 `ui-primitives` 的 Modal：标题字号、关闭按钮位置、332px 内容列、
+      22/12 的 header 内边距全在 `Modal.module.css` 里。用 Semi 自己拼一套，宽高与
+      内边距必然对不上，放在一起一眼能看出不是同一个弹框。
     */
-    const idx = SCSS.indexOf('.dsh-fnos-account-login-actions {')
-    expect(idx).toBeGreaterThan(-1)
-    const block = SCSS.slice(idx, SCSS.indexOf('\n}', idx)).replace(/\/\*[\s\S]*?\*\//gu, '')
-    expect(block).toContain('margin-bottom: 24px')
-    // 主操作在最右，与 Semi footer 一致。
-    expect(block).toContain('justify-content: flex-end')
-    expect(block).toContain('gap: 8px')
+    expect(CLIENT).toContain("from '@deepseek-ai/dsh-client-ui-primitives'")
+    expect(CLIENT).toContain('<Modal')
+    expect(CLIENT).not.toContain('DshModal')
+  })
+
+  it('不自己写弹框布局与间距', () => {
+    // 之前手写 `margin-bottom: 24px` 补按钮间距——那是 Semi footer={null} 的补丁。
+    // 用官方 Modal 之后几何由它负责，自定义样式只会再次跑偏。
+    expect(SCSS).not.toContain('dsh-fnos-account-login-actions')
+    expect(SCSS).not.toContain('dsh-fnos-account-login-hint')
+    // 只保留错误提示（那是我们自己加的内容，官方没有对应元素）。
+    expect(SCSS).toContain('.dsh-fnos-account-login-error')
+  })
+
+  it('描述文案与官方一致', () => {
+    // 官方 `ui-settings-account/src/client/locales.ts` 的 loginDescription。
+    const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
+    expect(locales).toContain('你的项目和文件保存在本地。')
   })
 })

@@ -3264,44 +3264,15 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 }
 
 /*
- * 账号登录对话框。
+ * 账号登录对话框：**只保留错误提示的样式**。
  *
- * 内容区只有一段说明、一个输入框与一行按钮，不需要卡片或分隔线；间距统一交给
- * 这里的 `gap`，避免每块自己写 margin 后互相叠出双倍空隙。
+ * 弹框本体用官方的 `ui-primitives` Modal，标题/描述/内容列/内边距/按钮行
+ * 全部由它负责（`Modal.module.css`）。自己再写一套布局与间距，几何必然与
+ * 官方对不上——这正是之前「按钮贴底」和「宽高不一致」的来源。
  */
-.dsh-fnos-account-login {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.dsh-fnos-account-login-hint {
-  margin: 0;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 13px;
-  line-height: 20px;
-}
-
 .dsh-fnos-account-login-error {
-  margin: 0;
+  margin: 8px 0 0;
   color: var(--dsw-alias-state-error-primary, #e5484d);
   font-size: 13px;
   line-height: 20px;
-}
-
-/*
- * 按钮行：右对齐 + **底部留出与官方弹框一致的间距**。
- *
- * 这个对话框用的是 `footer={null}`（按钮画在内容里，因为要按状态切换两组按钮），
- * 于是 Semi 给 footer 的 `margin: 24px 0` 就不生效了——按钮贴在弹框底边上，
- * 和官方其它弹框放在一起会明显看出高矮不一。
- *
- * 官方 `ui-primitives/src/Modal.module.css` 的做法是 dialog 本身
- * `padding: 0 0 24px`，所以这里补同样的 24px 下边距。
- */
-.dsh-fnos-account-login-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-bottom: 24px;
 }
