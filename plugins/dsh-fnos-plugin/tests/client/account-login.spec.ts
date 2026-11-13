@@ -137,6 +137,25 @@ describe('账号登录：只补官方缺的那一屏', () => {
     expect(overlay).not.toContain('while (node !== null)')
   })
 
+  it('退出登录的确认框优先级最高，绝不拦截', () => {
+    /*
+      退出登录确认框里「登录」出现不止一次：标题「退出登录」、按钮「退出登录」、
+      正文「你仍可以登录此账号」。通用判据会命中它，而那是危险操作的二次确认，
+      被压掉、换成授权弹框属于严重错误。
+
+      所以排除名单要先短路，再看登录判据——顺序写反就等于没排除。
+    */
+    const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    expect(overlay).toContain('EXCLUDE_MARKERS')
+    expect(overlay).toContain("'退出登录'")
+    expect(overlay).toContain('Sign out')
+    // 排除必须在登录判据之前。
+    const excludeAt = overlay.indexOf('EXCLUDE_MARKERS.some')
+    const matchAt = overlay.indexOf('SIGN_IN_MARKERS.some')
+    expect(excludeAt).toBeGreaterThan(-1)
+    expect(excludeAt).toBeLessThan(matchAt)
+  })
+
   it('认「登录 DeepSeek 账号」「登录」，不认「开始使用」', () => {
     /*
       官方两处文案撞车：

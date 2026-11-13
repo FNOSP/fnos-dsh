@@ -74,6 +74,25 @@ const SIGN_IN_MARKERS = [
 ]
 
 /**
+ * 绝不拦截的文案，**优先级最高**。
+ *
+ * 退出登录的确认框里「登录」出现了不止一次（标题「退出登录」、按钮「退出
+ * 登录」、正文「你仍可以登录此账号」），会被上面那条通用判据命中。它是危险
+ * 操作的二次确认，被压掉、换成我们的授权弹框属于严重错误，所以先按这份名单
+ * 短路排除，再看登录判据。
+ */
+const EXCLUDE_MARKERS = [
+  // 中文
+  '退出登录',
+  // 英文
+  'Sign out', 'Log out',
+  // 德文 / 西班牙文 / 法文 / 意大利文
+  'Abmelden', 'Cerrar sesión', 'Se déconnecter', 'Esci',
+  // 日文 / 韩文 / 俄文
+  'ログアウト', '로그아웃', 'Выйти',
+]
+
+/**
  * 在 `body` 的**直接子节点**里找官方登录框。
  *
  * 官方弹层由 portal 挂到 `body` 直下，所以只需要看这一层，不必递归整棵树，
@@ -100,6 +119,8 @@ function findSignInDialog(): { dialog: Element, host: Element } | undefined {
     const dialog = node.querySelector('[role="dialog"]')
     if (dialog === null) return false
     const text = dialog.textContent ?? ''
+    // 排除优先：退出登录这类确认框绝不能被当成登录框。
+    if (EXCLUDE_MARKERS.some(marker => text.includes(marker))) return false
     return SIGN_IN_MARKERS.some(marker => text.includes(marker))
   })
   if (host === undefined) return undefined
