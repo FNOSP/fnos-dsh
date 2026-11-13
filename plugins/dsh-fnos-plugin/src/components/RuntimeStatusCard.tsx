@@ -17,6 +17,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import dayjs from 'dayjs'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -217,7 +218,16 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
     const chart = chartRef.current
     if (chart === undefined) return
     const data = toSeries(frames)
-    const axis = frames.map(f => new Date(f.at).toLocaleTimeString(undefined, { minute: '2-digit', second: '2-digit' }))
+    /*
+      **时间格式化统一走 dayjs，不用 `toLocaleTimeString`。**
+
+      后者依赖运行时的 locale 数据与实现差异（不同浏览器的分隔符、是否补零、12/24
+      小时制都可能不同），同一张图在不同设备上刻度宽度会变、对不齐；而且它没有
+      「时分秒」这一档——`hour` 选项一加就容易出现「下午3:04:05」这种长文案。
+
+      `HH:mm:ss` 是定长 8 字符，刻度宽度稳定，图表左右两列也容易对齐。
+    */
+    const axis = frames.map(f => dayjs(f.at).format('HH:mm:ss'))
     /*
       2×2 四宫格：CPU / 内存 / 磁盘 / 网络。网络格画两条线（下行、上行）。
 
@@ -244,12 +254,35 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
       左列 6%–48%，右列 52.83%–94%：两列之间留 4.83%（559px 下 **27px**），
       比原 22px 多 5px。左右两侧各留 6%，视觉上对称。
     */
-    const cell = (i: number): { left: string, top: string, width: string, height: string } => ({
-      left: i % 2 === 0 ? '6%' : '52.83%',
-      top: Math.floor(i / 2) === 0 ? '12%' : '58%',
-      width: i % 2 === 0 ? '42%' : '41.17%',
-      height: '34%',
-    })
+    /*
+      **窄屏改成一行一个。**
+
+      2×2 在手机上一格只有 170px 左右，两条时间轴刻度挤在一起、图例放不下，
+      趋势基本读不出来。窄屏改为纵向四行，每格占满宽度。
+
+      用**百分比定位**而不是固定像素：容器高度由 CSS 决定（窄屏会调高），
+      这里只负责在容器内均分。
+    */
+    const narrow = globalThis.matchMedia('(max-width: 767px)').matches
+    const cell = (i: number): { left: string, top: string, width: string, height: string } => {
+      if (narrow) {
+        /*
+          四行等分。
+
+          纵轴名字画在网格**上方**（`nameGap`），所以每格要给名字留出空间，否则
+          「内存 (MB)」会压到上一格的横轴刻度上——实测就是这样叠在一起的。
+
+          6% 顶部留白 + 每格 23% 高（含名字区），格间留 2% 呼吸。
+        */
+        return { left: '10%', top: `${4 + i * 24}%`, width: '86%', height: '18%' }
+      }
+      return {
+        left: i % 2 === 0 ? '6%' : '52.83%',
+        top: Math.floor(i / 2) === 0 ? '12%' : '58%',
+        width: i % 2 === 0 ? '42%' : '41.17%',
+        height: '34%',
+      }
+    }
     /*
       tooltip 必须带单位：只有数字时，0.02 到底是 MB/s 还是 KB/s 看不出来，
       跨量级比较会误判。这里用 valueFormatter 统一补单位，避免每条系列各写一遍。
@@ -271,12 +304,29 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
     chart.setOption({
       animation: false,
       legend: { show: false },
+      /*
+        tooltip 用自定义 formatter，解决两个问题：
+
+        1. **重复行**：series 名与 y 轴 name 都带单位（`内存 (MB)`），axis trigger 会
+           把两者都列出来，看起来像同一项出现两次。这里只渲染 series 本身。
+        2. **时间**：标题行用 `HH:mm:ss`，与横轴刻度同一格式。
+      */
       tooltip: {
         trigger: 'axis',
         confine: true,
-        // 时间轴取第一条，四格共用同一组采样时刻。
         axisPointer: { type: 'line' },
-        valueFormatter: (value: unknown) => (typeof value === 'number' ? String(value) : '—'),
+        formatter: (params: unknown) => {
+          const list = Array.isArray(params) ? params : [params]
+          const first = list[0] as { axisValue?: string } | undefined
+          const head = first?.axisValue ?? ''
+          const rows = list.map((item) => {
+            const p0 = item as { marker?: string, seriesName?: string, data?: unknown }
+            const raw = typeof p0.data === 'number' ? p0.data : undefined
+            const value = raw === undefined ? '—' : String(raw)
+            return `${p0.marker ?? ''}${p0.seriesName ?? ''}<strong style="float:right;margin-left:16px">${value}</strong>`
+          })
+          return [`<div style="margin-bottom:4px">${head}</div>`, ...rows].join('<br/>')
+        },
       },
       xAxis: [0, 1, 2, 3].map(i => ({
         type: 'category',
@@ -323,8 +373,7 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
           lineStyle: { width: 1.4 },
           areaStyle: { opacity: idx === NET_CELL_INDEX ? 0.08 : 0.12 },
           connectNulls: false,
-          // 单位在系列名里已带，tooltip 直接显示「名称: 值 单位」。
-          tooltip: { valueFormatter: (v: unknown) => (typeof v === 'number' ? `${String(v)} ${s.unit}` : '—') },
+          // 值不带单位：单位已在系列名里，再拼一次会变成「内存 (MB) 531 MB」。
         }
       }),
     }, { notMerge: true })

@@ -25,6 +25,12 @@ export const dshSemiClientDeps = {
       /^react-window(?:\/|$)/u,
       /^memoize-one(?:\/|$)/u,
       /^@babel\/runtime(?:\/|$)/u,
+      /*
+        dayjs 是插件的直接依赖。不内联就会在产物里留下 `require("dayjs")`，
+        而宿主运行时没有这个包——插件整层加载失败（实测页面报
+        「Failed to load plugins | @tnnevol/dsh-fnos」）。
+      */
+      /^dayjs(?:\/|$)/u,
     ],
   },
   alias: {

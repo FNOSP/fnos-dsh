@@ -228,6 +228,36 @@ describe('fnOS 配置弹框', () => {
     expect(DIALOG).toContain("id: 'logs'")
   })
 
+  it('运行页图表：时间用 dayjs 格式化，tooltip 不重复', () => {
+    /*
+      三件事：
+
+      1. 时间走 dayjs 的 `HH:mm:ss`，不用 `toLocaleTimeString`——后者依赖运行时
+         locale，分隔符/补零/12-24 小时制都可能不同，跨设备刻度宽度会变；
+      2. tooltip 的 series 名与 y 轴 name 都带单位，axis trigger 会把两者都列出来，
+         看起来像同一项重复——用自定义 formatter 只渲染 series；
+      3. 窄屏一行一个。
+    */
+    const card = readFileSync(new URL('../../src/components/RuntimeStatusCard.tsx', import.meta.url), 'utf8')
+    expect(card).toContain("from 'dayjs'")
+    expect(card).toContain("format('HH:mm:ss')")
+    // 剥掉注释再看：说明文字里会提到旧写法（解释为什么改），不算声明。
+    const code = card.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
+    expect(code).not.toContain('toLocaleTimeString')
+    // 自定义 formatter 只渲染 series，不再列 y 轴 name。
+    expect(card).toContain('formatter: (params: unknown)')
+    expect(card).toContain('p0.seriesName')
+    // 窄屏单列。
+    expect(card).toContain("matchMedia('(max-width: 767px)')")
+  })
+
+  it('dayjs 要内联进产物，否则宿主加载插件整层失败', () => {
+    // 不内联会在产物里留下 `require("dayjs")`，宿主运行时没有这个包——实测页面报
+    // 「Failed to load plugins | @tnnevol/dsh-fnos」。
+    const deps = readFileSync(new URL('../../../../packages/dsh-semi-ui/tsdown-client-deps.ts', import.meta.url), 'utf8')
+    expect(deps).toContain('/^dayjs(?:\\/|$)/u')
+  })
+
   it('运行页：移动端隐藏指标卡片，图表文字跟随主题', () => {
     /*
       指标卡片是「五个数字并排」的版式，窄屏下每格被压到只剩一个字宽，数值频繁

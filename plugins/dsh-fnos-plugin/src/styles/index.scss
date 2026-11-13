@@ -3519,6 +3519,16 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
   .dsh-fnos-runtime-now {
     display: none;
   }
+
+  /*
+    图表从 2×2 改成一行一个后需要更高：四格纵向排列，每格若按原来的 340px 均分
+    只有 85px，曲线几乎压成一条直线。
+
+    600px 下每格约 120px（扣掉间隙），足够看出趋势。
+  */
+  .dsh-fnos-runtime-chart {
+    height: 600px;
+  }
 }
 
 .dsh-fnos-config-empty,
