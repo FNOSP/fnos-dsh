@@ -58,20 +58,22 @@ describe('账号登录：回调改道', () => {
 })
 
 describe('账号登录：官方框拦截', () => {
-  it('认 #root 之后的 dialog，而不是只认 presentation', () => {
+  it('认 #root 之后 role="presentation" 的节点', () => {
     /*
-      真机实测：官方弹框的外层容器 role 是 null，`presentation` 只出现在某些
-      变体上。按 role 过滤会让拦截在真机上完全不生效。
+      官方 `ui-primitives/src/Modal.tsx` 最外层容器固定是
+      `<div className={css.root} role="presentation">`，内部才是 `role="dialog"`。
+
+      `#root` 之后是弹层专属区域（官方与我们都用 portal 挂到这里），
+      应用自身内容都在 `#root` 里面。
     */
     expect(CLIENT).toContain("getElementById('root')")
     expect(CLIENT).toContain('nextElementSibling')
+    expect(CLIENT).toContain("getAttribute('role') !== 'presentation'")
     expect(CLIENT).toContain('querySelector(\'[role="dialog"]\')')
-    // 不能把 role 当成硬性前提。
-    expect(CLIENT).not.toContain("getAttribute('role') !== 'presentation'")
   })
 
   it('不把自己收掉', () => {
-    // 我们的对话框也在 #root 之后，必须排除。
+    // 我们的对话框同样挂在 #root 之后，必须排除。
     expect(CLIENT).toContain("querySelector('.dsh-fnos-account-login') !== null")
   })
 
@@ -133,5 +135,43 @@ describe('账号登录：交互细节', () => {
   it('契约里的路由前缀与其他插件路由一致', () => {
     expect(CONTRACT).toContain("'/plugins/dsh-fnos/account/login-relay'")
     expect(CONTRACT).toContain("'/plugins/dsh-fnos/account/login-start'")
+  })
+})
+
+describe('账号登录：三个按钮的语义', () => {
+  it('「添加 API Key」走官方业务，不自己实现', () => {
+    /*
+      官方那条路是 `AccountOnboarding` 的 `useApiKey()` → `setApiKey(true)`，
+      属于组件内部状态，插件复刻不了。所以代点官方框里的同名按钮。
+    */
+    expect(CLIENT).toContain('openOfficialApiKeyEditor')
+    expect(CLIENT).toContain('OFFICIAL_API_KEY_LABELS')
+    // 不能只是「关掉对话框」了事。
+    expect(CLIENT).not.toContain("onClick={onClose}>{t('accountLoginApiKey')}")
+  })
+
+  it('官方框引用在收起之前保存', () => {
+    /*
+      收起之后 React 会卸载节点，`querySelector` 就找不到按钮了。
+      所以回调里先存、再 dismiss。
+    */
+    expect(CLIENT).toMatch(/onCaptured\(dialog\)\s*\n\s*dismissOfficialDialog\(dialog\)/u)
+    // 引用由浮层持有并传入，两边各存一份会导致「组件里的 ref 永远 undefined」。
+    expect(CLIENT).toContain('officialDialogRef: { current: Element | undefined }')
+    const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    expect(overlay).toContain('officialDialogRef')
+    expect(overlay).toContain('watchOfficialSignInDialogs((dialog)')
+  })
+
+  it('「授权」是提交回调地址的按钮文案', () => {
+    expect(CLIENT).toContain("t('accountLoginAuthorize')")
+    const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
+    expect(locales).toContain("accountLoginAuthorize: '授权'")
+  })
+
+  it('不改官方账号菜单', () => {
+    // 用户明确要求菜单保持官方原样，只在 DOM 层收起登录框。
+    expect(CLIENT).not.toContain('settings.launcher')
+    expect(CLIENT).not.toContain('priority: -1')
   })
 })

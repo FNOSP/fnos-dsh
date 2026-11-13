@@ -62,6 +62,18 @@ const OFFICIAL_TITLES = [
 ]
 
 /**
+ * 官方「添加 API Key」按钮的文案。
+ *
+ * 用于在我们自己的对话框里代点官方那个按钮——官方引导的 API Key 业务是组件
+ * 内部状态（`setApiKey(true)`），插件复刻不了，只能借它的入口。
+ */
+const OFFICIAL_API_KEY_LABELS = [
+  '添加 API Key', '添加 API key', 'Add an API Key', 'Add an API key', 'Add API key',
+  'API-Schlüssel hinzufügen', 'Añadir clave de API', 'Ajouter une clé API',
+  'Aggiungi chiave API', 'API キーを追加', 'API 키 추가', 'Добавить ключ API',
+]
+
+/**
  * 判断一个节点是不是官方账号登录框。
  *
  * 只认 `#root` **之后**的兄弟节点：官方弹层用 portal 挂到 `body`，排在 `#root`
@@ -72,17 +84,18 @@ const OFFICIAL_TITLES = [
  */
 function matchOfficialSignInDialog(node: Element): Element | undefined {
   /*
-    **不能只认 `role="presentation"`。**
+    判据（用户指定，与官方 `Modal` 的真实结构一致）：
 
-    真机实测：官方弹框的外层容器是个普通 `div`，`role` 为 null；`role="presentation"`
-    只出现在某些变体上。按 role 过滤会让拦截在真机上完全不生效——这正是第一版
-    翻过的车（授权页都打开了，官方框却留在原地）。
+    - 节点在 `#root` **之后**（弹层都用 portal 挂到 body，排在 `#root` 后面）；
+    - 该节点 `role="presentation"` —— 这是官方 `Modal.tsx` 最外层容器的固定属性
+      （`<div className={css.root} role="presentation">`）；
+    - 内部 `[role="dialog"]` 的文案命中登录框标题（`等待登录` / `登录 DeepSeek 账号`
+      / `开始使用` 等，九种语言）。
 
-    改为认「`#root` 之后的节点里有 `[role="dialog"]` 且文案命中标题」。`#root`
-    之后的区域本来就是弹层专属（官方与我们都用它），不会误伤应用内容。
+    排除自己的对话框：它同样挂在 `#root` 之后，但类名是 `.dsh-fnos-account-login`。
   */
+  if (node.getAttribute('role') !== 'presentation') return undefined
   if (node.getAttribute('data-dsh-fnos-captured') === '1') return undefined
-  // 我们自己的对话框也在这个区域，必须排除，否则会被自己收掉。
   if (node.querySelector('.dsh-fnos-account-login') !== null) return undefined
   const dialog = node.querySelector('[role="dialog"]')
   if (dialog === null) return undefined
@@ -96,13 +109,20 @@ function matchOfficialSignInDialog(node: Element): Element | undefined {
  * @param dialog - 官方对话框元素。
  */
 function dismissOfficialDialog(dialog: Element): void {
-  // 官方关闭按钮是 dialog 内带 aria-label 的按钮（通常是「关闭」/「Close」）。
+  /*
+    点官方自己的关闭按钮——让 React 正常卸载，而不是 `remove()` 节点。直接删节点
+    会让挂载状态与 DOM 脱节，后续状态更新可能把节点又插回来或直接报错。
+
+    官方结构（`ui-primitives/src/Modal.tsx`）：关闭按钮在 header 里、紧随 `<h2>`
+    之后，`<button aria-label={closeLabel}>`。取 dialog 内**第一个** aria-label
+    按钮就是这个——而不是所有 aria-label 按钮里随便挑一个。
+  */
   const close = dialog.querySelector('button[aria-label]')
   if (close instanceof HTMLElement) {
     close.click()
     return
   }
-  // 兜底：改为对浮动容器的定位元素派发 Esc，官方 Modal 监听它。
+  // 兜底：headless 变体没有 header，改派 Esc（官方用 `useModalLayer` 监听）。
   dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
 }
 
@@ -116,7 +136,7 @@ function dismissOfficialDialog(dialog: Element): void {
  * @param onCaptured - 成功收起一个官方框时回调。
  * @returns 停止观察的函数。
  */
-export function watchOfficialSignInDialogs(onCaptured: () => void): () => void {
+export function watchOfficialSignInDialogs(onCaptured: (dialog: Element) => void): () => void {
   if (typeof document === 'undefined' || document.body === null) return () => undefined
 
   const seen = new WeakSet<Element>()
@@ -132,8 +152,8 @@ export function watchOfficialSignInDialogs(onCaptured: () => void): () => void {
         const dialog = matchOfficialSignInDialog(node)
         if (dialog !== undefined) {
           seen.add(node)
+          onCaptured(dialog)
           dismissOfficialDialog(dialog)
-          onCaptured()
         }
       }
       node = node.nextElementSibling
@@ -169,6 +189,14 @@ export interface FnosAccountLoginDialogProps {
   readonly t: Translate
   /** 关闭回调。 */
   readonly onClose: () => void
+  /**
+   * 最近一次被收起的官方对话框（由浮层容器持有）。
+   *
+   * 用 props 传入而不是组件内部 `useRef`：监听器在**浮层容器**里启动，
+   * 收起官方框的动作也发生在那里。两边各存一份会出现「组件里的 ref 永远是
+   * undefined」这种沉默失效。
+   */
+  readonly officialDialogRef: { current: Element | undefined }
 }
 
 /**
@@ -178,9 +206,10 @@ export interface FnosAccountLoginDialogProps {
  * @param props.open - 是否展现。
  * @param props.t - 翻译函数。
  * @param props.onClose - 关闭回调。
+ * @param props.officialDialogRef - 浮层持有的官方对话框引用。
  * @returns 对话框元素。
  */
-export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDialogProps): React.ReactNode {
+export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: FnosAccountLoginDialogProps): React.ReactNode {
   const [phase, setPhase] = useState<Phase>('idle')
   const [pasted, setPasted] = useState('')
   const [message, setMessage] = useState<string>()
@@ -220,6 +249,35 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
       setMessage(error instanceof Error ? error.message : String(error))
     }
   }, [t])
+
+  /**
+   * 「添加 API Key」：走官方业务。
+   *
+   * 官方那条路是 `AccountOnboarding` 的 `useApiKey()` → `setApiKey(true)`，
+   * 属于组件内部状态，插件无法直接设置。唯一能触发的就是点官方框里的同名按钮。
+   *
+   * 官方框此刻已经被我们收起了（DOM 还在，只是被点关闭后由 React 卸载），所以
+   * 实际做法是：若仍能拿到官方框就点它的按钮；拿不到时退化为关闭本对话框。
+   */
+  const openOfficialApiKeyEditor = useCallback((): void => {
+    const dialog = officialDialogRef.current
+    // 官方「添加 API Key」按钮：文案匹配（多语言覆盖在 OFFICIAL_API_KEY_LABELS）。
+    const target = dialog === undefined
+      ? undefined
+      : [...dialog.querySelectorAll('button')].find(button => {
+        const label = (button.textContent ?? '').trim()
+        return OFFICIAL_API_KEY_LABELS.some(item => label.includes(item))
+      })
+    if (target instanceof HTMLElement) {
+      target.click()
+      setPhase('idle')
+      setPasted('')
+      onClose()
+      return
+    }
+    // 官方框已不可用：退化为关闭，让用户从设置页进入 API Key 配置。
+    onClose()
+  }, [onClose, officialDialogRef])
 
   /** 提交粘贴回来的回调地址。 */
   const submitCallback = useCallback(async (): Promise<void> => {
@@ -333,11 +391,17 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
           ) : (
             <>
               {/*
-                保留「添加 API Key」这个出口：官方引导里登录与 API Key 是并列的
-                两条路，把登录换掉之后不能把另一条也堵死。
+                「添加 API Key」**走官方业务**：官方那条路是
+                `AccountOnboarding` 里的 `useApiKey()` → `setApiKey(true)` →
+                切到 `DeepSeekOnboardingDialog` 的 API Key 编辑器。那是一个组件
+                内部状态，插件无法直接复刻。
+
+                所以这里不自己实现，而是去点官方框里的同名按钮——用户点我们的
+                按钮等于点官方的，业务完全一致。若官方框已不在（例如被关掉了），
+                退化为关闭对话框并把用户引到设置页的账号分区。
               */}
               <DshTooltip content={t('accountLoginApiKeyHint')}>
-                <DshButton onClick={onClose}>{t('accountLoginApiKey')}</DshButton>
+                <DshButton onClick={openOfficialApiKeyEditor}>{t('accountLoginApiKey')}</DshButton>
               </DshTooltip>
               <DshButton
                 theme="solid"
