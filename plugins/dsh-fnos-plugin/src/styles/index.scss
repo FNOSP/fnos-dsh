@@ -3289,9 +3289,19 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
   line-height: 20px;
 }
 
-/* 按钮右对齐：与 Semi 弹框的 footer 一致，主操作在最右。 */
+/*
+ * 按钮行：右对齐 + **底部留出与官方弹框一致的间距**。
+ *
+ * 这个对话框用的是 `footer={null}`（按钮画在内容里，因为要按状态切换两组按钮），
+ * 于是 Semi 给 footer 的 `margin: 24px 0` 就不生效了——按钮贴在弹框底边上，
+ * 和官方其它弹框放在一起会明显看出高矮不一。
+ *
+ * 官方 `ui-primitives/src/Modal.module.css` 的做法是 dialog 本身
+ * `padding: 0 0 24px`，所以这里补同样的 24px 下边距。
+ */
 .dsh-fnos-account-login-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  margin-bottom: 24px;
 }

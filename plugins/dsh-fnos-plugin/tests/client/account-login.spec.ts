@@ -175,3 +175,22 @@ describe('账号登录：三个按钮的语义', () => {
     expect(CLIENT).not.toContain('priority: -1')
   })
 })
+
+describe('账号登录：弹框几何与官方一致', () => {
+  const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+
+  it('按钮行底部留出与官方弹框一致的 24px', () => {
+    /*
+      这里 `footer={null}`（按钮画在内容里，因为要按状态切换两组），于是 Semi 给
+      footer 的 `margin: 24px 0` 不生效，按钮会贴到弹框底边。官方
+      `ui-primitives/src/Modal.module.css` 的 dialog 是 `padding: 0 0 24px`。
+    */
+    const idx = SCSS.indexOf('.dsh-fnos-account-login-actions {')
+    expect(idx).toBeGreaterThan(-1)
+    const block = SCSS.slice(idx, SCSS.indexOf('\n}', idx)).replace(/\/\*[\s\S]*?\*\//gu, '')
+    expect(block).toContain('margin-bottom: 24px')
+    // 主操作在最右，与 Semi footer 一致。
+    expect(block).toContain('justify-content: flex-end')
+    expect(block).toContain('gap: 8px')
+  })
+})
