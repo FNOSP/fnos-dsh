@@ -248,7 +248,7 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
   it('粘贴框标题是「填写授权地址」', () => {
     // 只描述用户要做的事，不再复述「完成授权后」——授权是否完成由官方那屏交代。
     const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
-    expect(locales).toContain("accountLoginPasteTitle: '填写授权地址'")
+    expect(locales).toContain("accountLoginPasteTitle: '填写重定向地址'")
     expect(locales).not.toContain('完成授权后，把地址粘回来')
   })
 
@@ -320,7 +320,7 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(hint.length).toBeGreaterThan(20)
     // 中文按字数粗估：两行约 40 字（弹框内容列约 432px / 每字 14px）。
     expect(hint.length).toBeLessThanOrEqual(42)
-    expect(locales).toContain("accountLoginReopenPrefix: 'Auth 页关掉了可'")
+    expect(locales).toContain("accountLoginReopenPrefix: '授权页关掉了可'")
   })
 
   it('描述文案与官方一致', () => {
