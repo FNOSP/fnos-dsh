@@ -81,7 +81,8 @@ describe('账号登录：官方框拦截', () => {
       自我保护静默失效，结果自己的弹框被自己收走了一次。测试钉住专用属性。
     */
     expect(CLIENT).toContain("querySelector('[data-dsh-fnos-account-login]')")
-    expect(CLIENT).toContain('data-dsh-fnos-account-login=""')
+    // 标记打在弹框内容上（Semi 的 modalContentClass 只到 content 容器，够用）。
+    expect(CLIENT).toContain("dsh-fnos-account-login-modal")
     // 不许退回到内容类名判断。
     expect(CLIENT).not.toContain("querySelector('.dsh-fnos-account-login')")
   })
@@ -225,24 +226,37 @@ describe('账号登录：三个按钮的语义', () => {
 describe('账号登录：弹框几何交给官方', () => {
   const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
 
-  it('用官方 ui-primitives 的 Modal，不用 Semi', () => {
+  it('用 Semi Modal 并显式挂到 body', () => {
     /*
-      官方登录框是 `ui-primitives` 的 Modal：标题字号、关闭按钮位置、332px 内容列、
-      22/12 的 header 内边距全在 `Modal.module.css` 里。用 Semi 自己拼一套，宽高与
-      内边距必然对不上，放在一起一眼能看出不是同一个弹框。
+      用 Semi 而不是官方 `ui-primitives` Modal：需要 Semi 的受控可见性与动画，
+      且官方包在客户端模块表里不保证能拿到。
+
+      `getPopupContainer={() => document.body}` 是必须的：宿主若把弹框渲染进带
+      `transform` / `backdrop-filter` 的容器，`position: fixed` 的包含块会变成
+      那个容器，弹框位置与遮罩范围都会错。显式声明把这件事钉死。
     */
-    expect(CLIENT).toContain("from '@deepseek-ai/dsh-client-ui-primitives'")
-    expect(CLIENT).toContain('<Modal')
-    expect(CLIENT).not.toContain('DshModal')
+    expect(CLIENT).toContain('DshModal')
+    expect(CLIENT).toContain('getPopupContainer={() => document.body}')
+    expect(CLIENT).toContain('modalContentClass="dsh-fnos-account-login-modal"')
   })
 
-  it('不自己写弹框布局与间距', () => {
-    // 之前手写 `margin-bottom: 24px` 补按钮间距——那是 Semi footer={null} 的补丁。
-    // 用官方 Modal 之后几何由它负责，自定义样式只会再次跑偏。
-    expect(SCSS).not.toContain('dsh-fnos-account-login-actions')
-    expect(SCSS).not.toContain('dsh-fnos-account-login-hint')
-    // 只保留错误提示（那是我们自己加的内容，官方没有对应元素）。
-    expect(SCSS).toContain('.dsh-fnos-account-login-error')
+  it('样式把 Semi Modal 对齐到官方数值', () => {
+    /*
+      几何必须与官方一致，否则两个弹框放在一起一眼能看出不是一个体系。
+      数值出处见 `styles/index.scss` 里这段的注释表（全部取自官方
+      `ui-primitives/src/Modal.module.css`）。
+    */
+    expect(SCSS).toContain('.semi-modal-content.dsh-fnos-account-login-modal')
+    // 官方卡片宽度、圆角、底色、阴影。
+    expect(SCSS).toContain('width: min(380px, 100%)')
+    expect(SCSS).toContain('border-radius: var(--dsw-radius-panel)')
+    expect(SCSS).toContain('background: var(--dsw-alias-bg-layer-2)')
+    expect(SCSS).toContain('box-shadow: var(--dsw-elevation-prominent)')
+    // 官方 header 内边距与标题字号。
+    expect(SCSS).toContain('padding: 22px 14px 12px 24px')
+    expect(SCSS).toContain('font-size: 16px')
+    // 描述与正文的 24px 内容列。
+    expect(SCSS).toContain('padding: 0 24px')
   })
 
   it('描述文案与官方一致', () => {

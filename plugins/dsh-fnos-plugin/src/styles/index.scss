@@ -3264,17 +3264,128 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 }
 
 /*
- * 账号登录对话框：**只保留错误提示的样式**。
+ * ===== 账号登录对话框：把 Semi Modal 调成 DSH 官方弹框的样子 =====
  *
- * 弹框本体用官方的 `ui-primitives` Modal，标题/描述/内容列/内边距/按钮行
- * 全部由它负责（`Modal.module.css`）。自己再写一套布局与间距，几何必然与
- * 官方对不上——这正是之前「按钮贴底」和「宽高不一致」的来源。
+ * 用 Semi 而不是官方 `ui-primitives` Modal 的原因见组件注释（要 `getPopupContainer`
+ * 挂 body、要 Semi 的受控与动画）。但**几何必须与官方一致**，否则两个弹框放在
+ * 一起一眼能看出不是一个体系。
+ *
+ * 数值全部取自官方 `ui-primitives/src/Modal.module.css`：
+ *
+ * | 项 | 官方值 |
+ * | --- | --- |
+ * | 卡片宽度 | `min(380px, 100%)` |
+ * | 卡片圆角 | `--dsw-radius-panel` |
+ * | 卡片底色 | `--dsw-alias-bg-layer-2` |
+ * | 卡片阴影 | `--dsw-elevation-prominent` |
+ * | header 内边距 | `22px 14px 12px 24px` |
+ * | 标题 | 16px / 500 / line-height 24 |
+ * | 描述与正文内边距 | 左右 24px |
+ * | 描述 | 14px / line-height 22 |
+ * | 底部留白 | 24px |
+ * | 按钮行 | 右对齐、gap 8px、左右 24px |
+ *
+ * 覆盖位点用 `.semi-modal-content.dsh-fnos-account-login-modal`（双类提升特异性），
+ * 只作用在本组件的弹框上，不影响插件里其它 Semi Modal。
  */
+.semi-modal-content.dsh-fnos-account-login-modal {
+  width: min(380px, 100%);
+  max-width: calc(100vw - 48px);
+  /* 上下留白由 `.semi-modal` 的 margin 管，这里只管卡片本身。 */
+  padding: 0 0 24px;
+  border: none;
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+/* header：标题行左 24、上 22、下 12；右侧给关闭按钮留 14。 */
+.semi-modal-content.dsh-fnos-account-login-modal .semi-modal-header {
+  margin: 0;
+  padding: 22px 14px 12px 24px;
+}
+
+.semi-modal-content.dsh-fnos-account-login-modal .semi-modal-title {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+/*
+ * 关闭按钮：官方是 28×28 的裸图标、hover 才出底，且垂直居中在标题行。
+ * Semi 默认带一圈浅灰底与更大的点击区，这里收货到官方形态。
+ */
+.semi-modal-content.dsh-fnos-account-login-modal .semi-modal-close {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--dsw-radius-sm);
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+}
+
+@media (hover: hover) {
+  .semi-modal-content.dsh-fnos-account-login-modal .semi-modal-close:hover {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
+}
+
+/* 正文与描述共用 24px 内容列。 */
+.semi-modal-content.dsh-fnos-account-login-modal .semi-modal-body {
+  padding: 0 24px;
+  /* 标题行与正文之间 20px，与官方 dialog 的 `gap` 一致。 */
+  margin-top: 20px;
+}
+
+.semi-modal-content.dsh-fnos-account-login-modal .dsh-fnos-account-login-desc {
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 22px;
+  font-weight: 400;
+  color: var(--dsw-alias-label-primary);
+}
+
+/*
+ * 按钮行：官方 footer 自身只有左右内边距，**上下留白来自卡片底部的 24px**。
+ * Semi 的 `.semi-modal-footer` 自带 `margin: 24px 0`，这里归零并从内容区补上
+ * 间距，否则会叠出 48px。
+ */
+.semi-modal-content.dsh-fnos-account-login-modal .semi-modal-footer {
+  margin: 20px 0 0;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/*
+ * 按钮行：右对齐、gap 8px、左右 24px。
+ *
+ * 官方 footer 自身只有左右内边距，上下留白来自卡片底部那 24px。Semi 的
+ * `.semi-modal-footer` 自带 `margin: 24px 0`，这里用 `footer={null}` 绕开它，
+ * 自己补与正文之间的 20px。
+ */
+.dsh-fnos-account-login-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+/* 粘贴态的输入框与描述之间留 12px，避免两段文字贴在一起。 */
+.dsh-fnos-account-login-desc + .semi-input-wrapper {
+  margin-top: 12px;
+}
+
+/* 错误提示：官方没有对应元素，按描述的字号走，只换颜色。 */
 .dsh-fnos-account-login-error {
   margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 22px;
   color: var(--dsw-alias-state-error-primary, #e5484d);
-  font-size: 13px;
-  line-height: 20px;
 }
 
 /*

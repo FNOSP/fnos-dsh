@@ -24,8 +24,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Modal } from '@deepseek-ai/dsh-client-ui-primitives'
-import { DshInput, DshButton } from '@tnnevol/dsh-semi-ui'
+import { DshModal, DshInput, DshButton } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   FNOS_ACCOUNT_LOGIN_CANCEL_ROUTE,
@@ -396,6 +395,13 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
     if (!open) return
     closedRef.current = false
     let cancelled = false
+    /*
+      **双向对齐**：宿主有进行中的尝试就进粘贴态，没有就回到初始态。
+
+      早前只处理了「有」这一支、没有处理「没有」：本地 `phase` 会停留在上一次
+      的 `waiting`，于是下次打开直接显示粘贴框，用户看不到「登录」按钮。宿主侧
+      明明已经是 `cancelled`（实测 `{"phase":"cancelled"}`），界面却还是旧状态。
+    */
     void fetch(FNOS_ACCOUNT_LOGIN_STATE_ROUTE, { credentials: 'same-origin' })
       .then(response => response.json())
       .then((state: AccountLoginAttemptView | undefined) => {
@@ -403,7 +409,13 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
         if (state?.phase === 'waiting-browser' && state.authorizeUrl !== undefined) {
           authorizeUrlRef.current = state.authorizeUrl
           setPhase('waiting')
+          return
         }
+        // 宿主没有进行中的尝试：清掉本地残留，从初始态开始。
+        authorizeUrlRef.current = undefined
+        setPhase('idle')
+        setPasted('')
+        setMessage(undefined)
       })
       .catch(() => undefined)
     return () => { cancelled = true }
@@ -412,62 +424,38 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
   const waiting = phase === 'waiting' || phase === 'submitting'
 
   /*
-    **用官方 Modal，不用 Semi。**
+    **用 Semi 的 Modal，并显式挂到 `body`。**
 
-    官方登录框是 `ui-primitives` 的 `Modal`（由 `ui-primitives` index 导出），
-    它的标题字号、关闭按钮位置、332px 内容列、24px 侧内边距、22/12 的 header
-    内边距全在 `Modal.module.css` 里。用 Semi 自己拼一套，宽高与内边距都对不上，
-    放在一起一眼能看出不是同一个弹框。
+    为什么不用官方 `ui-primitives` 的 `Modal`：它虽然自带 portal，但在本插件里
+    不保证能拿到（客户端模块表只暴露部分包），而且这里需要 Semi 的受控可见性
+    与动画。改用 Semi 后，几何由本文件的 CSS 对齐到官方数值——数值出处见
+    `styles/index.scss` 里 `.dsh-fnos-account-login-modal` 的注释表。
 
-    官方 Modal 直接接受 `title` / `description` / `footer`，所以我们只需要提供
-    内容与按钮，几何全部由官方负责——这也顺带解决了底部间距问题。
+    `getPopupContainer={() => document.body}` 是必须的：Semi 默认就挂到 body，
+    但某些宿主会把弹框渲染进带 `transform` / `backdrop-filter` 的容器，那时
+    `position: fixed` 的包含块会变成那个容器，弹框位置与遮罩范围都会错。显式声明
+    把这件事钉死，不依赖默认值。
   */
   return (
-    <Modal
-      open={open}
-      onClose={close}
-      closeLabel={t('close')}
-      className="dsh-fnos-account-login-modal"
+    <DshModal
+      visible={open}
+      onCancel={close}
+      footer={null}
+      width={380}
+      centered
+      closable
+      maskClosable={false}
+      getPopupContainer={() => document.body}
+      modalContentClass="dsh-fnos-account-login-modal"
       title={waiting ? t('accountLoginPasteTitle') : t('accountLoginTitle')}
-      description={waiting ? t('accountLoginPasteHint') : t('accountLoginIntro')}
-      footer={waiting
-        ? [
-          <DshButton key="cancel" onClick={close}>{t('cancel')}</DshButton>,
-          <DshButton
-            key="authorize"
-            theme="solid"
-            type="primary"
-            loading={phase === 'submitting'}
-            onClick={() => { void submitCallback() }}
-          >
-            {t('accountLoginAuthorize')}
-          </DshButton>,
-        ]
-        : [
-          /*
-            「添加 API Key」**走官方业务**：官方那条路是 `AccountOnboarding` 的
-            `useApiKey()` → `setApiKey(true)` → 切到 API Key 编辑器，属于组件内部
-            状态，插件复刻不了。所以代点官方框里的同名按钮——用户点我们的按钮
-            等于点官方的。官方框已被我们设成 `display: none`，点之前会先放出来。
-          */
-          <DshButton key="apikey" onClick={openOfficialApiKeyEditor}>{t('accountLoginApiKey')}</DshButton>,
-          <DshButton
-            key="signin"
-            theme="solid"
-            type="primary"
-            loading={phase === 'starting'}
-            onClick={() => { void startSignIn() }}
-          >
-            {t('accountLoginSignIn')}
-          </DshButton>,
-        ]}
     >
       {/*
-        标记自己：监听器靠它把「我们的对话框」从候选里排除掉。官方 Modal 的宿主
-        同样是 `role="presentation"`、同样挂在 `#root` 之后，没有标记就分不清谁是谁
-        ——改用官方 Modal 后旧的内容类名失效，自己的弹框被自己收走过一次。
+        正文（描述）与输入框。描述用 `-desc` 类，字号/行高/颜色对齐官方
+        `Modal.module.css` 的 `.description`（14/22、label-primary）。
       */}
-      <div data-dsh-fnos-account-login="">
+      <p className="dsh-fnos-account-login-desc">
+        {waiting ? t('accountLoginPasteHint') : t('accountLoginIntro')}
+      </p>
       {waiting ? (
         <DshInput
           value={pasted}
@@ -479,7 +467,38 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
       {message === undefined ? null : (
         <p className="dsh-fnos-account-login-error" role="alert">{message}</p>
       )}
+      <div className="dsh-fnos-account-login-actions">
+        {waiting ? (
+          <>
+            <DshButton onClick={close}>{t('cancel')}</DshButton>
+            <DshButton
+              theme="solid"
+              type="primary"
+              loading={phase === 'submitting'}
+              onClick={() => { void submitCallback() }}
+            >
+              {t('accountLoginAuthorize')}
+            </DshButton>
+          </>
+        ) : (
+          <>
+            {/*
+              「添加 API Key」**走官方业务**：官方那条路是 `AccountOnboarding` 的
+              `useApiKey()` → `setApiKey(true)` → 切到 API Key 编辑器，属于组件
+              内部状态，插件复刻不了。所以代点官方框里的同名按钮。
+            */}
+            <DshButton onClick={openOfficialApiKeyEditor}>{t('accountLoginApiKey')}</DshButton>
+            <DshButton
+              theme="solid"
+              type="primary"
+              loading={phase === 'starting'}
+              onClick={() => { void startSignIn() }}
+            >
+              {t('accountLoginSignIn')}
+            </DshButton>
+          </>
+        )}
       </div>
-    </Modal>
+    </DshModal>
   )
 }
