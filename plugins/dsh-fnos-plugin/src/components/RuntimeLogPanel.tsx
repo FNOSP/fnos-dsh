@@ -105,7 +105,16 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
           size="small"
           value={level}
           onChange={(value: string | number | (string | number)[]) => { setLevel(value as 'all' | RuntimeLogLevel) }}
-          optionList={LEVELS.map(item => ({ value: item.value, label: t(item.labelKey) }))}
+          /*
+            **`showTick: false`——选中项不显示勾。**
+
+            Semi 的 Option 默认 `showTick: true`，会在**每一项**前面留一个勾位（选中
+            的实心、未选中的留白占位）。截图里五个级别前面全是勾，看起来像「全部
+            选中」。
+
+            这里靠背景高亮 + 主色文字表达选中，不需要勾。
+          */
+          optionList={LEVELS.map(item => ({ value: item.value, label: t(item.labelKey), showTick: false }))}
         />
         <input
           className="dsh-fnos-logs-search"

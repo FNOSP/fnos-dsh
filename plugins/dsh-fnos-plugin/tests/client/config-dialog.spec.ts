@@ -308,6 +308,18 @@ describe('fnOS 配置弹框', () => {
     expect(repairAt).toBeLessThan(indexAt)
   })
 
+  it('日志级别下拉不显示勾选图标', () => {
+    /*
+      Semi 的 Option 默认 `showTick: true`，会在**每一项**前面留一个勾位
+      （选中的实心、未选中的留白占位）。截图里五个级别前面全是勾，看起来像
+      「全部选中」。
+
+      这里靠背景高亮表达选中，不需要勾。
+    */
+    const panel = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(panel).toContain('showTick: false')
+  })
+
   it('样式注入只用 <style>，不在 head 里放非语义元素', () => {
     /*
       `<head>` 只允许 metadata content。早前把所有插件样式塞进一个
