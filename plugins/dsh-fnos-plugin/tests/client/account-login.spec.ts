@@ -57,183 +57,51 @@ describe('账号登录：回调改道', () => {
   })
 })
 
-describe('账号登录：官方框拦截', () => {
-  it('认 #root 之后 role="presentation" 的节点', () => {
+describe('账号登录：只补官方缺的那一屏', () => {
+  it('组件只在「等待粘贴」时渲染，不画官方的初始态', () => {
     /*
-      官方 `ui-primitives/src/Modal.tsx` 最外层容器固定是
-      `<div className={css.root} role="presentation">`，内部才是 `role="dialog"`。
-
-      `#root` 之后是弹层专属区域（官方与我们都用 portal 挂到这里），
-      应用自身内容都在 `#root` 里面。
+      官方 `SignInDialog` 自带初始态（「登录 DeepSeek 账号」+ 两个按钮）与
+      「等待登录」态，界面本来就是对的。多画一个会跟官方抢屏幕，用户看到两个
+      一样的框。这里补的是官方**没有**的那一步：授权后浏览器跳到 127.0.0.1
+      打不开，需要把地址粘回来。
     */
-    expect(CLIENT).toContain("getElementById('root')")
-    expect(CLIENT).toContain('nextElementSibling')
-    expect(CLIENT).toContain("getAttribute('role') !== 'presentation'")
-    expect(CLIENT).toContain('querySelector(\'[role="dialog"]\')')
+    expect(CLIENT).toContain('if (!waiting) return null')
+    // 不许再渲染初始态的标题/按钮。
+    expect(CLIENT).not.toContain("t('accountLoginTitle')")
+    expect(CLIENT).not.toContain("t('accountLoginSignIn')")
+    expect(CLIENT).not.toContain("t('accountLoginApiKey')")
   })
 
-  it('不把自己收掉', () => {
+  it('不再拦截官方弹框', () => {
     /*
-      自己的对话框同样挂在 `#root` 之后、同样 `role="presentation"`（都走官方
-      Modal），必须靠**专用属性**排除。
-
-      之前用内容类名 `.dsh-fnos-account-login`——改用官方 Modal 后那个容器被删掉，
-      自我保护静默失效，结果自己的弹框被自己收走了一次。测试钉住专用属性。
+      官方框保留原样。早前那套 DOM 监听 / 隐藏 / 代点 API Key 的机制，是为了
+      「换成我们的初始态」——既然不画初始态，这套机制就不需要了。
     */
-    expect(CLIENT).toContain("querySelector('[data-dsh-fnos-account-login]')")
-    // 标记打在弹框内容上（Semi 的 modalContentClass 只到 content 容器，够用）。
-    expect(CLIENT).toContain("dsh-fnos-account-login-modal")
-    // 不许退回到内容类名判断。
-    expect(CLIENT).not.toContain("querySelector('.dsh-fnos-account-login')")
+    expect(CLIENT).not.toContain('watchOfficialSignInDialogs')
+    expect(CLIENT).not.toContain('hideOfficialDialog')
+    expect(CLIENT).not.toContain('dismissOfficialDialog')
+    expect(CLIENT).not.toContain('OFFICIAL_API_KEY_LABELS')
   })
 
-  it('关闭我方框时，同时关掉官方框', () => {
-    /*
-      分工：拦截那一刻**隐藏**（官方节点必须活着，否则「添加 API Key」的代点会断），
-      用户关掉我方框时**真正关闭**（此时已放弃登录，官方框不该继续留在 DOM 里）。
-    */
-    expect(CLIENT).toContain('dismissOfficialDialog')
-    expect(CLIENT).toMatch(/const official = officialDialogRef\.current\s*\n\s*if \(official !== undefined\) dismissOfficialDialog\(official\)/u)
-  })
-
-  it('真正关闭前先解除隐藏，否则按钮点不动', () => {
-    // `display: none` 的元素派发 click 不会触发 React 的处理函数。
-    const idx = CLIENT.indexOf('export function dismissOfficialDialog')
-    const block = CLIENT.slice(idx, idx + 900)
-    expect(block).toContain("host.style.removeProperty('display')")
-    expect(block).toContain("querySelector('button[aria-label]')")
-  })
-
-  it('官方框隐藏而非卸载，保住「添加 API Key」这条出口', () => {
-    /*
-      最初是点官方关闭按钮让 React 卸载（DOM 干净）。但那样会断掉「添加 API Key」：
-      官方业务是 `useApiKey()` → `setApiKey(true)`，按钮随组件消失后就点不到了。
-
-      改为把宿主节点设成 `display: none`：只剩我们的框可见，官方节点仍存活，
-      用户选「添加 API Key」时能点它真正的按钮，业务由官方执行。
-    */
-    expect(CLIENT).toContain('hideOfficialDialog')
-    expect(CLIENT).toContain("host.style.display = 'none'")
-    // 隐藏阶段不许卸载节点（那会断掉代点），也不许 remove。
-    const hideFn = CLIENT.slice(CLIENT.indexOf('function hideOfficialDialog'), CLIENT.indexOf('export function dismissOfficialDialog'))
-    expect(hideFn).not.toContain('dismissOfficialDialog')
-    expect(hideFn).not.toContain('.remove()')
-  })
-
-  it('隐藏后要打标记，否则每轮 scan 重复处理', () => {
-    expect(CLIENT).toContain("host.setAttribute('data-dsh-fnos-hidden', '1')")
-    expect(CLIENT).toContain("getAttribute('data-dsh-fnos-hidden') === '1'")
-  })
-
-  it('代点官方按钮前先把官方框放出来', () => {
-    // `display: none` 的元素点不动。
-    expect(CLIENT).toContain('host.style.removeProperty(\'display\')')
-  })
-
-  it('插件加载时就扫一次，并补微任务与属性观察', () => {
-    /*
-      插件加载与官方框挂载的顺序不固定：可能先有框后有插件。只靠 MutationObserver
-      会漏掉「加载时框已存在」这一种。
-    */
-    expect(CLIENT).toContain('scan()')
-    expect(CLIENT).toContain('queueMicrotask(scan)')
-    expect(CLIENT).toContain("attributeFilter: ['role', 'class', 'aria-label']")
-  })
-
-  it('官方框标题覆盖多语言', () => {
-    // 只在中文下能认出来会导致英文界面完全失效。
-    for (const title of ['开始使用', '等待登录', 'Get started', 'Bei DeepSeek anmelden']) {
-      expect(CLIENT).toContain(title)
-    }
-  })
-})
-
-describe('账号登录：粘贴解析', () => {
-  it('接受整条地址', () => {
-    expect(parseCallbackInput('http://127.0.0.1:3080/oauth/callback?code=abc&state=xyz'))
-      .toEqual({ code: 'abc', state: 'xyz' })
-  })
-
-  it('接受裸查询串', () => {
-    expect(parseCallbackInput('?code=abc&state=xyz')).toEqual({ code: 'abc', state: 'xyz' })
-    expect(parseCallbackInput('code=abc&state=xyz')).toEqual({ code: 'abc', state: 'xyz' })
-  })
-
-  it('缺 code 或 state 时判为无效', () => {
-    expect(parseCallbackInput('http://127.0.0.1:3080/oauth/callback?code=abc')).toBeUndefined()
-    expect(parseCallbackInput('http://127.0.0.1:3080/oauth/callback?state=xyz')).toBeUndefined()
-    expect(parseCallbackInput('')).toBeUndefined()
-    expect(parseCallbackInput('这不是地址')).toBeUndefined()
-  })
-})
-
-describe('账号登录：交互细节', () => {
-  it('先同步开空白页再导航，避免被弹窗拦截', () => {
-    // window.open 只在用户手势的同步栈里放行；等 fetch 回来再开会被拦。
-    expect(CLIENT).toContain("window.open('about:blank', '_blank')")
-    expect(CLIENT).toContain('tab.location.href')
-  })
-
-  it('关闭时取消宿主那次尝试，不留 waiting-browser 脏状态', () => {
-    expect(CLIENT).toContain('FNOS_ACCOUNT_LOGIN_CANCEL_ROUTE')
-    expect(CLIENT).toContain('closedRef')
-  })
-
-  it('契约里的路由前缀与其他插件路由一致', () => {
-    expect(CONTRACT).toContain("'/plugins/dsh-fnos/account/login-relay'")
-    expect(CONTRACT).toContain("'/plugins/dsh-fnos/account/login-start'")
-  })
-})
-
-describe('账号登录：三个按钮的语义', () => {
-  it('「添加 API Key」走官方业务，不自己实现', () => {
-    /*
-      官方那条路是 `AccountOnboarding` 的 `useApiKey()` → `setApiKey(true)`，
-      属于组件内部状态，插件复刻不了。所以代点官方框里的同名按钮。
-    */
-    expect(CLIENT).toContain('openOfficialApiKeyEditor')
-    expect(CLIENT).toContain('OFFICIAL_API_KEY_LABELS')
-    // 不能只是「关掉对话框」了事。
-    expect(CLIENT).not.toContain("onClick={onClose}>{t('accountLoginApiKey')}")
-  })
-
-  it('官方框引用在收起之前保存', () => {
-    /*
-      收起之后 React 会卸载节点，`querySelector` 就找不到按钮了。
-      所以回调里先存、再 dismiss。
-    */
-    expect(CLIENT).toMatch(/onCaptured\(dialog\)\s*\n\s*hideOfficialDialog\(dialog\)/u)
-    // 引用由浮层持有并传入，两边各存一份会导致「组件里的 ref 永远 undefined」。
-    expect(CLIENT).toContain('officialDialogRef: { current: Element | undefined }')
+  it('由宿主状态驱动，不监听 DOM', () => {
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
-    expect(overlay).toContain('officialDialogRef')
-    expect(overlay).toContain('watchOfficialSignInDialogs((dialog)')
-  })
-
-  it('「授权」是提交回调地址的按钮文案', () => {
-    expect(CLIENT).toContain("t('accountLoginAuthorize')")
-    const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
-    expect(locales).toContain("accountLoginAuthorize: '授权'")
-  })
-
-  it('不改官方账号菜单', () => {
-    // 用户明确要求菜单保持官方原样，只在 DOM 层收起登录框。
-    expect(CLIENT).not.toContain('settings.launcher')
-    expect(CLIENT).not.toContain('priority: -1')
+    expect(overlay).toContain('FNOS_ACCOUNT_LOGIN_STATE_ROUTE')
+    expect(overlay).toContain("state?.phase === 'waiting-browser'")
+    // 轮询而不是订阅：宿主没有推 attempt 变化的通道。
+    expect(overlay).toContain('POLL_MS')
+    // 停止标志要能真正停下轮询。
+    expect(overlay).toContain('stopped = true')
   })
 })
 
-describe('账号登录：弹框几何交给官方', () => {
+describe('账号登录：弹框用 Semi 并挂 body', () => {
   const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
 
-  it('用 Semi Modal 并显式挂到 body', () => {
+  it('用 Semi Modal，显式挂到 body', () => {
     /*
-      用 Semi 而不是官方 `ui-primitives` Modal：需要 Semi 的受控可见性与动画，
-      且官方包在客户端模块表里不保证能拿到。
-
-      `getPopupContainer={() => document.body}` 是必须的：宿主若把弹框渲染进带
-      `transform` / `backdrop-filter` 的容器，`position: fixed` 的包含块会变成
-      那个容器，弹框位置与遮罩范围都会错。显式声明把这件事钉死。
+      需要 Semi 的受控可见性与动画。`getPopupContainer` 是必须的：宿主若把弹框
+      渲染进带 `transform` / `backdrop-filter` 的容器，`position: fixed` 的包含块
+      会变成那个容器，弹框位置与遮罩范围都会错。
     */
     expect(CLIENT).toContain('DshModal')
     expect(CLIENT).toContain('getPopupContainer={() => document.body}')
@@ -241,27 +109,38 @@ describe('账号登录：弹框几何交给官方', () => {
   })
 
   it('样式把 Semi Modal 对齐到官方数值', () => {
-    /*
-      几何必须与官方一致，否则两个弹框放在一起一眼能看出不是一个体系。
-      数值出处见 `styles/index.scss` 里这段的注释表（全部取自官方
-      `ui-primitives/src/Modal.module.css`）。
-    */
+    // 数值出处见 `styles/index.scss` 里这段的注释表（取自官方 Modal.module.css）。
     expect(SCSS).toContain('.semi-modal-content.dsh-fnos-account-login-modal')
-    // 官方卡片宽度、圆角、底色、阴影。
     expect(SCSS).toContain('width: min(380px, 100%)')
     expect(SCSS).toContain('border-radius: var(--dsw-radius-panel)')
     expect(SCSS).toContain('background: var(--dsw-alias-bg-layer-2)')
-    expect(SCSS).toContain('box-shadow: var(--dsw-elevation-prominent)')
-    // 官方 header 内边距与标题字号。
     expect(SCSS).toContain('padding: 22px 14px 12px 24px')
     expect(SCSS).toContain('font-size: 16px')
-    // 描述与正文的 24px 内容列。
-    expect(SCSS).toContain('padding: 0 24px')
   })
 
   it('描述文案与官方一致', () => {
-    // 官方 `ui-settings-account/src/client/locales.ts` 的 loginDescription。
     const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
+    // 官方 `ui-settings-account/src/client/locales.ts` 的 loginDescription。
     expect(locales).toContain('你的项目和文件保存在本地。')
+  })
+})
+
+describe('账号登录：粘贴解析', () => {
+  it('接受整条地址与裸查询串', () => {
+    expect(parseCallbackInput('http://127.0.0.1:3080/oauth/callback?code=abc&state=xyz'))
+      .toEqual({ code: 'abc', state: 'xyz' })
+    expect(parseCallbackInput('code=abc&state=xyz')).toEqual({ code: 'abc', state: 'xyz' })
+  })
+
+  it('缺 code 或 state 时判为无效', () => {
+    expect(parseCallbackInput('http://x/oauth/callback?code=abc')).toBeUndefined()
+    expect(parseCallbackInput('')).toBeUndefined()
+  })
+})
+
+describe('账号登录：契约', () => {
+  it('路由前缀与其他插件路由一致', () => {
+    expect(CONTRACT).toContain("'/plugins/dsh-fnos/account/login-relay'")
+    expect(CONTRACT).toContain("'/plugins/dsh-fnos/account/login-start'")
   })
 })

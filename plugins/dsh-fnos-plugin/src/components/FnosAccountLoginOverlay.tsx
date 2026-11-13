@@ -1,27 +1,34 @@
 /**
- * 账号登录的浮层容器。
+ * 账号登录：授权完成后的「粘贴回调地址」浮层。
  *
- * 挂在 `shell.overlay`（官方挂 portal 弹框的槽位）。职责有两件：
+ * ## 它补的是官方没有的那一屏
  *
- * 1. **监视官方登录框**：它一出现就收起，由本插件接管（原因见
- *    `FnosAccountLoginDialog` 的模块说明）。
- * 2. **承载登录对话框**：只在「确实需要登录」时打开。
+ * 官方 `SignInDialog` 自带两态：
  *
- * ## 什么时候自动打开
+ * 1. 初始态：标题「登录 DeepSeek 账号」+「添加 API Key」/「登录」；
+ * 2. 「等待登录」态：授权页已开，按钮是「复制登录链接」/「取消」。
  *
- * 只在**检测到官方登录框被收起的那一刻**打开。不做「未登录就打开」的判定——
- * 那是官方引导的逻辑，用户的 provider 配置不同，判定条件也不同
- * （`onboardingReadiness` 有五种取值）。跟着官方框走最省事：官方认为该登录了，
- * 我们就接手。
+ * 两态都认 loopback 回调——在 NAS 上，浏览器会跳到**用户自己电脑**的
+ * `127.0.0.1`，页面打不开，地址栏里却带着有效的 `code`。官方没有「把地址
+ * 粘回来」这一步，这一屏就是本组件补的。
+ *
+ * ## 为什么不没收/替换官方弹框
+ *
+ * 官方界面本身是对的，替换它等于重画一遍、还要跟着官方改版维护。这里只在
+ * 宿主进入 `waiting-browser` 时**额外**显示一个粘贴框，官方弹框照常在下面。
  *
  * @module dsh-fnos/account-login-overlay
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { FnosAccountLoginDialog, watchOfficialSignInDialogs } from './FnosAccountLoginDialog.tsx'
+import { useCallback, useEffect, useState } from 'react'
+import { FnosAccountLoginDialog } from './FnosAccountLoginDialog.tsx'
+import { FNOS_ACCOUNT_LOGIN_STATE_ROUTE, type AccountLoginAttemptView } from '../contracts/account-login-contract.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
 
 type Translate = (key: FnosLocaleKey) => string
+
+/** 轮询宿主状态的间隔。 */
+const POLL_MS = 1200
 
 /** 组件参数。 */
 export interface FnosAccountLoginOverlayProps {
@@ -38,29 +45,40 @@ export interface FnosAccountLoginOverlayProps {
  */
 export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): React.ReactNode {
   const [open, setOpen] = useState(false)
-  /*
-    最近一次被收起的官方对话框。监听器在这里启动，收起动作也发生在这里，
-    所以引用必须由本组件持有、再传给对话框（那边要用它代点「添加 API Key」）。
-
-    保存时机是**收起之前**：收起之后 React 会卸载节点，`querySelector` 已经
-    找不到按钮了。
-  */
-  const officialDialogRef = useRef<Element>()
 
   const close = useCallback((): void => { setOpen(false) }, [])
 
-  useEffect(() => {
-    /*
-      官方框出现 → 收起它 → 打开我们的对话框。
+  /*
+    **由宿主状态驱动，不监听 DOM。**
 
-      两件事必须由同一个回调触发，否则「官方收起了但我们的没打开」会留下一段
-      无提示的空窗期，用户会以为点击没生效。
-    */
-    return watchOfficialSignInDialogs((dialog) => {
-      officialDialogRef.current = dialog
-      setOpen(true)
-    })
+    之前是「官方框一出现就收起它、换成我们的」——但官方那两屏本来就该由官方
+    呈现，收起来反而要多画一遍。现在只读 `attempt.phase`：进 `waiting-browser`
+    （授权页已开、等用户粘贴）就显示粘贴框，否则收起。
+
+    轮询而不是订阅：宿主没有推 `attempt` 变化的通道给插件。
+  */
+  useEffect(() => {
+    let stopped = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    const poll = async (): Promise<void> => {
+      if (stopped) return
+      try {
+        const response = await fetch(FNOS_ACCOUNT_LOGIN_STATE_ROUTE, { credentials: 'same-origin' })
+        const state = await response.json() as AccountLoginAttemptView | undefined
+        if (!stopped) setOpen(state?.phase === 'waiting-browser' && state.authorizeUrl !== undefined)
+      } catch {
+        // 读失败不改变现状态：下一轮再试。
+      }
+      if (!stopped) timer = setTimeout(() => { void poll() }, POLL_MS)
+    }
+
+    void poll()
+    return () => {
+      stopped = true
+      if (timer !== undefined) clearTimeout(timer)
+    }
   }, [])
 
-  return <FnosAccountLoginDialog open={open} t={t} onClose={close} officialDialogRef={officialDialogRef} />
+  return <FnosAccountLoginDialog open={open} t={t} onClose={close} />
 }
