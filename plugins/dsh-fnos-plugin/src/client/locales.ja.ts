@@ -182,7 +182,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   accountLoginSignIn: 'ログイン',
   accountLoginApiKey: 'API キーを追加',
   accountLoginApiKeyHint: 'DeepSeek アカウントの代わりに API キーを使う。',
-  accountLoginPasteTitle: '認証後にアドレスを貼り戻してください',
+  accountLoginPasteTitle: '認証アドレスを入力',
   accountLoginReopenLabel: '認証ページを閉じましたか？リンクをコピーして開き直せます：',
   accountLoginCopyLink: 'リンクをコピー',
   accountLoginLinkCopied: 'コピーしました',

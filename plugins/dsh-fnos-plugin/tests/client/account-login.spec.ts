@@ -170,6 +170,13 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(SCSS).toContain('font-size: 16px')
   })
 
+  it('粘贴框标题是「填写授权地址」', () => {
+    // 只描述用户要做的事，不再复述「完成授权后」——授权是否完成由官方那屏交代。
+    const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
+    expect(locales).toContain("accountLoginPasteTitle: '填写授权地址'")
+    expect(locales).not.toContain('完成授权后，把地址粘回来')
+  })
+
   it('描述文案与官方一致', () => {
     const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
     // 官方 `ui-settings-account/src/client/locales.ts` 的 loginDescription。

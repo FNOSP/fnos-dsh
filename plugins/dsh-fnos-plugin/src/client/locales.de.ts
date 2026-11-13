@@ -174,7 +174,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   accountLoginSignIn: 'Anmelden',
   accountLoginApiKey: 'API-Schlüssel hinzufügen',
   accountLoginApiKeyHint: 'Statt eines DeepSeek-Kontos einen API-Schlüssel verwenden.',
-  accountLoginPasteTitle: 'Nach der Autorisierung die Adresse zurückkopieren',
+  accountLoginPasteTitle: 'Autorisierungsadresse eingeben',
   accountLoginReopenLabel: '授权页关掉了？复制链接重新打开：',
   accountLoginCopyLink: 'Link kopieren',
   accountLoginLinkCopied: 'Kopiert',
