@@ -183,6 +183,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   accountLoginApiKey: 'API キーを追加',
   accountLoginApiKeyHint: 'DeepSeek アカウントの代わりに API キーを使う。',
   accountLoginPasteTitle: '認証アドレスを入力',
+  fnosHostUnavailable: 'この機能には fnOS アプリの実行環境が必要です。現在のページは fnOS から開かれていないため、NAS フォルダーの選択、ファイルを開く操作、プラットフォーム状態の取得は利用できません。パネルのその他の部分は引き続き動作します。',
   accountLoginCopiedTip: 'コピーしました',
   accountLoginCopyFailedTip: 'コピー失敗',
   accountLoginCopyTip: '認証アドレスをコピー',

@@ -1101,13 +1101,21 @@ body:not([data-ds-dark-theme]) .semi-modal-wrap {
   backdrop-filter: blur(8px) saturate(120%);
 }
 
-/* 暗色主题：深色蒙层反而要淡一点，否则整块发黑、层级被压平。 */
+/*
+ * 暗色主题：**白色透明磨砂**。
+ *
+ * 深色底上再压一层深色，等于「黑叠黑」——蒙层与页面糊成一片，弹框反而看不出被
+ * 抬起。改用白色半透明 + 模糊：背景被提亮成一层次白的光斑，弹框的深色卡片在
+ * 其上清晰可见，层级一眼可辨。
+ *
+ * 透明度取 10%：再高会把深色界面整体洗白、失去「深色模式」的观感；再低则看不出
+ * 被遮住。模糊给 8px——与亮色主题同一档，只是颜色方向相反。
+ */
 body[data-ds-dark-theme] .semi-modal-mask,
 body[data-ds-dark-theme] .semi-modal-wrap {
-  background-color: color-mix(in srgb, var(--dsw-alias-bg-base) 72%, transparent) !important;
-  /* 暗色下背景本身对比低，模糊可以稍弱一点，避免糊成一团。 */
-  -webkit-backdrop-filter: blur(6px) saturate(110%);
-  backdrop-filter: blur(6px) saturate(110%);
+  background-color: color-mix(in srgb, #fff 10%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
 }
 
 /*
@@ -3288,13 +3296,30 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
  * 覆盖位点用 `.semi-modal-content.dsh-fnos-account-login-modal`（双类提升特异性），
  * 只作用在本组件的弹框上，不影响插件里其它 Semi Modal。
  */
+/*
+ * 弹框尺寸由**最外层 `.semi-modal`** 决定，内容层只跟随。
+ *
+ * Semi 把组件的 `width={480}` 写进 `.semi-modal` 的**内联样式**，内容层的
+ * `width: 100%` 取的就是它。所以窄屏要收，必须收在最外层。
+ *
+ * 关键是 `max-width` **天然约束 `width`**——包括内联样式里写死的那个——无需
+ * `!important`。一条 `max-width` 就把「桌面 480、窄屏不超出视口」两件事同时
+ * 表达清楚了。
+ */
+.semi-modal:has(> .semi-modal-content.dsh-fnos-account-login-modal),
+.semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog) {
+  /* 左右各留 12px 的空气；窄屏时这就是实际宽度。 */
+  max-width: calc(100vw - 24px);
+}
+
+/* 内容层跟着外层走：桌面 480、窄屏等于外层宽度。 */
 .semi-modal-content.dsh-fnos-account-login-modal {
   /*
-    480 是产品要求的宽度（比官方 380 宽），靠这一行生效——组件上的
-    `width={480}` 属性会被这条 CSS 覆盖，改宽度只改这里。
+    480 是产品要求的宽度（比官方 380 宽）；窄屏时被外层 `max-width` 收住，
+    这里只负责把内边距、圆角与底色对齐官方。
   */
-  width: min(480px, 100%);
-  max-width: calc(100vw - 48px);
+  width: 100%;
+  max-width: min(480px, 100%);
   /* 上下留白由 `.semi-modal` 的 margin 管，这里只管卡片本身。 */
   padding: 0 0 24px;
   border: none;
@@ -3422,6 +3447,23 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 }
 
 /*
+ * 非 fnOS 环境下的说明条。
+ *
+ * 插件现在也能在本地 DSH Web 里跑（改样式不必每次装到 NAS），但依赖宿主桥的
+ * 能力在本地没有。这条说明放在面板顶部，说清楚是环境问题而不是功能坏了。
+ */
+.dsh-fnos-config-host-hint {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: var(--dsw-radius-md, 8px);
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/*
  * ===== 飞牛设置弹框：移动端适配 =====
  *
  * 断点与布局照官方 `ui-settings-general/src/client/SettingsRoot.module.css`：
@@ -3435,7 +3477,7 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
  * 全部关在媒体查询里。
  */
 @media (max-width: 767px) {
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) .semi-modal-content.dsh-fnos-config-dialog {
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
     /* 全屏：占满视口，去掉圆角与固定高度——800px 在手机上会溢出。 */
     width: 100%;
     max-width: none;
@@ -3446,27 +3488,45 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
     padding-bottom: 0;
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) .semi-modal-wrap .semi-modal {
+  /*
+    **`.semi-modal` 才是宽度的实际来源。**
+
+    Semi 把组件的 `width={800}` 写进 `.semi-modal` 的**内联样式**，内联优先级最高。
+    只在 `.semi-modal-content` 上写 `width: 100%` 完全没用——真机窄视口实测 content
+    仍是 800，因为它取的是父级（`.semi-modal`）宽度。
+
+    所以宽度要改在这里，并且用 `!important` 压过内联样式。
+  */
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog) {
     /* Semi 默认给 .semi-modal 上下 80px margin，全屏时会顶出滚动条。 */
-    margin: 0;
-    height: 100%;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 100% !important;
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) .dsh-fnos-config-body {
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-body {
     /*
-      单列 + 三段：导航在上、内容在下，两者各自滚动。
+      单列两段：导航在上、内容在下，各自滚动。
 
-      用 `grid` 而不是继续 `flex` 横向排：移动端 nav 与 panel 是上下关系，
-      `grid-template-rows` 能直接表达「nav 按内容高度、panel 吃掉剩余」，
-      比 flex 里再套 `flex-basis` 与 `min-height: 0` 更不容易出错。
+      **高度用 `calc` 显式算，不靠层层 `height: 100%` 传递。**
+
+      这里原本是 `height: 100%` + grid，靠「body 撑满、grid 行再分」把高度传出
+      两层。真机窄视口下实测弹框仍是 800×815，说明这条链路在某处断了——
+      `100%` 依赖父级有确定高度，中间任何一层 `min-height: 0` / `flex: 1 1 auto`
+      没生效，下面就会回退成内容高度，滚动条也跟着算错。
+
+      改用视口高度减去 header 的固定 54px，与本文件里 header 的 `height: 54px`
+      一一对应。一处改动只改一个数，不再依赖祖先链。
     */
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
-    height: 100%;
+    height: calc(100vh - 54px);
+    max-height: calc(100vh - 54px);
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) .dsh-fnos-config-nav {
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-nav {
     /*
       横向导航条：边缘到边缘，自己带左右内边距。
 
@@ -3485,19 +3545,22 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
     scrollbar-width: none;
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) .dsh-fnos-config-nav::-webkit-scrollbar {
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-nav::-webkit-scrollbar {
     /* 移动端横向条不需要可见滚动条，滑动本身已经足够。 */
     display: none;
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) .dsh-fnos-config-nav-item {
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-nav-item {
     /* 横排时不换行、不被压缩，宽度由内容决定。 */
     flex: 0 0 auto;
     white-space: nowrap;
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) .dsh-fnos-config-panel {
-    /* 内容区自己滚动，且必须 `min-height: 0`——否则 grid 子项会撑破容器。 */
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-panel {
+    /*
+      内容区自己滚动。`min-height: 0` 让 grid 子项可以被压缩到比内容更矮，
+      否则它会按内容撑开、把滚动条推到弹框外面去。
+    */
     min-height: 0;
     overflow-y: auto;
     /* 底部安全边距：全面屏手机的手势条会压住最后一行。 */

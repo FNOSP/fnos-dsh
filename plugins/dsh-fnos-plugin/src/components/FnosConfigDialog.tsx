@@ -18,6 +18,7 @@
 
 import { useState } from 'react'
 import type { UsedIconName } from './IconifyIcon.tsx'
+import { isFnosHosted } from '../client/services/environment.ts'
 import { DshModal } from '@tnnevol/dsh-semi-ui'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import type { FnosLocaleKey } from '../client/locales.ts'
@@ -105,6 +106,16 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
           ))}
         </nav>
         <div className="dsh-fnos-config-panel">
+          {/*
+            非 fnOS 环境下给一条说明。
+
+            插件现在也能在本地 DSH Web 里跑（改样式不必每次装到 NAS 上），但
+            「选 NAS 目录」「打开文件」这类能力依赖宿主桥，本地没有。以前这些分支
+            只是静默不渲染，看起来像功能坏了；这里直接说清楚是环境问题。
+          */}
+          {isFnosHosted() ? null : (
+            <p className="dsh-fnos-config-host-hint" role="note">{t('fnosHostUnavailable')}</p>
+          )}
           {section === 'directories' ? <AuthorizedDirectoriesCard t={t} /> : null}
           {section === 'plugins' ? <GatewayProxyCard t={t} /> : null}
           {section === 'runtime' ? <RuntimeStatusCard t={t} /> : null}

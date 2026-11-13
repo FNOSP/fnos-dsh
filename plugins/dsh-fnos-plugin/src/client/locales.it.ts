@@ -174,6 +174,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   accountLoginApiKey: 'Aggiungi chiave API',
   accountLoginApiKeyHint: 'Usa una chiave API invece di un account DeepSeek.',
   accountLoginPasteTitle: 'Inserisci l\\u2019indirizzo di autorizzazione',
+  fnosHostUnavailable: 'Questa funzione richiede l\'ambiente applicativo fnOS. La pagina corrente non è stata aperta da fnOS, quindi la selezione delle cartelle del NAS, l\'apertura dei file e la lettura dello stato della piattaforma non sono disponibili — il resto del pannello continua a funzionare.',
   accountLoginCopiedTip: 'Copiato',
   accountLoginCopyFailedTip: 'Copia non riuscita',
   accountLoginCopyTip: 'Copia l’indirizzo di autorizzazione',

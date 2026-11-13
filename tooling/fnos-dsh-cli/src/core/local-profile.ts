@@ -21,13 +21,16 @@ export function localDshVersion(): string {
  * Plugins that live in this repository but are not linked into the local
  * profile.
  *
- * `@tnnevol/dsh-fnos` is the FPK-only integration: it registers fnOS settings
- * namespaces, the fnOS JS SDK bridge and gateway-prefixed routes, so it has
- * nothing to serve outside the fnOS host and would only add failing rows to a
- * developer's local profile. The other repository plugins are usable from any
- * DSH client and are linked in.
+ * 目前为空：`@tnnevol/dsh-fnos` 也链接进来了。
+ *
+ * 它原先被排除，理由是「只在 fnOS 环境下才有意义，放进本地 profile 只会多出
+ * 几行报错」。但那把开发体验弄得很糟：改一行样式要构建 FPK、传到 NAS、装一遍
+ * （十分钟起步），而样式的迭代恰恰最需要即时预览。
+ *
+ * 现在的约定是：**插件在本地 DSH Web 里正常运行，调用不到 fnOS 能力时给出提示
+ * 而不是让整个面板崩掉**。这样界面、样式、交互都能在 8070 上直接看。
  */
-const LOCAL_PROFILE_EXCLUDED_PLUGINS = new Set(['@tnnevol/dsh-fnos'])
+const LOCAL_PROFILE_EXCLUDED_PLUGINS = new Set<string>()
 
 /** Repository plugins the local profile should carry, in stable plugin order. */
 export const localProfilePlugins: PluginTarget[] = pluginTargets

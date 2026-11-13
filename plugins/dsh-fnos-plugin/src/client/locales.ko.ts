@@ -183,6 +183,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   accountLoginApiKey: 'API 키 추가',
   accountLoginApiKeyHint: 'DeepSeek 계정 대신 API 키를 사용합니다.',
   accountLoginPasteTitle: '인증 주소 입력',
+  fnosHostUnavailable: '이 기능은 fnOS 앱 실행 환경이 필요합니다. 현재 페이지가 fnOS에서 열리지 않았으므로 NAS 폴더 선택, 파일 열기, 플랫폼 상태 읽기를 사용할 수 없습니다. 패널의 나머지 부분은 계속 작동합니다.',
   accountLoginCopiedTip: '복사됨',
   accountLoginCopyFailedTip: '복사 실패',
   accountLoginCopyTip: '인증 주소 복사',

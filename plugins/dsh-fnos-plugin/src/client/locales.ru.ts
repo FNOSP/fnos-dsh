@@ -174,6 +174,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   accountLoginApiKey: 'Добавить ключ API',
   accountLoginApiKeyHint: 'Использовать ключ API вместо аккаунта DeepSeek.',
   accountLoginPasteTitle: 'Введите адрес авторизации',
+  fnosHostUnavailable: 'Для этой возможности требуется среда приложения fnOS. Текущая страница открыта не из fnOS, поэтому выбор папок NAS, открытие файлов и чтение состояния платформы недоступны — остальная часть панели продолжает работать.',
   accountLoginCopiedTip: 'Скопировано',
   accountLoginCopyFailedTip: 'Не удалось скопировать',
   accountLoginCopyTip: 'Скопировать адрес авторизации',

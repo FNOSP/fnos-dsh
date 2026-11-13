@@ -215,6 +215,25 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(CLIENT).toContain('modalContentClass="dsh-fnos-account-login-modal"')
   })
 
+  it('窄屏时弹框收进视口，尺寸由最外层控制', () => {
+    /*
+      Semi 把组件的 `width={480}` 写进 `.semi-modal` 的**内联样式**，内容层的
+      `width: 100%` 取的就是它。所以窄屏要收必须收在最外层。
+
+      关键是 `max-width` 天然约束 `width`——**包括内联写死的那个**，不需要
+      `!important`。真机实测：视口 500 时外层 max-width 476，实际宽度 476、
+      左边界 12，不溢出；视口 1200 时仍是产品要求的 480。
+    */
+    expect(SCSS).toContain('.semi-modal:has(> .semi-modal-content.dsh-fnos-account-login-modal)')
+    expect(SCSS).toContain('max-width: calc(100vw - 24px)')
+    /*
+      内容层跟随外层：`width: 100%` 取外层（已被 max-width 收住）的宽度，
+      自己不再写死 480。`max-width` 保留一条 480 的保底，只在视口足够宽时起作用。
+    */
+    const block = SCSS.slice(SCSS.indexOf('.semi-modal-content.dsh-fnos-account-login-modal {'))
+    expect(block.slice(0, 400)).toContain('width: 100%')
+  })
+
   it('样式把 Semi Modal 对齐到官方数值', () => {
     // 数值出处见 `styles/index.scss` 里这段的注释表（取自官方 Modal.module.css）。
     expect(SCSS).toContain('.semi-modal-content.dsh-fnos-account-login-modal')

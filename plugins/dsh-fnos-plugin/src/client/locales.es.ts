@@ -175,6 +175,7 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   accountLoginApiKey: 'Añadir clave de API',
   accountLoginApiKeyHint: 'Usar una clave de API en lugar de una cuenta de DeepSeek.',
   accountLoginPasteTitle: 'Introduce la dirección de autorización',
+  fnosHostUnavailable: 'Esta función requiere el entorno de la aplicación fnOS. La página actual no se abrió desde fnOS, así que no están disponibles la selección de directorios del NAS, la apertura de archivos ni la lectura del estado de la plataforma — el resto del panel sigue funcionando.',
   accountLoginCopiedTip: 'Copiado',
   accountLoginCopyFailedTip: 'No se pudo copiar',
   accountLoginCopyTip: 'Copiar la dirección de autorización',
