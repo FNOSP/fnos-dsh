@@ -5,7 +5,8 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { IconCopyOutlineRegular, IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
-import { DshIconFolder, DshModal, DshTree } from '@tnnevol/dsh-semi-ui'
+import { DshEmpty, DshIconFolder, DshModal, DshTree } from '@tnnevol/dsh-semi-ui'
+import { FnosEmptyIllustration } from './FnosEmptyIllustration.tsx'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
 import { hasFnosHostBridge, readSdkCapabilityFlags } from '../client/services/host-bridge.ts'
 import { exportSessionLogToNas } from '../client/services/session-log-export-client.ts'
@@ -285,7 +286,14 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
               }}
               defaultExpandAll={false}
               className="dsh-fnos-session-log-tree"
-              emptyContent={t('sessionLogNasEmpty')}
+              // 没有可用目录时给缺省组件，与面板里其它空状态一致。
+              emptyContent={(
+                <DshEmpty
+                  className="dsh-fnos-picker-empty"
+                  image={<FnosEmptyIllustration size={96} />}
+                  description={t('sessionLogNasEmpty')}
+                />
+              )}
             />
           ) : null}
         </div>

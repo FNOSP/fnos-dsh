@@ -27,6 +27,7 @@ import {
   DshInput as Input,
   DshTooltip as Tooltip,
   DshModal as Modal,
+  DshEmpty,
   DshPopconfirm as Popconfirm,
   DshToast as Toast,
   DshTree as Tree,
@@ -38,6 +39,7 @@ import { pickAuthorizedDirectory } from '../client/services/authorized-directory
 import { fnosHostBridgeAvailable } from '../client/services/host-bridge.ts'
 import { openFnosEntry } from '../client/services/file-opener.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
+import { FnosEmptyIllustration } from './FnosEmptyIllustration.tsx'
 import { FNOS_REFERENCE_SOURCE, type FnosInputReference, createFnosInputReference } from '../client/input-references/input-references.ts'
 import { planFnosOccurrenceRemovals, reconcileFnosOperationOccurrences, type PendingFnosOccurrence, type TrackedFnosOccurrence } from '../client/input-references/input-reference-operation.ts'
 import { displayName, selectedPaths, toTreeNode, updateChildren, type PickerTreeNode } from '../client/input-references/picker-tree.ts'
@@ -883,7 +885,20 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         disabled={busy}
         showLine={false}
         className="dsh-fnos-path-panel-tree"
-        emptyContent={t('inputPickerEmpty')}
+        /*
+          **没有数据用缺省组件，不用纯文案。**
+
+          这是 Semi `Tree` 的 `emptyContent`，它接受 ReactNode，直接渲染在树的位置。
+          原先是 `t('inputPickerEmpty')` 一行灰字——面板里其它空状态都有插画，只有
+          这里是一句话，看起来像加载失败。
+        */
+        emptyContent={(
+          <DshEmpty
+            className="dsh-fnos-picker-empty"
+            image={<FnosEmptyIllustration size={96} />}
+            description={t('inputPickerEmpty')}
+          />
+        )}
       />
       {/*
         右键上下文菜单。自己画：`position: fixed` 直接落在鼠标坐标上，与面板

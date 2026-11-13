@@ -89,6 +89,29 @@ backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%));
 
 细节与已知坑见 [DSH Semi UI 共享包](/plugins/dsh-semi-ui)。
 
+## 空状态：一律用缺省组件，禁止纯文案
+
+**任何「这里没有数据」的位置都必须用缺省组件（`DshEmpty` + 插画），不能用一行
+灰字代替。**
+
+包括但不限于：
+
+| 场景 | 反例 | 正例 |
+| --- | --- | --- |
+| 树形选择器空了 | `emptyContent={t('empty')}` | `emptyContent={<DshEmpty image={…} description={t('empty')} />}` |
+| 列表没有条目 | `<p class="body">{t('empty')}</p>` | `<DshEmpty image={…} description={t('empty')} />` |
+| 加载失败（渲染阻塞） | 一行红字 | 缺省页，原因放 `description` |
+
+理由：纯文案在一堆有插画的空状态里显得像排版错误或者「加载失败」，用户分不清
+「确实没有内容」和「页面坏了」。统一成缺省组件后，形态本身就在传达「这里现在是
+空的」。
+
+`Tree`、`List` 这类组件若提供 `emptyContent` 之类的属性，它接受 `ReactNode`——
+直接把缺省组件传进去即可。
+
+插画统一用 `FnosEmptyIllustration`（`dsh-fnos-plugin` 内自绘，`stroke` 取
+`currentColor` 自动跟随主题）。消费方只需按位置选尺寸：面板内 120、窄条内 96。
+
 ## 字号：只允许偶数
 
 **插件样式里禁止出现奇数 `font-size`。** 11 / 13 / 15 / 17… 一律升到相邻偶数

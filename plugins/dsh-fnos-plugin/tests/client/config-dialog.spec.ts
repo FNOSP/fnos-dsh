@@ -128,6 +128,25 @@ describe('fnOS 配置弹框', () => {
     expect(label).toContain('line-height: 22px')
   })
 
+  it('空状态一律用缺省组件，不用纯文案', () => {
+    /*
+      一行灰字在一堆有插画的空状态里显得像排版错误或「加载失败」，用户分不清
+      「确实没有内容」和「页面坏了」。
+
+      `Tree` 的 `emptyContent` 接受 ReactNode，直接传缺省组件即可。
+    */
+    const picker = readFileSync(new URL('../../src/components/FnosAuthorizedPathPicker.tsx', import.meta.url), 'utf8')
+    expect(picker).toContain('FnosEmptyIllustration')
+    expect(picker).toMatch(/emptyContent=\{\(\s*<DshEmpty/u)
+
+    const sessionLog = readFileSync(new URL('../../src/components/FnosSessionLogHeaderAction.tsx', import.meta.url), 'utf8')
+    expect(sessionLog).toMatch(/emptyContent=\{\(\s*<DshEmpty/u)
+
+    const card = readFileSync(new URL('../../src/components/AuthorizedDirectoriesCard.tsx', import.meta.url), 'utf8')
+    // 没有条目时也要缺省组件，不能是一行 <p>。
+    expect(card).toMatch(/directories\.length === 0\s*\? \(\s*<DshEmpty/u)
+  })
+
   it('插件样式里没有奇数字号', () => {
     // 偶数号在非整数 DPR 下更容易落在整像素上；档位收敛后每次调整都可感知。
     const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')

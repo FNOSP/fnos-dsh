@@ -553,11 +553,21 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
           ) : null}
           {validateNotice === undefined ? null : <p className="dsh-fnos-authorized-body">{validateNotice}</p>}
           {/*
-            「尚未授权」只在**没有错误**时显示。加载失败时它和错误说明讲的是两件事
-            叠在一起（一条说环境不可用、一条说没授权），读起来像重复。
+            **没有数据用缺省组件，不用纯文案。**
+
+            「尚未授权」只在**没有错误**时显示：加载失败时它和上一条错误说明讲的是两件
+            事，叠在一起读起来像重复。
+
+            原先这里是一行灰字，与同一面板里其它空状态（带插画的缺省页）形态不一致。
           */}
           {state.status !== 'loading' && state.status !== 'error' && state.directories.length === 0
-            ? <p className="dsh-fnos-authorized-body">{t('empty')}</p>
+            ? (
+              <DshEmpty
+                className="dsh-fnos-authorized-empty"
+                image={<FnosEmptyIllustration size={120} />}
+                description={t('empty')}
+              />
+            )
             : null}
           {state.directories.length > 0 ? (
             <ul className="dsh-fnos-authorized-path-list">

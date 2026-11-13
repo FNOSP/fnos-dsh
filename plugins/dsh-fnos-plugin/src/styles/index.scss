@@ -3497,15 +3497,31 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
  * 自绘插画用 `currentColor` 描边，这里给它一个与正文区分但不刺眼的颜色——
  * 太深会抢标题，太浅又看不清形状。
  */
+/*
+ * 缺省状态：插画跟随主题，版心别太散。
+ *
+ * 三处共用：设置面板的环境缺省页、授权目录的空态与错误态、输入区选择面板的空态。
+ * 统一在这里给内边距与颜色，各处不必重复声明。
+ *
+ * 自绘插画用 `currentColor` 描边，这里给它一个与正文区分但不刺眼的颜色——
+ * 太深会抢标题，太浅又看不清形状。
+ */
 .dsh-fnos-config-empty,
-.dsh-fnos-authorized-empty {
+.dsh-fnos-authorized-empty,
+.dsh-fnos-picker-empty {
   padding: 24px 0 8px;
   color: var(--dsw-alias-label-secondary);
 }
 
 .dsh-fnos-config-empty svg,
-.dsh-fnos-authorized-empty svg {
+.dsh-fnos-authorized-empty svg,
+.dsh-fnos-picker-empty svg {
   color: var(--dsw-alias-label-tertiary);
+}
+
+/* 选择面板里的空态挤在窄条里，内边距收一点，插画也小一号。 */
+.dsh-fnos-picker-empty {
+  padding: 16px 0 8px;
 }
 
 /*
