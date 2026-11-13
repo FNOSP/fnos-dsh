@@ -308,6 +308,23 @@ describe('fnOS 配置弹框', () => {
     expect(repairAt).toBeLessThan(indexAt)
   })
 
+  it('样式注入只用 <style>，不在 head 里放非语义元素', () => {
+    /*
+      `<head>` 只允许 metadata content。早前把所有插件样式塞进一个
+      `<div hidden>` 容器，那是非语义元素，无障碍检查与 HTML 校验都会标出来。
+
+      改为直接操作 `<style>`：需要提高优先级时用 DOM 操作把它 append 到 head
+      末尾（后出现的规则胜出），不需要容器这一层。
+    */
+    const build = readFileSync(new URL('../../tsdown.config.ts', import.meta.url), 'utf8')
+    expect(build).toContain("document.createElement('style')")
+    // 不许再创建容器 div。
+    expect(build).not.toContain("document.createElement('div')")
+    expect(build).not.toContain('dsh-plugin-styles')
+    // 顺序靠 DOM 位置的 append 保证。
+    expect(build).toContain('document.head.append(style)')
+  })
+
   it('菜单选中态只用底色与字重', () => {
     // 左侧竖条已按产品要求去掉：它与底色是两套冗余指示，横排时还贴不齐圆角。
     const item = SCSS.slice(SCSS.indexOf('.dsh-fnos-config-nav-item {'))

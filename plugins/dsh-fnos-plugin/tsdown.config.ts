@@ -50,72 +50,74 @@ async function inlineClientStyles(config: { cwd: string }): Promise<void> {
        「禁用再启用」不会累积。
   */
   /*
-    注入样式：**固定容器 + 容器常驻 head 末尾**。
+    注入样式：**`<style>` 直接 append 到 head 末尾**。
 
-    ## 两个必须解决的问题
+    ## 两个约束
 
-    1. **重复**：插件会被反复加载（热更新、禁用再启用、切 profile）。无条件
-       `head.append(style)` 每加载一次就多一份 250KB 样式；本仓库多个插件还各自
-       内联了整份 Semi——实测一个页面堆出 4 份、合计约 107 万字符。
-    2. **顺序**：CSS 同一优先级下后出现的规则胜出。我们的覆盖规则必须晚于组件库
-       默认样式，但**插件加载顺序不确定**，靠 `head.append` 等于靠运气。
+    1. **不重复**：插件会被反复加载（热更新、禁用再启用、切 profile）。用固定 id
+       定位自己那份，存在就更新内容，不重复插入。
+    2. **顺序**：CSS 同一优先级下后出现的规则胜出。我们的覆盖必须晚于组件库默认
+       样式，而插件加载顺序不确定——单靠「谁后 append 谁靠后」等于靠运气。
 
-    ## 做法
+    ## 为什么不用容器
 
-    所有插件样式进同一个容器 `<div data-dsh-plugin-styles>`，容器**常驻 `head`
-    的最后一个元素**。注入时若容器被别的样式挤到前面，就挪回末尾。
+    早前把所有插件样式塞进一个 `<div hidden>` 容器，再把容器保持在 head 末尾。
+    但那在 `<head>` 里放了一个非语义元素：HTML 规范只允许 metadata content，
+    `<div>` 会被浏览器校验工具与无障碍检查标出来，没有任何正当理由。
 
-    于是「自定义样式恒在组件库默认之后」成为可依赖的约定，不需要堆 `!important`。
-    详见 `docs/charter/plugin-ui-standards.md` 的「样式注入顺序」。
+    改为**直接操作 `<style>` 元素**：
+
+    - 需要提高优先级时，用 DOM 操作把 `<style>` append 到 `head` 即可（后出现的
+      规则胜出）——这正是「权重」在 CSS 里的原生表达，不需要容器这一层；
+    - 用 `MutationObserver` 盯着 `head`：被后来的样式挤到前面时，把自己的
+      `<style>` 重新 append 回末尾。
+
+    于是「自定义样式恒在组件库默认之后」仍是持续成立的约定，而 head 里只有合法的
+    `<style>` 元素。
   */
   const styleLoader = [
     '(() => {',
     "  if (typeof document === 'undefined') return;",
-    "  const ID = " + JSON.stringify('dsh-plugin-style-' + cwdName) + ";",
-    "  const CSS = " + JSON.stringify(styles) + ";",
-    "  const CONTAINER_ID = 'dsh-plugin-styles';",
+    '  const ID = ' + JSON.stringify('dsh-plugin-style-' + cwdName) + ';',
+    '  const CSS = ' + JSON.stringify(styles) + ';',
     '',
-    '  const ensureContainer = () => {',
-    '    let container = document.getElementById(CONTAINER_ID);',
-    '    if (container === null) {',
-    "      container = document.createElement('div');",
-    '      container.id = CONTAINER_ID;',
-    '      container.hidden = true;',
+    '  const ensureStyle = () => {',
+    '    let style = document.getElementById(ID);',
+    '    if (style === null) {',
+    "      style = document.createElement('style');",
+    '      style.id = ID;',
+    '      style.dataset.dshPluginStyle = ID;',
+    '      style.textContent = CSS;',
     '    }',
-    '    // 必须始终是 head 的最后一个元素：我们的规则才会晚于组件库默认样式。',
-    '    if (document.head.lastElementChild !== container) document.head.append(container);',
     '    /*',
-    '      别的插件/组件库可能在之后又往 head 追加样式，把容器挤到前面。',
-    '      用 MutationObserver 盯着，被挤走就挪回末尾——顺序必须是**持续成立**的',
-    '      约定，不能只在注入那一刻成立。',
+    '      必须在 head 末尾：我们的规则才会晚于组件库默认样式。',
+    '      用 append（DOM 操作）而不是提高选择器特异性——这是 CSS 原生的',
+    '      「后出现者胜出」，语义最直接。',
     '    */',
-    '    if (container.dataset.watching !== "1") {',
-    '      container.dataset.watching = "1";',
-    '      const keepLast = () => {',
-    '        const live = document.getElementById(CONTAINER_ID);',
-    '        if (live !== null && document.head.lastElementChild !== live) document.head.append(live);',
-    '      };',
-    '      new MutationObserver(keepLast).observe(document.head, { childList: true });',
+    '    if (document.head.lastElementChild !== style) document.head.append(style);',
+    '    /*',
+    '      别的插件/组件库之后可能再往 head 追加样式，把我们挤到前面。',
+    '      用 MutationObserver 盯着，被挤走就挪回末尾——顺序要**持续成立**。',
+    '    */',
+    '    if (style.dataset.watching !== "1") {',
+    '      style.dataset.watching = "1";',
+    '      /* 只在真被挤走时才动：无条件的 append 会自触发成死循环。 */',
+    '      new MutationObserver(() => {',
+    '        const live = document.getElementById(ID);',
+    '        if (live === null) return;',
+    '        if (document.head.lastElementChild !== live) document.head.append(live);',
+    '      }).observe(document.head, { childList: true });',
     '    }',
-    '    return container;',
+    '    return style;',
     '  };',
     '',
-    '  const existing = document.getElementById(ID);',
-    '  if (existing !== null) { existing.textContent = CSS; ensureContainer(); return; }',
-    '',
-    "  const style = document.createElement('style');",
-    '  style.id = ID;',
-    "  style.dataset.dshPluginStyle = ID;",
-    '  style.textContent = CSS;',
-    '  ensureContainer().append(style);',
+    '  const style = document.getElementById(ID);',
+    '  if (style !== null) { style.textContent = CSS; ensureStyle(); return; }',
+    '  ensureStyle();',
     '',
     '  // 卸载时移除，避免「禁用再启用」累积。',
     '  if (typeof module !== "undefined" && module.exports !== undefined) {',
-    '    module.exports.__disposeStyle = () => {',
-    '      document.getElementById(ID)?.remove();',
-    '      const box = document.getElementById(CONTAINER_ID);',
-    '      if (box !== null && box.childElementCount === 0) box.remove();',
-    '    };',
+    '    module.exports.__disposeStyle = () => { document.getElementById(ID)?.remove(); };',
     '  }',
     '})();',
     '',
