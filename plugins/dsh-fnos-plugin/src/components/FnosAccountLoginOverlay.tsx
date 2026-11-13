@@ -29,34 +29,80 @@ import type { FnosLocaleKey } from '../client/locales.ts'
 type Translate = (key: FnosLocaleKey) => string
 
 /**
- * 官方「等待登录」态的标题字样。
+ * 官方登录框的文案特征。
  *
- * 认文案而不是类名：CSS Modules 的 hash 每次构建都变，标题是产品文案、变动少
- * 且可枚举。覆盖官方支持的语言。
+ * ## 为什么不能用「开始使用」
+ *
+ * 官方两处文案撞车：
+ *
+ * | 出处 | 文案 |
+ * | --- | --- |
+ * | `ui-settings-account` 登录框的**标题** | 开始使用 |
+ * | `ui-settings-models` 引导弹框的**描述结尾** | 配置 DeepSeek 官方模型，即可开始使用。 |
+ *
+ * 用「开始使用」当判据，会把**引导弹框**一起认成登录框——用户只是第一次打开
+ * 应用，就被塞一个粘贴回调地址的框。所以要认登录框**独有的**文案。
+ *
+ * ## 可用的判据
+ *
+ * - 登录框描述：「登录 DeepSeek 账号，或添加 API Key，即可开始使用。」→ 认
+ *   「登录 DeepSeek 账号」；
+ * - 等待态：「等待登录……」→ 认「等待登录」；
+ * - 短标题：「登录」（英文 Sign in）。
+ *
+ * 本插件自己的粘贴框文案（「完成授权后，把地址粘回来」「授权页关掉了？复制
+ * 链接重新打开：」等）**不含**这些词，另有一道类名排除兜底。
  */
-const WAITING_TITLES = [
-  '等待登录', 'Waiting for sign in', 'Warten auf Anmeldung', 'Esperando el inicio de sesión',
-  'En attente de connexion', 'In attesa di accesso', 'サインインを待っています',
-  '로그인 대기 중', 'Ожидание входа',
+const SIGN_IN_MARKERS = [
+  // 中文
+  '登录 DeepSeek 账号', '等待登录', '登录',
+  // 英文
+  'Sign in to DeepSeek account', 'Waiting for sign in', 'Sign in',
+  // 德文
+  'Bei DeepSeek-Konto anmelden', 'Warten auf Anmeldung', 'Anmelden',
+  // 西班牙文
+  'Iniciar sesión en la cuenta de DeepSeek', 'Esperando el inicio de sesión', 'Iniciar sesión',
+  // 法文
+  'Se connecter au compte DeepSeek', 'En attente de connexion', 'Se connecter',
+  // 意大利文
+  "Accedi all'account DeepSeek", 'In attesa di accesso', 'Accedi',
+  // 日文
+  'DeepSeek アカウントにログイン', 'サインインを待っています', 'ログイン',
+  // 韩文
+  'DeepSeek 계정으로 로그인', '로그인 대기 중', '로그인',
+  // 俄文
+  'Вход в аккаунт DeepSeek', 'Ожидание входа', 'Войти',
 ]
 
 /**
- * 在 `#root` 之后的弹层里找「等待登录」那一屏。
+ * 在 `body` 的**直接子节点**里找官方登录框。
+ *
+ * 官方弹层由 portal 挂到 `body` 直下，所以只需要看这一层，不必递归整棵树，
+ * 也不必自己维护「从 `#root` 往后数兄弟」。用 `Array.prototype.find` 而不是
+ * `while` 链表遍历：越界与空节点由数组语义兜住，不会写出 `node !== null`
+ * 这种容易漏改的循环条件。
  *
  * @returns 命中的官方 dialog；没有则为 undefined。
  */
-function findWaitingDialog(): Element | undefined {
-  const root = document.getElementById('root')
-  let node: Element | null = root === null ? document.body.firstElementChild : root.nextElementSibling
-  while (node !== null) {
-    if (node.getAttribute('role') === 'presentation') {
-      const dialog = node.querySelector('[role="dialog"]')
-      const text = dialog?.textContent ?? ''
-      if (dialog !== null && WAITING_TITLES.some(title => text.includes(title))) return dialog
-    }
-    node = node.nextElementSibling
-  }
-  return undefined
+function findSignInDialog(): Element | undefined {
+  if (typeof document === 'undefined' || document.body === null) return undefined
+  const host = [...document.body.children].find((node) => {
+    /*
+      先排除自己。
+
+      **要查后代，不能只查本节点**：我们的弹框类名挂在 Semi 的
+      `.semi-modal-content` 上，而 `body` 直下是外层 `.semi-modal-wrap`——
+      只比本节点的 class 永远不命中，自己的框会被当成官方框。
+    */
+    if (node.querySelector('.dsh-fnos-account-login-modal') !== null) return false
+    if (node.classList.contains('dsh-fnos-account-login-modal')) return false
+    if (node.getAttribute('role') !== 'presentation') return false
+    const dialog = node.querySelector('[role="dialog"]')
+    if (dialog === null) return false
+    const text = dialog.textContent ?? ''
+    return SIGN_IN_MARKERS.some(marker => text.includes(marker))
+  })
+  return host?.querySelector('[role="dialog"]') ?? undefined
 }
 
 /** 组件参数。 */
@@ -83,7 +129,7 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
   */
   const dismissedNodeRef = useRef<Element>()
   const close = useCallback((): void => {
-    dismissedNodeRef.current = findWaitingDialog()
+    dismissedNodeRef.current = findSignInDialog()
     setOpen(false)
   }, [])
 
@@ -91,7 +137,7 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
     if (typeof document === 'undefined' || document.body === null) return undefined
 
     const sync = (): void => {
-      const dialog = findWaitingDialog()
+      const dialog = findSignInDialog()
       if (dialog === undefined) {
         // 官方那一屏没了：这一轮结束，清掉压制标记。
         dismissedNodeRef.current = undefined

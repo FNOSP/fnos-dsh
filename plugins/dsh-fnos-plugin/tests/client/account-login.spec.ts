@@ -91,12 +91,51 @@ describe('账号登录：只补官方缺的那一屏', () => {
     */
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
     expect(overlay).toContain('MutationObserver')
-    expect(overlay).toContain('findWaitingDialog')
+    expect(overlay).toContain('findSignInDialog')
     // 不许再出现定时轮询。
     expect(overlay).not.toContain('POLL_MS')
     expect(overlay).not.toContain('setTimeout(() => { void poll')
     // 宿主状态只读一次，用来填「复制链接」的地址，不参与显隐判断。
     expect(overlay).toContain('readAuthorizeUrlOnce')
+  })
+
+  it('在 body 直接子节点里找，不用链表遍历', () => {
+    /*
+      官方弹层由 portal 挂到 `body` 直下，看这一层就够。用数组语义遍历，
+      不写 `while (node !== null)` —— 那种循环条件改起来容易漏，越界也不好兜。
+    */
+    const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    expect(overlay).toContain('[...document.body.children]')
+    expect(overlay).not.toContain('nextElementSibling')
+    expect(overlay).not.toContain('while (node !== null)')
+  })
+
+  it('认「登录 DeepSeek 账号」「登录」，不认「开始使用」', () => {
+    /*
+      官方两处文案撞车：
+        - `ui-settings-account` 登录框**标题**：开始使用
+        - `ui-settings-models` 引导弹框**描述结尾**：配置 DeepSeek 官方模型，即可开始使用。
+
+      用「开始使用」当判据会把**引导弹框**一起认成登录框——用户第一次打开应用
+      就被塞一个粘贴回调地址的框。所以只认登录框独有的文案。
+    */
+    const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    expect(overlay).toContain("'登录 DeepSeek 账号'")
+    expect(overlay).toContain("'登录'")
+    expect(overlay).toContain("'等待登录'")
+    // 引导弹框的文案不能出现在判据里。
+    expect(overlay).not.toContain("'开始使用'")
+    expect(overlay).not.toContain("'Get started'")
+  })
+
+  it('自己的弹框不能被自己的判据认出', () => {
+    /*
+      判据里有裸「登录」这类宽条件，所以排除自己必须可靠。
+      类名挂在 Semi 的 `.semi-modal-content` 上，而 body 直下是外层 wrap——
+      只比本节点 class 永远不命中，必须查后代。
+    */
+    const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    expect(overlay).toContain("node.querySelector('.dsh-fnos-account-login-modal') !== null) return false")
   })
 
   it('关闭后不再被同一屏弹回来', () => {
