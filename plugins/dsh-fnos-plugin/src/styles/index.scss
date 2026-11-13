@@ -2148,6 +2148,42 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   border-radius: 8px;
 }
 
+/*
+ * 「自定义插件索引」首次加载的骨架屏。
+ *
+ * 尺寸对齐真实内容，加载完成后是同位置替换，页面结构不跳动：
+ * - 开关行复用 `.dsh-fnos-idx-row` 的边框与内边距，只把内部换成骨架条；
+ * - 清单行按真实条目的行高撑开。
+ */
+.dsh-fnos-idx-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dsh-fnos-idx-skeleton-row {
+  /* 与真实行同一套盒模型，避免加载完成时高度突变。 */
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 10px 12px;
+}
+
+.dsh-fnos-idx-skeleton-title {
+  width: 80px;
+  height: 14px;
+}
+
+.dsh-fnos-idx-skeleton-switch {
+  width: 38px;
+  height: 20px;
+  border-radius: 10px;
+}
+
+.dsh-fnos-idx-skeleton-line {
+  width: 100%;
+  height: 14px;
+}
+
 .dsh-fnos-idx-row-main {
   display: flex;
   flex-direction: column;
@@ -3701,7 +3737,31 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
     */
     min-height: 0;
     overflow-y: auto;
-    /* 底部安全边距：全面屏手机的手势条会压住最后一行。 */
-    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    /*
+      **左右内边距必须改成对称。**
+
+      桌面形态是 `0 24px 0 4px`——左 4 是刻意的：它要和左侧导航列自己的右内边距
+      12 相加成 16，内容才不会离菜单太远。
+
+      移动端导航变成顶部横条、左列不存在，那 4px 就裸露成「左边几乎没有留白」，
+      而右边仍是 24px，于是同一块内容左右差了 20px（截图里那个右侧大缺口）。
+
+      统一 16 与导航条自身的 `padding: 12px 16px 14px` 对齐：顶部第一格与下方
+      内容从同一条竖线开始。
+    */
+    padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /*
+    **卡片正文不再自己加左右外边距。**
+
+    桌面形态里 `.dsh-fnos-authorized-card-body` 有 `margin: 0 16px`，与面板的
+    内边距叠成两级缩进；窄屏上这个叠加会把正文推到 32px，与顶部图标行的 16px
+    对不齐——同一屏里两种左边缘，正是「各 tab 留白不一致」的观感来源。
+
+    移动端统一由面板给 16，正文归零，全屏只保留一条内容边线。
+  */
+  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-authorized-card-body {
+    margin-inline: 0;
   }
 }

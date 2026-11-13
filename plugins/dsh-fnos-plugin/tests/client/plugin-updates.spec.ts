@@ -334,3 +334,58 @@ describe('索引源页签：刷新按钮与「已安装的插件」同位置', (
     expect(INDEX_SRC).not.toContain('dsh-fnos-idx-toolbar')
   })
 })
+
+describe('索引源面板：首次加载用骨架屏占位', () => {
+  const PANEL_SRC = readFileSync(new URL('../../src/components/PluginIndexPanel.tsx', import.meta.url), 'utf8')
+  const SCSS_SRC = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+
+  it('status 未就绪时渲染骨架，不按「未开启」渲染', () => {
+    /*
+      `status` 还是 `undefined` 时什么都不知道，早前却直接按「未开启」渲染：加载慢的
+      时候用户先看到一个**错的**「未开启」，随后跳成「已开启」，中间还空着一大块。
+    */
+    expect(PANEL_SRC).toContain('const loading = status === undefined && error === undefined')
+    expect(PANEL_SRC).toContain('dsh-fnos-idx-skeleton')
+    // 正常视图必须被 status 门住，否则加载中仍会显示「未开启」。
+    expect(PANEL_SRC).toMatch(/\{status === undefined \? null : \(/u)
+  })
+
+  it('骨架包在 DshSkeleton active 里，shimmer 才会动', () => {
+    // 动画选择器是 `.semi-skeleton-active .semi-skeleton-title` 这类后代规则；
+    // 只写子组件会得到静止灰条（animationName 为 none），看起来像加载失败。
+    expect(PANEL_SRC).toContain('<DshSkeleton active>')
+    expect(PANEL_SRC).toContain('aria-busy="true"')
+    expect(PANEL_SRC).toContain('dsh-fnos-visually-hidden')
+  })
+
+  it('骨架样式与真实行同盒模型，加载完成不跳动', () => {
+    expect(SCSS_SRC).toContain('.dsh-fnos-idx-skeleton-row')
+    expect(SCSS_SRC).toMatch(/\.dsh-fnos-idx-skeleton-row \{[^}]*min-height: 40px/u)
+  })
+
+  it('加载失败不算 loading，交给错误提示', () => {
+    // 否则失败后会一直转骨架。
+    expect(PANEL_SRC).toContain('error === undefined')
+  })
+})
+
+describe('移动端面板：左右内边距对称', () => {
+  const SCSS_SRC = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+
+  it('移动端覆盖掉桌面的 `0 24px 0 4px`', () => {
+    /*
+      桌面形态左 4 是刻意的：它要和左侧导航列自己的右内边距 12 相加成 16。
+      移动端导航变成顶部横条、左列不存在，那 4px 就裸露成「左边几乎没有留白」，
+      右边仍是 24px，同一块内容左右差 20px。
+    */
+    // 桌面那条 `0 24px 0 4px` 要保留（左 4 是与导航列配合的刻意取值），
+    // 移动端必须另给一条对称覆盖。
+    expect(SCSS_SRC).toContain('padding: 0 24px 0 4px')
+    expect(SCSS_SRC).toContain('padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px))')
+  })
+
+  it('卡片正文不再叠第二级缩进', () => {
+    // `margin: 0 16px` 叠在面板 16 上会变成 32，与顶部图标行的边线对不齐。
+    expect(SCSS_SRC).toMatch(/\.dsh-fnos-authorized-card-body \{\s*margin-inline: 0;/u)
+  })
+})
