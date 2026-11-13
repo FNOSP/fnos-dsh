@@ -133,6 +133,42 @@ function hideOfficialDialog(dialog: Element): void {
 }
 
 /**
+ * 真正关闭官方登录框：点它自己的关闭按钮，让 React 正常卸载。
+ *
+ * 与 {@link hideOfficialDialog} 的分工：
+ *
+ * - **隐藏**用在拦截那一刻——官方节点必须活着，否则「添加 API Key」那条路的
+ *   按钮会随组件消失，代点就断了；
+ * - **关闭**用在我方对话框被关掉的时候——此时用户已经放弃了这次登录，官方框
+ *   也不该继续留在 DOM 里。
+ *
+ * @param dialog - 官方对话框元素。
+ */
+export function dismissOfficialDialog(dialog: Element): void {
+  /*
+    先把它放出来：隐藏态（`display: none`）的元素点不动按钮，而这正是拦截后
+    的常态。放出来后立即点关闭，视觉上不会闪——两次样式变更在同一帧内完成。
+  */
+  const host = dialog.closest('[role="presentation"]') ?? dialog.parentElement
+  if (host instanceof HTMLElement) {
+    host.style.removeProperty('display')
+    host.removeAttribute('data-dsh-fnos-hidden')
+  }
+  /*
+    官方结构（`ui-primitives/src/Modal.tsx`）：关闭按钮在 header 里、紧随 `<h2>`
+    之后，`<button aria-label={closeLabel}>`。取 dialog 内**第一个** aria-label
+    按钮就是这个。
+  */
+  const button = dialog.querySelector('button[aria-label]')
+  if (button instanceof HTMLElement) {
+    button.click()
+    return
+  }
+  // 兜底：headless 变体没有 header，改派 Esc（官方用 `useModalLayer` 监听）。
+  dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+}
+
+/**
  * 观察并收起官方登录框。
  *
  * 插件加载时机与官方框挂载顺序不固定：可能先有框、后有插件，也可能反过来。
@@ -323,8 +359,20 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
   }, [pasted, t, onClose])
 
   /** 关闭：同时取消宿主那次尝试，避免留下 `waiting-browser` 脏状态。 */
+  /**
+   * 关闭本对话框。
+   *
+   * 三件事一起做：
+   *
+   * 1. **同时关掉官方那个弹框**——用户已经放弃这次登录，官方框不该继续留在
+   *    DOM 里（拦截期间它是隐藏的，不关掉就会一直是「看不见但活着」的状态）。
+   * 2. 取消宿主那次登录尝试，避免留下 `waiting-browser` 脏状态；
+   * 3. 复位本地状态。
+   */
   const close = useCallback((): void => {
     closedRef.current = true
+    const official = officialDialogRef.current
+    if (official !== undefined) dismissOfficialDialog(official)
     void fetch(FNOS_ACCOUNT_LOGIN_CANCEL_ROUTE, {
       method: 'POST',
       credentials: 'same-origin',
@@ -335,7 +383,7 @@ export function FnosAccountLoginDialog({ open, t, onClose, officialDialogRef }: 
     setPasted('')
     setMessage(undefined)
     onClose()
-  }, [onClose])
+  }, [onClose, officialDialogRef])
 
   /*
     打开时对齐宿主状态：如果已经有一轮进行中的尝试（例如页面刷新后），

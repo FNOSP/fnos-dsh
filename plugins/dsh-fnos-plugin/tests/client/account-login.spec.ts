@@ -77,6 +77,23 @@ describe('账号登录：官方框拦截', () => {
     expect(CLIENT).toContain("querySelector('.dsh-fnos-account-login') !== null")
   })
 
+  it('关闭我方框时，同时关掉官方框', () => {
+    /*
+      分工：拦截那一刻**隐藏**（官方节点必须活着，否则「添加 API Key」的代点会断），
+      用户关掉我方框时**真正关闭**（此时已放弃登录，官方框不该继续留在 DOM 里）。
+    */
+    expect(CLIENT).toContain('dismissOfficialDialog')
+    expect(CLIENT).toMatch(/const official = officialDialogRef\.current\s*\n\s*if \(official !== undefined\) dismissOfficialDialog\(official\)/u)
+  })
+
+  it('真正关闭前先解除隐藏，否则按钮点不动', () => {
+    // `display: none` 的元素派发 click 不会触发 React 的处理函数。
+    const idx = CLIENT.indexOf('export function dismissOfficialDialog')
+    const block = CLIENT.slice(idx, idx + 900)
+    expect(block).toContain("host.style.removeProperty('display')")
+    expect(block).toContain("querySelector('button[aria-label]')")
+  })
+
   it('官方框隐藏而非卸载，保住「添加 API Key」这条出口', () => {
     /*
       最初是点官方关闭按钮让 React 卸载（DOM 干净）。但那样会断掉「添加 API Key」：
@@ -87,9 +104,10 @@ describe('账号登录：官方框拦截', () => {
     */
     expect(CLIENT).toContain('hideOfficialDialog')
     expect(CLIENT).toContain("host.style.display = 'none'")
-    // 不许可去掉节点或点官方关闭按钮。
-    expect(CLIENT).not.toContain('dismissOfficialDialog')
-    expect(CLIENT).not.toContain('.remove()')
+    // 隐藏阶段不许卸载节点（那会断掉代点），也不许 remove。
+    const hideFn = CLIENT.slice(CLIENT.indexOf('function hideOfficialDialog'), CLIENT.indexOf('export function dismissOfficialDialog'))
+    expect(hideFn).not.toContain('dismissOfficialDialog')
+    expect(hideFn).not.toContain('.remove()')
   })
 
   it('隐藏后要打标记，否则每轮 scan 重复处理', () => {
