@@ -288,6 +288,19 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(SCSS).toContain('.dsh-fnos-account-login-copy:focus-visible')
   })
 
+  it('表头与正文的间距按「总间距减去表头已占的部分」算', () => {
+    /*
+      视觉间距 = header 的 padding-bottom（12）+ body 的 margin-top。
+      原先 margin 给 20，合计 32px，标题与正文之间空出一大块。
+      改成 8 之后合计 20px，与官方 dialog 的 `gap: 20px` 一致——**减去 header
+      已经贡献的那部分**，而不是把 20 直接写在这里。
+    */
+    // 取该规则块本身（选择器到第一个 }），避免 indexOf 命中文件别处的同名片段。
+    const block = SCSS.match(/[^{}]*dsh-fnos-account-login-modal \.semi-modal-body \{[^}]*\}/u)?.[0] ?? ''
+    expect(block).toContain('margin-top: 8px')
+    expect(block).not.toContain('margin-top: 20px')
+  })
+
   it('点击复制不关闭弹框', () => {
     /*
       用户复制完还要回来粘地址，复制这种短动作不该把正在填写的弹框收掉。

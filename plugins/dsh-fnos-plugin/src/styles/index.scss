@@ -3372,8 +3372,15 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .semi
 /* 正文与描述共用 24px 内容列。 */
 body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .semi-modal-body {
   padding: 0 24px;
-  /* 标题行与正文之间 20px，与官方 dialog 的 `gap` 一致。 */
-  margin-top: 20px;
+  /*
+    标题行与正文之间留 8px。
+
+    实际视觉间距 = header 的 `padding-bottom: 12` + 这里的 margin。原先 margin 给
+    20，合计 32px，标题与正文之间空出一大块，像是两个不相关的区域。改 8 之后
+    合计 20px，与官方 dialog 的 `gap: 20px` 一致——**减去 header 已贡献的那部分**，
+    而不是把 20 直接写在这里。
+  */
+  margin-top: 8px;
 }
 
 body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-fnos-account-login-desc {
