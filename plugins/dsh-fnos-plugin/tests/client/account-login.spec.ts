@@ -288,6 +288,28 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(SCSS).toContain('.dsh-fnos-account-login-copy:focus-visible')
   })
 
+  it('点击复制不关闭弹框', () => {
+    /*
+      用户复制完还要回来粘地址，复制这种短动作不该把正在填写的弹框收掉。
+      两个事件都 `stopPropagation`：Semi 的 Modal 会监听外层容器的点击来决定关闭。
+    */
+    expect(CLIENT).toContain('event.preventDefault()')
+    expect(CLIENT).toContain('event.stopPropagation()')
+    expect(CLIENT).toContain('doCopy(event)')
+  })
+
+  it('正文精简到两行内', () => {
+    // 真机实测：两行 = 44px（2 × 22px line-height）。文案再长会撑到三行。
+    const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
+    // 取中文那条（文件里中英两份，按是否含中文字符挑）。
+    const all = [...locales.matchAll(/accountLoginPasteHint: '([^']+)'/gu)].map(m => m[1])
+    const hint = all.find(v => /[\u4E00-\u9FFF]/u.test(v)) ?? ''
+    expect(hint.length).toBeGreaterThan(20)
+    // 中文按字数粗估：两行约 40 字（弹框内容列约 432px / 每字 14px）。
+    expect(hint.length).toBeLessThanOrEqual(42)
+    expect(locales).toContain("accountLoginReopenPrefix: 'Auth 页关掉了可'")
+  })
+
   it('描述文案与官方一致', () => {
     const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
     // 官方 `ui-settings-account/src/client/locales.ts` 的 loginDescription。

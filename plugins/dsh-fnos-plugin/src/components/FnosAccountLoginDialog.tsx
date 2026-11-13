@@ -254,10 +254,22 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
                     role="button"
                     tabIndex={0}
                     className="dsh-fnos-account-login-copy"
-                    onClick={event => { doCopy(event) }}
+                    /*
+                      **点击只复制，不关闭弹框。**
+
+                      两个事件都 `stopPropagation`：Semi 的 Modal 会监听外层容器上的
+                      点击来决定是否关闭，复制这种短动作不该顺带把用户正在填写的弹框
+                      收掉——用户复制完还要回来粘地址。
+                    */
+                    onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      doCopy(event)
+                    }}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault()
+                        event.stopPropagation()
                         doCopy(event as unknown as React.MouseEvent)
                       }
                     }}
