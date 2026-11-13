@@ -74,14 +74,19 @@ describe('账号登录：只补官方缺的那一屏', () => {
     expect(CLIENT).not.toContain("t('accountLoginApiKey')")
   })
 
-  it('不再拦截官方弹框', () => {
+  it('官方框要压下去，关闭时再放出来', () => {
     /*
-      官方框保留原样。早前那套 DOM 监听 / 隐藏 / 代点 API Key 的机制，是为了
-      「换成我们的初始态」——既然不画初始态，这套机制就不需要了。
+      官方的初始态与「等待登录」态都跟我们的对话框讲同一件事，两个框叠在一起
+      只会让用户不知道该点哪个。压制只改宿主的可见性（结构不动），关掉我们的
+      框时放出来；否则官方框会一直停在 `display: none`。
     */
-    expect(CLIENT).not.toContain('watchOfficialSignInDialogs')
-    expect(CLIENT).not.toContain('hideOfficialDialog')
-    expect(CLIENT).not.toContain('dismissOfficialDialog')
+    const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    expect(overlay).toContain('hideOfficial(found.host)')
+    expect(overlay).toContain('showOfficial(hiddenHostRef.current)')
+    // 压的是宿主，不是 dialog 本身——只藏内容会留下一层拦截点击的透明遮罩。
+    expect(overlay).toContain("host.style.display = 'none'")
+    expect(overlay).toContain('HIDDEN_ATTR')
+    // 早年代点「添加 API Key」那套不需要了。
     expect(CLIENT).not.toContain('OFFICIAL_API_KEY_LABELS')
   })
 
@@ -164,7 +169,8 @@ describe('账号登录：只补官方缺的那一屏', () => {
     // 记住「关闭时那一屏」的节点；同一节点还在就不再显示，节点消失则标记失效。
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
     expect(overlay).toContain('dismissedNodeRef')
-    expect(overlay).toContain('setOpen(dialog !== dismissedNodeRef.current)')
+    // 命中的对话框与「关过的那一屏」相同就保持收起。
+    expect(overlay).toContain('found.dialog === dismissedNodeRef.current')
   })
 })
 
@@ -198,6 +204,21 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
     expect(locales).toContain("accountLoginPasteTitle: '填写授权地址'")
     expect(locales).not.toContain('完成授权后，把地址粘回来')
+  })
+
+  it('授权链接并进正文，文字可选，不配单独按钮', () => {
+    /*
+      用户要复制的是地址本身，单独一个「复制链接」按钮只是多一步。改成把地址
+      并进说明文字，读说明时顺手就能选中复制。
+    */
+    expect(CLIENT).toContain('dsh-fnos-account-login-url')
+    expect(CLIENT).not.toContain('navigator.clipboard')
+    // 独立的那一行与按钮都不该再有。
+    expect(SCSS).not.toContain('.dsh-fnos-account-login-relink')
+    // 链接要能一次整条选中，长地址不能撑破版心。
+    expect(SCSS).toContain('user-select: all')
+    expect(SCSS).toContain('word-break: break-all')
+    expect(SCSS).toContain('user-select: text')
   })
 
   it('描述文案与官方一致', () => {

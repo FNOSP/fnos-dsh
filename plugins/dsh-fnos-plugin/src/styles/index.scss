@@ -3380,24 +3380,21 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 }
 
 /*
- * 「复制授权链接」那一行：说明文字左、按钮右，与描述之间留 12px。
+ * 正文里的授权链接：并进说明文字，不单独占行、不配按钮。
  *
- * 它是给「授权页被误关」准备的出口，所以位置要贴着描述——用户读到「会跳到
- * 127.0.0.1」时，紧接着就能看到怎么重开。
+ * `user-select: all` 让单击一次就整条选中——用户要的就是把这条地址复制走。
+ * `word-break: break-all` 保证长地址不撑破版心。
  */
-.dsh-fnos-account-login-relink {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 12px;
+.dsh-fnos-account-login-url {
+  user-select: all;
+  word-break: break-all;
+  font-family: var(--dsw-font-family-mono, ui-monospace, monospace);
+  color: var(--dsw-alias-label-secondary);
 }
 
-.dsh-fnos-account-login-relabel {
-  min-width: 0;
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--dsw-alias-label-secondary);
+/* 正文文字本身要可选：用户读到「复制那一整条地址」时可以直接选。 */
+.dsh-fnos-account-login-desc {
+  user-select: text;
 }
 
 /* 粘贴态的输入框与描述之间留 12px，避免两段文字贴在一起。 */

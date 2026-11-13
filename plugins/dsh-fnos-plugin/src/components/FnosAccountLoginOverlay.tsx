@@ -81,9 +81,10 @@ const SIGN_IN_MARKERS = [
  * `while` 链表遍历：越界与空节点由数组语义兜住，不会写出 `node !== null`
  * 这种容易漏改的循环条件。
  *
- * @returns 命中的官方 dialog；没有则为 undefined。
+ * @returns 命中的官方弹框：`dialog` 是内容节点，`host` 是 `body` 直下那层宿主
+ *   （隐藏要作用在宿主上，遮罩与定位都在它上面）。没有则为 undefined。
  */
-function findSignInDialog(): Element | undefined {
+function findSignInDialog(): { dialog: Element, host: Element } | undefined {
   if (typeof document === 'undefined' || document.body === null) return undefined
   const host = [...document.body.children].find((node) => {
     /*
@@ -101,7 +102,40 @@ function findSignInDialog(): Element | undefined {
     const text = dialog.textContent ?? ''
     return SIGN_IN_MARKERS.some(marker => text.includes(marker))
   })
-  return host?.querySelector('[role="dialog"]') ?? undefined
+  if (host === undefined) return undefined
+  const dialog = host.querySelector('[role="dialog"]')
+  return dialog === null ? undefined : { dialog, host }
+}
+
+/** 隐藏标记：既是幂等保护，也方便在调试时识别「这一层是我们压下去的」。 */
+const HIDDEN_ATTR = 'data-dsh-fnos-hidden'
+
+/**
+ * 把官方弹框压下去。
+ *
+ * **不改结构、只改可见性**：官方那套组件仍在正常渲染，遮罩与定位都在宿主上，
+ * 所以隐藏必须作用于宿主而不是 `dialog` 本身——只藏内容会留下一层拦截点击的
+ * 透明遮罩。
+ *
+ * @param host - 官方弹框的宿主节点。
+ */
+function hideOfficial(host: Element): void {
+  if (!(host instanceof HTMLElement)) return
+  if (host.getAttribute(HIDDEN_ATTR) === '1') return
+  host.setAttribute(HIDDEN_ATTR, '1')
+  host.style.display = 'none'
+}
+
+/**
+ * 撤销隐藏。
+ *
+ * @param host - 官方弹框的宿主节点。
+ */
+function showOfficial(host: Element): void {
+  if (!(host instanceof HTMLElement)) return
+  if (host.getAttribute(HIDDEN_ATTR) !== '1') return
+  host.removeAttribute(HIDDEN_ATTR)
+  host.style.removeProperty('display')
 }
 
 /** 组件参数。 */
@@ -127,8 +161,18 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
     ——用 `WeakRef` 语义的弱引用没必要，节点被替换时引用比对会自动不相等。
   */
   const dismissedNodeRef = useRef<Element>()
+  /*
+    当前被我们压下去的官方宿主。关闭时**必须放出来**，否则官方框会一直停在
+    `display: none`：用户已经把这次登录取消了，官方那边也该回到可操作状态。
+  */
+  const hiddenHostRef = useRef<Element>()
+
   const close = useCallback((): void => {
-    dismissedNodeRef.current = findSignInDialog()
+    dismissedNodeRef.current = findSignInDialog()?.dialog
+    if (hiddenHostRef.current !== undefined) {
+      showOfficial(hiddenHostRef.current)
+      hiddenHostRef.current = undefined
+    }
     setOpen(false)
   }, [])
 
@@ -136,15 +180,31 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
     if (typeof document === 'undefined' || document.body === null) return undefined
 
     const sync = (): void => {
-      const dialog = findSignInDialog()
-      if (dialog === undefined) {
+      const found = findSignInDialog()
+      if (found === undefined) {
         // 官方那一屏没了：这一轮结束，清掉压制标记。
         dismissedNodeRef.current = undefined
+        hiddenHostRef.current = undefined
         setOpen(false)
         return
       }
-      // 同一屏被用户关过：保持收起。
-      setOpen(dialog !== dismissedNodeRef.current)
+      /*
+        **官方框一律压下去。**
+
+        它的初始态与「等待登录」态都跟我们的对话框讲同一件事，两个框叠在一起
+        只会让用户不知道该点哪个。压制只改宿主的可见性，不动结构，官方的组件
+        状态不受影响；关掉我们的框时再放出来。
+
+        唯独用户已经关过的那一屏不再重新接管（`dismissedNodeRef`），否则点了
+        关闭又弹回来。
+      */
+      if (found.dialog === dismissedNodeRef.current) {
+        setOpen(false)
+        return
+      }
+      hideOfficial(found.host)
+      hiddenHostRef.current = found.host
+      setOpen(true)
     }
 
     sync()

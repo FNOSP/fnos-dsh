@@ -69,8 +69,6 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
   const [message, setMessage] = useState<string>()
   /** 授权页地址；「复制链接」用它，没有就不显示那一段。 */
   const [authorizeUrl, setAuthorizeUrl] = useState<string>()
-  /** 复制结果：两秒后复位，让按钮文字回到常态。 */
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const authorizeUrlRef = useRef<string>()
   const closedRef = useRef(false)
 
@@ -184,36 +182,27 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
       modalContentClass="dsh-fnos-account-login-modal"
       title={t('accountLoginPasteTitle')}
     >
-      <p className="dsh-fnos-account-login-desc">{t('accountLoginPasteHint')}</p>
       {/*
-        「重新打开授权页」的自助出口。
+        正文 + 可复制的授权链接，**同一段落、共用一个块**。
 
-        授权页是普通标签页，用户很容易顺手关掉；关掉之后官方那一屏只剩「复制
-        登录链接」，而这里直接把链接摆出来，点一下就能重开，不用退回去找。
+        原先链接单独占一行、右边挂一个「复制链接」按钮；实际上用户要复制的是
+        地址本身，按钮只是多一步。改成把地址并进这句说明里、并且让文字可选：
+        读说明时顺手就能选中复制。
 
-        用 `navigator.clipboard.writeText`（与官方 `SignInDialog` 同一手法），
-        失败时退回提示文案而不是静默。
+        链接用 `user-select: all`：单击一次就整条选中，省掉拖选的麻烦；
+        `word-break: break-all` 保证长地址不会撑破版心。
       */}
-      <div className="dsh-fnos-account-login-relink">
-        <span className="dsh-fnos-account-login-relabel">{t('accountLoginReopenLabel')}</span>
+      <p className="dsh-fnos-account-login-desc">
+        {t('accountLoginPasteHint')}
         {authorizeUrl === undefined ? null : (
-          <DshButton
-            size="small"
-            onClick={() => {
-              void navigator.clipboard.writeText(authorizeUrl).then(
-                () => { setCopyState('copied') },
-                () => { setCopyState('failed') },
-              ).then(() => {
-                window.setTimeout(() => { setCopyState('idle') }, 2000)
-              })
-            }}
-          >
-            {copyState === 'copied'
-              ? t('accountLoginLinkCopied')
-              : copyState === 'failed' ? t('accountLoginLinkCopyFailed') : t('accountLoginCopyLink')}
-          </DshButton>
+          <>
+            {' '}
+            {t('accountLoginReopenLabel')}
+            {' '}
+            <span className="dsh-fnos-account-login-url">{authorizeUrl}</span>
+          </>
         )}
-      </div>
+      </p>
       <DshInput
         value={pasted}
         /* 端口由宿主转发时决定，这里只给形状；写死端口与实际改写的值对不上。 */
