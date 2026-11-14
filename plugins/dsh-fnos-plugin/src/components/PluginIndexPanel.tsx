@@ -137,24 +137,35 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
         <div className="dsh-fnos-idx-skeleton" aria-busy="true" aria-live="polite">
           <span className="dsh-fnos-visually-hidden">{t('loading')}</span>
           {/*
-            必须包在 `<DshSkeleton active>` 里：shimmer 动画是
-            `.semi-skeleton-active .semi-skeleton-title` 这类**后代**规则，子组件
-            没有自己的 `active`；只写子组件会得到几块静止的灰条（`animationName`
-            为 `none`），看起来像加载失败。
+            **占位内容必须走 `placeholder` 属性，不能当 children 传。**
+
+            Semi 的 `Skeleton` 是个容器：`children` 是**加载完成后**要显示的内容，
+            占位图由 `placeholder` 单独给。早前把 `<DshSkeleton.Title>` 直接写在
+            里面，它被当成 children——而 `loading` 默认为 `true` 时 children 不渲染，
+            于是产出的 DOM 是空的 `<div class="semi-skeleton">`，高度 0。
+
+            视觉上就是**一片空白**（真机实测 `rootH: 0`），正是截图里的样子。
+
+            这里自己拼占位结构传给 `placeholder`，`active` 给 shimmer 动画。
           */}
-          <DshSkeleton active>
-            {/* 开关行：左侧标题、右侧开关，与真实行同高。 */}
-            <div className="dsh-fnos-idx-row dsh-fnos-idx-skeleton-row">
-              <DshSkeleton.Title className="dsh-fnos-idx-skeleton-title" />
-              <DshSkeleton.Button className="dsh-fnos-idx-skeleton-switch" />
-            </div>
-            {/* 索引源清单：两条，占住真实条目将要出现的位置。 */}
-            {[0, 1].map(index => (
-              <div key={index} className="dsh-fnos-idx-skeleton-row">
-                <DshSkeleton.Title className="dsh-fnos-idx-skeleton-line" />
-              </div>
-            ))}
-          </DshSkeleton>
+          <DshSkeleton
+            active
+            placeholder={(
+              <>
+                {/* 开关行：左侧标题、右侧开关，与真实行同高。 */}
+                <div className="dsh-fnos-idx-row dsh-fnos-idx-skeleton-row">
+                  <DshSkeleton.Title className="dsh-fnos-idx-skeleton-title" />
+                  <DshSkeleton.Button className="dsh-fnos-idx-skeleton-switch" />
+                </div>
+                {/* 索引源清单：两条，占住真实条目将要出现的位置。 */}
+                {[0, 1].map(index => (
+                  <div key={index} className="dsh-fnos-idx-skeleton-row">
+                    <DshSkeleton.Title className="dsh-fnos-idx-skeleton-line" />
+                  </div>
+                ))}
+              </>
+            )}
+          />
         </div>
       ) : null}
 

@@ -350,10 +350,22 @@ describe('索引源面板：首次加载用骨架屏占位', () => {
     expect(PANEL_SRC).toMatch(/\{status === undefined \? null : \(/u)
   })
 
-  it('骨架包在 DshSkeleton active 里，shimmer 才会动', () => {
-    // 动画选择器是 `.semi-skeleton-active .semi-skeleton-title` 这类后代规则；
-    // 只写子组件会得到静止灰条（animationName 为 none），看起来像加载失败。
-    expect(PANEL_SRC).toContain('<DshSkeleton active>')
+  it('占位内容走 placeholder 属性，不能当 children 传', () => {
+    /*
+      Semi 的 `Skeleton` 是容器：`children` 是**加载完成后**要显示的内容，占位图由
+      `placeholder` 单独给。
+
+      早前把 `<DshSkeleton.Title>` 直接写在里面，它被当成 children——而 `loading`
+      默认为 `true` 时 children 不渲染，产出的 DOM 是空的
+      `<div class="semi-skeleton">`，高度 0。视觉上就是**一片空白**
+      （真机实测 `rootH: 0`），正是截图里的样子。
+
+      修后实测：骨架高 142px、骨架条 24px、`animationName` 为 `skeleton-loading`。
+    */
+    expect(PANEL_SRC).toContain('placeholder={(')
+    expect(PANEL_SRC).toContain('active')
+    // 不能再出现「DshSkeleton 直接包住 Title」的写法。
+    expect(PANEL_SRC).not.toMatch(/<DshSkeleton active>\s*\{?\/?\*?[\s\S]{0,80}<DshSkeleton\.Title/u)
     expect(PANEL_SRC).toContain('aria-busy="true"')
     expect(PANEL_SRC).toContain('dsh-fnos-visually-hidden')
   })
