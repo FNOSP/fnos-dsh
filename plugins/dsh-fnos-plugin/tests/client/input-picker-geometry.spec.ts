@@ -337,7 +337,21 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
       桌面端保持 454 / 24 不变。
     */
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    expect(SCSS).toContain('.semi-modal:has(> .semi-modal-content.dsh-fnos-create-dialog)')
+
+    /*
+      **这三个弹框带 `centered`，Semi 在居中模式下不生成 `.semi-modal` 包裹层**：
+      `className` 直接落在内容元素上（祖先链是
+      `.dsh-fnos-create-dialog > .semi-portal > body`）。
+
+      所以 `:has(> .semi-modal-content…)` 那条选择器对它们不匹配——第一版就是这么
+      写错的，窄屏下弹框仍按 454 撑开、左右贴边溢出，标题被切掉。
+
+      正确做法是直接作用于元素自身。
+    */
+    expect(SCSS).toMatch(/\.dsh-fnos-create-dialog \{[^}]*max-width: calc\(100vw - 24px\)/u)
+    expect(SCSS).toMatch(/\.dsh-fnos-create-dialog \{[^}]*margin-inline: auto/u)
+    // 不能再依赖 :has 包裹层
+    expect(SCSS).not.toContain(':has(> .semi-modal-content.dsh-fnos-create-dialog)')
 
     // 移动端内边距收紧 + 按钮不换行
     const mobile = SCSS.slice(SCSS.lastIndexOf('@media (max-width: 767px)'))

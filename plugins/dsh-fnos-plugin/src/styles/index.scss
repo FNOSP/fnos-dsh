@@ -3447,11 +3447,27 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 .semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog),
 /* 两个 Session log 弹框：导出进度（480）与选择 NAS 目录（560）。 */
 .semi-modal:has(> .semi-modal-content.dsh-fnos-nas-dialog),
-.semi-modal:has(> .semi-modal-content.dsh-fnos-session-log-progress-dialog),
-/* 新建文件夹 / 新建文件 / 重命名：三个弹框共用 create-dialog 类，宽度都是 454。 */
-.semi-modal:has(> .semi-modal-content.dsh-fnos-create-dialog) {
+.semi-modal:has(> .semi-modal-content.dsh-fnos-session-log-progress-dialog) {
   /* 左右各留 12px 的空气；窄屏时这就是实际宽度。 */
   max-width: calc(100vw - 24px);
+}
+
+/*
+ * 新建文件夹 / 新建文件 / 重命名：**这三个弹框的结构和前几个不同。**
+ *
+ * 它们带 `centered`，Semi 在居中模式下**不生成 `.semi-modal` 包裹层**，
+ * `className` 直接落在内容元素上（实测祖先链是
+ * `.dsh-fnos-create-dialog > .semi-portal > body`）。
+ *
+ * 所以 `:has(> .semi-modal-content…)` 那条选择器对它们**不匹配**——写在那里等于
+ * 没写，窄屏下弹框仍按 `width: 454` 撑开、左右贴边溢出（截图里标题被切掉）。
+ * 这里直接作用于元素自身。
+ */
+.dsh-fnos-create-dialog {
+  /* 左右各留 12px；窄屏时这就是实际宽度。 */
+  max-width: calc(100vw - 24px);
+  /* 居中模式下它自己就是定位层，靠 auto 外边距吸收多余空间。 */
+  margin-inline: auto;
 }
 
 /*
