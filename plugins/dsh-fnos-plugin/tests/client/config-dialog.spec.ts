@@ -500,6 +500,31 @@ describe('fnOS 配置弹框', () => {
     expect(block.slice(0, block.indexOf('}'))).toContain('justify-content: space-between')
   })
 
+  it('复制原始路径：所有环境可用，且排在删除之前', () => {
+    /*
+      原先是 App 端专属（理由是移动端更需要）。但桌面 web 同样常要这份路径——
+      贴进终端、脚本、issue。能力本身不依赖宿主桥，没有理由按环境隐藏。
+
+      位置也调整过：删除是破坏性操作，按惯例排最后。把它夹在「新建」与「复制」
+      中间容易误点。
+    */
+    const src = readFileSync(new URL('../../src/components/FnosAuthorizedPathPicker.tsx', import.meta.url), 'utf8')
+    // 不再有环境门控
+    expect(src).not.toContain('IS_FNOS_WEB_RUNTIME ? null : (')
+    // 复制项在删除之前
+    const copyAt = src.indexOf("t('copyFullPath')")
+    const deleteAt = src.indexOf("t('deleteDialogConfirm')")
+    expect(copyAt).toBeGreaterThan(-1)
+    expect(deleteAt).toBeGreaterThan(-1)
+    expect(copyAt).toBeLessThan(deleteAt)
+  })
+
+  it('复制项文案是「原始路径」而不是「完整路径」', () => {
+    const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
+    expect(locales).toContain("copyFullPath: '复制原始路径'")
+    expect(locales).toContain("copyFullPath: 'Copy original path'")
+  })
+
   it('日志级别下拉不显示勾选图标', () => {
     /*
       Semi 的 Option 默认 `showTick: true`，会在**每一项**前面留一个勾位

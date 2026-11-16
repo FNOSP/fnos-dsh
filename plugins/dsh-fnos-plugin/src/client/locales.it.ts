@@ -101,7 +101,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   createDialogReadOnly: 'Questa directory è di sola lettura.',
   createDialogFailed: 'Impossibile creare la voce.',
   openEntry: 'Apri',
-  copyFullPath: 'Copia percorso completo',
+  copyFullPath: 'Copia percorso originale',
   copyPathSucceeded: 'Percorso copiato.',
   copyPathFailed: 'Impossibile copiare il percorso.',
   openEntryFailed: 'Impossibile aprire questa voce in fnOS.',

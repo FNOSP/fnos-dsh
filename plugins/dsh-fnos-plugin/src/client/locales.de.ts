@@ -102,7 +102,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   createDialogReadOnly: 'Dieses Verzeichnis ist schreibgeschützt.',
   createDialogFailed: 'Der Eintrag konnte nicht erstellt werden.',
   openEntry: 'Öffnen',
-  copyFullPath: 'Vollständigen Pfad kopieren',
+  copyFullPath: 'Ursprünglichen Pfad kopieren',
   copyPathSucceeded: 'Pfad kopiert.',
   copyPathFailed: 'Pfad konnte nicht kopiert werden.',
   openEntryFailed: 'Dieser Eintrag konnte in fnOS nicht geöffnet werden.',

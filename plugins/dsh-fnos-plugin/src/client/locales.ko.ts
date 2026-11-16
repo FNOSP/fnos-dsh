@@ -110,7 +110,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   createDialogReadOnly: '이 디렉터리는 읽기 전용입니다.',
   createDialogFailed: '항목을 만들 수 없습니다.',
   openEntry: '열기',
-  copyFullPath: '전체 경로 복사',
+  copyFullPath: '원본 경로 복사',
   copyPathSucceeded: '경로를 복사했습니다.',
   copyPathFailed: '경로를 복사하지 못했습니다.',
   openEntryFailed: 'fnOS에서 이 항목을 열 수 없습니다.',

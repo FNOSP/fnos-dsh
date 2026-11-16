@@ -102,7 +102,7 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   createDialogReadOnly: 'Ce répertoire est en lecture seule.',
   createDialogFailed: "Impossible de créer l'entrée.",
   openEntry: 'Ouvrir',
-  copyFullPath: 'Copier le chemin complet',
+  copyFullPath: 'Copier le chemin d’origine',
   copyPathSucceeded: 'Chemin copié.',
   copyPathFailed: 'Impossible de copier le chemin.',
   openEntryFailed: "Impossible d'ouvrir cette entrée dans fnOS.",

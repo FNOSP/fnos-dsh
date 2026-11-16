@@ -101,7 +101,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   createDialogReadOnly: 'Этот каталог доступен только для чтения.',
   createDialogFailed: 'Не удалось создать элемент.',
   openEntry: 'Открыть',
-  copyFullPath: 'Копировать полный путь',
+  copyFullPath: 'Копировать исходный путь',
   copyPathSucceeded: 'Путь скопирован.',
   copyPathFailed: 'Не удалось скопировать путь.',
   openEntryFailed: 'Не удалось открыть этот элемент в fnOS.',

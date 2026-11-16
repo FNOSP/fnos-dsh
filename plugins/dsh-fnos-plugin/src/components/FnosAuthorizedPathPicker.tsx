@@ -1090,25 +1090,6 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
               {t('openEntry')}
             </button>
           )}
-          {/*
-            **App 端专属：复制完整路径。**
-
-            移动端没有「在文件管理器打开」这条路（跳出去会离开当前会话），但「把
-            路径拿出来」在手机上反而更有用——贴进聊天、脚本或另一个应用。
-
-            复制的是真实绝对路径，不是语义化名称：用户要的是能直接用的那串。
-          */}
-          {IS_FNOS_WEB_RUNTIME ? null : (
-            <button
-              type="button"
-              className="dsh-fnos-path-context-item"
-              role="menuitem"
-              onClick={() => { void copyFullPath() }}
-            >
-              <IconCopy size="small" />
-              {t('copyFullPath')}
-            </button>
-          )}
           <button
             type="button"
             className="dsh-fnos-path-context-item"
@@ -1141,6 +1122,28 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
               </button>
             </>
           )}
+          {/*
+            **复制原始路径：所有环境都有。**
+
+            原先只在 App 端显示（理由是「移动端更需要把路径拿出来」），但桌面 web
+            同样常要这份路径——贴进终端、脚本、issue。能力本身不依赖宿主桥，没有
+            理由按环境隐藏。
+
+            复制的是**真实绝对路径**（`/vol2/...`）而不是语义化名称
+            （「存储空间 2/…」）：用户要的是能直接用的那串。
+
+            位置放在删除**之前**：删除是破坏性操作，按惯例排在最后，且与上面几项
+            隔着一条分隔线；把它夹在两个「新建」和「复制」中间容易误点。
+          */}
+          <button
+            type="button"
+            className="dsh-fnos-path-context-item"
+            role="menuitem"
+            onClick={() => { void copyFullPath() }}
+          >
+            <IconCopy size="small" />
+            {t('copyFullPath')}
+          </button>
           {/*
             删除用 Popconfirm 就地确认：比整块 Modal 轻，且不打断右键上下文。
             它的弹层由 Semi 默认 portal 到 body，不受面板 backdrop-filter 的

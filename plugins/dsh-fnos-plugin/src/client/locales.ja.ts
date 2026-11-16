@@ -110,7 +110,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   createDialogReadOnly: 'このディレクトリは読み取り専用です。',
   createDialogFailed: '項目を作成できませんでした。',
   openEntry: '開く',
-  copyFullPath: 'フルパスをコピー',
+  copyFullPath: '元のパスをコピー',
   copyPathSucceeded: 'パスをコピーしました。',
   copyPathFailed: 'パスをコピーできませんでした。',
   openEntryFailed: 'fnOS でこの項目を開けませんでした。',
