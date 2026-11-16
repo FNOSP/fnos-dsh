@@ -131,10 +131,31 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
   return (
     <section className="dsh-fnos-mirror">
       <header className="dsh-fnos-mirror-head">
-        <strong className="dsh-fnos-mirror-title">{t('mirrorTitle')}</strong>
-        {status?.version === undefined ? null : (
-          <span className="dsh-fnos-installed-badge">{`nrm ${status.version}`}</span>
-        )}
+        <div className="dsh-fnos-mirror-head-text">
+          <strong className="dsh-fnos-mirror-title">{t('mirrorTitle')}</strong>
+          {status?.version === undefined ? null : (
+            <span className="dsh-fnos-installed-badge">{`nrm ${status.version}`}</span>
+          )}
+        </div>
+        {/*
+          「安装」放**右侧**，与「修复插件安装异常」那张卡一致：一列卡片里动作都在
+          右边缘，视线不用来回跳。
+
+          未安装时只有一个按钮，原先它掉在标题下面自成一行；移到头部右侧后，这一块
+          与其它卡片是同一种排布。
+        */}
+        {status !== undefined && !status.available ? (
+          <DshButton
+            htmlType="button"
+            theme="solid"
+            type="primary"
+            loading={installing}
+            onClick={() => { void install() }}
+          >
+            {/* 失败过就说「重新安装」——「安装」会让人以为上次根本没执行。 */}
+            {installing ? t('mirrorInstalling') : failed ? t('mirrorReinstall') : t('mirrorInstall')}
+          </DshButton>
+        ) : null}
       </header>
 
       {status === undefined ? <p className="dsh-fnos-repair-muted">{t('mirrorLoading')}</p> : null}
@@ -149,21 +170,6 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
       */}
       {status !== undefined && !status.available ? (
         <div className="dsh-fnos-mirror-missing">
-          {/*
-            与「修复安装异常」的按钮同一形态：default 尺寸 + solid primary。
-            早前这里是 `size="small"`，同屏两个主操作按钮一大一小，看着像从两个
-            组件库里拼出来的。
-          */}
-          <DshButton
-            htmlType="button"
-            theme="solid"
-            type="primary"
-            loading={installing}
-            onClick={() => { void install() }}
-          >
-            {/* 失败过就说「重新安装」——「安装」会让人以为上次根本没执行。 */}
-            {installing ? t('mirrorInstalling') : failed ? t('mirrorReinstall') : t('mirrorInstall')}
-          </DshButton>
           {/*
             安装日志：固定 140px 高的代码框，可复制。
 

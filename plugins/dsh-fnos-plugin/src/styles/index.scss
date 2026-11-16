@@ -2561,8 +2561,23 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   */
 }
 
+/*
+ * 卡片头部：标题在左、动作在右。
+ *
+ * `space-between` 让「安装」贴到右边缘，与「修复插件安装异常」那张卡一致——
+ * 一列卡片里动作都在右侧，视线不用来回跳。
+ */
 .dsh-fnos-mirror-head {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* 标题 + 版本徽标留在左侧，作为一个整体靠左。 */
+.dsh-fnos-mirror-head-text {
+  display: flex;
+  min-width: 0;
   align-items: center;
   gap: 8px;
 }

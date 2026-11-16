@@ -104,10 +104,30 @@ describe('运行状态：网络与四宫格', () => {
     expect(CARD).toMatch(/grid: \[0, 1, 2, 3\]\.map\(i => \(\{ \.\.\.cell\(i\) \}\)\)/)
   })
 
-  it('tooltip 带单位（只有数字看不出 MB/s 还是 KB/s）', () => {
-    expect(CARD).toContain('valueFormatter')
-    // 系列名里带单位，tooltip 直接显示「名称: 值 单位」。
-    expect(CARD).toMatch(/name: `\$\{t\(s\.labelKey\)\} \(\$\{s\.unit\}\)`/)
+  it('tooltip 单位跟在数值后面，不放在标签里', () => {
+    /*
+      早前系列名是「磁盘读写 (MB)」、值又不带单位——读起来是「磁盘读写 (MB)  0」，
+      单位离数字很远。现在标签只有名称，数值自带单位：「磁盘读写   0 MB」。
+    */
+    // 系列名不带单位
+    expect(CARD).toContain('name: t(s.labelKey),')
+    expect(CARD).not.toMatch(/name: `\$\{t\(s\.labelKey\)\} \(\$\{s\.unit\}\)`/)
+    // formatter 里按系列名找回单位，拼到数值后
+    expect(CARD).toContain('unitOf')
+    expect(CARD).toMatch(/\$\{String\(raw\)\} \$\{unit\}/u)
+  })
+
+  it('窄屏四格之间留出明显间距', () => {
+    /*
+      早前 24% 步进 + 18% 高度，算下来只有 6% 空隙——而这一格的名字加横轴刻度
+      要吃掉大半，视觉上两块图几乎贴在一起。
+
+      现在 23% 步进 + 16% 高度，纯间距 7%。
+    */
+    // 断在源码里的字面量片段上，避免测试自身出现模板表达式。
+    expect(CARD).toContain('2 + i * 23')
+    expect(CARD).toContain("height: '16%'")
+    expect(CARD).toContain("height: '16%'")
   })
 
   it('网络与磁盘都按每秒增量换算，而不是画累计值', () => {

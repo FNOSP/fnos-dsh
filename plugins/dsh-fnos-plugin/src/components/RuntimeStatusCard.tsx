@@ -267,14 +267,19 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
     const cell = (i: number): { left: string, top: string, width: string, height: string } => {
       if (narrow) {
         /*
-          四行等分。
+          四行排列，**格间留出明显间距**。
 
           纵轴名字画在网格**上方**（`nameGap`），所以每格要给名字留出空间，否则
-          「内存 (MB)」会压到上一格的横轴刻度上——实测就是这样叠在一起的。
+          名字会压到上一格的横轴刻度上。
 
-          6% 顶部留白 + 每格 23% 高（含名字区），格间留 2% 呼吸。
+          早前是 24% 步进 + 18% 高度，算下来只有 6% 空隙——而这一格的名字加横轴
+          刻度就要吃掉大半，视觉上两块图几乎贴在一起（实测截图里「磁盘读写 (MB)」
+          紧贴着上一格的刻度）。
+
+          改成 23% 步进 + 16% 高度：步进减去高度还剩 **7%** 纯间距，加上名字区与
+          刻度区的留白，相邻两格之间是清楚的。
         */
-        return { left: '10%', top: `${4 + i * 24}%`, width: '86%', height: '18%' }
+        return { left: '10%', top: `${2 + i * 23}%`, width: '86%', height: '16%' }
       }
       return {
         left: i % 2 === 0 ? '6%' : '52.83%',
@@ -319,10 +324,23 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
           const list = Array.isArray(params) ? params : [params]
           const first = list[0] as { axisValue?: string } | undefined
           const head = first?.axisValue ?? ''
+          /*
+            **单位跟在数值后面，不放标签里。**
+
+            早前系列名是「磁盘读写 (MB)」，而值又不带单位——读起来是
+            「磁盘读写 (MB)  0」，单位离数字很远，扫一眼对不上。
+
+            现在标签只有名称，数值自带单位：「磁盘读写     0 MB」。
+          */
+          const unitOf = (name: string): string => {
+            const found = SERIES.find(entry => t(entry.labelKey) === name)
+            return found?.unit ?? ''
+          }
           const rows = list.map((item) => {
             const p0 = item as { marker?: string, seriesName?: string, data?: unknown }
             const raw = typeof p0.data === 'number' ? p0.data : undefined
-            const value = raw === undefined ? '—' : String(raw)
+            const unit = unitOf(p0.seriesName ?? '')
+            const value = raw === undefined ? '—' : (unit === '' ? String(raw) : `${String(raw)} ${unit}`)
             return `${p0.marker ?? ''}${p0.seriesName ?? ''}<strong style="float:right;margin-left:16px">${value}</strong>`
           })
           return [`<div style="margin-bottom:4px">${head}</div>`, ...rows].join('<br/>')
@@ -364,7 +382,9 @@ export function RuntimeStatusCard({ t }: RuntimeStatusCardProps): React.ReactNod
         const gridIndex = idx < NET_CELL_INDEX ? idx : NET_CELL_INDEX
         return {
           type: 'line' as const,
-          name: `${t(s.labelKey)} (${s.unit})`,
+          // 系列名不带单位：单位跟在数值后面（见 tooltip formatter），
+          // 标签里再带一次会变成「磁盘读写 (MB) 0 MB」。
+          name: t(s.labelKey),
           xAxisIndex: gridIndex,
           yAxisIndex: gridIndex,
           data: data[s.key],

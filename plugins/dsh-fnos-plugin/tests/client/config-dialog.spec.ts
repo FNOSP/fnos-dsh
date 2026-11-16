@@ -486,6 +486,20 @@ describe('fnOS 配置弹框', () => {
     expect(rule).toContain('flex: 1')
   })
 
+  it('npm 镜像管理的安装按钮在右侧', () => {
+    // 与「修复插件安装异常」那张卡一致：一列卡片里动作都在右边缘。
+    const card = readFileSync(new URL('../../src/components/NpmMirrorCard.tsx', import.meta.url), 'utf8')
+    const head = card.slice(card.indexOf('<header className="dsh-fnos-mirror-head">'))
+    const headEnd = head.indexOf('</header>')
+    // 按钮在 header 里，标题在左侧的包裹层里。
+    expect(head.slice(0, headEnd)).toContain('dsh-fnos-mirror-head-text')
+    expect(head.slice(0, headEnd)).toContain("t('mirrorInstall')")
+
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const block = scss.slice(scss.indexOf('.dsh-fnos-mirror-head {'))
+    expect(block.slice(0, block.indexOf('}'))).toContain('justify-content: space-between')
+  })
+
   it('日志级别下拉不显示勾选图标', () => {
     /*
       Semi 的 Option 默认 `showTick: true`，会在**每一项**前面留一个勾位
