@@ -386,6 +386,32 @@ describe('fnOS 配置弹框', () => {
     expect(src).toContain('IS_FNOS_STANDALONE_WEB_ENV')
   })
 
+  it('导出 Session log 弹框做移动端适配', () => {
+    /*
+      两个弹框：导出进度（480）与选择 NAS 目录（560）。桌面宽度写死在
+      `width={...}` 上，Semi 会把它写成 `.semi-modal` 的内联样式——窄屏下必须由
+      **最外层** 的 `max-width` 收住，内容层收不回来（与授权弹框同一个坑）。
+
+      真机实测（393px 视口）：弹框实渲染 369px（= 393 − 24），不溢出。
+    */
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    expect(scss).toContain('.semi-modal:has(> .semi-modal-content.dsh-fnos-nas-dialog)')
+    expect(scss).toContain('.semi-modal:has(> .semi-modal-content.dsh-fnos-session-log-progress-dialog)')
+
+    // 内容高度也要跟着屏高走：固定 340px 在手机竖屏下会把按钮顶到屏幕外。
+    const mobile = scss.slice(scss.indexOf('@media (max-width: 767px)'))
+    expect(mobile).toContain('.dsh-fnos-session-log-tree')
+    expect(mobile).toContain('max-height: 56vh')
+    expect(mobile).toContain('.dsh-fnos-session-log-dialog-body')
+  })
+
+  it('两个 Session log 弹框各用自己的类名', () => {
+    // 进度弹框套上选目录弹框的紧凑内边距会挤成一团，所以分开命名。
+    const src = readFileSync(new URL('../../src/components/FnosSessionLogHeaderAction.tsx', import.meta.url), 'utf8')
+    expect(src).toContain('className="dsh-fnos-session-log-progress-dialog"')
+    expect(src).toContain('className="dsh-fnos-nas-dialog"')
+  })
+
   it('日志级别下拉不显示勾选图标', () => {
     /*
       Semi 的 Option 默认 `showTick: true`，会在**每一项**前面留一个勾位

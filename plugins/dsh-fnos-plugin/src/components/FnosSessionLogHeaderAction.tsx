@@ -253,6 +253,7 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
         onOk={() => { dismissDownload(sessionId) }}
         onCancel={() => { dismissDownload(sessionId) }}
         width={480}
+        className="dsh-fnos-session-log-progress-dialog"
       >
         <p>{browserDialogDescription}</p>
       </DshModal>

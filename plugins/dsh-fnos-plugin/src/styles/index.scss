@@ -3364,7 +3364,10 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
  * 表达清楚了。
  */
 .semi-modal:has(> .semi-modal-content.dsh-fnos-account-login-modal),
-.semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog) {
+.semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog),
+/* 两个 Session log 弹框：导出进度（480）与选择 NAS 目录（560）。 */
+.semi-modal:has(> .semi-modal-content.dsh-fnos-nas-dialog),
+.semi-modal:has(> .semi-modal-content.dsh-fnos-session-log-progress-dialog) {
   /* 左右各留 12px 的空气；窄屏时这就是实际宽度。 */
   max-width: calc(100vw - 24px);
 }
@@ -3788,5 +3791,24 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
   */
   html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-authorized-card-body {
     margin-inline: 0;
+  }
+
+  /*
+    **导出 Session log 的两个弹框。**
+
+    宽度已经由最外层的 `max-width: calc(100vw - 24px)` 收进视口（与授权弹框同一
+    条规则），这里只调**内容高度**：选目录树的 `max-height: 340px` 是按桌面写的，
+    手机竖屏下弹框会顶到屏幕外，底部的确认按钮够不着。
+
+    用 `vh` 而不是再写一个固定值：屏幕高的机型能多显示几行，矮的自动收。
+    56vh 在 852 高的机型上约 477px，扣掉标题/说明/按钮仍有富余；同时把树的最小
+    高度收掉，避免内容少时留一大片空。
+  */
+  .dsh-fnos-session-log-tree {
+    max-height: 56vh;
+  }
+
+  .dsh-fnos-session-log-dialog-body {
+    min-height: 0;
   }
 }
