@@ -288,7 +288,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   indexSourceOn: "켜짐",
   indexSourceOff: "꺼짐",
   indexApplyEnable: "한 번에 켜기",
-  indexApplyConfigure: "한 번에 설정",
+  indexApplyConfigure: "설정",
   indexMarketMissing: "플러그인 마켓이 설치되지 않았습니다. 먼저 \"플러그인 설치 및 문제\" 탭에서 설치하세요.",
   indexAllConfigured: "권장 소스 두 개가 모두 설정되었습니다.",
   indexGuideText: "왼쪽 \"플러그인\" → \"플러그인 마켓\" → \"발견\"을 열고 상단의 인덱스 URL 칸을 사용하세요.",

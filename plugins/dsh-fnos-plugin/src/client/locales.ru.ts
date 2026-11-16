@@ -279,7 +279,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   indexSourceOn: "Вкл",
   indexSourceOff: "Выкл",
   indexApplyEnable: "Включить одним нажатием",
-  indexApplyConfigure: "Настроить одним нажатием",
+  indexApplyConfigure: "Настроить",
   indexMarketMissing: "Магазин плагинов не установлен. Сначала установите его на вкладке \"Установка и проблемы\".",
   indexAllConfigured: "Оба рекомендуемых источника настроены.",
   indexGuideText: "Откройте слева \"Плагины\" → \"Магазин\" → \"Обзор\" и используйте поле URL индекса сверху.",

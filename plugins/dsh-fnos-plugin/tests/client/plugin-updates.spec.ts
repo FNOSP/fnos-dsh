@@ -94,7 +94,7 @@ describe('插件索引：推荐源与状态', () => {
     expect(INDEX).toContain('setMarketEnabled')
   })
 
-  it('一键设置只追加、不覆盖用户已配的源', () => {
+  it('设置只追加、不覆盖用户已配的源', () => {
     expect(INDEX).toContain('只追加、不覆盖')
     expect(INDEX).toContain('const merged = [...status.configured]')
   })
@@ -131,7 +131,7 @@ describe('插件索引：界面', () => {
     expect(rule.slice(0, rule.indexOf('}'))).not.toContain('border')
   })
 
-  it('一键设置按钮在市场缺失或已配齐时置灰', () => {
+  it('设置按钮在市场缺失或已配齐时置灰', () => {
     expect(PANEL).toContain("t('indexApplyConfigure')")
     expect(PANEL).toContain('disabled={busy || marketMissing || allConfigured}')
   })
@@ -143,7 +143,7 @@ describe('插件索引：界面', () => {
     expect(PANEL).toContain('onError')
   })
 
-  it('「一键设置」只在开启后显示', () => {
+  it('「设置」只在开启后显示', () => {
     /*
       未开启时这一行是死信息：源都配齐、按钮永远灰着，占一整块却没有可做的事。
       开关已表达「开/关」，清单也照常展示配了哪些源，因此未开启时直接隐藏。

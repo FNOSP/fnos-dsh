@@ -1,10 +1,10 @@
 import { notifySuccess } from '../client/notify.ts'
 /**
- * 「自定义插件索引」tab：检测索引源是否配置，并提供一键开启 / 一键设置。
+ * 「自定义插件索引」tab：检测索引源是否配置，并提供一键开启 / 设置。
  *
  * ## 两个按钮的区别
  *
- * - **一键设置**：把两个推荐源补进官方插件市场的 `indexes`（只追加，不覆盖用户
+ * - **设置**：把两个推荐源补进官方插件市场的 `indexes`（只追加，不覆盖用户
  *   自己配的）。这是真正生效的动作。
  * - **一键开启**：本插件里的「推荐索引开关」——它不修改市场的配置，只决定
  *   「本页是否把推荐源视为启用」，并在未配置时引导用户去设置。这样用户可以先
@@ -72,7 +72,7 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
 
   useEffect(() => { void load() }, [load])
 
-  /** 一键设置：补写推荐源。 */
+  /** 设置：补写推荐源。 */
   const apply = useCallback(async () => {
     setBusy(true)
     setError(undefined)
@@ -233,9 +233,13 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
             {marketMissing ? <span className="dsh-fnos-repair-muted">{t('indexMarketMissing')}</span> : null}
             {allConfigured ? <span className="dsh-fnos-repair-muted">{t('indexAllConfigured')}</span> : null}
           </div>
+          {/*
+            与同 Tab 的「安装」「修复」同一尺寸（default）。
+
+            早前这里带 `size="small"`，同一列卡片里三个按钮两种高度。
+          */}
           <DshButton
             htmlType="button"
-            size="small"
             theme="light"
             type="primary"
             disabled={busy || marketMissing || allConfigured}

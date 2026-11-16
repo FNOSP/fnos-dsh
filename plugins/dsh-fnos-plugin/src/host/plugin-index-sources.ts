@@ -209,7 +209,7 @@ export async function readIndexStatus(ctx: Context, locale = 'zh'): Promise<Plug
 }
 
 /**
- * 一键设置：把缺失的推荐源补进去。
+ * 设置：把缺失的推荐源补进去。
  *
  * **只追加、不覆盖**：用户可能自己配了别的源，整份替换会把它删掉。
  * 已存在的（含尾斜杠差异）不重复添加。

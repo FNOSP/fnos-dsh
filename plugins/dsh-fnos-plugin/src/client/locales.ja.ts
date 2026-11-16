@@ -288,7 +288,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   indexSourceOn: "有効",
   indexSourceOff: "無効",
   indexApplyEnable: "ワンクリックで有効化",
-  indexApplyConfigure: "ワンクリックで設定",
+  indexApplyConfigure: "設定",
   indexMarketMissing: "プラグインマーケットが未インストールです。先に「プラグインのインストールと問題」タブでインストールしてください。",
   indexAllConfigured: "推奨ソースは両方とも設定済みです。",
   indexGuideText: "左の「プラグイン」→「プラグインマーケット」→「発見」を開き、上部のインデックス URL 欄を使用します。",

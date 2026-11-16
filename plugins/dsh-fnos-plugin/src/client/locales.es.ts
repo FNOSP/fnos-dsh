@@ -280,7 +280,7 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   indexSourceOn: "Activado",
   indexSourceOff: "Desactivado",
   indexApplyEnable: "Activar con un clic",
-  indexApplyConfigure: "Configurar con un clic",
+  indexApplyConfigure: "Configurar",
   indexMarketMissing: "El mercado de plugins no esta instalado. Instalalo primero en la pestana \"Instalacion y problemas\".",
   indexAllConfigured: "Ambas fuentes recomendadas estan configuradas.",
   indexGuideText: "Abre a la izquierda \"Plugins\" → \"Mercado\" → \"Descubrir\" y usa el campo de URL de indice arriba.",

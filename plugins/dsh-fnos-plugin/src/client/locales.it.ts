@@ -279,7 +279,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   indexSourceOn: "Attivo",
   indexSourceOff: "Disattivato",
   indexApplyEnable: "Attiva con un clic",
-  indexApplyConfigure: "Configura con un clic",
+  indexApplyConfigure: "Configura",
   indexMarketMissing: "Il mercato plugin non e installato. Installalo prima nella scheda \"Installazione e problemi\".",
   indexAllConfigured: "Entrambe le sorgenti consigliate sono configurate.",
   indexGuideText: "Apri a sinistra \"Plugin\" → \"Mercato\" → \"Scopri\" e usa il campo URL indice in alto.",
