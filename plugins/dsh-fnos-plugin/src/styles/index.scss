@@ -3468,6 +3468,28 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
   max-width: calc(100vw - 24px);
   /* 居中模式下它自己就是定位层，靠 auto 外边距吸收多余空间。 */
   margin-inline: auto;
+  /*
+    **内层必须跟着收窄。**
+
+    只给外层 `max-width` 不够：Semi 在 centered 模式下把内层 header / body /
+    footer 的 `min-width` 留成 `auto`，它们的收缩底线是**内容宽度**——标题与
+    footer 里的按钮本来按 454 排，于是内层撑到 422px、超出 369px 的容器，视觉上
+    标题左沿和「确定」右沿都被切掉（真机截图确认）。
+
+    `min-width: 0` 解除这条收缩底线，内层才会真正跟随容器宽度换行。
+  */
+  > .semi-modal-header,
+  > .semi-modal-body,
+  > .semi-modal-footer {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* footer 的包裹层同理：Semi 把按钮包进一层 div，它也会被内容撑开。 */
+  > .semi-modal-footer > div {
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 /*
