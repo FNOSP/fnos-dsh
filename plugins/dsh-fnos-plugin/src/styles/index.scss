@@ -1024,6 +1024,21 @@ img.dsh-fnos-file-manager-icon {
   flex-direction: column;
 }
 
+/*
+ * 首次加载的 loading：**垂直水平都居中**。
+ *
+ * 占满树那块区域（不是一小条），加载完成后是列表在同位置替换，视觉上不跳动。
+ * 高度跟树的常用高度对齐，避免加载中面板忽然缩一半、完成后再撑开。
+ */
+.dsh-fnos-path-panel-loading {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  padding: 24px 0;
+}
+
 .dsh-fnos-path-panel-tree {
   flex: 1;
   min-height: 0;

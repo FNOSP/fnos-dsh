@@ -455,6 +455,37 @@ describe('fnOS 配置弹框', () => {
     expect(block.slice(0, 900)).toContain('-webkit-touch-callout: none')
   })
 
+  it('文件与文件夹面板：首次加载显示居中 loading，不闪缺省页', () => {
+    /*
+      `treeData` 在拉取完成前是空数组，`Tree` 会立刻渲染 `emptyContent`——于是
+      打开面板的瞬间先看到「当前没有可选择的授权文件或目录」，几十毫秒后才变成
+      列表。那不是空状态，是还没加载完。
+
+      修法：`open` 变 true 时立刻置 loading（不能等 fetch 返回才置，否则仍会先
+      渲染一帧缺省页），`Tree` 在 loading 期间整个换成居中 spinner。
+    */
+    const src = readFileSync(new URL('../../src/components/FnosAuthorizedPathPicker.tsx', import.meta.url), 'utf8')
+    expect(src).toContain('loadingRoots')
+    // open 时立刻置位
+    expect(src).toMatch(/setLoadingRoots\(true\)\s*\n\s*void reloadRoots\(\)/u)
+    // 失败也要落回 false，否则一直转圈
+    expect(src).toMatch(/finally \{[\s\S]{0,80}setLoadingRoots\(false\)/u)
+    // loading 时整块替换
+    expect(src).toContain('dsh-fnos-path-panel-loading')
+    expect(src).toContain('DshSpin')
+    expect(src).toContain('aria-busy="true"')
+  })
+
+  it('loading 容器垂直水平居中且占满树区域', () => {
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const block = scss.slice(scss.indexOf('.dsh-fnos-path-panel-loading {'))
+    const rule = block.slice(0, block.indexOf('}'))
+    expect(rule).toContain('align-items: center')
+    expect(rule).toContain('justify-content: center')
+    // 占满容器：加载中面板不会忽然缩一半
+    expect(rule).toContain('flex: 1')
+  })
+
   it('日志级别下拉不显示勾选图标', () => {
     /*
       Semi 的 Option 默认 `showTick: true`，会在**每一项**前面留一个勾位

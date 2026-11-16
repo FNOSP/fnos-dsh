@@ -29,6 +29,7 @@ import {
   DshTooltip as Tooltip,
   DshModal as Modal,
   DshEmpty,
+  DshSpin,
   DshPopconfirm as Popconfirm,
   DshToast as Toast,
   DshTree as Tree,
@@ -297,6 +298,16 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
   const [renameError, setRenameError] = useState<string | undefined>()
   const [renaming, setRenaming] = useState(false)
   // 展开状态由面板持有：面板收起时子树会卸载，交给 Semi 的内部状态就丢了。
+  /*
+    **首次加载中。**
+
+    面板是「开关」式复用（关闭不卸载），所以这个标记必须在每次 `open` 变 true 时
+    重置为 `true`，否则第二次打开会直接显示上一次的列表——中间那段网络往返期间
+    屏幕上还是旧内容，用户以为点击没生效。
+
+    电池里存的是「是否正在拉根列表」，与 `busy`（正在判定/提交选中）不是一回事。
+  */
+  const [loadingRoots, setLoadingRoots] = useState(false)
   const [expandedKeys, setExpandedKeys] = useState<string[]>([])
   // 滚动位置同理：收起时记住，重新展开后还原（勾选状态不还原）。
   const scrollTopRef = useRef(0)
@@ -325,12 +336,16 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
    * 授权，只有重拉才能反映真实状态——否则列表会一直是打开过的那一份缓存。
    */
   const reloadRoots = useCallback(async (): Promise<void> => {
+    setLoadingRoots(true)
     try {
       const result = await requestAuthorizedEntries()
       applyEntries(result)
     } catch {
       setTreeData([])
       entries.current.clear()
+    } finally {
+      // 失败也要落回 false：否则失败后面板会一直转圈，用户既看不到缺省页也点不动。
+      setLoadingRoots(false)
     }
   }, [applyEntries])
 
@@ -341,6 +356,12 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       迟到的结果只会写一次 state——组件卸载后 React 会忽略，不会报错。
       面板是开关式复用，这个 effect 会在每次「收起 → 再打开」时重跑一遍。
     */
+    /*
+      立刻置 loading：`open` 变 true 的这一帧 `treeData` 还是空的，若不先置位，
+      会先渲染一帧 `emptyContent`（缺省组件）再跳到列表——正是「打开瞬间闪过
+      缺省页」的来源。
+    */
+    setLoadingRoots(true)
     void reloadRoots()
   }, [open, reloadRoots])
 
@@ -990,6 +1011,22 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       </div>
       {/* 容器挂 ref：App 端长按监听需要真实的 DOM 节点。 */}
       <div ref={treeRef} className="dsh-fnos-path-panel-tree-host">
+      {/*
+        **首次加载：居中的 loading，而不是先闪一帧缺省组件。**
+
+        `treeData` 在拉取完成前是空数组，`Tree` 会立刻渲染 `emptyContent`——于是
+        打开面板的瞬间先看到「当前没有可选择的授权文件或目录」，几十毫秒后才变成
+        列表。那不是空状态，是还没加载完。
+
+        加载中把树整体换成居中的 spinner：位置占满同一块区域，加载完成后是同位置
+        替换，不跳动。
+      */}
+      {loadingRoots ? (
+        <div className="dsh-fnos-path-panel-loading" aria-busy="true" aria-live="polite">
+          <DshSpin size="middle" />
+          <span className="dsh-fnos-visually-hidden">{t('loading')}</span>
+        </div>
+      ) : (
       <Tree
         aria-label={t('inputPickerTitle')}
         multiple
@@ -1020,6 +1057,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
           />
         )}
       />
+      )}
       </div>
       {/*
         右键上下文菜单。自己画：`position: fixed` 直接落在鼠标坐标上，与面板
