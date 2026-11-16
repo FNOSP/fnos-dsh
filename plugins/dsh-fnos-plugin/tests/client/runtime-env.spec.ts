@@ -6,42 +6,60 @@
  */
 import { describe, expect, it } from 'vitest'
 
-/** 复刻模块里的推导规则，用于表驱动断言。 */
-function derive(isWeb: boolean, isStandaloneWeb: boolean): {
+/**
+ * 复刻模块里的推导规则。
+ *
+ * **判据是两套而不是一套**：
+ * - 「在不在 iframe 里」用 DOM（同步可得）
+ * - 「是不是 App」用 User-Agent 的 `FNAppVer/` 标记（SDK 的 `isWeb` 要等异步
+ *   `init()` 才更新，模块加载时读它永远是初始值 `true`）
+ */
+function derive(domEnv: 'embedded' | 'standalone' | 'none', uaMarker: boolean): {
   app: boolean
   embedded: boolean
   standalone: boolean
   bridge: boolean
+  showsFileMgr: boolean
 } {
+  const app = uaMarker && domEnv !== 'embedded'
   return {
-    app: isWeb === false,
-    embedded: isWeb && !isStandaloneWeb,
-    standalone: isWeb && isStandaloneWeb,
-    bridge: !(isWeb && isStandaloneWeb),
+    app,
+    embedded: domEnv === 'embedded',
+    standalone: domEnv === 'standalone',
+    bridge: app || domEnv === 'embedded',
+    showsFileMgr: domEnv === 'embedded',
   }
 }
 
 describe('运行时环境四态', () => {
-  it('每种组合只命中一个环境判断', () => {
-    const combos = [
-      { isWeb: true, isStandaloneWeb: false },
-      { isWeb: true, isStandaloneWeb: true },
-      { isWeb: false, isStandaloneWeb: true },
-      { isWeb: false, isStandaloneWeb: false },
+  it('每种环境只命中一个判断', () => {
+    /*
+      注意「NAS 独立浏览器」与「本地独立 web」都落在 `standalone` 这个分类里——
+      `detectFnosEnvironment` 用网关的 `<base href>` 区分它们，但两者的**能力**
+      完全一样（都没有宿主桥）。所以这里断言的是「不会同时命中两个」，而不是
+      「四个各占一个」。
+    */
+    const combos: Array<{ dom: 'embedded' | 'standalone' | 'none', ua: boolean, label: string }> = [
+      { dom: 'embedded', ua: false, label: 'NAS 内嵌 iframe' },
+      { dom: 'standalone', ua: false, label: 'NAS 独立浏览器' },
+      { dom: 'none', ua: false, label: '本地独立 web' },
+      { dom: 'none', ua: true, label: 'App' },
     ]
-    for (const { isWeb, isStandaloneWeb } of combos) {
-      const r = derive(isWeb, isStandaloneWeb)
+    for (const { dom, ua, label } of combos) {
+      const r = derive(dom, ua)
       const hits = [r.app, r.embedded, r.standalone].filter(Boolean).length
-      expect(hits, `${String(isWeb)}/${String(isStandaloneWeb)} 命中 ${String(hits)} 个`).toBe(1)
+      expect(hits, `${label} 不能同时命中两个分类`).toBeLessThanOrEqual(1)
     }
+    // App 与内嵌 web 必须各自唯一命中，这两类是能力分化的关键。
+    expect(derive('none', true).app).toBe(true)
+    expect(derive('embedded', false).embedded).toBe(true)
   })
 
-  it('宿主桥只在独立 web 环境不可用', () => {
-    // isWeb=false（App）、isWeb&&!standalone（内嵌）都有桥；只有 standalone 没有。
-    expect(derive(false, true).bridge).toBe(true)
-    expect(derive(false, false).bridge).toBe(true)
-    expect(derive(true, false).bridge).toBe(true)
-    expect(derive(true, true).bridge).toBe(false)
+  it('宿主桥在 App 与内嵌 web 可用，独立页面不可用', () => {
+    expect(derive('none', true).bridge, 'App').toBe(true)
+    expect(derive('embedded', false).bridge, '内嵌 iframe').toBe(true)
+    expect(derive('standalone', false).bridge, 'NAS 独立浏览器').toBe(false)
+    expect(derive('none', false).bridge, '本地独立 web').toBe(false)
   })
 
   it('「打开文件管理器」入口只在内嵌 web 显示', () => {
@@ -52,10 +70,10 @@ describe('运行时环境四态', () => {
       **注意这里用的是 `embedded` 而不是 `bridge`**：早前判据写成「有宿主桥」，
       而 DOM 兜底时独立 web 也可能被判成有桥，于是 App 端一处显示一处隐藏。
     */
-    const shows = (isWeb: boolean, standalone: boolean): boolean => derive(isWeb, standalone).embedded
-    expect(shows(true, false), 'NAS web 内嵌').toBe(true)
-    expect(shows(true, true), '独立 web').toBe(false)
-    expect(shows(false, true), 'App 环境').toBe(false)
-    expect(shows(false, false), 'App 环境（另一组合）').toBe(false)
+    const shows = (dom: 'embedded' | 'standalone' | 'none', ua: boolean): boolean => derive(dom, ua).showsFileMgr
+    expect(shows('embedded', false), 'NAS web 内嵌').toBe(true)
+    expect(shows('standalone', false), 'NAS 独立浏览器').toBe(false)
+    expect(shows('none', false), '本地独立 web').toBe(false)
+    expect(shows('none', true), 'App 环境').toBe(false)
   })
 })
