@@ -3447,7 +3447,9 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 .semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog),
 /* 两个 Session log 弹框：导出进度（480）与选择 NAS 目录（560）。 */
 .semi-modal:has(> .semi-modal-content.dsh-fnos-nas-dialog),
-.semi-modal:has(> .semi-modal-content.dsh-fnos-session-log-progress-dialog) {
+.semi-modal:has(> .semi-modal-content.dsh-fnos-session-log-progress-dialog),
+/* 新建文件夹 / 新建文件 / 重命名：三个弹框共用 create-dialog 类，宽度都是 454。 */
+.semi-modal:has(> .semi-modal-content.dsh-fnos-create-dialog) {
   /* 左右各留 12px 的空气；窄屏时这就是实际宽度。 */
   max-width: calc(100vw - 24px);
 }
@@ -3890,5 +3892,40 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
 
   .dsh-fnos-session-log-dialog-body {
     min-height: 0;
+  }
+
+  /*
+    **新建文件夹 / 新建文件 / 重命名三个弹框的窄屏适配。**
+
+    宽度已经由最外层的 `max-width: calc(100vw - 24px)` 收进视口（与前几个弹框
+    同一条规则）。这里做两件事：
+
+    1. **内边距收紧**：桌面用 24px，393px 视口下正文只剩约 320px，输入框与标题
+       都显得挤；收到 16px 后可用宽度多出 16px。
+    2. **按钮不换行**：两个按钮各 88px + 15px 间距 = 191px，理论上放得下，但
+       `min-width: 88px` 加上内边距在极窄屏（320px）仍可能挤成两行。`nowrap`
+       把这种情况钉死。
+  */
+  .dsh-fnos-create-dialog {
+    .semi-modal-header {
+      padding: 16px 16px 0 !important;
+    }
+
+    .semi-modal-body {
+      padding: 12px 16px 0 !important;
+    }
+
+    .semi-modal-footer {
+      padding: 16px 16px 20px !important;
+    }
+
+    .semi-modal-footer > div {
+      flex-wrap: nowrap !important;
+    }
+
+    .semi-modal-footer .semi-button {
+      /* 窄屏下按钮可以比桌面窄一点，两个并排仍有余量。 */
+      min-width: 72px;
+    }
   }
 }

@@ -327,6 +327,25 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(CLIENT).toMatch(/entry\.removable === false \? \{ removable: false \}/u)
   })
 
+  it('新建/重命名弹框在窄屏收进视口，内边距收紧', () => {
+    /*
+      三个弹框（新建文件夹 / 新建文件 / 重命名）共用 `dsh-fnos-create-dialog`
+      且 `width={454}`。Semi 把它写成 `.semi-modal` 的内联样式——窄屏下必须由
+      **最外层** 的 `max-width` 收住（内容层收不回来）。
+
+      实测（393px 视口）：弹框 369px（= 393 − 24），内边距从 24 收到 16，
+      桌面端保持 454 / 24 不变。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    expect(SCSS).toContain('.semi-modal:has(> .semi-modal-content.dsh-fnos-create-dialog)')
+
+    // 移动端内边距收紧 + 按钮不换行
+    const mobile = SCSS.slice(SCSS.lastIndexOf('@media (max-width: 767px)'))
+    expect(mobile).toContain('.dsh-fnos-create-dialog')
+    expect(mobile).toMatch(/semi-modal-header \{[\s\S]{0,60}padding: 16px 16px 0/u)
+    expect(mobile).toContain('flex-wrap: nowrap')
+  })
+
   it('点击菜单外或按 Esc 自动收起菜单', () => {
     // 实机反馈的第二个问题：点面板别处菜单不消失。
     expect(PANEL).toMatch(/if \(contextMenu === undefined\) return/u)
