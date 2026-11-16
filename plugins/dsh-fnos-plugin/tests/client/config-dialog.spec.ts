@@ -352,6 +352,40 @@ describe('fnOS 配置弹框', () => {
     expect(panel).toMatch(/entries\.length < total \? \(\s*<span className="dsh-fnos-logs-count">/u)
   })
 
+  it('文件入口：失败走 Toast，错误不画在按钮上', () => {
+    /*
+      早前把失败记进 `lastErrorRef` 再把按钮切成 `data-state="error"`，于是按钮
+      变成常驻的错误外观 + 一段长文案贴进 tooltip——截图里那个挂着的
+      「无法打开 NAS 文件管理器。」就是它。错误是一次操作的瞬时结果，不该留在
+      按钮这种「持续状态」的载体上，也不会自己消失。
+
+      改用 Toast 后按钮只剩 idle / busy 两态。
+    */
+    const src = readFileSync(new URL('../../src/components/FnosOpenInHeaderAction.tsx', import.meta.url), 'utf8')
+    expect(src).toContain('notifyFailure')
+    // 剥掉注释再看：说明文字里会提到旧写法（解释为什么改），不算声明。
+    const code = src.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
+    // 不得再有 error 态与错误文案存放处。
+    expect(code).not.toContain("'idle' | 'busy' | 'error'")
+    expect(code).not.toContain('lastErrorRef')
+    expect(code).not.toContain('data-state={phase}')
+  })
+
+  it('文件入口：独立 web 不渲染，App 与内嵌 web 都渲染', () => {
+    /*
+      | 环境 | 判据 | 显示 |
+      | --- | --- | --- |
+      | fnOS App | isWeb === false | 显示 |
+      | NAS web 内嵌 | isWeb && !isStandaloneWeb | 显示 |
+      | 独立 web | isWeb && isStandaloneWeb | 不显示 |
+
+      独立 web 没有宿主桥，调用必然失败；给一个必然失败的入口比不给更差。
+    */
+    const src = readFileSync(new URL('../../src/components/FnosOpenInHeaderAction.tsx', import.meta.url), 'utf8')
+    expect(src).toContain('HAS_FNOS_HOST_BRIDGE')
+    expect(src).toContain('IS_FNOS_STANDALONE_WEB_ENV')
+  })
+
   it('日志级别下拉不显示勾选图标', () => {
     /*
       Semi 的 Option 默认 `showTick: true`，会在**每一项**前面留一个勾位
@@ -781,8 +815,8 @@ describe('插件卡片：没有自备图标时用官方默认图形', () => {
     */
     const dialog = readFileSync(new URL('../../src/components/FnosConfigDialog.tsx', import.meta.url), 'utf8')
     // 只有 directories 分支带环境判据。
-    expect(dialog).toContain("section === 'directories' && !fnosHostBridgeAvailable()")
-    expect(dialog).toContain("section === 'directories' && fnosHostBridgeAvailable()")
+    expect(dialog).toMatch(/section === 'directories' && (!HAS_FNOS_HOST_BRIDGE|!fnosHostBridgeAvailable\(\))/u)
+    expect(dialog).toMatch(/section === 'directories' && (HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\))/u)
     for (const section of ['plugins', 'runtime', 'logs']) {
       expect(dialog).toContain(`section === '${section}' ? <`)
       // 这三个分组不得带任何环境判据。

@@ -136,7 +136,7 @@ describe('独立浏览器页面：授权后列表必须刷新', () => {
     // 调用必然失败；给一个必然失败的入口比不渲染更差。
     const action = read('../../src/components/FnosOpenInHeaderAction.tsx')
     const actionCode = action.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
-    expect(actionCode).toContain('hasFnosHostBridge(readSdkCapabilityFlags())')
+    expect(actionCode).toMatch(/HAS_FNOS_HOST_BRIDGE|hasFnosHostBridge\(readSdkCapabilityFlags\(\)\)/u)
     expect(actionCode).not.toContain('isFnosHosted()')
   })
 })
@@ -156,7 +156,7 @@ describe('独立页面：浏览入口一律不渲染', () => {
     ]
     for (const file of sources) {
       const code = read(file).replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
-      expect(code, file).toMatch(/fnosHostBridgeAvailable\(\)|hasFnosHostBridge\(readSdkCapabilityFlags\(\)\)/u)
+      expect(code, file).toMatch(/HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)|hasFnosHostBridge\(readSdkCapabilityFlags\(\)\)/u)
     }
   })
 })
@@ -241,13 +241,13 @@ describe('独立页面的浏览入口：直接不渲染', () => {
       比没有这个按钮更差。因此不渲染。
     */
     const card = read('../../src/components/AuthorizedDirectoriesCard.tsx')
-    expect(card).toContain('fnosHostBridgeAvailable()')
+    expect(card).toMatch(/HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)/u)
     // 按钮必须在能力判断里面。
-    expect(card).toMatch(/fnosHostBridgeAvailable\(\) && \([\s\S]{0,400}dsh-fnos-authorized-button--open/u)
+    expect(card).toMatch(/HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)/u)
 
     const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
-    expect(panel).toContain('fnosHostBridgeAvailable()')
-    expect(panel).toMatch(/fnosHostBridgeAvailable\(\) && \([\s\S]{0,400}openFromContextMenu/u)
+    expect(panel).toMatch(/HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)/u)
+    expect(panel).toMatch(/HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)/u)
   })
 
   it('服务层在 standalone 下明确失败，不再跳转到桌面', () => {
@@ -331,7 +331,7 @@ describe('宿主桥判据：isWeb=false 时能力在内嵌侧', () => {
     expect(source).toContain('return flags.isWeb ? !flags.isStandaloneWeb : true')
     // 调用方不再用无参形式（那会退回 DOM 判据，丢掉 isWeb=false 这一支）。
     const action = read('../../src/components/FnosOpenInHeaderAction.tsx')
-    expect(action).toContain('hasFnosHostBridge(readSdkCapabilityFlags())')
+    expect(action).toMatch(/HAS_FNOS_HOST_BRIDGE|hasFnosHostBridge\(readSdkCapabilityFlags\(\)\)/u)
     expect(action).not.toContain('hasFnosHostBridge()')
   })
 

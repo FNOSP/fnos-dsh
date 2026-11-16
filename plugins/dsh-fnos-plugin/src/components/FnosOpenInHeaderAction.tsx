@@ -17,7 +17,7 @@
  * 菜单项由数组驱动，后续追加 fnOS 文件能力时只需增加一项并补文案。
  */
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: 拉入 ui-session 对 GlobalStandardProps/SessionStandardProps 的合并，
@@ -26,7 +26,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { IconChevronDownOutlineRegular, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FnosFileManagerIcon } from './FnosFileManagerIcon.tsx'
-import { hasFnosHostBridge, readSdkCapabilityFlags } from '../client/services/host-bridge.ts'
+import { HAS_FNOS_HOST_BRIDGE, IS_FNOS_STANDALONE_WEB_ENV } from '../client/services/runtime-env.ts'
+import { notifyFailure } from '../client/notify.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
@@ -90,37 +91,52 @@ const FILE_ACTIONS: readonly FnosFileAction[] = [OPEN_FILE_MANAGER]
 
 export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenInHeaderActionProps) {
   const [open, setOpen] = useState(false)
-  const [phase, setPhase] = useState<'idle' | 'busy' | 'error'>('idle')
+  const [busy, setBusy] = useState(false)
   const cwd = useSessions((state: SessionListStateLike) => state.byId[String(sessionId)]?.cwd)
   const current = OPEN_FILE_MANAGER
 
-  const lastErrorRef = useRef<string | undefined>(undefined)
-
   const launch = useCallback((action: FnosFileAction) => {
     if (cwd === undefined || cwd === '') return
-    setPhase('busy')
+    setBusy(true)
     void action.run(cwd).then(
-      () => { lastErrorRef.current = undefined; setPhase('idle') },
+      () => { setBusy(false) },
       (error: unknown) => {
-        lastErrorRef.current = error instanceof Error ? error.message : String(error)
-        setPhase('error')
+        setBusy(false)
+        /*
+          **失败用 Toast，不把错误状态画在按钮上。**
+
+          早前把它记进 `lastErrorRef` 再把按钮切成 `data-state="error"`，于是
+          按钮变成常驻的错误外观 + 一段长文案贴在 tooltip 里——截图里那个挂着的
+          「无法打开 NAS 文件管理器。」就是它。错误是一次操作的瞬时结果，不该
+          留在按钮这种「持续状态」的载体上；它也不会自己消失，下次成功前一直挂着。
+
+          被弹窗拦截是可指导用户放行的具体情况，与其它失败分开说。
+        */
+        const message = error instanceof Error ? error.message : String(error)
+        notifyFailure(message.includes('fnos-open-blocked') === true
+          ? t('openFileManagerBlocked')
+          : t('openFileManagerFailed'))
       },
     )
-  }, [cwd])
+  }, [cwd, t])
 
   /*
-    只在**宿主桥可用**时渲染。
+    **只在有宿主桥的环境渲染：fnOS App 与 NAS web 内嵌都显示，独立 web 不显示。**
 
-    判据读 SDK 的运行时标志，不是「是不是 iframe」：`isWeb === false`（mobile /
-    原生宿主）时宿主桥是可用的，即便 `window.parent === window`。早前只看 DOM，
-    这类环境下整个入口会消失。
+    | 环境 | 判据 | 显示 |
+    | --- | --- | --- |
+    | fnOS App（mobile / 原生宿主） | `isWeb === false` | 显示 |
+    | NAS web 内嵌（应用中心 iframe） | `isWeb && !isStandaloneWeb` | 显示 |
+    | 独立 web（浏览器直接打开） | `isWeb && isStandaloneWeb` | **不显示** |
 
-    独立浏览器页面里没有宿主桥，调用必然失败。曾试过退而用 `openURL` 打开 fnOS
-    桌面首页，但那是「打开了个网页」而不是「定位到这个目录」——用户点了被丢回
-    桌面，还得自己再找一遍，比没有这个按钮更差。所以不渲染，而不是给一个必然
-    失败的入口。
+    独立 web 里没有宿主桥，调用必然失败。曾试过退而用 `openURL` 打开 fnOS 桌面
+    首页，但那是「打开了个网页」而不是「定位到这个目录」——用户点了被丢回桌面，
+    还得自己再找一遍，比没有这个按钮更差。所以不渲染，而不是给一个必然失败的入口。
+
+    判据来自 `runtime-env.ts` 的静态常量，不在这里现算：这些标志在页面生命周期
+    内不变，集中定义后读代码时不必再推演两个标志的组合。
   */
-  if (!hasFnosHostBridge(readSdkCapabilityFlags())) return null
+  if (!HAS_FNOS_HOST_BRIDGE || IS_FNOS_STANDALONE_WEB_ENV) return null
   // 工作目录未知时打开没有意义，直接不渲染，避免给出一个必然失败的操作。
   if (cwd === undefined || cwd === '') return null
 
@@ -130,15 +146,8 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
     icon: action.icon(18),
   }))
   const currentLabel = current.label(t)
-  /*
-    失败原因分两种：被弹窗拦截（可指导用户放行）与其它失败。混成一句话会让
-    「浏览器拦截」看起来像插件坏了。
-  */
-  const title = phase === 'error'
-    ? (lastErrorRef.current?.includes('fnos-open-blocked') === true
-        ? t('openFileManagerBlocked')
-        : t('openFileManagerFailed'))
-    : current.tooltip(t, currentLabel)
+  // tooltip 只描述「这个按钮做什么」；失败走 Toast，不再改写按钮外观。
+  const title = current.tooltip(t, currentLabel)
 
   return (
     <Menu
@@ -152,7 +161,7 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
       onSelect={(id) => {
         setOpen(false)
         // 忙碌中忽略选择，避免把「选中了但没执行」的状态留在按钮上。
-        if (phase === 'busy') return
+        if (busy) return
         const action = FILE_ACTIONS.find(entry => entry.id === id)
         if (action !== undefined) launch(action)
       }}
@@ -162,8 +171,8 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
             <button
               type="button"
               className="dsh-fnos-open-in-main"
-              data-state={phase}
-              disabled={phase === 'busy'}
+              data-state={busy ? 'busy' : 'idle'}
+              disabled={busy}
               aria-label={title}
               onClick={() => { launch(current) }}
             >

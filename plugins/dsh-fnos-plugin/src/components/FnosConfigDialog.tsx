@@ -18,7 +18,7 @@
 
 import { useState } from 'react'
 import type { UsedIconName } from './IconifyIcon.tsx'
-import { fnosHostBridgeAvailable } from '../client/services/host-bridge.ts'
+import { HAS_FNOS_HOST_BRIDGE } from '../client/services/runtime-env.ts'
 import { DshEmpty } from '@tnnevol/dsh-semi-ui'
 import { FnosEmptyIllustration } from './FnosEmptyIllustration.tsx'
 import { DshModal } from '@tnnevol/dsh-semi-ui'
@@ -123,7 +123,7 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
             所以不能按环境整体屏蔽——那样会把三个本来能用的面板一起换成缺省页。
             只在需要 fnOS 的那个分组里给缺省页，并说明原因。
           */}
-          {section === 'directories' && !fnosHostBridgeAvailable() ? (
+          {section === 'directories' && !HAS_FNOS_HOST_BRIDGE ? (
             <DshEmpty
               className="dsh-fnos-config-empty"
               image={<FnosEmptyIllustration size={140} />}
@@ -131,7 +131,7 @@ export function FnosConfigDialog({ visible, onClose, t }: FnosConfigDialogProps)
               description={t('configEmptyDescription')}
             />
           ) : null}
-          {section === 'directories' && fnosHostBridgeAvailable() ? <AuthorizedDirectoriesCard t={t} /> : null}
+          {section === 'directories' && HAS_FNOS_HOST_BRIDGE ? <AuthorizedDirectoriesCard t={t} /> : null}
           {section === 'plugins' ? <GatewayProxyCard t={t} /> : null}
           {section === 'runtime' ? <RuntimeStatusCard t={t} /> : null}
           {section === 'logs' ? <RuntimeLogPanel t={t} /> : null}

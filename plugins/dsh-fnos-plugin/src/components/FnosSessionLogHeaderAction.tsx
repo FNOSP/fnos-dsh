@@ -8,7 +8,7 @@ import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DshEmpty, DshIconFolder, DshModal, DshTree } from '@tnnevol/dsh-semi-ui'
 import { FnosEmptyIllustration } from './FnosEmptyIllustration.tsx'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
-import { hasFnosHostBridge, readSdkCapabilityFlags } from '../client/services/host-bridge.ts'
+import { HAS_FNOS_HOST_BRIDGE } from '../client/services/runtime-env.ts'
 import { exportSessionLogToNas } from '../client/services/session-log-export-client.ts'
 import { copySessionMarkdown } from '../client/services/session-markdown-copy.ts'
 import type { AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
@@ -190,7 +190,7 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
       icon: <IconDownloadOutlineRegular />,
       submenu: [
         { id: 'computer', label: t('sessionLogExportComputer'), icon: <IconDownloadOutlineRegular /> },
-        ...(hasFnosHostBridge(readSdkCapabilityFlags())
+        ...(HAS_FNOS_HOST_BRIDGE
           ? [{ id: 'nas', label: t('sessionLogExportNas'), icon: <IconFolderOpenOutlineRegular /> }]
           : []),
       ],

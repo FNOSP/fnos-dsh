@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { DshButton, DshIconSetting as IconSetting } from '@tnnevol/dsh-semi-ui'
-import { hasFnosHostBridge, readSdkCapabilityFlags } from '../client/services/host-bridge.ts'
+import { HAS_FNOS_HOST_BRIDGE } from '../client/services/runtime-env.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import { requestSettingsDocumentPath } from '../client/services/settings-document-client.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
@@ -19,7 +19,7 @@ export function FnosSettingsDocumentAction({ t }: SettingsDocumentActionProps) {
   const [error, setError] = useState(false)
 
   const open = useCallback(async () => {
-    if (!hasFnosHostBridge(readSdkCapabilityFlags())) return
+    if (!HAS_FNOS_HOST_BRIDGE) return
     setBusy(true)
     setError(false)
     try {
@@ -36,7 +36,7 @@ export function FnosSettingsDocumentAction({ t }: SettingsDocumentActionProps) {
   }, [])
 
   // 该动作靠 SDK 的 `openFile` 打开 NAS 上的配置文件，独立浏览器页面没有宿主桥。
-  if (!hasFnosHostBridge(readSdkCapabilityFlags())) return null
+  if (!HAS_FNOS_HOST_BRIDGE) return null
   return (
     <DshButton
       size="small"

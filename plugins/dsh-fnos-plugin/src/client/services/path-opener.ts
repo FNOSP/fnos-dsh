@@ -75,6 +75,13 @@ export function installFnosPathOpener(
         xdg-open in the NAS service container, where the command is absent.
         独立浏览器页面同样在这里失败：没有宿主桥，`openFile` 不可能成功。
       */
+      /*
+        这里**必须实时判断**，不能读 `runtime-env.ts` 的静态常量：本模块是「执行
+        一次操作」的运行时函数，调用发生在用户点下去那一刻；而静态常量在模块加载
+        时就固定了，测试里改环境标志后它不会跟随（实测三条用例因此失败）。
+
+        静态常量适合**渲染分支**（页面加载时定一次、之后不变），不适合运行时守卫。
+      */
       if (!fnosHostBridgeAvailable()) throw new Error('Opening files requires the fnOS app')
       if (!sdk.isWeb) throw new Error('fnOS iframe SDK did not initialize its web carrier')
       // The SDK is the authority for opening a path. Do not preflight against
