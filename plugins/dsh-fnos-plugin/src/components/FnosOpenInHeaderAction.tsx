@@ -26,7 +26,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { IconChevronDownOutlineRegular, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
 import { FnosFileManagerIcon } from './FnosFileManagerIcon.tsx'
-import { HAS_FNOS_HOST_BRIDGE, IS_FNOS_STANDALONE_WEB_ENV } from '../client/services/runtime-env.ts'
+import { SHOWS_FILE_MANAGER_ENTRY } from '../client/services/runtime-env.ts'
 import { notifyFailure } from '../client/notify.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
@@ -121,22 +121,25 @@ export function FnosOpenInHeaderAction({ sessionId, useSessions, t }: FnosOpenIn
   }, [cwd, t])
 
   /*
-    **只在有宿主桥的环境渲染：fnOS App 与 NAS web 内嵌都显示，独立 web 不显示。**
+    **只有 NAS 内嵌 web 显示，独立 web 与 App 端都隐藏。**
 
     | 环境 | 判据 | 显示 |
     | --- | --- | --- |
-    | fnOS App（mobile / 原生宿主） | `isWeb === false` | 显示 |
-    | NAS web 内嵌（应用中心 iframe） | `isWeb && !isStandaloneWeb` | 显示 |
-    | 独立 web（浏览器直接打开） | `isWeb && isStandaloneWeb` | **不显示** |
+    | NAS web 内嵌（应用中心 iframe） | `isWeb && !isStandaloneWeb` | **显示** |
+    | 独立 web（浏览器直接打开） | `isWeb && isStandaloneWeb` | 不显示 |
+    | fnOS App（mobile / 原生宿主） | `isWeb === false` | 不显示 |
 
-    独立 web 里没有宿主桥，调用必然失败。曾试过退而用 `openURL` 打开 fnOS 桌面
-    首页，但那是「打开了个网页」而不是「定位到这个目录」——用户点了被丢回桌面，
-    还得自己再找一遍，比没有这个按钮更差。所以不渲染，而不是给一个必然失败的入口。
+    独立 web 没有宿主桥，调用必然失败；曾试过退而用 `openURL` 打开 fnOS 桌面首页，
+    但那是「打开了个网页」而不是「定位到这个目录」——用户点了被丢回桌面，比没有
+    这个按钮更差。
 
-    判据来自 `runtime-env.ts` 的静态常量，不在这里现算：这些标志在页面生命周期
-    内不变，集中定义后读代码时不必再推演两个标志的组合。
+    App 端同样隐藏：没有文件管理器窗口的概念，跳出去会把用户带离当前会话。
+
+    判据与右键菜单那一处**共用同一个常量**，避免两处行为漂移（早前正是这里用
+    `HAS_FNOS_HOST_BRIDGE && !IS_FNOS_STANDALONE_WEB_ENV`、菜单用另一个式子，
+    结果 App 端一个显示一个隐藏）。
   */
-  if (!HAS_FNOS_HOST_BRIDGE || IS_FNOS_STANDALONE_WEB_ENV) return null
+  if (!SHOWS_FILE_MANAGER_ENTRY) return null
   // 工作目录未知时打开没有意义，直接不渲染，避免给出一个必然失败的操作。
   if (cwd === undefined || cwd === '') return null
 

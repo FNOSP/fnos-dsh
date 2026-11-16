@@ -123,11 +123,19 @@ export const IS_FNOS_GATEWAY_HOSTED: boolean = detectFnosEnvironment() !== 'none
 export const IS_FNOS_WEB_RUNTIME: boolean = FLAGS.isWeb
 
 /**
- * 「在文件管理器打开某个条目」这类**跨应用跳转**能力是否该出现。
+ * 「打开文件管理器」这类**跨应用跳转**入口是否该出现。
  *
- * App 端隐藏：长按菜单里给一个「跳出去打开文件管理器」会把用户带离 DSH，
- * 回来时会话状态不一定还在；且 App 内没有文件管理器窗口的概念。
+ * **只有 NAS 内嵌 web（应用中心 iframe）才显示。**
  *
- * web 端（内嵌 iframe）保留：宿主桥可用，文件管理器就在同一个 NAS 桌面里。
+ * | 环境 | 判据 | 显示 | 理由 |
+ * | --- | --- | --- | --- |
+ * | NAS 内嵌 web | `isWeb && !isStandaloneWeb` | **是** | 文件管理器就在同一个 NAS 桌面里，宿主桥可用 |
+ * | 独立 web | `isWeb && isStandaloneWeb` | 否 | 没有宿主桥，调用必然失败 |
+ * | App | `isWeb === false` | 否 | 没有文件管理器窗口的概念，跳出去会把用户带离当前会话 |
+ *
+ * 早前这个常量写成 `HAS_FNOS_HOST_BRIDGE && IS_FNOS_WEB_RUNTIME`，而
+ * `HAS_FNOS_HOST_BRIDGE` 在 DOM 兜底判据下对独立 web 也可能为 true——于是独立
+ * web 里两处入口的行为会随 SDK 是否就绪而漂移。直接锚定「内嵌 web」这一个条件，
+ * 不依赖桥的推导。
  */
-export const SHOWS_FILE_MANAGER_ENTRY: boolean = HAS_FNOS_HOST_BRIDGE && IS_FNOS_WEB_RUNTIME
+export const SHOWS_FILE_MANAGER_ENTRY: boolean = IS_FNOS_EMBEDDED_WEB_ENV

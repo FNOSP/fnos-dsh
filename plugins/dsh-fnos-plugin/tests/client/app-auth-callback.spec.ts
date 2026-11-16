@@ -136,7 +136,9 @@ describe('独立浏览器页面：授权后列表必须刷新', () => {
     // 调用必然失败；给一个必然失败的入口比不渲染更差。
     const action = read('../../src/components/FnosOpenInHeaderAction.tsx')
     const actionCode = action.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
-    expect(actionCode).toMatch(/HAS_FNOS_HOST_BRIDGE|hasFnosHostBridge\(readSdkCapabilityFlags\(\)\)/u)
+    // 判据现在是 `SHOWS_FILE_MANAGER_ENTRY`（只在内嵌 web 为 true），与右键菜单
+    // 那一处共用同一个常量——早前各写各的式子，App 端出现一处显示一处隐藏。
+    expect(actionCode).toContain('SHOWS_FILE_MANAGER_ENTRY')
     expect(actionCode).not.toContain('isFnosHosted()')
   })
 })
@@ -160,7 +162,11 @@ describe('独立页面：浏览入口一律不渲染', () => {
         「打开」类入口的判据统一收在 `SHOWS_FILE_MANAGER_ENTRY` 里（宿主桥可用
         且不是 App 端）。会话头部那个用的是更基础的 `HAS_FNOS_HOST_BRIDGE`。
       */
-      expect(code, file).toMatch(/SHOWS_FILE_MANAGER_ENTRY|HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)|hasFnosHostBridge\(readSdkCapabilityFlags\(\)\)/u)
+      /*
+        三处入口现在**共用同一个常量** `SHOWS_FILE_MANAGER_ENTRY`（只在内嵌 web
+        为 true）。早前各写各的式子，导致 App 端一个显示一个隐藏。
+      */
+      expect(code, file).toContain('SHOWS_FILE_MANAGER_ENTRY')
     }
   })
 })

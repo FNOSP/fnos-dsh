@@ -44,11 +44,18 @@ describe('运行时环境四态', () => {
     expect(derive(true, true).bridge).toBe(false)
   })
 
-  it('文件入口在 App 与内嵌 web 显示，独立 web 不显示', () => {
-    // 与 FnosOpenInHeaderAction 的判据一致：有桥 且 不是独立 web。
-    const shown = (isWeb: boolean, standalone: boolean): boolean => derive(isWeb, standalone).bridge
-    expect(shown(false, true), 'App 环境').toBe(true)
-    expect(shown(true, false), 'NAS web 内嵌').toBe(true)
-    expect(shown(true, true), '独立 web').toBe(false)
+  it('「打开文件管理器」入口只在内嵌 web 显示', () => {
+    /*
+      App 端没有文件管理器窗口的概念，跳出去会把用户带离当前会话；独立 web 没有
+      宿主桥，调用必然失败。所以三处入口都只在 NAS 内嵌 web 出现。
+
+      **注意这里用的是 `embedded` 而不是 `bridge`**：早前判据写成「有宿主桥」，
+      而 DOM 兜底时独立 web 也可能被判成有桥，于是 App 端一处显示一处隐藏。
+    */
+    const shows = (isWeb: boolean, standalone: boolean): boolean => derive(isWeb, standalone).embedded
+    expect(shows(true, false), 'NAS web 内嵌').toBe(true)
+    expect(shows(true, true), '独立 web').toBe(false)
+    expect(shows(false, true), 'App 环境').toBe(false)
+    expect(shows(false, false), 'App 环境（另一组合）').toBe(false)
   })
 })
