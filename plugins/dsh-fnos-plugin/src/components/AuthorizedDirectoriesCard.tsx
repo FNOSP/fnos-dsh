@@ -474,6 +474,8 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         maskClosable={!deletePending}
         onOk={() => confirmDelete()}
         onCancel={() => { if (!deletePending) setPendingDeletePath(undefined) }}
+        /* 窄屏收进视口：这个确认框的说明较长，默认宽度会贴着屏幕边。 */
+        modalContentClass="dsh-fnos-delete-dialog"
       />
       <div id="dsh-fnos-authorized-directories-body" className="dsh-fnos-authorized-card-body">
           <div className="dsh-fnos-authorized-row">

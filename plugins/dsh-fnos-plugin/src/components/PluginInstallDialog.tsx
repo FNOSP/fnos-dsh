@@ -112,6 +112,12 @@ export function PluginInstallDialog({ visible, name, t, onClose, onSettled }: Pl
       onCancel={status === 'running' ? undefined : onClose}
       footer={null}
       width={640}
+      /*
+        `modalContentClass` 是唯一会被拼进 `.semi-modal-content` 的入口：
+        `className` 落在 `.semi-modal`、`contentClassName` 会被 Modal 内部覆盖。
+        样式据此在窄屏收住 640 的内联宽度。
+      */
+      modalContentClass="dsh-fnos-install-dialog"
     >
       <div className="dsh-fnos-install">
         {error === undefined ? null : <p className="dsh-fnos-repair-error" role="alert">{error}</p>}

@@ -360,6 +360,56 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(mobile).toContain('flex-wrap: nowrap')
   })
 
+  it('其余弹框也收进视口，内层跟着收窄', () => {
+    /*
+      这一条守的是「弹框一个个漏掉」这个问题本身。
+
+      原先只有授权弹框、Session log 两个、create-dialog 被纳入 `max-width`，
+      插件安装日志（`width={640}`）、杀掉进程、删除确认这三处**没有任何约束**：
+      实测 393px 视口下 installer 撑到 640px、右边缘越界 247px。
+
+      凡是新增弹框，都要在这里登记——漏一个就是一屏溢出的弹框。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+
+    const modalClasses = [
+      'dsh-fnos-account-login-modal',
+      'dsh-fnos-config-dialog',
+      'dsh-fnos-nas-dialog',
+      'dsh-fnos-session-log-progress-dialog',
+      'dsh-fnos-install-dialog',
+      'dsh-fnos-kill-dialog',
+      'dsh-fnos-delete-dialog',
+    ]
+    for (const cls of modalClasses) {
+      expect(SCSS).toContain(`:has(> .semi-modal-content.${cls})`)
+    }
+
+    // 内层收窄：没有它，外层收住后 header / footer 仍按原宽度排、右侧被切。
+    const inner = SCSS.slice(SCSS.indexOf('.semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog)'))
+    expect(inner).toMatch(/\.semi-modal-header,\s*\.semi-modal-body,\s*\.semi-modal-footer \{[^}]*min-width: 0/u)
+
+    // 移动端：这几个弹框的内边距从 24 收到 16。
+    const mobile = SCSS.slice(SCSS.lastIndexOf('@media (max-width: 767px)'))
+    expect(mobile).toMatch(/\.semi-modal:has\(> \.semi-modal-content\.dsh-fnos-install-dialog\)[\s\S]{0,600}padding: 20px 16px 0/u)
+    expect(mobile).toContain('.dsh-fnos-install-log')
+  })
+
+  it('新增弹框都带 modalContentClass，class 才能落进内容层', () => {
+    /*
+      Semi Modal 的三个 class prop 只有 `modalContentClass` 会拼进
+      `.semi-modal-content`：`className` 落最外层、`contentClassName` 被内部覆盖。
+      传错的话样式选择器全都匹配不上，且不会报错。
+    */
+    const INSTALL = readFileSync(new URL('../../src/components/PluginInstallDialog.tsx', import.meta.url), 'utf8')
+    const PROCESS = readFileSync(new URL('../../src/components/RuntimeProcessList.tsx', import.meta.url), 'utf8')
+    const CARD = readFileSync(new URL('../../src/components/AuthorizedDirectoriesCard.tsx', import.meta.url), 'utf8')
+
+    expect(INSTALL).toContain('modalContentClass="dsh-fnos-install-dialog"')
+    expect(PROCESS).toContain('modalContentClass="dsh-fnos-kill-dialog"')
+    expect(CARD).toContain('modalContentClass="dsh-fnos-delete-dialog"')
+  })
+
   it('新建/重命名弹框的内层跟着外层收窄，标题与按钮不被切', () => {
     /*
       只给外层 `max-width` 不够。Semi 在 centered 模式下把内层 header / body /

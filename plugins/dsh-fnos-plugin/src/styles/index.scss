@@ -3447,14 +3447,49 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 .semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog),
 /* 两个 Session log 弹框：导出进度（480）与选择 NAS 目录（560）。 */
 .semi-modal:has(> .semi-modal-content.dsh-fnos-nas-dialog),
-.semi-modal:has(> .semi-modal-content.dsh-fnos-session-log-progress-dialog) {
+.semi-modal:has(> .semi-modal-content.dsh-fnos-session-log-progress-dialog),
+/* 插件安装日志（640）：pnpm 输出用等宽字体，窄屏一样要靠外层收住。 */
+.semi-modal:has(> .semi-modal-content.dsh-fnos-install-dialog),
+/* 两个默认宽度弹框：杀掉进程的确认框、授权目录的删除确认框。 */
+.semi-modal:has(> .semi-modal-content.dsh-fnos-kill-dialog),
+.semi-modal:has(> .semi-modal-content.dsh-fnos-delete-dialog) {
   /* 左右各留 12px 的空气；窄屏时这就是实际宽度。 */
   max-width: calc(100vw - 24px);
 }
 
 /*
- * 新建文件夹 / 新建文件 / 重命名：**这三个弹框的结构和前几个不同。**
+ * 上面这几个弹框的**内层也要跟着收窄**，否则标题与按钮会被切。
  *
+ * 与 `dsh-fnos-create-dialog` 是同一类问题，只是结构不同：这些弹框有
+ * `.semi-modal` 包裹层，`header / body / footer` 在 `.semi-modal-content` 里，
+ * 它们的 `min-width` 是 `auto`，收缩底线为**内容宽度**——外层收到 369px 后，
+ * 内层仍按原来的 480 / 560 / 640 排，于是右侧越出容器。
+ *
+ * 这里用 `:has()` 反向选中外层，再落到内层，不依赖组件自身带类名。
+ */
+.semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog),
+.semi-modal:has(> .semi-modal-content.dsh-fnos-nas-dialog),
+.semi-modal:has(> .semi-modal-content.dsh-fnos-session-log-progress-dialog),
+.semi-modal:has(> .semi-modal-content.dsh-fnos-install-dialog),
+.semi-modal:has(> .semi-modal-content.dsh-fnos-kill-dialog),
+.semi-modal:has(> .semi-modal-content.dsh-fnos-delete-dialog) {
+  .semi-modal-content,
+  .semi-modal-header,
+  .semi-modal-body,
+  .semi-modal-footer {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Semi 把内容层的 `width` 写成 100%，它取外层宽度；这里保证不反超。 */
+  > .semi-modal-content {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+}
+
+/*
+ * 新建文件夹 / 新建文件 / 重命名：**这三个弹框的结构和前几个不同。**
  * 它们带 `centered`，Semi 在居中模式下**不生成 `.semi-modal` 包裹层**，
  * `className` 直接落在内容元素上（实测祖先链是
  * `.dsh-fnos-create-dialog > .semi-portal > body`）。
@@ -3977,5 +4012,52 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
       /* 窄屏下按钮可以比桌面窄一点，两个并排仍有余量。 */
       min-width: 72px;
     }
+  }
+
+  /*
+    **其余几个弹框的窄屏内边距。**
+
+    宽度已由最外层的 `max-width: calc(100vw - 24px)` 收住，但桌面写的 24px
+    内边距在 393px 视口下只剩约 320px 正文，等宽日志、路径文本会频繁折行。
+    统一收到 16，与新增/重命名弹框保持同一节奏。
+
+    选择器走 `:has()` 反选外层再落到内层：这些弹框的类名在 `.semi-modal-content`
+    上，`.semi-modal` 是它的祖先，后代选择器永远匹配不到。
+  */
+  .semi-modal:has(> .semi-modal-content.dsh-fnos-nas-dialog),
+  .semi-modal:has(> .semi-modal-content.dsh-fnos-session-log-progress-dialog),
+  .semi-modal:has(> .semi-modal-content.dsh-fnos-install-dialog),
+  .semi-modal:has(> .semi-modal-content.dsh-fnos-kill-dialog),
+  .semi-modal:has(> .semi-modal-content.dsh-fnos-delete-dialog) {
+    .semi-modal-header {
+      padding: 20px 16px 0 !important;
+    }
+
+    .semi-modal-body {
+      padding: 12px 16px 0 !important;
+    }
+
+    .semi-modal-footer {
+      padding: 16px 16px 20px !important;
+    }
+
+    .semi-modal-footer > div {
+      flex-wrap: nowrap !important;
+    }
+
+    .semi-modal-footer .semi-button {
+      min-width: 72px;
+    }
+  }
+
+  /*
+    **插件安装日志的高度跟着视口走。**
+
+    桌面固定 360px，在 852 高的机子上加上标题与内边距后接近半屏，pnpm 输出
+    一多就顶到键盘/底部。改成 `vh` 上限，矮机型自动收。
+  */
+  .dsh-fnos-install-log {
+    height: auto;
+    max-height: 42vh;
   }
 }

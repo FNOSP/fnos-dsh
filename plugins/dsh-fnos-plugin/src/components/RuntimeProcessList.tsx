@@ -183,6 +183,8 @@ export function RuntimeProcessList({ t, processes, available }: RuntimeProcessLi
         }}
         okText={confirming?.signal === 'SIGKILL' ? t('runtimeKillForce') : t('runtimeKill')}
         cancelText={t('cancel')}
+        /* 窄屏收进视口：默认可变宽的 Modal 在 320px 上会顶到边缘。 */
+        modalContentClass="dsh-fnos-kill-dialog"
       >
         <p className="dsh-fnos-repair-muted">
           {confirming?.signal === 'SIGKILL' ? t('runtimeKillForceConfirm') : t('runtimeKillConfirm')}
