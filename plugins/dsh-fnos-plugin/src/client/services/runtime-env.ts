@@ -112,3 +112,22 @@ export const HAS_FNOS_HOST_BRIDGE: boolean = !IS_FNOS_STANDALONE_WEB_ENV
  * 只由 DOM 判断（网关会注入 `<base href="/app/...">`），不依赖 SDK 是否就绪。
  */
 export const IS_FNOS_GATEWAY_HOSTED: boolean = detectFnosEnvironment() !== 'none'
+
+/**
+ * 是否**不是**移动端 / 原生宿主（`isWeb === true`）。
+ *
+ * App 端与 web 端的交互范式不同：web 端有右键、精确指针，App 端只有长按，
+ * 且「打开文件管理器」这类跳转在 App 内会离开当前页面。需要区分时用这个常量，
+ * 不要再去组合 `isWeb` 判断。
+ */
+export const IS_FNOS_WEB_RUNTIME: boolean = FLAGS.isWeb
+
+/**
+ * 「在文件管理器打开某个条目」这类**跨应用跳转**能力是否该出现。
+ *
+ * App 端隐藏：长按菜单里给一个「跳出去打开文件管理器」会把用户带离 DSH，
+ * 回来时会话状态不一定还在；且 App 内没有文件管理器窗口的概念。
+ *
+ * web 端（内嵌 iframe）保留：宿主桥可用，文件管理器就在同一个 NAS 桌面里。
+ */
+export const SHOWS_FILE_MANAGER_ENTRY: boolean = HAS_FNOS_HOST_BRIDGE && IS_FNOS_WEB_RUNTIME

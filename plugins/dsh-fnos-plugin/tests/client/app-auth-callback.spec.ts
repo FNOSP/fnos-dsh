@@ -156,7 +156,11 @@ describe('独立页面：浏览入口一律不渲染', () => {
     ]
     for (const file of sources) {
       const code = read(file).replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '')
-      expect(code, file).toMatch(/HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)|hasFnosHostBridge\(readSdkCapabilityFlags\(\)\)/u)
+      /*
+        「打开」类入口的判据统一收在 `SHOWS_FILE_MANAGER_ENTRY` 里（宿主桥可用
+        且不是 App 端）。会话头部那个用的是更基础的 `HAS_FNOS_HOST_BRIDGE`。
+      */
+      expect(code, file).toMatch(/SHOWS_FILE_MANAGER_ENTRY|HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)|hasFnosHostBridge\(readSdkCapabilityFlags\(\)\)/u)
     }
   })
 })
@@ -240,14 +244,15 @@ describe('独立页面的浏览入口：直接不渲染', () => {
       「定位到这个目录」——用户点「打开」被丢回桌面，还得自己再找一遍，
       比没有这个按钮更差。因此不渲染。
     */
+    /*
+      判据现在是 `SHOWS_FILE_MANAGER_ENTRY`（宿主桥可用 **且** 不是 App 端）：
+      App 端长按菜单里给「跳出去打开文件管理器」会把用户带离当前会话，所以也隐藏。
+    */
     const card = read('../../src/components/AuthorizedDirectoriesCard.tsx')
-    expect(card).toMatch(/HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)/u)
-    // 按钮必须在能力判断里面。
-    expect(card).toMatch(/HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)/u)
+    expect(card).toContain('SHOWS_FILE_MANAGER_ENTRY')
 
     const panel = read('../../src/components/FnosAuthorizedPathPicker.tsx')
-    expect(panel).toMatch(/HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)/u)
-    expect(panel).toMatch(/HAS_FNOS_HOST_BRIDGE|fnosHostBridgeAvailable\(\)/u)
+    expect(panel).toContain('SHOWS_FILE_MANAGER_ENTRY')
   })
 
   it('服务层在 standalone 下明确失败，不再跳转到桌面', () => {

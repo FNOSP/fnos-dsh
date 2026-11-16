@@ -1016,11 +1016,28 @@ img.dsh-fnos-file-manager-icon {
   }
 }
 
+/* 树的容器：只负责在面板里占满剩余高度，并把长按拦截范围限定在树内。 */
+.dsh-fnos-path-panel-tree-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .dsh-fnos-path-panel-tree {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding: 4px;
+  /*
+    App 端右键改长按：长按期间浏览器会尝试选中文字并弹出系统的复制/粘贴菜单，
+    与我们的上下文菜单抢同一块屏幕。这里关掉文字选中与 callout。
+    `-webkit-touch-callout` 管 iOS，`user-select` 管长按选中；两者都不能少——
+    只关其中一个，长按仍会先选中一行文字。
+  */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 
   .semi-tree-option-list {
     max-height: none;

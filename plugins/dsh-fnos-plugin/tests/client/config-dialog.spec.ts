@@ -412,6 +412,49 @@ describe('fnOS 配置弹框', () => {
     expect(src).toContain('className="dsh-fnos-nas-dialog"')
   })
 
+  it('App 端隐藏两处「打开文件管理器」入口', () => {
+    /*
+      App 端（isWeb === false）没有文件管理器窗口的概念，跳出去会把用户带离
+      当前会话。两处入口统一按 `SHOWS_FILE_MANAGER_ENTRY`（宿主桥可用 且 非 App）。
+    */
+    const card = readFileSync(new URL('../../src/components/AuthorizedDirectoriesCard.tsx', import.meta.url), 'utf8')
+    expect(card).toContain('SHOWS_FILE_MANAGER_ENTRY')
+    expect(card).not.toContain('{HAS_FNOS_HOST_BRIDGE && (')
+
+    const picker = readFileSync(new URL('../../src/components/FnosAuthorizedPathPicker.tsx', import.meta.url), 'utf8')
+    expect(picker).toContain('{SHOWS_FILE_MANAGER_ENTRY && (')
+  })
+
+  it('App 端长按唤出菜单，并新增复制完整路径', () => {
+    /*
+      - 长按 500ms 且未移动 → 同一个上下文菜单；只在 App 端挂监听
+      - 复制的是真实绝对路径（`path`），不是语义化名称
+      - 只复制不转换：用户要的是能贴进终端/脚本的那串
+    */
+    const picker = readFileSync(new URL('../../src/components/FnosAuthorizedPathPicker.tsx', import.meta.url), 'utf8')
+    expect(picker).toContain('IS_FNOS_WEB_RUNTIME')
+    expect(picker).toContain('touchstart')
+    expect(picker).toContain('setTimeout')
+    // 复制走真实路径
+    expect(picker).toMatch(/clipboard\.writeText\(target\.path\)/u)
+    expect(picker).toContain("t('copyFullPath')")
+  })
+
+  it('选择面板标题改为「文件与文件夹」', () => {
+    const locales = readFileSync(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
+    expect(locales).toContain("inputPickerTitle: '文件与文件夹'")
+    expect(locales).toContain("inputPickerTitle: 'Files and folders'")
+  })
+
+  it('长按区域关掉文字选中与 callout', () => {
+    // 不关的话长按会先选中一行文字并弹系统复制菜单，与我们的菜单抢屏幕。
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    // 同一个类名在文件里出现两次（早期只改内部列表宽度），取**最后一次**定义。
+    const block = scss.slice(scss.lastIndexOf('.dsh-fnos-path-panel-tree {'))
+    expect(block.slice(0, 900)).toContain('user-select: none')
+    expect(block.slice(0, 900)).toContain('-webkit-touch-callout: none')
+  })
+
   it('日志级别下拉不显示勾选图标', () => {
     /*
       Semi 的 Option 默认 `showTick: true`，会在**每一项**前面留一个勾位

@@ -18,6 +18,7 @@ import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots
 import { useAnchoredMaxHeight } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   DshIconClose as IconClose,
+  DshIconCopy as IconCopy,
   DshIconDelete as IconDelete,
   DshIconEdit as IconEdit,
   DshIconFile as IconFile,
@@ -37,7 +38,7 @@ import { createAuthorizedEntry, deleteAuthorizedEntry, renameAuthorizedEntry, re
 import { listenFnosAppAuthResult } from '../client/services/app-auth.ts'
 import { pickAuthorizedDirectory } from '../client/services/authorized-directory-picker.ts'
 import { isFnosHosted } from '../client/services/environment.ts'
-import { HAS_FNOS_HOST_BRIDGE } from '../client/services/runtime-env.ts'
+import { IS_FNOS_WEB_RUNTIME, SHOWS_FILE_MANAGER_ENTRY } from '../client/services/runtime-env.ts'
 import { openFnosEntry } from '../client/services/file-opener.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import { FnosEmptyIllustration } from './FnosEmptyIllustration.tsx'
@@ -286,6 +287,8 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     y: number
   } | undefined>()
   const menuRef = useRef<HTMLDivElement>(null)
+  /** 树的容器：App 端长按监听挂在它上面。 */
+  const treeRef = useRef<HTMLDivElement>(null)
   // 删除目标独立存一份：Popconfirm 确认时菜单可能已卸载，不能依赖 state。
   const deleteTargetRef = useRef<{ path: string, semanticPath: string } | undefined>(undefined)
   // 重命名弹框：初值是条目当前的名字（只取基线名，不把整条语义路径填进去）。
@@ -677,6 +680,82 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     setContextMenu({ path: entry.path, semanticPath: entry.semanticPath, kind: entry.kind, x: position.x, y: position.y })
   }, [])
 
+  /*
+    **App 端长按唤出同一个菜单。**
+
+    移动端没有右键：`contextmenu` 在长按后才触发，而且各 WebView 的表现不一
+    （有的完全不发）。所以自己监听 `touchstart` / `touchend` / `touchmove`，按住
+    500ms 且手指没移动就认定长按。
+
+    判据用 `IS_FNOS_WEB_RUNTIME`：只在 App（`isWeb === false`）挂这些监听。桌面
+    浏览器里长按是「选中文字」，不该弹菜单。
+
+    长按命中后 `preventDefault` 掉后续事件，避免浏览器再补一次 `contextmenu`
+    或复制气泡，否则会出现两个菜单叠在一起。
+  */
+  useEffect(() => {
+    if (IS_FNOS_WEB_RUNTIME) return
+    const root = treeRef.current
+    if (root === null) return
+
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let startX = 0
+    let startY = 0
+    let fired = false
+
+    const clear = (): void => {
+      if (timer !== undefined) { clearTimeout(timer); timer = undefined }
+    }
+
+    const onTouchStart = (event: TouchEvent): void => {
+      const touch = event.touches[0]
+      if (touch === undefined) return
+      startX = touch.clientX
+      startY = touch.clientY
+      fired = false
+      clear()
+      timer = setTimeout(() => {
+        fired = true
+        /*
+          从触点往上找那一行的 `data-key`：Semi 的树节点把 key 放在该属性上。
+
+          找不到就什么也不做——按住空白处不该弹菜单。
+        */
+        const row = (document.elementFromPoint(startX, startY) as Element | null)
+          ?.closest<HTMLElement>('.semi-tree-option')
+        const key = row?.getAttribute('data-key')
+        const entry = key === null || key === undefined ? undefined : entries.current.get(key)
+        if (entry === undefined) return
+        const position = clampMenuPosition(startX, startY)
+        deleteTargetRef.current = { path: entry.path, semanticPath: entry.semanticPath }
+        setContextMenu({ path: entry.path, semanticPath: entry.semanticPath, kind: entry.kind, x: position.x, y: position.y })
+      }, 500)
+    }
+
+    const onTouchMove = (event: TouchEvent): void => {
+      const touch = event.touches[0]
+      if (touch === undefined) return
+      // 移动超过 10px 视为滚动，取消长按。
+      if (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10) clear()
+    }
+
+    const onTouchEnd = (event: TouchEvent): void => {
+      clear()
+      // 长按已弹菜单：吞掉这一下，避免它又变成一次点击（选中/展开）。
+      if (fired) { event.preventDefault(); fired = false }
+    }
+
+    root.addEventListener('touchstart', onTouchStart, { passive: true })
+    root.addEventListener('touchmove', onTouchMove, { passive: true })
+    root.addEventListener('touchend', onTouchEnd)
+    return () => {
+      clear()
+      root.removeEventListener('touchstart', onTouchStart)
+      root.removeEventListener('touchmove', onTouchMove)
+      root.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
+
   // 菜单打开期间：点击菜单之外或按 Esc 收起（与系统右键菜单一致）。
   // 用捕获阶段，保证菜单项自己的 click 之前不会先被其它监听吞掉。
   useEffect(() => {
@@ -733,6 +812,27 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       await openFnosEntry(target.path, target.kind, () => createTrimApp())
     } catch {
       Toast.error({ content: t('openEntryFailed') })
+    }
+  }, [contextMenu, t])
+
+  /**
+   * 复制条目的**完整绝对路径**。
+   *
+   * 刻意复制 `path` 而不是 `semanticPath`：用户要的是能贴进终端、脚本、SSH 命令
+   * 的那种真实路径（`/vol2/...`），语义化名称（「存储空间 2/…」）只适合展示。
+   *
+   * 剪贴板在非安全上下文（http + 非 localhost）不可用，所以失败要明确提示，
+   * 不能静默吞掉——用户会以为复制成功了。
+   */
+  const copyFullPath = useCallback(async () => {
+    const target = contextMenu
+    setContextMenu(undefined)
+    if (target === undefined) return
+    try {
+      await globalThis.navigator.clipboard.writeText(target.path)
+      Toast.success({ content: t('copyPathSucceeded') })
+    } catch {
+      Toast.error({ content: t('copyPathFailed') })
     }
   }, [contextMenu, t])
 
@@ -888,6 +988,8 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
           <IconClose size="small" />
         </button>
       </div>
+      {/* 容器挂 ref：App 端长按监听需要真实的 DOM 节点。 */}
+      <div ref={treeRef} className="dsh-fnos-path-panel-tree-host">
       <Tree
         aria-label={t('inputPickerTitle')}
         multiple
@@ -918,6 +1020,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
           />
         )}
       />
+      </div>
       {/*
         右键上下文菜单。自己画：`position: fixed` 直接落在鼠标坐标上，与面板
         自身的滚动、偏移无关；外部点击与 Esc 的收起由上面的 effect 处理。
@@ -938,7 +1041,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
             退而用 `openURL` 只能打开 fnOS 桌面首页，定位不到目标条目——用户
             点了却被丢回桌面，比没有这个入口更差。
           */}
-          {HAS_FNOS_HOST_BRIDGE && (
+          {SHOWS_FILE_MANAGER_ENTRY && (
             <button
               type="button"
               className="dsh-fnos-path-context-item"
@@ -947,6 +1050,25 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
             >
               {contextMenu.kind === 'directory' ? <IconFolderOpen size="small" /> : <IconFile size="small" />}
               {t('openEntry')}
+            </button>
+          )}
+          {/*
+            **App 端专属：复制完整路径。**
+
+            移动端没有「在文件管理器打开」这条路（跳出去会离开当前会话），但「把
+            路径拿出来」在手机上反而更有用——贴进聊天、脚本或另一个应用。
+
+            复制的是真实绝对路径，不是语义化名称：用户要的是能直接用的那串。
+          */}
+          {IS_FNOS_WEB_RUNTIME ? null : (
+            <button
+              type="button"
+              className="dsh-fnos-path-context-item"
+              role="menuitem"
+              onClick={() => { void copyFullPath() }}
+            >
+              <IconCopy size="small" />
+              {t('copyFullPath')}
             </button>
           )}
           <button
