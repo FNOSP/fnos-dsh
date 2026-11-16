@@ -360,6 +360,30 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(mobile).toContain('flex-wrap: nowrap')
   })
 
+  it('新建/重命名弹框的内层跟着外层收窄，标题与按钮不被切', () => {
+    /*
+      只给外层 `max-width` 不够。Semi 在 centered 模式下把内层 header / body /
+      footer 的 `min-width` 留成 `auto`，它们的收缩底线是**内容宽度**——标题和
+      footer 里的按钮仍按 454 排，内层撑到 422px、超出 369px 的容器，真机上
+      标题左沿与「确定」右沿都被切掉。
+
+      `min-width: 0` 才能解除这条收缩底线。
+
+      **选择器不能带 `>`**：`dsh-fnos-create-dialog` 落在内容层上，header 在它
+      内部的 `.semi-modal-content` 里（祖先链是
+      `header → .semi-modal-content → .dsh-fnos-create-dialog`），直接子元素
+      选择器一个都匹配不上。
+    */
+    // 精确取 `.dsh-fnos-create-dialog` 那一层块的规则体（内层规则嵌套在其中）。
+    const dialog = ruleBody('.dsh-fnos-create-dialog', /min-width:\s*0/u)
+
+    expect(dialog).toMatch(/\.semi-modal-header,\s*\.semi-modal-body,\s*\.semi-modal-footer \{[^}]*min-width: 0/u)
+    expect(dialog).toMatch(/\.semi-modal-content \{[^}]*min-width: 0/u)
+    expect(dialog).toMatch(/\.semi-modal-footer > div \{[^}]*min-width: 0/u)
+    // 写成直接子元素就完全失效：header 在子层 `.semi-modal-content` 里
+    expect(dialog).not.toMatch(/> \.semi-modal-(header|body|footer)\s*(,|\{)/u)
+  })
+
   it('点击菜单外或按 Esc 自动收起菜单', () => {
     // 实机反馈的第二个问题：点面板别处菜单不消失。
     expect(PANEL).toMatch(/if \(contextMenu === undefined\) return/u)

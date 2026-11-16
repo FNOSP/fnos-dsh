@@ -3478,15 +3478,27 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 
     `min-width: 0` 解除这条收缩底线，内层才会真正跟随容器宽度换行。
   */
-  > .semi-modal-header,
-  > .semi-modal-body,
-  > .semi-modal-footer {
+  /*
+    注意**不能写 `>`**：`dsh-fnos-create-dialog` 落在内容层上，header / body /
+    footer 在它内部的 `.semi-modal-content` 里（实测祖先链是
+    `header → .semi-modal-content → .dsh-fnos-create-dialog`）。写成直接子元素
+    选择器一个都匹配不上——第一版就是这么错的。
+  */
+  .semi-modal-header,
+  .semi-modal-body,
+  .semi-modal-footer {
     min-width: 0;
     max-width: 100%;
   }
 
   /* footer 的包裹层同理：Semi 把按钮包进一层 div，它也会被内容撑开。 */
-  > .semi-modal-footer > div {
+  .semi-modal-footer > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* 中间那层也要收：它的 `min-width: auto` 同样会被内容撑开。 */
+  .semi-modal-content {
     min-width: 0;
     max-width: 100%;
   }
