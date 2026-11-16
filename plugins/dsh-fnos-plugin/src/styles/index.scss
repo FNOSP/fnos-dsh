@@ -185,6 +185,29 @@ img.dsh-fnos-file-manager-icon {
   }
 }
 
+/*
+ * 「删除条目」确认弹层（Popconfirm）的确定按钮。
+ *
+ * **与「新建文件夹」弹框同色**，不用 danger 红：同一个面板里的确认动作应该长得
+ * 一样；红色表达「这个按钮本身危险」，而这里的危险已由标题与正文说明。
+ *
+ * 品牌色变量定义在 `.dsh-fnos-create-dialog` 作用域里，而这个弹层由 Popconfirm
+ * portal 到 body，取不到那些变量，所以在这里重新声明。
+ */
+.dsh-fnos-delete-confirm.semi-button {
+  --dsh-fnos-delete-brand: #06f;
+  --dsh-fnos-delete-brand-hover: #005eeb;
+
+  background: var(--dsh-fnos-delete-brand) !important;
+  border: 1px solid var(--dsh-fnos-delete-brand) !important;
+  color: #fff !important;
+
+  &:hover {
+    background: var(--dsh-fnos-delete-brand-hover) !important;
+    border-color: var(--dsh-fnos-delete-brand-hover) !important;
+  }
+}
+
 .dsh-fnos-session-log-dialog-body { min-height: 260px; }
 .dsh-fnos-session-log-error { color: var(--dsw-alias-state-error-primary); }
 .dsh-fnos-session-log-tree { max-height: 340px; overflow: auto; }
@@ -746,6 +769,16 @@ img.dsh-fnos-file-manager-icon {
   display: flex;
   flex-direction: column;
   min-width: 132px;
+  /*
+    **别超出视口。** 菜单项数量随条目类型变化（目录 6 项、文件 4 项），窄屏上
+    6 项会接近 200px 高。给它一个视口相关的上限，超了就在菜单内部滚动——
+    总比下半截掉到屏幕外、手指够不着要好。
+
+    坐标本身由 `clampMenuPosition` + `useLayoutEffect` 校正到视口内，这里兜的是
+    「菜单比可用空间还高」的情况。
+  */
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
   padding: 4px;
   border: 0.5px solid var(--dsw-alias-border-l1);
   border-radius: var(--dsw-radius-lg);

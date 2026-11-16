@@ -137,6 +137,14 @@ export interface AuthorizedEntry {
   size?: number
   /** Optional modification timestamp in milliseconds. */
   modifiedAt?: number
+  /**
+   * 该项是否可删 / 可改名。缺省按**可删**处理（向后兼容旧版宿主）。
+   *
+   * 应用共享目录（`@appshare`、`@apphome`、`@appdata`、`@appconf`）由 fnOS 框架
+   * 管理，属于只读路径：删不得、也改不得名字。界面对这些项要隐藏「删除」「重命名」，
+   * 否则点下去只会得到一条失败提示。
+   */
+  removable?: boolean
 }
 
 export interface AuthorizedEntriesResponse {

@@ -990,8 +990,24 @@ export async function loadAuthorizedEntries(
     }
     const readableRoots = roots.filter(root => userAcl.readable.has(root))
     const readable = await convertPathsForDisplay(readableRoots, requestLanguage(req))
+    /*
+      标出哪些根目录是**只读**的。
+
+      应用共享目录（`@appshare` / `@apphome` / `@appdata` / `@appconf`）由 fnOS
+      框架管理，删不得也改不得名字。界面据 `removable` 隐藏「删除」「重命名」——
+      不标的话用户点了只会拿到一条 409 失败提示。
+
+      与 `convertDirectories` 用同一套来源，口径不分叉。
+    */
+    const readOnly = new Set(normalizeAuthorizedPaths(
+      mergeAuthorizedPaths(dataSharePathsFromEnvironment(), defaultApplicationPathsFromEnvironment()),
+    ))
     return {
-      entries: readable.map(entry => ({ ...entry, kind: 'directory' as const })),
+      entries: readable.map(entry => ({
+        ...entry,
+        kind: 'directory' as const,
+        removable: !readOnly.has(normalizePathForAuthorization(entry.path) ?? entry.path),
+      })),
     }
   }
 

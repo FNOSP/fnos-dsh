@@ -10,7 +10,7 @@
  * 勾选即移除对应引用。差异只在承载形式（下拉 → 卡片宽浮层）与关闭出口。
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { InputState } from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -69,14 +69,25 @@ const PANEL_MAX_HEIGHT = 420
  * 往回收：菜单只有两项，用保守常量即可，不必等布局测量后再修正——那样首帧
  * 会先画到界外再跳回来，看起来像闪一下。
  */
-function clampMenuPosition(x: number, y: number): { x: number, y: number } {
+/**
+ * 把菜单坐标夹进视口。
+ *
+ * `width` / `height` 由调用方给出**实测值**——早前这里用写死的 `148 × 84` 估算，
+ * 但菜单有 5 项时实际高度接近 200px，窄屏上点靠近底部的条目，菜单下半截会掉到
+ * 屏幕外（移动端尤其明显，手指还得先滚一下才看得到「删除」）。
+ *
+ * @param x - 期望的左沿。
+ * @param y - 期望的上沿。
+ * @param width - 菜单实测宽度。
+ * @param height - 菜单实测高度。
+ * @returns 夹紧后的坐标。
+ */
+function clampMenuPosition(x: number, y: number, width: number, height: number): { x: number, y: number } {
   if (typeof window === 'undefined') return { x, y }
-  const MENU_WIDTH = 148
-  const MENU_HEIGHT = 84
   const margin = 8
   return {
-    x: Math.max(margin, Math.min(x, window.innerWidth - MENU_WIDTH - margin)),
-    y: Math.max(margin, Math.min(y, window.innerHeight - MENU_HEIGHT - margin)),
+    x: Math.max(margin, Math.min(x, window.innerWidth - width - margin)),
+    y: Math.max(margin, Math.min(y, window.innerHeight - height - margin)),
   }
 }
 
@@ -284,6 +295,14 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     path: string
     semanticPath: string
     kind: AuthorizedCreateKind
+    /**
+     * 该项是否可删 / 可改名。
+     *
+     * 由宿主按 `readOnlyPaths` 给出：应用共享目录（`@appshare`、`@apphome`、
+     * `@appdata`、`@appconf` 这些）属于框架管理的只读路径，删不得也改不得名字。
+     * 对它们显示「删除」「重命名」只会得到一条失败提示。
+     */
+    removable: boolean
     x: number
     y: number
   } | undefined>()
@@ -696,9 +715,14 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     const entry = entries.current.get(key)
     if (entry === undefined) return
     event.preventDefault()
-    const position = clampMenuPosition(event.clientX ?? 0, event.clientY ?? 0)
+    /*
+      先用**保守估算**定位（宽度取下限 132，高度按最多 6 项算 240）——菜单还没
+      渲染，拿不到真实尺寸。渲染完成后 `useLayoutEffect` 会用实测值再校正一次，
+      所以这里的估算只影响「第一次绘制的那一帧」，不会留到最终状态。
+    */
+    const position = clampMenuPosition(event.clientX ?? 0, event.clientY ?? 0, 132, 240)
     deleteTargetRef.current = { path: entry.path, semanticPath: entry.semanticPath }
-    setContextMenu({ path: entry.path, semanticPath: entry.semanticPath, kind: entry.kind, x: position.x, y: position.y })
+    setContextMenu({ path: entry.path, semanticPath: entry.semanticPath, kind: entry.kind, removable: entry.removable !== false, x: position.x, y: position.y })
   }, [])
 
   /*
@@ -747,9 +771,10 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
         const key = row?.getAttribute('data-key')
         const entry = key === null || key === undefined ? undefined : entries.current.get(key)
         if (entry === undefined) return
-        const position = clampMenuPosition(startX, startY)
+        // 同上：先用保守估算，渲染后由 useLayoutEffect 校正。
+        const position = clampMenuPosition(startX, startY, 132, 240)
         deleteTargetRef.current = { path: entry.path, semanticPath: entry.semanticPath }
-        setContextMenu({ path: entry.path, semanticPath: entry.semanticPath, kind: entry.kind, x: position.x, y: position.y })
+        setContextMenu({ path: entry.path, semanticPath: entry.semanticPath, kind: entry.kind, removable: entry.removable !== false, x: position.x, y: position.y })
       }, 500)
     }
 
@@ -776,6 +801,28 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       root.removeEventListener('touchend', onTouchEnd)
     }
   }, [])
+
+  /*
+    **菜单渲染后再按实测尺寸校正一次位置。**
+
+    触点坐标来自手指或鼠标，靠近屏幕右/下边缘时按原始坐标画菜单会溢出：窄屏上
+    5 项菜单接近 200px 高，点最底下的条目，菜单下半截直接掉出视口。
+
+    这一帧的校正对移动端尤其重要——桌面鼠标一般不会点到那么靠边。用
+    `useLayoutEffect` 而不是 `useEffect`：在浏览器绘制前完成，用户不会看到菜单
+    先溢出再跳回来。
+  */
+  useLayoutEffect(() => {
+    if (contextMenu === undefined) return
+    const el = menuRef.current
+    if (el === null) return
+    const rect = el.getBoundingClientRect()
+    const next = clampMenuPosition(contextMenu.x, contextMenu.y, rect.width, rect.height)
+    // 只有真的需要移动时才 setState，避免无谓的二次渲染。
+    if (next.x !== contextMenu.x || next.y !== contextMenu.y) {
+      setContextMenu(current => (current === undefined ? current : { ...current, x: next.x, y: next.y }))
+    }
+  }, [contextMenu])
 
   // 菜单打开期间：点击菜单之外或按 Esc 收起（与系统右键菜单一致）。
   // 用捕获阶段，保证菜单项自己的 click 之前不会先被其它监听吞掉。
@@ -1090,15 +1137,23 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
               {t('openEntry')}
             </button>
           )}
-          <button
-            type="button"
-            className="dsh-fnos-path-context-item"
-            role="menuitem"
-            onClick={renameFromContextMenu}
-          >
-            <IconEdit size="small" />
-            {t('renameEntry')}
-          </button>
+          {/*
+            **只读项不给「重命名」「删除」。**
+
+            应用共享目录（`@appshare` 等）由 fnOS 框架管理，宿主对它们返回
+            409。与其让用户点了才看到失败提示，不如根本不展示这两项。
+          */}
+          {contextMenu.removable ? (
+            <button
+              type="button"
+              className="dsh-fnos-path-context-item"
+              role="menuitem"
+              onClick={renameFromContextMenu}
+            >
+              <IconEdit size="small" />
+              {t('renameEntry')}
+            </button>
+          ) : null}
           <div className="dsh-fnos-path-context-separator" aria-hidden="true" />
           {contextMenu.kind !== 'directory' ? null : (
             <>
@@ -1148,13 +1203,30 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
             删除用 Popconfirm 就地确认：比整块 Modal 轻，且不打断右键上下文。
             它的弹层由 Semi 默认 portal 到 body，不受面板 backdrop-filter 的
             包含块影响。
+
+            同样只在可删项上出现。
           */}
+          {contextMenu.removable ? (
           <Popconfirm
+            /*
+              **不传 `icon`：标题左侧那个黄色警告三角是 Semi 的默认图标。**
+
+              删除这种「就地确认」的弹层本身已经有红字说明与明确的「删除」动词，
+              再顶一个警告图标是重复强调；而且它把标题挤得偏离左沿，与插件里其它
+              弹框（都只有纯文字标题）不一致。
+            */
+            icon={null}
             title={t('deleteDialogTitle')}
             content={deleteConfirmContent}
             okText={t('deleteDialogConfirm')}
             cancelText={t('createDialogCancel')}
-            okButtonProps={{ type: 'danger' }}
+            /*
+              确定按钮**不用 danger 红**，与「新建文件夹」弹框的确认按钮同色。
+
+              同一个面板里的确认动作应该长得一样；红色的语义是「这个按钮本身危险」，
+              而这里的危险已经由标题与正文说清楚了。
+            */
+            okButtonProps={{ className: 'dsh-fnos-delete-confirm' }}
             position="left"
             onConfirm={() => { void confirmDeleteFromContextMenu() }}
             onCancel={() => { setContextMenu(undefined) }}
@@ -1168,6 +1240,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
               {t('deleteEntry')}
             </button>
           </Popconfirm>
+          ) : null}
         </div>,
         document.body,
       )}

@@ -239,8 +239,9 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(PANEL).toContain('onContextMenu={handleContextMenu}')
     // 右键只记录目标条目与坐标；弹框由菜单项触发（createFromContextMenu）。
     expect(PANEL).toContain('setContextMenu({ path: entry.path')
-    expect(PANEL).toMatch(/handleContextMenu[\s\S]{0,700}setContextMenu/u)
-    expect(PANEL).not.toMatch(/handleContextMenu[\s\S]{0,700}setCreateTarget/u)
+    // 窗口放宽到 1200：这段里加了坐标估算的说明注释。
+    expect(PANEL).toMatch(/handleContextMenu[\s\S]{0,1200}setContextMenu/u)
+    expect(PANEL).not.toMatch(/handleContextMenu[\s\S]{0,1200}setCreateTarget/u)
     expect(PANEL).toContain('createFromContextMenu')
   })
 
@@ -282,10 +283,37 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(material).not.toContain('var(--dsw-specific-menu)')
   })
 
-  it('菜单落点被收进视口，不会顶出右下角', () => {
+  it('菜单落点被收进视口，且用实测尺寸校正', () => {
+    /*
+      早前用写死的 `148 × 84` 估算菜单尺寸，但 6 项菜单实际接近 200px 高——窄屏上
+      点靠近底部的条目，菜单下半截会掉出视口。
+
+      现在两段式：先用保守估算定位（渲染前拿不到真实尺寸），渲染完成后
+      `useLayoutEffect` 按实测宽高再校正一次。
+    */
     expect(PANEL).toContain('clampMenuPosition')
-    expect(PANEL).toMatch(/window\.innerWidth - MENU_WIDTH/u)
-    expect(PANEL).toMatch(/window\.innerHeight - MENU_HEIGHT/u)
+    expect(PANEL).toMatch(/window\.innerWidth - width - margin/u)
+    expect(PANEL).toMatch(/window\.innerHeight - height - margin/u)
+    // 渲染后校正
+    expect(PANEL).toContain('useLayoutEffect')
+    expect(PANEL).toMatch(/getBoundingClientRect\(\)[\s\S]{0,200}clampMenuPosition/u)
+  })
+
+  it('只读路径不出现「删除」「重命名」', () => {
+    /*
+      应用共享目录（`@appshare` / `@apphome` / `@appdata` / `@appconf`）由 fnOS
+      框架管理，宿主对它们返回 409。与其让用户点了才看到失败提示，不如不展示。
+
+      判据是宿主给的 `removable`，与 `convertDirectories` 用同一套只读来源。
+    */
+    expect(PANEL).toMatch(/contextMenu\.removable \? \(/u)
+    // 重命名与删除两处都要门控
+    const guards = PANEL.match(/contextMenu\.removable/g) ?? []
+    expect(guards.length).toBeGreaterThanOrEqual(2)
+
+    const HOST = readFileSync(new URL('../../src/host/authorized-directories.ts', import.meta.url), 'utf8')
+    // 宿主在根目录条目上真的填了这个字段
+    expect(HOST).toMatch(/removable: !readOnly\.has\(/u)
   })
 
   it('点击菜单外或按 Esc 自动收起菜单', () => {
@@ -318,7 +346,10 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
   it('删除用 Popconfirm 就地确认，不再弹整块 Modal', () => {
     // 破坏性操作必须确认；但用 Popconfirm 比 Modal 轻，且不打断右键上下文。
     expect(PANEL).toContain('<Popconfirm')
-    expect(PANEL).toContain("okButtonProps={{ type: 'danger' }}")
+      // 确定按钮与「新建文件夹」弹框同色（品牌蓝），不用 danger 红。
+  expect(PANEL).toContain("okButtonProps={{ className: 'dsh-fnos-delete-confirm' }}")
+  // 标题左侧的警告图标已去掉（Semi 默认图标与插件里其它弹框不一致）。
+  expect(PANEL).toContain('icon={null}')
     expect(PANEL).toContain('onConfirm={() => { void confirmDeleteFromContextMenu() }}')
     // 旧的删除 Modal 已移除：不应再有 submitDelete / deleteTarget。
     expect(PANEL).not.toContain('submitDelete')
