@@ -316,6 +316,17 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(HOST).toMatch(/removable: !readOnly\.has\(/u)
   })
 
+  it('客户端必须透传 removable，否则界面判不出只读路径', () => {
+    /*
+      宿主对应用共享目录返回 `removable: false`，界面据此隐藏「删除」「重命名」。
+
+      `entriesFromResponse` 构造条目时漏掉这个字段的话，前端只能按「可删」处理——
+      实测右键菜单里那两项照常出现，点下去才拿到 409。这条回归守的就是那一层。
+    */
+    const CLIENT = readFileSync(new URL('../../src/client/services/authorized-directories-client.ts', import.meta.url), 'utf8')
+    expect(CLIENT).toMatch(/entry\.removable === false \? \{ removable: false \}/u)
+  })
+
   it('点击菜单外或按 Esc 自动收起菜单', () => {
     // 实机反馈的第二个问题：点面板别处菜单不消失。
     expect(PANEL).toMatch(/if \(contextMenu === undefined\) return/u)

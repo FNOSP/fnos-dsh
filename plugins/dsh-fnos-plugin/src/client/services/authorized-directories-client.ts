@@ -99,6 +99,16 @@ function entriesFromResponse(value: AuthorizedEntriesResponse): AuthorizedEntrie
         path,
         semanticPath,
         kind,
+        /*
+          **`removable` 必须透传。**
+
+          宿主对应用共享目录（`@appshare` / `@apphome` / `@appdata` / `@appconf`）
+          返回 `removable: false`，界面据此隐藏「删除」「重命名」。这里漏掉它，前端
+          就只能按「可删」处理——实测右键菜单里那两项照常出现，点下去才拿到 409。
+
+          缺省按 `true`（旧版宿主不带这个字段）。
+        */
+        ...(entry.removable === false ? { removable: false } : {}),
         ...(typeof entry.size === 'number' && Number.isFinite(entry.size) ? { size: entry.size } : {}),
         ...(typeof entry.modifiedAt === 'number' && Number.isFinite(entry.modifiedAt) ? { modifiedAt: entry.modifiedAt } : {}),
       }]
