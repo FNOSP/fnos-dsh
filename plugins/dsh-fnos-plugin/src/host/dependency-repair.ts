@@ -400,7 +400,18 @@ async function backupWorkspaceFile(
   const directory = join(share, '备份')
   try {
     await mkdir(directory, { recursive: true })
-    const stamp = new Date().toISOString().replace(/[:.]/gu, '-').replace('T', '-').slice(0, 15)
+    /*
+      文件名带**本地时间**到秒：`pnpm-workspace-20261117-174500.yaml`。
+
+      早前这里对 ISO 串做 `slice(0, 15)`，把 `2026-11-17-09-43-44` 切成了
+      `2026-11-17-09-4`——同一小时内的多次备份会互相覆盖，而用户看到的文件名
+      也是残缺的。用本地时间而不是 UTC：备份是给人找的，文件名该与他在系统里
+      看到的时间一致。
+    */
+    const now = new Date()
+    const pad = (value: number): string => String(value).padStart(2, '0')
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
+      + `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
     const name = `pnpm-workspace-${stamp}.yaml`
     const fullPath = join(directory, name)
     await writeFile(fullPath, content, { mode: 0o600 })

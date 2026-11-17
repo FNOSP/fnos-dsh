@@ -83,44 +83,18 @@ export function registerDependencyRepairRoutes(ctx: Context): void {
         // 或清单更新过）。以当下的失效条目为准，避免删掉仍然有效的豁免。
         const diagnosis = await diagnoseDependencyRepair(environment)
         console.log(`[dsh-fnos][dependency-repair] ${FNOS_DEPENDENCY_REPAIR_RUN_ROUTE} 请求到达 available=${String(diagnosis.available)} stale=${diagnosis.entries.length}`)
-        if (!diagnosis.available) {
-          // 环境不具备修复条件：仍然用 200 返回结构化结果，让界面按 `outcome`
-          // 渲染一句可读说明。此前这里是 503 + `result` 包一层，客户端只读顶层
-          // 就当成了请求失败，用户看到的是「什么都没发生」。
-          return send(res, 200, {
-            ok: false,
-            steps: [],
-            removed: [],
-            durationMs: 0,
-            outcome: 'unavailable',
-            message: diagnosis.reason ?? 'fnos-host-unavailable',
-          } satisfies DependencyRepairResult)
-        }
-        // 第二道防线：没有任何失效条目时不做重建。界面已经拦过一次，但这条
-        // 路由也可能被直接调用；对一个健康的 profile 清 lockfile 与 node_modules
-        // 是纯破坏，代价高且没有收益。
-        //
-        // **但「没做事」必须能看见。** 这里返回 `outcome: 'healthy'` 而不是一个
-        // 空 steps：界面靠它渲染「依赖状态正常，无需修复」，否则点击后只剩下
-        // 一闪而过的进度提示，用户不知道到底修没修（见 FNOS-050-02 的「两者都
-        // 无时明确显示『依赖状态正常』」）。
-        if (diagnosis.entries.length === 0) {
-          console.log('[dsh-fnos][dependency-repair] 无失效条目，跳过重建')
-          return send(res, 200, {
-            ok: true,
-            steps: [],
-            removed: [],
-            durationMs: 0,
-            outcome: 'healthy',
-          } satisfies DependencyRepairResult)
-        }
-        /*
-          **边走边发，不等结束。**
 
-          修复要跑 `pnpm install`，真机上几十秒到几分钟。此前整份结果在结束时
-          一次性返回，界面只能「先干等、最后突然冒出一大段日志」——用户看不出
-          它是在跑还是卡住了。这里改用 SSE：每条日志立刻推给浏览器，前端像看
-          终端一样逐行显示，最后一个 `result` 事件带最终结论。
+        /*
+          **整条路由只用一种协议：SSE。**
+
+          这里曾把「环境不可用」「依赖状态正常」两个提前返回写成普通 JSON，
+          只有真正跑修复那条路才用 SSE。结果客户端按 SSE 解析时收不到 `result`
+          事件，健康 profile 上点修复必然报「修复失败：no-result」——而服务端
+          日志里明明三步全 ok。协议不能按分支切换，否则每个分支都要记住客户端
+          解析哪一套。
+
+          因此响应头先发，所有出口都走 `emit('result', …)`；提前返回只是少推
+          日志行，事件形态完全一致。
         */
         res.writeHead(200, {
           'content-type': 'text/event-stream; charset=utf-8',
@@ -132,6 +106,51 @@ export function registerDependencyRepairRoutes(ctx: Context): void {
         const emit = (event: string, data: unknown): void => {
           res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
         }
+
+        if (!diagnosis.available) {
+          // 环境不具备修复条件：用 `outcome: 'unavailable'` 让界面渲染一句可读
+          // 说明。此前这里是 503 + 包一层 `result`，客户端只读顶层就当成了请求
+          // 失败，用户看到的是「什么都没发生」。
+          emit('result', {
+            ok: false,
+            steps: [],
+            removed: [],
+            durationMs: 0,
+            outcome: 'unavailable',
+            message: diagnosis.reason ?? 'fnos-host-unavailable',
+          } satisfies DependencyRepairResult)
+          res.end()
+          return
+        }
+        // 第二道防线：没有任何失效条目时不做重建。界面已经拦过一次，但这条
+        // 路由也可能被直接调用；对一个健康的 profile 清 lockfile 与 node_modules
+        // 是纯破坏，代价高且没有收益。
+        //
+        // **但「没做事」必须能看见。** 这里给 `outcome: 'healthy'` 而不是一个
+        // 空 steps：界面靠它渲染「依赖状态正常，无需修复」，否则点击后只剩下
+        // 一闪而过的进度提示，用户不知道到底修没修（见 FNOS-050-02 的「两者都
+        // 无时明确显示『依赖状态正常』」）。
+        if (diagnosis.entries.length === 0) {
+          console.log('[dsh-fnos][dependency-repair] 无失效条目，跳过重建')
+          emit('result', {
+            ok: true,
+            steps: [],
+            removed: [],
+            durationMs: 0,
+            outcome: 'healthy',
+          } satisfies DependencyRepairResult)
+          res.end()
+          return
+        }
+
+        /*
+          **边走边发，不等结束。**
+
+          修复要跑 `pnpm install`，真机上几十秒到几分钟。此前整份结果在结束时
+          一次性返回，界面只能「先干等、最后突然冒出一大段日志」——用户看不出
+          它是在跑还是卡住了。SSE 让每条日志立刻推给浏览器，前端像看终端一样
+          逐行显示。
+        */
         const release = setRepairLogSink(line => { emit('log', { line }) })
         try {
           const result = await runDependencyRepair(environment, diagnosis)

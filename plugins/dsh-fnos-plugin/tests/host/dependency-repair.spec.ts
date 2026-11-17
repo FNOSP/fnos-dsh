@@ -269,15 +269,30 @@ describe('依赖修复日志', () => {
     // 逻辑上必须写在「跳过重建」那个分支里，不是别处。
     const healthyBranch = ROUTES.slice(ROUTES.indexOf('diagnosis.entries.length === 0'))
     expect(healthyBranch).toContain("outcome: 'healthy'")
-    // 不可用不再用 503：客户端只读顶层，会退化成「请求失败」。
+    // 不可用不再用 503：客户端只读顶层，会退化成「请求失败」；也不再用普通
+    // JSON 的 send——整条路由统一走 SSE，所有出口都 emit('result')。
     const unavailableBranch = ROUTES.slice(ROUTES.indexOf('!diagnosis.available'), ROUTES.indexOf('diagnosis.entries.length === 0'))
-    expect(unavailableBranch).toContain('send(res, 200')
-    // 只看代码行：上面那段注释里正好提到历史实现用的 503。
+    expect(unavailableBranch).toContain("emit('result'")
     const unavailableCode = unavailableBranch
       .split('\n')
       .filter(line => !line.trim().startsWith('//'))
       .join('\n')
     expect(unavailableCode).not.toContain('503')
+  })
+
+  it('每个出口都发 result 事件，不只跑修复那一支', () => {
+    /*
+      真机反馈：健康 profile 点修复报「修复失败：no-result」，而服务端日志里
+      三步全 ok。根因是「环境不可用」「依赖状态正常」两个提前返回写成了普通
+      JSON，只有跑修复那条路用 SSE——客户端按 SSE 解析时收不到 `result`。
+
+      协议不能按分支切换：响应头先发，所有出口都 emit('result')。
+    */
+    // 三个出口（unavailable / healthy / 正常完成）都要有 result 事件。
+    const resultEmits = [...ROUTES.matchAll(/emit\('result'/gu)].length
+    expect(resultEmits).toBeGreaterThanOrEqual(3)
+    // 提前返回不能再用普通 JSON 的 send(…, 200, { ok: … })。
+    expect(ROUTES).not.toMatch(/send\(res, 200, \{\s*ok:/u)
   })
 
   it('修复走 SSE 流式推送：日志边走边发，结论单独一个事件', () => {
@@ -292,6 +307,17 @@ describe('依赖修复日志', () => {
     expect(ROUTES).toContain("'x-accel-buffering': 'no'")
     // 结束后必须释放观察者，下一次修复才不会把日志发到已关闭的响应上。
     expect(ROUTES).toContain('release()')
+  })
+
+  it('备份文件名用本地时间到秒，不再被截断', () => {
+    /*
+      早前对 ISO 串做 `slice(0, 15)`，把 `2026-11-17-09-43-44` 切成
+      `2026-11-17-09-4`——同一小时内多次备份会互相覆盖，文件名也是残缺的。
+    */
+    // 直接断言实现：本地时间拼装到秒，不再对 ISO 串做定长截断。
+    expect(HOST).toContain("padStart(2, '0')")
+    expect(HOST).toContain('getFullYear()')
+    expect(HOST).toContain('getSeconds()')
   })
 
   it('备份写在应用共享目录，不是 profile 旁边', () => {
