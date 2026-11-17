@@ -876,12 +876,17 @@ img.dsh-fnos-file-manager-icon {
   }
 
   /* Semi 的关闭按钮带一层 `--semi-color-fill-0` 底色，在 DSH 主题里被映射成灰色
-     方块，和 fnOS 的无底色 × 差得很远。这里去掉底色，只留悬停反馈。 */
+     方块，和 fnOS 的无底色 × 差得很远。这里去掉底色，只留悬停反馈。
+
+     真实组件里关闭按钮的父级就是 `.semi-modal-header`（运行时读到
+     `closeParentClass: "semi-modal-header"`），后代选择器是准的。 */
   .semi-modal-header .semi-modal-close {
+    position: absolute !important;
     top: 18px !important;
     right: 20px !important;
     width: 24px !important;
     height: 24px !important;
+    padding: 0 !important;
     border: 0 !important;
     background: transparent !important;
     color: var(--dsw-alias-label-secondary) !important;
@@ -3489,19 +3494,33 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 }
 
 /*
- * 新建文件夹 / 新建文件 / 重命名：**这三个弹框的结构和前几个不同。**
- * 它们带 `centered`，Semi 在居中模式下**不生成 `.semi-modal` 包裹层**，
- * `className` 直接落在内容元素上（实测祖先链是
- * `.dsh-fnos-create-dialog > .semi-portal > body`）。
+ * 新建文件夹 / 新建文件 / 重命名：**这三个弹框带 `centered`。**
  *
- * 所以 `:has(> .semi-modal-content…)` 那条选择器对它们**不匹配**——写在那里等于
- * 没写，窄屏下弹框仍按 `width: 454` 撑开、左右贴边溢出（截图里标题被切掉）。
- * 这里直接作用于元素自身。
+ * 实测祖先链（`getBoundingClientRect` + `getComputedStyle` 逐层读出）：
+ *
+ *   .semi-portal              (393 宽)
+ *     └ .dsh-fnos-create-dialog   ← `className` 落在这里，**宽度 369 / 高度 0**
+ *         └ .semi-modal-wrap      (fixed, 393)
+ *             └ .semi-modal       ← **按 454 渲染的真正弹框**
+ *                 └ .semi-modal-content
+ *
+ * 关键点：`className` 落在一层**零高度、不参与布局**的包装上，真正决定宽度的是
+ * 内层的 `.semi-modal`。所以只给 `.dsh-fnos-create-dialog` 写 `max-width` 收不住
+ * 弹框——实测外层 369、内层内容仍是 454，右半边直接溢出屏幕（真机截图）。
+ *
+ * 正确做法是**用 `:has()` 从这个包装层反选进去**，把 `max-width` 落到真正定宽的
+ * 那一层上。
  */
-.dsh-fnos-create-dialog {
+.dsh-fnos-create-dialog:has(> .semi-modal-wrap) > .semi-modal-wrap .semi-modal {
   /* 左右各留 12px；窄屏时这就是实际宽度。 */
   max-width: calc(100vw - 24px);
   /* 居中模式下它自己就是定位层，靠 auto 外边距吸收多余空间。 */
+  margin-inline: auto;
+}
+
+.dsh-fnos-create-dialog {
+  /* 包装层自身也收住，避免它把父级撑出横向滚动条。 */
+  max-width: calc(100vw - 24px);
   margin-inline: auto;
   /*
     **内层必须跟着收窄。**
@@ -4052,15 +4071,34 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
 
       做法是**只放大热区、不放大图标**：宽高给到 44，用 flex 把 24px 的图标居中，
       视觉尺寸不变。定位同步外移，让图标的视觉位置仍贴着原来的右边缘。
+
+      实测真实组件里关闭按钮的父级就是 `.semi-modal-header`
+      （`closeParentClass: "semi-modal-header"`），所以用后代选择器是准的。
+      （曾误改成 `.semi-modal-content > ...`，基于一份结构不对的注入 DOM 得出的
+      结论——真实组件的层级以运行时读出的父级类名为准。）
     */
     .semi-modal-header .semi-modal-close {
+      position: absolute !important;
       top: 8px !important;
       right: 8px !important;
+      min-width: 44px !important;
+      min-height: 44px !important;
       width: 44px !important;
       height: 44px !important;
+      padding: 0 !important;
+      box-sizing: border-box !important;
       display: inline-flex !important;
       align-items: center;
       justify-content: center;
+      z-index: 2;
+      /* 去掉方块底与描边，只留悬停反馈。 */
+      background: transparent !important;
+      border: 0 !important;
+      border-radius: 8px;
+
+      &:hover {
+        background: var(--dsw-alias-interactive-bg-hover) !important;
+      }
 
       /* 图标本身不跟着涨。 */
       svg,

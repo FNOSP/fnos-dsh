@@ -327,31 +327,35 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(CLIENT).toMatch(/entry\.removable === false \? \{ removable: false \}/u)
   })
 
-  it('新建/重命名弹框在窄屏收进视口，内边距收紧', () => {
+  it('新建/重命名弹框的宽度约束落在真正定宽的那一层', () => {
     /*
-      三个弹框（新建文件夹 / 新建文件 / 重命名）共用 `dsh-fnos-create-dialog`
-      且 `width={454}`。Semi 把它写成 `.semi-modal` 的内联样式——窄屏下必须由
-      **最外层** 的 `max-width` 收住（内容层收不回来）。
+      **这条守的是「收错了层」这个问题。**
 
-      实测（393px 视口）：弹框 369px（= 393 − 24），内边距从 24 收到 16，
-      桌面端保持 454 / 24 不变。
+      三个弹框（新建文件夹 / 新建文件 / 重命名）带 `centered`，实测祖先链是：
+
+        .semi-portal
+          └ .dsh-fnos-create-dialog   ← `className` 落在这里，**宽 369 / 高 0**
+              └ .semi-modal-wrap
+                  └ .semi-modal        ← 按 454 渲染的**真正弹框**
+
+      `className` 落在一层零高度、不参与布局的包装上，真正定宽的是内层
+      `.semi-modal`。所以只给 `.dsh-fnos-create-dialog` 写 `max-width` **收不住**：
+      真机实测外层 369、内层内容仍是 454，右半边直接溢出屏幕。
+
+      必须用 `:has()` 从包装层反选进去，把 `max-width` 落到 `.semi-modal` 上。
     */
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
 
-    /*
-      **这三个弹框带 `centered`，Semi 在居中模式下不生成 `.semi-modal` 包裹层**：
-      `className` 直接落在内容元素上（祖先链是
-      `.dsh-fnos-create-dialog > .semi-portal > body`）。
+    // 关键一条：max-width 必须落到内层 .semi-modal
+    expect(SCSS).toMatch(
+      /\.dsh-fnos-create-dialog:has\(> \.semi-modal-wrap\)[\s\S]{0,80}\.semi-modal \{[^}]*max-width: calc\(100vw - 24px\)/u,
+    )
 
-      所以 `:has(> .semi-modal-content…)` 那条选择器对它们不匹配——第一版就是这么
-      写错的，窄屏下弹框仍按 454 撑开、左右贴边溢出，标题被切掉。
-
-      正确做法是直接作用于元素自身。
-    */
+    // 包装层自身也收住，避免撑出横向滚动条
     expect(SCSS).toMatch(/\.dsh-fnos-create-dialog \{[^}]*max-width: calc\(100vw - 24px\)/u)
-    expect(SCSS).toMatch(/\.dsh-fnos-create-dialog \{[^}]*margin-inline: auto/u)
-    // 不能再依赖 :has 包裹层
-    expect(SCSS).not.toContain(':has(> .semi-modal-content.dsh-fnos-create-dialog)')
+
+    // 内层段落跟随收窄
+    expect(SCSS).toMatch(/\.semi-modal-header,\s*[\s\S]{0,80}\.semi-modal-footer \{[^}]*min-width: 0/u)
 
     // 移动端内边距收紧 + 按钮不换行
     const mobile = SCSS.slice(SCSS.lastIndexOf('@media (max-width: 767px)'))
