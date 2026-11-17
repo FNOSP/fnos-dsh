@@ -455,10 +455,11 @@ describe('卡片式界面', () => {
     /*
       同档的次要动作用文字按钮会让一行里堆两个大色块。
 
-      **卸载不挂 Tooltip**：它外面包着 Popconfirm，两者同时包同一个按钮时，
-      Tooltip 的 hover 层会抢在 Popconfirm 之前接管指针事件，点击唤不出确认层
-      （实测 `.semi-popconfirm` 始终不出现）。确认层标题本身已写明「卸载「X」？」，
-      Tooltip 没有额外信息。
+      **卸载不挂 Tooltip，但要有 `title`**：它外面包着 Popconfirm，两者同时包同一
+      个按钮时，Tooltip 的 hover 层会抢在 Popconfirm 之前接管指针事件，点击唤不出
+      确认层（实测 `.semi-popconfirm` 始终不出现）。改用原生 `title`——它在浏览器
+      提示层，不参与 DOM 事件竞争，与 Popconfirm 不冲突；没有它，这一排图标按钮里
+      只有这个光秃秃的。
 
       `aria-label` 两个都要有：图标按钮没有可见文字，缺了读屏只会念「按钮」。
     */
@@ -471,13 +472,15 @@ describe('卡片式界面', () => {
     expect(updateBlock).toContain('lucide:download')
     expect(updateBlock).toContain("aria-label={t('pluginUpdateAction')}")
 
-    // 卸载：Popconfirm 包裹，不再套 Tooltip。
+    // 卸载：Popconfirm 包裹，不套 Tooltip，但用原生 title 补悬停提示。
     const removeIdx = PANEL.indexOf('<Popconfirm')
     expect(removeIdx).toBeGreaterThan(-1)
-    const removeBlock = PANEL.slice(removeIdx, removeIdx + 900)
+    const removeBlock = PANEL.slice(removeIdx, removeIdx + 1600)
     expect(removeBlock).toContain('lucide:trash')
     expect(removeBlock).toContain("aria-label={t('uninstall')}")
-    expect(removeBlock).not.toContain("content={t('uninstall')}")
+    expect(removeBlock).toContain("title={t('uninstall')}")
+    // 不套 Tooltip：Tooltip 会抢走指针事件，Popconfirm 唤不出。
+    expect(removeBlock).not.toContain('DshTooltip')
   })
 
   it('开关固定宽度，两种状态同宽', () => {

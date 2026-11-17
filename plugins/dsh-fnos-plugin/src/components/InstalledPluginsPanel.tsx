@@ -401,11 +401,15 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
 
                       实测：Tooltip 与 Popconfirm 同时包着同一个按钮时，Tooltip 的
                       hover 层抢在 Popconfirm 之前接管了指针事件，点击唤不出确认层
-                      （`.semi-popconfirm` 始终不出现）。而且这里是冗余的——确认层
-                      的标题已经写明「卸载「X」？」，再挂一个「卸载」气泡没有信息量。
+                      （`.semi-popconfirm` 始终不出现）。
 
-                      `aria-label` 保留：图标按钮没有可见文字，缺了它读屏只会念
-                      「按钮」。
+                      **但气泡提示不能省**：旁边的「更新」按钮有提示，这里没有，
+                      一排图标按钮里就这个光秃秃的，用户得先点下去才知道是什么。
+                      改用原生 `title`：它在浏览器提示层，**不参与 DOM 事件竞争**，
+                      与 Popconfirm 的 hover/click 都不冲突。
+
+                      `aria-label` 仍然保留：图标按钮没有可见文字，缺了它读屏只会
+                      念「按钮」；`title` 只负责鼠标悬停的视觉提示。
                     */
                     <Popconfirm
                       title={t('pluginRemoveTitle').replace('{name}', plugin.name)}
@@ -420,6 +424,7 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                         type="button"
                         className="dsh-fnos-icon-button dsh-fnos-icon-button--danger"
                         aria-label={t('uninstall')}
+                        title={t('uninstall')}
                         /* 正在卸载（或正在装）这个插件时不许再点。 */
                         disabled={removingName === plugin.name || installing === plugin.name}
                       >
