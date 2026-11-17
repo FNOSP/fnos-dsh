@@ -2595,6 +2595,22 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   gap: 6px;
 }
 
+/*
+ * 图标按钮的「垫片」：给浮层多留一个可绑事件的节点。
+ *
+ * Popconfirm 与 Tooltip 都要对触发元素做 `cloneElement` 合并事件，合到同一个
+ * 按钮上时后者会覆盖前者的 click，确认层就唤不出来。这里让 Popconfirm 绑在
+ * span 上、Tooltip 绑在里面的按钮上，两者各管一个节点。
+ *
+ * `display: contents` 不行——没有盒子就没有可点击区域，Popconfirm 收不到冒泡。
+ * 用 `inline-flex` 并清掉行内基线的多余高度，视觉上与按钮完全重合。
+ */
+.dsh-fnos-icon-button-slot {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
 /* 缩小卸载按钮：默认内边距在卡片里太占地方。 */
 .dsh-fnos-card-uninstall.semi-button {
   padding: 0 8px;

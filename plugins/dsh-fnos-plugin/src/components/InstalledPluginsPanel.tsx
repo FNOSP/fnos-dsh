@@ -397,19 +397,22 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                       跑 `pnpm remove`），点了就关会让用户以为瞬间完成。
                     */
                     /*
-                      触发元素**只包 Popconfirm，不再套 Tooltip**。
+                      触发元素：**Popconfirm 包一层 span，Tooltip 与按钮在 span 里面。**
 
-                      实测：Tooltip 与 Popconfirm 同时包着同一个按钮时，Tooltip 的
-                      hover 层抢在 Popconfirm 之前接管了指针事件，点击唤不出确认层
-                      （`.semi-popconfirm` 始终不出现）。
+                      为什么不能直接「Popconfirm 包 Tooltip 包按钮」：Semi 的
+                      Tooltip 用 `cloneElement` 把事件合并到子按钮上（见 tooltip
+                      render 的 `mergeEvents`），而 Popconfirm 外层的 Popover 也
+                      要对同一个按钮做一次 cloneElement。两者合到同一个节点上时，
+                      后合并的 click 覆盖前者，实测只有 Tooltip 响应，确认层
+                      （`.semi-popconfirm`）始终不出现。
 
-                      **但气泡提示不能省**：旁边的「更新」按钮有提示，这里没有，
-                      一排图标按钮里就这个光秃秃的，用户得先点下去才知道是什么。
-                      改用原生 `title`：它在浏览器提示层，**不参与 DOM 事件竞争**，
-                      与 Popconfirm 的 hover/click 都不冲突。
+                      中间垫一层 span 后，两个浮层各绑各的节点：Popconfirm 监听
+                      span 的点击（点在按钮上会冒泡到 span），Tooltip 监听按钮的
+                      悬停。两者不再争用同一个元素。
 
-                      `aria-label` 仍然保留：图标按钮没有可见文字，缺了它读屏只会
-                      念「按钮」；`title` 只负责鼠标悬停的视觉提示。
+                      `aria-label` 保留：图标按钮没有可见文字，缺了读屏只会念
+                      「按钮」。**不用原生 `title`**：它的提示层在浏览器侧、样式与
+                      Semi 不一致，且与 Tooltip 并存会同时弹两个气泡。
                     */
                     <Popconfirm
                       title={t('pluginRemoveTitle').replace('{name}', plugin.name)}
@@ -420,16 +423,19 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                       position="topRight"
                       onConfirm={() => removePluginFromCard(plugin.name)}
                     >
-                      <button
-                        type="button"
-                        className="dsh-fnos-icon-button dsh-fnos-icon-button--danger"
-                        aria-label={t('uninstall')}
-                        title={t('uninstall')}
-                        /* 正在卸载（或正在装）这个插件时不许再点。 */
-                        disabled={removingName === plugin.name || installing === plugin.name}
-                      >
-                        <IconifyIcon name="lucide:trash" />
-                      </button>
+                      <span className="dsh-fnos-icon-button-slot">
+                        <DshTooltip content={t('uninstall')}>
+                          <button
+                            type="button"
+                            className="dsh-fnos-icon-button dsh-fnos-icon-button--danger"
+                            aria-label={t('uninstall')}
+                            /* 正在卸载（或正在装）这个插件时不许再点。 */
+                            disabled={removingName === plugin.name || installing === plugin.name}
+                          >
+                            <IconifyIcon name="lucide:trash" />
+                          </button>
+                        </DshTooltip>
+                      </span>
                     </Popconfirm>
                   )}
                 </div>

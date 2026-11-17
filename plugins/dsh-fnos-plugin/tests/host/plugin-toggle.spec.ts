@@ -455,13 +455,16 @@ describe('卡片式界面', () => {
     /*
       同档的次要动作用文字按钮会让一行里堆两个大色块。
 
-      **卸载不挂 Tooltip，但要有 `title`**：它外面包着 Popconfirm，两者同时包同一
-      个按钮时，Tooltip 的 hover 层会抢在 Popconfirm 之前接管指针事件，点击唤不出
-      确认层（实测 `.semi-popconfirm` 始终不出现）。改用原生 `title`——它在浏览器
-      提示层，不参与 DOM 事件竞争，与 Popconfirm 不冲突；没有它，这一排图标按钮里
-      只有这个光秃秃的。
+      **卸载用 Tooltip，且必须包在 Popconfirm 的里层**：Popconfirm 会把 `children`
+      透传给内部的 Popover 作为触发元素，所以「Tooltip 在外、Popconfirm 在内」等于
+      让 Tooltip 去包一个完整的 Popover——两层浮层抢同一个触发区域，实测点击唤不出
+      确认层（`.semi-popconfirm` 始终不出现）。
 
-      `aria-label` 两个都要有：图标按钮没有可见文字，缺了读屏只会念「按钮」。
+      正确顺序是 Popconfirm 在外、Tooltip 直接包按钮：点击仍由 Popconfirm 监听，
+      Tooltip 只管悬停，两者各管一种手势。**不要退回原生 `title`**：它的提示层在
+      浏览器侧、样式与 Semi 不一致，而且与 Tooltip 并存时会同时出现两个气泡。
+
+      `aria-label` 保留：图标按钮没有可见文字，缺了读屏只会念「按钮」。
     */
     const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
 
@@ -472,15 +475,17 @@ describe('卡片式界面', () => {
     expect(updateBlock).toContain('lucide:download')
     expect(updateBlock).toContain("aria-label={t('pluginUpdateAction')}")
 
-    // 卸载：Popconfirm 包裹，不套 Tooltip，但用原生 title 补悬停提示。
+    // 卸载：Popconfirm 在外，Tooltip 在内包按钮。
     const removeIdx = PANEL.indexOf('<Popconfirm')
     expect(removeIdx).toBeGreaterThan(-1)
-    const removeBlock = PANEL.slice(removeIdx, removeIdx + 1600)
+    const removeBlock = PANEL.slice(removeIdx, removeIdx + 1800)
     expect(removeBlock).toContain('lucide:trash')
     expect(removeBlock).toContain("aria-label={t('uninstall')}")
-    expect(removeBlock).toContain("title={t('uninstall')}")
-    // 不套 Tooltip：Tooltip 会抢走指针事件，Popconfirm 唤不出。
-    expect(removeBlock).not.toContain('DshTooltip')
+    expect(removeBlock).toContain("content={t('uninstall')}")
+    // Tooltip 必须在 Popconfirm 的 children 里，而不是包在 Popconfirm 外面。
+    expect(removeBlock.indexOf('<DshTooltip')).toBeGreaterThan(removeBlock.indexOf('<Popconfirm'))
+    // 不得再用原生 title：它与 Tooltip 并存会叠出两个气泡。
+    expect(removeBlock).not.toContain("title={t('uninstall')}")
   })
 
   it('开关固定宽度，两种状态同宽', () => {
