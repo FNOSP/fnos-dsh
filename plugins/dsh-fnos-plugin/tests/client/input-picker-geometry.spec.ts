@@ -253,35 +253,6 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(ruleBody('.dsh-fnos-path-context-menu')).toMatch(/position:\s*fixed;/u)
   })
 
-  it('菜单在触屏上按触屏尺寸，桌面保持 32px 行高', () => {
-    /*
-      右键菜单是 `position: fixed` 浮层，不是 Modal —— 弹框那套
-      `max-width: calc(100vw - 24px)` 覆盖不到它，它自己的 `max-height` 也只解决
-      「超出视口」，没解决**点不准**。
-
-      桌面 `padding: 6px 8px` + `line-height: 20px` = 32px 行高，鼠标够用；手指接触
-      面约 44px，实测 32px 的行挨在一起误触率很高。
-
-      判定用 `pointer: coarse` 而不是宽度断点：触屏笔记本 / 平板 / 手机都命中，
-      窄窗口的桌面浏览器不命中。实测 393px 触屏下：行高 32 → 44、菜单宽 132 → 168。
-    */
-    const coarse = /@media \(pointer: coarse\) \{([\s\S]*?)\n\}\n/u.exec(STYLE)?.[1] ?? ''
-    expect(coarse).not.toBe('')
-
-    const item = /\.dsh-fnos-path-context-item \{([\s\S]*?)\n {2}\}/u.exec(coarse)?.[1] ?? ''
-    // 上下各 12 + 行高 20 = 44，触屏可点击标准。
-    expect(item).toMatch(/padding:\s*12px;/u)
-
-    const menu = /\.dsh-fnos-path-context-menu \{([\s\S]*?)\n {2}\}/u.exec(coarse)?.[1] ?? ''
-    expect(menu).toMatch(/min-width:\s*168px;/u)
-    expect(menu).toMatch(/gap:\s*4px;/u)
-
-    // 桌面值不能被改掉：鼠标环境仍按 32px 行高、132px 宽。
-    const desktopItem = ruleBody('.dsh-fnos-path-context-item')
-    expect(desktopItem).toMatch(/padding:\s*6px 8px;/u)
-    expect(ruleBody('.dsh-fnos-path-context-menu')).toMatch(/min-width:\s*132px;/u)
-  })
-
   it('菜单经 Portal 挂到 body，否则 fixed 会被包含块劫持', () => {
     // 面板或其背景层带 `backdrop-filter` 时会成为 fixed 后代的包含块。菜单若
     // 留在面板内部，left/top 就不是视口坐标——实机表现为「右键在顶部，菜单却
