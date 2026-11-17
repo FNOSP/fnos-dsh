@@ -359,10 +359,39 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
     expect(REPAIR_CARD).not.toContain('diagnoseDependencyRepair')
     expect(REPAIR_CARD).not.toContain('entries')
     expect(REPAIR_CARD).not.toContain('dependencyRepairStaleCount')
-    expect(REPAIR_CARD).not.toContain('dependencyRepairHealthy')
     expect(REPAIR_CARD).not.toContain('dependencyRepairReason')
     // 唯一的数据来源是执行修复。
     expect(REPAIR_CARD).toContain('runDependencyRepair')
+  })
+
+  it('健康的结果要留在屏幕上，不能一闪而过', () => {
+    /*
+      真机反馈：「这个功能执行的很快吗，为什么闪一下就消失了」。
+
+      根因是结果块的渲染条件写成了 `phase.result.steps.length > 0`。健康的
+      profile 走「无失效条目，跳过重建」分支返回 `steps: []`，于是连结论块都不
+      渲染——用户点完修复只看到进度行闪一下，屏幕上什么都没留下。
+
+      现在按 `outcome` 分叉，并且 `healthy` 必须有文案。这是需求 FNOS-050-02
+      明确要求的「两者都无时明确显示『依赖状态正常』」。
+    */
+    expect(REPAIR_CARD).not.toContain('phase.result.steps.length > 0')
+    expect(REPAIR_CARD).toContain('dependencyRepairHealthy')
+    expect(REPAIR_CARD).toContain('dependencyRepairUnavailable')
+    expect(REPAIR_CARD).toContain("phase.result.outcome === 'healthy'")
+    // 结果块自身也带 live region，避免只有进度行可播报。
+    expect(REPAIR_CARD).toMatch(/className="dsh-fnos-repair-result"[^>]*aria-live="polite"/u)
+  })
+
+  it('结果块用到的样式类都有定义', () => {
+    /*
+      结果块引用了 `dsh-fnos-repair-result/list/entry/code/muted/ok/error` 七个类，
+      但样式表里一个都没写——渲染出来是浏览器默认的 `ul` 圆点 + 缩进，与卡片
+      其余部分完全不是一个外观。这条用例防的是「类名写了、样式忘了」。
+    */
+    for (const name of ['repair-actions', 'repair-result', 'repair-ok', 'repair-error', 'repair-list', 'repair-entry', 'repair-code', 'repair-muted']) {
+      expect(SCSS).toContain(`.dsh-fnos-${name} {`)
+    }
   })
 
   it('点按钮直接执行修复，不再二次确认', () => {

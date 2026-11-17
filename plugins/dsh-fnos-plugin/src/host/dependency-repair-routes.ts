@@ -14,6 +14,7 @@ import {
   FNOS_DEPENDENCY_REPAIR_DIAGNOSE_ROUTE,
   FNOS_DEPENDENCY_REPAIR_RUN_ROUTE,
 } from '../contracts/dependency-repair-contract.ts'
+import type { DependencyRepairResult } from '../contracts/dependency-repair-contract.ts'
 import {
   diagnoseDependencyRepair,
   resolveRepairEnvironment,
@@ -82,17 +83,35 @@ export function registerDependencyRepairRoutes(ctx: Context): void {
         const diagnosis = await diagnoseDependencyRepair(environment)
         console.log(`[dsh-fnos][dependency-repair] ${FNOS_DEPENDENCY_REPAIR_RUN_ROUTE} 请求到达 available=${String(diagnosis.available)} stale=${diagnosis.entries.length}`)
         if (!diagnosis.available) {
-          return send(res, 503, {
-            error: diagnosis.reason ?? 'fnos-host-unavailable',
-            result: { ok: false, steps: [], removed: [], durationMs: 0, message: diagnosis.reason },
-          })
+          // 环境不具备修复条件：仍然用 200 返回结构化结果，让界面按 `outcome`
+          // 渲染一句可读说明。此前这里是 503 + `result` 包一层，客户端只读顶层
+          // 就当成了请求失败，用户看到的是「什么都没发生」。
+          return send(res, 200, {
+            ok: false,
+            steps: [],
+            removed: [],
+            durationMs: 0,
+            outcome: 'unavailable',
+            message: diagnosis.reason ?? 'fnos-host-unavailable',
+          } satisfies DependencyRepairResult)
         }
         // 第二道防线：没有任何失效条目时不做重建。界面已经拦过一次，但这条
         // 路由也可能被直接调用；对一个健康的 profile 清 lockfile 与 node_modules
         // 是纯破坏，代价高且没有收益。
+        //
+        // **但「没做事」必须能看见。** 这里返回 `outcome: 'healthy'` 而不是一个
+        // 空 steps：界面靠它渲染「依赖状态正常，无需修复」，否则点击后只剩下
+        // 一闪而过的进度提示，用户不知道到底修没修（见 FNOS-050-02 的「两者都
+        // 无时明确显示『依赖状态正常』」）。
         if (diagnosis.entries.length === 0) {
           console.log('[dsh-fnos][dependency-repair] 无失效条目，跳过重建')
-          return send(res, 200, { ok: true, steps: [], removed: [], durationMs: 0 })
+          return send(res, 200, {
+            ok: true,
+            steps: [],
+            removed: [],
+            durationMs: 0,
+            outcome: 'healthy',
+          } satisfies DependencyRepairResult)
         }
         const result = await runDependencyRepair(environment, diagnosis)
         console.log(`[dsh-fnos][dependency-repair] 修复结束 ok=${String(result.ok)} 步骤=${result.steps.map(step => `${step.id}:${step.status}`).join(',') || '无'}`)

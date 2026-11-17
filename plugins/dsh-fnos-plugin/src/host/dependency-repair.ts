@@ -362,6 +362,7 @@ export async function runDependencyRepair(
       steps: [],
       removed: [],
       durationMs: 0,
+      outcome: 'unavailable',
       message: diagnosis.reason ?? 'fnos-host-unavailable',
     }
   }
@@ -376,7 +377,7 @@ export async function runDependencyRepair(
     if (text === undefined) {
       log('repair: clear-exclusions 失败（profile-missing）')
       steps.push({ id: 'clear-exclusions', status: 'failed', detail: 'profile-missing' })
-      return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: 'profile-missing' }
+      return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'profile-missing' }
     }
     const result = removeExclusionLines(text, diagnosis.entries)
     removed = diagnosis.entries
@@ -386,14 +387,14 @@ export async function runDependencyRepair(
   } catch (error) {
     log(`repair: clear-exclusions 失败 ${describe(error)}`)
     steps.push({ id: 'clear-exclusions', status: 'failed', detail: describe(error) })
-    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: describe(error) }
+    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: describe(error) }
   }
 
   const pnpmBin = environment.pnpmBin
   if (pnpmBin === undefined) {
     log('repair: rebuild 失败（pnpm-missing）')
     steps.push({ id: 'rebuild', status: 'failed', detail: 'pnpm-missing' })
-    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: 'pnpm-missing' }
+    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'pnpm-missing' }
   }
 
   // 第二步：重建依赖。`pnpm clean --lockfile` 负责删两个可重建产物，
@@ -404,7 +405,7 @@ export async function runDependencyRepair(
   if (clean.code !== 0) {
     log(`repair: rebuild 失败（clean=${clean.code}）${clean.output.slice(-300)}`)
     steps.push({ id: 'rebuild', status: 'failed', detail: clean.output.slice(-500) })
-    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: 'rebuild-failed' }
+    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'rebuild-failed' }
   }
   log(`repair: rebuild 开始 ${pnpmBin} install`)
   const install = await run(pnpmBin, ['install', '--config.minimum-release-age=0'], environment.profileDirectory, DEPENDENCY_REPAIR_COMMAND_TIMEOUT_MS)
@@ -412,7 +413,7 @@ export async function runDependencyRepair(
   if (install.code !== 0) {
     log(`repair: rebuild 失败（install=${install.code}）${install.output.slice(-300)}`)
     steps.push({ id: 'rebuild', status: 'failed', detail: install.output.slice(-500) })
-    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: 'rebuild-failed' }
+    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'rebuild-failed' }
   }
   steps.push({ id: 'rebuild', status: 'ok' })
   log('repair: rebuild 完成')
@@ -432,7 +433,7 @@ export async function runDependencyRepair(
     const detail = environment.dshBin === undefined ? 'dsh-missing' : 'no-managed-plugins'
     log(`repair: reinstall 跳过（${detail}）`)
     steps.push({ id: 'reinstall', status: 'skipped', detail })
-    return { ok: true, steps, removed, durationMs: Date.now() - startedAt }
+    return { ok: true, steps, removed, durationMs: Date.now() - startedAt, outcome: 'repaired' }
   }
   const specs: string[] = []
   for (const [name, version] of packages) {
@@ -459,11 +460,11 @@ export async function runDependencyRepair(
   if (add.code !== 0) {
     log(`repair: reinstall 失败 ${add.output.slice(-300)}`)
     steps.push({ id: 'reinstall', status: 'failed', detail: add.output.slice(-500) })
-    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, message: 'reinstall-failed' }
+    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'reinstall-failed' }
   }
   steps.push({ id: 'reinstall', status: 'ok', detail: specs.join(' ') })
   log(`repair: 完成，耗时 ${Date.now() - startedAt}ms`)
-  return { ok: true, steps, removed, durationMs: Date.now() - startedAt }
+  return { ok: true, steps, removed, durationMs: Date.now() - startedAt, outcome: 'repaired' }
 }
 
 /**

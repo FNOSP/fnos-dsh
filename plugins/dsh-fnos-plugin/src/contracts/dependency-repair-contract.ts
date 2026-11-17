@@ -63,6 +63,21 @@ export interface DependencyRepairResult {
   readonly removed: readonly DependencyRepairEntry[]
   /** 本次修复的耗时（毫秒）。 */
   readonly durationMs: number
+  /**
+   * 本次实际**做了什么**。
+   *
+   * `steps` 是「执行了哪几步」，但「什么都没执行」也是一种结论，而它无法用空
+   * 数组与「请求没到」区分开。此前界面按 `steps.length > 0` 决定要不要展示结果，
+   * 健康的 profile 走「无失效条目，跳过重建」分支返回 `steps: []`，于是用户点完
+   * 修复只看到进度行闪一下就没了——既不知道修没修，也不知道结论是什么。
+   *
+   * 因此把结论显式化：
+   * - `repaired`：真的重建过依赖并成功。
+   * - `healthy`：诊断过，依赖状态正常，未做任何改动。
+   * - `unavailable`：当前环境不具备修复条件（未读到 fnOS 应用目录）。
+   * - `failed`：走了重建流程但中途失败，原因在 `message` 与各步骤的 `detail`。
+   */
+  readonly outcome: 'repaired' | 'healthy' | 'unavailable' | 'failed'
   /** 失败时给用户看的说明。 */
   readonly message?: string
 }

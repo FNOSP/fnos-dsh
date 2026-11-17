@@ -132,30 +132,44 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
         ) : null}
 
         {/*
-          结果按步骤逐条展示：用户点过「修复」之后，比较关心的就是「到底做了什么、
-          哪一步没成」。这里展示的是**已执行的动作**，与之前那种「检测到的内部
-          标识」不是一回事。
+          结果按 `outcome` 分叉，**每一种结论都要留在屏幕上**。
+
+          这里曾按 `steps.length > 0` 决定要不要渲染结果。可健康的 profile 走
+          「无失效条目，跳过重建」分支返回空 `steps`，于是点完修复只有进度行
+          闪一下就没了：用户既不知道修没修，也不知道判定是什么——「点了一下，
+          什么都消失了」。现在「无需修复」本身就是要展示的结论。
         */}
-        {phase.kind === 'done' && phase.result.steps.length > 0 ? (
-          <div className="dsh-fnos-repair-result" role="status">
-            <p className={phase.result.ok ? 'dsh-fnos-repair-ok' : 'dsh-fnos-repair-error'}>
-              {phase.result.ok
-                ? `${t('dependencyRepairDone')}${(phase.result.durationMs / 1000).toFixed(1)}s`
-                : `${t('dependencyRepairFailed')}${phase.result.message ?? ''}`}
+        {phase.kind === 'done' ? (
+          <div className="dsh-fnos-repair-result" role="status" aria-live="polite">
+            <p className={
+              phase.result.outcome === 'repaired' || phase.result.outcome === 'healthy'
+                ? 'dsh-fnos-repair-ok'
+                : 'dsh-fnos-repair-error'
+            }>
+              {phase.result.outcome === 'healthy'
+                ? t('dependencyRepairHealthy')
+                : phase.result.outcome === 'unavailable'
+                  ? t('dependencyRepairUnavailable')
+                  : phase.result.outcome === 'repaired'
+                    ? `${t('dependencyRepairDone')}${(phase.result.durationMs / 1000).toFixed(1)}s`
+                    : `${t('dependencyRepairFailed')}${phase.result.message ?? ''}`}
             </p>
-            <ul className="dsh-fnos-repair-list">
-              {phase.result.steps.map(step => (
-                <li key={step.id} className="dsh-fnos-repair-entry">
-                  <code className="dsh-fnos-repair-code">{step.id}</code>
-                  <span className="dsh-fnos-repair-muted">
-                    {step.status === 'ok' ? t('dependencyRepairStepOk') : null}
-                    {step.status === 'skipped' ? t('dependencyRepairStepSkipped') : null}
-                    {step.status === 'failed' ? t('dependencyRepairStepFailed') : null}
-                    {step.detail === undefined ? '' : ` · ${step.detail}`}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {/* 没有执行任何步骤时不再渲染空列表。 */}
+            {phase.result.steps.length === 0 ? null : (
+              <ul className="dsh-fnos-repair-list">
+                {phase.result.steps.map(step => (
+                  <li key={step.id} className="dsh-fnos-repair-entry">
+                    <code className="dsh-fnos-repair-code">{step.id}</code>
+                    <span className="dsh-fnos-repair-muted">
+                      {step.status === 'ok' ? t('dependencyRepairStepOk') : null}
+                      {step.status === 'skipped' ? t('dependencyRepairStepSkipped') : null}
+                      {step.status === 'failed' ? t('dependencyRepairStepFailed') : null}
+                      {step.detail === undefined ? '' : ` · ${step.detail}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ) : null}
       </div>

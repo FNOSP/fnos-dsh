@@ -244,6 +244,42 @@ describe('依赖修复日志', () => {
     expect(ROUTES).toContain('请求到达')
     expect(ROUTES).toContain('修复结束')
   })
+
+  it('「没做事」也要有明确结论，不能是个空 steps', () => {
+    /*
+      真机反馈：「这个功能执行的很快吗，为什么闪一下就消失了」。
+
+      健康的 profile 在 `entries.length === 0` 时直接返回空 steps，界面那侧又按
+      `steps.length > 0` 决定要不要渲染结果——于是点击后什么都留不下。用户无法
+      区分「已经好了」与「按钮没生效」。
+
+      因此两个「不做事」的出口都必须带上结论：
+      - 没有失效条目 → `healthy`（依赖状态正常，未做改动）
+      - 环境不具备 → `unavailable`
+      并且都用 200 返回结构化结果：503 那次还被客户端当成请求失败，连 `result`
+      都没读出来。
+    */
+    expect(ROUTES).toContain("outcome: 'healthy'")
+    expect(ROUTES).toContain("outcome: 'unavailable'")
+    // 逻辑上必须写在「跳过重建」那个分支里，不是别处。
+    const healthyBranch = ROUTES.slice(ROUTES.indexOf('diagnosis.entries.length === 0'))
+    expect(healthyBranch).toContain("outcome: 'healthy'")
+    // 不可用不再用 503：客户端只读顶层，会退化成「请求失败」。
+    const unavailableBranch = ROUTES.slice(ROUTES.indexOf('!diagnosis.available'), ROUTES.indexOf('diagnosis.entries.length === 0'))
+    expect(unavailableBranch).toContain('send(res, 200')
+    // 只看代码行：上面那段注释里正好提到历史实现用的 503。
+    const unavailableCode = unavailableBranch
+      .split('\n')
+      .filter(line => !line.trim().startsWith('//'))
+      .join('\n')
+    expect(unavailableCode).not.toContain('503')
+  })
+
+  it('执行过重建才报 repaired，失败报 failed', () => {
+    expect(HOST).toContain("outcome: 'repaired'")
+    expect(HOST).toContain("outcome: 'failed'")
+    expect(HOST).toContain("outcome: 'unavailable'")
+  })
 })
 
 /**

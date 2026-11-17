@@ -282,6 +282,19 @@ img.dsh-fnos-file-manager-icon {
 }
 
 /*
+ * 「修复插件安装异常」的动作区。
+ *
+ * 必须 `flex-shrink: 0`：窄屏时标题那一列会先被压到 0 宽，按钮若参与收缩就会
+ * 跟着变成一条细缝——按钮是这张卡片唯一能点的东西，任何时候都要完整。
+ */
+.dsh-fnos-repair-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+/*
  * 标题与 tip 图标：同一基线上垂直居中，间距 10px。
  *
  * 这里是 flex 而不是「文本 + 内联图标」：内联元素的垂直对齐取决于图标自身
@@ -336,6 +349,79 @@ img.dsh-fnos-file-manager-icon {
   color: var(--dsw-alias-label-secondary);
   font-size: 14px;
   line-height: 1.5;
+}
+
+/*
+ * 「修复插件安装异常」的结果块。
+ *
+ * 结论行 + 步骤列表，两者都是**留在屏幕上的**：点完修复之后，用户要能回看
+ * 「做了什么、结论是什么」。这里曾只在有步骤时才渲染，健康的 profile（无需
+ * 修复）什么都不显示，看起来就是「闪了一下没了」。
+ */
+.dsh-fnos-repair-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/*
+ * 成功/健康与失败的结论行。
+ *
+ * 只用颜色区分不够——颜色在深色主题、色觉障碍下都会丢失，所以文案本身已经
+ * 说明了结论（「依赖状态正常」「修复失败：…」），颜色只是加强。
+ */
+.dsh-fnos-repair-ok,
+.dsh-fnos-repair-error {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  /* 失败原因里可能带命令输出片段，长串不能撑破卡片。 */
+  overflow-wrap: anywhere;
+}
+
+.dsh-fnos-repair-ok {
+  color: var(--dsw-alias-label-primary);
+}
+
+.dsh-fnos-repair-error {
+  color: var(--dsw-alias-state-error-primary, #d92d20);
+}
+
+/* 步骤列表：去掉默认缩进，用等宽字体对齐步骤标识与状态。 */
+.dsh-fnos-repair-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dsh-fnos-repair-entry {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/*
+ * 步骤标识（`clear-exclusions` 这类）是内部标识，等宽字体让它读起来像「一条
+ * 命令/一个阶段」，而不是散落的英文单词。
+ */
+.dsh-fnos-repair-code {
+  padding: 0;
+  background: none;
+  color: var(--dsw-alias-label-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+}
+
+/* 状态补充说明（完成/跳过/失败 + detail）比标识淡一档，视觉层级上从属于它。 */
+.dsh-fnos-repair-muted {
+  color: var(--dsw-alias-label-tertiary);
+  overflow-wrap: anywhere;
 }
 
 .dsh-fnos-authorized-card-body {
