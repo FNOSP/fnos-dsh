@@ -42,7 +42,7 @@ DSH 运行时和七个运行时插件的发布版本与兼容性基线统一为 
 在其他 DSH 环境中可以手动安装：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-fnos@8.1.141
+dsh plugin --profile web add @tnnevol/dsh-fnos@8.1.142
 dsh plugin --profile web add @tnnevol/dsh-failover-search@8.1.135
 dsh plugin --profile web add dshmarket@1.73.12
 dsh --profile web --dump-config
