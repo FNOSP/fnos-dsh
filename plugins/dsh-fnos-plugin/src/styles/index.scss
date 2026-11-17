@@ -4042,6 +4042,50 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
     .semi-modal-footer .semi-button {
       min-height: 44px;
     }
+
+    /*
+      **关闭按钮也要到 44×44 的触屏热区。**
+
+      桌面是 23×24（`top: 18px; right: 20px` 定位的 24px 图标），鼠标点得中；
+      手指的接触面约 44px，23px 的方形热区点偏就会落到遮罩上——而遮罩点击会
+      关闭弹框（`maskClosable`），表现成「想关掉但取消了正在填的内容」。
+
+      做法是**只放大热区、不放大图标**：宽高给到 44，用 flex 把 24px 的图标居中，
+      视觉尺寸不变。定位同步外移，让图标的视觉位置仍贴着原来的右边缘。
+    */
+    .semi-modal-header .semi-modal-close {
+      top: 8px !important;
+      right: 8px !important;
+      width: 44px !important;
+      height: 44px !important;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+
+      /* 图标本身不跟着涨。 */
+      svg,
+      .semi-icon {
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    /*
+      **标题给关闭按钮让位。**
+
+      关闭按钮热区从 24 涨到 44 后占了右侧一条，标题若不收就会钻到热区底下，
+      表现成「点标题文字却把弹框关了」。这里把 header 的右内边距提到 56
+      （44 热区 + 12 间隙），标题仍然单行省略。
+    */
+    .semi-modal-header {
+      padding-right: 56px !important;
+    }
+
+    .semi-modal-header .semi-modal-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   /*
