@@ -537,7 +537,14 @@ img.dsh-fnos-file-manager-icon {
   padding: 10px 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 9px;
-  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
+  /*
+    **不给底色。**
+
+    亮色主题下 `interactive-bg-hover-solid` 是 `#f1f3f5`，一排目录行全是灰块，
+    与「弹框里的一行路径」这个身份不符——它已经有边框圈出范围了。深色下这个
+    token 又恰好与弹框同色，等于一直没有底色，所以这是「只影响亮色」的修正。
+  */
+  background: transparent;
 }
 
 /*
@@ -2546,7 +2553,14 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   padding: 10px 12px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
-  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
+  /*
+    **不给底色。**
+
+    亮色下 `interactive-bg-hover-solid` 是 `#f1f3f5`，一排卡片全是灰底，看起来
+    像「未启用」；边框已经把每张卡的边界画出来了。深色下它与弹框同色，本来也
+    看不出底色——去掉只影响亮色，正是要改的那一边。
+  */
+  background: transparent;
 }
 
 /*
@@ -2831,11 +2845,16 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   border-radius: 8px;
 }
 
-/* 当前源：强调色边框 + 左侧竖条，与其它源区分。 */
+/*
+ * 当前源：**只靠强调色边框 + 左侧竖条区分，不铺底色**。
+ *
+ * 亮色下原底色是 `#f1f3f5`，一块灰底压在列表里显得「这一项被禁用」而不是
+ * 「这一项正在用」；加粗的左竖条与强调色边框已经把状态说清楚了。
+ */
 .dsh-fnos-mirror-item--current {
   border-color: var(--dsw-alias-state-business-primary);
   border-left-width: 3px;
-  background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
+  background: transparent;
 }
 
 .dsh-fnos-mirror-item-main {
