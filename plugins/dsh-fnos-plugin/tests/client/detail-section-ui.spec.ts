@@ -407,9 +407,10 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
     // 按钮直接调 repair。
     const onClick = /onClick=\{\(\) => \{ void repair\(\) \}\}/.exec(REPAIR_CARD)
     expect(onClick).not.toBeNull()
-    // loading 由 busy 驱动。
+    // loading 由 busy 驱动；**文案始终是「修复」**，执行中不换字。
     expect(REPAIR_CARD).toContain('loading={busy}')
-    expect(REPAIR_CARD).toContain("dependencyRepairRunning")
+    expect(REPAIR_CARD).toContain("t('dependencyRepairRun')")
+    expect(REPAIR_CARD).not.toContain('dependencyRepairRunning')
   })
   it('执行中只给 loading，不给 disabled', () => {
     /*
@@ -422,9 +423,16 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
     expect(REPAIR_CARD).toContain('loading={busy}')
     expect(REPAIR_CARD).not.toContain('disabled={busy}')
 
-    // 长耗时动作还要有文字进度：只靠转圈在手机上容易被忽略。
-    expect(REPAIR_CARD).toContain('dependencyRepairProgress')
-    expect(REPAIR_CARD).toMatch(/role="status"[^>]*aria-live="polite"|aria-live="polite"[^>]*role="status"/u)
+    /*
+      长耗时动作要有实时进度：**静态说明换成日志框**。
+
+      原先只有一行「正在重建依赖…」，看不出在装依赖还是卡死了；现在显示宿主
+      逐行推来的日志，边跑边出，而不是结束后突然冒出一堆。
+    */
+    expect(REPAIR_CARD).not.toContain('dependencyRepairProgress')
+    expect(REPAIR_CARD).toContain('runDependencyRepairStreaming')
+    expect(REPAIR_CARD).toContain('dsh-fnos-repair-log')
+    expect(REPAIR_CARD).toMatch(/role="log"[^>]*aria-live="polite"/u)
   })
 
   it('中文文案里「检查」两键已随按钮一起移除', () => {

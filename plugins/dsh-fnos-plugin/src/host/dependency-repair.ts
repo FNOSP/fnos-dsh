@@ -21,8 +21,8 @@
  */
 
 import { execFile } from 'node:child_process'
-import { readFile, rename, stat, writeFile } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
 import type {
   DependencyRepairDiagnosis,
   DependencyRepairEntry,
@@ -54,6 +54,14 @@ export interface DependencyRepairEnvironment {
   readonly dshBin?: string
   /** `pnpm` 可执行文件。 */
   readonly pnpmBin?: string
+  /**
+   * 应用共享目录（`@appshare/<app>`）；备份写在这里。
+   *
+   * 与 `DSH_HOME`（`@apphome/<app>`）同级，由 fnOS 创建并授予应用读写权限。
+   * 备份放这里而不是 profile 旁边：profile 是 pnpm 的工作目录，多一个文件就会
+   * 被 `pnpm install` 扫到；共享目录对用户可见、可下载，也更符合「备份」的用途。
+   */
+  readonly shareDirectory?: string
 }
 
 /**
@@ -71,8 +79,13 @@ export function resolveRepairEnvironment(env: NodeJS.ProcessEnv = process.env): 
   if (home === undefined) return undefined
   const prefix = nonEmpty(env.NPM_CONFIG_PREFIX)
   const appDest = nonEmpty(env.TRIM_APPDEST)
+  // `DSH_HOME` = `<storage>/@apphome/<app>`；共享目录是它的兄弟 `@appshare/<app>`。
+  // 用相对推导而不是读环境变量：fnOS 不导出 `@appshare` 的变量，而这个布局是
+  // 平台的固定约定（见授权目录里对 `@apphome`/`@appshare` 的同级判定）。
+  const shareDirectory = join(dirname(home), '..', '@appshare', basename(home))
   return {
     profileDirectory: join(home, 'profiles', 'web'),
+    shareDirectory,
     ...(appDest === undefined
       ? {}
       : {
@@ -229,9 +242,32 @@ const LOG_PREFIX = '[dsh-fnos][dependency-repair]'
  * 这个功能会删 `node_modules` 并重装依赖，出问题时只能靠日志还原「它到底做了
  * 什么」。因此诊断的判定依据、命中的条目、每步命令与退出码都要留痕——用户报
  * 「点了没反应」时，日志能区分「没触发」「判定为健康」「命令失败」三种情况。
+ *
+ * **同时推给正在观察的调用方。** 修复要跑 `pnpm install`，可能几分钟；只在结束
+ * 时把整份结果返回，界面就只能「先干等着、最后一次性冒出一堆日志」。`sink` 让
+ * 每条日志边走边发，前端能像看终端一样实时看到进展。
  */
 function log(message: string): void {
-  console.log(`${LOG_PREFIX} ${message}`)
+  const line = `${LOG_PREFIX} ${message}`
+  console.log(line)
+  logSink?.(message)
+}
+
+/**
+ * 当前观察者。同一时刻只允许一个修复在跑（见路由里的 `busy` 判定），因此单个
+ * 槽位足够，不必做成列表。
+ */
+let logSink: ((line: string) => void) | undefined
+
+/**
+ * 设置日志观察者。
+ *
+ * @param sink - 每条日志的回调；`undefined` 表示取消观察。
+ * @returns 取消函数，调用后只在没有别的观察者接管时才清空槽位。
+ */
+export function setRepairLogSink(sink: ((line: string) => void) | undefined): () => void {
+  logSink = sink
+  return () => { if (logSink === sink) logSink = undefined }
 }
 
 /**
@@ -333,6 +369,50 @@ export function removeExclusionLines(text: string, removed: readonly DependencyR
   return { text: kept.join('\n'), removedLines }
 }
 
+/**
+ * 修复前把 profile 的 `pnpm-workspace.yaml` 备份到应用共享目录。
+ *
+ * ## 为什么备份
+ *
+ * 修复会按行删除失效的豁免条目。判定规则再谨慎也是代码，一旦判错（比如把用户
+ * 手写的、仍然有效的条目当成残留删掉），没有备份就无法还原——而这个文件直接
+ * 决定 `pnpm install` 能不能装成。
+ *
+ * ## 为什么放 `@appshare`
+ *
+ * profile 目录是 pnpm 的工作目录，往里丢 `.bak` 会被 `pnpm install` 当成工作区
+ * 文件扫到；`@appshare/<app>` 是 fnOS 给应用的共享目录，用户从文件管理器就能
+ * 看到并下载，卸载应用也不会丢。
+ *
+ * 文件名带时间戳，多次修复不会互相覆盖；返回**相对共享目录的语义化路径**给界面
+ * 显示（`备份/pnpm-workspace-20261117-164500.yaml`），点击时才用完整路径。
+ *
+ * @param environment - 应用环境。
+ * @param content - 备份内容（原文）。
+ * @returns 备份文件的完整路径与展示用路径；无法备份时为空。
+ */
+async function backupWorkspaceFile(
+  environment: DependencyRepairEnvironment,
+  content: string,
+): Promise<{ readonly fullPath: string, readonly displayPath: string } | undefined> {
+  const share = environment.shareDirectory
+  if (share === undefined) return undefined
+  const directory = join(share, '备份')
+  try {
+    await mkdir(directory, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/gu, '-').replace('T', '-').slice(0, 15)
+    const name = `pnpm-workspace-${stamp}.yaml`
+    const fullPath = join(directory, name)
+    await writeFile(fullPath, content, { mode: 0o600 })
+    log(`repair: 已备份 profile 配置 → ${fullPath}`)
+    return { fullPath, displayPath: `备份/${name}` }
+  } catch (error) {
+    // 备份失败不阻断修复：它只是保险，不是前置条件；但要在日志里说清楚。
+    log(`repair: 备份失败（继续修复）${describe(error)}`)
+    return undefined
+  }
+}
+
 /** 原子写入：先写临时文件再改名，避免中途失败留下半个文件。 */
 async function writeFileAtomic(path: string, content: string): Promise<void> {
   const temporary = `${path}.dsh-repair-${process.pid}`
@@ -379,11 +459,19 @@ export async function runDependencyRepair(
       steps.push({ id: 'clear-exclusions', status: 'failed', detail: 'profile-missing' })
       return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'profile-missing' }
     }
+    // 先备份再改：判定规则再谨慎也是代码，判错时没有备份就还原不了。
+    const backup = await backupWorkspaceFile(environment, text)
     const result = removeExclusionLines(text, diagnosis.entries)
     removed = diagnosis.entries
     if (result.removedLines > 0) await writeFileAtomic(workspacePath, result.text)
     log(`repair: clear-exclusions 完成，删除 ${result.removedLines} 行`)
-    steps.push({ id: 'clear-exclusions', status: 'ok', detail: `${result.removedLines}` })
+    steps.push({
+      id: 'clear-exclusions',
+      status: 'ok',
+      detail: `${result.removedLines}`,
+      // 备份位置随结果返回，界面渲染成可复制的语义化路径。
+      ...(backup === undefined ? {} : { backupPath: backup.fullPath, backupDisplayPath: backup.displayPath }),
+    })
   } catch (error) {
     log(`repair: clear-exclusions 失败 ${describe(error)}`)
     steps.push({ id: 'clear-exclusions', status: 'failed', detail: describe(error) })
@@ -436,6 +524,8 @@ export async function runDependencyRepair(
     return { ok: true, steps, removed, durationMs: Date.now() - startedAt, outcome: 'repaired' }
   }
   const specs: string[] = []
+  // 给用户看的是「装了什么、从哪来」，不是 `file:/vol2/...` 这种部署路径。
+  const sources: string[] = []
   for (const [name, version] of packages) {
     const archive = environment.bundledDirectory === undefined
       ? undefined
@@ -444,9 +534,11 @@ export async function runDependencyRepair(
     if (archive !== undefined && await pathExists(archive)) {
       specs.push(`file:${archive}`)
       log(`repair: reinstall 使用内置归档 ${name} → ${archive}`)
+      sources.push(`${name}（内置归档）`)
     } else {
       specs.push(`${name}@${version}`)
       log(`repair: reinstall 无内置归档，改用 registry ${name}@${version}`)
+      sources.push(`${name}@${version}`)
     }
   }
   log(`repair: reinstall 开始 ${specs.join(' ')}`)
@@ -462,7 +554,7 @@ export async function runDependencyRepair(
     steps.push({ id: 'reinstall', status: 'failed', detail: add.output.slice(-500) })
     return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'reinstall-failed' }
   }
-  steps.push({ id: 'reinstall', status: 'ok', detail: specs.join(' ') })
+  steps.push({ id: 'reinstall', status: 'ok', detail: sources.join('、') })
   log(`repair: 完成，耗时 ${Date.now() - startedAt}ms`)
   return { ok: true, steps, removed, durationMs: Date.now() - startedAt, outcome: 'repaired' }
 }

@@ -22,7 +22,7 @@
 import { useCallback, useState } from 'react'
 import { DshButton, DshIconInfoCircle, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
-import { runDependencyRepair } from '../client/services/dependency-repair-client.ts'
+import { runDependencyRepairStreaming } from '../client/services/dependency-repair-client.ts'
 import type { DependencyRepairResult } from '../contracts/dependency-repair-contract.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -44,14 +44,40 @@ type Phase =
  */
 export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.ReactNode {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
+  // 宿主日志逐行累积，边跑边显示——不要等结束才一次性冒出来。
+  const [logs, setLogs] = useState<readonly string[]>([])
+  // 点击语义化路径后短暂提示「已复制」。
+  const [copied, setCopied] = useState<string | undefined>(undefined)
 
   /** 执行修复。 */
   const repair = useCallback(async () => {
     setPhase({ kind: 'running' })
+    setLogs([])
     try {
-      setPhase({ kind: 'done', result: await runDependencyRepair() })
+      // 流式：每行日志到达就追加，用户能看到进度而不是干等。
+      const result = await runDependencyRepairStreaming(line => {
+        setLogs(previous => [...previous, line])
+      })
+      setPhase({ kind: 'done', result })
     } catch (error) {
       setPhase({ kind: 'error', message: describe(error) })
+    }
+  }, [])
+
+  /**
+   * 复制完整路径。
+   *
+   * 界面显示的是语义化路径（`备份/…`），复制出去的必须是能直接粘进终端的
+   * 绝对路径；两者分工，避免把 `/vol2/@appshare/...` 这种部署路径摊在卡片上。
+   */
+  const copyPath = useCallback(async (fullPath: string) => {
+    try {
+      await navigator.clipboard.writeText(fullPath)
+      setCopied(fullPath)
+      setTimeout(() => { setCopied(undefined) }, 1500)
+    } catch {
+      // 剪贴板不可用（非安全上下文）时退回选中提示，不弹错误打断修复结果。
+      setCopied(undefined)
     }
   }, [])
 
@@ -107,25 +133,38 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
             */
             onClick={() => { void repair() }}
           >
-            {busy ? t('dependencyRepairRunning') : t('dependencyRepairRun')}
+            {/*
+              **文案始终是「修复」，执行中不换字。**
+
+              之前执行中换成「正在修复…」，配上 `loading` 的转圈后，按钮宽度
+              会被「正在修复…」撑开、又被截断成「正在修…」，看起来像坏掉；
+              而转圈本身已经表达了「在做了」。文字保持不变，进度交给下面的日志。
+            */}
+            {t('dependencyRepairRun')}
           </DshButton>
         </div>
       </header>
 
       <div className="dsh-fnos-authorized-card-body">
         {/*
-          **执行期间要有可见的过程说明。**
+          **日志框取代静态说明。**
 
-          修复要清 lockfile、重建 node_modules、再装回插件，移动端可能等十几秒。
-          之前整个过程界面只有按钮上的转圈，用户看到的是「点了没反应、也没有
-          日志」——尤其移动端屏幕小，转圈很容易被忽略。这里补一行文字说明
-          「正在做什么、要不要等」，并用 `aria-live` 让它被读屏播报。
+          之前这里是一行「正在重建依赖，期间应用不可用…」。它只说明「会有事
+          发生」，看不出进度：跑了两分钟也不知道是在装依赖还是卡死了。现在直接
+          显示宿主的实时日志，一行一步，像终端一样往下滚。
         */}
-        {busy ? (
-          <p className="dsh-fnos-repair-progress" role="status" aria-live="polite">
-            {t('dependencyRepairProgress')}
-          </p>
+        {logs.length > 0 || busy ? (
+          <div className="dsh-fnos-repair-log" role="log" aria-live="polite" aria-label={t('dependencyRepairLogTitle')}>
+            {logs.length === 0 ? (
+              <span className="dsh-fnos-repair-log-line dsh-fnos-repair-muted">{t('dependencyRepairLogWaiting')}</span>
+            ) : logs.map((line, index) => (
+              // 日志是只增不改的流，用下标做 key 足够；内容本身可能重复。
+              // eslint-disable-next-line react/no-array-index-key
+              <span key={index} className="dsh-fnos-repair-log-line">{line}</span>
+            ))}
+          </div>
         ) : null}
+
 
         {phase.kind === 'error' ? (
           <p className="dsh-fnos-repair-error" role="alert">{`${t('dependencyRepairFailed')}${phase.message}`}</p>
@@ -166,6 +205,24 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
                       {step.status === 'failed' ? t('dependencyRepairStepFailed') : null}
                       {step.detail === undefined ? '' : ` · ${step.detail}`}
                     </span>
+                    {/*
+                      备份路径：**显示语义化路径，点击复制完整路径。**
+
+                      `/vol2/@appshare/fn-deepseek-harness/备份/pnpm-workspace-….yaml`
+                      这种部署路径摊在卡片上既长又难读；而用户真正要的是「能粘进
+                      文件管理器/终端」的绝对路径。所以显示 `备份/…`，点击才把
+                      完整路径写进剪贴板。
+                    */}
+                    {step.backupDisplayPath === undefined || step.backupPath === undefined ? null : (
+                      <button
+                        type="button"
+                        className="dsh-fnos-repair-backup"
+                        title={t('dependencyRepairBackupCopy')}
+                        onClick={() => { void copyPath(step.backupPath!) }}
+                      >
+                        {copied === step.backupPath ? t('dependencyRepairBackupCopied') : step.backupDisplayPath}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -19,6 +19,7 @@ import {
   diagnoseDependencyRepair,
   resolveRepairEnvironment,
   runDependencyRepair,
+  setRepairLogSink,
 } from './dependency-repair.ts'
 
 function send(res: ServerResponse, status: number, value: unknown): void {
@@ -113,12 +114,42 @@ export function registerDependencyRepairRoutes(ctx: Context): void {
             outcome: 'healthy',
           } satisfies DependencyRepairResult)
         }
-        const result = await runDependencyRepair(environment, diagnosis)
-        console.log(`[dsh-fnos][dependency-repair] 修复结束 ok=${String(result.ok)} 步骤=${result.steps.map(step => `${step.id}:${step.status}`).join(',') || '无'}`)
-        send(res, 200, result)
+        /*
+          **边走边发，不等结束。**
+
+          修复要跑 `pnpm install`，真机上几十秒到几分钟。此前整份结果在结束时
+          一次性返回，界面只能「先干等、最后突然冒出一大段日志」——用户看不出
+          它是在跑还是卡住了。这里改用 SSE：每条日志立刻推给浏览器，前端像看
+          终端一样逐行显示，最后一个 `result` 事件带最终结论。
+        */
+        res.writeHead(200, {
+          'content-type': 'text/event-stream; charset=utf-8',
+          // 关掉各级代理的缓冲，否则日志仍会被攒到最后一起出现。
+          'cache-control': 'no-cache, no-transform',
+          connection: 'keep-alive',
+          'x-accel-buffering': 'no',
+        })
+        const emit = (event: string, data: unknown): void => {
+          res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+        }
+        const release = setRepairLogSink(line => { emit('log', { line }) })
+        try {
+          const result = await runDependencyRepair(environment, diagnosis)
+          console.log(`[dsh-fnos][dependency-repair] 修复结束 ok=${String(result.ok)} 步骤=${result.steps.map(step => `${step.id}:${step.status}`).join(',') || '无'}`)
+          emit('result', result)
+        } finally {
+          release()
+          res.end()
+        }
       } catch (error) {
         console.warn('[dsh-fnos][dependency-repair] 修复失败', error)
-        send(res, 500, { error: 'fnos-dependency-repair-failed', message: describe(error) })
+        // 响应头已经发出去时不能再写 JSON，改为推一个 error 事件让前端显示。
+        if (res.headersSent) {
+          res.write(`event: error\ndata: ${JSON.stringify({ message: describe(error) })}\n\n`)
+          res.end()
+        } else {
+          send(res, 500, { error: 'fnos-dependency-repair-failed', message: describe(error) })
+        }
       }
     },
   }), 'dsh-fnos: dependency repair run')

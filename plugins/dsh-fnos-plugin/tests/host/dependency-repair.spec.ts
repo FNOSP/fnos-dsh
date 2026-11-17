@@ -65,6 +65,8 @@ describe('环境推导', () => {
     })
     expect(environment).toEqual({
       profileDirectory: '/vol4/@apphome/fn-deepseek-harness/profiles/web',
+      // 备份写到共享目录：与 `@apphome/<app>` 同级的 `@appshare/<app>`。
+      shareDirectory: '/vol4/@appshare/fn-deepseek-harness',
       manifestPath: '/vol4/@appcenter/fn-deepseek-harness/published-dsh-plugins.json',
       // 内置归档目录用于重装步骤走 file: 规格（不是 registry）。
       bundledDirectory: '/vol4/@appcenter/fn-deepseek-harness/bundled-dsh-plugins',
@@ -80,7 +82,10 @@ describe('环境推导', () => {
 
   it('缺少可选变量时不编造路径', () => {
     const environment = resolveRepairEnvironment({ DSH_HOME: '/h' })
-    expect(environment).toEqual({ profileDirectory: '/h/profiles/web' })
+    expect(environment).toEqual({
+      profileDirectory: '/h/profiles/web',
+      shareDirectory: '/@appshare/h',
+    })
   })
 })
 
@@ -275,6 +280,37 @@ describe('依赖修复日志', () => {
     expect(unavailableCode).not.toContain('503')
   })
 
+  it('修复走 SSE 流式推送：日志边走边发，结论单独一个事件', () => {
+    /*
+      整份结果在结束时一次性返回，界面只能「先干等、最后突然冒出一堆日志」。
+      改成 SSE 后每条日志立刻推给浏览器，最后一个 `result` 事件带结论。
+    */
+    expect(ROUTES).toContain("'content-type': 'text/event-stream; charset=utf-8'")
+    expect(ROUTES).toContain("emit('log'")
+    expect(ROUTES).toContain("emit('result'")
+    // 关掉代理缓冲，否则日志仍会被攒到最后一起出现。
+    expect(ROUTES).toContain("'x-accel-buffering': 'no'")
+    // 结束后必须释放观察者，下一次修复才不会把日志发到已关闭的响应上。
+    expect(ROUTES).toContain('release()')
+  })
+
+  it('备份写在应用共享目录，不是 profile 旁边', () => {
+    /*
+      profile 是 pnpm 的工作目录，往里丢 `.bak` 会被 `pnpm install` 当成工作区
+      文件扫到；`@appshare/<app>` 是 fnOS 给应用的共享目录，用户可见、卸载不丢。
+    */
+    expect(HOST).toContain("join(share, '备份')")
+    expect(HOST).toContain('shareDirectory')
+    // 备份失败不阻断修复，但要在日志里留痕。
+    expect(HOST).toContain('备份失败（继续修复）')
+  })
+
+  it('重装步骤给语义化来源，不暴露部署路径', () => {
+    // `file:/vol2/@appcenter/...` 这种路径对用户没有意义，卡片上只显示「内置归档」。
+    expect(HOST).toContain('（内置归档）')
+    expect(HOST).toContain('detail: sources.join')
+  })
+
   it('执行过重建才报 repaired，失败报 failed', () => {
     expect(HOST).toContain("outcome: 'repaired'")
     expect(HOST).toContain("outcome: 'failed'")
@@ -405,6 +441,7 @@ describe('真实失效现场（16 条，含历史 || 累积）', () => {
  * 前两步（清条目、重建依赖）已经完全成功。应用内自愈不该依赖一个可能不存在的
  * registry 版本：能内置的插件就走 `file:` 归档，与 FPK 安装路径一致。
  */
+
 describe('重装插件：内置归档优先', () => {
   const source = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
   const HOST = source('../../src/host/dependency-repair.ts')

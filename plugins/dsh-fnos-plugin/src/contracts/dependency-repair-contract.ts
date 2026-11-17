@@ -53,6 +53,15 @@ export interface DependencyRepairStep {
   readonly status: 'ok' | 'skipped' | 'failed'
   /** 失败原因或跳过说明（可读）。 */
   readonly detail?: string
+  /**
+   * 修复前的配置备份完整路径（仅 `clear-exclusions` 步骤可能携带）。
+   *
+   * 只在**点击**时用：界面显示的是 `backupDisplayPath` 这个语义化相对路径，
+   * 点一下把它复制到剪贴板才需要完整路径。
+   */
+  readonly backupPath?: string
+  /** 备份文件的语义化路径，相对应用共享目录（如 `备份/pnpm-workspace-….yaml`）。 */
+  readonly backupDisplayPath?: string
 }
 
 /** 修复结果。 */
