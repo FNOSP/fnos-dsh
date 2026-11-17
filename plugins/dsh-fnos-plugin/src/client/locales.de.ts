@@ -156,6 +156,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   dependencyRepairTip: 'Baut die Abhängigkeiten des Web-Profils neu auf (npm-Cache und Lockfile) und installiert die von dieser App verwalteten Plugins neu. Dauert einige Minuten, in denen die App nicht verfügbar ist. Zugangsdaten, Sitzungen, Arbeitsbereiche und Einstellungen bleiben unberührt.',
   dependencyRepairDescription: 'Behebt den Profilzustand, der die Plugin-Installation in der App blockiert (veraltete Ausnahmen der Veröffentlichungsfrist, inkonsistenter Abhängigkeitsbaum).',
   dependencyRepairRun: 'Reparieren',
+  dependencyRepairProgress: 'Abhängigkeiten werden neu aufgebaut – die App ist bis zum Abschluss nicht verfügbar. Bitte diese Seite geöffnet lassen.',
   dependencyRepairRunning: 'Wird repariert…',
   dependencyRepairHealthy: 'Der Abhängigkeitszustand ist in Ordnung. Nichts zu reparieren.',
   dependencyRepairUnavailable: 'Diese Umgebung kann keine Abhängigkeiten reparieren: Die fnOS-Anwendungsverzeichnisse sind nicht verfügbar.',

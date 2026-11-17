@@ -164,6 +164,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   dependencyRepairTip: 'Web 프로필 의존성(npm 캐시 및 잠금 파일)을 다시 만들고 이 앱이 관리하는 플러그인을 재설치합니다. 몇 분 걸리며 그동안 앱을 사용할 수 없습니다. 자격 증명, 세션, 워크스페이스, 설정은 변경되지 않습니다.',
   dependencyRepairDescription: '앱 안에서 플러그인 설치를 막는 프로필 상태(게시 연령 예외 만료, 의존성 트리 불일치)를 복구합니다.',
   dependencyRepairRun: '복구',
+  dependencyRepairProgress: '의존성을 다시 빌드하는 중입니다. 완료될 때까지 앱을 사용할 수 없습니다. 이 페이지를 열어 두세요.',
   dependencyRepairRunning: '복구 중…',
   dependencyRepairHealthy: '의존성 상태가 정상입니다. 복구할 항목이 없습니다.',
   dependencyRepairUnavailable: '이 환경에서는 의존성을 복구할 수 없습니다. fnOS 애플리케이션 디렉터리를 찾지 못했습니다.',

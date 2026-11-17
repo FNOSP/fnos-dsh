@@ -84,7 +84,18 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
             htmlType="button"
             theme="solid"
             type="primary"
-            disabled={busy}
+            /*
+              **只给 `loading`，不给 `disabled`。**
+
+              两者同时给时，`disabled` 会先把按钮压成灰底不可点态，`loading` 的
+              转圈反而被压掉——移动端用户看到的是「按钮坏了」，而不是「正在执行」。
+              Semi 的 `loading` 本身就拦住了重复点击（`onClick` 不会再触发），
+              不需要 `disabled` 再兜一层。
+
+              执行中还需要让用户知道进度：修复要清 lockfile、重建 node_modules，
+              在移动端可能等十几秒。只转圈不说话等于「没日志」，所以下面另外渲染
+              一行进行中的说明。
+            */
             loading={busy}
             /*
               **直接执行，不再二次确认。**
@@ -92,9 +103,7 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
               确认弹框里的三行说明已经移到卡片自身的 tip 与描述里——用户点按钮前
               就能读到「会重建什么、不会动什么」。既然信息在场上，再弹一次只是
               多一次点击；而这一步本身可重入、不含不可撤销的数据删除（只清可重建
-              产物），不值得拦一道。
-
-              按钮在 `busy` 时显示 loading，视觉上就是「已经在做了」。
+              产物）。
             */
             onClick={() => { void repair() }}
           >
@@ -104,6 +113,20 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
       </header>
 
       <div className="dsh-fnos-authorized-card-body">
+        {/*
+          **执行期间要有可见的过程说明。**
+
+          修复要清 lockfile、重建 node_modules、再装回插件，移动端可能等十几秒。
+          之前整个过程界面只有按钮上的转圈，用户看到的是「点了没反应、也没有
+          日志」——尤其移动端屏幕小，转圈很容易被忽略。这里补一行文字说明
+          「正在做什么、要不要等」，并用 `aria-live` 让它被读屏播报。
+        */}
+        {busy ? (
+          <p className="dsh-fnos-repair-progress" role="status" aria-live="polite">
+            {t('dependencyRepairProgress')}
+          </p>
+        ) : null}
+
         {phase.kind === 'error' ? (
           <p className="dsh-fnos-repair-error" role="alert">{`${t('dependencyRepairFailed')}${phase.message}`}</p>
         ) : null}

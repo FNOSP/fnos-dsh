@@ -164,6 +164,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   dependencyRepairTip: 'Web プロファイルの依存関係（npm キャッシュとロックファイル）を再構築し、このアプリが管理するプラグインを再インストールします。数分かかり、その間アプリは使用できません。認証情報、セッション、ワークスペース、設定は変更されません。',
   dependencyRepairDescription: 'アプリ内でのプラグイン導入を妨げるプロファイル状態（公開年齢の除外設定の失効、依存ツリーの不整合）を修復します。',
   dependencyRepairRun: '修復',
+  dependencyRepairProgress: '依存関係を再構築しています。完了までアプリは使用できません。このページは開いたままにしてください。',
   dependencyRepairRunning: '修復しています…',
   dependencyRepairHealthy: '依存関係の状態は正常です。修復は不要です。',
   dependencyRepairUnavailable: 'この環境では依存関係を修復できません。fnOS アプリケーションのディレクトリが見つかりません。',

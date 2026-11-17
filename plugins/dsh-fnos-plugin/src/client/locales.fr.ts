@@ -156,6 +156,7 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   dependencyRepairTip: 'Reconstruit les dépendances du profil Web (cache npm et lockfile) et réinstalle les plugins gérés par cette application. Cela prend quelques minutes, pendant lesquelles l’application est indisponible. Les identifiants, sessions, espaces de travail et réglages ne sont pas modifiés.',
   dependencyRepairDescription: "Corrige l'état du profil qui empêche l'installation de plugins dans l'application (exemptions d'ancienneté obsolètes, arbre de dépendances incohérent).",
   dependencyRepairRun: 'Réparer',
+  dependencyRepairProgress: 'Reconstruction des dépendances — l’application sera indisponible jusqu’à la fin. Gardez cette page ouverte.',
   dependencyRepairRunning: 'Réparation…',
   dependencyRepairHealthy: "L'état des dépendances est sain. Rien à réparer.",
   dependencyRepairUnavailable: "Cet environnement ne peut pas réparer les dépendances : les répertoires de l'application fnOS sont indisponibles.",

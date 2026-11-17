@@ -321,6 +321,23 @@ img.dsh-fnos-file-manager-icon {
   line-height: 1.5;
 }
 
+/*
+ * 「修复插件安装异常」执行中的过程说明。
+ *
+ * 修复要清 lockfile、重建 node_modules、再装回插件，移动端可能等十几秒。只靠
+ * 按钮上的转圈，用户看到的是「点了没反应、也没有日志」——尤其手机上屏幕小，
+ * 转圈很容易被忽略。这行文字补上「正在做什么」。
+ *
+ * 用 `label-secondary` 而不是 `tertiary`：它是进行中的状态信息，需要被读到，
+ * 不能比旁边的说明文字还淡。
+ */
+.dsh-fnos-repair-progress {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .dsh-fnos-authorized-card-body {
   display: flex;
   flex-direction: column;

@@ -213,8 +213,15 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
                   size="small"
                   theme="light"
                   type="primary"
+                  /*
+                    **切换中只给 `loading`，不给 `disabled`。**
+
+                    `disabled` 会先把按钮压成灰色不可点态，把 `loading` 的转圈
+                    一起压掉——用户看到的是「按钮坏了」。而"别的源正在切换"这一
+                    情况并不需要禁掉本行：`loading` 已经拦住重复点击，其余行保持
+                    正常外观即可（真被点到也会被 `busy` 判据忽略）。
+                  */
                   loading={busy === mirror.name}
-                  disabled={busy !== undefined}
                   onClick={() => { void switchTo(mirror.name) }}
                 >
                   {t('mirrorUse')}

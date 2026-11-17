@@ -382,6 +382,22 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
     expect(REPAIR_CARD).toContain('loading={busy}')
     expect(REPAIR_CARD).toContain("dependencyRepairRunning")
   })
+  it('执行中只给 loading，不给 disabled', () => {
+    /*
+      真机反馈：「点了没反应、也没有日志」。根因是按钮同时写了
+      `disabled={busy}` 和 `loading={busy}`——`disabled` 先把按钮压成灰底
+      不可点态，`loading` 的转圈随之被压掉，用户看到的是「按钮坏了」。
+
+      `loading` 本身就拦住重复点击，不需要 `disabled` 再兜一层。
+    */
+    expect(REPAIR_CARD).toContain('loading={busy}')
+    expect(REPAIR_CARD).not.toContain('disabled={busy}')
+
+    // 长耗时动作还要有文字进度：只靠转圈在手机上容易被忽略。
+    expect(REPAIR_CARD).toContain('dependencyRepairProgress')
+    expect(REPAIR_CARD).toMatch(/role="status"[^>]*aria-live="polite"|aria-live="polite"[^>]*role="status"/u)
+  })
+
   it('中文文案里「检查」两键已随按钮一起移除', () => {
     const start = LOCALES.indexOf('export const zh')
     const zhBlock = LOCALES.slice(start)

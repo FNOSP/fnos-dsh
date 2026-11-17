@@ -107,6 +107,47 @@ backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%));
 新增任何 `theme` 变体的按钮时，先把它在亮/暗两套主题下各禁用一个看一眼——这是
 共享包没覆盖到的地方。
 
+## 执行中只用 `loading`，不与 `disabled` 同时使用
+
+**只要按钮支持 `loading`，就不要再叠 `disabled`。两者同时给，`loading` 会被压掉。**
+
+Semi（以及多数组件库）的 `disabled` 会先把按钮压成灰底不可点态，`loading` 的
+转圈随之失去辨识度。真机反馈的原话是「点了没反应」——用户看到的不是「正在执行」，
+而是「这个按钮坏了」。
+
+两条规则：
+
+- **执行中：只给 `loading`。** `loading` 本身已经拦住重复点击（`onClick` 不再
+  触发），不需要 `disabled` 再兜一层；
+- **只有「本来就不该点」才给 `disabled`**：条件不满足（如必填为空、能力不可用），
+  与「正在执行」是两回事，不要混用同一个 `busy`。
+
+```tsx
+// ✅ 执行中：只 loading
+<DshButton loading={busy} onClick={run}>{busy ? t('running') : t('run')}</DshButton>
+
+// ❌ disabled 会把 loading 的转圈压成灰块
+<DshButton disabled={busy} loading={busy} onClick={run}>…</DshButton>
+
+// ✅ 「不该点」用 disabled，「正在做」用 loading，各管各的
+<DshButton disabled={!valid} loading={saving} onClick={save}>…</DshButton>
+```
+
+**长耗时操作还要给文字进度。** 只靠按钮转圈，在手机上很容易被忽略（转圈区域小、
+屏幕被手指挡住）。凡是可能等十几秒以上的动作（重建依赖、安装插件、重启服务），
+必须在按钮附近渲染一行进行中说明，并带 `role="status"` 或 `aria-live="polite"`
+让读屏也能播报：
+
+```tsx
+{busy ? <p className="dsh-fnos-repair-progress" role="status" aria-live="polite">{t('progress')}</p> : null}
+```
+
+文案要回答两件事：**正在做什么**、**要不要等**（例如「期间应用不可用，请保持页面
+打开」）。
+
+**原生 `<button>` 没有 `loading` 属性。** 这种按钮（图标按钮、就地确认气泡里的
+按钮）保留 `disabled`，但同样要在附近给出状态反馈——不要把 `disabled` 当作进度提示。
+
 ## 空状态：一律用缺省组件，禁止纯文案
 
 **任何「这里没有数据」的位置都必须用缺省组件（`DshEmpty` + 插画），不能用一行
