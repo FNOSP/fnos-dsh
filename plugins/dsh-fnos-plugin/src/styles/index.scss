@@ -922,11 +922,17 @@ img.dsh-fnos-file-manager-icon {
   box-shadow: var(--dsw-elevation-prominent);
 }
 
-/* 菜单内分组用的细线：把「对条目本身的操作」与「新建/删除」分开。 */
+/*
+ * 菜单内分组用的细线：把「对条目本身的操作」与「新建/复制/删除」分开。
+ *
+ * 粗细与颜色跟上方模块（`.dsh-fnos-config-panel > *` 的分隔线）保持一致：
+ * 都是 `0.5px` + `border-l2`。早前这里是 `height: 1px` + `border-l1`，在
+ * 菜单这种小尺寸浮层里比正文区的线更粗更亮，两处放在不同位置看像两个体系。
+ */
 .dsh-fnos-path-context-separator {
-  height: 1px;
+  height: 0;
   margin: 4px 2px;
-  background: var(--dsw-alias-border-l1);
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
 }
 
 .dsh-fnos-path-context-item {

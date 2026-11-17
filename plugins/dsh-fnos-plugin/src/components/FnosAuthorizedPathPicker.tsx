@@ -1154,7 +1154,19 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
               {t('renameEntry')}
             </button>
           ) : null}
-          <div className="dsh-fnos-path-context-separator" aria-hidden="true" />
+          {/*
+            **分割线只在上面真的有分组时出现。**
+
+            它原本是无条件渲染的：只读项（应用共享目录）上既没有「重命名」也
+            没有「删除」，线上方一个可点的项都没有——那根线既没有把什么分隔开，
+            又靠自身的 `margin: 4px` 撑出一段多余高度。截图里菜单顶部那块空白
+            就是它。
+
+            跟随「重命名」一起出现后，菜单的上下留白与上方模块一致。
+          */}
+          {contextMenu.removable ? (
+            <div className="dsh-fnos-path-context-separator" aria-hidden="true" />
+          ) : null}
           {contextMenu.kind !== 'directory' ? null : (
             <>
               <button

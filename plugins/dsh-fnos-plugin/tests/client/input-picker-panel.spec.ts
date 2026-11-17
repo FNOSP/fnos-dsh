@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots'
 import { createPickerOpenStore } from '../../src/client/input-references/picker-store.ts'
 import { displayName, selectedPaths, toTreeNode, updateChildren } from '../../src/client/input-references/picker-tree.ts'
@@ -165,5 +166,38 @@ describe('FNOS-034-01-AC-01 槽位注册', () => {
     core.register(BUTTON_SEAT as never, Comp)
     expect(core.entries('conversation.input.left').map(entry => (entry.options as { id: string }).id))
       .toEqual(['dsh-fnos-input-picker'])
+  })
+})
+
+/**
+ * 右键菜单的分隔线与留白。
+ *
+ * 实机截图：只读项（应用共享目录）上既没有「重命名」也没有「删除」，菜单顶上
+ * 却出现一根线 + 一段多余空白。根因是分隔线**无条件渲染**——它上方一个可点的
+ * 项都没有，既没分隔开什么，又靠自身 margin 把菜单顶开了。
+ */
+describe('右键菜单分隔线', () => {
+  const SRC = readFileSync(new URL('../../src/components/FnosAuthorizedPathPicker.tsx', import.meta.url), 'utf8')
+  const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+
+  it('只在上面真的有分组时出现', () => {
+    // 分隔线必须包在 `contextMenu.removable` 判断里，不能裸渲染。
+    const i = SRC.indexOf('className="dsh-fnos-path-context-separator"')
+    expect(i).toBeGreaterThan(-1)
+    // 往前找最近的 JSX 条件：应当是 removable 判定。
+    const before = SRC.slice(Math.max(0, i - 400), i)
+    expect(before).toContain('contextMenu.removable ?')
+  })
+
+  it('粗细与颜色跟上方模块的分隔线一致', () => {
+    /*
+      上方模块用 `border-bottom: 0.5px solid var(--dsw-alias-border-l2)`。
+      菜单里早先是 `height: 1px` + `border-l1`，在小尺寸浮层里更粗更亮，
+      两处看起来像两个体系。
+    */
+    const start = SCSS.indexOf('.dsh-fnos-path-context-separator {')
+    expect(start).toBeGreaterThan(-1)
+    const rule = SCSS.slice(start, SCSS.indexOf('}', start))
+    expect(rule).toContain('0.5px solid var(--dsw-alias-border-l2)')
   })
 })
