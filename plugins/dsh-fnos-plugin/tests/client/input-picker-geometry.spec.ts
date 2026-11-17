@@ -360,6 +360,32 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
     expect(mobile).toContain('flex-wrap: nowrap')
   })
 
+  it('新建/重命名弹框的输入框在窄屏不触发 iOS 自动放大', () => {
+    /*
+      **这条是触屏上最刺眼的一处。** Semi 的 `.semi-input` 算下来是 13.33px
+      （继承 0.8333rem），桌面正好；但 **iOS Safari 在输入框字号小于 16px 时
+      会触发自动放大**——点进输入框整页弹大，键盘收起后仍停在放大态，用户得手动
+      捏回来。
+
+      16 同时满足字号规范的偶数要求（13 → 16 取较高的偶数，不往下降）。
+
+      按钮一并提到 44px：桌面 36px 在手指下偏小，44 是触屏可点击标准。
+      实测 393px 视口：输入框 40px 高 / 16px 字，按钮 44px，弹框 369px 不溢出。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const mobile = SCSS.slice(SCSS.lastIndexOf('@media (max-width: 767px)'))
+    const dialog = mobile.slice(mobile.indexOf('.dsh-fnos-create-dialog {'))
+
+    // 输入框字号必须 ≥16，且是偶数
+    const inputRule = /\.dsh-fnos-create-form \.semi-input-wrapper \{([\s\S]*?)\n {4}\}/u.exec(dialog)?.[1] ?? ''
+    expect(inputRule).toMatch(/height: 40px/u)
+    expect(inputRule).toMatch(/font-size: 16px/u)
+    expect(inputRule).not.toMatch(/font-size: 1[35]px/u)
+
+    // 按钮触屏热区
+    expect(dialog).toMatch(/min-height: 44px/u)
+  })
+
   it('其余弹框也收进视口，内层跟着收窄', () => {
     /*
       这一条守的是「弹框一个个漏掉」这个问题本身。
