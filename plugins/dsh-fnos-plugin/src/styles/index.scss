@@ -352,39 +352,6 @@ img.dsh-fnos-file-manager-icon {
 }
 
 /*
- * 修复日志框。
- *
- * 取代原先那行静态说明「正在重建依赖…」：那行字只说明「会有事发生」，看不出
- * 进度。这里显示宿主实时日志，一行一步。
- *
- * 用等宽字体：日志里有命令、退出码、路径，等宽才好扫。`pre-wrap` 保证长行按
- * 容器换行而不是被裁掉（pnpm 的输出经常很长）。固定最大高度并自己滚动，避免
- * 几百行日志把整张卡片顶出屏幕。
- */
-.dsh-fnos-repair-log {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  box-sizing: border-box;
-  max-height: 220px;
-  margin: 0;
-  padding: 8px 10px;
-  overflow-y: auto;
-  border-radius: 6px;
-  background: var(--dsw-alias-bg-layer-3);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  line-height: 1.6;
-  /* 日志可能带很长的路径，容器不能被撑宽。 */
-  overflow-wrap: anywhere;
-}
-
-.dsh-fnos-repair-log-line {
-  white-space: pre-wrap;
-  color: var(--dsw-alias-label-secondary);
-}
-
-/*
  * 备份路径按钮。
  *
  * 显示的是语义化路径（`备份/…`），点击复制完整路径。做成按钮而不是纯文本：

@@ -431,8 +431,13 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
     */
     expect(REPAIR_CARD).not.toContain('dependencyRepairProgress')
     expect(REPAIR_CARD).toContain('runDependencyRepairStreaming')
-    expect(REPAIR_CARD).toContain('dsh-fnos-repair-log')
+    // 复用「npm 镜像管理」的日志框三段结构：同一个面板里两个跑命令的地方长得一样。
+    expect(REPAIR_CARD).toContain('dsh-fnos-mirror-logbox')
+    expect(REPAIR_CARD).toContain('dsh-fnos-mirror-logbar')
+    expect(REPAIR_CARD).toContain('dsh-fnos-mirror-log')
     expect(REPAIR_CARD).toMatch(/role="log"[^>]*aria-live="polite"/u)
+    // 复制按钮不能省：报错要能拿去搜或贴进 issue。
+    expect(REPAIR_CARD).toContain('copyLog')
   })
 
   it('中文文案里「检查」两键已随按钮一起移除', () => {

@@ -48,6 +48,8 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
   const [logs, setLogs] = useState<readonly string[]>([])
   // 点击语义化路径后短暂提示「已复制」。
   const [copied, setCopied] = useState<string | undefined>(undefined)
+  // 复制整份日志后的短暂提示，与镜像卡同款交互。
+  const [logCopied, setLogCopied] = useState(false)
 
   /** 执行修复。 */
   const repair = useCallback(async () => {
@@ -63,6 +65,16 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
       setPhase({ kind: 'error', message: describe(error) })
     }
   }, [])
+
+  /** 复制整份日志：报错要能拿去搜或贴进 issue。 */
+  const copyLog = useCallback(() => {
+    void Promise.resolve(navigator.clipboard?.writeText(logs.join('\n')))
+      .then(() => {
+        setLogCopied(true)
+        setTimeout(() => { setLogCopied(false) }, 1500)
+      })
+      .catch(() => { setLogCopied(false) })
+  }, [logs])
 
   /**
    * 复制完整路径。
@@ -147,23 +159,27 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
 
       <div className="dsh-fnos-authorized-card-body">
         {/*
-          **日志框取代静态说明。**
+          **日志框取代静态说明，外观与「npm 镜像管理」保持一致。**
 
           之前这里是一行「正在重建依赖，期间应用不可用…」。它只说明「会有事
           发生」，看不出进度：跑了两分钟也不知道是在装依赖还是卡死了。现在直接
-          显示宿主的实时日志，一行一步，像终端一样往下滚。
+          显示宿主实时推来的日志，像终端一样往下滚。
+
+          复用镜像卡的 `logbox / logbar / log` 三段结构（标题栏 + 复制按钮 +
+          等宽 `<pre>`）：同一个设置面板里两个「跑命令」的地方长得一样，用户不用
+          学两套。复制按钮不能省——日志要拿去搜或贴进 issue。
         */}
-        {logs.length > 0 || busy ? (
-          <div className="dsh-fnos-repair-log" role="log" aria-live="polite" aria-label={t('dependencyRepairLogTitle')}>
-            {logs.length === 0 ? (
-              <span className="dsh-fnos-repair-log-line dsh-fnos-repair-muted">{t('dependencyRepairLogWaiting')}</span>
-            ) : logs.map((line, index) => (
-              // 日志是只增不改的流，用下标做 key 足够；内容本身可能重复。
-              // eslint-disable-next-line react/no-array-index-key
-              <span key={index} className="dsh-fnos-repair-log-line">{line}</span>
-            ))}
+        {logs.length === 0 || (!busy && phase.kind === 'idle') ? null : (
+          <div className="dsh-fnos-mirror-logbox">
+            <div className="dsh-fnos-mirror-logbar">
+              <span>{t('dependencyRepairLogTitle')}</span>
+              <DshButton htmlType="button" size="small" theme="borderless" type="tertiary" onClick={copyLog}>
+                {logCopied ? t('copied') : t('copy')}
+              </DshButton>
+            </div>
+            <pre className="dsh-fnos-mirror-log" role="log" aria-live="polite">{logs.join('\n')}</pre>
           </div>
-        ) : null}
+        )}
 
 
         {phase.kind === 'error' ? (
