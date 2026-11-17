@@ -199,7 +199,7 @@ Running dsh plugin --profile web add @tnnevol/dsh-codex-auth@<版本>
 [ERROR] Unable to install @tnnevol/dsh-codex-auth@<版本> with the dsh CLI
 ```
 
-用户侧的后果比发布失败更糟：DSH 本体与 trim-cli 已经装好，插件缺失，应用解不开——而他装的是
+用户侧的后果比发布失败更糟：DSH 本体已经装好，插件缺失，应用解不开——而他装的是
 一个「官方发布的稳定版」。换镜像、清缓存都无效，因为该版本在任何源上都不存在。
 
 ### 校验命令（发布前必跑）

@@ -95,14 +95,11 @@ Codex Auth 与 Failover Search 自 8.1.136 起不再随 FPK 内置：早前内�
 
 插件功能与兼容版本的细节维护在[插件总览](/plugins/)中，本页不重复记录插件内部实现。
 
-## 全局 trim-cli 与内置 Skill
+## 内置 Skill
 
-安装回调会通过配置的 npm 源全局安装 `@trimjs/trim-cli@latest`，提供 `trim` 命令。它不属于 DSH 插件，也不会进入 DSH profile。
+应用内置的 Agent Skill 是 **`fnos-cli`**（来自 [`fnnas-labs/fnos-cli-skill`](https://github.com/fnnas-labs/fnos-cli-skill)，随包放在 `${APP_DEST}/skills/fnos-cli`），安装或升级时复制到 `${HOME}/.agents/skills/fnos-cli`，供应用用户和 Agent 使用。
 
-应用内置的 Agent Skill 是 **`fnos-cli`**（来自 [`fnnas-labs/fnos-cli-skill`](https://github.com/fnnas-labs/fnos-cli-skill)，随包放在 `${APP_DEST}/skills/fnos-cli`），安装或升级时复制到 `${HOME}/.agents/skills/fnos-cli`，供应用用户和 Agent 使用。规则有两条：
-
-- **用户自己装过就跳过**：`${HOME}/.agents/skills/fnos-cli` 已存在时整目录跳过，不覆盖、不合并，避免抹掉用户自己升级或改过的版本；
-- **不删除旧产物**：早期版本内置的 `${HOME}/.agents/skills/trim-cli` 保持原样，不再刷新也不删除，已经在用它的 Agent 不受影响。
+**用户自己装过就跳过**：`${HOME}/.agents/skills/fnos-cli` 已存在时整目录跳过，不覆盖、不合并，避免抹掉用户自己升级或改过的版本。
 
 该 Skill 自带启动器 `scripts/fnos-cli`，首次执行时自行下载并校验对应版本的 CLI，不依赖全局 npm 安装，也不需要 Node。
 
