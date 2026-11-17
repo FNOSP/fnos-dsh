@@ -243,6 +243,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyTabToolbox: '도구 모음',
   gatewayProxyTabInstalled: '설치됨',
   installedPluginsBundled: "내장",
+  installedPluginsNotInstalled: "설치되지 않음",
   installedBundledWarning: "이 플러그인은 fnOS 앱과 DSH 사이의 다리입니다. 제거해도 앱은 시작되지만 인가 디렉터리, 파일 열기, 게이트웨이 프록시, 프로세스 관리가 동작하지 않습니다.",
   indexToggleDisabled: "인덱스를 비활성화했습니다.",
   indexToggleNeedRestart: "인덱스를 활성화했습니다. Web 재시작 후 반영됩니다.",

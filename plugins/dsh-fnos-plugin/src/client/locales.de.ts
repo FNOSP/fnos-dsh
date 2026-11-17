@@ -235,6 +235,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyTabToolbox: 'Werkzeuge',
   gatewayProxyTabInstalled: 'Installiert',
   installedPluginsBundled: "Mitgeliefert",
+  installedPluginsNotInstalled: "Nicht installiert",
   installedBundledWarning: "Dieses Plugin ist die Bruecke zwischen der fnOS-App und DSH: Nach dem Deinstallieren startet die App zwar noch, aber Verzeichnisfreigaben, Dateioeffnen, Gateway-Proxy und Prozessverwaltung funktionieren nicht mehr.",
   indexToggleDisabled: "Index deaktiviert.",
   indexToggleNeedRestart: "Index aktiviert. Wirksam nach Web-Neustart.",

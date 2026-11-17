@@ -243,6 +243,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyTabToolbox: 'ツールボックス',
   gatewayProxyTabInstalled: 'インストール済み',
   installedPluginsBundled: "同梱",
+  installedPluginsNotInstalled: "未インストール",
   installedBundledWarning: "このプラグインは fnOS アプリと DSH の橋渡しです。アンインストールしてもアプリは起動しますが、認可ディレクトリ・ファイルを開く・ゲートウェイ代理・プロセス管理が機能しなくなります。",
   indexToggleDisabled: "インデックスを無効にしました。",
   indexToggleNeedRestart: "インデックスを有効にしました。Web の再起動後に反映されます。",

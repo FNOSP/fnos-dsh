@@ -234,6 +234,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyTabToolbox: 'Инструменты',
   gatewayProxyTabInstalled: 'Установленные',
   installedPluginsBundled: "Встроенный",
+  installedPluginsNotInstalled: "Не установлен",
   installedBundledWarning: "Этот плагин — мост между приложением fnOS и DSH: после удаления приложение запустится, но авторизованные каталоги, открытие файлов, прокси и управление процессами перестанут работать.",
   indexToggleDisabled: "Индекс отключён.",
   indexToggleNeedRestart: "Индекс включён. Применится после перезапуска Web.",

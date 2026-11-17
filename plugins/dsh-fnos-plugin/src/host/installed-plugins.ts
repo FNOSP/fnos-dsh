@@ -21,6 +21,48 @@ import type { InstalledPlugin, InstalledPluginsSnapshot } from '../contracts/gat
 import { checkAllPluginUpdates } from './plugin-updates.ts'
 import { readPackageEntries } from './plugin-toggle.ts'
 
+/**
+ * **常驻名单一：不可卸载的内置插件。**
+ *
+ * `@tnnevol/dsh-fnos` 是 fnOS 能力与 DSH 之间的桥。它一旦被卸载，授权目录、
+ * 文件打开、网关反代、进程管理全部失效——而「装回来」这个动作正是它自己提供的，
+ * 用户没有别的入口（只能重装整个应用）。
+ *
+ * 所以这一项**永远出现、排在最前、且不给卸载入口**；未安装时只给「安装」。
+ * 注意它与 `bundled` 不是一个概念：`bundled` 指「随 FPK 打包」，这里是「业务上
+ * 不许卸载」，两者恰好重叠在本插件上，但判据独立。
+ */
+const BUILTIN_UNINSTALLABLE: readonly string[] = ['@tnnevol/dsh-fnos']
+
+/**
+ * **常驻名单二：推荐插件。**
+ *
+ * `dshmarket` 是插件市场的入口，用户可能自己卸掉它，那是合理选择——所以它**可以
+ * 卸载**。但卸载后卡片不能跟着消失，否则用户找不到再装回来的地方。
+ *
+ * 与名单一的区别只有一点：这里**保留卸载入口**，未安装时给「安装」。
+ */
+const RECOMMENDED_PLUGINS: readonly string[] = ['dshmarket']
+
+/**
+ * 全部常驻项（两份名单合并）。
+ *
+ * 常驻 = 卡片不随卸载消失、并排在最前。其余插件保持原规则：卸了就从列表里消失。
+ */
+const PINNED_PLUGIN_NAMES: readonly string[] = [...BUILTIN_UNINSTALLABLE, ...RECOMMENDED_PLUGINS]
+
+/** 常驻插件的兜底展示信息（未安装、读不到 manifest 时用） */
+const PINNED_PLUGIN_FALLBACK: Readonly<Record<string, { title: string, description: string }>> = {
+  '@tnnevol/dsh-fnos': {
+    title: 'fnOS',
+    description: '在飞牛 fnOS 中提供主题跟随、授权目录管理、NAS 文件访问与会话日志导出。',
+  },
+  dshmarket: {
+    title: 'dshmarket',
+    description: 'DSH 插件市场：浏览并安装社区插件。',
+  },
+}
+
 /** profile `package.json` 里关心的字段。 */
 interface ProfileManifest {
   dependencies?: Record<string, string>
@@ -209,10 +251,21 @@ export async function readInstalledPlugins(
     return { available: false, reason: 'profile-package-json-unreadable', plugins: [] }
   }
 
-  const names = [...new Set([
+  const installedNames = [...new Set([
     ...Object.keys(manifest.dependencies ?? {}),
     ...Object.keys(manifest.devDependencies ?? {}),
-  ])].sort()
+  ])]
+
+  /*
+    **常驻插件即使没装也要进列表。**
+
+    它们被强制卸载后如果卡片跟着消失，用户就再也找不到「装回来」的入口。
+    这里的合并顺序保证常驻项排在最前，界面不必再排序。
+  */
+  const names = [
+    ...PINNED_PLUGIN_NAMES.filter(name => installedNames.includes(name)),
+    ...installedNames.filter(name => !(PINNED_PLUGIN_NAMES as readonly string[]).includes(name)).sort(),
+  ]
 
   // 内置插件名：读内置归档目录的文件名（`@scope/name.tgz` 的形态）。
   const bundledNames = new Set<string>()
@@ -235,6 +288,53 @@ export async function readInstalledPlugins(
   const base = await Promise.all(names.map(name => readPlugin(profileDirectory, name, bundledNames)))
 
   /*
+    **未安装的常驻插件：造一个占位条目。**
+
+    `absent: true` 告诉界面「这个包现在不在 profile 里」——渲染成「安装」按钮，
+    而不是卸载 + 开关。展示信息优先取兜底表（读不到包就没有 manifest 可读）。
+  */
+  const absentPinned: InstalledPlugin[] = PINNED_PLUGIN_NAMES
+    .filter(name => !installedNames.includes(name))
+    .map(name => ({
+      name,
+      version: '—',
+      hasClient: true,
+      bundled: false,
+      enabled: false,
+      pinned: true,
+      absent: true,
+      uninstallable: !BUILTIN_UNINSTALLABLE.includes(name),
+      title: PINNED_PLUGIN_FALLBACK[name]?.title,
+      description: PINNED_PLUGIN_FALLBACK[name]?.description,
+    } as InstalledPlugin))
+
+  /*
+    **只做排序与「能不能卸载」两件事，不在界面上分模块。**
+
+    常驻项排最前，其余保持原顺序；`uninstallable` 由名单决定，界面只看这个布尔值
+    决定要不要给卸载入口——不需要知道有哪些名单、也不需要分节渲染。
+  */
+  const withPinned = [
+    ...PINNED_PLUGIN_NAMES
+      .filter(name => base.some(plugin => plugin.name === name))
+      .flatMap(name => {
+        const plugin = base.find(item => item.name === name)
+        if (plugin === undefined) return []
+        return [{
+          ...plugin,
+          pinned: true,
+          uninstallable: !BUILTIN_UNINSTALLABLE.includes(name),
+        }]
+      }),
+    ...absentPinned,
+  ]
+  // 常驻在前，其余按原顺序（`names` 已排好序）。
+  const ordered = [
+    ...withPinned,
+    ...base.filter(plugin => !(PINNED_PLUGIN_NAMES as readonly string[]).includes(plugin.name)),
+  ]
+
+  /*
     启用状态有**两条**判据，与官方的 bundle/entry 分工一致：
 
     1. **bundle 型插件**（`package.json` 有 `dsh.bundle.patch`）：看它是否在
@@ -244,7 +344,7 @@ export async function readInstalledPlugins(
     真机踩到：`dsh-plugin-wallpaper-engine` 在 dependencies 里、但**不在 bundles**
     数组里（即未启用），早前只查 patch 就把它显示成了「启用」。
   */
-  const withEnabled = await Promise.all(base.map(async plugin => {
+  const withEnabled = await Promise.all(ordered.map(async plugin => {
     const bundled = await isBundlePackage(profileDirectory, plugin.name)
     if (bundled) {
       const selected = await readBundleSelection(profileDirectory)

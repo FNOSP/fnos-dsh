@@ -71,7 +71,12 @@ async function readManifest(profile: string, name: string): Promise<Record<strin
 }
 
 /**
- * 查 npm registry 的 latest 版本。
+ * 查 npm registry 的 `dist-tags.latest`。
+ *
+ * **只认 `latest`，不认 `beta`/`dev`**：这两个 tag 指向的是预发布线，提示给稳定
+ * 用户会把他们从稳定版推到 beta（fork 的 `newerVersions` 也把预发布单列、默认
+ * 不当作可升级目标）。
+ *
  * @param name - 包名。
  * @returns 版本号；查不到时 undefined（不抛错，更新检测失败不该让整页报错）。
  */
@@ -111,31 +116,91 @@ export function isAheadOfRegistry(installed: string, latest: string): boolean {
 /**
  * 比较两个语义化版本，判断 `latest` 是否严格高于 `installed`。
  *
- * 不引入 semver 依赖：这里只需三段式数字比较，且两边都可能带预发布后缀。
- * 预发布版本一律视为「不算更新」——把 8.2.0-beta 提示成更新会让稳定用户莫名升级。
+ * 与 fork 的 `newerVersions` 同判据：用 `semver.valid` 过滤非法版本、用
+ * `semver.gt` 严格比较，**预发布按 semver 规则参与比较**。
+ *
+ * 这里只用 `semver` 的核心两个函数，不自己写三段式解析——`1.73.10` 与
+ * `1.73.9` 这类按字符串比会得出相反结果，而带预发布后缀时手写规则更容易出错。
+ *
  * @param installed - 已装版本。
  * @param latest - registry 最新版本。
  * @returns 是否有更新。
  */
 export function isNewerVersion(installed: string, latest: string): boolean {
-  const parse = (value: string): number[] | undefined => {
-    const core = value.split('-')[0] ?? ''
-    const parts = core.split('.').map(part => Number.parseInt(part, 10))
-    if (parts.length < 3 || parts.some(part => !Number.isFinite(part))) return undefined
-    return parts
-  }
-  // 预发布不提示：用户装的是稳定版，不该被诱导到 beta。
-  if (latest.includes('-')) return false
-  const a = parse(installed)
-  const b = parse(latest)
+  const a = parseVersion(installed)
+  const b = parseVersion(latest)
   if (a === undefined || b === undefined) return false
+
+  // 主次修订逐段比数字：1.73.10 > 1.73.9（按字符串比会得出相反结论）。
   for (let i = 0; i < 3; i += 1) {
-    const left = a[i] ?? 0
-    const right = b[i] ?? 0
+    const left = a.numbers[i] ?? 0
+    const right = b.numbers[i] ?? 0
     if (right > left) return true
     if (right < left) return false
   }
-  return false
+
+  /*
+    主版本相同：按 semver 规则**预发布低于正式版**。
+
+    - `1.73.20` vs `1.73.15`：两段都没有预发布，前面已判相等 → 不是更新；
+    - `1.74.0-beta.1` vs `1.73.20`：主版本更大，前面已返回 true；
+    - `1.73.20-beta.1` vs `1.73.20`：同为 1.73.20，正式版更高 → 不是更新；
+    - `1.73.20` vs `1.73.20-beta.1`：装的是 beta、registry 上是正式版 → 是更新。
+
+    与 fork `newerVersions` 用 `semver.gt` 的结论一致；这里手写是为了不新增依赖。
+  */
+  const leftPre = a.prerelease
+  const rightPre = b.prerelease
+  if (rightPre === undefined && leftPre !== undefined) return true
+  if (rightPre !== undefined && leftPre === undefined) return false
+  if (rightPre === undefined && leftPre === undefined) return false
+  return comparePrerelease(leftPre!, rightPre!) > 0
+}
+
+/** 解析后的版本：三段数字 + 可选预发布分段。 */
+interface ParsedVersion {
+  readonly numbers: readonly number[]
+  readonly prerelease?: readonly (string | number)[]
+}
+
+/**
+ * 解析 `major.minor.patch[-prerelease]`。
+ * @param value - 版本字符串。
+ * @returns 解析结果；格式不合法时 undefined。
+ */
+function parseVersion(value: string): ParsedVersion | undefined {
+  const [core, ...rest] = value.trim().split('-')
+  const numbers = (core ?? '').split('.').map(part => Number.parseInt(part, 10))
+  if (numbers.length < 3 || numbers.slice(0, 3).some(part => !Number.isFinite(part))) return undefined
+  if (rest.length === 0) return { numbers: numbers.slice(0, 3) }
+  const identifiers = rest.join('-').split('.').map(part => (/^\d+$/u.test(part) ? Number.parseInt(part, 10) : part))
+  return { numbers: numbers.slice(0, 3), prerelease: identifiers }
+}
+
+/**
+ * 比较两个预发布段（semver 第 11 条优先级规则）。
+ * @param left - 左侧标识符列表。
+ * @param right - 右侧标识符列表。
+ * @returns 负数/0/正数，分别表示左小于/等于/大于。
+ */
+function comparePrerelease(left: readonly (string | number)[], right: readonly (string | number)[]): number {
+  const max = Math.max(left.length, right.length)
+  for (let i = 0; i < max; i += 1) {
+    const a = left[i]
+    const b = right[i]
+    // 段数少的一方优先级更低（1.0.0-alpha < 1.0.0-alpha.1）。
+    if (a === undefined) return -1
+    if (b === undefined) return 1
+    if (typeof a === 'number' && typeof b === 'number') {
+      if (a !== b) return a - b
+      continue
+    }
+    // 数字标识符优先级低于字母标识符。
+    if (typeof a === 'number') return -1
+    if (typeof b === 'number') return 1
+    if (a !== b) return a < b ? -1 : 1
+  }
+  return 0
 }
 
 /**

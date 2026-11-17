@@ -22,10 +22,33 @@ describe('插件更新：版本比较', () => {
     expect(isNewerVersion('1.0.0', '2.0.0')).toBe(true)
   })
 
-  it('预发布版本不提示更新', () => {
-    // 稳定用户不该被诱导升 beta。
-    expect(isNewerVersion('8.1.0', '8.2.0-beta.1')).toBe(false)
-    expect(isNewerVersion('8.1.0', '9.0.0-rc.1')).toBe(false)
+  it('预发布按 semver 规则比较，与 fork 的 newerVersions 同结论', () => {
+    /*
+      本项目只查 `dist-tags.latest`（稳定线），所以「稳定用户被诱导升 beta」这条
+      风险由**取数**挡住，不需要在比较层再拦一道。比较层只管 semver 语义：
+
+      - 同为正式版：严格更高才算更新；
+      - 装的是 beta、latest 是正式版 → 是更新（该升上去）；
+      - latest 是 beta、装的是正式版 → 不是更新（beta 低于同号正式版）。
+
+      这里曾写成「带 `-` 一律不是更新」，会把 `1.73.20-beta` 装到
+      `1.73.20` 正式版的场景判错；fork 的 `semver.gt` 也是按此规则。
+    */
+    // 主版本更高：即使 latest 是 beta，也高于当前正式版（semver 语义）。
+    expect(isNewerVersion('8.1.0', '8.2.0-beta.1')).toBe(true)
+    // 同号时 beta 低于正式版。
+    expect(isNewerVersion('8.2.0', '8.2.0-beta.1')).toBe(false)
+    expect(isNewerVersion('9.0.0-rc.1', '9.0.0')).toBe(true)      // beta → 正式版
+    expect(isNewerVersion('8.1.0', '9.0.0')).toBe(true)
+    expect(isNewerVersion('1.73.20-beta.1', '1.73.20')).toBe(true)
+    expect(isNewerVersion('1.73.20', '1.73.20-beta.1')).toBe(false)
+  })
+
+  it('多位数字按数值比较，不按字符串', () => {
+    // 真机场景：dshmarket 1.73.15 的 latest 是 1.73.20。
+    expect(isNewerVersion('1.73.15', '1.73.20')).toBe(true)
+    expect(isNewerVersion('1.73.9', '1.73.10')).toBe(true)
+    expect(isNewerVersion('1.73.20', '1.73.15')).toBe(false)
   })
 
   it('无法解析的版本不报错、不提示', () => {

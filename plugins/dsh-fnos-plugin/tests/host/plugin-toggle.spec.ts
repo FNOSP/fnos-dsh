@@ -10,6 +10,7 @@ import { parsePatchEntries } from '../../src/host/plugin-toggle.ts'
  */
 const TOGGLE = readFileSync(new URL('../../src/host/plugin-toggle.ts', import.meta.url), 'utf8')
 const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+const HOST = readFileSync(new URL('../../src/host/installed-plugins.ts', import.meta.url), 'utf8')
 const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
 
 describe('patch 解析', () => {
@@ -394,8 +395,38 @@ describe('卡片式界面', () => {
     expect(PANEL).toContain("t('pluginUpdateAction')")
   })
 
+  it('常驻插件即使被卸载也留在列表最前，并给安装按钮', () => {
+    /*
+      `@tnnevol/dsh-fnos` 与 `dshmarket` 是应用与插件生态的入口。被强制卸载后
+      如果卡片跟着消失，用户就再也找不到「装回来」的地方——只能重装整个应用。
+
+      所以这两项**永远出现且排在最前**：装了显示开关/卸载/更新，没装显示「安装」。
+    */
+    /*
+      两份名单，语义不同：
+      - `BUILTIN_UNINSTALLABLE`：不可卸载的内置插件（本插件自身）；
+      - `RECOMMENDED_PLUGINS`：可卸载的推荐插件（dshmarket）。
+
+      共同点：卸载后卡片常驻、排在最前。差别只有「给不给卸载入口」。
+      名单**只影响排序与 uninstallable**，界面上不分模块。
+    */
+    expect(HOST).toContain("BUILTIN_UNINSTALLABLE: readonly string[] = ['@tnnevol/dsh-fnos']")
+    expect(HOST).toContain("RECOMMENDED_PLUGINS: readonly string[] = ['dshmarket']")
+    expect(HOST).toContain('PINNED_PLUGIN_NAMES: readonly string[] = [...BUILTIN_UNINSTALLABLE, ...RECOMMENDED_PLUGINS]')
+
+    // 未安装时造占位条目
+    expect(HOST).toContain('absent: true')
+    expect(HOST).toContain('pinned: true')
+    // 可卸载判定由名单给出，界面只看布尔值
+    expect(HOST).toContain('uninstallable: !BUILTIN_UNINSTALLABLE.includes(name)')
+
+    // 界面：未安装渲染「安装」按钮，且不显示开关与卸载
+    expect(PANEL).toContain('plugin.absent === true ? null : (')
+    expect(PANEL).toContain('pluginInstallAction')
+  })
+
   it('内置插件不允许卸载（删了要重装整个应用才能恢复）', () => {
-    expect(PANEL).toContain('plugin.bundled ? null :')
+    expect(PANEL).toContain('plugin.bundled || plugin.uninstallable === false || plugin.absent === true ? null :')
   })
 
   it('禁用态有视觉区分', () => {

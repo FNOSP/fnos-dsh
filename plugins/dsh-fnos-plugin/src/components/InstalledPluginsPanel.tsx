@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { DshPopconfirm as Popconfirm, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshPopconfirm as Popconfirm, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
 import { PluginInstallInline } from './PluginInstallInline.tsx'
@@ -67,20 +67,35 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   const [removingName, setRemovingName] = useState<string>()
   const [error, setError] = useState<string>()
 
-  const load = useCallback(async () => {
+  /**
+   * 取清单。
+   *
+   * `checkUpdates` 必须由调用方显式传：查更新是「每个插件一次 registry 请求」，
+   * 十几个插件就是十几次网络往返，首屏带上会很慢。首屏只读本地清单，**只有用户
+   * 点刷新时才联网**。
+   */
+  const load = useCallback(async (checkUpdates = false) => {
     try {
-      setSnapshot(await fetchInstalledPlugins())
+      setSnapshot(await fetchInstalledPlugins(checkUpdates))
       setError(undefined)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     }
   }, [])
 
-  /** 手动刷新：重新查 registry，看上游有没有新版本。 */
+  /**
+   * 手动刷新：**联网**重新查 registry，看上游有没有新版本。
+   *
+   * 这里必须传 `checkUpdates = true`。此前它调的是 `load()`（首屏那条不联网的
+   * 路径），于是「刷新」只是把本地清单重读一遍，`updateAvailable` 永远是
+   * undefined——界面上永远看不到「更新」按钮。真机用 dshmarket@1.73.15
+   *（registry latest 1.73.20）复现：后端 `?updates=1` 能返回
+   * `updateAvailable: true`，但点刷新按钮后界面没有任何变化。
+   */
   const refresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      await load()
+      await load(true)
     } finally {
       setRefreshing(false)
     }
@@ -185,7 +200,14 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
       */}
       <ul className="dsh-fnos-cards">
         {snapshot.plugins.map(plugin => {
-          const disabled = plugin.enabled === false
+          /*
+            **未安装的常驻卡片不是「已禁用」。**
+
+            `enabled` 对未安装的包没有意义（它根本不在 profile 里），直接沿用
+            会同时显示「已禁用」和「未安装」两个标签，语义互相打架。这里把两者
+            分开：`absent` 走「未安装」，只有真的装了又被关掉才是「已禁用」。
+          */
+          const disabled = plugin.enabled === false && plugin.absent !== true
           return (
             <li key={plugin.name} className={`dsh-fnos-card${disabled ? ' dsh-fnos-card--off' : ''}`}>
               {/*
@@ -298,18 +320,45 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
 
                   置灰而不是隐藏：让人看到「这里有开关、但你不能动」。
                 */}
-                <SwitchWithLoading
-                  checked={!disabled}
-                  loading={toggling === plugin.name}
-                  {...(plugin.bundled === true ? { disabled: true } : {})}
-                  onChange={next => { void toggleEnabled(plugin.name, next) }}
-                />
+                {/*
+                  **未安装的常驻卡片没有开关可拨。**
+
+                  它此刻不在 profile 里，`enabled` 没有意义；显示一个永远关着的
+                  开关只会让人反复去点。替代物是右侧的「安装」按钮。
+                */}
+                {plugin.absent === true ? null : (
+                  <SwitchWithLoading
+                    checked={!disabled}
+                    loading={toggling === plugin.name}
+                    {...(plugin.bundled === true ? { disabled: true } : {})}
+                    onChange={next => { void toggleEnabled(plugin.name, next) }}
+                  />
+                )}
+                {plugin.absent === true ? <span className="dsh-fnos-repair-muted">{t('installedPluginsNotInstalled')}</span> : null}
                 <div className="dsh-fnos-card-action-buttons">
                   {/*
                     更新是图标按钮、文案进 tip：与「卸载」同档的次要动作，
                     文字按钮会让一行里堆两个大色块。
                   */}
-                  {plugin.updateAvailable === true ? (
+                  {/*
+                    **常驻卡片未安装时给「安装」**：这是它们唯一的恢复入口。
+
+                    用 `loading` 而不是 `disabled`——安装是异步的，按钮要有明确的
+                    「正在装」状态（见章程「执行中只用 loading」）。
+                  */}
+                  {plugin.absent === true ? (
+                    <DshButton
+                      htmlType="button"
+                      size="small"
+                      theme="solid"
+                      type="primary"
+                      loading={installing === plugin.name}
+                      onClick={() => { setInstalling(plugin.name) }}
+                    >
+                      {t('pluginInstallAction')}
+                    </DshButton>
+                  ) : null}
+                  {plugin.absent === true ? null : plugin.updateAvailable === true ? (
                     <DshTooltip content={t('pluginUpdateAction')}>
                       <button
                         type="button"
@@ -326,7 +375,16 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                     内置插件不允许卸载：它是应用的组成部分，删掉之后能力缺口无法
                     通过「重新安装插件」恢复（要重装整个应用）。
                   */}
-                  {plugin.bundled ? null : (
+                  {/*
+                    **能不能卸载只看宿主给的 `uninstallable`。**
+
+                    界面不再自己比对包名、也不按名单分节渲染：
+                    - `bundled`（随 FPK 打包）本来就不给卸载；
+                    - `@tnnevol/dsh-fnos` 由宿主标成不可卸载——卸掉会连带失去
+                      「装回来」的入口；
+                    - `dshmarket` 可卸载，卡片只是常驻。
+                  */}
+                  {plugin.bundled || plugin.uninstallable === false || plugin.absent === true ? null : (
                     /*
                       二次确认用 **Popconfirm**，不是模态弹框。
 

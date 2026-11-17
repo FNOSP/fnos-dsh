@@ -123,6 +123,29 @@ export interface InstalledPlugin {
   readonly hasClient: boolean
   /** 是否为随 FPK 内置、由本应用管理的插件。 */
   readonly bundled: boolean
+  /**
+   * 是否为**常驻卡片**（未安装也占位）。
+   *
+   * 目前是 `@tnnevol/dsh-fnos`（本插件自身）与 `dshmarket`：这两个是应用与插件
+   * 生态的入口，被强制卸载后如果卡片跟着消失，用户就再也找不到装回来的地方。
+   * 常驻卡片排在最前，未安装时给「安装」、有更新时给「更新」。
+   */
+  readonly pinned?: boolean
+  /**
+   * 该常驻插件当前**未安装**。
+   *
+   * `version` 此时为 `—`、开关不可用；界面据此渲染「安装」而不是卸载/开关。
+   */
+  readonly absent?: boolean
+  /**
+   * 是否**允许卸载**。
+   *
+   * 由宿主按名单判定，界面只看这个字段，不再自己比对包名：
+   * - `@tnnevol/dsh-fnos`（不可卸载的内置插件）→ `false`，它被卸载会连带失去
+   *   「装回来」的入口；
+   * - `dshmarket`（推荐插件）→ `true`，用户有自己的选择权，只是卡片常驻。
+   */
+  readonly uninstallable?: boolean
   /** registry 上的最新版本；查不到时缺省。 */
   readonly latestVersion?: string
   /** 是否有可装的更新（已过兼容性门禁）。 */
