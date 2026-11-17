@@ -362,28 +362,44 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
 
   it('新建/重命名弹框的输入框在窄屏不触发 iOS 自动放大', () => {
     /*
-      **这条是触屏上最刺眼的一处。** Semi 的 `.semi-input` 算下来是 13.33px
-      （继承 0.8333rem），桌面正好；但 **iOS Safari 在输入框字号小于 16px 时
-      会触发自动放大**——点进输入框整页弹大，键盘收起后仍停在放大态，用户得手动
-      捏回来。
+      **触屏上最刺眼的一处。** 桌面输入框是 14px（`.semi-input-default`），看着正好；
+      但 **iOS Safari 在输入框字号小于 16px 时会自动放大整页**——点进输入框整页
+      弹大，键盘收起后仍停在放大态，用户得手动捏回来。
 
-      16 同时满足字号规范的偶数要求（13 → 16 取较高的偶数，不往下降）。
+      只能靠字号解决：`maximum-scale=1` 会同时禁掉用户的双指缩放，不能用来绕过。
 
-      按钮一并提到 44px：桌面 36px 在手指下偏小，44 是触屏可点击标准。
+      **边界必须守住：16px 只在 `@media (max-width: 767px)` 里生效。**
+      桌面保持 14px——反过来（桌面 16、移动 14）没必要，而把 16 写到移动端之外
+      就成了「PC 也变大」，同样不是想要的。
+
+      按钮 44px 是触屏可点击标准（桌面 36px 在手指下偏小）。
       实测 393px 视口：输入框 40px 高 / 16px 字，按钮 44px，弹框 369px 不溢出。
     */
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
     const mobile = SCSS.slice(SCSS.lastIndexOf('@media (max-width: 767px)'))
     const dialog = mobile.slice(mobile.indexOf('.dsh-fnos-create-dialog {'))
 
-    // 输入框字号必须 ≥16，且是偶数
     const inputRule = /\.dsh-fnos-create-form \.semi-input-wrapper \{([\s\S]*?)\n {4}\}/u.exec(dialog)?.[1] ?? ''
     expect(inputRule).toMatch(/height: 40px/u)
     expect(inputRule).toMatch(/font-size: 16px/u)
-    expect(inputRule).not.toMatch(/font-size: 1[35]px/u)
 
     // 按钮触屏热区
     expect(dialog).toMatch(/min-height: 44px/u)
+
+    /*
+      **16px 不能泄漏到媒体查询之外。** 把媒体查询里的 create-dialog 块整体剥掉，
+      剩下的样式里不应再出现针对 create 输入框的 16px 覆盖——否则 PC 也会变大。
+    */
+    const withoutMobile = SCSS.replace(mobile, '')
+    expect(withoutMobile).not.toMatch(/dsh-fnos-create-form[\s\S]{0,80}font-size: 16px/u)
+
+    /*
+      **移动端字号不得高于桌面。** 桌面 14px（`.semi-input-default`），移动端为
+      iOS 自动放大必须到 16px，这是唯一允许「移动更大」的例外；再往上加就说明
+      有人又在移动端放大字号了。
+    */
+    const mobileFont = Number(/font-size: (\d+)px/u.exec(inputRule)?.[1] ?? '0')
+    expect(mobileFont).toBeLessThanOrEqual(16)
   })
 
   it('其余弹框也收进视口，内层跟着收窄', () => {

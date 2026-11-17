@@ -4014,15 +4014,17 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
     }
 
     /*
-      **输入框字号必须到 16px。**
+      **触屏把输入框从 14px 提到 16px。**
 
-      Semi 的 `.semi-input` 继承的是 13.33px（0.8333rem），桌面正好；但在 iOS
-      Safari 里**输入框字号小于 16px 会触发自动放大**——点进输入框整页弹大，
-      键盘收起后还停在放大态，用户得手动捏回来。这是触屏上最刺眼的一处。
+      桌面是 14px（`.semi-input-default`），桌面看着正好；但 **iOS Safari 在
+      输入框字号小于 16px 时会自动放大整页**——点进输入框整页弹大，键盘收起后
+      还停在放大态，用户得手动捏回来。这是触屏上最刺眼的一处，只能靠字号解决
+      （`maximum-scale=1` 会同时禁掉用户的捏合缩放，不能用来绕过）。
 
-      16 同时也是字号规范要求的偶数（13 → 16 取较高的偶数）。
+      注意**只在移动端生效**：桌面保持 14px，触屏 16px。反过来的写法（桌面 16、
+      移动 14）既没必要也违背「移动端不该比桌面还大」的直觉。
 
-      行高与高度一起调：字号变大后 36px 的行高会把文字顶偏，收到 40px 才够松。
+      高度一起调：字号变大后 36px 的框会把文字压扁，给到 40px。
     */
     .dsh-fnos-create-form .semi-input-wrapper {
       height: 40px !important;
@@ -4034,8 +4036,8 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
     }
 
     /*
-      按钮同理：44px 是触屏可点击标准，桌面 36px 在手指下偏小。
-      两个按钮并排时 44*2 + 15 = 103px，369px 宽的弹框里余量充足。
+      按钮：44px 是触屏可点击标准，桌面 36px 在手指下偏小。
+      两个并排时 44px 高度不变、宽度仍有余量。
     */
     .semi-modal-footer .semi-button {
       min-height: 44px;
