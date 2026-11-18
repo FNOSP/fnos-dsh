@@ -471,14 +471,15 @@ describe('卡片式界面', () => {
     // 更新：图标 + tooltip + aria-label。
     const updateIdx = PANEL.indexOf("content={t('pluginUpdateAction')}")
     expect(updateIdx).toBeGreaterThan(-1)
-    const updateBlock = PANEL.slice(updateIdx, updateIdx + 500)
+    // 窗口留足：按钮前后都要有注释与属性，取太短会因新增注释而截断。
+    const updateBlock = PANEL.slice(updateIdx, updateIdx + 900)
     expect(updateBlock).toContain('lucide:download')
     expect(updateBlock).toContain("aria-label={t('pluginUpdateAction')}")
 
     // 卸载：Popconfirm 在外，Tooltip 在内包按钮。
     const removeIdx = PANEL.indexOf('<Popconfirm')
     expect(removeIdx).toBeGreaterThan(-1)
-    const removeBlock = PANEL.slice(removeIdx, removeIdx + 1800)
+    const removeBlock = PANEL.slice(removeIdx, removeIdx + 2400)
     expect(removeBlock).toContain('lucide:trash')
     expect(removeBlock).toContain("aria-label={t('uninstall')}")
     expect(removeBlock).toContain("content={t('uninstall')}")
@@ -630,7 +631,8 @@ describe('卸载：Popconfirm 二次确认 + 异步 loading + 后端并发锁', 
   })
 
   it('正在卸载时该插件的按钮不可再点', () => {
-    expect(PANEL_SRC).toContain('disabled={removingName === plugin.name || installing === plugin.name}')
+    // 自己卸载/安装中不可点；**别的插件在忙时也不可点**（并发 pnpm 会互相踩）。
+    expect(PANEL_SRC).toContain('disabled={removingName === plugin.name || installing === plugin.name || busyElsewhere}')
     expect(PANEL_SRC).toContain('if (removingName === name) return')
   })
 

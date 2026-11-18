@@ -313,6 +313,21 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
             分开：`absent` 走「未安装」，只有真的装了又被关掉才是「已禁用」。
           */
           const disabled = plugin.enabled === false && plugin.absent !== true
+          /*
+            **一个插件在忙着装/卸/切开关时，整张列表的写操作都要锁住。**
+
+            安装与卸载都会改写 profile 的 `package.json` 与 lockfile；如果此时
+            另一张卡片再发起一次，两次 `pnpm` 会并发改同一份文件——轻则其中一个
+            失败，重则留下半安装的 node_modules。用户看到的是「点了更新，另一个
+            插件也跟着坏」。
+
+            因此判据是「**有别**的插件在忙」，不是「这一张在忙」：自己那张卡上的
+            按钮交给各自的 `loading`/`disabled`，其余的整排置灰。
+          */
+          const busyElsewhere =
+            (installing !== undefined && installing !== plugin.name) ||
+            (removingName !== undefined && removingName !== plugin.name) ||
+            (toggling !== undefined && toggling !== plugin.name)
           return (
             <li key={plugin.name} className={`dsh-fnos-card${disabled ? ' dsh-fnos-card--off' : ''}`}>
               {/*
@@ -435,7 +450,8 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                   <SwitchWithLoading
                     checked={!disabled}
                     loading={toggling === plugin.name}
-                    {...(plugin.bundled === true ? { disabled: true } : {})}
+                    // 别的插件在装/卸/切时不许动：同一时刻只允许一个写操作。
+                    {...(plugin.bundled === true || busyElsewhere ? { disabled: true } : {})}
                     onChange={next => { void toggleEnabled(plugin.name, next) }}
                   />
                 )}
@@ -458,6 +474,7 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                       theme="solid"
                       type="primary"
                       loading={installing === plugin.name}
+                      disabled={busyElsewhere}
                       onClick={() => { setInstalling(plugin.name) }}
                     >
                       {t('pluginInstallAction')}
@@ -469,7 +486,8 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                         type="button"
                         className="dsh-fnos-icon-button"
                         aria-label={t('pluginUpdateAction')}
-                        disabled={toggling === plugin.name}
+                        // 自己那张卡由 toggling 管；别的插件在忙时整排锁住。
+                        disabled={toggling === plugin.name || busyElsewhere}
                         onClick={() => { setInstalling(plugin.name) }}
                       >
                         <IconifyIcon name="lucide:download" />
@@ -534,8 +552,11 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                             type="button"
                             className="dsh-fnos-icon-button dsh-fnos-icon-button--danger"
                             aria-label={t('uninstall')}
-                            /* 正在卸载（或正在装）这个插件时不许再点。 */
-                            disabled={removingName === plugin.name || installing === plugin.name}
+                            /*
+                              自己正在卸载/安装时不许再点；**别的插件在忙时也不许**——
+                              两次 pnpm 并发改同一份 package.json 会互相踩。
+                            */
+                            disabled={removingName === plugin.name || installing === plugin.name || busyElsewhere}
                           >
                             <IconifyIcon name="lucide:trash" />
                           </button>

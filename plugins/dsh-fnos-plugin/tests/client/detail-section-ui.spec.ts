@@ -495,3 +495,33 @@ describe('插件更新标记的持久化', () => {
     expect(PANEL).toContain('hit.version !== plugin.version')
   })
 })
+
+/**
+ * 更新期间锁住其他插件的写操作。
+ *
+ * 安装与卸载都会改写 profile 的 `package.json` 与 lockfile。如果两张卡片同时
+ * 发起，两次 `pnpm` 会并发改同一份文件——轻则其中一个失败，重则留下半安装的
+ * node_modules。用户看到的是「点了更新，另一个插件也跟着坏」。
+ */
+describe('插件列表：一个在忙，其余写操作锁住', () => {
+  const PANEL = read('../../src/components/InstalledPluginsPanel.tsx')
+
+  it('判据是「别的插件在忙」，不是「自己那张在忙」', () => {
+    expect(PANEL).toContain('busyElsewhere')
+    // 三个忙碌状态都要参与，且都排除自己。
+    expect(PANEL).toMatch(/installing !== undefined && installing !== plugin\.name/u)
+    expect(PANEL).toMatch(/removingName !== undefined && removingName !== plugin\.name/u)
+    expect(PANEL).toMatch(/toggling !== undefined && toggling !== plugin\.name/u)
+  })
+
+  it('开关、安装、更新、卸载四处都被锁住', () => {
+    // 开关：bundled 或别人在忙时禁用。
+    expect(PANEL).toContain('plugin.bundled === true || busyElsewhere')
+    // 未安装卡片的「安装」按钮。
+    expect(PANEL).toMatch(/disabled=\{busyElsewhere\}/u)
+    // 更新按钮。
+    expect(PANEL).toContain('toggling === plugin.name || busyElsewhere')
+    // 卸载按钮。
+    expect(PANEL).toContain('|| busyElsewhere')
+  })
+})
