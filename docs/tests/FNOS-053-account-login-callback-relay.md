@@ -9,6 +9,8 @@ verifiedAt: 2026-11-13
 ---
 
 # FNOS-053 测试用例
+关联需求：[FNOS-053](/requirements/FNOS-053-account-login-callback-relay)｜关联计划：[PLAN-FNOS-053 账号登录回调中转](/plans/PLAN-FNOS-053-account-login-callback-relay)
+
 
 ## 测试范围与需求分析
 

@@ -93,4 +93,6 @@ flowchart TD
 
 | PLAN-FNOS-053 | [拦截官方账号登录，改为粘贴回调地址完成授权](/plans/PLAN-FNOS-053-account-login-callback-relay) | 待验收（功能已落地并真机验证三段链路；换码闭环待真实账号） |
 
+| PLAN-FNOS-054 | [侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐](/plans/PLAN-FNOS-054-fnos-footer-entry-standalone) | 部分通过（入口与下拉菜单已本地实测；独立浏览器回显待真机补验） |
+
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

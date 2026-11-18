@@ -104,7 +104,7 @@ flowchart TD
 | FNOS-049 | [把 Codex Auth 与 Failover Search 移出 FPK 内置清单](/requirements/FNOS-049-unbundle-plugins) | 待验收（两个插件不再随 FPK 内置，改为从插件市场自行安装；仍发布到 npm 并保留市场索引；CLI 161 条与 gateway 179 条用例通过） |
 | FNOS-050 | [fnOS 插件增加「依赖修复」](/requirements/FNOS-050-dependency-repair) | 待验收（插件详情页提供只读检查与一键修复，清理失效的发布龄期豁免并重建 profile 依赖；含 tip 气泡说明用途与安全边界；467 条插件用例通过） |
 | FNOS-051 | [OpenCode 模型思考能力与上下文对齐真实接口](/requirements/FNOS-051-opencode-capability-alignment) | 待验收（能力取自账号接口，覆盖 30/30；toggle 型不再显示档位；zen 统一改名 console；367 条用例通过） |
-| FNOS-052 | [侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐](/requirements/FNOS-052-fnos-footer-entry-standalone) | 部分通过（包级 748+182 条全绿；入口与下拉菜单已在本地 DSH Web 实测；真机待验，授权回调链路只有真机能证） |
+| FNOS-054 | [侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐](/requirements/FNOS-054-fnos-footer-entry-standalone) | 部分通过（包级 748+182 条全绿；入口与下拉菜单已在本地 DSH Web 实测；真机待验，授权回调链路只有真机能证） |
 
 | FNOS-053 | [拦截官方账号登录，改为粘贴回调地址完成授权](/requirements/FNOS-053-account-login-callback-relay) | 部分通过（真机确认官方框被收起、授权页正常打开、对话框切到粘贴态；换码闭环需真实账号，未验） |
 

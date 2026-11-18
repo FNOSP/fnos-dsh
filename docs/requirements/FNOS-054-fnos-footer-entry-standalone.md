@@ -1,13 +1,24 @@
 ---
-id: FNOS-052
-title: FNOS-052 侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐
+id: FNOS-054
+title: FNOS-054 侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐
 description: 把「飞牛 OS」入口迁到侧栏底部并改为下拉菜单；修正「是否运行在 fnOS 里」的判据，让独立浏览器页面（standalone）也能正常回显入口与使用授权能力。
 status: 部分通过
+owner: tnnevol
+targetVersion: 8.1.140
 lastVerified: 2026-11-12
 verifiedAt: 2026-11-12
 ---
 
-# FNOS-052 侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐
+# FNOS-054 侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐
+
+| 项目 | 内容 |
+| --- | --- |
+| 需求编号 | FNOS-054 |
+| 提出日期 | 2026-11-12 |
+| 需求状态 | 部分通过 |
+| 关联计划 | [PLAN-FNOS-054 侧栏底部飞牛 OS 入口](/plans/PLAN-FNOS-054-fnos-footer-entry-standalone) |
+| 适用范围 | `plugins/dsh-fnos-plugin`（侧栏底部入口、`isWeb` 判据与授权能力）、相关文案 |
+| 明确排除 | 网关反代的转发规则本身；宿主注入桥的实现 |
 
 ## 需求背景
 
@@ -25,12 +36,12 @@ verifiedAt: 2026-11-12
 
 | 编号 | 功能 | 要点 |
 | --- | --- | --- |
-| FNOS-052-01 | 入口迁到 `sidebar.footer.action` | 宽高与折叠态对齐官方设置行 |
-| FNOS-052-02 | 入口改为下拉菜单 | 设置 / 刷新 / 重启三项，样式对齐「更多」菜单 |
-| FNOS-052-03 | 移除旧的刷新/重启入口 | 「更多」菜单与会话头部菜单里都不再有 |
-| FNOS-052-04 | 三种运行环境的识别 | `embedded` / `standalone` / `none` 三态可区分 |
-| FNOS-052-05 | 独立浏览器页面回显入口 | 会话头部与设置入口按「属于 fnOS」注册，按「有无宿主桥」隐藏具体动作 |
-| FNOS-052-06 | 独立浏览器页面授权走 `openAppAuth` | 授权页 + 回调页 + 原页面监听，链路完整 |
+| FNOS-054-01 | 入口迁到 `sidebar.footer.action` | 宽高与折叠态对齐官方设置行 |
+| FNOS-054-02 | 入口改为下拉菜单 | 设置 / 刷新 / 重启三项，样式对齐「更多」菜单 |
+| FNOS-054-03 | 移除旧的刷新/重启入口 | 「更多」菜单与会话头部菜单里都不再有 |
+| FNOS-054-04 | 三种运行环境的识别 | `embedded` / `standalone` / `none` 三态可区分 |
+| FNOS-054-05 | 独立浏览器页面回显入口 | 会话头部与设置入口按「属于 fnOS」注册，按「有无宿主桥」隐藏具体动作 |
+| FNOS-054-06 | 独立浏览器页面授权走 `openAppAuth` | 授权页 + 回调页 + 原页面监听，链路完整 |
 
 ## 关键设计判断
 
@@ -75,4 +86,4 @@ verifiedAt: 2026-11-12
 
 ## 关联
 
-- 测试用例：[FNOS-052](/tests/FNOS-052-fnos-footer-entry-standalone)
+- 测试用例：[FNOS-054](/tests/FNOS-054-fnos-footer-entry-standalone)

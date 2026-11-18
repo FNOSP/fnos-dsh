@@ -3,11 +3,22 @@ id: FNOS-053
 title: FNOS-053 拦截官方账号登录，改为粘贴回调地址完成授权
 description: 经 fnOS 网关远程访问时官方账号登录必然失败（只接受 loopback 回调）。改为把回调改道到本机 loopback、由用户把回调地址粘回插件对话框、服务端完成换码。
 status: 部分通过
+owner: tnnevol
+targetVersion: 8.1.140
 lastVerified: 2026-11-13
 verifiedAt: 2026-11-13
 ---
 
 # FNOS-053 拦截官方账号登录，改为粘贴回调地址完成授权
+
+| 项目 | 内容 |
+| --- | --- |
+| 需求编号 | FNOS-053 |
+| 提出日期 | 2026-11-13 |
+| 需求状态 | 部分通过 |
+| 关联计划 | [PLAN-FNOS-053 账号登录回调中转](/plans/PLAN-FNOS-053-account-login-callback-relay) |
+| 适用范围 | `plugins/dsh-fnos-plugin`（账号登录对话框与 loopback 回调中转）、相关文案 |
+| 明确排除 | 修改官方账号服务的回调策略；保存用户凭据 |
 
 ## 需求背景
 

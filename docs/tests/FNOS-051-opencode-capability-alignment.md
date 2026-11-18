@@ -10,6 +10,8 @@ verifiedAt: 2026-11-09
 ---
 
 # FNOS-051 测试用例
+关联需求：[FNOS-051](/requirements/FNOS-051-opencode-capability-alignment)｜关联计划：[PLAN-FNOS-051 OpenCode 能力对齐](/plans/PLAN-FNOS-051-opencode-capability-alignment)
+
 
 被测对象是 OpenCode 模型目录的能力解析：思考档位与上下文窗口的来源与回落顺序，以及 `zen` → `console` 的命名统一。需求见 [FNOS-051](/requirements/FNOS-051-opencode-capability-alignment)。
 
