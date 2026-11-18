@@ -95,4 +95,6 @@ flowchart TD
 
 | PLAN-FNOS-054 | [侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐](/plans/PLAN-FNOS-054-fnos-footer-entry-standalone) | 部分通过（入口与下拉菜单已本地实测；独立浏览器回显待真机补验） |
 
+| PLAN-FNOS-055 | [安装向导移除失效的 npm 镜像源](/plans/PLAN-FNOS-055-invalid-npm-mirror-removal) | 实施完成（T01–T04-01 完成，包级全绿；真实 NAS 安装/升级与版本提交待执行） |
+
 只有进入当前实施阶段的需求功能才应在本页建立计划。未排期的 P2、后续计划和待确认功能保留在需求清单中。

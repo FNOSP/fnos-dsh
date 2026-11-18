@@ -471,6 +471,16 @@ main() {
     # 版本升级、或字段缺失）才回退到已持久化的源。
     NPM_REGISTRY="${wizard_npm_registry:-$(read_persisted_npm_registry)}"
     NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org/}"
+    # FNOS-055：历史向导提供过指向只读存档端点的 npmMirror，失败安装也可能已把
+    # 它写进配置。只归一这个已知失效地址，其它 registry（含用户自建源）原样保留。
+    NORMALIZED_NPM_REGISTRY="$(run_install_callback_helper normalize-npm-registry "${NPM_REGISTRY}")" ||
+        fail_install "Unable to normalize the npm registry ${NPM_REGISTRY}"
+    if [ -n "${NORMALIZED_NPM_REGISTRY}" ] && [ "${NORMALIZED_NPM_REGISTRY}" != "${NPM_REGISTRY}" ]; then
+        log_info "npm registry ${NPM_REGISTRY} is retired; using ${NORMALIZED_NPM_REGISTRY} instead."
+    fi
+    if [ -n "${NORMALIZED_NPM_REGISTRY}" ]; then
+        NPM_REGISTRY="${NORMALIZED_NPM_REGISTRY}"
+    fi
     persist_npm_registry
 
     if has_required_pnpm; then
@@ -478,7 +488,7 @@ main() {
     else
         log_info "Installing pnpm@${PNPM_VERSION} globally for DSH plugin management."
         "${NPM_BIN}" install "pnpm@${PNPM_VERSION}" -g --ignore-scripts ||
-            fail_install "Unable to install pnpm@${PNPM_VERSION}"
+            fail_install "Unable to install pnpm@${PNPM_VERSION} from ${NPM_REGISTRY}; choose another npm mirror in the wizard and retry"
     fi
     [ "$(installed_pnpm_version)" = "${PNPM_VERSION}" ] ||
         fail_install "Installed pnpm version does not match ${PNPM_VERSION}"

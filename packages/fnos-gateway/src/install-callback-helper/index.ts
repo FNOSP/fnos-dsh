@@ -23,6 +23,7 @@ import { formatTrustedHostIssues, validateTrustedHosts } from './trusted-hosts.t
 import { migrateCwdPromptVariable } from './cwd-migration.ts'
 import { createLogger, InstallHelperError } from './logger.ts'
 import { assertNodeFloor } from './node-version.ts'
+import { normalizeNpmRegistry } from './npm-registry.ts'
 import { prepareNodePty } from './node-pty.ts'
 
 const logger = createLogger('install-callback-helper')
@@ -64,6 +65,14 @@ export function createProgram(): Command {
     .action(async (root, packageName) => {
       const directory = await findPackageDirectory(root, packageName)
       if (directory !== undefined) process.stdout.write(directory)
+    })
+
+  program
+    .command('normalize-npm-registry')
+    .description('Replace a retired npm registry with the official source (FNOS-055)')
+    .argument('<registry>')
+    .action((registry: string) => {
+      process.stdout.write(normalizeNpmRegistry(registry))
     })
 
   program

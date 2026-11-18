@@ -68,10 +68,6 @@
                         "value": "https://registry.npmmirror.com/"
                     },
                     {
-                        "label": "npmMirror",
-                        "value": "https://skimdb.npmjs.com/registry/"
-                    },
-                    {
                         "label": "huawei",
                         "value": "https://repo.huaweicloud.com/repository/npm/"
                     }
