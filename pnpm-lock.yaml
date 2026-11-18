@@ -136,6 +136,9 @@ catalogs:
     sass:
       specifier: 1.103.1
       version: 1.103.1
+    semver:
+      specifier: 7.8.5
+      version: 7.8.5
     tsdown:
       specifier: ^0.22.2
       version: 0.22.14
@@ -696,6 +699,9 @@ importers:
       echarts:
         specifier: 'catalog:'
         version: 6.1.0
+      semver:
+        specifier: 'catalog:'
+        version: 7.8.5
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'

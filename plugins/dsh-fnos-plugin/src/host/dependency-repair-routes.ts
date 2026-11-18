@@ -14,7 +14,6 @@ import {
   FNOS_DEPENDENCY_REPAIR_DIAGNOSE_ROUTE,
   FNOS_DEPENDENCY_REPAIR_RUN_ROUTE,
 } from '../contracts/dependency-repair-contract.ts'
-import type { DependencyRepairResult } from '../contracts/dependency-repair-contract.ts'
 import {
   diagnoseDependencyRepair,
   resolveRepairEnvironment,
@@ -79,10 +78,7 @@ export function registerDependencyRepairRoutes(ctx: Context): void {
       if (req.method !== 'POST') return send(res, 405, { error: 'method-not-allowed' })
       try {
         const environment = resolveRepairEnvironment()
-        // 修复前先重跑一次诊断：界面上的结果可能已经过期（用户在这期间装过插件，
-        // 或清单更新过）。以当下的失效条目为准，避免删掉仍然有效的豁免。
-        const diagnosis = await diagnoseDependencyRepair(environment)
-        console.log(`[dsh-fnos][dependency-repair] ${FNOS_DEPENDENCY_REPAIR_RUN_ROUTE} 请求到达 available=${String(diagnosis.available)} stale=${diagnosis.entries.length}`)
+        console.log(`[dsh-fnos][dependency-repair] ${FNOS_DEPENDENCY_REPAIR_RUN_ROUTE} 请求到达 hostAvailable=${String(environment !== undefined)}`)
 
         /*
           **整条路由只用一种协议：SSE。**
@@ -107,42 +103,6 @@ export function registerDependencyRepairRoutes(ctx: Context): void {
           res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
         }
 
-        if (!diagnosis.available) {
-          // 环境不具备修复条件：用 `outcome: 'unavailable'` 让界面渲染一句可读
-          // 说明。此前这里是 503 + 包一层 `result`，客户端只读顶层就当成了请求
-          // 失败，用户看到的是「什么都没发生」。
-          emit('result', {
-            ok: false,
-            steps: [],
-            removed: [],
-            durationMs: 0,
-            outcome: 'unavailable',
-            message: diagnosis.reason ?? 'fnos-host-unavailable',
-          } satisfies DependencyRepairResult)
-          res.end()
-          return
-        }
-        // 第二道防线：没有任何失效条目时不做重建。界面已经拦过一次，但这条
-        // 路由也可能被直接调用；对一个健康的 profile 清 lockfile 与 node_modules
-        // 是纯破坏，代价高且没有收益。
-        //
-        // **但「没做事」必须能看见。** 这里给 `outcome: 'healthy'` 而不是一个
-        // 空 steps：界面靠它渲染「依赖状态正常，无需修复」，否则点击后只剩下
-        // 一闪而过的进度提示，用户不知道到底修没修（见 FNOS-050-02 的「两者都
-        // 无时明确显示『依赖状态正常』」）。
-        if (diagnosis.entries.length === 0) {
-          console.log('[dsh-fnos][dependency-repair] 无失效条目，跳过重建')
-          emit('result', {
-            ok: true,
-            steps: [],
-            removed: [],
-            durationMs: 0,
-            outcome: 'healthy',
-          } satisfies DependencyRepairResult)
-          res.end()
-          return
-        }
-
         /*
           **边走边发，不等结束。**
 
@@ -153,7 +113,7 @@ export function registerDependencyRepairRoutes(ctx: Context): void {
         */
         const release = setRepairLogSink(line => { emit('log', { line }) })
         try {
-          const result = await runDependencyRepair(environment, diagnosis)
+          const result = await runDependencyRepair(environment)
           console.log(`[dsh-fnos][dependency-repair] 修复结束 ok=${String(result.ok)} 步骤=${result.steps.map(step => `${step.id}:${step.status}`).join(',') || '无'}`)
           emit('result', result)
         } finally {

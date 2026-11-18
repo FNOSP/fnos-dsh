@@ -21,7 +21,7 @@
  */
 
 import { execFile } from 'node:child_process'
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type {
   DependencyRepairDiagnosis,
@@ -424,6 +424,43 @@ async function backupWorkspaceFile(
   }
 }
 
+/**
+ * 清空 `minimumReleaseAgeExclude` 段里的**所有**条目。
+ *
+ * ## 为什么不按「失效」筛选
+ *
+ * 这一版之前只删诊断判定为失效的条目。但诊断本身要拿「清单目标版本」比对，而
+ * 非 fnOS 宿主（独立浏览器、本地 DSH Web）读不到发布清单，目标表为空——那时
+ * **一条都判不出来**，修复等于什么都没做，用户点了按钮却看不出变化。
+ *
+ * 「修复」的语义是**把这一块重置掉**：这段豁免本来就是发布冷静期的临时放行，
+ * 清空后 `pnpm install` 会重新按当前清单解析；留着旧条目反而可能继续拦新版本。
+ * 段头保留（它可能被别的配置引用），只清列表项。
+ *
+ * @param text - `pnpm-workspace.yaml` 全文。
+ * @returns 清空后的文本与被清掉的行数。
+ */
+export function clearAllExclusions(text: string): { readonly text: string, readonly removedLines: number } {
+  const kept: string[] = []
+  let removedLines = 0
+  let inSection = false
+  for (const line of text.split(/\r?\n/u)) {
+    if (/^minimumReleaseAgeExclude:\s*$/u.test(line)) {
+      inSection = true
+      kept.push(line)
+      continue
+    }
+    // 段在遇到下一个列零的非注释行时结束。
+    if (inSection && /^[^\s#-]/u.test(line)) inSection = false
+    if (inSection && /^\s+-\s*/u.test(line)) {
+      removedLines += 1
+      continue
+    }
+    kept.push(line)
+  }
+  return { text: kept.join('\n'), removedLines }
+}
+
 /** 原子写入：先写临时文件再改名，避免中途失败留下半个文件。 */
 async function writeFileAtomic(path: string, content: string): Promise<void> {
   const temporary = `${path}.dsh-repair-${process.pid}`
@@ -432,37 +469,45 @@ async function writeFileAtomic(path: string, content: string): Promise<void> {
 }
 
 /**
- * 执行修复：清失效条目 → 重建依赖 → 装回清单内插件。
+ * 执行修复：**无条件三步** —— 清空 `minimumReleaseAgeExclude` 的所有值、
+ * `pnpm clean --lockfile`、`pnpm install`。
  *
- * 三步各自记录状态；前面失败就不再做后面的（重装依赖一个可疑的 lockfile 没有
- * 意义）。已成功的步骤不会回滚——清掉失效条目本身是无害的。
+ * ## 为什么不再做任何判断
+ *
+ * 这个动作的语义是「把安装环境重置回可安装状态」，不是一个需要用户判断的业务
+ * 流程。此前它先做诊断、只在「有失效条目」时才重建，还额外把插件重装一遍：
+ *
+ * - 诊断要拿发布清单比对，而独立浏览器/本地 DSH Web 读不到清单，目标表为空时
+ *   **一条都判不出来**，修复于是什么都不做——用户点了按钮却看不出变化；
+ * - 「把插件装回来」超出了修复的职责，会顺带改动用户装了什么。
+ *
+ * 现在只做用户明确要求的三个动作。`pnpm` 不可用才算真的做不了（它是要执行的
+ * 命令本身，没有替代品）；其余情况一律照做。
  *
  * @param environment - 应用环境。
- * @param diagnosis - 先行的诊断结果（决定要清哪些条目）。
  * @returns 修复结果。
  */
 export async function runDependencyRepair(
   environment: DependencyRepairEnvironment | undefined,
-  diagnosis: DependencyRepairDiagnosis,
 ): Promise<DependencyRepairResult> {
   const startedAt = Date.now()
-  if (environment === undefined || !diagnosis.available) {
-    log(`repair: 跳过（${diagnosis.reason ?? 'fnos-host-unavailable'}）`)
+  if (environment === undefined) {
+    log('repair: 跳过（fnos-host-unavailable）')
     return {
       ok: false,
       steps: [],
       removed: [],
       durationMs: 0,
       outcome: 'unavailable',
-      message: diagnosis.reason ?? 'fnos-host-unavailable',
+      message: 'fnos-host-unavailable',
     }
   }
   const steps: DependencyRepairStep[] = []
   const workspacePath = join(environment.profileDirectory, 'pnpm-workspace.yaml')
-  log(`repair: 开始 profile=${environment.profileDirectory} 待清=${diagnosis.entries.length} 条`)
+  log(`repair: 开始 profile=${environment.profileDirectory}`)
 
   // 第一步：清失效条目。
-  let removed: readonly DependencyRepairEntry[] = []
+  const removed: readonly DependencyRepairEntry[] = []
   try {
     const text = await readTextIfExists(workspacePath)
     if (text === undefined) {
@@ -470,12 +515,15 @@ export async function runDependencyRepair(
       steps.push({ id: 'clear-exclusions', status: 'failed', detail: 'profile-missing' })
       return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'profile-missing' }
     }
-    // 先备份再改：判定规则再谨慎也是代码，判错时没有备份就还原不了。
+    /*
+      先备份再改。**这里不筛「失效」条目，整段清空**——「修复」的语义就是把这块
+      重置掉；而且非 fnOS 宿主读不到发布清单时，失效判定一条都命中不了，筛选版
+      会让按钮看起来没生效。备份留着，判错时还能还原。
+    */
     const backup = await backupWorkspaceFile(environment, text)
-    const result = removeExclusionLines(text, diagnosis.entries)
-    removed = diagnosis.entries
+    const result = clearAllExclusions(text)
     if (result.removedLines > 0) await writeFileAtomic(workspacePath, result.text)
-    log(`repair: clear-exclusions 完成，删除 ${result.removedLines} 行`)
+    log(`repair: clear-exclusions 完成，清空 ${result.removedLines} 行`)
     steps.push({
       id: 'clear-exclusions',
       status: 'ok',
@@ -517,82 +565,19 @@ export async function runDependencyRepair(
   steps.push({ id: 'rebuild', status: 'ok' })
   log('repair: rebuild 完成')
 
-  // 第三步：把发布清单里的插件装回来。清单外的插件不碰——那是用户自己的选择。
-  //
-  // 装法必须与应用自己的安装路径一致：能随 FPK 内置的插件走 `file:` 归档，
-  // 而不是 `<name>@<version>` 去 registry 拉。实测踩过——本地构建的版本
-  // （8.1.8）尚未发布到 npm，按 registry 装立刻失败并让整次修复报错，尽管
-  // 前两步（清条目、重建依赖）已经完全成功。应用内自愈不该依赖一个可能
-  // 不存在的 registry 版本。
-  const targets = environment.manifestPath === undefined
-    ? {}
-    : targetVersionsFromManifest(await readJsonIfExists(environment.manifestPath))
-  const packages = Object.entries(targets)
-  if (environment.dshBin === undefined || packages.length === 0) {
-    const detail = environment.dshBin === undefined ? 'dsh-missing' : 'no-managed-plugins'
-    log(`repair: reinstall 跳过（${detail}）`)
-    steps.push({ id: 'reinstall', status: 'skipped', detail })
-    return { ok: true, steps, removed, durationMs: Date.now() - startedAt, outcome: 'repaired' }
-  }
-  const specs: string[] = []
-  // 给用户看的是「装了什么、从哪来」，不是 `file:/vol2/...` 这种部署路径。
-  const sources: string[] = []
-  for (const [name, version] of packages) {
-    const archive = environment.bundledDirectory === undefined
-      ? undefined
-      : bundledArchivePath(environment.bundledDirectory, name)
-    // 归档存在就用它；不存在（瘦包发布，或该插件本就不内置）才退回 registry。
-    if (archive !== undefined && await pathExists(archive)) {
-      specs.push(`file:${archive}`)
-      log(`repair: reinstall 使用内置归档 ${name} → ${archive}`)
-      sources.push(`${name}（内置归档）`)
-    } else {
-      specs.push(`${name}@${version}`)
-      log(`repair: reinstall 无内置归档，改用 registry ${name}@${version}`)
-      sources.push(`${name}@${version}`)
-    }
-  }
-  log(`repair: reinstall 开始 ${specs.join(' ')}`)
-  const add = await run(
-    environment.dshBin,
-    ['plugin', '--profile', 'web', 'add', ...specs, '--config.minimum-release-age=0'],
-    environment.profileDirectory,
-    DEPENDENCY_REPAIR_COMMAND_TIMEOUT_MS,
-  )
-  log(`repair: reinstall 退出码=${add.code}`)
-  if (add.code !== 0) {
-    log(`repair: reinstall 失败 ${add.output.slice(-300)}`)
-    steps.push({ id: 'reinstall', status: 'failed', detail: add.output.slice(-500) })
-    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'reinstall-failed' }
-  }
-  steps.push({ id: 'reinstall', status: 'ok', detail: sources.join('、') })
+  /*
+    **到此为止：不再「把插件装回来」。**
+
+    这个动作的职责只有三步——清空 `minimumReleaseAgeExclude` 的所有值、执行
+    `pnpm clean --lockfile`、执行 `pnpm install`。曾经还有第三步「把发布清单里
+    的插件重新 add 一遍」，那会让修复顺带改动用户装了什么：清单内的插件被重装、
+    清单外的保持原样，对一个只想「让安装恢复正常」的人来说这是多余的副作用。
+
+    重建依赖本身已经足够：lockfile 与 node_modules 会按当前清单重新解析，插件
+    该在的还在、该装的能装上。需要重装请用「已安装插件」里的更新/安装入口。
+  */
   log(`repair: 完成，耗时 ${Date.now() - startedAt}ms`)
   return { ok: true, steps, removed, durationMs: Date.now() - startedAt, outcome: 'repaired' }
-}
-
-/**
- * 随 FPK 内置的插件归档路径。
- *
- * 目录布局是 `bundled-dsh-plugins/@scope/name.tgz`（见构建脚本）：`@scope/name`
- * 展开成两级目录，文件名取自包名最后一段。
- */
-function bundledArchivePath(directory: string, packageName: string): string {
-  const [scope, bare] = packageName.includes('/')
-    ? packageName.split('/', 2) as [string, string]
-    : [undefined, packageName] as const
-  return scope === undefined
-    ? join(directory, `${bare}.tgz`)
-    : join(directory, scope, `${bare}.tgz`)
-}
-
-/** 路径是否存在（读不到即视为不存在）。 */
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await stat(path)
-    return true
-  } catch {
-    return false
-  }
 }
 
 function describe(error: unknown): string {

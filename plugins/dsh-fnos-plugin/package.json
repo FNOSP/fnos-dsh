@@ -89,7 +89,8 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "catalog:",
     "dayjs": "catalog:",
-    "echarts": "catalog:"
+    "echarts": "catalog:",
+    "semver": "catalog:"
   },
   "dsh": {
     "bundle": {

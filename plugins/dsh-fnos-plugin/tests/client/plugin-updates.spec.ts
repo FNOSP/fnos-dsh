@@ -51,6 +51,19 @@ describe('插件更新：版本比较', () => {
     expect(isNewerVersion('1.73.20', '1.73.15')).toBe(false)
   })
 
+  it('三段位数不同也不出错（8.1.3 < 8.1.148）', () => {
+    /*
+      真机截图：OpenCode 装的是 8.1.3，registry 上是 8.1.148，界面却显示
+      「已是最新」。手写解析碰到这种情况容易把段数不同、位数相差很大的版本比较
+      判错。现在交给 `semver.gt`，与 npm 自己和宿主用同一套规则。
+    */
+    expect(isNewerVersion('8.1.3', '8.1.148')).toBe(true)
+    expect(isNewerVersion('8.1.148', '8.1.3')).toBe(false)
+    expect(isNewerVersion('8.1.3', '8.1.4')).toBe(true)
+    // 构建元数据不参与排序。
+    expect(isNewerVersion('8.1.3+build.9', '8.1.3+build.10')).toBe(false)
+  })
+
   it('无法解析的版本不报错、不提示', () => {
     expect(isNewerVersion('bad', '8.1.1')).toBe(false)
     expect(isNewerVersion('8.1.0', 'also-bad')).toBe(false)

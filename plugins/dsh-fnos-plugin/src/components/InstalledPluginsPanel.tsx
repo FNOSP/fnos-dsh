@@ -45,6 +45,95 @@ function pluginIconUrl(name: string, icon: string): string {
   return `${FNOS_PLUGIN_ASSET_ROUTE}?${query.toString()}`
 }
 
+/**
+ * 「有新版本」结果的本地缓存。
+ *
+ * 只管一件事：让**确认过的更新标记活过列表重载**。首屏与增删改后的重读都不联网，
+ * 若不缓存，装一个插件就会把刚刷新出来的绿标冲掉。
+ *
+ * 存的是 `包名 → { version, latestVersion, updateAvailable, aheadOfRegistry }`。
+ * `version` 是写入时的已装版本——重载时版本一变就说明装过了，缓存自然失效，不会
+ * 把旧结论套到新版本上。
+ */
+const UPDATE_CACHE_KEY = 'dsh-fnos:plugin-updates'
+
+/** 一个包被记住的更新状态。 */
+interface RememberedUpdate {
+  readonly version: string
+  readonly latestVersion?: string
+  readonly updateAvailable?: boolean
+  readonly aheadOfRegistry?: boolean
+}
+
+/** 读缓存（解析失败或环境不允许时当作没有）。 */
+function readUpdateCache(): Record<string, RememberedUpdate> {
+  try {
+    const raw = globalThis.localStorage?.getItem(UPDATE_CACHE_KEY)
+    if (typeof raw !== 'string' || raw.length === 0) return {}
+    const parsed: unknown = JSON.parse(raw)
+    return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, RememberedUpdate> : {}
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * 记住一次联网检测的结果。
+ *
+ * 只记有意义的条目：有更新、或本地版本高于 registry。两者都不成立的（确实是最新）
+ * 不必占位——重载后它们本来也显示「已是最新」，没有会丢的信息。
+ *
+ * @param snapshot - 刚拿到（带更新检测）的清单。
+ */
+function rememberUpdates(snapshot: InstalledPluginsSnapshot): void {
+  try {
+    const next: Record<string, RememberedUpdate> = { ...readUpdateCache() }
+    for (const plugin of snapshot.plugins) {
+      // 未安装的常驻卡片没有「已装版本」，记忆它没有意义。
+      if (plugin.absent === true) continue
+      if (plugin.updateAvailable !== true && plugin.aheadOfRegistry !== true) {
+        delete next[plugin.name]
+        continue
+      }
+      next[plugin.name] = {
+        version: plugin.version,
+        ...(plugin.latestVersion === undefined ? {} : { latestVersion: plugin.latestVersion }),
+        updateAvailable: plugin.updateAvailable === true,
+        aheadOfRegistry: plugin.aheadOfRegistry === true,
+      }
+    }
+    globalThis.localStorage?.setItem(UPDATE_CACHE_KEY, JSON.stringify(next))
+  } catch {
+    // 存不进去（隐私模式、配额满）只是少了持久化，不影响当前这屏。
+  }
+}
+
+/**
+ * 把缓存的更新状态合回一份**不带更新信息**的清单。
+ *
+ * 只沿用「版本仍然一致」的条目：用户装了新版本之后，旧结论必须作废。
+ *
+ * @param snapshot - 刚读到的本地清单。
+ * @returns 合并后的清单。
+ */
+function mergeRememberedUpdates(snapshot: InstalledPluginsSnapshot): InstalledPluginsSnapshot {
+  const remembered = readUpdateCache()
+  if (Object.keys(remembered).length === 0) return snapshot
+  return {
+    ...snapshot,
+    plugins: snapshot.plugins.map(plugin => {
+      const hit = remembered[plugin.name]
+      if (hit === undefined || hit.version !== plugin.version) return plugin
+      return {
+        ...plugin,
+        ...(hit.latestVersion === undefined ? {} : { latestVersion: hit.latestVersion }),
+        ...(hit.updateAvailable === undefined ? {} : { updateAvailable: hit.updateAvailable }),
+        ...(hit.aheadOfRegistry === undefined ? {} : { aheadOfRegistry: hit.aheadOfRegistry }),
+      }
+    }),
+  }
+}
+
 /** 组件参数。 */
 export interface InstalledPluginsPanelProps {
   readonly t: Translate
@@ -74,9 +163,25 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
    * 十几个插件就是十几次网络往返，首屏带上会很慢。首屏只读本地清单，**只有用户
    * 点刷新时才联网**。
    */
+  /**
+   * 把「有没有新版本」记在本地。
+   *
+   * ## 为什么需要持久化
+   *
+   * 查更新要联网，首屏不查（十几个插件就是十几次 registry 请求）。但点过刷新
+   * 之后**任何一次列表重载都会把结果冲掉**——装一个插件、禁用一个插件、卸载
+   * 一个插件都会重读清单，而重读不带更新信息，于是「有新版本」的绿标刚出现就
+   * 消失。用户看到的是「刷新了一下，然后标记自己没了」。
+   *
+   * 这里把**已确认的更新结果**按包名和版本存进 `localStorage`：重载时若插件
+   * 版本没变，就沿用上次的结论；版本一变（装了新版本）自然失效。用户仍可用
+   * 刷新按钮重新联网核对。
+   */
   const load = useCallback(async (checkUpdates = false) => {
     try {
-      setSnapshot(await fetchInstalledPlugins(checkUpdates))
+      const next = await fetchInstalledPlugins(checkUpdates)
+      if (checkUpdates) rememberUpdates(next)
+      setSnapshot(checkUpdates ? next : mergeRememberedUpdates(next))
       setError(undefined)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))

@@ -20,6 +20,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { evaluatePluginCompatibility, getDshRuntimeVersion } from '@deepseek-ai/dsh-app-boot'
+import { gt, valid } from 'semver'
 import type { InstalledPlugin } from '../contracts/gateway-proxy-contract.ts'
 
 /** npm registry 查询超时（毫秒）。 */
@@ -101,7 +102,7 @@ async function fetchLatest(name: string): Promise<string | undefined> {
 /**
  * 判断本地版本是否**高于** registry 上的最新版。
  *
- * 这在开发/内测环境很常见（本地装着 8.1.57，而 npm 上还停在 8.1.1）。此时
+ * 这在开发/内测环境很常见（本地装着 8.1.148，而 npm 上还停在 8.1.3）。此时
  * 「没有更新」是对的，但**不能显示成「已是最新」**——那会让用户以为自己的版本
  * 就是发布版。界面需要单独标明「本地版本高于 registry」。
  *
@@ -116,91 +117,28 @@ export function isAheadOfRegistry(installed: string, latest: string): boolean {
 /**
  * 比较两个语义化版本，判断 `latest` 是否严格高于 `installed`。
  *
- * 与 fork 的 `newerVersions` 同判据：用 `semver.valid` 过滤非法版本、用
- * `semver.gt` 严格比较，**预发布按 semver 规则参与比较**。
+ * ## 为什么用 `semver` 而不是自己写
  *
- * 这里只用 `semver` 的核心两个函数，不自己写三段式解析——`1.73.10` 与
- * `1.73.9` 这类按字符串比会得出相反结果，而带预发布后缀时手写规则更容易出错。
+ * 这里曾手写三段式解析加预发布比较，理由是「不新增依赖」。但版本比较是个**规格
+ * 问题**，不是几行 if 能覆盖的：`8.1.3` vs `8.1.148` 要按数字比（按字符串比会得出
+ * 相反结论）、`1.0.0-alpha` 与 `1.0.0-alpha.1` 段数不同、数字标识符优先级低于字母
+ * 标识符、构建元数据 `+build` 不参与排序……任何一条漏掉都会把「有更新」判成
+ * 「已是最新」，而这类错误在界面上只表现为一句错话，极难被发现。
+ *
+ * `semver` 是 npm 自己用的实现，`@deepseek-ai/dsh-app-boot` 与插件市场也都依赖它；
+ * 用它可以保证与宿主、与 registry 的判定**完全一致**。非法版本先过 `valid()`：
+ * 手写解析会把 `latest` 之类的字符串读成 NaN 段并静默返回 false。
  *
  * @param installed - 已装版本。
  * @param latest - registry 最新版本。
  * @returns 是否有更新。
  */
 export function isNewerVersion(installed: string, latest: string): boolean {
-  const a = parseVersion(installed)
-  const b = parseVersion(latest)
-  if (a === undefined || b === undefined) return false
-
-  // 主次修订逐段比数字：1.73.10 > 1.73.9（按字符串比会得出相反结论）。
-  for (let i = 0; i < 3; i += 1) {
-    const left = a.numbers[i] ?? 0
-    const right = b.numbers[i] ?? 0
-    if (right > left) return true
-    if (right < left) return false
-  }
-
-  /*
-    主版本相同：按 semver 规则**预发布低于正式版**。
-
-    - `1.73.20` vs `1.73.15`：两段都没有预发布，前面已判相等 → 不是更新；
-    - `1.74.0-beta.1` vs `1.73.20`：主版本更大，前面已返回 true；
-    - `1.73.20-beta.1` vs `1.73.20`：同为 1.73.20，正式版更高 → 不是更新；
-    - `1.73.20` vs `1.73.20-beta.1`：装的是 beta、registry 上是正式版 → 是更新。
-
-    与 fork `newerVersions` 用 `semver.gt` 的结论一致；这里手写是为了不新增依赖。
-  */
-  const leftPre = a.prerelease
-  const rightPre = b.prerelease
-  if (rightPre === undefined && leftPre !== undefined) return true
-  if (rightPre !== undefined && leftPre === undefined) return false
-  if (rightPre === undefined && leftPre === undefined) return false
-  return comparePrerelease(leftPre!, rightPre!) > 0
-}
-
-/** 解析后的版本：三段数字 + 可选预发布分段。 */
-interface ParsedVersion {
-  readonly numbers: readonly number[]
-  readonly prerelease?: readonly (string | number)[]
-}
-
-/**
- * 解析 `major.minor.patch[-prerelease]`。
- * @param value - 版本字符串。
- * @returns 解析结果；格式不合法时 undefined。
- */
-function parseVersion(value: string): ParsedVersion | undefined {
-  const [core, ...rest] = value.trim().split('-')
-  const numbers = (core ?? '').split('.').map(part => Number.parseInt(part, 10))
-  if (numbers.length < 3 || numbers.slice(0, 3).some(part => !Number.isFinite(part))) return undefined
-  if (rest.length === 0) return { numbers: numbers.slice(0, 3) }
-  const identifiers = rest.join('-').split('.').map(part => (/^\d+$/u.test(part) ? Number.parseInt(part, 10) : part))
-  return { numbers: numbers.slice(0, 3), prerelease: identifiers }
-}
-
-/**
- * 比较两个预发布段（semver 第 11 条优先级规则）。
- * @param left - 左侧标识符列表。
- * @param right - 右侧标识符列表。
- * @returns 负数/0/正数，分别表示左小于/等于/大于。
- */
-function comparePrerelease(left: readonly (string | number)[], right: readonly (string | number)[]): number {
-  const max = Math.max(left.length, right.length)
-  for (let i = 0; i < max; i += 1) {
-    const a = left[i]
-    const b = right[i]
-    // 段数少的一方优先级更低（1.0.0-alpha < 1.0.0-alpha.1）。
-    if (a === undefined) return -1
-    if (b === undefined) return 1
-    if (typeof a === 'number' && typeof b === 'number') {
-      if (a !== b) return a - b
-      continue
-    }
-    // 数字标识符优先级低于字母标识符。
-    if (typeof a === 'number') return -1
-    if (typeof b === 'number') return 1
-    if (a !== b) return a < b ? -1 : 1
-  }
-  return 0
+  const left = valid(installed.trim())
+  const right = valid(latest.trim())
+  // 任一侧不是合法 semver（如 `latest`、`workspace:*`）时不判为「有更新」。
+  if (left === null || right === null) return false
+  return gt(right, left)
 }
 
 /**

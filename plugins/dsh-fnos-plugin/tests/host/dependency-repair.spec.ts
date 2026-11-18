@@ -240,9 +240,10 @@ describe('依赖修复日志', () => {
   })
 
   it('修复的每一步都记录命令与退出码', () => {
+    // 三步：清空豁免、clean、install。不再有 reinstall——修复不重装插件。
     expect(HOST).toContain('repair: clean 退出码=')
     expect(HOST).toContain('repair: install 退出码=')
-    expect(HOST).toContain('repair: reinstall 退出码=')
+    expect(HOST).not.toContain('repair: reinstall 退出码=')
   })
 
   it('路由入口记录请求到达，区分「没触发」与「判定为健康」', () => {
@@ -250,91 +251,25 @@ describe('依赖修复日志', () => {
     expect(ROUTES).toContain('修复结束')
   })
 
-  it('「没做事」也要有明确结论，不能是个空 steps', () => {
+  it('修复不做任何前置判断：无条件三步', () => {
     /*
-      真机反馈：「这个功能执行的很快吗，为什么闪一下就消失了」。
+      「修复」的语义是把安装环境重置回可安装状态，不是需要用户判断的业务流程。
+      此前它先诊断、只在有失效条目时才重建，还额外把插件重装一遍：
+      - 诊断要拿发布清单比对，独立浏览器/本地 DSH Web 读不到清单时一条都判不
+        出来，修复等于什么都没做；
+      - 「把插件装回来」超出职责，会顺带改动用户装了什么。
 
-      健康的 profile 在 `entries.length === 0` 时直接返回空 steps，界面那侧又按
-      `steps.length > 0` 决定要不要渲染结果——于是点击后什么都留不下。用户无法
-      区分「已经好了」与「按钮没生效」。
-
-      因此两个「不做事」的出口都必须带上结论：
-      - 没有失效条目 → `healthy`（依赖状态正常，未做改动）
-      - 环境不具备 → `unavailable`
-      并且都用 200 返回结构化结果：503 那次还被客户端当成请求失败，连 `result`
-      都没读出来。
+      现在只做：清空 minimumReleaseAgeExclude 的所有值 → pnpm clean --lockfile
+      → pnpm install。
     */
-    expect(ROUTES).toContain("outcome: 'healthy'")
-    expect(ROUTES).toContain("outcome: 'unavailable'")
-    // 逻辑上必须写在「跳过重建」那个分支里，不是别处。
-    const healthyBranch = ROUTES.slice(ROUTES.indexOf('diagnosis.entries.length === 0'))
-    expect(healthyBranch).toContain("outcome: 'healthy'")
-    // 不可用不再用 503：客户端只读顶层，会退化成「请求失败」；也不再用普通
-    // JSON 的 send——整条路由统一走 SSE，所有出口都 emit('result')。
-    const unavailableBranch = ROUTES.slice(ROUTES.indexOf('!diagnosis.available'), ROUTES.indexOf('diagnosis.entries.length === 0'))
-    expect(unavailableBranch).toContain("emit('result'")
-    const unavailableCode = unavailableBranch
-      .split('\n')
-      .filter(line => !line.trim().startsWith('//'))
-      .join('\n')
-    expect(unavailableCode).not.toContain('503')
-  })
-
-  it('每个出口都发 result 事件，不只跑修复那一支', () => {
-    /*
-      真机反馈：健康 profile 点修复报「修复失败：no-result」，而服务端日志里
-      三步全 ok。根因是「环境不可用」「依赖状态正常」两个提前返回写成了普通
-      JSON，只有跑修复那条路用 SSE——客户端按 SSE 解析时收不到 `result`。
-
-      协议不能按分支切换：响应头先发，所有出口都 emit('result')。
-    */
-    // 三个出口（unavailable / healthy / 正常完成）都要有 result 事件。
-    const resultEmits = [...ROUTES.matchAll(/emit\('result'/gu)].length
-    expect(resultEmits).toBeGreaterThanOrEqual(3)
-    // 提前返回不能再用普通 JSON 的 send(…, 200, { ok: … })。
-    expect(ROUTES).not.toMatch(/send\(res, 200, \{\s*ok:/u)
-  })
-
-  it('修复走 SSE 流式推送：日志边走边发，结论单独一个事件', () => {
-    /*
-      整份结果在结束时一次性返回，界面只能「先干等、最后突然冒出一堆日志」。
-      改成 SSE 后每条日志立刻推给浏览器，最后一个 `result` 事件带结论。
-    */
-    expect(ROUTES).toContain("'content-type': 'text/event-stream; charset=utf-8'")
-    expect(ROUTES).toContain("emit('log'")
-    expect(ROUTES).toContain("emit('result'")
-    // 关掉代理缓冲，否则日志仍会被攒到最后一起出现。
-    expect(ROUTES).toContain("'x-accel-buffering': 'no'")
-    // 结束后必须释放观察者，下一次修复才不会把日志发到已关闭的响应上。
-    expect(ROUTES).toContain('release()')
-  })
-
-  it('备份文件名用本地时间到秒，不再被截断', () => {
-    /*
-      早前对 ISO 串做 `slice(0, 15)`，把 `2026-11-17-09-43-44` 切成
-      `2026-11-17-09-4`——同一小时内多次备份会互相覆盖，文件名也是残缺的。
-    */
-    // 直接断言实现：本地时间拼装到秒，不再对 ISO 串做定长截断。
-    expect(HOST).toContain("padStart(2, '0')")
-    expect(HOST).toContain('getFullYear()')
-    expect(HOST).toContain('getSeconds()')
-  })
-
-  it('备份写在应用共享目录，不是 profile 旁边', () => {
-    /*
-      profile 是 pnpm 的工作目录，往里丢 `.bak` 会被 `pnpm install` 当成工作区
-      文件扫到；`@appshare/<app>` 是 fnOS 给应用的共享目录，用户可见、卸载不丢。
-    */
-    expect(HOST).toContain("join(share, '备份')")
-    expect(HOST).toContain('shareDirectory')
-    // 备份失败不阻断修复，但要在日志里留痕。
-    expect(HOST).toContain('备份失败（继续修复）')
-  })
-
-  it('重装步骤给语义化来源，不暴露部署路径', () => {
-    // `file:/vol2/@appcenter/...` 这种路径对用户没有意义，卡片上只显示「内置归档」。
-    expect(HOST).toContain('（内置归档）')
-    expect(HOST).toContain('detail: sources.join')
+    expect(ROUTES).not.toContain('diagnosis.entries.length === 0')
+    expect(ROUTES).not.toContain("outcome: 'healthy'")
+    expect(HOST).toContain('clearAllExclusions')
+    expect(HOST).toContain("'clean', '--lockfile'")
+    expect(HOST).toContain("'install'")
+    // 不再重装插件。
+    expect(HOST).not.toContain('reinstall')
+    expect(HOST).not.toContain("'plugin',")
   })
 
   it('执行过重建才报 repaired，失败报 failed', () => {
@@ -468,35 +403,35 @@ describe('真实失效现场（16 条，含历史 || 累积）', () => {
  * registry 版本：能内置的插件就走 `file:` 归档，与 FPK 安装路径一致。
  */
 
-describe('重装插件：内置归档优先', () => {
+describe('修复只管三步：清空豁免、clean、install', () => {
   const source = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
   const HOST = source('../../src/host/dependency-repair.ts')
 
-  it('环境推导带上内置归档目录', () => {
-    expect(HOST).toContain('bundledDirectory')
-    expect(HOST).toMatch(/bundledDirectory: join\(appDest, 'bundled-dsh-plugins'\)/)
+  it('清空整段而不是只删失效条目', () => {
+    /*
+      按「失效」筛要在有发布清单时才算得出目标版本；独立浏览器/本地 DSH Web
+      读不到清单，目标表为空，一条都判不出来，修复就等于没做。
+    */
+    expect(HOST).toContain('export function clearAllExclusions')
+    expect(HOST).toContain('clearAllExclusions(text)')
   })
 
-  it('归档存在时用 file: 规格，缺失才退回 registry', () => {
-    expect(HOST).toContain('bundledArchivePath')
-    expect(HOST).toContain('pathExists(archive)')
-    // 源码里的模板串字面量用正则断言：直接写 ${...} 会被 no-template-curly-in-string 判为误写。
-    expect(HOST).toMatch(/`file:\$\{archive\}`/)
-    expect(HOST).toMatch(/`\$\{name\}@\$\{version\}`/)
-    // 两种分支都要留日志，排障时能看出走的是哪条。
-    expect(HOST).toContain('使用内置归档')
-    expect(HOST).toContain('无内置归档，改用 registry')
+  it('只执行 clean --lockfile 与 install', () => {
+    expect(HOST).toContain("'clean', '--lockfile'")
+    expect(HOST).toContain("'install'")
   })
 
-  it('归档路径按 @scope/name 展开为两级目录', () => {
-    // 目录布局是 bundled-dsh-plugins/@scope/name.tgz（见构建脚本）。
-    expect(HOST).toMatch(/join\(directory, scope, `\$\{bare\}\.tgz`\)/)
-    expect(HOST).toMatch(/join\(directory, `\$\{bare\}\.tgz`\)/)
-  })
+  it('不再重装插件', () => {
+    /*
+      「把插件装回来」超出修复职责，会顺带改动用户装了什么。
 
-  it('缺失归档不阻断修复（回退而不是报错）', () => {
-    // 瘦包发布时没有内置归档，此时必须回退到 registry，不能直接 fail。
-    const block = HOST.slice(HOST.indexOf('const specs: string[] = []'), HOST.indexOf('log(`repair: reinstall 开始'))
-    expect(block).not.toContain('return { ok: false')
+      注意：`targetVersionsFromManifest` 仍保留——只读**诊断**还要用它比对清单
+      目标版本，那是「看一眼现在是什么状态」而不是「修的时候做判断」。
+    */
+    expect(HOST).not.toContain('reinstall')
+    expect(HOST).not.toContain('bundledArchivePath')
+    // 修复路径里不再读发布清单（诊断函数本身除外）。
+    const repairFn = HOST.slice(HOST.indexOf('export async function runDependencyRepair'))
+    expect(repairFn).not.toContain('manifestPath')
   })
 })

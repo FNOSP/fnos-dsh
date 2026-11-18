@@ -467,3 +467,31 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
     expect(rule).toContain('margin: 0')
   })
 })
+
+/**
+ * 「有新版本」标记要活过列表重载。
+ *
+ * 实机反馈：点刷新拿到「有新版本」，接着装一个或禁用一个插件，绿标就没了——
+ * 因为任何增删改都会重读一次清单，而重读不联网，`updateAvailable` 变回 undefined。
+ */
+describe('插件更新标记的持久化', () => {
+  const PANEL = read('../../src/components/InstalledPluginsPanel.tsx')
+
+  it('联网检测的结果写进 localStorage', () => {
+    expect(PANEL).toContain('rememberUpdates')
+    expect(PANEL).toContain('localStorage')
+    // 只记「有更新」或「本地更高」，两者都不成立的不必占位。
+    expect(PANEL).toContain('updateAvailable !== true && plugin.aheadOfRegistry !== true')
+  })
+
+  it('不联网的重载把缓存合回去', () => {
+    // 首屏与增删改后的重读都走并集路径，否则刚刷新出来的标记会被冲掉。
+    expect(PANEL).toContain('mergeRememberedUpdates')
+    expect(PANEL).toContain('checkUpdates ? next : mergeRememberedUpdates(next)')
+  })
+
+  it('版本变了就不沿用旧结论', () => {
+    // 装了新版本之后「有新版本」必须失效，不能把旧结论套到新版本上。
+    expect(PANEL).toContain('hit.version !== plugin.version')
+  })
+})
