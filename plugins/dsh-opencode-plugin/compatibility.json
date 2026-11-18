@@ -4,7 +4,7 @@
     "node": ">=24.9.0"
   },
   "dshPluginApi": {
-    "version": "0.2.2-rc.1",
+    "version": "0.2.2-rc.4",
     "packages": [
       "@deepseek-ai/dsh-atomic-write",
       "@deepseek-ai/dsh-attachment",

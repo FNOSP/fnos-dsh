@@ -20,34 +20,42 @@ export interface HeaderUtilitySeat {
 }
 
 /**
- * fnOS 文件入口：遮蔽官方 `open-in-app`。
+ * fnOS 文件入口：**不再遮蔽**官方 `open-in-app`。
  *
- * `priority: -1` 是为了遮蔽——官方条目用默认 0，同优先级注册会直接抛错。
- * `order: -10` 与官方一致，保证它排在 session log 之前。
+ * 遮蔽在这里已经失效，因为官方条目在 DSH `0.2.2-rc.4` 迁出了本插槽：
+ * `client-ui-open-in-app` 改为注册 `contextMenu.icon` 与 `deliverables.*`，
+ * 插槽 occupancy 里不再有 `open-in-app`。继续用 `priority: -1` 只是遮一个
+ * 不存在的目标，语义上撒谎，因此改回普通优先级 0。
+ *
+ * 需要遮蔽它的理由（官方按编译期常量表探测本机应用，在 fnOS 上把
+ * `/usr/sbin/zed` 误判为 Zed 编辑器）也随官方条目的消失而不再成立。
+ *
+ * `order: -10` 保留：它决定本插件两个入口之间的左右次序，与官方是否还在无关。
  */
 export const FNOS_OPEN_IN_APP_SEAT: HeaderUtilitySeat = {
   name: 'conversation.session.header.utilities',
   id: 'open-in-app',
   order: -10,
-  priority: -1,
+  priority: 0,
 }
 
 /**
- * Session log：遮蔽官方 `session-log-download`，保持默认 order 0 排在右侧。
+ * Session log：**不再遮蔽**官方 `session-log-download`，保持默认 order 0 排在右侧。
  *
- * :::danger 遮蔽是整条替换，上游新增功能会静默消失
+ * :::danger 遮蔽已在上游迁走后失效，别照着旧注释恢复 priority:-1
  *
- * 官方那个条目渲染的是一个**菜单**（复制会话为 Markdown / 下载日志 / 反馈）。
- * 同 id 覆盖后由本插件的 `FnosSessionLogHeaderAction` 接手，因此**上游在该菜单
- * 里加的任何一项都不会出现**，而界面不报错、控制台也没有警告——用户只会发现
- * 「少了一项」。
+ * DSH `0.2.2-rc.4` 把官方导出入口从本插槽迁到了会话头部右键菜单：
+ * `session-log-export` 改为 `ctx.contextMenus.register({ target: 'sessionHeader' })`
+ * 注册 `session-log-download.export` 与 `.feedback`，插槽 occupancy 里不再有
+ * `session-log-download`（该包只剩 `contextMenu.icon` 与 `shell.overlay`）。
  *
- * 这不是假设：DSH 上游加了「复制会话为 Markdown」，被这条遮挡挡掉，直到用户
- * 截图才被发现。
+ * 因此 `priority: -1` 遮的是不存在的目标。本插件在头部继续提供等效入口
+ * （复制为 Markdown / 下载 / 反馈），但它是**独立条目**而非替代品：官方入口
+ * 现在活在右键菜单里，两者共存。
  *
- * 因此改上游菜单相关代码前，先跑
- * `tests/client/official-entry-shadow-guard.spec.ts`：它从已安装的上游产物里
- * 抽出菜单项 id 与本地实现比对，缺一项就报红并点名。
+ * 「遮蔽会吞掉上游新增项」的历史风险因此不再由本行承担；对应守卫改为断言
+ * 「官方已迁出本插槽」这一事实本身，见
+ * `tests/client/official-entry-shadow-guard.spec.ts`。
  *
  * :::
  */
@@ -55,5 +63,5 @@ export const FNOS_SESSION_LOG_SEAT: HeaderUtilitySeat = {
   name: 'conversation.session.header.utilities',
   id: 'session-log-download',
   order: 0,
-  priority: -1,
+  priority: 0,
 }

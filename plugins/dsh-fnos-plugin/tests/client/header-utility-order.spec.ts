@@ -38,11 +38,13 @@ describe('会话头部条目顺序', () => {
       .toEqual(['open-in-app', 'session-log-download'])
   })
 
-  it('两个座位都用更低优先级遮蔽官方条目', () => {
-    // 官方两条目用默认 priority 0；同优先级注册会直接抛错，整个插件加载失败。
-    expect(FNOS_OPEN_IN_APP_SEAT.priority).toBeLessThan(0)
-    expect(FNOS_SESSION_LOG_SEAT.priority).toBeLessThan(0)
-    // 遮蔽靠同 id：官方用 'open-in-app' 与 'session-log-download'。
+  it('两个座位用普通优先级注册，不再遮蔽官方条目', () => {
+    // DSH 0.2.2-rc.4 起官方两个入口都已迁出本插槽（改为会话头部右键菜单），
+    // 遮蔽成为空操作。同 id + priority 0 与官方若回来时的默认值相同，会直接抛错，
+    // 因此这里钉住「不再遮蔽」这一事实，避免有人照着旧注释把 -1 加回来。
+    expect(FNOS_OPEN_IN_APP_SEAT.priority).toBe(0)
+    expect(FNOS_SESSION_LOG_SEAT.priority).toBe(0)
+    // id 保留：入口自身的标识，与是否遮蔽无关。
     expect(FNOS_OPEN_IN_APP_SEAT.id).toBe('open-in-app')
     expect(FNOS_SESSION_LOG_SEAT.id).toBe('session-log-download')
   })

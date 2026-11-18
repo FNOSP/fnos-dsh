@@ -439,3 +439,33 @@ describe('FNOS-007 DSH baseline', () => {
     }
   })
 })
+
+/**
+ * 基线在**所有承载处**一致（FNOS-055）。
+ *
+ * `pnpm run version -- major --baseline` 只改写默认 catalog 的一行；命名 catalog
+ * 与 `minimumReleaseAgeExclude` 命令完全不碰，过去靠人工记忆同步。漏改的后果不是
+ * 报错而是**静默错位**：顶层基线已是新版，而插件依赖仍按旧版解析、新发版还会被
+ * pnpm 的发布龄期冷却挡住。这里把三处取值钉成同一个，漏改即红。
+ */
+describe('基线承载处一致性', () => {
+  it('默认 catalog、命名 catalog、发布龄期豁免清单指向同一个基线', async () => {
+    const workspace = await readFile(new URL('../../../pnpm-workspace.yaml', import.meta.url), 'utf8')
+
+    const named = [...workspace.matchAll(/^\s{4}'(@deepseek-ai\/dsh[a-z-]*)':\s*(\S+)\s*$/gmu)]
+      .map(match => match[2]!)
+    expect(named.length, '命名 catalog 里没有 dsh 条目：解析可能已失效').toBeGreaterThan(0)
+    expect([...new Set(named)], '命名 catalog 与默认 catalog 基线不一致').toEqual([targetVersion])
+
+    const ageExcluded = [...workspace.matchAll(/^\s{2}- '(@deepseek-ai\/[a-z-]+)@(\S+)'\s*$/gmu)]
+      .filter(match => match[1]!.startsWith('@deepseek-ai/dsh'))
+      .map(match => match[2]!)
+    expect(ageExcluded.length, '发布龄期豁免清单里没有 dsh 条目：解析可能已失效').toBeGreaterThan(0)
+    expect([...new Set(ageExcluded)], '发布龄期豁免清单与默认 catalog 基线不一致').toEqual([targetVersion])
+  })
+
+  it('安装回调的 DSH_VERSION 与 catalog 基线一致', async () => {
+    const callback = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/install_callback', import.meta.url), 'utf8')
+    expect(callback).toContain(`DSH_VERSION="${targetVersion}"`)
+  })
+})
