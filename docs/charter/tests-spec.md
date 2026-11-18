@@ -477,6 +477,59 @@ el.dispatchEvent(new Event('change', { bubbles: true }))
 mkdir -p tmp/fpk-upload && cp apps/fn-deepseek-harness/fn-deepseek-harness.fpk tmp/fpk-upload/
 ```
 
+#### 在 NAS 上直接跑 `dsh plugin`：四个环境变量缺一不可
+
+用 SSH 在 NAS 上执行 `dsh plugin --profile web add …` 时，**交互式登录会话与「应用自己的
+运行环境」差四样东西**。少任何一样，命令都会走到错误的目录或以错误的方式失败，而报错信息
+通常指向别处（"store location differs"、"permission denied"、装到 `/home/<user>/.dsh`），
+极易被误判成权限或网络问题。
+
+2026-11-18 实测：连续六次安装失败，全部收敛到这一组变量上。
+
+```bash
+DSH_HOME=/vol2/@apphome/fn-deepseek-harness
+HOME=/vol2/@appshare/fn-deepseek-harness          # ← 最容易漏，见下
+NPM_CONFIG_PREFIX=$DSH_HOME/.npm-global
+NPM_CONFIG_CACHE=$DSH_HOME/.npm-cache
+NPM_CONFIG_USERCONFIG=$DSH_HOME/.npmrc
+PATH=/vol2/@appcenter/nodejs_v24/bin:$DSH_HOME/.npm-global/bin:$PATH
+```
+
+| 变量 | 缺失时的表现 | 为什么必须是这个值 |
+| --- | --- | --- |
+| `HOME` | `ERR_PNPM_UNEXPECTED_STORE` | pnpm 按 `$HOME/.local/share/pnpm/store` 推导 store；profile 的 `node_modules/.modules.yaml` 记录的是 `@appshare/<app>/...store/v11`，而 `HOME` 在安装回调里正是 `@appshare/<app>`。设成 `@apphome/<app>` 会推成 `@apphome/.../store`，两者不符，pnpm 直接拒绝安装 |
+| `DSH_HOME` | 包装进 `/home/<user>/.dsh`，profile 完全没有变化 | 不设时 `dsh` 回落到 `$HOME/.dsh`，会新建一个空 profile |
+| `PATH` 里的 node | `/usr/bin/env: 'node': No such file or directory` | 交互式 ssh 的 PATH 没有应用依赖；应用用 appcenter 下的 `nodejs_v24` |
+| `PATH` 里的 pnpm | `spawn pnpm ENOENT` | `dsh` 内部 spawn pnpm 取 PATH；bin 在 `$DSH_HOME/.npm-global/bin` |
+
+**权威来源是安装回调本身**，不是猜出来的：`/var/apps/<app>/cmd/install_callback` 顶部就写着
+`DSH_HOME="${TRIM_PKGHOME}"`、`HOME="${TRIM_APPDEST_VOL}/@appshare/<app>"`、
+`PNPM_STORE_DIR="${APP_HOME}/.local/share/pnpm/store"`。要确认某个环境的正确值，先读这几行。
+
+```bash
+# 自检：这两条必须相等，否则 pnpm 会拒绝安装
+pnpm store path
+grep storeDir "$DSH_HOME/profiles/web/node_modules/.modules.yaml"
+```
+
+**装完必须把属主交还应用用户。** 应用以专用用户运行（如 `fn-deepseek-harness`），而 ssh 登录
+的是管理员账号；用管理员身份装出来的 `node_modules/*` 属主是管理员，**应用读不到**，界面上
+插件版本会全部显示成 `—`，`installed` 接口还会报 `EACCES`。
+
+```bash
+chown -R fn-deepseek-harness:fn-deepseek-harness "$DSH_HOME/profiles/web"
+```
+
+**`dsh plugin` 不会把 `--store-dir` 传给它 spawn 的 pnpm。** 因此 `HOME` 是唯一能对齐 store 的
+手段；不要试图通过 `pnpm config set store-dir` 在别处兜。若确实要绕开 `dsh` 直接装包，用
+`pnpm add "--store-dir=<记录值>"`，但仍需 `HOME`/`DSH_HOME` 正确。
+
+:::warning 这些是排查手段，不是安装路径
+验收要求的功能安装仍走[应用中心](#用-chrome-mcp-安装-fpk断开-click--upload_file)。上面这套
+命令只在**需要往 profile 装非发布版本的包**（定位版本判定问题、复现老版本行为）时使用；它
+绕过安装回调，因此不会触发升级脚本，也不会更新应用目录。
+:::
+
 **安装类用例必须自证「装上去的是新构建」**。只看「安装成功」的提示或界面观感不够——
 覆盖安装失败时旧版本仍在运行，界面照样正常。判据要落在**只有新构建才成立**的事实上：
 
@@ -1033,3 +1086,4 @@ Codex Auth 插件的**已登录账号配置文件可直接用作测试账号**�
 | 2026-10-14 | 新增「小控件用 `dsh.clickInPage`」与「交互未生效用 `dsh.actUntil`」 | 实测药丸按钮真实位置 `(648,893)`／`86×28`，而视觉定位的 `Tap` 落点是一次 `(2774,1817)`（完全在视口外，DPR=2 下的坐标放大），且 `aiAct` 仍自述成功；另有模型为滚动给出越界 bbox（`[300,0,2000,1002]`）被上游拒绝。要求：可被选择器唯一定位的小控件改用 `dsh.clickInPage`（页面内 `element.click()`，零坐标偏差，实测能切换 React 状态，耗时 196 s → 28 s）；导航拆成小步、滚动用 `scrollIntoView`；交互后核实用 `dsh.actUntil`（未生效自动重试，失败时报「点击可靠性问题」而非含糊断言失败）。 |
 | 2026-10-14 | 新增「禁止清除被测站点的 Cookie 与本地存储」 | 测试只能读取、不得清除或改写被测站点的 Cookie / localStorage / sessionStorage / IndexedDB。被测页面是用户真实环境，清掉登录 Cookie 会把用户从 NAS 登出（实测发生过：测试后浏览器停在 fnOS 登录页，后续用例全部无法继续）。列出禁止的 API 清单（含 CDP 的 `Network.clearBrowserCookies` 等）与唯一例外（只能删用例自己建的探针数据），并记录当前代码审计与实测结果（站点数据完好、保持登录）。 |
 | 2026-10-14 | 补充「不得创建持久会话，也不得改变用户当前所在的会话」 | 用例若必须切换会话，须先用页面内断言记住原会话（`data-row-key` + 是否草稿态）并在收尾切回；不得发送消息（会写进用户的会话历史，且界面行为无需真实对话即可验证）；收尾清除自己留下的探针属性与临时高亮。实测：TC-032 加了「记住并切回原会话」后 5/5 通过，收尾核对确认探针属性为空、无残留标记。 |
+| 2026-11-18 | 新增「在 NAS 上直接跑 `dsh plugin`：四个环境变量缺一不可」 | 用 SSH 往 NAS 的 profile 装非发布版本包时，交互式会话与应用运行环境差四样东西：`HOME` （必须 `@appshare/<app>`，否则 pnpm 按 `$HOME/...` 推导 store 与 `.modules.yaml` 记录不符，报 `ERR_PNPM_UNEXPECTED_STORE`）、`DSH_HOME`（缺失则装进 `/home/<user>/.dsh`）、PATH 里的 node 与 pnpm。实测连续六次安装失败全部收敛到这一组变量上，故连同「装完把属主交还应用用户」（否则应用读不到、界面版本显示 `—`）一并固化，并注明权威来源是 `cmd/install_callback` 顶部的赋值而不是猜测。 |
