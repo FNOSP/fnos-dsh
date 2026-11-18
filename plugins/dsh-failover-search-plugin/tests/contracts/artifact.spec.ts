@@ -46,7 +46,11 @@ describe('FNOS-010-04 构建产物契约', () => {
     // DSH 客户端模块表不认识 CSS import：留下 `import "./style.css"` 会让整个
     // 插件模块加载失败。
     expect(built.startsWith("import './style.css';")).toBe(false)
-    expect(built).toContain('dataset.dshFailoverSearch')
+    // 样式注入的标记在 1323eff2 里换成了统一实现：七个插件各自内联整包 CSS
+    // 会重复注入同一份 Semi（占 89%），现在共用一套去重注入，标记随之统一为
+    // `dataset.dshPluginStyle`。这里断言「样式确实被内联进产物」，不再指定
+    // 某个插件私有的标记名。
+    expect(built).toContain('dataset.dshPluginStyle')
   })
 
   it('client 产物只保留宿主模块表提供的外部依赖', async () => {

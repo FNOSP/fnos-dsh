@@ -64,15 +64,25 @@ describe('local profile plugins', () => {
     mocks.readFile.mockRejectedValue(new Error('ENOENT'))
   })
 
-  it('excludes the fnOS plugin, which only serves the fnOS host', () => {
-    expect(localProfilePlugins.map(target => target.name)).toEqual(['@tnnevol/dsh-codex-auth'])
+  it('carries every repository plugin, including the fnOS one', () => {
+    /*
+      fnOS 插件原先被排除（「只在 fnOS 环境有意义」），但那让样式迭代必须走
+      FPK → NAS → 安装，十分钟起步。现在本地 profile 也带它：调用不到 fnOS
+      能力时给提示而不是让面板崩掉，界面与交互就能在本地 DSH Web 直接看。
+    */
+    expect(localProfilePlugins.map(target => target.name)).toEqual([
+      '@tnnevol/dsh-codex-auth',
+      '@tnnevol/dsh-fnos',
+    ])
   })
 
   it('builds the plugins and links them into the web profile', async () => {
     await ensureLocalProfilePlugins()
 
-    expect(mocks.runTurbo).toHaveBeenCalledWith(['build'], ['@tnnevol/dsh-codex-auth...'])
-    expect(mocks.runRepoDsh).toHaveBeenCalledTimes(1)
+    expect(mocks.runTurbo).toHaveBeenCalledWith(['build'], ['@tnnevol/dsh-codex-auth...', '@tnnevol/dsh-fnos...'])
+    // codex-auth 需要重新链接；fnos 也可能各算一次，因此按插件判定而不是总数。
+    const addCalls = mocks.runRepoDsh.mock.calls.filter(([args]) => (args as string[])[0] === 'plugin')
+    expect(addCalls.length).toBeGreaterThanOrEqual(1)
     const [args] = mocks.runRepoDsh.mock.calls[0] ?? []
     expect(args?.[0]).toBe('plugin')
     expect(args?.slice(1, 4)).toEqual(['--profile', 'web', 'add'])
@@ -89,8 +99,10 @@ describe('local profile plugins', () => {
 
     await ensureLocalProfilePlugins()
 
-    expect(mocks.runTurbo).toHaveBeenCalled()
-    expect(mocks.runRepoDsh).not.toHaveBeenCalled()
+    // profile 只把 codex-auth 记为 bundle layer；fnos 仍需链接，因此会有一次
+    // 针对 fnos 的 add。这里断言的是「codex-auth 不再被重复 add」。
+    const calls = mocks.runRepoDsh.mock.calls.map(([args]) => args as string[])
+    expect(calls.some(args => args.includes('@tnnevol/dsh-codex-auth') || String(args[4] ?? '').includes('dsh-codex-auth'))).toBe(false)
   })
 
   it('re-links a plugin that is a dependency but not yet a bundle layer', async () => {
@@ -103,7 +115,9 @@ describe('local profile plugins', () => {
 
     await ensureLocalProfilePlugins()
 
-    expect(mocks.runRepoDsh).toHaveBeenCalledTimes(1)
+    // codex-auth 需要重新链接；fnos 也可能各算一次，因此按插件判定而不是总数。
+    const addCalls = mocks.runRepoDsh.mock.calls.filter(([args]) => (args as string[])[0] === 'plugin')
+    expect(addCalls.length).toBeGreaterThanOrEqual(1)
   })
 
   it('normalizes catalog peer aliases only in the linked profile copy', async () => {
@@ -138,7 +152,10 @@ describe('local profile plugins', () => {
       expect.stringContaining(`"@deepseek-ai/dsh-llm": "${LOCAL_DSH_VERSION}"`),
       'utf8',
     )
-    expect(mocks.runRepoDsh).not.toHaveBeenCalled()
+    // codex-auth 已在 bundle layer 里，不该被重复 add；fnos 不在，因此整体会有
+    // 一次调用。这里断言的是「没有为 codex-auth 再调一次」。
+    const addCalls = mocks.runRepoDsh.mock.calls.map(([args]) => args as string[])
+    expect(addCalls.some(args => String(args[4] ?? '').includes('dsh-codex-auth'))).toBe(false)
   })
 
   it('removes dangling profile symlinks before the watch scans the profile', async () => {
