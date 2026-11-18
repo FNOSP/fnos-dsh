@@ -37,6 +37,33 @@ export NPM_CONFIG_USERCONFIG="${NPM_USER_CONFIG_FILE}"
 export PNPM_CONFIG_STORE_DIR="${PNPM_STORE_DIR}"
 export PATH="${NODE_BIN}:${NPM_CONFIG_PREFIX}/bin:/usr/bin:/bin"
 
+# ── 临时调试 hook（验证插件安装后删除本段）────────────────────────────────
+#
+# 目的：在**应用自己的运行环境**里执行一段调试脚本。手工 ssh 进来缺三样东西，
+# 每一样都会让 pnpm 走到错误的目录：
+#
+#   1. `HOME` —— callback 设为 `@appshare/<app>`，pnpm 据此把 store 算成
+#      `@appshare/.../.local/share/pnpm/store/v11`，与 `node_modules/.modules.yaml`
+#      里记录的一致。设成 `@apphome` 或登录用户家目录都会报
+#      `ERR_PNPM_UNEXPECTED_STORE`。
+#   2. `PNPM_CONFIG_STORE_DIR` —— 显式指向 profile 记录的 store。
+#   3. `DSH_HOME` / `NPM_CONFIG_PREFIX` / PATH 里的 node 与 pnpm。
+#
+# 用法：把脚本放到 `${DSH_HOME}/.debug-hook.sh` 并 `chmod +x`。安装时若存在就
+# 执行，执行完**删除自己**，避免下一次安装重复跑。脚本失败不阻断安装——它是
+# 调试用的，不该把正常装机拖下去。
+run_debug_hook() {
+    local hook="${DSH_HOME}/.debug-hook.sh"
+    [ -f "${hook}" ] || return 0
+    log_info "Running debug hook ${hook} (temporary; removed after this run)"
+    if bash "${hook}" 2>&1 | while IFS= read -r line; do log_info "  debug: ${line}"; done; then
+        log_info "Debug hook completed."
+    else
+        log_warn "Debug hook failed; continuing the installation."
+    fi
+    rm -f "${hook}" || log_warn "Unable to remove the debug hook ${hook}."
+}
+
 log_message() {
     local level="$1"
     shift
@@ -541,6 +568,9 @@ main() {
     install_trim_cli
     install_fnos_cli_skill
     install_published_dsh_plugins
+    # 临时调试 hook：存在才执行，执行后自删。验证完把本段与上面 run_debug_hook
+    # 一起删掉。
+    run_debug_hook
 }
 
 main "$@"
