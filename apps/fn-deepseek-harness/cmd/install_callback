@@ -37,31 +37,26 @@ export NPM_CONFIG_USERCONFIG="${NPM_USER_CONFIG_FILE}"
 export PNPM_CONFIG_STORE_DIR="${PNPM_STORE_DIR}"
 export PATH="${NODE_BIN}:${NPM_CONFIG_PREFIX}/bin:/usr/bin:/bin"
 
-# ── 临时调试 hook（验证插件安装后删除本段）────────────────────────────────
+# ── 临时调试：随包内置的插件安装脚本（验证后删除本段与脚本文件）──────────────
 #
-# 目的：在**应用自己的运行环境**里执行一段调试脚本。手工 ssh 进来缺三样东西，
-# 每一样都会让 pnpm 走到错误的目录：
+# `app/scripts/debug-install-plugins.sh` 随 FPK 一起发布，安装时在**应用自己的
+# 运行环境**里跑一遍。这样不必手工 ssh 进去——那条路径缺 `HOME=@appshare/<app>`、
+# `DSH_HOME`、PATH 里的 node/pnpm，pnpm 会把 store 算到别的目录并报
+# `ERR_PNPM_UNEXPECTED_STORE`（实测六次都栽在这组变量上）。
 #
-#   1. `HOME` —— callback 设为 `@appshare/<app>`，pnpm 据此把 store 算成
-#      `@appshare/.../.local/share/pnpm/store/v11`，与 `node_modules/.modules.yaml`
-#      里记录的一致。设成 `@apphome` 或登录用户家目录都会报
-#      `ERR_PNPM_UNEXPECTED_STORE`。
-#   2. `PNPM_CONFIG_STORE_DIR` —— 显式指向 profile 记录的 store。
-#   3. `DSH_HOME` / `NPM_CONFIG_PREFIX` / PATH 里的 node 与 pnpm。
+# 脚本用 `dsh plugin add <包名>@<版本>` 指定版本，**由 dsh/pnpm 自己从 registry
+# 下载**，不需要预置 tarball，也不额外占 FPK 体积。
 #
-# 用法：把脚本放到 `${DSH_HOME}/.debug-hook.sh` 并 `chmod +x`。安装时若存在就
-# 执行，执行完**删除自己**，避免下一次安装重复跑。脚本失败不阻断安装——它是
-# 调试用的，不该把正常装机拖下去。
-run_debug_hook() {
-    local hook="${DSH_HOME}/.debug-hook.sh"
-    [ -f "${hook}" ] || return 0
-    log_info "Running debug hook ${hook} (temporary; removed after this run)"
-    if bash "${hook}" 2>&1 | while IFS= read -r line; do log_info "  debug: ${line}"; done; then
-        log_info "Debug hook completed."
+# 失败不阻断安装：它只是调试用，不该把正常装机拖下去。
+run_debug_plugin_install() {
+    local script="${APP_DEST}/scripts/debug-install-plugins.sh"
+    [ -f "${script}" ] || return 0
+    log_info "Running bundled debug plugin installer ${script}"
+    if bash "${script}" 2>&1 | while IFS= read -r line; do log_info "  debug: ${line}"; done; then
+        log_info "Debug plugin install completed."
     else
-        log_warn "Debug hook failed; continuing the installation."
+        log_warn "Debug plugin install failed; continuing the installation."
     fi
-    rm -f "${hook}" || log_warn "Unable to remove the debug hook ${hook}."
 }
 
 log_message() {
@@ -568,9 +563,9 @@ main() {
     install_trim_cli
     install_fnos_cli_skill
     install_published_dsh_plugins
-    # 临时调试 hook：存在才执行，执行后自删。验证完把本段与上面 run_debug_hook
-    # 一起删掉。
-    run_debug_hook
+    # 临时调试：装指定版本的三方插件，供验证版本比较与更新提示。验证完把本段、
+    # 上面的 run_debug_plugin_install 与 app/scripts/debug-install-plugins.sh 一起删掉。
+    run_debug_plugin_install
 }
 
 main "$@"
