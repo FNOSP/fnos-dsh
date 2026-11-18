@@ -478,3 +478,38 @@ describe('反代面板：能力不可用走缺省页', () => {
     expect(SCSS).toContain('.dsh-fnos-proxy-empty-desc')
   })
 })
+
+/**
+ * 「有更新」的判据：**registry 上适配当前 DSH 的最高版本**，不看 dist-tag。
+ *
+ * 真机复现：`@tnnevol/dsh-opencode` 装 8.1.3，该包 `latest=8.1.3` 而
+ * `next=8.1.148`。只看 latest 会判定「已是最新」，把真正能装的新版本藏起来。
+ * 本仓库的发布策略就是只发 next，latest 长期滞后——所以判据必须与 tag 解耦。
+ */
+describe('更新判据：取适配当前 DSH 的最高版本', () => {
+  const HOST = readFileSync(new URL('../../src/host/plugin-updates.ts', import.meta.url), 'utf8')
+
+  it('拉完整版本清单而不是 dist-tags.latest', () => {
+    expect(HOST).toContain('fetchHighestCompatible')
+    // 请求包根路径的完整文档，而不是 /latest 这个 tag 端点。
+    expect(HOST).not.toMatch(/registry\.npmjs\.org\/\$\{name[^}]*\}\/latest/u)
+  })
+
+  it('用精简元数据，避免拉回 README 等大字段', () => {
+    expect(HOST).toContain('application/vnd.npm.install-v1+json')
+  })
+
+  it('跳过预发布版本', () => {
+    // 稳定用户不该被悄悄推到预发布线；按 semver 的 prerelease 判断，不靠字符串匹配。
+    expect(HOST).toContain("normalized.includes('-')")
+  })
+
+  it('按当前 DSH 基线筛，且用与宿主相同的判定', () => {
+    expect(HOST).toContain('evaluatePluginCompatibility')
+    expect(HOST).toContain('getDshRuntimeVersion()')
+  })
+
+  it('候选里取最高的，不依赖 registry 返回顺序', () => {
+    expect(HOST).toContain('gt(normalized, best)')
+  })
+})

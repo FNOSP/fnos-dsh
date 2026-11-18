@@ -11,8 +11,14 @@
  *
  * ## 更新来源
  *
- * 查 npm registry 的 `dist-tags.latest`。不查插件索引：索引可以有很多份（用户可加），
- * 而「这个包的最新版」只有一个权威答案。代价是需要联网，读不到时如实降级。
+ * 查 npm registry 的**完整版本清单**，取「适配当前 DSH 基线的最高版本」。
+ *
+ * 不再看 `dist-tags`：本仓库的发布策略是只发 `next`，`latest` 因此长期停在旧版
+ * （实测 `@tnnevol/dsh-opencode` 的 latest 是 8.1.3，而 registry 上已有 8.1.148），
+ * 装老版本的用户于是被判定成「已是最新」。
+ *
+ * 不查插件索引：索引可以有很多份（用户可加），而「这个包能装哪些版本」只有一个
+ * 权威答案。代价是需要联网，读不到时如实降级。
  *
  * @module dsh-fnos/plugin-updates
  */
@@ -72,26 +78,69 @@ async function readManifest(profile: string, name: string): Promise<Record<strin
 }
 
 /**
- * 查 npm registry 的 `dist-tags.latest`。
+ * 从 registry 上挑出**适配当前 DSH 版本的最高版本**。
  *
- * **只认 `latest`，不认 `beta`/`dev`**：这两个 tag 指向的是预发布线，提示给稳定
- * 用户会把他们从稳定版推到 beta（fork 的 `newerVersions` 也把预发布单列、默认
- * 不当作可升级目标）。
+ * ## 为什么不再看 dist-tag
+ *
+ * 之前只读 `dist-tags.latest`。这个仓库的发布策略是**只发 `next`**，`latest`
+ * 因此长期停在旧版——实测 `@tnnevol/dsh-opencode` 的 `latest` 是 8.1.3，而
+ * registry 上已有 8.1.148。于是装 8.1.3 的用户被判定成「已是最新」，而真正
+ * 能装的新版本就挂在那里。
+ *
+ * ## 判据
+ *
+ * 1. **跳过预发布**：`-alpha`/`-beta`/`-rc` 不进候选。稳定用户不该被悄悄推到
+ *    预发布线；仓库自己的版本号（如 `0.2.0-rc.2.4`）本身带后缀，这里按 semver
+ *    的 prerelease 字段判断，而不是匹配字符串。
+ * 2. **按当前 DSH 基线筛**：每个候选版本读它的 `engines.dsh` / dsh peer，用
+ *    与宿主相同的 `evaluatePluginCompatibility` 判定。装上去起不来的版本不能
+ *    提示更新——那比「没更新」更糟。
+ * 3. **取最高的**：候选里用 `semver` 排序取最大值，不依赖 registry 的返回顺序。
+ *
+ * registry 的完整包文档比 `/latest` 大得多（含所有版本与 README），因此这里
+ * 用 `accept: abbreviated` 让 registry 返回精简元数据。
  *
  * @param name - 包名。
- * @returns 版本号；查不到时 undefined（不抛错，更新检测失败不该让整页报错）。
+ * @param dshVersion - 当前 DSH 运行版本。
+ * @returns 适配的最高版本；查不到或没有适配版本时 undefined。
  */
-async function fetchLatest(name: string): Promise<string | undefined> {
+async function fetchHighestCompatible(name: string, dshVersion: string): Promise<string | undefined> {
   const controller = new AbortController()
   const timer = setTimeout(() => { controller.abort() }, REGISTRY_TIMEOUT_MS)
   try {
-    const response = await fetch(`https://registry.npmjs.org/${name.replace('/', '%2F')}/latest`, {
+    const response = await fetch(`https://registry.npmjs.org/${name.replace('/', '%2F')}`, {
       signal: controller.signal,
-      headers: { accept: 'application/json' },
+      headers: {
+        // 精简格式：只要版本清单与各自的 engines/peer，不要 README 等大字段。
+        accept: 'application/vnd.npm.install-v1+json',
+      },
     })
     if (!response.ok) return undefined
-    const value = await response.json() as { version?: unknown }
-    return typeof value.version === 'string' ? value.version : undefined
+    const value = await response.json() as { versions?: Record<string, unknown> }
+    const versions = value.versions
+    if (versions === undefined) return undefined
+
+    let best: string | undefined
+    for (const [version, manifest] of Object.entries(versions)) {
+      // 只认合法版本；预发布（含 -rc/-beta/-alpha）一律不提示。
+      const normalized = valid(version)
+      if (normalized === null) continue
+      if (normalized.includes('-')) continue
+
+      // 与宿主同一套兼容性判定；清单异常时当作不适配，跳过这个版本。
+      try {
+        const issue = evaluatePluginCompatibility(
+          typeof manifest === 'object' && manifest !== null ? manifest as Record<string, unknown> : {},
+          undefined,
+          dshVersion,
+        )
+        if (issue !== undefined) continue
+      } catch {
+        continue
+      }
+      if (best === undefined || gt(normalized, best)) best = normalized
+    }
+    return best
   } catch {
     return undefined
   } finally {
@@ -166,7 +215,10 @@ export async function checkPluginUpdate(profile: string, plugin: InstalledPlugin
     // 清单里的 engines/peer 格式异常：当成未知，不阻断更新检测。
   }
 
-  const latestVersion = await fetchLatest(plugin.name)
+  // 按「适配当前 DSH 的最高版本」判定，而不是看 dist-tag——本仓库只发 next，
+  // latest 长期滞后，会让装老版本的用户看不到真正能装的新版本。
+  const dshVersion = getDshRuntimeVersion()
+  const latestVersion = await fetchHighestCompatible(plugin.name, dshVersion)
   return {
     name: plugin.name,
     installedVersion: plugin.version,
