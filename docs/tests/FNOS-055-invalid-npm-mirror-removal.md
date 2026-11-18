@@ -44,9 +44,10 @@ verifiedAt: 2026-11-18
 | 用例ID | 功能点 | 测试标题 | 关联验收 | 前置条件 | 测试步骤 | 预期结果 | 优先级 | 基线来源 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TC-001 | FNOS-055-01 | 三份向导都不再出现失效源 | AC-01 | 无 | 1.解析 `wizard/install`、`upgrade`、`config`；2.检查选项 label 与 value | 均无 `npmMirror`；无 `skimdb.npmjs.com` / `replicate.npmjs.com` | P0 | issue #36 |
-| TC-002 | FNOS-055-01 | 官方默认与其余源不变 | AC-02 | 无 | 1.比对三份选项顺序与 `initValue` | npm 官方第一且默认；yarn/tencent/cnpm/taobao/huawei 仍在；共 6 项 | P0 | FNOS-007-23/28 |
+| TC-002 | FNOS-055-01 | 官方默认与其余源不变 | AC-02 | 无 | 1.比对三份选项顺序与 `initValue` | 安装/应用设置默认 npm 官方源、升级默认空值；yarn/tencent/cnpm/taobao/huawei 仍在；共 6 项 | P0 | FNOS-007-23/28 |
 | TC-003 | FNOS-055-01 | 真实 NAS 选择 taobao 可安装 | AC-03 | FPK、真实 fnOS NAS | 1.应用中心全新安装；2.选择 taobao；3.等待服务就绪 | 安装完成且 DSH Web 可打开 | P0 | 提出人临时规避路径 |
-| TC-014 | FNOS-055-01 | FPK 产物与源码同步 | AC-01、AC-02 | 已构建 x86 FPK | 1.解包 FPK；2.检查三份向导、`install_callback`、`app.tgz` 内 helper 与 i18n | 三份向导无失效源且均 6 项；回调含归一调用；helper 含 `normalize-npm-registry`；中文文案含第 15 条 | P0 | 发布产物 |
+| TC-014 | FNOS-055-01 | FPK 产物与源码同步 | AC-01、AC-02 | 已构建 x86 FPK | 1.解包 FPK；2.检查三份向导、`install_callback`、`app.tgz` 内 helper 与 i18n | 三份向导无失效源且均 6 项；升级向导 `initValue` 为空、其余为官方源；回调含归一与解析；helper 含 `normalize-npm-registry`；中文文案含第 15 条 | P0 | 发布产物 |
+| TC-015 | FNOS-055-01 | 升级默认空值、安装与应用设置默认官方 | AC-02 | 无 | 1.读取三份向导 `initValue` | 升级为 `""`；安装与应用设置为 `https://registry.npmjs.org/` | P0 | 提出人确认口径 |
 
 ### [FNOS-055-02 旧配置自动恢复](/requirements/FNOS-055-invalid-npm-mirror-removal#fnos-055-02)
 
@@ -57,6 +58,11 @@ verifiedAt: 2026-11-18
 | TC-006 | FNOS-055-02 | 空值与幂等 | AC-01、AC-02 | 无 | 1.空串与空白；2.对全部样本二次调用 | 空值保持空；二次调用结果不变 | P1 | 重复安装/升级 |
 | TC-007 | FNOS-055-02 | 归一接在写配置之前 | AC-01、AC-03 | 无 | 1.检查回调源码：帮助器调用、`NORMALIZED_NPM_REGISTRY`、`persist_npm_registry` 的相对位置；2.`bash -n` | 归一调用先于写配置；脚本语法通过 | P0 | 单点归一决策 |
 | TC-008 | FNOS-055-02 | 已持久化失效地址升级后自愈 | AC-01、AC-03 | FPK、真实 fnOS NAS、可控旧值 | 1.用中间构建让升级向导写入失效地址；2.升级到修复版；3.读日志与 `.npmrc` | 日志记录原值→官方源；`.npmrc` 已更新；应用启动正常 | P0 | 真实历史配置 |
+| TC-016 | FNOS-055-02 | 升级向导空值按 npm 官方源处理 | AC-04 | 无 | 1.抽取 `resolve_npm_registry` 并置 `wizard_npm_registry=`（存在但为空） | 返回 `https://registry.npmjs.org/`，不回落到本地源 | P0 | 提出人确认口径 |
+| TC-017 | FNOS-055-02 | 字段缺失才回落本地持久化源 | AC-04 | 无 | 1.抽取 `resolve_npm_registry`，不设置 `wizard_npm_registry` | 返回本地持久化源（用例中为 stub 值） | P0 | 老版本升级路径 |
+| TC-018 | FNOS-055-02 | 显式选择可用源时以所选为准 | AC-02 | 无 | 1.抽取 `resolve_npm_registry`，设置 `wizard_npm_registry=https://registry.npmmirror.com/` | 返回所选源 | P0 | 用户显式选择 |
+| TC-019 | FNOS-055-02 | 升级回调保留字段存在性并透传 | AC-04 | 无 | 1.检查 `upgrade_callback`：`WIZARD_REGISTRY_SET`、`${wizard_npm_registry+x}`、`unset wizard_npm_registry` | 字段存在（含空值）原样透传；缺失时移除变量后调用安装回调 | P0 | 空值 vs 缺失 |
+| TC-020 | FNOS-055-02 | 真机升级留空后使用 npm 官方源 | AC-04 | FPK、真实 fnOS NAS | 1.升级向导不选源直接下一步；2.读 `.npmrc` 与日志 | `.npmrc` 为 `https://registry.npmjs.org/`，不沿用旧镜像 | P0 | 待真机 |
 
 ### [FNOS-055-03 安装失败信息可定位](/requirements/FNOS-055-invalid-npm-mirror-removal#fnos-055-03)
 
@@ -77,17 +83,18 @@ verifiedAt: 2026-11-18
 
 | 用例 | 结果 | 证据 |
 | --- | --- | --- |
-| TC-001、TC-002 | 通过 | `fnos-007-baseline.spec.ts` 16 条通过；三份向导均为 6 个选项，官方源第一且默认 |
+| TC-001、TC-002、TC-015 | 通过 | `fnos-007-baseline.spec.ts` 16 条通过；三份向导均为 6 个选项、无失效源；升级 `initValue` 为空，安装与应用设置为官方源 |
 | TC-004 ~ TC-006 | 通过 | `npm-registry.spec.ts` 归一矩阵 6 条通过（含 7 个失效写法、9 个保留样本、空值与幂等） |
-| TC-007、TC-009 | 通过 | `npm-registry.spec.ts` 接线 2 条通过：归一在 `persist_npm_registry` 之前；失败信息含 `${NPM_REGISTRY}`；`bash -n cmd/install_callback` 通过 |
+| TC-007、TC-009、TC-019 | 通过 | `npm-registry.spec.ts` 接线用例通过：归一在 `persist_npm_registry` 之前；失败信息含 `${NPM_REGISTRY}`；升级回调保留字段存在性；`bash -n` 两个回调通过 |
+| TC-016 ~ TC-018 | 通过 | 抽取真实 `resolve_npm_registry` 执行：空值 → 官方源；未设置 → 本地 stub 源；显式选择 → 所选源 |
 | TC-013 | 通过 | `build:app` 后实跑：`skimdb` → `https://registry.npmjs.org/`；`npmmirror` → 原值；空值 → 空 |
-| TC-014 | 通过 | x86 FPK（`v8.1.155-dsh-0.2.2-rc.1`）解包：三份向导 `npmMirror` 命中 0、均 6 项；`cmd/install_callback` 与 `app.tgz` 内 helper 均含归一子命令；`i18n/zh-CN` 含第 15 条 |
-| TC-011 | 通过 | `check --i18n`：9 语言 × 46 键通过；九语言 `changelog` 均追加第 15 条，`desc` 的 nrm 列举未改 |
+| TC-014 | 通过 | x86 FPK（`v8.1.155-dsh-0.2.2-rc.1`）解包：三份向导 `npmMirror` 命中 0、均 6 项；升级 `initValue` 为空、安装与应用设置为官方源；两个回调均含字段存在性判断；`app.tgz` 内 helper 含归一子命令；中文文案含第 15 条 |
+| TC-011 | 通过 | `check --i18n`：9 语言 × 46 键通过；九语言 `changelog` 均追加第 15 条（含升级默认空值与留空即官方源），`desc` 的 nrm 列举未改 |
 | TC-012 | 通过 | `check --sdd` 通过；文档站构建通过 |
 | 网关全量 | 通过 | `pnpm --filter @tnnevol/fnos-gateway test`：28 个文件、188 条通过 |
 | CLI 全量 | 通过 | `pnpm --filter @tnnevol/fnos-dsh-cli test`：16 个文件、163 条通过 |
 | typecheck / lint | 通过 | 两个包 `tsc` 通过；变更文件 `eslint` 0 error |
-| TC-003、TC-008、TC-010 | 未执行 | 需要 FPK 与真实 fnOS NAS；按计划 T04-02/T04-03 在应用中心走安装与升级路径 |
+| TC-003、TC-008、TC-010、TC-020 | 未执行 | 需要 FPK 与真实 fnOS NAS；按计划 T04-02/T04-03 在应用中心走安装与升级路径 |
 
 ## 问题记录
 
@@ -98,6 +105,6 @@ verifiedAt: 2026-11-18
 
 ## 最终结论
 
-包级结论：三份向导已移除失效源且其余源、默认值与字段顺序保持不变；归一模块对已知失效地址（含 http/https、结尾斜杠、大小写与跳转后地址）全部收敛到 npm 官方源，对自定义源与相似域名不改写；归一接在写配置之前，失败信息已带出实际 registry；九语言发布说明与文档索引同步完成；x86 FPK 产物中三份向导、安装回调与帮助器均与源码一致。网关 188 条、CLI 163 条用例全绿。
+包级结论：三份向导已移除失效源且其余源、字段顺序保持不变；升级向导默认空值、安装与应用设置默认官方源；解析规则按场景生效——字段存在时空值按 npm 官方源，提交已移除源按 npm 官方源，显式选择其他源按所选源，只有字段缺失才回落本地持久化源；归一模块对已知失效地址（含 http/https、结尾斜杠、大小写与跳转后地址）全部收敛，对自定义源与相似域名不改写；归一接在写配置之前，失败信息已带出实际 registry；九语言发布说明与文档索引同步完成；x86 FPK 产物中向导、回调与帮助器均与源码一致。网关 188 条、CLI 163 条用例全绿。
 
-真实环境结论待补：需构建 FPK 后在真实 fnOS NAS 完成 TC-003（全新安装选 taobao 可装成）、TC-008（历史失效配置升级后自愈）与 TC-010（失败提示可见）。这三项完成前，需求状态保持「实施中」，不标记完成。
+真实环境结论待补：需构建 FPK 后在真实 fnOS NAS 完成 TC-003（全新安装选 taobao 可装成）、TC-008（历史失效配置升级后自愈）、TC-010（失败提示可见）与 TC-020（升级留空使用官方源）。这四项完成前，需求状态保持「实施中」，不标记完成。

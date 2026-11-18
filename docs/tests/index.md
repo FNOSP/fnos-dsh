@@ -62,6 +62,6 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-054 | [侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐](/tests/FNOS-054-fnos-footer-entry-standalone) | 部分通过 | 30 条用例：包级全部通过（插件 748 条、网关 182 条）；本地 DSH Web 用槽位探针实测入口渲染；真机全项未执行，授权回调链路待真机确认 |
 
 | FNOS-053 | [拦截官方账号登录，改为粘贴回调地址完成授权](/tests/FNOS-053-account-login-callback-relay) | 部分通过 | 17 条用例：16 条通过（13 条单测 + 3 条真机）；换码闭环需真实账号，未执行 |
-| FNOS-055 | [安装向导移除失效的 npm 镜像源](/tests/FNOS-055-invalid-npm-mirror-removal) | [PLAN-FNOS-055](/plans/PLAN-FNOS-055-invalid-npm-mirror-removal) | 部分通过 | 14 条用例：11 条通过 / 3 条真机未执行。网关 188 条、CLI 163 条全绿；三份向导 6 个选项、失效源归一矩阵、接线与 x86 FPK 产物校验通过；真实 NAS 全新安装、旧值升级自愈与失败提示待 FPK 后补测 |
+| FNOS-055 | [安装向导移除失效的 npm 镜像源](/tests/FNOS-055-invalid-npm-mirror-removal) | [PLAN-FNOS-055](/plans/PLAN-FNOS-055-invalid-npm-mirror-removal) | 部分通过 | 20 条用例：16 条通过 / 4 条真机未执行。网关 188 条、CLI 163 条全绿；三份向导 6 个选项、升级默认空值与按场景回退、归一键与接线、x86 FPK 产物校验通过；真实 NAS 全新安装、旧值升级自愈、失败提示与升级留空待 FPK 后补测 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。

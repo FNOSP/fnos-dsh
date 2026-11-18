@@ -53,6 +53,7 @@ npm error 404 Not Found - GET https://replicate.npmjs.com/registry/pnpm
 ## 需求目标
 
 - 安装、升级和应用设置向导不再提供该失效源，用户无法再选到必失败的项。
+- 全新安装默认 npm 官方源；升级向导默认不预选源，留空即使用 npm 官方源。
 - 已经写入旧地址的环境在下次安装或升级时自动恢复为可用源，不需要用户手工编辑文件。
 - 安装失败信息直接指出实际使用的 registry，并把「换一个镜像源」变成明确的下一步。
 - 官方源仍是默认项，其余可用源与字段顺序保持不变。
@@ -61,14 +62,25 @@ npm error 404 Not Found - GET https://replicate.npmjs.com/registry/pnpm
 
 | 编号 | 优先级 | 功能 | 用户可观察结果 | 状态 |
 | --- | --- | --- | --- | --- |
-| FNOS-055-01 | P0 | 向导不再提供失效镜像源 | 安装、升级、应用设置三个向导的「npm 镜像源」列表里都没有 `npmMirror`；npm 官方源仍是第一项与默认值，其余五个源保持不变 | <Badge type="warn" text="待完成" /> |
-| FNOS-055-02 | P0 | 旧配置自动恢复 | 旧环境的应用 npm 配置若仍指向该失效地址，下一次安装或升级后自动改为 npm 官方源，日志同时记录原值与新值；用户自定义的其他源不被改写 | <Badge type="warn" text="待完成" /> |
+| FNOS-055-01 | P0 | 向导不再提供失效镜像源 | 安装、升级、应用设置三个向导的「npm 镜像源」列表里都没有 `npmMirror`；全新安装与应用设置默认 npm 官方源，升级向导默认空值，其余五个源保持不变 | <Badge type="warn" text="待完成" /> |
+| FNOS-055-02 | P0 | 旧配置自动恢复与默认值统一 | 升级向导留空或提交已移除源时使用 npm 官方源；旧环境已持久化的失效地址在安装或升级后改为 npm 官方源；用户显式选择的其他源不被改写 | <Badge type="warn" text="待完成" /> |
 | FNOS-055-03 | P1 | 安装失败信息可定位 | pnpm 安装失败时，界面与日志中的错误包含实际使用的 registry，并提示在向导中更换镜像源后重试 | <Badge type="warn" text="待完成" /> |
 | FNOS-055-04 | P1 | 三份向导与发布说明一致 | 三份向导的源清单、字段顺序与多语言标签保持一致；本次更新的发布说明记录该失效源已从向导移除，工具箱的 nrm 源清单保持不变 | <Badge type="tip" text="已完成" /> |
 
 ## 行为约束
 
-- npm 官方源继续排在第一位并作为默认值；其余保留源不得增删或改变顺序。
+按提交场景决定生效的 npm 源：
+
+| 场景 | 生效的 npm 源 |
+| --- | --- |
+| 全新安装，向导默认或留空 | npm 官方源 |
+| 全新安装，用户选择可用源 | 该源 |
+| 升级，向导默认留空 | npm 官方源 |
+| 升级，用户选择可用源 | 该源 |
+| 全新安装或升级，提交值为已移除源 | npm 官方源 |
+| 向导字段缺失（旧版本升级、无向导） | 设备上已持久化的源；若它也是已移除源，仍归一为 npm 官方源 |
+
+- npm 官方源继续排在第一位；全新安装与应用设置默认官方源，升级向导默认空值。
 - 只对**已知失效地址**做归一，包括带或不带结尾斜杠、以及跳转后的同源地址；其他自定义 registry 原样保留，不做自动换源。
 - 归一结果仍写入原有位置并保持幂等，重复安装或升级不产生额外改写。
 - 安装、升级主流程、服务启动方式、用户数据、凭据与会话不受影响。
@@ -88,18 +100,20 @@ npm error 404 Not Found - GET https://replicate.npmjs.com/registry/pnpm
 
 | 原约定 | 变更后 |
 | --- | --- |
-| `FNOS-007-23-AC-02`：原有 npm 官方源默认值和镜像选项保持不变 | 保留官方默认值与其余五个源，移除一个已知失效源 |
-| `FNOS-007-28-AC-02`：三份向导的 npm 源 item 一致，且位于字段列表最后 | 三份向导仍一致、仍位于最后，清单少一项 |
+| `FNOS-007-23-AC-02`：原有 npm 官方源默认值和镜像选项保持不变 | 保留官方源与其余五个源，移除一个已知失效源；全新安装默认官方源，升级向导默认空值 |
+| `FNOS-007-28-AC-02`：三份向导的 npm 源 item 一致，且位于字段列表最后 | 字段名、选项清单与位置仍一致；升级向导 `initValue` 改为空值（默认不预选），安装与应用设置保持官方源 |
 
 `FNOS-007-27-AC-02` 关于「安装向导选择的源只写入应用 npm 配置文件」的约定不变。
 
 ## 需求流转
 
-历史版本的失效源会被写入应用 npm 配置；新版本在回调中把它归一为可用源。只处理这一个已知地址，用户自定义的源保持原样。
+历史版本的失效源会被写入应用 npm 配置；新版本在回调中把它归一为可用源。升级向导默认空值、留空即 npm 官方源；只有向导字段缺失时才沿用本地持久化源。
 
 ```mermaid
 stateDiagram-v2
   [*] --> Available: 用户选择保留源
+  [*] --> Empty: 升级向导默认空值
+  Empty --> Available: 变更点：留空按 npm 官方源处理
   Available --> Persisted: 安装或升级写入应用 npm 配置
   Available --> Retired: 历史版本选择 npmMirror
   Retired --> Normalized: 变更点：安装或升级回调归一
@@ -108,7 +122,7 @@ stateDiagram-v2
   Normalized: 变更点：只归一已知失效地址
 ```
 
-从用户操作到 registry 使用的链路如下。变更点在向导清单与回调两处：前者不再产生失效值，后者兜住历史值。
+从用户操作到 registry 使用的链路如下。变更点在向导清单与回调两处：前者不再产生失效值，后者兜住历史值与空值。
 
 ```mermaid
 sequenceDiagram
@@ -116,10 +130,10 @@ sequenceDiagram
   participant Wizard as 向导
   participant Callback as 安装或升级回调
   participant Registry as npm registry
-  User->>Wizard: 选择 npm 镜像源
+  User->>Wizard: 打开 npm 镜像源（升级默认空值）
   Note over Wizard: 变更点：列表移除 npmMirror（原约定见 FNOS-007-23-AC-02）
-  Wizard->>Callback: 提交选择的镜像源
-  Note over Callback: 变更点：命中已知失效地址时归一为 npm 官方源
+  Wizard->>Callback: 提交选择的镜像源（可能为空）
+  Note over Callback: 变更点：空值或已移除地址按 npm 官方源处理；字段缺失才用本地
   Callback->>Registry: 安装 pnpm、DSH 与插件
   alt 安装成功
     Registry-->>Callback: 完成
@@ -136,14 +150,15 @@ sequenceDiagram
 ### FNOS-055-01
 
 - `FNOS-055-01-AC-01`：安装、升级、应用设置三份向导的 npm 镜像源列表都不再出现 `npmMirror` 或 `https://skimdb.npmjs.com/registry/`。
-- `FNOS-055-01-AC-02`：npm、yarn、tencent、cnpm、taobao、huawei 六个源仍在；npm 官方源仍是第一项与默认值。
+- `FNOS-055-01-AC-02`：npm、yarn、tencent、cnpm、taobao、huawei 六个源仍在；全新安装与应用设置默认 npm 官方源，升级向导默认空值。
 - `FNOS-055-01-AC-03`：在真实 fnOS NAS 上全新安装并选择 taobao 源，安装完成且 DSH Web 可以正常打开。
 
 ### FNOS-055-02
 
 - `FNOS-055-02-AC-01`：应用 npm 配置或旧版持久化文件中的 registry 为该失效地址时，安装或升级完成后变为 `https://registry.npmjs.org/`，日志同时包含原值与新值。
-- `FNOS-055-02-AC-02`：自定义 registry（例如 `https://npm.example.internal/`）保持不变。
+- `FNOS-055-02-AC-02`：用户显式选择的自定义 registry（例如 `https://npm.example.internal/`）保持不变。
 - `FNOS-055-02-AC-03`：即使升级向导提交的仍是该失效地址，升级也能继续（归一后安装），不因 404 中止。
+- `FNOS-055-02-AC-04`：升级向导留空提交时使用 npm 官方源，不回落为设备上已持久化的旧源；只有向导字段缺失（旧版本升级、无向导）时才沿用本地持久化源。
 
 ### FNOS-055-03
 
@@ -168,3 +183,4 @@ sequenceDiagram
 | --- | --- | --- |
 | 2026-11-18 | 初始登记 | 源自 [issue #36](https://github.com/FNOSP/fnos-dsh/issues/36)。按提出人反馈与 issue 回复决定移除该源，而不是改指向 npmmirror（会与现有 taobao 项重复并继续制造混淆）。新增旧配置自动恢复与失败信息两项，保证已写入旧地址的环境不需要手工修文件。关联 PLAN-FNOS-055。 |
 | 2026-11-18 | 实施与包级验证 | 三份向导已移除失效源；帮助器新增归一与失败诊断；九语言发布说明更新；网关 188 条、CLI 163 条与 `check --all` 27 个任务通过；x86 FPK 构建并核对包内向导与帮助器。FNOS-055-04 完成，FNOS-055-01～03 待真实 NAS 验收。 |
+| 2026-11-18 | 按场景细化源的默认与回退 | 按提出人确认：全新安装默认 npm；升级向导默认空值，留空即 npm；提交已移除源切换为 npm；其他情况以用户本地为准（向导字段缺失时才回落到本地持久化源，显式选择则用所选源）。升级向导 `initValue` 改为空值，回调用「字段存在 vs 缺失」区分空选择与旧版本无字段。 |

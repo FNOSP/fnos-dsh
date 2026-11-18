@@ -44,7 +44,7 @@
                 "type": "select",
                 "field": "wizard_npm_registry",
                 "label": "${upgrade.npmRegistryLabel}",
-                "initValue": "https://registry.npmjs.org/",
+                "initValue": "",
                 "helpText": "${upgrade.npmRegistryHelpText}",
                 "options": [
                     {

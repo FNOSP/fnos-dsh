@@ -1,4 +1,8 @@
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_NPM_REGISTRY, normalizeNpmRegistry } from '../src/install-callback-helper/npm-registry.ts'
 
@@ -67,6 +71,10 @@ describe('FNOS-055 install callback wiring', () => {
     new URL('../../../apps/fn-deepseek-harness/cmd/install_callback', import.meta.url),
     'utf8',
   )
+  const upgradeCallback = readFileSync(
+    new URL('../../../apps/fn-deepseek-harness/cmd/upgrade_callback', import.meta.url),
+    'utf8',
+  )
 
   it('normalizes before persisting the npm registry', () => {
     expect(installCallback).toContain('run_install_callback_helper normalize-npm-registry')
@@ -76,7 +84,65 @@ describe('FNOS-055 install callback wiring', () => {
     expect(installCallback).toContain('NORMALIZED_NPM_REGISTRY')
   })
 
+  it('distinguishes an empty wizard value from a missing field', () => {
+    // 空值 = 用户提交了空选择 → npm 官方源；字段缺失 = 老版本升级 → 本地持久化源。
+    expect(installCallback).toMatch(/\$\{wizard_npm_registry\+x\}/u)
+    expect(installCallback).toContain('resolve_npm_registry')
+    expect(upgradeCallback).toContain('WIZARD_REGISTRY_SET')
+    expect(upgradeCallback).toMatch(/\$\{wizard_npm_registry\+x\}/u)
+    expect(upgradeCallback).toContain('unset wizard_npm_registry')
+  })
+
   it('reports the active registry when the pnpm install fails', () => {
     expect(installCallback).toMatch(/Unable to install pnpm@\$\{PNPM_VERSION\} from \$\{NPM_REGISTRY\}/u)
+  })
+})
+
+/**
+ * 从安装回调里抽出 `resolve_npm_registry` 并按真实 shell 执行。
+ *
+ * 这是 FNOS-055 的场景规则：向导字段存在（含空值）时以提交值为准，空值落到 npm
+ * 官方源；字段缺失才回落到本地持久化源。环境变量在 shell 里区分「未设置」与
+ * 「设置为空」，用 JS 的 `undefined` 表达前者。
+ */
+async function runResolveRegistry(env: Record<string, string | undefined>): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'fnos-npm-registry-'))
+  try {
+    const source = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/install_callback', import.meta.url), 'utf8')
+    const start = source.indexOf('resolve_npm_registry() {')
+    const end = source.indexOf('\n}\n', start)
+    expect(start, 'resolve_npm_registry function').toBeGreaterThanOrEqual(0)
+    expect(end, 'resolve_npm_registry terminator').toBeGreaterThan(start)
+    const harness = join(root, 'harness.sh')
+    await writeFile(harness, [
+      '#!/bin/bash',
+      'read_persisted_npm_registry() { printf "https://local.example/"; }',
+      source.slice(start, end + 3),
+      'resolve_npm_registry',
+    ].join('\n'))
+    const childEnv: NodeJS.ProcessEnv = { ...process.env }
+    delete childEnv.wizard_npm_registry
+    for (const [key, value] of Object.entries(env)) {
+      if (value === undefined) delete childEnv[key]
+      else childEnv[key] = value
+    }
+    return execFileSync('/bin/bash', [harness], { encoding: 'utf8', env: childEnv })
+  }
+  finally {
+    await rm(root, { recursive: true, force: true })
+  }
+}
+
+describe('FNOS-055 registry resolution by scenario', () => {
+  it('uses npm official when the wizard submitted an empty value', async () => {
+    expect(await runResolveRegistry({ wizard_npm_registry: '' })).toBe(DEFAULT_NPM_REGISTRY)
+  })
+
+  it('uses the submitted source when it is non-empty', async () => {
+    expect(await runResolveRegistry({ wizard_npm_registry: 'https://registry.npmmirror.com/' })).toBe('https://registry.npmmirror.com/')
+  })
+
+  it('falls back to the persisted local source only when the field is absent', async () => {
+    expect(await runResolveRegistry({})).toBe('https://local.example/')
   })
 })

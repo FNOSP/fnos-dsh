@@ -23,10 +23,10 @@ lastVerified: 2026-11-18
 
 按 [FNOS-055](/requirements/FNOS-055-invalid-npm-mirror-removal) 完成四件事：
 
-1. 三份向导的 npm 镜像源清单移除失效项，保留官方默认值与其余五个源（FNOS-055-01）。
-2. 安装或升级回调把已持久化的失效地址归一为 npm 官方源，其他自定义源不动（FNOS-055-02）。
+1. 三份向导的 npm 镜像源清单移除失效项，保留其余五个源；全新安装与应用设置默认 npm 官方源，升级向导默认空值（FNOS-055-01）。
+2. 解析规则按场景统一：向导留空或提交已移除源 → npm 官方源；字段缺失（旧版本升级/无向导）→ 本地持久化源；用户显式选择其他源 → 该源（FNOS-055-02）。
 3. pnpm 安装失败信息带出实际使用的 registry 与换源提示（FNOS-055-03）。
-4. 守卫用例与九语言发布说明跟随，三份向导保持一致（FNOS-055-04）。
+4. 守卫用例与九语言发布说明跟随，三份向导的字段与选项保持一致（FNOS-055-04）。
 
 技术边界：只改向导 JSON、安装回调、安装帮助器、守卫用例与 i18n 描述；不改 nrm 镜像卡，不改应用设置页的生效时机，不改 DSH 运行时基线。
 
@@ -34,17 +34,17 @@ lastVerified: 2026-11-18
 
 | 领域 | 当前实现 | 目标实现 | 迁移影响 |
 | --- | --- | --- | --- |
-| 向导源清单 | `wizard/install`、`wizard/upgrade`、`wizard/config` 各含 7 个选项，其中 `npmMirror` 指向 `https://skimdb.npmjs.com/registry/` | 三份各含 6 个选项，npm 官方源仍第一且默认 | 失效值不再由新界面产生；历史值由回调兜底 |
-| 旧值处理 | 安装回调优先用向导提交值，否则读已持久化 registry；解析后**原样**写入应用 npm 配置 | 解析后先经帮助器 `normalize-npm-registry`：命中已知失效地址→npm 官方源，其余原样 | 已写入失效地址的环境自动恢复，用户不需要手改文件 |
+| 向导源清单 | `wizard/install`、`wizard/upgrade`、`wizard/config` 各含 7 个选项，其中 `npmMirror` 指向 `https://skimdb.npmjs.com/registry/`；三份 `initValue` 都是 npm 官方源 | 三份各含 6 个选项；`install` / `config` 默认 npm 官方源，`upgrade` 默认空值 | 失效值不再由新界面产生；升级默认空值由回调解释为 npm 官方源 |
+| 旧值处理 | 安装回调优先用向导提交值，否则读已持久化 registry；空值也会回落到本地持久化源 | 用「字段存在 vs 缺失」区分：字段存在（含空值）时以提交值为准，空值→npm 官方源；字段缺失才读本地持久化源；之后统一归一经移除地址 | 升级留空不再继承旧镜像；仅老版本无字段时沿用本地配置 |
 | 失败诊断 | pnpm 安装失败只报 `Unable to install pnpm@<version>` | 追加 `from <registry>` 与换源提示 | 用户能判断是源失效而非依赖缺失 |
-| 面向用户文案 | `changelog` 尚未记录本次修复；`desc` 里的源列举属于工具箱 nrm 清单（本次不改） | 九语言 `changelog` 记录失效源已从向导移除；`desc` 保持原样 | 应用中心展示只多一条修复说明，nrm 清单描述不变 |
+| 面向用户文案 | `changelog` 尚未记录本次修复；`desc` 里的源列举属于工具箱 nrm 清单（本次不改） | 九语言 `changelog` 记录移除与升级默认值规则；`desc` 保持原样 | 应用中心展示只多一条修复说明，nrm 清单描述不变 |
 | 守卫 | CLI 基线用例断言向导包含 `npmMirror` | 断言三份向导都不含该地址，其余六个源仍在 | 防止选项被误加回 |
 
 ## 影响范围分析
 
 | 需求功能 | 代码模块 | 配置/数据 | 测试 | 文档 | 目标环境 |
 | --- | --- | --- | --- | --- | --- |
-| FNOS-055-01 | `apps/fn-deepseek-harness/wizard/install`、`upgrade`、`config` | 向导选项清单；字段名与顺序不变 | `tooling/fnos-dsh-cli/tests/fnos-007-baseline.spec.ts` | 本需求与计划；向导字段契约文档无需改字段说明 | 包级 ＋ 真实 NAS 安装 |
+| FNOS-055-01 | `apps/fn-deepseek-harness/wizard/install`、`upgrade`、`config` | 向导选项清单；`upgrade` 的 `initValue` 改为空值，其余字段与顺序不变 | `tooling/fnos-dsh-cli/tests/fnos-007-baseline.spec.ts` | 本需求与计划；向导字段契约文档无需改字段说明 | 包级 ＋ 真实 NAS 安装 |
 | FNOS-055-02 | `apps/fn-deepseek-harness/cmd/install_callback`；`packages/fnos-gateway/src/install-callback-helper/index.ts` 与新增 `npm-registry.ts` | 应用共享目录 `.npmrc`；旧版 `npm-registry` 持久化文件 | 新增 `packages/fnos-gateway/tests/npm-registry.spec.ts`；回调日志检查 | 本计划 | 包级 ＋ 真实 NAS 升级 |
 | FNOS-055-03 | `apps/fn-deepseek-harness/cmd/install_callback` | 安装日志与失败提示 | 回调失败路径；真机日志 | 本计划 | 真实 NAS |
 | FNOS-055-04 | `apps/fn-deepseek-harness/i18n/` 九种语言；CLI 守卫用例 | Manifest 渲染的更新说明（`desc` 中 nrm 列举不变） | CLI 用例；文档站构建 | `docs/requirements/index.md`、`docs/plans/index.md`、`docs/.vitepress/config.mts` | 包级 ＋ 文档构建 |
@@ -105,7 +105,7 @@ sequenceDiagram
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| PLAN-FNOS-055-T01-01 | FNOS-055-01 / AC-01、AC-02 | 从 `wizard/install`、`wizard/upgrade`、`wizard/config` 删除 `npmMirror` 选项；其余选项、`initValue`、字段顺序不动 | 无 | 三份 JSON 可解析；字段与选项集合一致 | 已完成 |
+| PLAN-FNOS-055-T01-01 | FNOS-055-01 / AC-01、AC-02 | 从 `wizard/install`、`wizard/upgrade`、`wizard/config` 删除 `npmMirror` 选项；`upgrade` 的 `initValue` 改为空值，`install` / `config` 保持 npm 官方源；其余选项与字段顺序不动 | 无 | 三份 JSON 可解析；字段与选项集合一致；`upgrade` 默认空、其余默认官方 | 已完成 |
 | PLAN-FNOS-055-T01-02 | FNOS-055-04 / AC-01 | 更新 CLI 基线守卫：断言三份向导都不含 `npmMirror` 与失效地址，其余六个源仍在，九语言标签检查继续通过 | T01-01 | `pnpm --filter @tnnevol/fnos-dsh-cli test` | 已完成 |
 
 ### 阶段二：旧值归一与失败诊断
@@ -113,7 +113,7 @@ sequenceDiagram
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | PLAN-FNOS-055-T02-01 | FNOS-055-02 / AC-01、AC-02 | 新增 `npm-registry.ts`：`normalizeNpmRegistry()` 识别已知失效地址（含带/不带结尾斜杠与跳转后的同源地址），返回 npm 官方源；其他值原样返回。帮助器新增 `normalize-npm-registry` 子命令，stdout 只输出结果 | 无 | `pnpm --filter @tnnevol/fnos-gateway test`；矩阵覆盖失效变体、自定义源、空白与幂等 | 已完成 |
-| PLAN-FNOS-055-T02-02 | FNOS-055-02 / AC-01、AC-02、AC-03 | `install_callback` 解析出 registry 后、写入配置之前调用帮助器；值变化时记录原值与新值；写入与后续安装均使用归一值。升级回调继续作为唯一入口转发，不新增第二套判定 | T02-01 | 帮助器样本直跑；接线用例断言归一位于写入之前（沿用从回调抽取函数执行的测试方式）；真机升级验证 | 已完成 |
+| PLAN-FNOS-055-T02-02 | FNOS-055-02 / AC-01、AC-02、AC-03、AC-04 | `install_callback` 新增 `resolve_npm_registry`：字段存在（含空值）→ 提交值/空值取 npm 官方源；字段缺失 → 本地持久化源。解析后、写入配置之前调用归一；值变化时记录原值与新值。`upgrade_callback` 保留「字段是否存在」并原样透传，不把空值替换成本地源 | T02-01 | 帮助器样本直跑；接线用例断言字段存在/缺失分支与归一位于写入之前；真机升级验证 | 已完成 |
 | PLAN-FNOS-055-T02-03 | FNOS-055-03 / AC-01、AC-02 | pnpm 安装失败信息追加实际 registry 与「在向导中更换镜像源后重试」；保留原有步骤与包版本信息 | T02-02 | 失败分支日志检查；真机或受控失败场景 | 已完成 |
 
 ### 阶段三：文案与文档
@@ -136,15 +136,15 @@ sequenceDiagram
 
 ### 向导
 
-- 「npm 镜像源」仍是 `select`，选项为 npm、yarn、tencent、cnpm、taobao、huawei 六项；npm 官方源第一项且 `initValue` 不变。
+- 「npm 镜像源」仍是 `select`，选项为 npm、yarn、tencent、cnpm、taobao、huawei 六项。安装与应用设置 `initValue` 为 npm 官方源；升级 `initValue` 为空值（默认不预选），留空由回调解释为 npm 官方源。
 - 字段名 `wizard_npm_registry` 不变，安装、升级、应用设置三份向导继续共用同一字段与同一顺序（字段列表最后一项）。
-- 不新增 `required` 规则；移除选项后若平台把历史值回填成空值或默认值，提交路径都能被回调正确处理。
+- 不新增 `required` 规则；升级平台若把历史值回填成空值、默认值或已移除源，提交路径分别按「空值→npm」「已移除源→npm」处理。
 - `helpText` 保持现有「安装失败不会自动换源，请按当前网络选一个后重试」，不写入内部地址或凭据。
 
 ### 安装与升级回调
 
-- 解析顺序不变：向导提交值 → 已持久化值 → npm 官方源。
-- 归一判定只认固定失效地址（`skimdb.npmjs.com/registry` 与跳转后的 `replicate.npmjs.com/registry`，忽略结尾斜杠与大小写差异）；不按域名后缀或关键词模糊匹配。
+- 解析规则：向导字段存在（含空值）时以提交值为准，空值→npm 官方源；字段缺失（旧版本升级、无向导）才读设备上已持久化的源。显式选择其他源时用所选值。
+- 解析完成后统一归一经移除地址（`skimdb.npmjs.com/registry` 与跳转后的 `replicate.npmjs.com/registry`，忽略结尾斜杠与大小写差异）；不按域名后缀或关键词模糊匹配。
 - 归一发生且值变化时输出一条 INFO 日志，包含原值与新值；未变化时不打日志，避免正常安装刷噪声。
 - 写入应用 npm 配置的方式与位置不变，仍由 npm 命令完成；失败时沿用现有失败路径。
 - 失败提示示例（实际文案以实现为准）：
@@ -161,6 +161,7 @@ sequenceDiagram
 ## 数据、权限和错误处理
 
 - 只写应用自己的 npm 配置（`HOME/.npmrc`），不触碰用户主目录或系统级 npm 配置；应用设置页与安装向导的既有边界不变。
+- 「字段存在 vs 缺失」用 shell 的 `${wizard_npm_registry+x}` 判定：空字符串仍是「存在」，按空值→npm 处理；只有变量未设置才读本地持久化源。升级回调透传时保留这一区别。
 - registry URL 不属于凭据，可以出现在日志与错误提示中；仍不输出 token、认证头或用户信息。
 - 归一是幂等操作：同一失效地址重复安装或升级只发生一次可见改写，之后值已是官方源，不再触发日志。
 - 帮助器调用失败按现有安装失败路径处理，错误信息说明是 registry 归一失败，避免把配置损坏留到后续步骤。
@@ -184,7 +185,8 @@ sequenceDiagram
 
 | 风险 | 影响 | 处理 |
 | --- | --- | --- |
-| 平台移除选项后的回填行为未写入官方文档 | 升级向导可能显示空值、默认值或历史值 | 回调侧归一兜底；真机验证三种表现，不依赖界面行为 |
+| 平台移除选项后的回填行为未写入官方文档 | 升级向导可能显示空值、默认值或历史值 | 空值、默认值与已移除源都收敛到 npm 官方源；真机验证三种表现，不依赖界面行为 |
+| 升级向导 `initValue` 为空时平台可能显示空白或自动选中第一项 | 用户看到的默认状态与预期不同 | 两种显示都落到 npm 官方源；真机确认实际表现，不把空白/预选当失败 |
 | 归一匹配过宽，误改用户自定义源 | 用户被静默换源 | 只匹配固定 host＋path；用例覆盖自定义源、相似域名（如 `npmmirror.com`）与带路径的自建源 |
 | 用户此前从未提交该字段 | 升级路径只会读到持久化值 | 归一放在解析之后，覆盖提交值与持久化值两条路径 |
 | 失败安装已在设备上留下失效地址 | 重装或升级再次读取它 | 归一无条件执行，不依赖上一次安装是否成功；真机按失败后再升级的路径复验 |
@@ -245,3 +247,4 @@ sequenceDiagram
 | --- | --- | --- |
 | 2026-11-18 | 初始登记 | 建立四阶段实施方案与真实 NAS 验收路径；确定「移除而非改指向」「回调单点归一」「官方源兜底」三项决策；明确 nrm 卡片与应用设置页生效时机不在本次范围。 |
 | 2026-11-18 | 实施与包级验证 | T01-01～T04-01 完成：向导移除、归一模块与接线、失败诊断、九语言 changelog、测试文档回填；网关 188 条、CLI 163 条与 `check --all` 27 个任务通过；x86 FPK 构建通过并核对包内向导与帮助器。真实 NAS 安装/升级与版本提交保留为待执行。 |
+| 2026-11-18 | 按场景细化默认与回退 | 按提出人口径调整：全新安装默认 npm；升级向导默认空值，留空即 npm；提交已移除源→npm；其他情况以用户本地为准（字段缺失才回落本地持久化源）。`upgrade_callback` 保留字段存在性透传，`install_callback` 新增 `resolve_npm_registry` 并补场景用例。 |
