@@ -55,7 +55,20 @@ describe('version 转发器（直接调用 bumpp CLI）', () => {
     vi.clearAllMocks()
     mocks.readPackageInfo.mockResolvedValue({ name: 'fn-os-apps', version: PROJECT_START })
     mocks.readFile.mockImplementation(async (path: string) => {
-      if (path.endsWith('pnpm-workspace.yaml')) return "catalog:\n  '@deepseek-ai/dsh': 0.2.1-rc.2\n"
+      // 三处承载处必须同时存在：默认 catalog / 命名 catalog / 发布龄期豁免清单。
+      // 只给默认 catalog 会被改写守卫拒绝落盘（见 FNOS-057）。
+      if (path.endsWith('pnpm-workspace.yaml')) {
+        return [
+          'catalog:',
+          "  '@deepseek-ai/dsh': 0.2.1-rc.2",
+          'catalogs:',
+          '  dsh:',
+          "    '@deepseek-ai/dsh-agent': 0.2.1-rc.2",
+          'minimumReleaseAgeExclude:',
+          "  - '@deepseek-ai/dsh-agent@0.2.1-rc.2'",
+          '',
+        ].join('\n')
+      }
       return JSON.stringify({ name: 'package', version: PROJECT_START })
     })
     // 守卫的 git status 返回干净；bumpp spawn 成功。
@@ -118,7 +131,11 @@ describe('version 转发器（直接调用 bumpp CLI）', () => {
     await runVersion(['major', '--baseline', '0.2.2-rc.1', '--yes'])
 
     const yamlWrite = mocks.writeFile.mock.calls.find(call => String(call[0]).endsWith('pnpm-workspace.yaml'))
-    expect(String(yamlWrite?.[1])).toContain("'@deepseek-ai/dsh': 0.2.2-rc.1")
+    const written = String(yamlWrite?.[1])
+    expect(written).toContain("'@deepseek-ai/dsh': 0.2.2-rc.1")
+    // 三处承载处必须同时改写，只改默认 catalog 就是 FNOS-057 修掉的那个缺陷。
+    expect(written).toContain("'@deepseek-ai/dsh-agent': 0.2.2-rc.1")
+    expect(written).toContain("'@deepseek-ai/dsh-agent@0.2.2-rc.1'")
     expect(mocks.spawnSync).toHaveBeenLastCalledWith('node', [expect.any(String), 'major', '-y'], expect.anything())
   })
 
