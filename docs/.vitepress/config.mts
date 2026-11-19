@@ -435,6 +435,14 @@ const requirementsSidebar = [
         text: 'FNOS-055 安装向导移除失效的 npm 镜像源',
         link: '/requirements/FNOS-055-invalid-npm-mirror-removal'
       },
+      {
+        text: 'FNOS-056 DSH 0.2.2-rc.4 插件适配与基线升级',
+        link: '/requirements/FNOS-056-dsh-022-rc4-adaptation'
+      },
+      {
+        text: 'FNOS-057 DSH 0.2.2-rc.5 基线升级',
+        link: '/requirements/FNOS-057-dsh-022-rc5-adaptation'
+      },
       ]
   }
 ]
@@ -632,6 +640,14 @@ const plansSidebar = [
         text: 'PLAN-FNOS-055 安装向导移除失效的 npm 镜像源',
         link: '/plans/PLAN-FNOS-055-invalid-npm-mirror-removal'
       },
+      {
+        text: 'PLAN-FNOS-056 DSH 0.2.2-rc.4 插件适配与基线升级',
+        link: '/plans/PLAN-FNOS-056-dsh-022-rc4-adaptation'
+      },
+      {
+        text: 'PLAN-FNOS-057 DSH 0.2.2-rc.5 基线升级',
+        link: '/plans/PLAN-FNOS-057-dsh-022-rc5-adaptation'
+      },
     ]
   }
 ]
@@ -801,6 +817,14 @@ const testsSidebar = [
       {
         text: 'FNOS-055 安装向导移除失效的 npm 镜像源',
         link: '/tests/FNOS-055-invalid-npm-mirror-removal'
+      },
+      {
+        text: 'FNOS-056 DSH 0.2.2-rc.4 插件适配与基线升级',
+        link: '/tests/FNOS-056-dsh-022-rc4-adaptation'
+      },
+      {
+        text: 'FNOS-057 DSH 0.2.2-rc.5 基线升级',
+        link: '/tests/FNOS-057-dsh-022-rc5-adaptation'
       },
     ]
   }
