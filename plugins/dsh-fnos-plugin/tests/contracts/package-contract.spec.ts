@@ -324,7 +324,10 @@ describe('dsh-fnos package contract', () => {
     expect(action).toContain('<FnosFileManagerIcon size={18} />')
     expect(action).toContain('aria-haspopup="menu"')
     // 文案只出现在 aria-label 上（无障碍需要），不作为可见文字渲染。
-    expect(action).toContain("aria-label={t('sessionLog')}")
+    // 文案与官方同款「更多操作」，不再自称 "Session log"——那个名字藏在菜单内容里
+    // 看不出来，用户看到的是一个「…」，叫「更多操作」才与它的外观一致。
+    expect(action).toContain("aria-label={t('sessionLogMoreActions')}")
+    expect(action).toContain("<DshTooltip content={t('sessionLogMoreActions')}")
     expect(action).not.toContain("{t('sessionLog')}</")
     // 28px 圆形纯图标按钮，数值取自官方 session-log-export 的 CSS module。
     expect(style).toMatch(/\.dsh-fnos-session-log-button \{[^}]*width: 28px;/u)
@@ -344,8 +347,17 @@ describe('dsh-fnos package contract', () => {
     expect(action).not.toContain('dismissDownload')
 
     // 悬停提示与官方「更多操作」一致。
-    expect(action).toContain('<DshTooltip content={t(\'sessionLog\')}')
     expect(action).toContain('DshTooltip')
+
+    /*
+      官方「更多操作」不在任何插槽里（宿主直接 renderFactorySlot 渲染），
+      priority:-1 那套插槽遮蔽对它无效，只能在样式层隐藏。守卫要求：
+      多重属性组合选择器，且作用域限定在会话头部容器内，避免误伤工作区行等
+      其它右键菜单触发器。
+    */
+    expect(style).toContain("[class*='headerUtilities'] > button[data-context-menu-trigger][aria-haspopup='menu']")
+    expect(style).toContain("[class*='headerUtilities'] > button[class*='headerMenuButton'][data-context-menu-trigger]")
+    expect(style).not.toMatch(/^\[data-context-menu-trigger\]/mu)
     expect(action).not.toContain('treeCheckable')
     // 上游取数走 DSH 自己的 /api/session.export。早前走 ctx.get('apiProxy')
     // 是死的：全仓与上游都没有该服务的提供方，取值恒为 undefined，每次

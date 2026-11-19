@@ -14,6 +14,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   openSettingsDocument: '設定ファイルを開く',
   settingsDocumentOpenFailed: 'DSH の設定ファイルを開けませんでした。',
   sessionLog: 'セッションログ',
+  sessionLogMoreActions: 'その他の操作',
   sessionLogDialogPreparingTitle: 'セッションをエクスポートしています',
   sessionLogDialogPreparingDescription: 'このセッション、サブセッション、添付ファイルを含む ZIP を準備しています。',
   sessionLogDialogSuccessTitle: 'セッションのダウンロードを開始しました',

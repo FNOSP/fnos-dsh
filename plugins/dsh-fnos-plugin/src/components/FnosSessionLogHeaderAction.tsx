@@ -279,11 +279,11 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
             `Tooltip(label, side=bottom, align=end, portal)` 包着的图标按钮。
             这里用共享半包层的 `DshTooltip` 达到同样效果。
           */
-          <DshTooltip content={t('sessionLog')} position="bottom">
+          <DshTooltip content={t('sessionLogMoreActions')} position="bottom">
             <button
               type="button"
               className="dsh-fnos-session-log-button"
-              aria-label={t('sessionLog')}
+              aria-label={t('sessionLogMoreActions')}
               aria-haspopup="menu"
               aria-expanded={open}
               onClick={() => { setOpen(value => !value) }}

@@ -10,6 +10,7 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   openSettingsDocument: 'Abrir el archivo de configuración',
   settingsDocumentOpenFailed: 'No se ha podido abrir el archivo de configuración de DSH.',
   sessionLog: 'Registro de sesión',
+  sessionLogMoreActions: 'Más acciones',
   sessionLogDialogPreparingTitle: 'Exportando la sesión',
   sessionLogDialogPreparingDescription: 'Se está preparando un ZIP con esta sesión, sus subsessiones y los archivos adjuntos.',
   sessionLogDialogSuccessTitle: 'Descarga de la sesión iniciada',

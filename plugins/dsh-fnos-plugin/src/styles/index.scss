@@ -130,6 +130,41 @@ img.dsh-fnos-file-manager-icon {
   padding-block: 8px;
 }
 
+/*
+  隐藏官方的会话头部「更多操作」按钮，只保留本插件自己的那一个。
+
+  ## 为什么不是插槽遮蔽
+
+  官方那个按钮**不在任何插槽里**：`ConversationSession` 直接
+  `renderFactorySlot('contextMenu.button', { target: { kind: 'sessionHeader' } })`
+  渲染它，所以 `priority: -1` 那套「同 id 覆盖」对它无效——那条路只对
+  `conversation.session.header.utilities` 里的条目成立。
+
+  它是否出现取决于 `registeredKinds` 里有没有 `sessionHeader` 贡献，而官方
+  `session-log-export` 与 `open-in-app` 都会注册，因此它必然出现。我们无法通过
+  插件契约拿掉它，只能在样式层隐藏。
+
+  ## 选择器为什么用多重条件
+
+  单个特征都不够独占：
+
+  | 特征 | 单独用的问题 |
+  | --- | --- |
+  | `data-context-menu-trigger` | 工作区行、侧栏等所有右键菜单触发器都带它 |
+  | `aria-haspopup="menu"` | 同样是所有菜单触发器共有 |
+  | `class*='headerUtilities'` | 需要依赖父子关系，且类名带构建哈希 |
+
+  三条同时成立才唯一确定「会话头部那个更多操作」：它既是菜单触发器、又带
+  `aria-haspopup`、还直接挂在会话头部容器下。类名用 `[class*='headerMenuButton']`
+  做属性包含匹配（真机为 `wSkVaW_headerMenuButton`），不依赖哈希前缀。
+
+  再加 `button` 标签限定，避免将来同容器里出现非按钮的同名标记被误伤。
+*/
+[class*='headerUtilities'] > button[data-context-menu-trigger][aria-haspopup='menu'],
+[class*='headerUtilities'] > button[class*='headerMenuButton'][data-context-menu-trigger] {
+  display: none !important;
+}
+
 .dsh-fnos-session-log-button {
   display: inline-flex;
   flex: none;

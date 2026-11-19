@@ -14,6 +14,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   openSettingsDocument: '설정 파일 열기',
   settingsDocumentOpenFailed: 'DSH 설정 파일을 열 수 없습니다.',
   sessionLog: '세션 로그',
+  sessionLogMoreActions: '추가 작업',
   sessionLogDialogPreparingTitle: '세션을 내보내는 중',
   sessionLogDialogPreparingDescription: '이 세션, 하위 세션, 첨부 파일을 포함한 ZIP을 준비하고 있습니다.',
   sessionLogDialogSuccessTitle: '세션 다운로드가 시작되었습니다',

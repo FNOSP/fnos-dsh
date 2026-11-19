@@ -10,6 +10,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   openSettingsDocument: 'Открыть файл конфигурации',
   settingsDocumentOpenFailed: 'Не удалось открыть файл конфигурации DSH.',
   sessionLog: 'Журнал сеанса',
+  sessionLogMoreActions: 'Другие действия',
   sessionLogDialogPreparingTitle: 'Экспорт сеанса',
   sessionLogDialogPreparingDescription: 'Подготовка ZIP-файла с этим сеансом, его подсеансами и вложениями.',
   sessionLogDialogSuccessTitle: 'Загрузка сеанса начата',
