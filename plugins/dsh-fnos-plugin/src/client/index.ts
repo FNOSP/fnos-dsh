@@ -189,10 +189,10 @@ export function apply(ctx: ClientContext): void {
         ...FNOS_SESSION_LOG_SEAT,
         locale: namespace,
         inject: (sessionId) => ({
-          hooks: { sessionLogDownload: sessionLogDownload.store },
           sessionId,
+          // 只注入导出动作：进度与结果提示由官方 `session-log-export` 自己弹，
+          // 本插件不再额外弹一层（否则一次导出会出现两个弹框）。
           exportToComputer: (sessionId: SessionId) => sessionLogDownload.download(sessionId),
-          dismissDownload: (sessionId: SessionId) => { sessionLogDownload.dismiss(sessionId) },
         }),
       }, FnosSessionLogHeaderAction)
     })

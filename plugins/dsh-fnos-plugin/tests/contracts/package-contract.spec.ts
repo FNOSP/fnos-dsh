@@ -318,7 +318,10 @@ describe('dsh-fnos package contract', () => {
     expect(action).not.toContain('dsh-fnos-session-log-button-icon')
     // 菜单项自带图标，与官方 session-log-export 一致。
     expect(action).toContain('<IconDownloadOutlineRegular />')
-    expect(action).toContain('<IconFolderOpenOutlineRegular />')
+    // 「在应用中打开」用官方 session-open-with 同款箭头（未取到应用图标时的回退）。
+    expect(action).toContain('<IconRightUpOutlineRegular />')
+    // 「文件管理」用 NAS 彩色的文件管理器图标，而不是单色文件夹。
+    expect(action).toContain('<FnosFileManagerIcon size={18} />')
     expect(action).toContain('aria-haspopup="menu"')
     // 文案只出现在 aria-label 上（无障碍需要），不作为可见文字渲染。
     expect(action).toContain("aria-label={t('sessionLog')}")
@@ -335,9 +338,14 @@ describe('dsh-fnos package contract', () => {
     expect(theme).toContain(':not([data-ds-dark-theme]) .semi-button.semi-button-solid:not(.semi-button-disabled)')
     expect(theme).toContain('body[data-dsh-semi-theme][data-ds-dark-theme] .semi-button.semi-button-solid:not(.semi-button-disabled)')
     expect(action).toContain('DshTree')
-    expect(action).toContain('useSessionLogDownload')
-    expect(action).toContain('sessionLogDialogPreparingTitle')
-    expect(action).toContain('dismissDownload(sessionId)')
+    // 导出进度/结果提示由官方 session-log-export 负责，本插件不再弹第二层。
+    expect(action).not.toContain('dsh-fnos-session-log-progress-dialog')
+    expect(action).not.toContain('useSessionLogDownload')
+    expect(action).not.toContain('dismissDownload')
+
+    // 悬停提示与官方「更多操作」一致。
+    expect(action).toContain('<DshTooltip content={t(\'sessionLog\')}')
+    expect(action).toContain('DshTooltip')
     expect(action).not.toContain('treeCheckable')
     // 上游取数走 DSH 自己的 /api/session.export。早前走 ctx.get('apiProxy')
     // 是死的：全仓与上游都没有该服务的提供方，取值恒为 undefined，每次

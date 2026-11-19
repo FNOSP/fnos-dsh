@@ -405,11 +405,15 @@ describe('fnOS 配置弹框', () => {
     expect(mobile).toContain('.dsh-fnos-session-log-dialog-body')
   })
 
-  it('两个 Session log 弹框各用自己的类名', () => {
-    // 进度弹框套上选目录弹框的紧凑内边距会挤成一团，所以分开命名。
+  it('只保留 NAS 选目录弹框，导出进度框交给官方', () => {
+    /*
+      本插件曾额外弹一个「Session 导出已开始下载」进度框，而官方
+      `session-log-export` 在导出时已经弹了自己的提示——两层弹框同时出现。
+      现在导出反馈一律交给官方，本插件只剩 NAS 选目录这一个人工弹框。
+    */
     const src = readFileSync(new URL('../../src/components/FnosSessionLogHeaderAction.tsx', import.meta.url), 'utf8')
-    expect(src).toContain('className="dsh-fnos-session-log-progress-dialog"')
     expect(src).toContain('className="dsh-fnos-nas-dialog"')
+    expect(src).not.toContain('dsh-fnos-session-log-progress-dialog')
   })
 
   it('App 端隐藏两处「打开文件管理器」入口', () => {
