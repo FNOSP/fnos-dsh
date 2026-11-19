@@ -1,14 +1,19 @@
 ---
+id: FNOS-056
 title: FNOS-056 DSH 0.2.2-rc.4 插件适配与基线升级测试用例
 description: 覆盖基线承载处一致性、插件锚定、安装升级链路与双入口（iframe / 独立 DSH Web）在真实 fnOS NAS 上的验收。
 requirement: /requirements/FNOS-056-dsh-022-rc4-adaptation
 plan: /plans/PLAN-FNOS-056-dsh-022-rc4-adaptation
 status: 部分通过
+owner: tnnevol
+targetVersion: 8.2.0
 lastVerified: 2026-11-19
 verifiedAt: 2026-11-19
 ---
 
 # FNOS-056 DSH 0.2.2-rc.4 插件适配与基线升级测试用例
+
+关联需求：[FNOS-056 DSH 0.2.2-rc.4 插件适配与基线升级](/requirements/FNOS-056-dsh-022-rc4-adaptation)；关联计划：[PLAN-FNOS-056](/plans/PLAN-FNOS-056-dsh-022-rc4-adaptation)。
 
 ## 测试范围与需求分析
 

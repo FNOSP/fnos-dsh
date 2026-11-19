@@ -1,6 +1,12 @@
 ---
+id: PLAN-FNOS-056
 title: PLAN-FNOS-056 DSH 0.2.2-rc.4 插件适配与基线升级
 description: FNOS-056 的实施计划：跨 rc.2/rc.3/rc.4 的契约复核、四处基线承载处的同步策略、安装期补丁的前置取证与守卫补齐，以及分阶段任务、验证层次与回滚方式。
+status: 待完成
+owner: tnnevol
+planDate: 2026-11-18
+targetVersion: 8.2.0
+lastVerified: 2026-11-19
 ---
 
 # PLAN-FNOS-056 DSH 0.2.2-rc.4 插件适配与基线升级
