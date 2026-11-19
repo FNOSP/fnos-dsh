@@ -81,7 +81,13 @@ rc.5 相对 rc.4 的发布产物比对结论为「7 个文件、全是文档与�
 | TC-023 | DSH Desktop | 插件在 Desktop profile 激活 | 设置页显示 `dsh-failover-search` | 通过（界面实测） |
 | TC-023a | DSH Desktop | 输入区搜索开关渲染 | `dsh-failover-pill--active`、`智能搜索：已开启` | 通过（界面实测） |
 | TC-023b | DSH Desktop | 运行时版本 | `0.2.2-rc.5-9c2670d` | 通过 |
-| TC-024 | 真实 fnOS NAS | FPK 安装后插件可用 | —— | **未执行**（见下） |
+| TC-024 | 真实 fnOS NAS | FPK 安装与三处对齐 | 应用 8.3.0 / 基线 rc.5 / 插件 8.3.0 / 服务 401 | 通过 |
+| TC-025 | 真实 fnOS NAS | 安装日志识别基线替换 | `Local @deepseek-ai/dsh@0.2.2-rc.4 does not match required 0.2.2-rc.5` | 通过 |
+| TC-026 | 真实 fnOS NAS | iframe 模式加载 | `base href=/app/fn-deepseek-harness/`，DSH UI 正常 | 通过 |
+| TC-027 | 真实 fnOS NAS | 会话头部只有一个菜单 | 仅「更多操作」，官方按钮 `offsetWidth===0` | 通过 |
+| TC-028 | 真实 fnOS NAS | 菜单结构与分割线 | 复制/下载/**分割线**/在应用中打开(h=40)/**分割线**/反馈 | 通过 |
+| TC-029 | 真实 fnOS NAS | 「在应用中打开」图标 | `#dsw-icon-right-up-outline-regular` | 通过 |
+| TC-030 | 真实 fnOS NAS | 飞牛设置四个分组 | 授权目录（5 项）/ 插件管理 / 运行（PID/CPU/内存/进程树）/ 日志 | 通过 |
 
 #### TC-023 执行过程与发现（本轮最重要的回归）
 
@@ -109,10 +115,10 @@ NAS 端待 FPK 构建与安装后验证，属于本任务的后续阶段（计�
 
 | 项 | 数量 |
 | --- | --- |
-| 已执行 | 26 |
-| 通过 | 26 |
+| 已执行 | 33 |
+| 通过 | 33 |
 | 失败 | 0 |
-| 未执行 | 1（真实 fnOS NAS） |
+| 未执行 | 0 |
 
 ## DSH Web 界面实测证据（本轮补验）
 
@@ -142,12 +148,26 @@ NAS 端待 FPK 构建与安装后验证，属于本任务的后续阶段（计�
 
 ## 最终结论
 
-**部分通过。** 基线迁移与守卫体系已完成并全部验证通过；Failover Search 在**单元、
-DSH Web 与 DSH Desktop 三端**均确认可用。
+**通过。** 33 条用例全部通过，三端均完成界面实测取证。
 
-Desktop 端本轮抓到并修复了一个 Web 端看不到的真实回归：profile 里的物理拷贝停留在
-v8.2.0 / rc.4，被 rc.5 的 `engines.dsh` 校验拒绝，六个插件全部「未运行」。替换为 8.3.0
-产物后全部恢复。
+| 端 | 结论 |
+| --- | --- |
+| 单元 | failover-search 22 文件 / 233 用例全绿；基线守卫 22 条全绿 |
+| DSH Web | 界面实测：搜索提供方 `dsh-failover-search`、输入区 `dsh-failover-pill--active` |
+| DSH Desktop | 界面实测：运行时 `0.2.2-rc.5`、搜索提供方 `dsh-failover-search` |
+| 真实 fnOS NAS | 应用 8.3.0 / 基线 rc.5 / 插件 8.3.0 三处对齐；iframe 下会话头部只有一个菜单、菜单结构含上下分割线、图标为官方箭头；飞牛设置四分组齐全 |
 
-**剩余未执行：真实 fnOS NAS 端**（FPK 已构建为 `v8.3.0-dsh-0.2.2-rc.5`，待安装验证）。
-补齐该端后即可把状态改为「通过」。
+### 本轮抓到的两个真实回归
+
+1. **基线改写只改一处**（Web 端守卫抓到）：`version` 命令原先只改默认 catalog 一行，
+   388 处里只改 1 处，其余 387 处停在旧版本。已修复为三处同时改写并加守卫。
+2. **Desktop profile 物理拷贝版本过期**（Desktop 端抓到）：六个插件的 `node_modules`
+   物理拷贝停在 v8.2.0 / rc.4，被 rc.5 的 `engines.dsh` 校验全部拒绝加载。Web 端用
+   `link:` 指向源码所以看不到这个失败。已替换为 8.3.0 产物。
+
+### 遗留说明
+
+- `pnpm install` 会把 `catalog:dsh` 解析结果写回 `plugins/*/package.json`，提交前必须
+  确认该文件的 diff 只有一个字段（本轮踩到并已修正，见提交 `38f035d0`）。
+- NAS 端可信访问地址在安装向导里仍显示旧 IP `192.168.0.17`（设备改址前写入的配置），
+  不影响本次验收，但换址后需要重新确认该配置。
