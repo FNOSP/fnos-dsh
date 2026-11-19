@@ -64,7 +64,7 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 | FNOS-053 | [拦截官方账号登录，改为粘贴回调地址完成授权](/tests/FNOS-053-account-login-callback-relay) | 部分通过 | 17 条用例：16 条通过（13 条单测 + 3 条真机）；换码闭环需真实账号，未执行 |
 | FNOS-055 | [安装向导移除失效的 npm 镜像源](/tests/FNOS-055-invalid-npm-mirror-removal) | [PLAN-FNOS-055](/plans/PLAN-FNOS-055-invalid-npm-mirror-removal) | 部分通过 | 20 条用例：16 条通过 / 4 条真机未执行。网关 188 条、CLI 163 条全绿；三份向导 6 个选项、升级默认空值与按场景回退、归一键与接线、x86 FPK 产物校验通过；真实 NAS 全新安装、旧值升级自愈、失败提示与升级留空待 FPK 后补测 |
 
-| FNOS-057 | [DSH 0.2.2-rc.5 基线升级](/tests/FNOS-057-dsh-022-rc5-adaptation) | 部分通过 | 24 条用例：22 条通过 / 2 条未执行。基线承载处三处同步（389 处 rc.5、0 处残留）、改写函数级守卫 4 条（含 allowBuilds 不被覆盖）、变异验证、七插件锚定、安装期补丁三锚点均通过；Failover Search 在单元（233 用例）与 DSH Web（active / 8.3.0）两端确认可用；DSH Desktop 与真实 NAS 未执行 |
+| FNOS-057 | [DSH 0.2.2-rc.5 基线升级](/tests/FNOS-057-dsh-022-rc5-adaptation) | 部分通过 | 25 条用例：23 条通过 / 2 条未执行。基线承载处三处同步（389 处 rc.5、0 处残留）、改写函数级守卫 4 条（含 allowBuilds 不被覆盖）、变异验证、七插件锚定、安装期补丁三锚点均通过；Failover Search 在单元（233 用例）与 DSH Web（active / 8.3.0）两端确认可用；DSH Desktop 与真实 NAS 未执行 |
 
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。
 | FNOS-056 | [DSH 0.2.2-rc.4 插件适配与基线升级](/tests/FNOS-056-dsh-022-rc4-adaptation) | 部分通过 | 28 条用例：26 条通过 / 2 条未执行。四处基线承载处一致（含变异验证）、七插件锚定、真实 NAS 安装升级、iframe 与独立 DSH Web 双入口均通过；本轮补验更新检测、运行页真实指标、主题跟随与授权目录按设计降级均通过；`/fn` 引用、日志导出到 NAS 与 Desktop 完整走查未执行 |

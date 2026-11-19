@@ -76,7 +76,8 @@ rc.5 相对 rc.4 的发布产物比对结论为「7 个文件、全是文档与�
 | TC-019 | DSH Web | 插件在 rc.5 上激活 | `state: 'active'`、`missing: []` | 通过 |
 | TC-020 | DSH Web | 加载版本 | `8.3.0` | 通过 |
 | TC-021 | DSH Web | 启动无插件失败 | 0 个 failed 插件 | 通过 |
-| TC-022 | DSH Web | 自设 `searchProvider` 不被 rc.5 默认值覆盖 | `cordis.patch.yml` 的 `searchProvider: dsh-failover-search` 生效 | 通过（静态核对 + 插件用例覆盖） |
+| TC-022 | DSH Web | 自设 `searchProvider` 不被 rc.5 默认值覆盖 | 设置页显示 `dsh-failover-search`，而非「自动选择」 | 通过（界面实测） |
+| TC-022a | DSH Web | 输入区搜索开关渲染 | 出现 `dsh-failover-pill--active`，「智能搜索：已开启」 | 通过（界面实测） |
 | TC-023 | DSH Desktop | 插件在 Desktop profile 激活 | —— | **未执行**（见下） |
 | TC-024 | 真实 fnOS NAS | FPK 安装后插件可用 | —— | **未执行**（见下） |
 
@@ -100,10 +101,26 @@ NAS 端待 FPK 构建与安装后验证，属于本任务的后续阶段（计�
 
 | 项 | 数量 |
 | --- | --- |
-| 已执行 | 22 |
-| 通过 | 22 |
+| 已执行 | 23 |
+| 通过 | 23 |
 | 失败 | 0 |
 | 未执行 | 2（Desktop 端、NAS 端） |
+
+## DSH Web 界面实测证据（本轮补验）
+
+按[测试用例文档规范](/charter/tests-spec)的要求，服务启动后用带 token 的地址在浏览器
+实际打开界面取证，而不是只读启动日志：
+
+| 观察点 | 实测结果 |
+| --- | --- |
+| 页面渲染 | 正常（侧栏、工作区、会话列表、输入区俱全） |
+| 输入区搜索开关 | `class="dsh-failover-pill dsh-failover-pill--active"`，`aria-label="智能搜索：已开启，点击关闭"` |
+| 设置 → 网页搜索提供方 | `dsh-failover-search`（不是 rc.5 新增的「自动选择」） |
+| 设置 → 网页获取提供方 | `dsh-failover-search` |
+
+后两条是本需求最关键的证据：rc.5 的唯一行为变更就是「搜索提供方默认值改为按模型
+路由自动选择」，而本应用因为插件自设了 `searchProvider`，实际生效的仍是自己的故障
+转移链。
 
 ## 局部验证证据
 
