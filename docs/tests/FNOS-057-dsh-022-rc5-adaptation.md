@@ -78,20 +78,28 @@ rc.5 相对 rc.4 的发布产物比对结论为「7 个文件、全是文档与�
 | TC-021 | DSH Web | 启动无插件失败 | 0 个 failed 插件 | 通过 |
 | TC-022 | DSH Web | 自设 `searchProvider` 不被 rc.5 默认值覆盖 | 设置页显示 `dsh-failover-search`，而非「自动选择」 | 通过（界面实测） |
 | TC-022a | DSH Web | 输入区搜索开关渲染 | 出现 `dsh-failover-pill--active`，「智能搜索：已开启」 | 通过（界面实测） |
-| TC-023 | DSH Desktop | 插件在 Desktop profile 激活 | —— | **未执行**（见下） |
+| TC-023 | DSH Desktop | 插件在 Desktop profile 激活 | 设置页显示 `dsh-failover-search` | 通过（界面实测） |
+| TC-023a | DSH Desktop | 输入区搜索开关渲染 | `dsh-failover-pill--active`、`智能搜索：已开启` | 通过（界面实测） |
+| TC-023b | DSH Desktop | 运行时版本 | `0.2.2-rc.5-9c2670d` | 通过 |
 | TC-024 | 真实 fnOS NAS | FPK 安装后插件可用 | —— | **未执行**（见下） |
 
-#### TC-023 未执行原因
+#### TC-023 执行过程与发现（本轮最重要的回归）
 
-DSH Desktop 端无法在本会话执行：`dev:desktop` 需要写上游检出
-`fork-pj/deepseek-harness/.dsh-build/`，而该检出在本会话受系统级只读限制
-（`touch` 报 `Operation not permitted`，`pnpm run build:artifacts` 报 `EPERM` on
-`.dsh-build/client-build-environment.json`）。这不是项目缺陷，属于执行环境限制。
+Desktop 端最初六个插件**全部「未运行」**，界面提示：
 
-补充：Desktop profile 的 `dsh.profile.bundles` **已包含** `@tnnevol/dsh-failover-search`，
-配置侧就位；但其 `node_modules` 里是 8.2.0 的物理拷贝，按规范该 profile
-**由 Desktop 应用自己创建与刷新**（`dsh plugin --profile desktop` 被 CLI 明确拒绝），
-所以不能用命令手工更新，必须在能启动 Desktop 的环境里由应用自行安装。
+> 这个插件与当前 DSH 版本不兼容，运行它可能导致崩溃或数据丢失。请卸载后重新安装与当前 DSH 兼容的版本。
+
+根因：`.dsh/profiles/desktop/node_modules/@tnnevol/*` 是 **v8.2.0 / `engines.dsh=0.2.2-rc.4`**
+的物理拷贝，而 Desktop 已运行在 rc.5，`engines.dsh` 校验直接拒绝加载。
+
+**这个失败在 DSH Web 端完全看不到**：Web profile 用 `link:` 指向插件源码（8.3.0 / rc.5），
+所以通过；Desktop profile 用物理拷贝，版本校验才暴露出来。这正是三端回归的价值。
+
+修复方式（用户明确授权直接改 profile）：把六个插件的物理拷贝替换为仓库内的 8.3.0 产物，
+重启 Desktop 后全部加载成功。原 8.2.0 拷贝已备份在 `tmp/desktop-profile-backup/`。
+
+> 注意：`@tnnevol/dsh-fnos` 不在 Desktop profile 的 bundles 里（它是 Web/fnOS 专用），
+> 因此 Desktop 端只有六个插件需要更新。
 
 #### TC-024 未执行原因
 
@@ -101,10 +109,10 @@ NAS 端待 FPK 构建与安装后验证，属于本任务的后续阶段（计�
 
 | 项 | 数量 |
 | --- | --- |
-| 已执行 | 23 |
-| 通过 | 23 |
+| 已执行 | 26 |
+| 通过 | 26 |
 | 失败 | 0 |
-| 未执行 | 2（Desktop 端、NAS 端） |
+| 未执行 | 1（真实 fnOS NAS） |
 
 ## DSH Web 界面实测证据（本轮补验）
 
@@ -134,9 +142,12 @@ NAS 端待 FPK 构建与安装后验证，属于本任务的后续阶段（计�
 
 ## 最终结论
 
-**部分通过。** 基线迁移与守卫体系已完成并全部验证通过；Failover Search 在单元与
-DSH Web 两端确认可用。**DSH Desktop 与真实 fnOS NAS 两端未执行**，原因是执行环境
-限制（上游检出只读）与阶段顺序（FPK 尚未构建），不是功能缺陷。
+**部分通过。** 基线迁移与守卫体系已完成并全部验证通过；Failover Search 在**单元、
+DSH Web 与 DSH Desktop 三端**均确认可用。
 
-这两端必须在能启动 Desktop 的开发机与可安装 FPK 的 NAS 上补齐，才能把本需求的
-测试状态从「部分通过」改为「通过」。
+Desktop 端本轮抓到并修复了一个 Web 端看不到的真实回归：profile 里的物理拷贝停留在
+v8.2.0 / rc.4，被 rc.5 的 `engines.dsh` 校验拒绝，六个插件全部「未运行」。替换为 8.3.0
+产物后全部恢复。
+
+**剩余未执行：真实 fnOS NAS 端**（FPK 已构建为 `v8.3.0-dsh-0.2.2-rc.5`，待安装验证）。
+补齐该端后即可把状态改为「通过」。
