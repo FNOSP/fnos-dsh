@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { writeDshBaselineEverywhere } from '../src/commands/version.js'
 
 /**
  * 运行时基线只从 catalog 读取，不在测试里另写一份字面量。
@@ -476,5 +477,90 @@ describe('基线承载处一致性', () => {
   it('安装回调的 DSH_VERSION 与 catalog 基线一致', async () => {
     const callback = await readFile(new URL('../../../apps/fn-deepseek-harness/cmd/install_callback', import.meta.url), 'utf8')
     expect(callback).toContain(`DSH_VERSION="${targetVersion}"`)
+  })
+})
+
+describe('基线改写函数：三处承载必须同时改写', () => {
+  const sample = [
+    'catalog:',
+    "  '@deepseek-ai/dsh': 0.2.2-rc.4",
+    "  '@deepseek-ai/cordis': ^4.1.0",
+    'catalogs:',
+    '  dsh:',
+    "    '@deepseek-ai/dsh-agent': 0.2.2-rc.4",
+    "    '@deepseek-ai/dsh-app-boot': 0.2.2-rc.4",
+    '    \'@deepseek-ai/schemastery\': 3.19.0',
+    'minimumReleaseAgeExclude:',
+    "  - '@deepseek-ai/dsh-agent@0.2.2-rc.4'",
+    "  - '@deepseek-ai/dsh-app-boot@0.2.2-rc.4'",
+    "  - '@deepseek-ai/semi-ui@2.90.2'",
+    '',
+  ].join('\n')
+
+  it('三处一起改，且只碰 DSH 系列条目', () => {
+    const { text, counts } = writeDshBaselineEverywhere(sample, '0.2.2-rc.5')
+    expect(counts).toEqual({ catalog: 1, named: 2, exclude: 2 })
+
+    // 三处都到了新基线
+    expect(text).toContain("'@deepseek-ai/dsh': 0.2.2-rc.5")
+    expect(text).toContain("'@deepseek-ai/dsh-agent': 0.2.2-rc.5")
+    expect(text).toContain("'@deepseek-ai/dsh-app-boot@0.2.2-rc.5'")
+
+    // 与 DSH 无关的条目原样保留
+    expect(text).toContain("'@deepseek-ai/cordis': ^4.1.0")
+    expect(text).toContain("'@deepseek-ai/schemastery': 3.19.0")
+    expect(text).toContain("'@deepseek-ai/semi-ui@2.90.2'")
+
+    // 不留旧值
+    expect(text).not.toContain('0.2.2-rc.4')
+  })
+
+  it('默认 catalog 缺失时抛错，而不是静默只改其余两段', () => {
+    const withoutDefault = sample.replace("  '@deepseek-ai/dsh': 0.2.2-rc.4\n", '')
+    expect(() => writeDshBaselineEverywhere(withoutDefault, '0.2.2-rc.5')).toThrow(/恰好有一处/u)
+  })
+
+  it('allowBuilds 段的 true/false 不被当成版本号覆盖', () => {
+    /*
+      `allowBuilds` 里也有 `'@deepseek-ai/dsh-*'` 条目，值是 true/false。
+      按 DSH 前缀无差别扫会把它改写成版本号——「禁止构建」静默变成「允许构建」。
+      实测踩到过：dsh-subprocess-local 的 false 被改成 0.2.2-rc.5。
+    */
+    const withAllowBuilds = [
+      'catalog:',
+      "  '@deepseek-ai/dsh': 0.2.2-rc.4",
+      'catalogs:',
+      '  dsh:',
+      "    '@deepseek-ai/dsh-agent': 0.2.2-rc.4",
+      'allowBuilds:',
+      "  '@deepseek-ai/dsh-subprocess-local': false",
+      "  '@deepseek-ai/dsh-other': true",
+      'minimumReleaseAgeExclude:',
+      "  - '@deepseek-ai/dsh-agent@0.2.2-rc.4'",
+      '',
+    ].join('\n')
+
+    const { text, counts } = writeDshBaselineEverywhere(withAllowBuilds, '0.2.2-rc.5')
+    expect(counts).toEqual({ catalog: 1, named: 1, exclude: 1 })
+
+    // allowBuilds 原样保留
+    expect(text).toContain("'@deepseek-ai/dsh-subprocess-local': false")
+    expect(text).toContain("'@deepseek-ai/dsh-other': true")
+
+    // 三处承载都改了
+    expect(text).toContain("'@deepseek-ai/dsh': 0.2.2-rc.5")
+    expect(text).toContain("'@deepseek-ai/dsh-agent': 0.2.2-rc.5")
+    expect(text).toContain("'@deepseek-ai/dsh-agent@0.2.2-rc.5'")
+
+    // allowBuilds 段位置不变（仍在 catalogs 与 exclude 之间）
+    const at = (needle: string): number => text.indexOf(needle)
+    expect(at('allowBuilds:')).toBeGreaterThan(at('catalogs:'))
+    expect(at('minimumReleaseAgeExclude:')).toBeGreaterThan(at('allowBuilds:'))
+  })
+
+  it('命名 catalog 段缺失时 counts 为 0，由上层拒绝落盘', () => {
+    const withoutNamed = sample.replace(/^catalogs:[\s\S]*?(?=minimumReleaseAgeExclude:)/mu, '')
+    const { counts } = writeDshBaselineEverywhere(withoutNamed, '0.2.2-rc.5')
+    expect(counts.named).toBe(0)
   })
 })

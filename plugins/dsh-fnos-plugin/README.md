@@ -4,7 +4,7 @@
 
 ## 安装
 
-插件随 `fn-deepseek-harness` 自动安装。其他 DSH 环境手动安装，要求 DSH `0.2.2-rc.4` ：
+插件随 `fn-deepseek-harness` 自动安装。其他 DSH 环境手动安装，要求 DSH `0.2.2-rc.5` ：
 
 ```sh
 dsh plugin --profile web add @tnnevol/dsh-fnos@8.3.0
