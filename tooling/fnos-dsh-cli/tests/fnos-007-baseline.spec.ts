@@ -256,13 +256,17 @@ describe('FNOS-007 DSH baseline', () => {
     expect(upgradeItems.find(item => item.field === 'wizard_npm_registry')?.label).not.toContain('（可选）')
   })
 
-  it('向导的 npm 源列表包含官方并默认选中', async () => {
+  it('向导的 npm 源列表保留官方、按场景默认，且不再提供失效源', async () => {
     /*
       原先 `initValue` 为空，而选项里没有空值，界面上就多出一个空白行（用户看到
       的选择器顶着一行空条目）。这里把 npm 官方源补成第一项并设为默认。
 
       **默认值等于「没改」**：升级用户上次选过镜像时，后端要沿用上次的值，不能
       因为向导默认是官方源就把他选的镜像冲掉——见下面那条规则测试。
+
+      FNOS-055：`npmMirror` 指向的 `skimdb.npmjs.com` 是只读复制存档端点，
+      必然会 404，已从三份向导移除；这里同时钉住「不能加回来」和「其余源不能少」。
+      升级向导默认空值（留空即 npm 官方源），全新安装与应用设置仍默认官方源。
     */
     const OFFICIAL = 'https://registry.npmjs.org/'
     type WizardEntry = { field?: string, initValue?: string, options?: Array<{ label: string, value: string }> }
@@ -270,15 +274,20 @@ describe('FNOS-007 DSH baseline', () => {
       const wizard = JSON.parse(await readFile(new URL(`../../../apps/fn-deepseek-harness/wizard/${name}`, import.meta.url), 'utf8')) as Array<{ items: WizardEntry[] }>
       const item = wizard[0]?.items.find(entry => entry.field === 'wizard_npm_registry')
       expect(item, name).toBeDefined()
-      expect(item?.initValue, name).toBe(OFFICIAL)
+      // 升级向导不预选源，空值由回调按 npm 官方源处理；其余两份默认官方源。
+      expect(item?.initValue, name).toBe(name === 'upgrade' ? '' : OFFICIAL)
       const options = item?.options ?? []
       // 官方源必须在列表里，而且排第一（默认选项）。
       expect(options[0], name).toEqual({ label: 'npm', value: OFFICIAL })
       expect(options.some(option => option.value === OFFICIAL), name).toBe(true)
-      // 原有的镜像不能被删掉。
-      for (const mirror of ['yarn', 'tencent', 'cnpm', 'taobao', 'npmMirror', 'huawei']) {
+      // 保留的镜像不能少，顺序与字段契约保持原样。
+      for (const mirror of ['yarn', 'tencent', 'cnpm', 'taobao', 'huawei']) {
         expect(options.some(option => option.label === mirror), `${name}:${mirror}`).toBe(true)
       }
+      expect(options, name).toHaveLength(6)
+      // 失效源不得再出现，也不能通过换名字/换地址回到清单里。
+      expect(options.some(option => option.label === 'npmMirror'), name).toBe(false)
+      expect(options.some(option => /skimdb\.npmjs\.com|replicate\.npmjs\.com/u.test(option.value)), name).toBe(false)
     }
   })
 
@@ -441,7 +450,7 @@ describe('FNOS-007 DSH baseline', () => {
 })
 
 /**
- * 基线在**所有承载处**一致（FNOS-055）。
+ * 基线在**所有承载处**一致（FNOS-056）。
  *
  * `pnpm run version -- major --baseline` 只改写默认 catalog 的一行；命名 catalog
  * 与 `minimumReleaseAgeExclude` 命令完全不碰，过去靠人工记忆同步。漏改的后果不是

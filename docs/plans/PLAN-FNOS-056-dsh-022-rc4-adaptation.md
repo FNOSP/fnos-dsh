@@ -1,20 +1,20 @@
 ---
-title: PLAN-FNOS-055 DSH 0.2.2-rc.4 插件适配与基线升级
-description: FNOS-055 的实施计划：跨 rc.2/rc.3/rc.4 的契约复核、四处基线承载处的同步策略、安装期补丁的前置取证与守卫补齐，以及分阶段任务、验证层次与回滚方式。
+title: PLAN-FNOS-056 DSH 0.2.2-rc.4 插件适配与基线升级
+description: FNOS-056 的实施计划：跨 rc.2/rc.3/rc.4 的契约复核、四处基线承载处的同步策略、安装期补丁的前置取证与守卫补齐，以及分阶段任务、验证层次与回滚方式。
 ---
 
-# PLAN-FNOS-055 DSH 0.2.2-rc.4 插件适配与基线升级
+# PLAN-FNOS-056 DSH 0.2.2-rc.4 插件适配与基线升级
 
 | 项目 | 内容 |
 | --- | --- |
-| 计划编号 | PLAN-FNOS-055 |
+| 计划编号 | PLAN-FNOS-056 |
 | 计划日期 | 2026-11-18 |
-| 对应需求 | [FNOS-055](/requirements/FNOS-055-dsh-022-rc4-adaptation) |
+| 对应需求 | [FNOS-056](/requirements/FNOS-056-dsh-022-rc4-adaptation) |
 | 计划状态 | 实施中 |
 
 ## 计划目标
 
-把仓库运行基线从 DSH `0.2.2-rc.1` 迁移到 `0.2.2-rc.4`，实现 FNOS-055-01～08 八项功能。技术边界：
+把仓库运行基线从 DSH `0.2.2-rc.1` 迁移到 `0.2.2-rc.4`，实现 FNOS-056-01～08 八项功能。技术边界：
 
 - 只改依赖锚定、兼容声明、基线常量、守卫覆盖面与必要文案；不改插件功能语义。
 - 不接入 0.2.2 新增能力。
@@ -37,14 +37,14 @@ description: FNOS-055 的实施计划：跨 rc.2/rc.3/rc.4 的契约复核、四
 
 | 需求功能 | 代码模块 | 配置/数据 | 测试 | 文档 | 目标环境 |
 | --- | --- | --- | --- | --- | --- |
-| FNOS-055-01 | `plugins/*/package.json`、`plugins/*/compatibility.json` | 插件安装元数据 | 现有插件用例 | 插件文档基线行 | DSH Web + Desktop |
-| FNOS-055-02 | `plugins/dsh-{codex-auth,opencode,zcode,midscene,fnos,failover-search,semi-ui-showcase}-plugin/src` | 无 | typecheck 为主要闸门 | 契约复核记录 | DSH Web + Desktop |
-| FNOS-055-03 | `pnpm-workspace.yaml`、`cmd/install_callback` | 基线四处承载 | `fnos-007-baseline.spec.ts`、`build.ts` 门禁 | 版本管理文档取值 | 本地仓库状态 + 本地运行时 |
-| FNOS-055-04 | `packages/fnos-gateway/src/install-callback-helper/attachment-patch.ts`（只读取证） | 安装期产物补丁 | 安装链路用例 | 安装说明 | 真实 fnOS NAS |
-| FNOS-055-05 | 无代码改动 | 本地检出状态 | — | 联调说明 | Desktop 联调环境 |
-| FNOS-055-06 | `tooling/fnos-dsh-cli/tests/fnos-007-baseline.spec.ts` | 守卫断言 | 新增断言 | — | 仓库用例 |
-| FNOS-055-07 | `apps/fn-deepseek-harness/i18n/*`、`docs/apps/*` | 用户可见文案 | 文案一致性用例 | 应用文档页 | 版本命令产物 + 构建命名 |
-| FNOS-055-08 | 无代码改动 | 用户数据只读核对 | — | 验收证据 | DSH Web + Desktop + NAS |
+| FNOS-056-01 | `plugins/*/package.json`、`plugins/*/compatibility.json` | 插件安装元数据 | 现有插件用例 | 插件文档基线行 | DSH Web + Desktop |
+| FNOS-056-02 | `plugins/dsh-{codex-auth,opencode,zcode,midscene,fnos,failover-search,semi-ui-showcase}-plugin/src` | 无 | typecheck 为主要闸门 | 契约复核记录 | DSH Web + Desktop |
+| FNOS-056-03 | `pnpm-workspace.yaml`、`cmd/install_callback` | 基线四处承载 | `fnos-007-baseline.spec.ts`、`build.ts` 门禁 | 版本管理文档取值 | 本地仓库状态 + 本地运行时 |
+| FNOS-056-04 | `packages/fnos-gateway/src/install-callback-helper/attachment-patch.ts`（只读取证） | 安装期产物补丁 | 安装链路用例 | 安装说明 | 真实 fnOS NAS |
+| FNOS-056-05 | 无代码改动 | 本地检出状态 | — | 联调说明 | Desktop 联调环境 |
+| FNOS-056-06 | `tooling/fnos-dsh-cli/tests/fnos-007-baseline.spec.ts` | 守卫断言 | 新增断言 | — | 仓库用例 |
+| FNOS-056-07 | `apps/fn-deepseek-harness/i18n/*`、`docs/apps/*` | 用户可见文案 | 文案一致性用例 | 应用文档页 | 版本命令产物 + 构建命名 |
+| FNOS-056-08 | 无代码改动 | 用户数据只读核对 | — | 验收证据 | DSH Web + Desktop + NAS |
 
 影响范围示意：
 
@@ -102,23 +102,23 @@ flowchart TD
 
 | 任务 ID | 对应需求/验收 | 修改内容 | 前置条件 | 验证方式 |
 | --- | --- | --- | --- | --- |
-| PLAN-FNOS-055-T01-01 | FNOS-055-04 / AC-03 | 下载 `@deepseek-ai/dsh-attachment-local@0.2.2-rc.4` 已发布 tarball，对三处补丁目标逐字节计数 | 网络可用 | 三个锚点各命中 1 次；与 rc.1 产物比对字节一致性 |
-| PLAN-FNOS-055-T01-02 | FNOS-055-02 / AC-01 | 比对 `dsh-llm` 已发布 `.d.ts` 的 `LlmError` 签名，确认插件抛出的两个错误码在联合类型内 | T01-01 无依赖，可并行 | 类型声明比对记录；插件源码 4 处抛出点逐一核对 |
-| PLAN-FNOS-055-T02-01 | FNOS-055-03 / AC-01 | 改写默认 catalog 的 `@deepseek-ai/dsh` 一行 | T01 完成 | `readDshBaselineFromCatalog()` 读到 rc.4 |
-| PLAN-FNOS-055-T02-02 | FNOS-055-03 / AC-01 | 同步命名 catalog 的 42 条 | T02-01 | 全段无 rc.1 残留 |
-| PLAN-FNOS-055-T02-03 | FNOS-055-03 / AC-01 | 同步发布龄期豁免清单的 330 条 | T02-01 | 全段无 rc.1 残留 |
-| PLAN-FNOS-055-T03-01 | FNOS-055-01 / AC-01 | 7 个插件 `package.json` 的 `engines.dsh` 改为 rc.4 | T02-01 | 用例断言等于 catalog |
-| PLAN-FNOS-055-T03-02 | FNOS-055-01 / AC-01 | 7 个插件 `compatibility.json` 的 `dshPluginApi.version` 改为 rc.4 | T02-01 | 用例断言等于 catalog |
-| PLAN-FNOS-055-T03-03 | FNOS-055-04 / AC-01 | `cmd/install_callback` 的 `DSH_VERSION` 改为 rc.4 | T02-01 | 构建门禁通过 |
-| PLAN-FNOS-055-T04-01 | FNOS-055-06 / AC-01 | 在基线守卫用例中新增「默认 catalog = 命名 catalog = 豁免清单片头 = install_callback 常量」一致性断言 | T02、T03 完成 | 变异验证：故意漏改一处应转红 |
-| PLAN-FNOS-055-T04-02 | FNOS-055-02 / AC-01 | 全仓 typecheck，重点看 7 个插件对上游类型的引用 | T02、T03 完成 | `pnpm run typecheck` 通过 |
-| PLAN-FNOS-055-T04-03 | FNOS-055-01 / AC-01 | 全仓 lint 与单元测试 | T04-02 | `pnpm run lint`、`pnpm run test` 通过 |
-| PLAN-FNOS-055-T04-04 | FNOS-055-02 / AC-02 | 处置头部遮蔽失效：两个 seat 的 `priority` 由 -1 改回 0，重写守卫用例断言「官方已迁出本插槽」 | T02-01（依赖新基线产物已安装） | 两个 spec 全绿；断言不再假设遮蔽存在 |
-| PLAN-FNOS-055-T05-01 | FNOS-055-07 / AC-01 | 同步 9 个 i18n 文件的 18 处基线字样与应用文档页基线行 | T02-01 | 全仓检索无 rc.1 残留（历史文档除外） |
-| PLAN-FNOS-055-T05-02 | FNOS-055-07 / AC-01 | `pnpm run version -- major --baseline 0.2.2-rc.4` 发版至 8.2.0 | T04 全绿、工作区干净 | 版本提交与 tag 生成；FPK 命名含 rc.4 |
-| PLAN-FNOS-055-T06-01 | FNOS-055-01、02、08 / AC-01 | DSH Web 与 DSH Desktop 双客户端走查 | T05-02 | 七插件加载、插座位置、模型通道对话、既有数据可用 |
-| PLAN-FNOS-055-T06-02 | FNOS-055-04 / AC-02 | 真实 fnOS NAS 走应用中心安装/升级 | T05-02 | 服务启动、版本报告 rc.4、补丁未失败、数据保留 |
-| PLAN-FNOS-055-T06-03 | FNOS-055-05 / AC-01 | Desktop 联调检出核对 | 已完成（rc.4 检出就绪） | 检出 tag = rc.4，CLI 报告 rc.4 |
+| PLAN-FNOS-056-T01-01 | FNOS-056-04 / AC-03 | 下载 `@deepseek-ai/dsh-attachment-local@0.2.2-rc.4` 已发布 tarball，对三处补丁目标逐字节计数 | 网络可用 | 三个锚点各命中 1 次；与 rc.1 产物比对字节一致性 |
+| PLAN-FNOS-056-T01-02 | FNOS-056-02 / AC-01 | 比对 `dsh-llm` 已发布 `.d.ts` 的 `LlmError` 签名，确认插件抛出的两个错误码在联合类型内 | T01-01 无依赖，可并行 | 类型声明比对记录；插件源码 4 处抛出点逐一核对 |
+| PLAN-FNOS-056-T02-01 | FNOS-056-03 / AC-01 | 改写默认 catalog 的 `@deepseek-ai/dsh` 一行 | T01 完成 | `readDshBaselineFromCatalog()` 读到 rc.4 |
+| PLAN-FNOS-056-T02-02 | FNOS-056-03 / AC-01 | 同步命名 catalog 的 42 条 | T02-01 | 全段无 rc.1 残留 |
+| PLAN-FNOS-056-T02-03 | FNOS-056-03 / AC-01 | 同步发布龄期豁免清单的 330 条 | T02-01 | 全段无 rc.1 残留 |
+| PLAN-FNOS-056-T03-01 | FNOS-056-01 / AC-01 | 7 个插件 `package.json` 的 `engines.dsh` 改为 rc.4 | T02-01 | 用例断言等于 catalog |
+| PLAN-FNOS-056-T03-02 | FNOS-056-01 / AC-01 | 7 个插件 `compatibility.json` 的 `dshPluginApi.version` 改为 rc.4 | T02-01 | 用例断言等于 catalog |
+| PLAN-FNOS-056-T03-03 | FNOS-056-04 / AC-01 | `cmd/install_callback` 的 `DSH_VERSION` 改为 rc.4 | T02-01 | 构建门禁通过 |
+| PLAN-FNOS-056-T04-01 | FNOS-056-06 / AC-01 | 在基线守卫用例中新增「默认 catalog = 命名 catalog = 豁免清单片头 = install_callback 常量」一致性断言 | T02、T03 完成 | 变异验证：故意漏改一处应转红 |
+| PLAN-FNOS-056-T04-02 | FNOS-056-02 / AC-01 | 全仓 typecheck，重点看 7 个插件对上游类型的引用 | T02、T03 完成 | `pnpm run typecheck` 通过 |
+| PLAN-FNOS-056-T04-03 | FNOS-056-01 / AC-01 | 全仓 lint 与单元测试 | T04-02 | `pnpm run lint`、`pnpm run test` 通过 |
+| PLAN-FNOS-056-T04-04 | FNOS-056-02 / AC-02 | 处置头部遮蔽失效：两个 seat 的 `priority` 由 -1 改回 0，重写守卫用例断言「官方已迁出本插槽」 | T02-01（依赖新基线产物已安装） | 两个 spec 全绿；断言不再假设遮蔽存在 |
+| PLAN-FNOS-056-T05-01 | FNOS-056-07 / AC-01 | 同步 9 个 i18n 文件的 18 处基线字样与应用文档页基线行 | T02-01 | 全仓检索无 rc.1 残留（历史文档除外） |
+| PLAN-FNOS-056-T05-02 | FNOS-056-07 / AC-01 | `pnpm run version -- major --baseline 0.2.2-rc.4` 发版至 8.2.0 | T04 全绿、工作区干净 | 版本提交与 tag 生成；FPK 命名含 rc.4 |
+| PLAN-FNOS-056-T06-01 | FNOS-056-01、02、08 / AC-01 | DSH Web 与 DSH Desktop 双客户端走查 | T05-02 | 七插件加载、插座位置、模型通道对话、既有数据可用 |
+| PLAN-FNOS-056-T06-02 | FNOS-056-04 / AC-02 | 真实 fnOS NAS 走应用中心安装/升级 | T05-02 | 服务启动、版本报告 rc.4、补丁未失败、数据保留 |
+| PLAN-FNOS-056-T06-03 | FNOS-056-05 / AC-01 | Desktop 联调检出核对 | 已完成（rc.4 检出就绪） | 检出 tag = rc.4，CLI 报告 rc.4 |
 
 依赖关系：
 
@@ -189,7 +189,7 @@ flowchart LR
 | 客户端层 | DSH Web 与 DSH Desktop | 七插件加载、界面区块位置不变、模型通道对话可用、既有数据可用 |
 | 真机层 | 真实 fnOS NAS | 应用中心安装/升级成功、服务启动、版本报告 rc.4、补丁未失败、数据保留 |
 
-具体用例在任务完成后回填至 `docs/tests/FNOS-055-dsh-022-rc4-adaptation.md`（按[测试用例文档规范](/charter/tests-spec)与需求同编号）。该文档尚未建立，待 T06 验收执行后一并回填。
+具体用例在任务完成后回填至 `docs/tests/FNOS-056-dsh-022-rc4-adaptation.md`（按[测试用例文档规范](/charter/tests-spec)与需求同编号）。该文档尚未建立，待 T06 验收执行后一并回填。
 
 **打包与发布**：
 

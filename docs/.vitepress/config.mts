@@ -431,6 +431,10 @@ const requirementsSidebar = [
         text: 'FNOS-046 DSH 0.2.2-rc.1 插件适配与基线升级',
         link: '/requirements/FNOS-046-dsh-022-rc1-adaptation'
       },
+      {
+        text: 'FNOS-055 安装向导移除失效的 npm 镜像源',
+        link: '/requirements/FNOS-055-invalid-npm-mirror-removal'
+      },
       ]
   }
 ]
@@ -624,6 +628,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-046 DSH 0.2.2-rc.1 插件适配与基线升级',
         link: '/plans/PLAN-FNOS-046-dsh-022-rc1-adaptation'
       },
+      {
+        text: 'PLAN-FNOS-055 安装向导移除失效的 npm 镜像源',
+        link: '/plans/PLAN-FNOS-055-invalid-npm-mirror-removal'
+      },
     ]
   }
 ]
@@ -789,6 +797,10 @@ const testsSidebar = [
       {
         text: 'FNOS-053 拦截官方账号登录，改为粘贴回调地址完成授权',
         link: '/tests/FNOS-053-account-login-callback-relay'
+      },
+      {
+        text: 'FNOS-055 安装向导移除失效的 npm 镜像源',
+        link: '/tests/FNOS-055-invalid-npm-mirror-removal'
       },
     ]
   }

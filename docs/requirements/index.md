@@ -107,6 +107,7 @@ flowchart TD
 | FNOS-054 | [侧栏底部飞牛 OS 入口与独立浏览器页面能力对齐](/requirements/FNOS-054-fnos-footer-entry-standalone) | 部分通过（包级 748+182 条全绿；入口与下拉菜单已在本地 DSH Web 实测；真机待验，授权回调链路只有真机能证） |
 
 | FNOS-053 | [拦截官方账号登录，改为粘贴回调地址完成授权](/requirements/FNOS-053-account-login-callback-relay) | 部分通过（真机确认官方框被收起、授权页正常打开、对话框切到粘贴态；换码闭环需真实账号，未验） |
-| FNOS-055 | [DSH 0.2.2-rc.4 插件适配与基线升级](/requirements/FNOS-055-dsh-022-rc4-adaptation) | 实施中（28 条调研结论：27 已核实、1 部分核实；跨 rc.2/rc.3/rc.4 累积升级；实现已完成：四处基线承载 373+14+1 处同步、typecheck 12/12 通过、插件用例与双客户端验收待执行） |
+| FNOS-055 | [安装向导移除失效的 npm 镜像源](/requirements/FNOS-055-invalid-npm-mirror-removal) | 实施中（三份向导移除指向只读存档站的 `npmMirror`；旧地址归一与失败诊断已落地；网关 188 条、CLI 163 条与全仓检查通过；真实 NAS 的安装、升级自愈与失败提示验收待执行） |
+| FNOS-056 | [DSH 0.2.2-rc.4 插件适配与基线升级](/requirements/FNOS-056-dsh-022-rc4-adaptation) | 实施中（28 条调研结论：27 已核实、1 部分核实；跨 rc.2/rc.3/rc.4 累积升级；实现已完成：四处基线承载 373+14+1 处同步、typecheck 12/12 通过、插件用例与双客户端验收待执行） |
 
 新增需求先登记在本页和对应需求文档，确认进入实施后再创建或调整对应计划。

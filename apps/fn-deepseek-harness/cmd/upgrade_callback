@@ -38,16 +38,21 @@ log_error() {
 
 log_info "Starting DeepSeek Harness upgrade callback."
 
-if [ -f "${NPM_USER_CONFIG_FILE}" ]; then
-    NPM_REGISTRY="$(NPM_CONFIG_USERCONFIG="${NPM_USER_CONFIG_FILE}" "${NPM_BIN}" config get registry --location=user 2>/dev/null || true)"
+# FNOS-055：向导字段存在（含空值）时以提交值为准，空值即 npm 官方源；字段缺失
+# （老版本升级/无向导）才回落到设备上已持久化的源。保留「字段是否存在」这一区别，
+# 供安装回调按同一规则解析，避免这里先把空值替换成本地源。
+WIZARD_REGISTRY_SET=0
+if [ "${wizard_npm_registry+x}" = x ]; then
+    WIZARD_REGISTRY_SET=1
+    NPM_REGISTRY="${wizard_npm_registry:-https://registry.npmjs.org/}"
 else
-    NPM_REGISTRY="$(tr -d '[:space:]' <"${LEGACY_NPM_REGISTRY_FILE}" 2>/dev/null || true)"
+    if [ -f "${NPM_USER_CONFIG_FILE}" ]; then
+        NPM_REGISTRY="$(NPM_CONFIG_USERCONFIG="${NPM_USER_CONFIG_FILE}" "${NPM_BIN}" config get registry --location=user 2>/dev/null || true)"
+    else
+        NPM_REGISTRY="$(tr -d '[:space:]' <"${LEGACY_NPM_REGISTRY_FILE}" 2>/dev/null || true)"
+    fi
+    NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org/}"
 fi
-# 向导的默认值由框架按上次提交的值回填，提交值优先。
-if [ -n "${wizard_npm_registry:-}" ]; then
-    NPM_REGISTRY="${wizard_npm_registry}"
-fi
-NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org/}"
 log_info "Using npm registry ${NPM_REGISTRY}."
 
 [ -f "${INSTALL_CALLBACK}" ] || {
@@ -55,11 +60,20 @@ log_info "Using npm registry ${NPM_REGISTRY}."
     exit 1
 }
 log_info "Running install callback to reconcile the fixed DSH runtime and published plugins."
-wizard_npm_registry="${NPM_REGISTRY}" \
+if [ "${WIZARD_REGISTRY_SET}" = 1 ]; then
+    wizard_npm_registry="${wizard_npm_registry}" \
+        bash "${INSTALL_CALLBACK}" || {
+        log_error "Install callback failed during upgrade."
+        exit 1
+    }
+else
+    # 明确移除，避免父进程导出的空值/旧值被安装回调当成「向导字段存在」。
+    unset wizard_npm_registry
     bash "${INSTALL_CALLBACK}" || {
-    log_error "Install callback failed during upgrade."
-    exit 1
-}
+        log_error "Install callback failed during upgrade."
+        exit 1
+    }
+fi
 
 log_info "DeepSeek Harness upgrade callback completed."
 exit 0

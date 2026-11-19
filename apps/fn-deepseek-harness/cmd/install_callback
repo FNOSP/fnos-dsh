@@ -105,6 +105,17 @@ read_persisted_npm_registry() {
     printf '%s' "${registry:-https://registry.npmjs.org/}"
 }
 
+# FNOS-055：向导字段存在时以提交值为准——空值即选择 npm 官方源（全新安装与
+# 升级的默认值都走这里）；字段缺失（老版本升级、无向导）才回落到设备上已持久化
+# 的源，也就是「其他情况以用户本地为准」。
+resolve_npm_registry() {
+    if [ "${wizard_npm_registry+x}" = x ]; then
+        printf '%s' "${wizard_npm_registry:-https://registry.npmjs.org/}"
+        return 0
+    fi
+    read_persisted_npm_registry
+}
+
 persist_npm_registry() {
     "${NPM_BIN}" config set registry "${NPM_REGISTRY}" --location=user ||
         fail_install "Unable to persist npm registry in ${NPM_USER_CONFIG_FILE}"
@@ -467,10 +478,20 @@ main() {
     /bin/mkdir -p "${DSH_HOME}/.npm-cache" "${NPM_CONFIG_PREFIX}" "${HOME}" ||
         fail_install "Unable to prepare the dsh package manager directories"
 
-    # 向导的默认值由框架按上次提交的值回填，这里直接用提交值即可；没提交（老
-    # 版本升级、或字段缺失）才回退到已持久化的源。
-    NPM_REGISTRY="${wizard_npm_registry:-$(read_persisted_npm_registry)}"
+    # FNOS-055：向导字段存在时以提交值为准，空值即 npm 官方源；字段缺失（老
+    # 版本升级/无向导）才回落到设备上已持久化的源。
+    NPM_REGISTRY="$(resolve_npm_registry)"
     NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org/}"
+    # FNOS-055：历史向导提供过指向只读存档端点的 npmMirror，失败安装也可能已把
+    # 它写进配置。只归一这个已知失效地址，其它 registry（含用户自建源）原样保留。
+    NORMALIZED_NPM_REGISTRY="$(run_install_callback_helper normalize-npm-registry "${NPM_REGISTRY}")" ||
+        fail_install "Unable to normalize the npm registry ${NPM_REGISTRY}"
+    if [ -n "${NORMALIZED_NPM_REGISTRY}" ] && [ "${NORMALIZED_NPM_REGISTRY}" != "${NPM_REGISTRY}" ]; then
+        log_info "npm registry ${NPM_REGISTRY} is retired; using ${NORMALIZED_NPM_REGISTRY} instead."
+    fi
+    if [ -n "${NORMALIZED_NPM_REGISTRY}" ]; then
+        NPM_REGISTRY="${NORMALIZED_NPM_REGISTRY}"
+    fi
     persist_npm_registry
 
     if has_required_pnpm; then
@@ -478,7 +499,7 @@ main() {
     else
         log_info "Installing pnpm@${PNPM_VERSION} globally for DSH plugin management."
         "${NPM_BIN}" install "pnpm@${PNPM_VERSION}" -g --ignore-scripts ||
-            fail_install "Unable to install pnpm@${PNPM_VERSION}"
+            fail_install "Unable to install pnpm@${PNPM_VERSION} from ${NPM_REGISTRY}; choose another npm mirror in the wizard and retry"
     fi
     [ "$(installed_pnpm_version)" = "${PNPM_VERSION}" ] ||
         fail_install "Installed pnpm version does not match ${PNPM_VERSION}"

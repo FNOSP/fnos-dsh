@@ -44,7 +44,7 @@
                 "type": "select",
                 "field": "wizard_npm_registry",
                 "label": "${upgrade.npmRegistryLabel}",
-                "initValue": "https://registry.npmjs.org/",
+                "initValue": "",
                 "helpText": "${upgrade.npmRegistryHelpText}",
                 "options": [
                     {
@@ -66,10 +66,6 @@
                     {
                         "label": "taobao",
                         "value": "https://registry.npmmirror.com/"
-                    },
-                    {
-                        "label": "npmMirror",
-                        "value": "https://skimdb.npmjs.com/registry/"
                     },
                     {
                         "label": "huawei",
