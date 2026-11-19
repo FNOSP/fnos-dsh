@@ -33,6 +33,9 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   configSectionRepair: '依存関係の修復',
   sessionLogCopyMarkdown: 'セッションを Markdown としてコピー',
   sessionLogFeedback: 'フィードバック',
+  sessionLogOpenInApp: 'アプリで開く',
+  sessionLogOpenInFileManager: 'ファイルマネージャー',
+
   openInFnos: 'fnOS で開く',
   openInFnosMenu: 'fnOS のファイル操作',
   fileManager: 'ファイルマネージャー',

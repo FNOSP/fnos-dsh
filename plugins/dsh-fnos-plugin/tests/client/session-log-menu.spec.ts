@@ -85,7 +85,7 @@ describe('FNOS-042 Session 日志菜单结构', () => {
   })
 })
 
-describe('FNOS-042 二级菜单固定向左', () => {
+describe('FNOS-042 二级菜单定位', () => {
   // 官方 Menu 没有子菜单方向/边界的 props，子菜单默认渲染在右侧。而且它的类名
   // 被 CSS Modules 哈希过（真机上是 `_submenu_4ub78_8`），**写 `.submenu` 完全
   // 匹配不到**——上一版就是这样静默失效、子菜单依旧向右溢出。
@@ -96,14 +96,20 @@ describe('FNOS-042 二级菜单固定向左', () => {
     expect(ACTION).toContain('listClassName="dsh-fnos-session-log-menu"')
   })
 
-  it('用属性选择器定位哈希类名，翻到左侧', () => {
-    expect(STYLE).toContain(".dsh-fnos-session-log-menu [class*='submenu'] {")
-    expect(STYLE).toContain('right: calc(100% + 10px) !important;')
-  })
+  /*
+    **不再覆盖子菜单的定位，交给官方 CSS anchor 逻辑。**
 
-  it('指针命中桥一起翻，否则悬停子菜单会闪退', () => {
-    expect(STYLE).toContain(".dsh-fnos-session-log-menu [class*='submenu']::before {")
-    expect(STYLE).toContain('right: -10px !important;')
+    这里曾用 `left/right: calc(100% + 10px)` 把二级卡片硬钉在父卡片左侧。官方
+    改版后子菜单改为 `position-anchor` + `anchor(right)` 定位，并用
+    `position-try-fallbacks` 在右侧放不下时自动翻到左侧；写死 `left/right` 会与
+    `anchor()` 冲突，表现为二级卡片错位、与父卡片不同高（真机截图确认过）。
+
+    因此守卫反转：本菜单不得再出现任何对子菜单定位的覆盖。
+  */
+  it('不覆盖子菜单定位（交给官方 anchor 与自动翻转）', () => {
+    expect(STYLE).not.toMatch(/\.dsh-fnos-session-log-menu \[class\*='submenu'\]/u)
+    expect(STYLE).not.toContain('right: calc(100% + 10px) !important;')
+    expect(STYLE).not.toContain('right: -10px !important;')
   })
 
   it('不再依赖裸类名（哈希化后必然失效）', () => {

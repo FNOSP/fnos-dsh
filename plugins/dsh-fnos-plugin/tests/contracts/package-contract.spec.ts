@@ -461,23 +461,31 @@ describe('dsh-fnos package contract', () => {
     expect(tree).toContain('return [...new Set(')
   })
 
-  it('遮蔽官方「打开应用」入口并提供 fnOS 文件入口', async () => {
+  it('文件管理入口收进 Session log 菜单，头部只保留一个菜单按钮', async () => {
     const index = await readFile(new URL('../../src/client/index.ts', import.meta.url), 'utf8')
     const action = await readFile(new URL('../../src/components/FnosOpenInHeaderAction.tsx', import.meta.url), 'utf8')
     const locales = await readFile(new URL('../../src/client/locales.ts', import.meta.url), 'utf8')
 
-    // 遮蔽靠同 id + 更低 priority：官方条目用默认 0，同优先级会直接抛错，
-    // 那时整个插件都加载不起来。座位形状集中在 header-utility-seats.ts，
-    // 其顺序由 tests/client/header-utility-order.spec.ts 用真实 SlotCore 验证。
+    // 座位形状集中在 header-utility-seats.ts，其顺序由
+    // tests/client/header-utility-order.spec.ts 用真实 SlotCore 验证。
     const seats = await readFile(new URL('../../src/client/header-utility-seats.ts', import.meta.url), 'utf8')
     expect(seats).toContain("id: 'open-in-app'")
-    // 必须真的把座位展开进 register 调用：只断言 import 会在把参数改回硬编码
-    // 时照样通过（顺序随之静默变回错误值）。
-    expect(index).toMatch(/ctx\.slots\.register\(\{\s*\.\.\.FNOS_OPEN_IN_APP_SEAT,/u)
+
+    // 只注册 Session log 一个座位：文件管理入口已收进它的「在应用中打开」二级项，
+    // 会话头部不再出现两个外观相同的「…」按钮。
     expect(index).toMatch(/ctx\.slots\.register\(\{\s*\.\.\.FNOS_SESSION_LOG_SEAT,/u)
+    expect(index).not.toMatch(/ctx\.slots\.register\(\{\s*\.\.\.FNOS_OPEN_IN_APP_SEAT,/u)
+    // 注释里可以提到该组件（解释为何保留文件），但不能再把它注册进插槽。
+    expect(index).not.toMatch(/ctx\.slots\.register\([^)]*FnosOpenInHeaderAction/u)
+
+    // 二级菜单项与处理：宿主桥可用时给出「在应用中打开 → 文件管理」。
+    const menu = await readFile(new URL('../../src/components/FnosSessionLogHeaderAction.tsx', import.meta.url), 'utf8')
+    expect(menu).toContain("id: 'openInApp'")
+    expect(menu).toContain("id: 'fileManager'")
+    expect(menu).toContain('openFnosFileManager')
+    expect(menu).toContain('HAS_FNOS_HOST_BRIDGE')
     // 只在 fnOS iframe 内注册，独立浏览器保持官方行为。
     expect(index).toContain('isEmbeddedFnosFrame()')
-    expect(index).toContain('FnosOpenInHeaderAction')
 
     // 用的是 fnOS 原生的文件管理器，而不是对目录无意义的 openFile。
     expect(action).toContain('openFileManager')

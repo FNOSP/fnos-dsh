@@ -28,6 +28,9 @@ export const en = {
   configSectionRepair: 'Plugin install fix',
   sessionLogCopyMarkdown: 'Copy Session as Markdown',
   sessionLogFeedback: 'Feedback',
+  sessionLogOpenInApp: 'Open with',
+  sessionLogOpenInFileManager: 'File manager',
+
   openInFnos: 'Open in fnOS',
   openInFnosMenu: 'fnOS file actions',
   fileManager: 'File manager',
@@ -330,6 +333,9 @@ export const zh: { [Key in FnosLocaleKey]: string } = {
   configSectionRepair: '插件安装修复',
   sessionLogCopyMarkdown: '复制会话为 Markdown',
   sessionLogFeedback: '反馈',
+  sessionLogOpenInApp: '在应用中打开',
+  sessionLogOpenInFileManager: '文件管理',
+
   openInFnos: '在 fnOS 中打开',
   openInFnosMenu: 'fnOS 文件操作',
   fileManager: '文件管理',

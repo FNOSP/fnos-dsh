@@ -33,6 +33,9 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   configSectionRepair: '종속성 복구',
   sessionLogCopyMarkdown: '세션을 Markdown으로 복사',
   sessionLogFeedback: '피드백',
+  sessionLogOpenInApp: '앱에서 열기',
+  sessionLogOpenInFileManager: '파일 관리자',
+
   openInFnos: 'fnOS에서 열기',
   openInFnosMenu: 'fnOS 파일 작업',
   fileManager: '파일 관리자',

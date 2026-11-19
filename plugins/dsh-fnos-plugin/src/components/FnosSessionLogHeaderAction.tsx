@@ -11,7 +11,21 @@ import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../clien
 import { HAS_FNOS_HOST_BRIDGE } from '../client/services/runtime-env.ts'
 import { exportSessionLogToNas } from '../client/services/session-log-export-client.ts'
 import { copySessionMarkdown } from '../client/services/session-markdown-copy.ts'
+import { openFnosFileManager } from '../client/services/file-manager.ts'
+import { createTrimApp } from '../client/services/sdk.ts'
+import { notifyFailure } from '../client/notify.ts'
 import type { AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
+
+/**
+ * 会话工作目录的读取形状。
+ *
+ * 与 `FnosOpenInHeaderAction` 同一理由：`useSessions` 的 selector 参数在本插件
+ * 的依赖图里解析成 `any`，与其为读一个字段引入整套会话状态类型，这里显式声明
+ * 用到的那一层，保持类型检查有效。
+ */
+interface SessionListStateLike {
+  byId: Record<string, { cwd?: string } | undefined>
+}
 
 /** 反馈入口：本仓库地址。 */
 const FEEDBACK_URL = 'https://github.com/FNOSP/fnos-dsh'
@@ -37,6 +51,19 @@ type HeaderProps = PropsRuntime<'conversation.session.header.utilities'> & Props
   exportToComputer: (sessionId: SessionId) => Promise<void>
   useSessionLogDownload: SessionLogDownloadSelector
   dismissDownload: (sessionId: SessionId) => void
+}
+
+/** 在文件管理器中打开会话工作目录；失败经 Toast 报出，不留在按钮上。 */
+async function openSessionDirectoryInFileManager(cwd: string | undefined, t: HeaderProps['t']): Promise<void> {
+  if (cwd === undefined || cwd === '') return
+  try {
+    await openFnosFileManager(cwd, () => createTrimApp())
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    notifyFailure(message.includes('fnos-open-blocked') === true
+      ? t('openFileManagerBlocked')
+      : t('openFileManagerFailed'))
+  }
 }
 
 interface DirectoryTreeNode {
@@ -80,8 +107,9 @@ function directoryNodes(result: AuthorizedEntriesResult, showFullPath = false): 
     .map(entry => directoryNode(entry, showFullPath))
 }
 
-export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSessionLogDownload, dismissDownload, t }: HeaderProps) {
+export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSessionLogDownload, dismissDownload, useSessions, t }: HeaderProps) {
   const [open, setOpen] = useState(false)
+  const cwd = useSessions((state: SessionListStateLike) => state.byId[String(sessionId)]?.cwd)
   const [nasDialogVisible, setNasDialogVisible] = useState(false)
   const [treeData, setTreeData] = useState<DirectoryTreeNode[]>([])
   const [selectedDirectory, setSelectedDirectory] = useState<string>()
@@ -195,6 +223,28 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
           : []),
       ],
     },
+    /*
+      「在应用中打开」：与官方 `open-in-app` 的同名项对齐，但二级只保留
+      「文件管理」。
+
+      官方那个菜单项按编译期常量表探测本机应用，会列出 Zed、VS Code 等桌面
+      程序，并使用 `openPath` 的关联打开语义；在 fnOS 上那些程序不在 NAS 上，
+      列出来也点不开。fnOS 侧真正可用的落点只有一个：用 `openFileManager`
+      把会话工作目录交给 NAS 的文件管理器。
+
+      宿主桥不可用（独立浏览器页面）时整项不渲染——那条路径上
+      `openFileManager` 必然失败，留着只会给出一个点了会报错的入口。
+    */
+    ...(HAS_FNOS_HOST_BRIDGE
+      ? [{
+          id: 'openInApp',
+          label: t('sessionLogOpenInApp'),
+          icon: <IconFolderOpenOutlineRegular />,
+          submenu: [
+            { id: 'fileManager', label: t('sessionLogOpenInFileManager'), icon: <IconFolderOpenOutlineRegular /> },
+          ],
+        }]
+      : []),
     { id: 'feedback', label: t('sessionLogFeedback'), icon: <IconPaperPlaneOutlineRegular /> },
   ]
 
@@ -230,6 +280,7 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
           if (id === 'copy') void copyMarkdown()
           else if (id === 'computer') void exportToComputer(sessionId)
           else if (id === 'nas') openNasDialog()
+          else if (id === 'fileManager') void openSessionDirectoryInFileManager(cwd, t)
           else if (id === 'feedback') openFeedbackPage()
         }}
         anchor={(

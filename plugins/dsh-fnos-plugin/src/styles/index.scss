@@ -112,15 +112,18 @@ img.dsh-fnos-file-manager-icon {
    失效的）。这里用「属性包含 submenu」+ 本菜单的 `listClassName` 前缀定位，
    既是 (0,2,0) 权重高于原规则的单类选择器，也不依赖具体哈希值。
    `::before` 是原语的指针命中桥，方向必须一起翻，否则悬停到子菜单会闪退。 */
-.dsh-fnos-session-log-menu [class*='submenu'] {
-  left: auto !important;
-  right: calc(100% + 10px) !important;
-}
+/*
+  **不要再覆盖子菜单的定位。**
 
-.dsh-fnos-session-log-menu [class*='submenu']::before {
-  left: auto !important;
-  right: -10px !important;
-}
+  这里曾用 `left/right: calc(100% + 10px)` 把二级菜单硬钉在父卡片左侧，理由是
+  「菜单贴着右边缘，向右展开会出屏」。那套写法来自官方改版之前的布局，改版后
+  官方子菜单已改为 **CSS anchor 定位**：`position-anchor: --dsh-submenu-parent`
+  配合 `left: calc(anchor(right) + 4px)`，并用 `position-try-fallbacks` 在右侧
+  放不下时自动翻到左侧。继续写死 `left/right` 会与 `anchor()` 的解析结果冲突，
+  二级卡片因此错位、与父卡片不同高，样式与官方不一致。
+
+  删掉覆盖即恢复官方行为：右侧优先、出屏自动向左翻转、行高与父卡片同源。
+*/
 
 .dsh-fnos-session-log-button {
   display: inline-flex;

@@ -25,12 +25,11 @@ import type {} from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { FnosInputPickerButton } from '../components/FnosInputPickerButton.tsx'
 import { FnosAuthorizedPathPanel } from '../components/FnosAuthorizedPathPicker.tsx'
-import { FnosOpenInHeaderAction } from '../components/FnosOpenInHeaderAction.tsx'
 import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAction.tsx'
 import { FnosFooterEntry } from '../components/FnosFooterEntry.tsx'
 import { FnosConfigOverlay } from '../components/FnosConfigOverlay.tsx'
 import { FnosAccountLoginOverlay } from '../components/FnosAccountLoginOverlay.tsx'
-import { FNOS_OPEN_IN_APP_SEAT, FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
+import { FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
 import { createPickerOpenStore } from './input-references/picker-store.ts'
 import { insertFnosReferences } from './input-references/input-reference-actions.ts'
 import { createFnosCommandContribution, createFnosDirectorySource } from './input-references/fnos-command-source.ts'
@@ -197,19 +196,21 @@ export function apply(ctx: ClientContext): void {
         }),
       }, FnosSessionLogHeaderAction)
     })
-    // 遮蔽 DSH 官方的「打开应用」按钮（同 id、更低 priority，低者生效）。
-    //
-    // 官方按钮按编译期常量表探测本机应用，在 fnOS 上会把系统的 ZFS Event
-    // Daemon（`/usr/sbin/zed`）误判为 Zed 编辑器，且取不到对应图标，菜单里
-    // 因此出现一个点了也打不开编辑器的条目。该常量表不可配置，所以在这里用
-    // fnOS 自己的文件能力替代它。只改 fnOS iframe 内的表现。
-    // 排序（priority 升序、再 order 升序）与遮蔽规则的取值集中在
-    // `header-utility-seats.ts`，并由测试用真实 SlotCore 驱动验证实际顺序。
-    ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
-      ...FNOS_OPEN_IN_APP_SEAT,
-      locale: namespace,
-      inject: () => ({ t }),
-    }, FnosOpenInHeaderAction))
+    /*
+      **文件管理入口不再占会话头部的座位。**
+
+      这里曾注册一个分体按钮（左半执行、右半下拉），与官方的「更多操作」并排，
+      于是在会话头部出现两个外观相同的「…」按钮：一个是官方的会话菜单，一个是
+      本插件自己的菜单，用户分不清该点哪个。
+
+      现在该能力收进「Session log」菜单的「在应用中打开 → 文件管理」二级项——
+      与官方在会话头部右键菜单里提供「在应用中打开」是同一层级的心智模型，
+      头部因此只保留一个菜单按钮。
+
+      `FNOS_OPEN_IN_APP_SEAT` 常量与 `FnosOpenInHeaderAction` 组件文件保留：
+      前者仍被排序用例引用，后者的「用 fnOS 原生文件管理器打开」实现被菜单
+      复用（见 `openSessionDirectoryInFileManager`）。
+    */
     ctx.slots.inject('settings.action', () => ctx.slots.register({
       name: 'settings.action',
       id: 'open-document',

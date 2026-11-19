@@ -29,6 +29,9 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   configSectionRepair: 'Riparazione dipendenze',
   sessionLogCopyMarkdown: 'Copia la sessione come Markdown',
   sessionLogFeedback: 'Feedback',
+  sessionLogOpenInApp: 'Apri con',
+  sessionLogOpenInFileManager: 'Gestione file',
+
   openInFnos: 'Apri in fnOS',
   openInFnosMenu: 'Azioni sui file di fnOS',
   fileManager: 'File manager',
