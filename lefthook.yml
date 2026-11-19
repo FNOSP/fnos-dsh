@@ -8,6 +8,11 @@ pre-commit:
   commands:
     staged-lint:
       run: pnpm exec lint-staged
+    # pnpm install 会把 catalog:dsh 解析成字面版本写回插件清单，且不报错；
+    # 只要 git add -A 就会把污染提交进去。这里拦在源头（毫秒级，只读七个 JSON）。
+    catalog-drift:
+      glob: 'plugins/*/package.json'
+      run: pnpm exec fnos-dsh-cli check-catalog
 
 pre-push:
   commands:
