@@ -54,7 +54,7 @@ function registersIntoSlot(source: string, slot: string, id: string): boolean {
 
 /** 本地实现里的菜单项 id（只看 menuItems 数组，避免抓到别处）。 */
 function localMenuItemIds(): string[] {
-  const start = HEADER.indexOf('const menuItems: MenuItem[] = [')
+  const start = HEADER.indexOf('const menuItems: MenuEntry[] = [')
   const end = HEADER.indexOf('const copyMarkdown')
   const block = HEADER.slice(start, end < 0 ? undefined : end)
   const ids = Array.from(block.matchAll(/id: '([a-zA-Z]+)'/gu)).map(m => m[1] ?? '')

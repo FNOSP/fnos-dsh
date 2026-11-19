@@ -104,26 +104,31 @@ img.dsh-fnos-file-manager-icon {
 /* Session log 的触发按钮：数值取自官方 session-log-export 的
    `HeaderAction.module.css`。头部右侧的 28px 圆形图标按钮，15px 字形，
    透明无边框，hover 才出底色——它是个纯图标按钮，不带文案也不带边框。 */
-/* 官方 `Menu` 没有子菜单方向/边界的 props，而子菜单默认渲染在右侧
-   （类名形如 `._submenu_4ub78_8 { left: calc(100% + 10px) }`）。会话头部菜单
-   贴着窗口右缘，右侧展开会被裁掉，这里固定改为向左展开。
-
-   注意类名是 CSS Modules 哈希过的：写 `.submenu` 完全匹配不到（上一版就是这么
-   失效的）。这里用「属性包含 submenu」+ 本菜单的 `listClassName` 前缀定位，
-   既是 (0,2,0) 权重高于原规则的单类选择器，也不依赖具体哈希值。
-   `::before` 是原语的指针命中桥，方向必须一起翻，否则悬停到子菜单会闪退。 */
 /*
-  **不要再覆盖子菜单的定位。**
+  **不要覆盖子菜单的定位。**
 
-  这里曾用 `left/right: calc(100% + 10px)` 把二级菜单硬钉在父卡片左侧，理由是
+  曾用 `left/right: calc(100% + 10px)` 把二级菜单硬钉在父卡片左侧，理由是
   「菜单贴着右边缘，向右展开会出屏」。那套写法来自官方改版之前的布局，改版后
   官方子菜单已改为 **CSS anchor 定位**：`position-anchor: --dsh-submenu-parent`
   配合 `left: calc(anchor(right) + 4px)`，并用 `position-try-fallbacks` 在右侧
-  放不下时自动翻到左侧。继续写死 `left/right` 会与 `anchor()` 的解析结果冲突，
-  二级卡片因此错位、与父卡片不同高，样式与官方不一致。
-
-  删掉覆盖即恢复官方行为：右侧优先、出屏自动向左翻转、行高与父卡片同源。
+  放不下时自动翻到左侧。写死 `left/right` 会与 `anchor()` 的解析结果冲突，
+  二级卡片因此错位、与父卡片不同高。删掉覆盖即恢复官方行为。
 */
+
+/*
+  带子菜单的那一行（「在应用中打开」）加高，并靠两侧分割线自成一段。
+
+  特征选择器用 `aria-haspopup="menu"`：官方把「这一行会展开二级菜单」表达成该
+  属性，比按序号（`:nth-child`）稳——分割线与「导出到 NAS」会让序号随能力变化。
+
+  为什么加高：这一行是**跳出去**的动作（把会话目录交给 NAS 文件管理器），与
+  「复制」「下载」这类站内动作不是一类；行高拉开后，配合上下两条
+  `MenuSeparator`，读起来是独立的一段，而不是并列的第 N 项。
+*/
+.dsh-fnos-session-log-menu button[role='menuitem'][aria-haspopup='menu'] {
+  min-height: 40px;
+  padding-block: 8px;
+}
 
 .dsh-fnos-session-log-button {
   display: inline-flex;

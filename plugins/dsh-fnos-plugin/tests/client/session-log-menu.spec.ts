@@ -43,8 +43,12 @@ describe('FNOS-042 Session 日志菜单结构', () => {
       原先常驻在会话头部菜单里，既挤占头部又放错了层级；现在由侧栏底部
       「飞牛 OS」下拉菜单承载（`FnosFooterEntry` + `services/web-actions.ts`）。
     */
-    const start = ACTION.indexOf('const menuItems: MenuItem[] = [')
-    const block = ACTION.slice(start, ACTION.indexOf('  \]\n'))
+    const start = ACTION.indexOf('const menuItems: MenuEntry[] = [')
+    // 终点取菜单数组收尾（`  ]` 后跟空行 + 下一段注释）：子菜单里也有 `  ]`
+    // 结尾的行，用裸的 `  ]\n` 会在 `submenu: [...]` 处提前截断，
+    // 于是后面那几个同级项被判成缺失。
+    const end = ACTION.indexOf('  ]\n\n  /**', start)
+    const block = ACTION.slice(start, end === -1 ? undefined : end)
     const at = (id: string): number => block.indexOf(`id: '${id}'`)
     expect(at('copy')).toBeGreaterThan(-1)
     expect(at('download')).toBeGreaterThan(-1)

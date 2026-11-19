@@ -39,7 +39,7 @@ describe('复制会话为 Markdown', () => {
   })
 
   it('菜单项排在最上面（与官方顺序一致），并带复制图标', () => {
-    const start = HEADER.indexOf('const menuItems: MenuItem[] = [')
+    const start = HEADER.indexOf('const menuItems: MenuEntry[] = [')
     const block = HEADER.slice(start, HEADER.indexOf('const copyMarkdown'))
     const copyAt = block.indexOf("id: 'copy'")
     expect(copyAt).toBeGreaterThan(-1)

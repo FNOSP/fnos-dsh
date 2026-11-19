@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { IconCopyOutlineRegular, IconDownloadOutlineRegular, IconEllipsisOutlineRegular, IconFolderOpenOutlineRegular, IconPaperPlaneOutlineRegular, IconRightUpOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import { DshEmpty, DshIconFolder, DshModal, DshTooltip, DshTree } from '@tnnevol/dsh-semi-ui'
 import { FnosEmptyIllustration } from './FnosEmptyIllustration.tsx'
 import { FnosFileManagerIcon } from './FnosFileManagerIcon.tsx'
@@ -178,7 +178,7 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
     刷新与重启已移到侧栏底部的「飞牛 OS」下拉菜单：它们是应用级动作，不该和
     当前会话绑在一起。
   */
-  const menuItems: MenuItem[] = [
+  const menuItems: MenuEntry[] = [
     {
       id: 'copy',
       label: t('sessionLogCopyMarkdown'),
@@ -208,20 +208,32 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
       宿主桥不可用（独立浏览器页面）时整项不渲染——那条路径上
       `openFileManager` 必然失败，留着只会给出一个点了会报错的入口。
     */
+    /*
+      「在应用中打开」单独成一个单元：上下各一条分割线。
+
+      它是一个**跳出去**的动作（把会话目录交给 NAS 文件管理器），性质与
+      「复制」「下载」这类在 DSH 内完成的动作不同。用分割线把它与前后分开，
+      读起来是「先做站内的三件事，再决定是否跳出去」，而不是一长串并列项。
+      `MenuSeparator` 是官方菜单自带的分组分隔，样式与其它菜单一致。
+    */
     ...(HAS_FNOS_HOST_BRIDGE
-      ? [{
-          id: 'openInApp',
-          label: t('sessionLogOpenInApp'),
-          // 与官方 `open-in-app` 的 session-open-with 同一枚箭头：那个菜单项的
-          // icon 是 `open-in-app.application`，未取到应用图标时回退到
-          // `IconRightUpOutlineRegular`。这里直接用同一枚，视觉对齐。
-          icon: <IconRightUpOutlineRegular />,
-          submenu: [
-            // 用 NAS 彩色的文件管理器图标：与侧栏那个「文件管理」入口同一枚，
-            // 18px 是该组件文档里给的菜单行尺寸。
-            { id: 'fileManager', label: t('sessionLogOpenInFileManager'), icon: <FnosFileManagerIcon size={18} /> },
-          ],
-        }]
+      ? [
+          { type: 'separator' as const, id: 'openInApp-before' },
+          {
+            id: 'openInApp',
+            label: t('sessionLogOpenInApp'),
+            // 与官方 `open-in-app` 的 session-open-with 同一枚箭头：那个菜单项的
+            // icon 是 `open-in-app.application`，未取到应用图标时回退到
+            // `IconRightUpOutlineRegular`。这里直接用同一枚，视觉对齐。
+            icon: <IconRightUpOutlineRegular />,
+            submenu: [
+              // 用 NAS 彩色的文件管理器图标：与侧栏那个「文件管理」入口同一枚，
+              // 18px 是该组件文档里给的菜单行尺寸。
+              { id: 'fileManager', label: t('sessionLogOpenInFileManager'), icon: <FnosFileManagerIcon size={18} /> },
+            ],
+          },
+          { type: 'separator' as const, id: 'openInApp-after' },
+        ]
       : []),
     { id: 'feedback', label: t('sessionLogFeedback'), icon: <IconPaperPlaneOutlineRegular /> },
   ]
