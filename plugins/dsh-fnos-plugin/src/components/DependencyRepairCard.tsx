@@ -23,9 +23,25 @@ import { useCallback, useState } from 'react'
 import { DshButton, DshIconInfoCircle, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { runDependencyRepairStreaming } from '../client/services/dependency-repair-client.ts'
+import { logPanelStore } from '../client/log-panel-store.ts'
 import type { DependencyRepairResult } from '../contracts/dependency-repair-contract.ts'
 
 type Translate = (key: FnosLocaleKey) => string
+
+/**
+ * 按行内容推断级别。
+ *
+ * 修复日志是纯文本行，没有级别字段；这里只做最小判断——含「失败 / 错误 / error」
+ * 的算错误，含「失效 / 跳过 / warn」的算警告，其余按信息。宁可少标也不要误标：
+ * 级别配色只是帮助扫读，判错反而误导。
+ * @param line - 日志行。
+ * @returns 级别。
+ */
+function levelOfLine(line: string): 'info' | 'warn' | 'error' {
+  if (/失败|错误|error|failed/i.test(line)) return 'error'
+  if (/失效|警告|warn/i.test(line)) return 'warn'
+  return 'info'
+}
 
 /** 卡片参数。 */
 export interface DependencyRepairCardProps {
@@ -44,37 +60,34 @@ type Phase =
  */
 export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.ReactNode {
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
-  // 宿主日志逐行累积，边跑边显示——不要等结束才一次性冒出来。
-  const [logs, setLogs] = useState<readonly string[]>([])
   // 点击语义化路径后短暂提示「已复制」。
   const [copied, setCopied] = useState<string | undefined>(undefined)
-  // 复制整份日志后的短暂提示，与镜像卡同款交互。
-  const [logCopied, setLogCopied] = useState(false)
 
   /** 执行修复。 */
   const repair = useCallback(async () => {
     setPhase({ kind: 'running' })
-    setLogs([])
+    /*
+      日志**只写浮层这一处**。
+
+      浮层内部会把每行同时写进运行日志中心，因此卡片不必再存一份——早前三处
+      （卡片、SSE、日志中心）各存一次，既占内存也容易不同步。
+    */
+    logPanelStore.beginTask({ feature: 'repair', title: t('dependencyRepairTitle') })
     try {
       // 流式：每行日志到达就追加，用户能看到进度而不是干等。
-      const result = await runDependencyRepairStreaming(line => {
-        setLogs(previous => [...previous, line])
+      const result = await runDependencyRepairStreaming((line) => {
+        logPanelStore.append(levelOfLine(line), line)
       })
       setPhase({ kind: 'done', result })
+      logPanelStore.finish(result.ok ? 'ok' : 'failed')
     } catch (error) {
-      setPhase({ kind: 'error', message: describe(error) })
+      const message = describe(error)
+      setPhase({ kind: 'error', message })
+      logPanelStore.append('error', message)
+      logPanelStore.finish('failed')
     }
-  }, [])
+  }, [t])
 
-  /** 复制整份日志：报错要能拿去搜或贴进 issue。 */
-  const copyLog = useCallback(() => {
-    void Promise.resolve(navigator.clipboard?.writeText(logs.join('\n')))
-      .then(() => {
-        setLogCopied(true)
-        setTimeout(() => { setLogCopied(false) }, 1500)
-      })
-      .catch(() => { setLogCopied(false) })
-  }, [logs])
 
   /**
    * 复制完整路径。
@@ -158,28 +171,6 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
       </header>
 
       <div className="dsh-fnos-authorized-card-body">
-        {/*
-          **日志框取代静态说明，外观与「npm 镜像管理」保持一致。**
-
-          之前这里是一行「正在重建依赖，期间应用不可用…」。它只说明「会有事
-          发生」，看不出进度：跑了两分钟也不知道是在装依赖还是卡死了。现在直接
-          显示宿主实时推来的日志，像终端一样往下滚。
-
-          复用镜像卡的 `logbox / logbar / log` 三段结构（标题栏 + 复制按钮 +
-          等宽 `<pre>`）：同一个设置面板里两个「跑命令」的地方长得一样，用户不用
-          学两套。复制按钮不能省——日志要拿去搜或贴进 issue。
-        */}
-        {logs.length === 0 || (!busy && phase.kind === 'idle') ? null : (
-          <div className="dsh-fnos-mirror-logbox">
-            <div className="dsh-fnos-mirror-logbar">
-              <span>{t('dependencyRepairLogTitle')}</span>
-              <DshButton htmlType="button" size="small" theme="borderless" type="tertiary" onClick={copyLog}>
-                {logCopied ? t('copied') : t('copy')}
-              </DshButton>
-            </div>
-            <pre className="dsh-fnos-mirror-log" role="log" aria-live="polite">{logs.join('\n')}</pre>
-          </div>
-        )}
 
 
         {phase.kind === 'error' ? (

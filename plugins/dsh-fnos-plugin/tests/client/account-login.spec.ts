@@ -164,22 +164,20 @@ describe('账号登录：只补官方缺的那一屏', () => {
     expect(excludeAt).toBeLessThan(matchAt)
   })
 
-  it('认「登录 DeepSeek 账号」「登录」，不认「开始使用」', () => {
+  it('只认等待态，不认引导框', () => {
     /*
-      官方两处文案撞车：
-        - `ui-settings-account` 登录框**标题**：开始使用
-        - `ui-settings-models` 引导弹框**描述结尾**：配置 DeepSeek 官方模型，即可开始使用。
+      官方有两个弹框的描述都含「登录 DeepSeek 账号」：
+        - **引导框**（首次无模型时自动弹出）：登录 DeepSeek 账号，或添加 API Key…
+        - **登录框**（用户点登录后）：等待登录 / 复制登录链接
 
-      用「开始使用」当判据会把**引导弹框**一起认成登录框——用户第一次打开应用
-      就被塞一个粘贴回调地址的框。所以只认登录框独有的文案。
+      早前用「登录 DeepSeek 账号」当判据，引导框也被接管，被换成「填写重定向地址」
+      ——这就是「两个弹框文案不一致」的成因。现在只认等待态独有文案。
     */
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
-    expect(overlay).toContain("'登录 DeepSeek 账号'")
-    expect(overlay).toContain("'登录'")
     expect(overlay).toContain("'等待登录'")
-    // 引导弹框的文案不能出现在判据里。
-    expect(overlay).not.toContain("'开始使用'")
-    expect(overlay).not.toContain("'Get started'")
+    expect(overlay).toContain("'复制登录链接'")
+    // 引导框的描述文案不再作为判据。
+    expect(overlay).not.toContain("'登录 DeepSeek 账号'")
   })
 
   it('自己的弹框不能被自己的判据认出', () => {
@@ -252,40 +250,34 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(locales).not.toContain('完成授权后，把地址粘回来')
   })
 
-  it('授权页地址还没生成时有界重试', () => {
+  it('轮询兼顾「取地址」与「登录是否完成」', () => {
     /*
-      地址由宿主在创建登录尝试的过程中才产生，而我们的弹框在官方弹框出现时就
-      打开了——第一读经常还是空的（真机实测就是空，「复制重新打开」压根不渲染）。
+      地址由宿主在创建登录尝试的过程中才产生，第一读经常还是空的，所以要重试；
+      但轮询还承担第二件事：**发现登录已完成**。
 
-      只在拿不到时重试，拿到即停，最多 12 次（约 10 秒）。这是等一份数据，不是
-      用轮询判断状态：显隐仍由 DOM 监听决定。
+      授权页在新标签页完成时，回调先到宿主的中转端口，宿主推进阶段到 `succeeded`。
+      主窗口读不到那个跨域标签页的地址（实测 SecurityError），官方还主动
+      `popup.opener = null` 切断引用——问宿主是唯一可行路径。
     */
-    expect(CLIENT).toContain('readAuthorizeUrlOnce')
-    /*
-      上限按**时间**而不是次数：真机实测地址在授权流程推进后约 30-40 秒才出现，
-      按次数的短间隔会在十几秒就放弃、之后再也不补。
-    */
-    expect(CLIENT).toContain('Date.now() - startedAt > 90_000')
-    expect(CLIENT).not.toContain('attempts += 1')
+    expect(CLIENT).toContain('readLoginStateOnce')
+    expect(CLIENT).toContain("state?.phase === 'succeeded'")
+    /* 地址到手后不再因超时停表，否则自动收尾永远不会触发。 */
+    expect(CLIENT).toContain('authorizeUrlRef.current === undefined && Date.now() - startedAt > 90_000')
   })
 
-  it('「复制重新打开」用 Toast 反馈，文案本身不变', () => {
+  it('「重新打开授权页」是真链接，点开即新标签页打开', () => {
     /*
-      复制是个短动作，旁边弹一条提示就够；早前用 `copied` 把那段文字临时改成
-      「已复制」，看着像按钮在变形，文字应当保持稳定。
+      授权的下一步是「在授权页里点同意」，用户要的是那个页面，不是一段地址。
+      早前做成「复制链接」，还得自己找地方粘——多一步且容易粘错。
+      现在直接是 <a target="_blank">，右键新标签页 / 中键 / Cmd+点击都有原生行为。
     */
-    expect(CLIENT).toContain('DshTypography')
-    expect(CLIENT).toContain('copyable={{')
-    expect(CLIENT).toContain('DshToast.success')
-    expect(CLIENT).toContain('DshToast.error')
-    // render 里不再按 copied 切换文案。
-    expect(CLIENT).toContain('render: (_copied: boolean')
+    expect(CLIENT).toContain('href={authorizeUrl}')
+    expect(CLIENT).toContain('target="_blank"')
+    expect(CLIENT).toContain('rel="noopener noreferrer"')
     expect(CLIENT).toContain("t('accountLoginReopenAction')")
-    expect(CLIENT).not.toContain("copied ? t('accountLoginCopiedTip')")
-    // 自己写剪贴板那套不需要了。
-    expect(CLIENT).not.toContain('navigator.clipboard')
-    // 可点文字要有聚焦态，键盘用户也能按到。
-    expect(SCSS).toContain('.dsh-fnos-account-login-copy:focus-visible')
+    // 复制那套已移除。
+    expect(CLIENT).not.toContain('copyable={{')
+    expect(CLIENT).not.toContain('DshToast')
   })
 
   it('表头与正文的间距按「总间距减去表头已占的部分」算', () => {
@@ -301,14 +293,9 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(block).not.toContain('margin-top: 20px')
   })
 
-  it('点击复制不关闭弹框', () => {
-    /*
-      用户复制完还要回来粘地址，复制这种短动作不该把正在填写的弹框收掉。
-      两个事件都 `stopPropagation`：Semi 的 Modal 会监听外层容器的点击来决定关闭。
-    */
-    expect(CLIENT).toContain('event.preventDefault()')
+  it('点击链接不关闭弹框', () => {
+    // 用户点开授权页后还要回来粘地址，这一次点击不该把弹框收掉。
     expect(CLIENT).toContain('event.stopPropagation()')
-    expect(CLIENT).toContain('doCopy(event)')
   })
 
   it('正文精简到两行内', () => {
@@ -320,7 +307,7 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(hint.length).toBeGreaterThan(20)
     // 中文按字数粗估：两行约 40 字（弹框内容列约 432px / 每字 14px）。
     expect(hint.length).toBeLessThanOrEqual(42)
-    expect(locales).toContain("accountLoginReopenPrefix: '授权页关掉了可'")
+    expect(locales).toContain("accountLoginReopenAction: '重新打开授权页'")
   })
 
   it('描述文案与官方一致', () => {

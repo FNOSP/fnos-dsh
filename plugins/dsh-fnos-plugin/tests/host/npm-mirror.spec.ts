@@ -111,50 +111,52 @@ describe('安装过程有日志', () => {
     expect(MIRROR).toContain('nrm 安装失败')
   })
 
-  it('界面按 offset 增量拉日志并展示', () => {
+  it('界面按 offset 增量拉日志，写进任务浮层而不是卡片', () => {
+    /*
+      FNOS-059：日志不再存在卡片里，改为进任务日志浮层（同时由浮层写入运行日志
+      中心）。卡片只保留进度与失败原因，因此这里断言的是「拉取 + 转发」这条链路，
+      而不是「卡片渲染 <pre>」。
+    */
     const CARD = readFileSync(new URL('../../src/components/NpmMirrorCard.tsx', import.meta.url), 'utf8')
     expect(CARD).toContain('fetchInstallLog')
-    expect(CARD).toContain('dsh-fnos-mirror-log')
-    // 与插件安装共用同一个日志接口，不另建一套。
-    expect(CARD).not.toContain('nrm-log')
+    expect(CARD).toContain("fetchInstallLog(logOffsetRef.current, 'mirror')")
+    expect(CARD).toContain('logPanelStore.beginTask')
+    expect(CARD).toContain('logPanelStore.append')
+    // 卡片内不再出现日志框标记。
+    expect(CARD).not.toContain('dsh-fnos-mirror-log')
+  })
+
+  it('nrm 与插件安装使用各自的日志文件，互不覆盖', () => {
+    const INSTALL = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    expect(INSTALL).toContain("kind === 'mirror' ? 'mirror-log.txt' : 'install-log.txt'")
+    expect(MIRROR).toContain("installLogPath('mirror')")
   })
 })
 
-describe('安装日志界面', () => {
-  it('日志放在固定 140px 的代码框里，可复制', () => {
+describe('安装日志去处（FNOS-059）', () => {
+  it('日志不再渲染在卡片里', () => {
     /*
-      固定高度而不是 max-height：npm 输出长度不可预期，撑开会把下方内容顶走，
-      用户也失去「日志区在这里」的空间概念。
+      原先卡片内有一个 140px 定高的代码框显示 npm 输出。它有三个问题：与浮层/
+      日志中心内容重复、展开会把下方卡片顶走、随卡片卸载而丢失。
+      现在日志统一由任务浮层与运行日志中心承担。
     */
-    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    const idx = SCSS.indexOf('.dsh-fnos-mirror-log {')
-    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
-    expect(rule).toContain('height: 140px')
-    expect(rule).toContain('overflow: auto')
-
     const CARD = readFileSync(new URL('../../src/components/NpmMirrorCard.tsx', import.meta.url), 'utf8')
-    expect(CARD).toContain('copyLog')
-    expect(CARD).toContain('dsh-fnos-mirror-logbar')
+    expect(CARD).not.toContain('dsh-fnos-mirror-logbox')
+    expect(CARD).not.toContain('copyLog')
+    // 失败原因仍以 <pre> 显示（它是错误提示，不是日志）。
+    expect(CARD).toContain('dsh-fnos-mirror-error')
   })
 
-  it('失败时日志常显，按钮变「重新安装」', () => {
-    // 用户要能回看 npm 到底报了什么，而不是只看到一句「失败」。
+  it('失败时按钮变「重新安装」，失败原因仍显示在卡片', () => {
+    // 进度与失败原因留在原地是必要的：用户不必为了看结果去翻浮层。
     const CARD = readFileSync(new URL('../../src/components/NpmMirrorCard.tsx', import.meta.url), 'utf8')
     expect(CARD).toContain('setFailed(true)')
     expect(CARD).toContain("failed ? t('mirrorReinstall')")
-    // 成功或未尝试时收起，不占地方。
-    expect(CARD).toContain('!installing && !failed')
+    expect(CARD).toContain('installError')
   })
 })
 
 describe('自测发现的三处修复', () => {
-  it('日志框必须 border-box，否则 140px 实际渲染成 156px', () => {
-    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    const idx = SCSS.indexOf('.dsh-fnos-mirror-log {')
-    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
-    expect(rule).toContain('box-sizing: border-box')
-    expect(rule).toContain('height: 140px')
-  })
 
   it('backdrop-filter 的 -webkit- 前缀必须写在标准属性之前', () => {
     /*

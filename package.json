@@ -45,5 +45,9 @@
     "turbo": "catalog:",
     "vitepress": "catalog:",
     "vitest": "catalog:"
+  },
+  "dependencies": {
+    "@gsap/react": "catalog:",
+    "gsap": "catalog:"
   }
 }

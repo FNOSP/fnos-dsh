@@ -201,18 +201,19 @@ describe('安装进度内联在卡片里，不再弹二级弹框', () => {
     expect(PANEL).not.toContain('PluginInstallDialog')
   })
 
-  it('日志固定三行高度，默认折叠', () => {
-    // 固定高度：pnpm 输出长度不可预期，撑开会把下面的卡片顶走。
-    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    const idx = SCSS.indexOf('.dsh-fnos-install-inline-log {')
-    expect(idx).toBeGreaterThan(-1)
-    const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx))
-    expect(rule).toContain('height: 56px')
-    expect(rule).toContain('overflow: auto')
-
+  it('卡片只保留进度条，日志交给任务浮层', () => {
+    /*
+      FNOS-059：内联日志区已移除。它曾有三行定高 + 展开/折叠，但与浮层和日志中心
+      内容重复，且随卡片卸载而丢失。现在卡片只表达「进行中 / 成功 / 失败」。
+    */
     const CMP = readFileSync(new URL('../../src/components/PluginInstallInline.tsx', import.meta.url), 'utf8')
-    // 默认折叠。
-    expect(CMP).toContain("useState(false)")
+    expect(CMP).toContain('logPanelStore.beginTask')
+    expect(CMP).toContain('logPanelStore.append')
+    expect(CMP).toContain('logPanelStore.finish')
+    // 不再有展开/折叠与日志 <pre>。
+    expect(CMP).not.toContain('dsh-fnos-install-inline-toggle')
+    expect(CMP).not.toContain('dsh-fnos-install-inline-log')
+    expect(CMP).not.toContain('<pre')
     // 成功自动收起、失败常驻。
     expect(CMP).toContain("if (status !== 'succeeded') return")
   })

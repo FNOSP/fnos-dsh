@@ -190,7 +190,7 @@ export async function switchNpmMirror(name: string): Promise<{ ok: boolean, erro
  * @returns 是否成功。
  */
 export async function installNrm(): Promise<{ ok: boolean, error?: string }> {
-  const logPath = installLogPath()
+  const logPath = installLogPath('mirror')
   if (logPath !== undefined) await startLog(logPath, '准备安装 nrm（npm install -g nrm）')
 
   return new Promise(resolve => {

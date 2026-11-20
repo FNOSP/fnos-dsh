@@ -4,7 +4,7 @@
  * @module dsh-fnos/client/runtime-status-client
  */
 
-import { FNOS_RUNTIME_KILL_ROUTE, FNOS_RUNTIME_LOGS_ROUTE, FNOS_RUNTIME_STATUS_ROUTE } from '../../contracts/runtime-status-contract.ts'
+import { FNOS_RUNTIME_KILL_ROUTE, FNOS_RUNTIME_LOGS_ROUTE, FNOS_RUNTIME_STATUS_ROUTE, FNOS_RUNTIME_TASK_LOG_ROUTE } from '../../contracts/runtime-status-contract.ts'
 import type { RuntimeLogSnapshot, RuntimeStatus } from '../../contracts/runtime-status-contract.ts'
 
 /**
@@ -73,4 +73,29 @@ export async function fetchRuntimeLogs(options: {
   })
   if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
   return await response.json() as RuntimeLogSnapshot
+}
+
+/**
+ * 把一行任务日志转交宿主，由宿主写进运行日志中心。
+ *
+ * ## 为什么需要这一跳
+ *
+ * `ctx.logger` 是**宿主**服务（Node 进程内），浏览器侧没有它。任务执行链跑在
+ * 浏览器里，日志要出现在「日志」页只能经 HTTP 交给宿主。
+ *
+ * ## 失败为什么静默
+ *
+ * 日志是旁路：写不进去只意味着少一份记录，不能让安装或修复因此中断。因此这里
+ * 不抛错、不重试——重试会在宿主不可用时堆起一串失败请求，反而更糟。
+ * @param level - 级别，与宿主日志服务的三个方法对应。
+ * @param text - 正文。
+ */
+export async function postTaskLog(level: 'info' | 'warn' | 'error', text: string): Promise<void> {
+  try {
+    /* GET + 查询串：宿主 webServer 对非 GET/HEAD 统一回 405，见路由侧注释。 */
+    const url = `${FNOS_RUNTIME_TASK_LOG_ROUTE}?level=${level}&text=${encodeURIComponent(text)}`
+    await fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+  } catch {
+    // 旁路失败不影响业务，见上方说明。
+  }
 }

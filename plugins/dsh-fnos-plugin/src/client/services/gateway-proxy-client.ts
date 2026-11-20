@@ -161,12 +161,16 @@ export async function fetchInstallState(): Promise<PluginInstallStateSnapshot> {
 }
 
 /**
- * 增量读安装日志。
+ * 增量读操作日志。
  * @param offset - 起始字节。
+ * @param kind - 日志来源：插件安装或 nrm 镜像源，两者是独立文件。
  * @returns 新增文本与新偏移。
  */
-export async function fetchInstallLog(offset: number): Promise<{ text: string, offset: number }> {
-  const response = await fetch(`${FNOS_PLUGIN_INSTALL_LOG_ROUTE}?offset=${String(offset)}`, {
+export async function fetchInstallLog(
+  offset: number,
+  kind: 'install' | 'mirror' = 'install',
+): Promise<{ text: string, offset: number }> {
+  const response = await fetch(`${FNOS_PLUGIN_INSTALL_LOG_ROUTE}?offset=${String(offset)}&kind=${kind}`, {
     headers: { accept: 'application/json' },
     credentials: 'same-origin',
     cache: 'no-store',

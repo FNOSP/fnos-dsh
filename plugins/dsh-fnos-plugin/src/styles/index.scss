@@ -3880,24 +3880,23 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
 }
 
 /*
- * 正文里那段「复制重新打开」：可点、可聚焦，样式跟着正文走。
+ * 「重新打开授权页」链接。
  *
- * 它是 Semi `Typography.Text` 的 `copyable.render` 渲染出来的节点，剪贴板写入与
- * 「已复制」的短暂反馈都由 Semi 负责，这里只管外观——做成链接色 + 下划线，
- * 跟普通正文区分开，让人看得出来能点。
+ * 是一个真 `<a target="_blank">`：点开就在新标签页打开授权页。做成链接色 + 下划线，
+ * 与正文区分开，让人看得出来能点。
  */
-.dsh-fnos-account-login-copy {
+.dsh-fnos-account-login-link {
   color: var(--dsw-alias-label-link, var(--dsw-alias-brand-primary));
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.dsh-fnos-account-login-copy:hover {
+.dsh-fnos-account-login-link:hover {
   color: var(--dsw-alias-brand-primary-hover, var(--dsw-alias-brand-primary));
 }
 
-.dsh-fnos-account-login-copy:focus-visible {
+.dsh-fnos-account-login-link:focus-visible {
   outline: 2px solid var(--dsw-alias-brand-primary);
   outline-offset: 2px;
   border-radius: 2px;
@@ -4383,5 +4382,464 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
   .dsh-fnos-install-log {
     height: auto;
     max-height: 42vh;
+  }
+}
+
+/*
+ * 任务日志浮层（右下角小窗）。
+ *
+ * ## 材质：比官方菜单材质更透
+ *
+ * 官方菜单材质 `--dsw-specific-menu` 在亮色下是 **70% 白**。它之所以够用，
+ * 是因为下拉菜单总浮在一个明确的高对比背景上（图片、深色区块、有内容的卡片）。
+ * 但本浮层大多时候叠在**纯白页面**上：70% 白 + 白底 = 白，看起来完全不透明，
+ * 毛玻璃也看不出任何效果——实测把浮层挪到有文字的位置才能勉强看出一点模糊。
+ *
+ * 因此这里**不用那个变量**，改用本浮层自己的两档：
+ *
+ * - 亮色：`rgb(252 253 254 / 45%)` —— 白底上仍能读出内容，同时能看出背后的字；
+ * - 暗色：`rgb(28 29 34 / 55%)` —— 深色底上白光会炸开，用更暗的底压住。
+ *
+ * 模糊强度保持不变（官方 `blur(40px) saturate(150%)`），因为它决定的是「透过
+ * 来的东西糊到什么程度」，与底色深浅是两件事。
+ *
+ * 这是一处**有意的偏离**：规范要求气泡类浮层用官方半透明变量，但那个值是按
+ * 「浮在有内容的背景上」调的，与本浮层的典型场景不符。若后续共享包给出更适合
+ * 常驻卡片的材质档，应改回 `--dsw-*` 变量并删除这里的字面量。
+ */
+.dsh-fnos-logpanel {
+  --dsh-fnos-glass-fill: rgb(252 253 254 / 45%);
+
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  /*
+    **必须显式 border-box。** 插件样式没有全局重置，默认 `content-box` 下
+    `width: 440px` 是内容宽，加上 padding 与 border 后实占更宽，
+    右下角定位按 440 算就会把右边缘顶出视口。
+  */
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 40px));
+  flex-direction: column;
+  overflow: hidden;
+  /*
+    **不要 border。**
+
+    半透明卡片的边框会画在毛玻璃之上，形成一条实色细线，与「浮起来」的观感冲突；
+    而且 macOS / 高分屏下半像素边框容易发虚。层级交给阴影表达即可。
+  */
+  border: 0;
+  border-radius: var(--dsw-radius-lg, 16px);
+  background: var(--dsh-fnos-glass-fill);
+  /*
+    **三层阴影，按距离分层，不含描边。**
+
+    官方 `--dsw-elevation-prominent` 的第一层是 `0 0 0 .5px` 描边，那圈实线
+    贴在卡片边缘上，看起来「框住了」而不是「浮起来」。去掉描边，只留三段扩散：
+    - 中层 8px：物体与页面的最小分离；
+    - 远层 32px：拉出「浮在上面」的体积感；
+    - 极远层 48px：更远处的一点投影，让边缘不那么硬。
+
+    亮色用中性黑（半透明叠加，天然适应底色）；深色页面里纯黑会被吃掉，暗色
+    主题单独加深。
+  */
+  box-shadow:
+    0 2px 8px rgb(0 0 0 / 6%),
+    0 12px 32px rgb(0 0 0 / 14%),
+    0 24px 48px -12px rgb(0 0 0 / 10%);
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  /*
+    **`-webkit-` 前缀必须写在标准属性之前。**
+    两条同值时构建期的 CSS 压缩器会去重只留后出现的那条；前缀若写在后面，
+    产物里就只剩 `-webkit-backdrop-filter`，Chromium 不认，毛玻璃静默失效。
+  */
+  -webkit-backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%));
+  backdrop-filter: var(--dsw-menu-backdrop-filter, blur(40px) saturate(150%));
+}
+
+/*
+ * 暗色主题：同一个白底在深色页面上会发白炸开，换成更暗的半透明底。
+ *
+ * 主题标记在 `body[theme-mode]`——DSH 由 `ui-theme` 写这个属性，不是常见的
+ * `data-theme` 或 `html.dark`。用错选择器会让暗色下仍是 45% 白，糊成一片灰。
+ */
+body[theme-mode='dark'] .dsh-fnos-logpanel {
+  --dsh-fnos-glass-fill: rgb(28 29 34 / 55%);
+  /* 深色页面上纯黑阴影会被吃掉一半，加深三段扩散；同样不加描边。 */
+  box-shadow:
+    0 2px 10px rgb(0 0 0 / 32%),
+    0 14px 36px rgb(0 0 0 / 40%),
+    0 28px 56px -12px rgb(0 0 0 / 32%);
+}
+
+/*
+ * 头部：拖动把手 + 图标 + 标题 + 状态圆点 + 操作。
+ *
+ * **单行紧凑**：标题与状态不再上下两行——状态退化成一个圆点后，两行结构就没有
+ * 必要了，反而让头部高到 63px。现在整行 44px，与官方卡片标题行接近。
+ * `cursor: grab` 是唯一的可拖动示能。
+ */
+.dsh-fnos-logpanel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  height: 44px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 8%));
+  cursor: grab;
+  user-select: none;
+
+  &[data-dragging='true'] {
+    cursor: grabbing;
+  }
+}
+
+/* 功能图标底：40×40 圆角方块，与官方卡片图标的观感接近。 */
+.dsh-fnos-logpanel-glyph {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--dsw-radius-md, 8px);
+  /* 同样不叠底色：图标靠字形本身表达，加底色会在毛玻璃上多出一块实色方块。 */
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  /* 偶数号：本仓库禁止奇数 font-size（非整数 DPR 下半像素发虚）。 */
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* 标题与圆点同一行：`align-items: center` 让圆点对齐文字基线视觉中心。 */
+.dsh-fnos-logpanel-titles {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.dsh-fnos-logpanel-title {
+  overflow: hidden;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 状态容器：只承载圆点与无障碍文本，不再占一行。 */
+.dsh-fnos-logpanel-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+/*
+ * 状态圆点：8px，靠颜色区分执行中 / 已完成 / 失败。
+ *
+ * 颜色之外还用**动效与形状**补一层区分，不只靠色觉：进行中是呼吸动画，
+ * 失败是实心红，完成是实心绿。色盲用户仍能靠动效分辨「还在跑」。
+ */
+/*
+ * 状态圆点。
+ *
+ * **`flex: none` 与显式 `min-width/min-height` 缺一不可。**
+ * 它所在的 `.dsh-fnos-logpanel-titles` 是 flex 容器，默认 `flex-shrink: 1`
+ * 会让 8px 的圆点被压成 6×8 的椭圆——看起来就是「方的」。钉死尺寸与不收缩后
+ * 才是正圆。
+ */
+.dsh-fnos-logpanel-dot {
+  flex: none;
+  width: 8px;
+  min-width: 8px;
+  height: 8px;
+  min-height: 8px;
+  border-radius: 50%;
+
+  &[data-status='running'] {
+    background: var(--dsw-alias-state-business-primary);
+    animation: dsh-fnos-logdot-pulse 1.4s ease-in-out infinite;
+  }
+
+  &[data-status='ok'] {
+    background: var(--dsw-alias-state-success-primary);
+  }
+
+  &[data-status='failed'] {
+    background: var(--dsw-alias-state-error-primary);
+  }
+}
+
+@keyframes dsh-fnos-logdot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dsh-fnos-logpanel-dot { animation: none !important; }
+}
+
+/* 视觉隐藏但读屏可读：圆点本身没有文字，状态名称靠这里传达。 */
+.dsh-fnos-logpanel-sr {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.dsh-fnos-logpanel-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+/*
+ * 日志区：等宽字体、允许换行、内部滚动。
+ *
+ * 底色比卡片再低一层（`bg-layer-1`），让「正文区域」与「卡片」之间有层次，
+ * 而不是靠一条边框硬切。内边距左右一致，滚到底时不贴边。
+ */
+.dsh-fnos-logpanel-body {
+  overflow-y: auto;
+  padding: 10px 14px;
+  /*
+    **不再叠第二层背景。**
+
+    卡片外层已经有一层半透明底 + 模糊，内层再叠任何底色都会：
+    1. 削弱透明度（两层叠加后更接近实色）；
+    2. 让模糊只在头部那条窄带里看得见，日志区被自己的底色盖住。
+
+    现在日志区完全透明，与卡片共用同一层材质；与头部的区隔交给那条 `border-bottom`。
+  */
+  background: transparent;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 20px;
+  overscroll-behavior: contain;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: var(--dsw-alias-scrollbar-bg-l, rgb(0 0 0 / 12%));
+
+    &:hover {
+      background: var(--dsw-alias-scrollbar-hover-l, rgb(0 0 0 / 20%));
+    }
+  }
+}
+
+.dsh-fnos-logpanel-empty {
+  margin: 0;
+  padding: 16px 2px;
+  color: var(--dsw-alias-label-tertiary);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: center;
+}
+
+/*
+ * 一行日志：时刻 + 正文。
+ *
+ * 行高 20px 而非 18px：等宽 12px 在 18px 行高下中英文混排会显得拥挤，
+ * 20px 给出足够呼吸感，同时一屏仍能看到 13 行。
+ */
+.dsh-fnos-logpanel-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 1px 0;
+  color: var(--dsh-fnos-logpanel-color, var(--dsw-alias-label-primary));
+
+  &:hover {
+    background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 4%));
+  }
+}
+
+.dsh-fnos-logpanel-time {
+  flex: 0 0 auto;
+  color: var(--dsw-alias-label-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dsh-fnos-logpanel-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: inherit;
+  word-break: break-word;
+}
+
+/*
+ * 级别配色。
+ *
+ * **只给正文上色，时刻保持 tertiary**：时刻是结构信息，跟级别无关；整行同色会
+ * 让 9 行日志变成一片橙或一片红，反而更难扫。这一条与本插件日志页的口径不同，
+ * 因为那里一行有四段信息，这里只有两段。
+ */
+.dsh-fnos-logpanel-line--warn {
+  --dsh-fnos-logpanel-color: var(--dsw-alias-state-warn-primary);
+}
+
+.dsh-fnos-logpanel-line--error {
+  --dsh-fnos-logpanel-color: var(--dsw-alias-state-error-primary);
+}
+
+/* 底部状态条：失败时出现，说明结果并给出重试。 */
+.dsh-fnos-logpanel-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 10px 14px;
+  border-top: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 8%));
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+/*
+ * 收起态吸附标签：贴屏幕左右边缘的竖向长条。
+ *
+ * ## 横向定位：由 `data-side` 决定 translate，而不是 JS
+ *
+ * 早前统一用 `translate(-50%, -50%)` 把 `left` 从元素左上角换算成中心点。那要求
+ * JS 给出「中心点」坐标，与拖动时的「左上角」坐标语义混在一起，回弹补间再写内联
+ * `transform` 时就会把这些偏移全部覆盖掉。
+ *
+ * 现在改成：JS 只给 `left` / `top`，**贴边侧的 translate 由 `data-side` 决定**——
+ * - 左贴 `translate(0, -50%)`：元素左边缘贴 `left`，纵向居中；
+ * - 右贴 `translate(-100%, -50%)`：元素右边缘贴 `left`，纵向居中。
+ *
+ * ## 与 GSAP 的协作
+ *
+ * GSAP 回弹**不写内联 `transform`**（那会覆盖上面的 translate），而是改
+ * `--dsh-fnos-snap-x` 这个自定义属性，由 `transform` 里的 `translateX(var(...))`
+ * 叠加位移。动画结束后该值为 0，`data-side` 的定位始终成立。
+ *
+ * ## 材质：跟随主题（亮色白 / 暗色黑）
+ *
+ * 左右两侧看起来颜色不同，是因为半透明底把背后的内容透了出来——左侧背后是浅灰
+ * 侧栏，右侧背后是白页面。收起态标签面积很小、透明不携带任何信息，只制造色差，
+ * 因此用**实色**。
+ *
+ * 实色必须跟随主题：亮色主题白底、暗色主题黑底，否则深色页面上一块纯白会非常刺眼
+ * （实测白底 + 暗色主题下的浅灰文字，对比度只有 1.5:1，几乎看不见）。
+ *
+ * **背景与文字必须同进退。** 两者都通过 `--dsh-fnos-tab-*` 这组变量取值，
+ * 由下方主题规则成对改写；只改其中一个就会出现「白底浅灰字」这种不可读组合。
+ */
+.dsh-fnos-loganchor {
+  /* 亮色：白底深灰字（对比度 10.6:1）。 */
+  --dsh-fnos-tab-bg: #fff;
+  --dsh-fnos-tab-fg: #3a3f45;
+  --dsh-fnos-tab-fg-hover: #1f2429;
+  --dsh-fnos-tab-shadow: 0 1px 3px rgb(0 0 0 / 10%), 0 4px 14px rgb(0 0 0 / 12%);
+
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  writing-mode: vertical-rl;
+  padding: 14px 7px;
+  border: 0;
+  background: var(--dsh-fnos-tab-bg);
+  box-shadow: var(--dsh-fnos-tab-shadow);
+  color: var(--dsh-fnos-tab-fg);
+  cursor: pointer;
+  font-size: 12px;
+  /* 竖排下的「行距」= 字间距：1.6 倍字号，四个字不再挤在一起。 */
+  line-height: 1.6;
+  letter-spacing: 0.5px;
+  touch-action: none;
+  cursor: pointer;
+  font-size: 12px;
+  /* 竖排下的「行距」= 字间距：1.6 倍字号，四个字不再挤在一起。 */
+  line-height: 1.6;
+  letter-spacing: 0.5px;
+  touch-action: none;
+  /*
+    `--dsh-fnos-snap-x` 是回弹动画的临时位移，默认 0。
+    `translateX(var(...))` 与 `data-side` 的基础偏移叠加，两者互不覆盖。
+  */
+  transform: translateX(var(--dsh-fnos-snap-x, 0px)) translate(0, -50%);
+
+  /* 贴边侧的横线去掉，形成「从边缘长出」的形态。 */
+  &[data-side='right'] {
+    /* 元素右边缘贴 `left`，整体向左伸出。 */
+    transform: translateX(var(--dsh-fnos-snap-x, 0px)) translate(-100%, -50%);
+    border-radius: var(--dsw-radius-md, 12px) 0 0 var(--dsw-radius-md, 12px);
+  }
+
+  &[data-side='left'] {
+    border-radius: 0 var(--dsw-radius-md, 12px) var(--dsw-radius-md, 12px) 0;
+  }
+
+  /* 拖动中：脱离贴边形态，四角都圆，光标变抓取。 */
+  &[data-dragging='true'] {
+    border-radius: var(--dsw-radius-md, 12px);
+    cursor: grabbing;
+    /* 拖动时以指针所在处为视觉中心，与 `left`/`top` 的中心点语义一致。 */
+    transform: translate(-50%, -50%);
+  }
+
+  &:hover {
+    color: var(--dsh-fnos-tab-fg-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--dsw-alias-state-focus-primary);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * 暗色主题：黑底浅灰字。
+ *
+ * 用 `#1c1d22` 而不是纯黑：纯黑贴在深色页面上会形成一块「洞」，比页面底色更暗；
+ * 略高于页面底色（约 `#141518`）反而像一块浮起的深色薄片。
+ */
+body[theme-mode='dark'] .dsh-fnos-loganchor {
+  --dsh-fnos-tab-bg: #1c1d22;
+  --dsh-fnos-tab-fg: #c9ced4;
+  --dsh-fnos-tab-fg-hover: #e8ecf0;
+  --dsh-fnos-tab-shadow: 0 1px 4px rgb(0 0 0 / 40%), 0 6px 18px rgb(0 0 0 / 45%);
+}
+
+.dsh-fnos-loganchor-glyph {
+  flex: 0 0 auto;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.dsh-fnos-loganchor-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 失败时的小红点：收起态也要能看出「那次失败了」。 */
+/* 失败红点：与卡片头部的圆点同一套逻辑——固定尺寸、不参与 flex 收缩。 */
+.dsh-fnos-loganchor-dot {
+  flex: none;
+  width: 6px;
+  min-width: 6px;
+  height: 6px;
+  min-height: 6px;
+  border-radius: 50%;
+
+  &[data-tone='error'] {
+    background: var(--dsw-alias-state-error-primary);
   }
 }

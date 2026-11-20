@@ -1,21 +1,22 @@
 /**
- * 卡片内联的安装/更新进度与日志。
+ * 卡片内联的安装/更新进度条（**不含日志**）。
+ *
+ * ## 职责边界
+ *
+ * 这里只表达三件事：正在装、装好了、装失败了。**日志不在这里显示** ——
+ * 它由任务日志浮层（右下角，实时滚动）与运行日志中心（全量历史，可搜可导出）
+ * 承担。两者同源，卡片不再保存整份日志。
+ *
+ * 为什么删掉原来的可展开日志区：
+ *
+ * - **信息重复**：同一份 pnpm 输出在卡片、浮层、日志中心各存一份，三处可能不同步；
+ * - **高度抖动**：安装输出长度不可预期，展开会把下面的卡片顶走；
+ * - **留不住**：卡片随列表刷新卸载，日志跟着没了，而日志中心不会。
  *
  * ## 为什么不再用弹框
  *
- * 原先点「更新」会弹一个二级弹框，里面塞满 pnpm 输出。问题是：
- *
- * - **弹中弹**：用户已经在配置弹框里，再叠一层，视觉上像出了错；
- * - **挡住列表**：看不到其它插件的状态，也无法在等待时做别的事；
- * - **关掉即失**：成功/失败没有留下任何痕迹，想回看日志得重装一次。
- *
- * 现在日志就长在**卡片下方**：过程可见、结果留在原地、默认折叠不占版面。
- *
- * ## 三行固定高度
- *
- * 折叠时只显示进度条与状态；展开后日志区固定显示约三行（`3 × 16px + padding`），
- * 更长的内容在框内滚动。固定高度而不是自适应：安装输出长度不可预期，撑开会把
- * 下面的卡片顶走。
+ * 弹框会「弹中弹」（配置弹框里再叠一层）、挡住列表、关掉即失——这三点内联进度条
+ * 都能避开，因此保留内联形态、只把日志移出去。
  *
  * @module dsh-fnos/components/PluginInstallInline
  */
@@ -24,6 +25,21 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { IconifyIcon } from './IconifyIcon.tsx'
 import { fetchInstallLog, startPluginInstall } from '../client/services/gateway-proxy-client.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
+import { logPanelStore } from '../client/log-panel-store.ts'
+
+/**
+ * 按行内容推断级别。
+ *
+ * pnpm 输出是纯文本，没有级别字段；只做最小判断——含「失败 / 错误 / error」
+ * 的算错误，含「警告 / warn」的算警告，其余按信息。宁可少标也不要误标。
+ * @param line - 日志行。
+ * @returns 级别。
+ */
+function levelOfInstallLine(line: string): 'info' | 'warn' | 'error' {
+  if (/失败|错误|error|failed/i.test(line)) return 'error'
+  if (/警告|warn/i.test(line)) return 'warn'
+  return 'info'
+}
 
 type Translate = (key: FnosLocaleKey) => string
 
@@ -50,43 +66,57 @@ export interface PluginInstallInlineProps {
  * @returns 内联进度与日志。
  */
 export function PluginInstallInline({ name, t, onSettled, onDismiss }: PluginInstallInlineProps): React.ReactNode {
-  const [log, setLog] = useState('')
   const [status, setStatus] = useState<'running' | 'succeeded' | 'failed'>('running')
   const [error, setError] = useState<string>()
-  /** 日志是否展开。默认折叠——折叠时整块只有一行。 */
-  const [expanded, setExpanded] = useState(false)
   const offsetRef = useRef(0)
 
+  /**
+   * 拉一段增量日志并推进任务浮层。
+   *
+   * 日志不再存在本组件里：它进任务浮层与运行日志中心，卡片只保留进度与结果。
+   * 偏移量仍需保留——接口按字节增量返回。
+   */
   const pull = useCallback(async (): Promise<void> => {
     const next = await fetchInstallLog(offsetRef.current)
-    if (next.text !== '') {
-      offsetRef.current = next.offset
-      setLog(previous => previous + next.text)
+    if (next.text === '') return
+    offsetRef.current = next.offset
+    for (const line of next.text.split('\n')) {
+      if (line.trim() !== '') logPanelStore.append(levelOfInstallLine(line), line)
     }
   }, [])
 
   useEffect(() => {
     let cancelled = false
+    /* 新一轮任务：浮层整体替换内容并展开。 */
+    logPanelStore.beginTask({ feature: 'install', title: `${t('pluginInstallTask')} ${name}` })
     const timer = setInterval(() => { void pull() }, LOG_POLL_MS)
 
-    void startPluginInstall(name).then(result => {
-      if (cancelled) return
+    void startPluginInstall(name).then(async (result) => {
       // 结束时再拉一次：最后几行可能在关闭轮询之后才落盘。
-      void pull()
-      setStatus(result.status === 'succeeded' ? 'succeeded' : 'failed')
-      if (result.error !== undefined) setError(result.error)
+      await pull()
+      if (cancelled) return
+      const ok = result.status === 'succeeded'
+      setStatus(ok ? 'succeeded' : 'failed')
+      if (result.error !== undefined) {
+        setError(result.error)
+        logPanelStore.append('error', result.error)
+      }
+      logPanelStore.finish(ok ? 'ok' : 'failed')
       clearInterval(timer)
-      onSettled(result.status === 'succeeded')
+      onSettled(ok)
     }).catch((cause: unknown) => {
       if (cancelled) return
+      const message = cause instanceof Error ? cause.message : String(cause)
       setStatus('failed')
-      setError(cause instanceof Error ? cause.message : String(cause))
+      setError(message)
+      logPanelStore.append('error', message)
+      logPanelStore.finish('failed')
       clearInterval(timer)
       onSettled(false)
     })
 
     return () => { cancelled = true; clearInterval(timer) }
-  }, [name, pull, onSettled])
+  }, [name, pull, onSettled, t])
 
   /*
     成功自动收起（延迟一点让用户看到绿条），失败**常驻**——失败需要用户处理，
@@ -115,14 +145,6 @@ export function PluginInstallInline({ name, t, onSettled, onDismiss }: PluginIns
           } />
         </span>
         <span className="dsh-fnos-install-inline-text">{statusText}</span>
-        <button
-          type="button"
-          className="dsh-fnos-install-inline-toggle"
-          aria-expanded={expanded}
-          onClick={() => { setExpanded(value => !value) }}
-        >
-          {expanded ? t('collapse') : t('pluginInstallLog')}
-        </button>
         {status === 'running' ? null : (
           <button type="button" className="dsh-fnos-install-inline-close" aria-label={t('close')} onClick={onDismiss}>
             <IconifyIcon name="lucide:x" />
@@ -130,9 +152,6 @@ export function PluginInstallInline({ name, t, onSettled, onDismiss }: PluginIns
         )}
       </div>
       {error === undefined ? null : <p className="dsh-fnos-install-inline-error">{error}</p>}
-      {expanded ? (
-        <pre className="dsh-fnos-install-inline-log">{log}</pre>
-      ) : null}
     </div>
   )
 }

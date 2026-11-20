@@ -29,6 +29,8 @@ import { FnosSessionLogHeaderAction } from '../components/FnosSessionLogHeaderAc
 import { FnosFooterEntry } from '../components/FnosFooterEntry.tsx'
 import { FnosConfigOverlay } from '../components/FnosConfigOverlay.tsx'
 import { FnosAccountLoginOverlay } from '../components/FnosAccountLoginOverlay.tsx'
+import { LogFeedbackAnchor, LogFeedbackPanel } from '../components/LogFeedbackPanel.tsx'
+import { logPanelStore } from './log-panel-store.ts'
 import { FNOS_SESSION_LOG_SEAT } from './header-utility-seats.ts'
 import { createPickerOpenStore } from './input-references/picker-store.ts'
 import { insertFnosReferences } from './input-references/input-reference-actions.ts'
@@ -47,6 +49,7 @@ import { installFnosLanguageSync } from './services/language-sync.ts'
 import { installFnosRemotePathOpener } from './services/path-opener.ts'
 import { installFnosPresentedOpen } from './services/present-open.ts'
 import { FnosSettingsDocumentAction } from '../components/FnosSettingsDocumentAction.tsx'
+import { postTaskLog } from './services/runtime-status-client.ts'
 import { installFnosBrowserRefreshShortcut } from './shortcuts/browser-refresh-shortcut.ts'
 import { installFnosSettingsShortcut } from './shortcuts/settings-shortcut.ts'
 import { isFnosHosted } from './services/environment.ts'
@@ -289,6 +292,58 @@ export function apply(ctx: ClientContext): void {
     locale: namespace,
     inject: () => ({ t }),
   }, FnosAccountLoginOverlay))
+
+  /*
+    任务日志浮层：挂在 `shell.overlay`，与配置弹框、登录浮层同座位但独立 id。
+
+    它不挂在任何功能的组件子树里——插件安装、nrm、依赖修复各自的界面会随卡片
+    卸载，浮层若跟着卸载，日志就在用户还在等的时候消失了。
+  */
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'dsh-fnos-log-panel',
+    order: 30,
+    locale: namespace,
+    inject: () => ({ t }),
+  }, LogFeedbackPanel))
+
+  /*
+    收起态的吸附按钮：**与浮层同挂 `shell.overlay`**，不占侧栏座位。
+
+    `sidebar.footer.action` 是 `flex-direction: row` 且不换行的单行容器，已被
+    「飞牛 OS」入口占满——再塞一项会被排到侧栏右缘之外（实测 x=272，父容器仅
+    264px 宽），完全看不见。挂在 overlay 里可以让它浮在浮层原本的位置附近，
+    既不挤占侧栏，也不需要跟着侧栏折叠态变样式。
+  */
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: 'dsh-fnos-log-anchor',
+    order: 29,
+    locale: namespace,
+    inject: () => ({ t }),
+  }, (props: { wide?: boolean }) => LogFeedbackAnchor({ wide: props.wide === true, t })))
+
+  /* 临时：挂上 `__dshFnosDemoLog` 供评审时手动触发（评审通过后删除）。 */
+  /*
+    **任务日志转交宿主，最终进入运行日志中心。**
+
+    `ctx.logger` 是**宿主**服务（Node 进程内），浏览器侧没有它——早前直接把
+    `ctx.logger` 传进 store 是错的：那段代码什么也没接上，日志只在浮层里出现，
+    日志中心看不到。正确路径是经 HTTP 路由交给宿主，由宿主写进日志服务。
+
+    这里接一个转发器：每行日志 POST 到宿主的 `/runtime/task-log`，宿主再调用
+    `ctx.logger.info/warn/error`。请求失败时静默——日志是旁路，不能因为它中断任务。
+  */
+  ctx.effect(() => {
+    logPanelStore.attachHostLogger({
+      info: line => { void postTaskLog('info', line) },
+      warn: line => { void postTaskLog('warn', line) },
+      error: line => { void postTaskLog('error', line) },
+    })
+    return () => { logPanelStore.attachHostLogger(undefined) }
+  }, 'dsh-fnos: task log to host')
+
+
 
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left',

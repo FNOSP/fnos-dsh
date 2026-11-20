@@ -18,10 +18,26 @@ import { notifyFailure, notifySuccess } from '../client/notify.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DshButton } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
+import { logPanelStore } from '../client/log-panel-store.ts'
 import { fetchNpmMirrorStatus, installNrm, switchNpmMirror, type NpmMirrorStatus } from '../client/services/npm-mirror-client.ts'
 import { fetchInstallLog } from '../client/services/gateway-proxy-client.ts'
 
 type Translate = (key: FnosLocaleKey) => string
+
+/**
+ * 按行内容推断级别。
+ *
+ * npm / pnpm 的输出是纯文本，没有级别字段；这里只做最小判断——含「失败 / 错误 /
+ * error」的算错误，含「警告 / warn」的算警告，其余按信息。宁可少标也不要误标：
+ * 级别配色只是帮助扫读，判错反而误导。
+ * @param line - 日志行。
+ * @returns 级别。
+ */
+function levelOfInstallLine(line: string): 'info' | 'warn' | 'error' {
+  if (/失败|错误|error|failed/i.test(line)) return 'error'
+  if (/警告|warn/i.test(line)) return 'warn'
+  return 'info'
+}
 
 /** 组件参数。 */
 export interface NpmMirrorCardProps {
@@ -48,11 +64,13 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
    * 「失败」。成功或未尝试时日志随安装结束收起。
    */
   const [failed, setFailed] = useState(false)
-  /** 复制按钮的短暂反馈。 */
-  const [copied, setCopied] = useState(false)
-  /** 安装过程的实时日志。 */
-  const [installLog, setInstallLog] = useState('')
-  /** 日志轮询的字节偏移。 */
+  /**
+   * 日志轮询的字节偏移。
+   *
+   * 日志内容本身不再存在本组件的 state 里——它进任务日志浮层与运行日志中心，
+   * 卡片只保留「装/没装/失败」这三个必要状态。这里仍要偏移量，因为轮询接口
+   * 按字节增量返回。
+   */
   const logOffsetRef = useRef(0)
   const [error, setError] = useState<string>()
 
@@ -75,44 +93,46 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
    */
   const install = useCallback(async () => {
     setInstalling(true)
-    setInstallLog('')
     setInstallError(undefined)
     setFailed(false)
     logOffsetRef.current = 0
 
-    const timer = setInterval(() => {
-      void fetchInstallLog(logOffsetRef.current).then(next => {
-        if (next.text === '') return
-        logOffsetRef.current = next.offset
-        setInstallLog(previous => previous + next.text)
-      })
-    }, 800)
+    /*
+      日志走任务浮层：开始一轮新任务，随后每拉到一段就追加。
+
+      同一行由 `logPanelStore.append` 同时写进运行日志中心，因此卡片不必再
+      保存整份日志，也不必再提供「复制」——需要全文时去日志中心导出。
+    */
+    logPanelStore.beginTask({ feature: 'mirror', title: t('mirrorInstallTask') })
+
+    const pull = async (): Promise<void> => {
+      const next = await fetchInstallLog(logOffsetRef.current, 'mirror')
+      if (next.text === '') return
+      logOffsetRef.current = next.offset
+      for (const line of next.text.split('\n')) {
+        if (line.trim() !== '') logPanelStore.append(levelOfInstallLine(line), line)
+      }
+    }
+
+    const timer = setInterval(() => { void pull() }, 800)
 
     try {
       await installNrm()
       // 结束时再拉一次：最后几行可能在停止轮询之后才落盘。
-      const tail = await fetchInstallLog(logOffsetRef.current)
-      if (tail.text !== '') {
-        logOffsetRef.current = tail.offset
-        setInstallLog(previous => previous + tail.text)
-      }
+      await pull()
       await load()
+      logPanelStore.finish('ok')
     } catch (cause) {
-      setInstallError(cause instanceof Error ? cause.message : String(cause))
+      const message = cause instanceof Error ? cause.message : String(cause)
+      setInstallError(message)
       setFailed(true)
+      logPanelStore.append('error', message)
+      logPanelStore.finish('failed')
     } finally {
       clearInterval(timer)
       setInstalling(false)
     }
-  }, [load])
-
-  /** 复制整份安装日志。 */
-  const copyLog = useCallback(() => {
-    void globalThis.navigator?.clipboard?.writeText(installLog).then(() => {
-      setCopied(true)
-      globalThis.setTimeout(() => { setCopied(false) }, 1500)
-    })
-  }, [installLog])
+  }, [load, t])
 
   const switchTo = useCallback(async (name: string) => {
     setBusy(name)
@@ -170,26 +190,6 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
       */}
       {status !== undefined && !status.available ? (
         <div className="dsh-fnos-mirror-missing">
-          {/*
-            安装日志：固定 140px 高的代码框，可复制。
-
-            - **固定高度**：npm 输出长度不可预期，撑开会把下面的内容顶走；固定后
-              用户知道「这里是日志区」，滚动只发生在这个框里。
-            - **失败时常显**：用户要能回看 npm 到底报了什么，而不是只看到「失败」。
-              成功或未尝试时随安装结束收起，不占地方。
-            - **可复制**：报错要拿去搜或贴进 issue，不能只让用户手动选中。
-          */}
-          {installLog === '' || (!installing && !failed) ? null : (
-            <div className="dsh-fnos-mirror-logbox">
-              <div className="dsh-fnos-mirror-logbar">
-                <span>{t('pluginInstallLog')}</span>
-                <DshButton htmlType="button" size="small" theme="borderless" type="tertiary" onClick={copyLog}>
-                  {copied ? t('copied') : t('copy')}
-                </DshButton>
-              </div>
-              <pre className="dsh-fnos-mirror-log">{installLog}</pre>
-            </div>
-          )}
           {installError === undefined ? null : (
             <pre className="dsh-fnos-mirror-error">{installError}</pre>
           )}

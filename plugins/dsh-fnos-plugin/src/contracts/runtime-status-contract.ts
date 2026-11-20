@@ -89,6 +89,22 @@ export interface RuntimeProcess {
 /** 日志查询路由（只读）。 */
 export const FNOS_RUNTIME_LOGS_ROUTE = '/plugins/dsh-fnos/runtime/logs'
 
+/**
+ * 任务日志转交路由。
+ *
+ * 浏览器侧的功能执行链（插件安装 / nrm / 依赖修复）把日志 POST 到这里，宿主再
+ * 写进运行日志服务——`ctx.logger` 只在宿主侧存在，浏览器直接调不到。
+ */
+export const FNOS_RUNTIME_TASK_LOG_ROUTE = '/plugins/dsh-fnos/runtime/task-log'
+
+/** 一条待写入运行日志的记录。 */
+export interface RuntimeTaskLogPayload {
+  /** 级别；与宿主日志服务的三个方法一一对应。 */
+  readonly level: 'info' | 'warn' | 'error'
+  /** 正文（已含功能前缀）。 */
+  readonly text: string
+}
+
 /** 日志级别；与 Cordis 的数字级别对应。 */
 export type RuntimeLogLevel = 'error' | 'warn' | 'info' | 'debug'
 

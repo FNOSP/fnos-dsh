@@ -51,6 +51,7 @@ export {
   DshIconButtonStroked,
   DshIconCheckCircle,
   DshIconClose,
+  DshIconMinus,
   DshIconChevronDown,
   DshIconChevronDownStroked,
   DshIconCommand,

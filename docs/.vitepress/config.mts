@@ -443,6 +443,14 @@ const requirementsSidebar = [
         text: 'FNOS-057 DSH 0.2.2-rc.5 基线升级',
         link: '/requirements/FNOS-057-dsh-022-rc5-adaptation'
       },
+      {
+        text: 'FNOS-058 运行日志持久化与导出',
+        link: '/requirements/FNOS-058-runtime-log-persistence'
+      },
+      {
+        text: 'FNOS-059 功能执行日志汇入总日志与右下角浮层',
+        link: '/requirements/FNOS-059-feature-log-feedback-panel'
+      },
       ]
   }
 ]
@@ -647,6 +655,14 @@ const plansSidebar = [
       {
         text: 'PLAN-FNOS-057 DSH 0.2.2-rc.5 基线升级',
         link: '/plans/PLAN-FNOS-057-dsh-022-rc5-adaptation'
+      },
+      {
+        text: 'PLAN-FNOS-058 运行日志持久化与导出',
+        link: '/plans/PLAN-FNOS-058-runtime-log-persistence'
+      },
+      {
+        text: 'PLAN-FNOS-059 功能执行日志汇入总日志与右下角浮层',
+        link: '/plans/PLAN-FNOS-059-feature-log-feedback-panel'
       },
     ]
   }

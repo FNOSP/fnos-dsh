@@ -297,9 +297,17 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
     path: FNOS_PLUGIN_INSTALL_LOG_ROUTE,
     handler: async (req, res) => {
       if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      const url = new URL(req.url ?? '/', 'http://x')
       // offset 让前端只取新增部分，避免每次轮询都重传整份日志。
-      const offset = Number.parseInt(new URL(req.url ?? '/', 'http://x').searchParams.get('offset') ?? '0', 10)
-      send(res, 200, await readInstallLog(Number.isFinite(offset) ? offset : 0))
+      const offset = Number.parseInt(url.searchParams.get('offset') ?? '0', 10)
+      /*
+        `kind` 区分插件安装与 nrm 安装两份日志。
+
+        两者曾共用一个文件、各自开始即清空，先做的操作会被后做的抹掉。现在分开存，
+        调用方按来源取自己那份；缺省仍是插件安装，兼容旧客户端。
+      */
+      const kind = url.searchParams.get('kind') === 'mirror' ? 'mirror' as const : 'install' as const
+      send(res, 200, await readInstallLog(Number.isFinite(offset) ? offset : 0, kind))
     },
   }), 'dsh-fnos: plugin install log')
 

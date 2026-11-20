@@ -98,6 +98,7 @@ export { default as DshIconArrowLeft } from '@douyinfe/semi-icons/lib/es/icons/I
 export { default as DshIconButtonStroked } from '@douyinfe/semi-icons/lib/es/icons/IconButtonStroked.js'
 export { default as DshIconCheckCircle } from '@douyinfe/semi-icons/lib/es/icons/IconCheckCircleStroked.js'
 export { default as DshIconClose } from '@douyinfe/semi-icons/lib/es/icons/IconClose.js'
+export { default as DshIconMinus } from '@douyinfe/semi-icons/lib/es/icons/IconMinus.js'
 export { default as DshIconChevronDown } from '@douyinfe/semi-icons/lib/es/icons/IconChevronDown.js'
 export { default as DshIconChevronDownStroked } from '@douyinfe/semi-icons/lib/es/icons/IconChevronDownStroked.js'
 export { default as DshIconCommand } from '@douyinfe/semi-icons/lib/es/icons/IconCommand.js'

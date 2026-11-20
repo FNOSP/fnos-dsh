@@ -10,7 +10,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { FNOS_RUNTIME_KILL_ROUTE, FNOS_RUNTIME_LOGS_ROUTE, FNOS_RUNTIME_STATUS_ROUTE } from '../contracts/runtime-status-contract.ts'
+import { FNOS_RUNTIME_KILL_ROUTE, FNOS_RUNTIME_LOGS_ROUTE, FNOS_RUNTIME_STATUS_ROUTE, FNOS_RUNTIME_TASK_LOG_ROUTE } from '../contracts/runtime-status-contract.ts'
 import type { RuntimeLogLevel } from '../contracts/runtime-status-contract.ts'
 import { readLogs } from './runtime-logs.ts'
 import { readRuntimeStatus } from './runtime-status.ts'
@@ -113,10 +113,54 @@ export function registerRuntimeStatusRoutes(ctx: Context): void {
       }))
     },
   }), 'dsh-fnos: runtime logs')
+
+  /*
+    任务日志转交：浏览器侧的功能执行链经这里把日志交给宿主日志服务。
+
+    ## 为什么绕这一圈
+
+    `ctx.logger` 是**宿主**服务（Node 进程内），浏览器侧没有它。功能执行链（插件
+    安装 / nrm / 依赖修复）都跑在浏览器里，日志要进「日志」页只能经 HTTP 交给宿主。
+
+    ## 为什么用 GET 而不是 POST
+
+    DSH 的 webServer 以资源语义提供路由：读用 GET、写用 POST 的区分在这里不成立
+    ——**非 GET/HEAD 会在匹配前统一回 405**（实测 `POST` 拿到 405 且空 body）。因此
+    这里沿用插件内其它路由的形态，用 GET 携带查询参数。
+
+    ## 安全性
+
+    同源校验与长度上限都在：`trusted(req)` 拒绝跨站，`text` 截断到 1KB 单行，
+    级别限定三个枚举值。它只能写日志，不能改配置或执行命令。
+  */
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_RUNTIME_TASK_LOG_ROUTE,
+    handler: (req, res) => {
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      const url = new URL(req.url ?? '/', 'http://x')
+      const rawLevel = url.searchParams.get('level')
+      const level = rawLevel === 'warn' || rawLevel === 'error' ? rawLevel : 'info'
+      const raw = url.searchParams.get('text') ?? ''
+      if (raw === '') return send(res, 400, { error: 'invalid-text' })
+      /* 单行上限：超长说明客户端拼错了东西，截断比整份拒绝更有用。 */
+      const text = raw.length > TASK_LOG_MAX_CHARS ? `${raw.slice(0, TASK_LOG_MAX_CHARS)}…` : raw
+      ctx.logger[level](text)
+      send(res, 200, { ok: true })
+    },
+  }), 'dsh-fnos: runtime task log')
 }
 
 /** 请求体上限：只有 pid 与 signal，1KB 足够，超出即拒绝。 */
 const MAX_BODY_BYTES = 1024
+
+/**
+ * 单行任务日志的字符上限。
+ *
+ * 走查询串传输，URL 长度天然受限；8KB 足以覆盖 pnpm 的单行输出，超出截断而不是
+ * 拒绝——少半行日志仍比整条丢掉有用。
+ */
+const TASK_LOG_MAX_CHARS = 8 * 1024
 
 /**
  * 读 JSON 请求体。
@@ -125,13 +169,13 @@ const MAX_BODY_BYTES = 1024
  * @param req - 请求。
  * @returns 解析后的对象；非法 JSON 抛错。
  */
-async function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+async function readJsonBody(req: IncomingMessage, limit = MAX_BODY_BYTES): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = []
   let size = 0
   for await (const chunk of req) {
     const buf = chunk as Buffer
     size += buf.length
-    if (size > MAX_BODY_BYTES) throw new Error('body-too-large')
+    if (size > limit) throw new Error('body-too-large')
     chunks.push(buf)
   }
   const text = Buffer.concat(chunks).toString('utf8')

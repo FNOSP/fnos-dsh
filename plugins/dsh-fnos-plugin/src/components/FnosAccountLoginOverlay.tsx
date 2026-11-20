@@ -28,49 +28,56 @@ import type { FnosLocaleKey } from '../client/locales.ts'
 type Translate = (key: FnosLocaleKey) => string
 
 /**
- * 官方登录框的文案特征。
+ * 官方**登录框（等待态）**的文案特征。
  *
- * ## 为什么不能用「开始使用」
+ * ## 为什么不能认「登录 DeepSeek 账号」
  *
- * 官方两处文案撞车：
+ * 官方有两个弹框的描述都含这句：
  *
- * | 出处 | 文案 |
+ * | 弹框 | 描述 |
  * | --- | --- |
- * | `ui-settings-account` 登录框的**标题** | 开始使用 |
- * | `ui-settings-models` 引导弹框的**描述结尾** | 配置 DeepSeek 官方模型，即可开始使用。 |
+ * | **引导框**（首次无模型时自动弹出） | 登录 DeepSeek 账号，或添加 API Key，即可开始使用。 |
+ * | **登录框**（用户点登录后） | —— |
  *
- * 用「开始使用」当判据，会把**引导弹框**一起认成登录框——用户只是第一次打开
- * 应用，就被塞一个粘贴回调地址的框。所以要认登录框**独有的**文案。
+ * 早前用「登录 DeepSeek 账号」当判据，于是**引导框也被接管**，被换成我们的
+ * 「填写重定向地址」——用户只是第一次打开应用，就看到一个要求粘贴回调地址的框，
+ * 与官方引导文案完全对不上。这正是「两个弹框文案不一致」的成因。
  *
- * ## 可用的判据
+ * ## 现在的判据：等待态独有文案
  *
- * - 登录框描述：「登录 DeepSeek 账号，或添加 API Key，即可开始使用。」→ 认
- *   「登录 DeepSeek 账号」；
- * - 等待态：「等待登录……」→ 认「等待登录」；
- * - 短标题：「登录」（英文 Sign in）。
+ * 只认**授权页已打开、正等用户继续**的那一屏：
  *
- * 本插件自己的粘贴框文案（「填写授权地址」「授权页关掉了？复制链接重新
- * 打开：」等）**不含**这些词，另有一道类名排除兜底。
+ * - 「等待登录」/「Waiting for sign in」；
+ * - 「复制登录链接」/「Copy sign-in link」（等待态的按钮）。
+ *
+ * 引导框两者都不含，因此不再被接管；用户点「登录」进入等待态后，我们才出场
+ * 补上官方缺的那一步（把回调地址粘回来）。
+ *
+ * ## 短标题不用了
+ *
+ * 曾把「登录」/「Sign in」这类短词也放进来当兜底，但它同样会命中引导框的描述，
+ * 而且退出确认框（正文含「你仍可以登录此账号」）也要靠 {@link EXCLUDE_MARKERS}
+ * 兜。收紧到等待态后，两条兜底都不再需要。
  */
 const SIGN_IN_MARKERS = [
   // 中文
-  '登录 DeepSeek 账号', '等待登录', '登录',
+  '等待登录', '复制登录链接',
   // 英文
-  'Sign in to DeepSeek account', 'Waiting for sign in', 'Sign in',
+  'Waiting for sign in', 'Copy sign-in link',
   // 德文
-  'Bei DeepSeek-Konto anmelden', 'Warten auf Anmeldung', 'Anmelden',
+  'Warten auf Anmeldung',
   // 西班牙文
-  'Iniciar sesión en la cuenta de DeepSeek', 'Esperando el inicio de sesión', 'Iniciar sesión',
+  'Esperando el inicio de sesión',
   // 法文
-  'Se connecter au compte DeepSeek', 'En attente de connexion', 'Se connecter',
+  'En attente de connexion',
   // 意大利文
-  "Accedi all'account DeepSeek", 'In attesa di accesso', 'Accedi',
+  'In attesa di accesso',
   // 日文
-  'DeepSeek アカウントにログイン', 'サインインを待っています', 'ログイン',
+  'サインインを待っています',
   // 韩文
-  'DeepSeek 계정으로 로그인', '로그인 대기 중', '로그인',
+  '로그인 대기 중',
   // 俄文
-  'Вход в аккаунт DeepSeek', 'Ожидание входа', 'Войти',
+  'Ожидание входа',
 ]
 
 /**

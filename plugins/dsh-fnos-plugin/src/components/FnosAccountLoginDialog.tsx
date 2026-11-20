@@ -24,14 +24,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshModal, DshInput, DshButton, DshTypography, DshToast } from '@tnnevol/dsh-semi-ui'
+import { DshModal, DshInput, DshButton } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   FNOS_ACCOUNT_LOGIN_CANCEL_ROUTE,
   FNOS_ACCOUNT_LOGIN_RELAY_ROUTE,
   type AccountLoginRelayResult,
 } from '../contracts/account-login-contract.ts'
-import { readAuthorizeUrlOnce } from '../client/services/account-login-state.ts'
+import { readLoginStateOnce } from '../client/services/account-login-state.ts'
 import { parseCallbackInput } from '../client/account-login-callback.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -148,16 +148,41 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
 
       给到 90 秒、间隔 1.5 秒：既不会空转太密，也覆盖得住真实等待。拿到即停。
     */
+    /**
+     * 一次轮询：先看登录是否已完成，再取授权页地址。
+     *
+     * ## 「登录已完成」从哪知道
+     *
+     * 授权页在新标签页里完成时，回调先到宿主的**中转端口**
+     * （`127.0.0.1:<relayPort>/oauth/callback`），宿主再转发给账号服务。因此
+     * 主窗口**不需要**读那个跨域标签页的地址——实测也读不到（`SecurityError`），
+     * 官方还主动 `popup.opener = null` 切断了引用。
+     *
+     * 只要问到 `succeeded` 就自动收尾：清空输入、关掉本弹框（官方弹框由浮层容器
+     * 的 DOM 监听一并收起）。
+     *
+     * ## 为什么拿到地址后还要继续轮询
+     *
+     * 地址只是「让用户能重新打开授权页」的辅助信息；登录完成那一刻才是终点。
+     * 早前拿到地址就停，导致自动验证永远不会触发。
+     */
     const load = async (): Promise<void> => {
       if (cancelled) return
-      const url = await readAuthorizeUrlOnce()
+      const state = await readLoginStateOnce()
       if (cancelled) return
-      if (url !== undefined) {
-        authorizeUrlRef.current = url
-        setAuthorizeUrl(url)
+      if (state?.phase === 'succeeded') {
+        setPhase('idle')
+        setPasted('')
+        setMessage(undefined)
+        onClose()
         return
       }
-      if (Date.now() - startedAt > 90_000) return
+      if (state?.authorizeUrl !== undefined && state.authorizeUrl !== '') {
+        authorizeUrlRef.current = state.authorizeUrl
+        setAuthorizeUrl(state.authorizeUrl)
+      }
+      /* 超时只限制「还没拿到地址」的等待；拿到地址后继续看登录结果。 */
+      if (authorizeUrlRef.current === undefined && Date.now() - startedAt > 90_000) return
       timer = setTimeout(() => { void load() }, 1500)
     }
 
@@ -166,7 +191,8 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
       cancelled = true
       if (timer !== undefined) clearTimeout(timer)
     }
-  }, [open])
+    /* `onClose` 在父级是 useCallback，引用稳定；放进依赖不会造成重挂轮询。 */
+  }, [open, onClose])
 
   /*
     **用 Semi 的 Modal，并显式挂到 `body`。**
@@ -231,54 +257,25 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
         {authorizeUrl === undefined ? null : (
           <>
             {' '}
-            {t('accountLoginReopenPrefix')}
-            <DshTypography.Text
-              copyable={{
-                content: authorizeUrl,
-                copyTip: t('accountLoginCopyTip'),
-                /*
-                  **文案不变，只用 toast 反馈。**
+            <a
+              className="dsh-fnos-account-login-link"
+              href={authorizeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              /*
+                **新标签页打开授权页，不复制。**
 
-                  早前用 `copied` 把这段文字临时改成「已复制」，看着像按钮在变形；
-                  复制是个短动作，旁边弹一条提示更合适，文字本身保持稳定。
-                */
-                onCopy: (_event: unknown, _content: string, result: boolean) => {
-                  if (result) {
-                    DshToast.success({ content: t('accountLoginCopiedTip') })
-                  } else {
-                    DshToast.error({ content: t('accountLoginCopyFailedTip') })
-                  }
-                },
-                render: (_copied: boolean, doCopy: (event: React.MouseEvent) => void) => (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="dsh-fnos-account-login-copy"
-                    /*
-                      **点击只复制，不关闭弹框。**
+                授权的下一步是「在授权页里点同意」，用户真正需要的是那个页面，不是
+                一段地址。早前把这里做成「复制链接」，用户还得自己找地方粘——多一步
+                且容易粘错。现在直接是链接：点开就是授权页。
 
-                      两个事件都 `stopPropagation`：Semi 的 Modal 会监听外层容器上的
-                      点击来决定是否关闭，复制这种短动作不该顺带把用户正在填写的弹框
-                      收掉——用户复制完还要回来粘地址。
-                    */
-                    onClick={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      doCopy(event)
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        doCopy(event as unknown as React.MouseEvent)
-                      }
-                    }}
-                  >
-                    {t('accountLoginReopenAction')}
-                  </span>
-                ),
-              }}
-            />
+                用 `<a target="_blank">` 而不是 `window.open`：真链接在右键「在新标签
+                页打开」、中键、Cmd+点击下都有原生行为，也天然带 `noopener`。
+              */
+              onClick={(event) => { event.stopPropagation() }}
+            >
+              {t('accountLoginReopenAction')}
+            </a>
             。
           </>
         )}

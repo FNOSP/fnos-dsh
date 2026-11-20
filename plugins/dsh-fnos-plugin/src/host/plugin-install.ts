@@ -70,13 +70,24 @@ export function readInstallState(): PluginInstallState {
 }
 
 /**
+ * 操作日志的来源。
+ *
+ * 插件安装与 nrm 镜像源安装曾**共用同一个文件**：谁先开始就清空对方的内容，
+ * 于是先装插件再装 nrm，插件那份记录就没了——用户以为历史都在，实际只剩最后
+ * 一次。现在按来源分成两个文件，互不覆盖。
+ */
+export type InstallLogKind = 'install' | 'mirror'
+
+/**
  * 日志文件路径。
+ * @param kind - 日志来源；缺省为插件安装（兼容既有调用）。
  * @returns 路径；环境不可用时 undefined。
  */
-export function installLogPath(): string | undefined {
+export function installLogPath(kind: InstallLogKind = 'install'): string | undefined {
   const environment = resolveRepairEnvironment()
   if (environment === undefined) return undefined
-  return join(environment.profileDirectory, 'gateway', 'install-log.txt')
+  const file = kind === 'mirror' ? 'mirror-log.txt' : 'install-log.txt'
+  return join(environment.profileDirectory, 'gateway', file)
 }
 
 /**
@@ -84,8 +95,8 @@ export function installLogPath(): string | undefined {
  * @param offset - 起始字节；缺省读全部。
  * @returns 内容与新的偏移。
  */
-export async function readInstallLog(offset = 0): Promise<{ text: string, offset: number }> {
-  const path = installLogPath()
+export async function readInstallLog(offset = 0, kind: InstallLogKind = 'install'): Promise<{ text: string, offset: number }> {
+  const path = installLogPath(kind)
   if (path === undefined) return { text: '', offset: 0 }
   try {
     const buffer = await readFile(path)

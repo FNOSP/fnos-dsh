@@ -18,6 +18,7 @@ import {
   diagnoseDependencyRepair,
   resolveRepairEnvironment,
   runDependencyRepair,
+  setRepairHostLogger,
   setRepairLogSink,
 } from './dependency-repair.ts'
 
@@ -51,6 +52,14 @@ function trusted(req: IncomingMessage): boolean {
  * @param ctx - 宿主上下文（需已注入 `webServer`）。
  */
 export function registerDependencyRepairRoutes(ctx: Context): void {
+  /*
+    把宿主日志服务接到修复模块。
+
+    修复过程原本只走 `console.log`，那些记录**不进运行日志中心**（console 写的是
+    Node 标准输出，与 Cordis 日志服务是两条路）。注入后每行同时进日志中心，
+    用户才能在「日志」页回看一次修复到底做了什么。
+  */
+  setRepairHostLogger(ctx.logger)
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: FNOS_DEPENDENCY_REPAIR_DIAGNOSE_ROUTE,

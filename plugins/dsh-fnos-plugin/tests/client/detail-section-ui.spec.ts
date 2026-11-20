@@ -424,20 +424,21 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
     expect(REPAIR_CARD).not.toContain('disabled={busy}')
 
     /*
-      长耗时动作要有实时进度：**静态说明换成日志框**。
+      长耗时动作要有实时进度，但日志**不在卡片里**（FNOS-059）。
 
-      原先只有一行「正在重建依赖…」，看不出在装依赖还是卡死了；现在显示宿主
-      逐行推来的日志，边跑边出，而不是结束后突然冒出一堆。
+      原先卡片内有一个定高日志框。现在日志由任务浮层（右下角，实时滚动）与运行
+      日志中心（全量历史，可搜可导出）承担，卡片只保留结果与失败原因——三处各存
+      一份既占内存也容易不同步。
     */
     expect(REPAIR_CARD).not.toContain('dependencyRepairProgress')
     expect(REPAIR_CARD).toContain('runDependencyRepairStreaming')
-    // 复用「npm 镜像管理」的日志框三段结构：同一个面板里两个跑命令的地方长得一样。
-    expect(REPAIR_CARD).toContain('dsh-fnos-mirror-logbox')
-    expect(REPAIR_CARD).toContain('dsh-fnos-mirror-logbar')
-    expect(REPAIR_CARD).toContain('dsh-fnos-mirror-log')
-    expect(REPAIR_CARD).toMatch(/role="log"[^>]*aria-live="polite"/u)
-    // 复制按钮不能省：报错要能拿去搜或贴进 issue。
-    expect(REPAIR_CARD).toContain('copyLog')
+    // 流式仍在：每行到达即推进浮层。
+    expect(REPAIR_CARD).toContain('logPanelStore.beginTask')
+    expect(REPAIR_CARD).toContain('logPanelStore.append')
+    expect(REPAIR_CARD).toContain('logPanelStore.finish')
+    // 卡片内不再有日志框与复制按钮。
+    expect(REPAIR_CARD).not.toContain('dsh-fnos-mirror-logbox')
+    expect(REPAIR_CARD).not.toContain('copyLog')
   })
 
   it('中文文案里「检查」两键已随按钮一起移除', () => {

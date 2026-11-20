@@ -237,6 +237,36 @@ async function readJsonIfExists(path: string): Promise<unknown> {
 const LOG_PREFIX = '[dsh-fnos][dependency-repair]'
 
 /**
+ * 宿主日志输出器（由插件入口注入）。
+ *
+ * ## 为什么不再用 `console.log`
+ *
+ * `console.log` 写的是 Node 标准输出，**不经过 Cordis 的日志服务**，因此这些
+ * 记录在「日志」页完全不可见——不是「采了没显示」，是根本没进来。改为注入
+ * `ctx.logger` 后，同一行既进运行日志中心，也可继续推给 SSE 供弹框实时显示。
+ *
+ * ## 为什么是注入而不是直接拿 ctx
+ *
+ * 本模块是纯函数集合，不持有 `ctx`（便于单测直接调用）。注入保持了这个特性，
+ * 未注入时退化为 `console.log`，行为与改造前一致。
+ */
+export interface RepairHostLogger {
+  readonly info: (message: string) => void
+  readonly warn: (message: string) => void
+  readonly error: (message: string) => void
+}
+
+let hostLogger: RepairHostLogger | undefined
+
+/**
+ * 注入宿主日志输出器。
+ * @param logger - 输出器；`undefined` 表示退回 `console.log`（测试用）。
+ */
+export function setRepairHostLogger(logger: RepairHostLogger | undefined): void {
+  hostLogger = logger
+}
+
+/**
  * 输出一条诊断日志。
  *
  * 这个功能会删 `node_modules` 并重装依赖，出问题时只能靠日志还原「它到底做了
@@ -246,10 +276,14 @@ const LOG_PREFIX = '[dsh-fnos][dependency-repair]'
  * **同时推给正在观察的调用方。** 修复要跑 `pnpm install`，可能几分钟；只在结束
  * 时把整份结果返回，界面就只能「先干等着、最后一次性冒出一堆日志」。`sink` 让
  * 每条日志边走边发，前端能像看终端一样实时看到进展。
+ *
+ * **只产生一次。** SSE 与任务浮层都从 `sink` 订阅，本函数不重复写两处——否则
+ * 日志中心里同一行会出现两遍。
  */
 function log(message: string): void {
   const line = `${LOG_PREFIX} ${message}`
-  console.log(line)
+  if (hostLogger === undefined) console.log(line)
+  else hostLogger.info(line)
   logSink?.(message)
 }
 
