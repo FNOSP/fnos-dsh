@@ -398,21 +398,22 @@ describe('卡片式界面', () => {
 
   it('常驻插件即使被卸载也留在列表最前，并给安装按钮', () => {
     /*
-      `@tnnevol/dsh-fnos` 与 `dshmarket` 是应用与插件生态的入口。被强制卸载后
-      如果卡片跟着消失，用户就再也找不到「装回来」的地方——只能重装整个应用。
+      `@tnnevol/dsh-fnos`、`dshmarket`、`@fnnas-labs/fnos-cli` 是应用与插件
+      生态的常用入口。被强制卸载后如果卡片跟着消失，用户就再也找不到「装回来」
+      的地方——只能重装整个应用。
 
       所以这两项**永远出现且排在最前**：装了显示开关/卸载/更新，没装显示「安装」。
     */
     /*
       两份名单，语义不同：
       - `BUILTIN_UNINSTALLABLE`：不可卸载的内置插件（本插件自身）；
-      - `RECOMMENDED_PLUGINS`：可卸载的推荐插件（dshmarket）。
+      - `RECOMMENDED_PLUGINS`：可卸载的推荐插件（dshmarket、fnos-cli）。
 
       共同点：卸载后卡片常驻、排在最前。差别只有「给不给卸载入口」。
       名单**只影响排序与 uninstallable**，界面上不分模块。
     */
     expect(HOST).toContain("BUILTIN_UNINSTALLABLE: readonly string[] = ['@tnnevol/dsh-fnos']")
-    expect(HOST).toContain("RECOMMENDED_PLUGINS: readonly string[] = ['dshmarket']")
+    expect(HOST).toContain("RECOMMENDED_PLUGINS: readonly string[] = ['dshmarket', '@fnnas-labs/fnos-cli']")
     expect(HOST).toContain('PINNED_PLUGIN_NAMES: readonly string[] = [...BUILTIN_UNINSTALLABLE, ...RECOMMENDED_PLUGINS]')
 
     // 未安装时造占位条目

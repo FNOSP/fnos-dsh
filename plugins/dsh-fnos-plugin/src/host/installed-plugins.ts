@@ -37,12 +37,12 @@ const BUILTIN_UNINSTALLABLE: readonly string[] = ['@tnnevol/dsh-fnos']
 /**
  * **常驻名单二：推荐插件。**
  *
- * `dshmarket` 是插件市场的入口，用户可能自己卸掉它，那是合理选择——所以它**可以
- * 卸载**。但卸载后卡片不能跟着消失，否则用户找不到再装回来的地方。
+ * 这两个是应用与插件能力的常用入口，用户可能自己卸掉它们，那是合理选择——所以
+ * 它们**可以卸载**。但卸载后卡片不能跟着消失，否则用户找不到再装回来的地方。
  *
  * 与名单一的区别只有一点：这里**保留卸载入口**，未安装时给「安装」。
  */
-const RECOMMENDED_PLUGINS: readonly string[] = ['dshmarket']
+const RECOMMENDED_PLUGINS: readonly string[] = ['dshmarket', '@fnnas-labs/fnos-cli']
 
 /**
  * 全部常驻项（两份名单合并）。
@@ -60,6 +60,10 @@ const PINNED_PLUGIN_FALLBACK: Readonly<Record<string, { title: string, descripti
   dshmarket: {
     title: 'dshmarket',
     description: 'DSH 插件市场：浏览并安装社区插件。',
+  },
+  '@fnnas-labs/fnos-cli': {
+    title: 'fnOS CLI',
+    description: '在会话里操作 fnOS：文件、下载、存储、应用与系统状态。',
   },
 }
 
