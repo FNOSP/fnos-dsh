@@ -282,19 +282,18 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(CLIENT).toContain('authorizeUrlRef.current === undefined && Date.now() - startedAt > 90_000')
   })
 
-  it('说明文案始终完整，不随授权地址是否就绪而缺半句', () => {
+  it('授权地址就绪后才渲染链接，不做禁用态', () => {
     /*
-      文案是「浏览器会跳到…粘到下面。 重新打开授权页。」两句连读。
+      `authorizeUrl` 由宿主在 `waiting-browser` 阶段写入（官方 `auth_init` 返回后
+      立即就有），所以真正可点的时候它一定在。
 
-      早前第二句包在 `authorizeUrl === undefined ? null : ...` 里，宿主还没写入
-      地址的那段时间只剩前一句，同一个弹框会呈现两种文案。
-
-      现在第二句始终渲染，只是地址未就绪时按钮禁用。
+      早前渲染一个「灰着的链接」（`link={false}`）表示不可点，用户会以为功能坏了。
+      现在改为：地址没到就不渲染这一句，到了才出现。
     */
-    expect(CLIENT).toContain("t('accountLoginReopenAction')")
-    expect(CLIENT).not.toContain('authorizeUrl === undefined ? null : (')
-    // 任何时刻都渲染这句；地址未就绪时 onClick 直接返回。
-    expect(CLIENT).toContain('if (authorizeUrl === undefined) return')
+    expect(CLIENT).toContain("authorizeUrl === undefined ? null : (")
+    // 不再有禁用态的 link。
+    expect(CLIENT).not.toContain('link={authorizeUrl === undefined ? false :')
+    expect(CLIENT).not.toContain('disabled={authorizeUrl === undefined}')
   })
 
   it('「重新打开授权页」用 Typography.Text link + fnOS 的 openURL', () => {

@@ -141,13 +141,14 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
     const startedAt = Date.now()
 
     /*
-      **上限按时间，不按次数。**
+      **间隔 400ms：地址一到就显示。**
 
-      真机实测：`authorizeUrl` 在 `waiting-browser` 之后约 30-40 秒才出现。早前
-      按次数限制（12 次 × 800ms ≈ 10 秒），会在地址出现之前就放弃，之后再也不补，
-      「复制重新打开」这段永远不显示。
+      官方 `startSignIn()` 返回时 `phase` 还是 `initializing`，`authorizeUrl` 要等
+      `auth_init` 那次网络往返回来才写入（`credentials/deepseek-account`）。这段
+      通常只有几百毫秒，1.5 秒的间隔会让链接明显滞后——用户已经看到弹框，却发现
+      「重新打开授权页」迟迟不出现。
 
-      给到 90 秒、间隔 1.5 秒：既不会空转太密，也覆盖得住真实等待。拿到即停。
+      上限 90 秒：地址始终拿不到时（宿主异常）不至于无限轮询。
     */
     /**
      * 一次轮询：先看登录是否已完成，再取授权页地址。
@@ -184,7 +185,7 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
       }
       /* 超时只限制「还没拿到地址」的等待；拿到地址后继续看登录结果。 */
       if (authorizeUrlRef.current === undefined && Date.now() - startedAt > 90_000) return
-      timer = setTimeout(() => { void load() }, 1500)
+      timer = setTimeout(() => { void load() }, 400)
     }
 
     void load()
@@ -235,19 +236,29 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
     >
       <p className="dsh-fnos-account-login-desc">
         {t('accountLoginPasteHint')}{' '}
-        <DshTypography.Text
-          link
-          underline
-          onClick={(event: React.MouseEvent) => {
-            event.preventDefault()
-            event.stopPropagation()
-            if (authorizeUrl === undefined) return
-            void openExternalUrl(authorizeUrl)
-          }}
-        >
-          {t('accountLoginReopenAction')}
-        </DshTypography.Text>
-        。
+        {/*
+          只在拿到地址时渲染链接，**不做禁用态**。
+
+          `authorizeUrl` 由宿主在 `waiting-browser` 阶段写入（官方 `auth_init`
+          返回后立即就有），所以真正可点的时候它一定在。渲染一个「灰着的链接」
+          反而让用户以为功能坏了。
+        */}
+        {authorizeUrl === undefined ? null : (
+          <>
+            <DshTypography.Text
+              link
+              underline
+              onClick={(event: React.MouseEvent) => {
+                event.preventDefault()
+                event.stopPropagation()
+                void openExternalUrl(authorizeUrl)
+              }}
+            >
+              {t('accountLoginReopenAction')}
+            </DshTypography.Text>
+            。
+          </>
+        )}
       </p>
       <DshInput
         value={pasted}
