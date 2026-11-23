@@ -231,3 +231,20 @@ describe('已安装插件：流式查更新', () => {
     expect(PANEL).toContain('return stop')
   })
 })
+
+describe('工具箱按钮一致性', () => {
+  it('「安装」「修复」「设置」用同一套 DshButton 样式', () => {
+    /*
+      三者在同一列卡片里纵向排列。早前「设置」是 `size="small"` + `theme="light"`，
+      另外两个是 default + solid——同一列里两种高度、两种观感。
+    */
+    const INDEX_PANEL = readFileSync(new URL('../../src/components/PluginIndexPanel.tsx', import.meta.url), 'utf8')
+    const MIRROR = readFileSync(new URL('../../src/components/NpmMirrorCard.tsx', import.meta.url), 'utf8')
+    const REPAIR = readFileSync(new URL('../../src/components/DependencyRepairCard.tsx', import.meta.url), 'utf8')
+    for (const src of [INDEX_PANEL, MIRROR, REPAIR]) {
+      expect(src).toContain('theme="solid"')
+      /* 工具栏的按钮不带 size，用 DshButton 的默认尺寸。 */
+      expect(src).not.toMatch(/theme="solid"[^>]*size="small"/u)
+    }
+  })
+})

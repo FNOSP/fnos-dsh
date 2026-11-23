@@ -272,13 +272,14 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
             {allConfigured ? <span className="dsh-fnos-repair-muted">{t('indexAllConfigured')}</span> : null}
           </div>
           {/*
-            与同 Tab 的「安装」「修复」同一尺寸（default）。
+            与同 Tab 的「安装」「修复」**完全一致**：尺寸 default、样式 solid。
 
-            早前这里带 `size="small"`，同一列卡片里三个按钮两种高度。
+            早前这里是 `size="small"` + `theme="light"`，同一列卡片里三个按钮
+            两种高度、两种观感。
           */}
           <DshButton
             htmlType="button"
-            theme="light"
+            theme="solid"
             type="primary"
             disabled={busy || marketMissing || allConfigured}
             onClick={() => { void apply() }}

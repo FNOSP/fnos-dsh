@@ -68,6 +68,14 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
   /** 上一次是否是失败：由 store 记，重挂载后仍然成立。 */
   const failed = task.outcome === 'failed' 
   /**
+   * 正在拉取，避免并发重复消费同一段日志。
+   *
+   * 定时器与结束时的补拉会同时触发：两次 `pull` 读到同一个 `offset`，同一段
+   * 文本被追两遍——日志中心里每行出现两次就是这么来的。
+   */
+  const pullingRef = useRef(false)
+
+  /**
    * 日志轮询的字节偏移。
    *
    * 日志内容本身不再存在本组件的 state 里——它进任务日志浮层与运行日志中心，
@@ -124,11 +132,17 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
     logPanelStore.beginTask({ feature: 'mirror', title: t('mirrorInstallTask') })
 
     const pull = async (): Promise<void> => {
-      const next = await fetchInstallLog(logOffsetRef.current, 'mirror')
-      if (next.text === '') return
-      logOffsetRef.current = next.offset
-      for (const line of next.text.split('\n')) {
-        if (line.trim() !== '') logPanelStore.append(levelOfInstallLine(line), line)
+      if (pullingRef.current) return
+      pullingRef.current = true
+      try {
+        const next = await fetchInstallLog(logOffsetRef.current, 'mirror')
+        if (next.text === '') return
+        logOffsetRef.current = next.offset
+        for (const line of next.text.split('\n')) {
+          if (line.trim() !== '') logPanelStore.append(levelOfInstallLine(line), line)
+        }
+      } finally {
+        pullingRef.current = false
       }
     }
 
@@ -165,11 +179,17 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
     logPanelStore.beginTask({ feature: 'mirror', title: t('mirrorUninstallTask') })
 
     const pull = async (): Promise<void> => {
-      const next = await fetchInstallLog(logOffsetRef.current, 'mirror')
-      if (next.text === '') return
-      logOffsetRef.current = next.offset
-      for (const line of next.text.split('\n')) {
-        if (line.trim() !== '') logPanelStore.append(levelOfInstallLine(line), line)
+      if (pullingRef.current) return
+      pullingRef.current = true
+      try {
+        const next = await fetchInstallLog(logOffsetRef.current, 'mirror')
+        if (next.text === '') return
+        logOffsetRef.current = next.offset
+        for (const line of next.text.split('\n')) {
+          if (line.trim() !== '') logPanelStore.append(levelOfInstallLine(line), line)
+        }
+      } finally {
+        pullingRef.current = false
       }
     }
 
