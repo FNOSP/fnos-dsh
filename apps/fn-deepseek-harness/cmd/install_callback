@@ -16,7 +16,6 @@ DSH_VERSION="0.2.2-rc.5"
 # 不校验会把失败推到启动阶段，表现为「装完起不来」。该值须与基线一致，
 # 由构建工具的基线守卫对照已安装 dsh 的 engines.node 断言。
 DSH_MIN_NODE_VERSION="24.9.0"
-TRIM_CLI_PACKAGE="@trimjs/trim-cli"
 PNPM_VERSION="11.7.0"
 PNPM_BIN="${NPM_CONFIG_PREFIX}/bin/pnpm"
 DSH_INSTALL_CALLBACK_HELPER="${APP_DEST}/scripts/install-callback-helper.mjs"
@@ -314,28 +313,6 @@ install_published_dsh_plugins() {
     done < <(run_install_callback_helper published-plugins "${DSH_PUBLISHED_PLUGIN_MANIFEST}")
 }
 
-trim_cli_package_directory() {
-    printf '%s/%s' "${NPM_GLOBAL_ROOT}" "${TRIM_CLI_PACKAGE}"
-}
-
-install_trim_cli() {
-    local package_directory
-    log_info "Installing ${TRIM_CLI_PACKAGE}@latest globally from ${NPM_REGISTRY}..."
-    "${NPM_BIN}" install "${TRIM_CLI_PACKAGE}@latest" -g --ignore-scripts ||
-        fail_install "Unable to install ${TRIM_CLI_PACKAGE}@latest"
-
-    NPM_GLOBAL_ROOT="$(global_package_root)"
-    if [ -z "${NPM_GLOBAL_ROOT}" ]; then
-        NPM_GLOBAL_ROOT="${NPM_CONFIG_PREFIX}/lib/node_modules"
-    fi
-    package_directory="$(trim_cli_package_directory)"
-    [ -f "${package_directory}/package.json" ] ||
-        fail_install "Installed ${TRIM_CLI_PACKAGE}@latest cannot be found at ${package_directory}"
-
-    # 只装 CLI，不再分发它的 skill：内置 skill 已改为随包的 fnos-cli。
-    # 老用户机器上已有的 ~/.agents/skills/trim-cli 保持原样，既不刷新也不删除。
-    log_info "Installed the ${TRIM_CLI_PACKAGE} CLI into ${NPM_GLOBAL_ROOT}."
-}
 
 
 install_published_dsh_plugins() {
@@ -376,28 +353,6 @@ install_published_dsh_plugins() {
     done < <(run_install_callback_helper published-plugins "${DSH_PUBLISHED_PLUGIN_MANIFEST}")
 }
 
-trim_cli_package_directory() {
-    printf '%s/%s' "${NPM_GLOBAL_ROOT}" "${TRIM_CLI_PACKAGE}"
-}
-
-install_trim_cli() {
-    local package_directory
-    log_info "Installing ${TRIM_CLI_PACKAGE}@latest globally from ${NPM_REGISTRY}..."
-    "${NPM_BIN}" install "${TRIM_CLI_PACKAGE}@latest" -g --ignore-scripts ||
-        fail_install "Unable to install ${TRIM_CLI_PACKAGE}@latest"
-
-    NPM_GLOBAL_ROOT="$(global_package_root)"
-    if [ -z "${NPM_GLOBAL_ROOT}" ]; then
-        NPM_GLOBAL_ROOT="${NPM_CONFIG_PREFIX}/lib/node_modules"
-    fi
-    package_directory="$(trim_cli_package_directory)"
-    [ -f "${package_directory}/package.json" ] ||
-        fail_install "Installed ${TRIM_CLI_PACKAGE}@latest cannot be found at ${package_directory}"
-
-    # 只装 CLI，不再分发它的 skill：内置 skill 已改为随包的 fnos-cli。
-    # 老用户机器上已有的 ~/.agents/skills/trim-cli 保持原样，既不刷新也不删除。
-    log_info "Installed the ${TRIM_CLI_PACKAGE} CLI into ${NPM_GLOBAL_ROOT}."
-}
 
 
 patch_dsh_attachment_local() {
@@ -601,10 +556,11 @@ main() {
     # dependency whose archive this release does not ship. It re-adds whatever the
     # manifest lists, from the registry when no archive is bundled.
     remove_unsatisfiable_own_plugins
-    install_trim_cli
-    # 不再代装 fnos-cli / trim-cli skill：`~/.agents/skills` 属于用户的 agent
-    # 环境，应用不写入。老用户机器上**已有的也不在升级时删**——那是用户的目录，
-    # 迁移动作要由他自己在「飞牛设置 → 插件管理 → 工具箱」里发起。
+    # 不再代装 fnos-cli / trim-cli：skill 与 CLI 都不再由应用写入。
+    #
+    # `~/.agents/skills` 属于用户的 agent 环境。老用户机器上已有的目录**也不在
+    # 升级时删**——那是用户的目录，迁移动作要由他自己在
+    # 「飞牛设置 → 插件管理 → 工具箱」里发起。
     install_published_dsh_plugins
 }
 

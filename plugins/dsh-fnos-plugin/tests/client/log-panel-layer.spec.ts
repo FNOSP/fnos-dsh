@@ -311,9 +311,12 @@ describe('agent skill 清理', () => {
         发起，不能在一次版本升级里悄悄抹掉。
     */
     expect(CALLBACK).not.toContain('install_fnos_cli_skill')
-    expect(CALLBACK).not.toContain('install-skill')
+    expect(CALLBACK).not.toContain('install_trim_cli')
     expect(CALLBACK).not.toContain('remove_bundled_agent_skills')
-    /* 说明性注释保留，避免以后有人又把它加回去。 */
-    expect(CALLBACK).toContain('不在升级时删')
+    /* 连命令本身都不再被调用（注释里提到名字不算）。 */
+    expect(CALLBACK).not.toMatch(/^\s*"?\$\{?NPM_BIN\}?"?\s+install\s+"?\$\{TRIM_CLI_PACKAGE\}/mu)
+    expect(CALLBACK).not.toContain('TRIM_CLI_PACKAGE=')
+    /* 注释里要留着「为什么不能加回来」，避免以后有人又好心地改回去。 */
+    expect(CALLBACK).toContain('也不在')
   })
 })
