@@ -3901,40 +3901,6 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
  * 是一个真 `<a target="_blank">`：点开就在新标签页打开授权页。做成链接色 + 下划线，
  * 与正文区分开，让人看得出来能点。
  */
-.dsh-fnos-account-login-link {
-  color: var(--dsw-alias-label-link, var(--dsw-alias-brand-primary));
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-/*
- * 授权地址尚未就绪：文字保留、但不可点。
- *
- * 它仍是这句话的一部分（「…粘到下面。重新打开授权页。」），所以不能像以前那样
- * 在地址缺失时整段不渲染——那会让文案断成半句。
- */
-.dsh-fnos-account-login-link[data-disabled='true'] {
-  color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary));
-  cursor: not-allowed;
-  text-decoration: none;
-}
-
-.dsh-fnos-account-login-link:hover {
-  color: var(--dsw-alias-brand-primary-hover, var(--dsw-alias-brand-primary));
-}
-
-.dsh-fnos-account-login-link:focus-visible {
-  outline: 2px solid var(--dsw-alias-brand-primary);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
-/* 正文文字本身要可选：用户读到「复制那一整条地址」时可以直接选。 */
-.dsh-fnos-account-login-desc {
-  user-select: text;
-}
-
 /* 粘贴态的输入框与描述之间留 12px，避免两段文字贴在一起。 */
 .dsh-fnos-account-login-desc + .semi-input-wrapper {
   margin-top: 12px;

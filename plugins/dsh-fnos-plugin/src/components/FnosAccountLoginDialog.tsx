@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshModal, DshInput, DshButton } from '@tnnevol/dsh-semi-ui'
+import { DshModal, DshInput, DshButton, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   FNOS_ACCOUNT_LOGIN_CANCEL_ROUTE,
@@ -32,6 +32,7 @@ import {
   type AccountLoginRelayResult,
 } from '../contracts/account-login-contract.ts'
 import { readLoginStateOnce } from '../client/services/account-login-state.ts'
+import { openExternalUrl } from '../client/services/open-url.ts'
 import { parseCallbackInput } from '../client/account-login-callback.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -255,40 +256,28 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
       <p className="dsh-fnos-account-login-desc">
         {t('accountLoginPasteHint')}{' '}
         {/*
-          「重新打开授权页」**始终显示**，不随地址是否就绪而消失。
+          用 Semi 的 `Typography.Text link` 呈现，不自己写 `<a>` / `<button>`。
 
-          它原本是 `authorizeUrl === undefined ? null : <a>…</a>`，于是宿主还没
-          写入地址的那段时间里，说明只剩前一句、整句读起来是断的（实测能同时看到
-          两种样子）。文案是固定的，就该始终完整。
+          `link` 的对象形式会把属性透传给 `<a>`，样式与语义都由 Semi 保证；点击
+          则交给 fnOS 的 `openURL`——应用跑在网关 iframe 里，裸链接在那里取决于
+          宿主实现（Web 宿主拦成新标签页、移动 WebView 可能打不开），而 `openURL`
+          由平台保证一致（Web 走 `window.open`，移动端改用系统浏览器）。
 
-          地址没就绪时不可点：这时打开授权页没有意义。用 `span` 而不是带 `href="#"`
-          的 `a`——后者会被读屏与右键菜单当成真链接。
+          `authorizeUrl` 未就绪时 `link` 传 `false`：那句「重新打开授权页」是连读
+          整句的一部分，不能整段消失。
         */}
-        {authorizeUrl === undefined ? (
-          <span className="dsh-fnos-account-login-link" data-disabled="true" aria-disabled="true">
-            {t('accountLoginReopenAction')}
-          </span>
-        ) : (
-          <a
-            className="dsh-fnos-account-login-link"
-            href={authorizeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            /*
-              **新标签页打开授权页，不复制。**
-
-              授权的下一步是「在授权页里点同意」，用户真正需要的是那个页面，不是
-              一段地址。早前做成「复制链接」，用户还得自己找地方粘——多一步且容易
-              粘错。
-
-              用 `<a target="_blank">` 而不是 `window.open`：真链接在右键「在新标签
-              页打开」、中键、Cmd+点击下都有原生行为，也天然带 `noopener`。
-            */
-            onClick={(event) => { event.stopPropagation() }}
-          >
-            {t('accountLoginReopenAction')}
-          </a>
-        )}
+        <DshTypography.Text
+          link={authorizeUrl === undefined ? false : { href: authorizeUrl }}
+          underline
+          onClick={(event: React.MouseEvent) => {
+            event.preventDefault()
+            event.stopPropagation()
+            if (authorizeUrl === undefined) return
+            void openExternalUrl(authorizeUrl)
+          }}
+        >
+          {t('accountLoginReopenAction')}
+        </DshTypography.Text>
         。
       </p>
       <DshInput

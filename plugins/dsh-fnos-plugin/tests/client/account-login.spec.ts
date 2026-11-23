@@ -286,33 +286,32 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     /*
       文案是「浏览器会跳到…粘到下面。 重新打开授权页。」两句连读。
 
-      早前第二句包在 `authorizeUrl === undefined ? null : ...` 里，于是宿主还没
-      写入地址的那段时间只剩前一句，同一个弹框会呈现出两种文案——实测截图对比
-      即刻可见。
+      早前第二句包在 `authorizeUrl === undefined ? null : ...` 里，宿主还没写入
+      地址的那段时间只剩前一句，同一个弹框会呈现两种文案。
 
-      现在第二句始终渲染：地址就绪是 `<a>`，未就绪是同文案的不可点 `span`。
+      现在第二句始终渲染，只是地址未就绪时按钮禁用。
     */
     expect(CLIENT).toContain("t('accountLoginReopenAction')")
-    // 不再是「整个片段按条件消失」。
     expect(CLIENT).not.toContain('authorizeUrl === undefined ? null : (')
-    // 未就绪时用 span（带 href="#" 的 a 会被读屏与右键当成真链接）。
-    expect(CLIENT).toContain("data-disabled=\"true\"")
-    expect(CLIENT).toContain('aria-disabled=\"true\"')
+    // 未就绪时 link 传 false（不可点），但文字仍在。
+    expect(CLIENT).toContain('authorizeUrl === undefined ? false :')
   })
 
-  it('「重新打开授权页」是真链接，点开即新标签页打开', () => {
+  it('「重新打开授权页」用 Typography.Text link + fnOS 的 openURL', () => {
     /*
-      授权的下一步是「在授权页里点同意」，用户要的是那个页面，不是一段地址。
-      早前做成「复制链接」，还得自己找地方粘——多一步且容易粘错。
-      现在直接是 <a target="_blank">，右键新标签页 / 中键 / Cmd+点击都有原生行为。
+      **渲染用 Semi**：`Typography.Text link` 的对象形式把属性透传给 `<a>`，
+      样式与语义由 Semi 保证（UI 规范要求插件走共享组件，不自绘）。
+
+      **打开用平台 API**：应用跑在网关 iframe 里，裸 `<a target="_blank">` 的行为
+      取决于宿主实现——Web 宿主拦成新标签页、移动 WebView 可能根本打不开。
+      官方 `openURL`（`api/page/routing`）由平台保证一致。
     */
-    expect(CLIENT).toContain('href={authorizeUrl}')
-    expect(CLIENT).toContain('target="_blank"')
-    expect(CLIENT).toContain('rel="noopener noreferrer"')
-    expect(CLIENT).toContain("t('accountLoginReopenAction')")
-    // 复制那套已移除。
-    expect(CLIENT).not.toContain('copyable={{')
-    expect(CLIENT).not.toContain('DshToast')
+    expect(CLIENT).toContain('DshTypography.Text')
+    expect(CLIENT).toContain('link={authorizeUrl === undefined ? false :')
+    expect(CLIENT).toContain('openExternalUrl')
+    // 不自绘链接：没有裸 <a>，也没有自造的样式类。
+    expect(CLIENT).not.toMatch(/<a\s/u)
+    expect(CLIENT).not.toContain('dsh-fnos-account-login-link')
   })
 
   it('表头与正文的间距按「总间距减去表头已占的部分」算', () => {
