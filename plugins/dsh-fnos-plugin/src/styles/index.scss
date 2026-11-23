@@ -3908,6 +3908,18 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
   text-underline-offset: 2px;
 }
 
+/*
+ * 授权地址尚未就绪：文字保留、但不可点。
+ *
+ * 它仍是这句话的一部分（「…粘到下面。重新打开授权页。」），所以不能像以前那样
+ * 在地址缺失时整段不渲染——那会让文案断成半句。
+ */
+.dsh-fnos-account-login-link[data-disabled='true'] {
+  color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary));
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 .dsh-fnos-account-login-link:hover {
   color: var(--dsw-alias-brand-primary-hover, var(--dsw-alias-brand-primary));
 }

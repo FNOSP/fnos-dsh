@@ -282,6 +282,24 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(CLIENT).toContain('authorizeUrlRef.current === undefined && Date.now() - startedAt > 90_000')
   })
 
+  it('说明文案始终完整，不随授权地址是否就绪而缺半句', () => {
+    /*
+      文案是「浏览器会跳到…粘到下面。 重新打开授权页。」两句连读。
+
+      早前第二句包在 `authorizeUrl === undefined ? null : ...` 里，于是宿主还没
+      写入地址的那段时间只剩前一句，同一个弹框会呈现出两种文案——实测截图对比
+      即刻可见。
+
+      现在第二句始终渲染：地址就绪是 `<a>`，未就绪是同文案的不可点 `span`。
+    */
+    expect(CLIENT).toContain("t('accountLoginReopenAction')")
+    // 不再是「整个片段按条件消失」。
+    expect(CLIENT).not.toContain('authorizeUrl === undefined ? null : (')
+    // 未就绪时用 span（带 href="#" 的 a 会被读屏与右键当成真链接）。
+    expect(CLIENT).toContain("data-disabled=\"true\"")
+    expect(CLIENT).toContain('aria-disabled=\"true\"')
+  })
+
   it('「重新打开授权页」是真链接，点开即新标签页打开', () => {
     /*
       授权的下一步是「在授权页里点同意」，用户要的是那个页面，不是一段地址。

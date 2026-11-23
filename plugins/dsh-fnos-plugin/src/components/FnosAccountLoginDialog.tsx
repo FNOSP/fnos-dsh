@@ -253,32 +253,43 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
         再铺在正文里——它又长又打断阅读，复制走就够了。
       */}
       <p className="dsh-fnos-account-login-desc">
-        {t('accountLoginPasteHint')}
-        {authorizeUrl === undefined ? null : (
-          <>
-            {' '}
-            <a
-              className="dsh-fnos-account-login-link"
-              href={authorizeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              /*
-                **新标签页打开授权页，不复制。**
+        {t('accountLoginPasteHint')}{' '}
+        {/*
+          「重新打开授权页」**始终显示**，不随地址是否就绪而消失。
 
-                授权的下一步是「在授权页里点同意」，用户真正需要的是那个页面，不是
-                一段地址。早前把这里做成「复制链接」，用户还得自己找地方粘——多一步
-                且容易粘错。现在直接是链接：点开就是授权页。
+          它原本是 `authorizeUrl === undefined ? null : <a>…</a>`，于是宿主还没
+          写入地址的那段时间里，说明只剩前一句、整句读起来是断的（实测能同时看到
+          两种样子）。文案是固定的，就该始终完整。
 
-                用 `<a target="_blank">` 而不是 `window.open`：真链接在右键「在新标签
-                页打开」、中键、Cmd+点击下都有原生行为，也天然带 `noopener`。
-              */
-              onClick={(event) => { event.stopPropagation() }}
-            >
-              {t('accountLoginReopenAction')}
-            </a>
-            。
-          </>
+          地址没就绪时不可点：这时打开授权页没有意义。用 `span` 而不是带 `href="#"`
+          的 `a`——后者会被读屏与右键菜单当成真链接。
+        */}
+        {authorizeUrl === undefined ? (
+          <span className="dsh-fnos-account-login-link" data-disabled="true" aria-disabled="true">
+            {t('accountLoginReopenAction')}
+          </span>
+        ) : (
+          <a
+            className="dsh-fnos-account-login-link"
+            href={authorizeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            /*
+              **新标签页打开授权页，不复制。**
+
+              授权的下一步是「在授权页里点同意」，用户真正需要的是那个页面，不是
+              一段地址。早前做成「复制链接」，用户还得自己找地方粘——多一步且容易
+              粘错。
+
+              用 `<a target="_blank">` 而不是 `window.open`：真链接在右键「在新标签
+              页打开」、中键、Cmd+点击下都有原生行为，也天然带 `noopener`。
+            */
+            onClick={(event) => { event.stopPropagation() }}
+          >
+            {t('accountLoginReopenAction')}
+          </a>
         )}
+        。
       </p>
       <DshInput
         value={pasted}
