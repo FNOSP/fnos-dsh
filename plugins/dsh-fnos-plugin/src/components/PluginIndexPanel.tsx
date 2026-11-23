@@ -28,6 +28,7 @@ import {
   fetchPluginIndexStatus,
   setIndexEnabledRemote,
   type PluginIndexStatus,
+  addIndexSourceRemote,
   removeIndexSourceRemote,
 } from '../client/services/plugin-index-client.ts'
 
@@ -92,6 +93,24 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
    * 不做二次确认：这是「从列表里去掉一条 URL」，点错了再用「一键设置」加回来
    * 即可，不涉及删数据。危险操作才需要确认框。
    */
+  /**
+   * 添加一个索引源。
+   *
+   * 与「移除」互为逆操作：列表每一行按当前状态二选一显示，用户不必去别的入口
+   * 找「怎么加回来」。
+   */
+  const add = useCallback(async (url: string) => {
+    setBusy(true)
+    try {
+      setStatus(await addIndexSourceRemote(url))
+      notifySuccess(t('indexAdded'))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }, [t])
+
   const remove = useCallback(async (url: string) => {
     setBusy(true)
     try {
@@ -285,11 +304,11 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
                     {source.label === undefined ? null : <span className="dsh-fnos-idx-label">{source.label}</span>}
                     <code className="dsh-fnos-idx-url" title={source.url}>{source.url}</code>
                   </div>
+                  {/*
+                    每一行按当前状态给一个动作：已配置的「移除」、未配置的「添加」。
+                    两者互为逆操作，用户不必去别的入口找「怎么加回来」。
+                  */}
                   {configured ? (
-                    /*
-                      已配置的给「移除」。原来这里只是一个 ✓，看得见却点不动——
-                      用户想撤掉某个源只能去改设置文件。
-                    */
                     <DshButton
                       htmlType="button"
                       size="small"
@@ -301,7 +320,16 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
                       {t('remove')}
                     </DshButton>
                   ) : (
-                    <span className="dsh-fnos-idx-state">—</span>
+                    <DshButton
+                      htmlType="button"
+                      size="small"
+                      theme="light"
+                      type="primary"
+                      loading={busy}
+                      onClick={() => { void add(source.url) }}
+                    >
+                      {t('add')}
+                    </DshButton>
                   )}
                 </li>
               )

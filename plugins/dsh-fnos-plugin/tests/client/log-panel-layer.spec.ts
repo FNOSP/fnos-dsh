@@ -81,8 +81,19 @@ describe('自定义插件索引的移除', () => {
     expect(INDEX_PANEL).not.toContain("{configured ? '✓' : '—'}")
   })
 
-  it('路由常量已登记', () => {
+  it('移除与添加互为逆操作，同一行按状态二选一', () => {
+    /*
+      只给「移除」没有「添加」，用户想加回某个源就得去别的入口找——所以每一行
+      按当前状态给一个动作：已配置的移除、未配置的添加。
+    */
     expect(CONTRACT).toContain("FNOS_PLUGIN_INDEX_REMOVE_ROUTE = '/plugins/dsh-fnos/plugins/index-remove'")
+    expect(CONTRACT).toContain("FNOS_PLUGIN_INDEX_ADD_ROUTE = '/plugins/dsh-fnos/plugins/index-add'")
+    // UI：两个分支都在。
+    expect(INDEX_PANEL).toContain('addIndexSourceRemote')
+    expect(INDEX_PANEL).toContain('removeIndexSourceRemote')
+    // 宿主：只增删目标那一条，不动其它。
+    expect(INDEX_HOST).toContain('status.configured.filter(item => normalize(item) !== target)')
+    expect(INDEX_HOST).toContain('indexes: [...status.configured, url]')
   })
 })
 

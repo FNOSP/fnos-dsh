@@ -302,6 +302,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyTabIndex: "カスタムプラグインインデックス",
   remove: "削除",
   indexRemoved: "削除しました",
+  indexAdded: "追加しました",
   indexSourcesTitle: "インデックスソース",
   indexSourceOn: "有効",
   indexSourceOff: "無効",

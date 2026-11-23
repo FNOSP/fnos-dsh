@@ -293,6 +293,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyTabIndex: "Пользовательский индекс плагинов",
   remove: "Удалить",
   indexRemoved: "Удалено",
+  indexAdded: "Добавлено",
   indexSourcesTitle: "Источники индекса",
   indexSourceOn: "Вкл",
   indexSourceOff: "Выкл",

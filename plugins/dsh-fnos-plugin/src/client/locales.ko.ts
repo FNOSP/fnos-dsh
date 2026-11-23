@@ -302,6 +302,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyTabIndex: "사용자 정의 플러그인 인덱스",
   remove: "제거",
   indexRemoved: "제거됨",
+  indexAdded: "추가됨",
   indexSourcesTitle: "인덱스 소스",
   indexSourceOn: "켜짐",
   indexSourceOff: "꺼짐",

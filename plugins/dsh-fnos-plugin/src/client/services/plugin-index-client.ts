@@ -9,6 +9,7 @@
 
 import {
   FNOS_PLUGIN_INDEX_APPLY_ROUTE,
+  FNOS_PLUGIN_INDEX_ADD_ROUTE,
   FNOS_PLUGIN_INDEX_REMOVE_ROUTE,
   FNOS_PLUGIN_INDEX_STATUS_ROUTE,
   FNOS_PLUGIN_INDEX_TOGGLE_ROUTE,
@@ -104,6 +105,23 @@ export async function setIndexEnabledRemote(enabled: boolean): Promise<{ needRes
  */
 export async function removeIndexSourceRemote(url: string): Promise<PluginIndexStatus> {
   const response = await fetch(FNOS_PLUGIN_INDEX_REMOVE_ROUTE, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ url }),
+  })
+  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+  return toStatus(await response.json())
+}
+
+
+/**
+ * 添加一个索引源。
+ * @param url - 要添加的索引地址。
+ * @returns 添加后的状态。
+ */
+export async function addIndexSourceRemote(url: string): Promise<PluginIndexStatus> {
+  const response = await fetch(FNOS_PLUGIN_INDEX_ADD_ROUTE, {
     method: 'POST',
     headers: { accept: 'application/json', 'content-type': 'application/json' },
     credentials: 'same-origin',

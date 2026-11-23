@@ -219,6 +219,9 @@ export const FNOS_PLUGIN_INDEX_APPLY_ROUTE = '/plugins/dsh-fnos/plugins/index-ap
 /** 移除单个索引源。只有「一键设置」把源写进去、没有去掉的入口，用户只能去改设置文件。 */
 export const FNOS_PLUGIN_INDEX_REMOVE_ROUTE = '/plugins/dsh-fnos/plugins/index-remove'
 
+/** 添加单个索引源。与移除互为逆操作，列表每行按当前状态二选一显示。 */
+export const FNOS_PLUGIN_INDEX_ADD_ROUTE = '/plugins/dsh-fnos/plugins/index-add'
+
 /** 一个索引源的展示信息。 */
 export interface PluginIndexSourceInfo {
   /** 索引 URL。 */

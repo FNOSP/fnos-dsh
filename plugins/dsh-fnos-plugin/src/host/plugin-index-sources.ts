@@ -262,6 +262,28 @@ export async function removeIndexSource(ctx: Context, url: string, locale = 'zh'
 }
 
 /**
+ * 把单个索引源加回列表。
+ *
+ * 与「一键设置」分开：那个是全部补齐，这里是针对某一条。列表里每一行按当前
+ * 状态显示「添加」或「移除」，两者互为逆操作。
+ *
+ * @param ctx - 宿主上下文。
+ * @param url - 要添加的索引地址。
+ * @param locale - 语言。
+ * @returns 添加后的状态。
+ */
+export async function addIndexSource(ctx: Context, url: string, locale = 'zh'): Promise<PluginIndexStatus> {
+  const status = await readIndexStatus(ctx, locale)
+  if (!status.marketAvailable) return status
+
+  const normalize = (value: string): string => value.trim().replace(/\/+$/u, '')
+  const target = normalize(url)
+  if (status.configured.some(item => normalize(item) === target)) return status
+  await ctx.settings.update(MARKET_ENTRY_ID, { indexes: [...status.configured, url] })
+  return readIndexStatus(ctx, locale)
+}
+
+/**
  * 启用/禁用「自定义插件索引」能力。
  *
  * 复用 `plugin-toggle` 的 bundle 逻辑（官方 `setBundleEnabled` 的同构实现），

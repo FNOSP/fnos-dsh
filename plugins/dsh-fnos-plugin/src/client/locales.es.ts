@@ -294,6 +294,7 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   gatewayProxyTabIndex: "Indice de plugins personalizado",
   remove: "Quitar",
   indexRemoved: "Quitado",
+  indexAdded: "Añadido",
   indexSourcesTitle: "Fuentes de indice",
   indexSourceOn: "Activado",
   indexSourceOff: "Desactivado",
