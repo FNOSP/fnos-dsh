@@ -169,7 +169,19 @@ describe('插件索引：界面', () => {
 
   it('设置按钮在市场缺失或已配齐时置灰', () => {
     expect(PANEL).toContain("t('indexApplyConfigure')")
-    expect(PANEL).toContain('disabled={busy || marketMissing || allConfigured}')
+    expect(PANEL).toContain('disabled={applying || busyUrl !== undefined || marketMissing || allConfigured}')
+  })
+
+  it('移除/添加只让被点的那一行转圈', () => {
+    /*
+      用全局布尔会让点一条时**所有行的按钮一起转圈**，看起来像整批都在变。
+
+      改成记录正在操作的 URL，每行只看自己那条。
+    */
+    expect(PANEL).toContain('const [busyUrl, setBusyUrl]')
+    expect(PANEL).toContain('loading={busyUrl === source.url}')
+    /* 「设置」是整批操作，没有具体行，用独立的 applying。 */
+    expect(PANEL).toContain('const [applying, setApplying]')
   })
 
   it('引导图引用官方插件自带图，读不到时不显示破图', () => {

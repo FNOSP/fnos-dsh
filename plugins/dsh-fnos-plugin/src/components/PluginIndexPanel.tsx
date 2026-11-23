@@ -60,7 +60,15 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
   const [toggling, setToggling] = useState(false)
   /** 官方引导图读取失败：失败后整块不渲染，避免留一个破图占位。 */
   const [guideBroken, setGuideBroken] = useState(false)
-  const [busy, setBusy] = useState(false)
+  /**
+   * 正在操作的那一条索引源。
+   *
+   * 存 URL 而不是布尔：列表里每一行各有自己的「添加/移除」，用全局布尔会让
+   * 点一条时**所有行的按钮一起转圈**，看起来像整批都在变。
+   */
+  const [busyUrl, setBusyUrl] = useState<string>()
+  /** 「设置」是整批操作（补齐全部推荐源），没有具体行，单独一个布尔。 */
+  const [applying, setApplying] = useState(false)
   const [error, setError] = useState<string>()
 
   const load = useCallback(async () => {
@@ -76,14 +84,14 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
 
   /** 设置：补写推荐源。 */
   const apply = useCallback(async () => {
-    setBusy(true)
+    setApplying(true)
     setError(undefined)
     try {
       setStatus(await applyPluginIndexes())
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
-      setBusy(false)
+      setApplying(false)
     }
   }, [])
 
@@ -100,26 +108,26 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
    * 找「怎么加回来」。
    */
   const add = useCallback(async (url: string) => {
-    setBusy(true)
+    setBusyUrl(url)
     try {
       setStatus(await addIndexSourceRemote(url))
       notifySuccess(t('indexAdded'))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
-      setBusy(false)
+      setBusyUrl(undefined)
     }
   }, [t])
 
   const remove = useCallback(async (url: string) => {
-    setBusy(true)
+    setBusyUrl(url)
     try {
       setStatus(await removeIndexSourceRemote(url))
       notifySuccess(t('indexRemoved'))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
-      setBusy(false)
+      setBusyUrl(undefined)
     }
   }, [t])
 
@@ -226,7 +234,8 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
         <SwitchWithLoading
           checked={enabled}
           loading={toggling}
-          disabled={busy}
+          /* 有任一条正在增删时先不接受新操作，避免与设置写入交错。 */
+          disabled={busyUrl !== undefined}
           onChange={next => { void toggle(next) }}
         />
       </div>
@@ -248,7 +257,7 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
             type="button"
             className="dsh-fnos-icon-button"
             aria-label={t('refresh')}
-            disabled={busy}
+            disabled={busyUrl !== undefined}
             onClick={() => { void load() }}
           >
             <IconifyIcon name="lucide:refresh-cw" />
@@ -281,7 +290,8 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
             htmlType="button"
             theme="solid"
             type="primary"
-            disabled={busy || marketMissing || allConfigured}
+            loading={applying}
+            disabled={applying || busyUrl !== undefined || marketMissing || allConfigured}
             onClick={() => { void apply() }}
           >
             {t('indexApplyConfigure')}
@@ -315,7 +325,7 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
                       size="small"
                       theme="borderless"
                       type="tertiary"
-                      loading={busy}
+                      loading={busyUrl === source.url}
                       onClick={() => { void remove(source.url) }}
                     >
                       {t('remove')}
@@ -326,7 +336,7 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
                       size="small"
                       theme="light"
                       type="primary"
-                      loading={busy}
+                      loading={busyUrl === source.url}
                       onClick={() => { void add(source.url) }}
                     >
                       {t('add')}
