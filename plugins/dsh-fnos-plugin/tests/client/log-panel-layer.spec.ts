@@ -7,6 +7,7 @@ const MIRROR_CARD = readFileSync(new URL('../../src/components/NpmMirrorCard.tsx
 const MIRROR_HOST = readFileSync(new URL('../../src/host/npm-mirror.ts', import.meta.url), 'utf8')
 const INDEX_PANEL = readFileSync(new URL('../../src/components/PluginIndexPanel.tsx', import.meta.url), 'utf8')
 const INDEX_HOST = readFileSync(new URL('../../src/host/plugin-index-sources.ts', import.meta.url), 'utf8')
+const CONTRACT2 = readFileSync(new URL('../../src/contracts/gateway-proxy-contract.ts', import.meta.url), 'utf8')
 const CONTRACT = readFileSync(new URL('../../src/contracts/gateway-proxy-contract.ts', import.meta.url), 'utf8')
 
 describe('任务日志浮层的层级', () => {
@@ -194,5 +195,39 @@ describe('客户端统一日志', () => {
       expect(src).toContain("from '")
       expect(src).not.toMatch(/^\s*console\.\w+\(/mu)
     }
+  })
+})
+
+describe('已安装插件：流式查更新', () => {
+  it('宿主每查完一批就推一次，不等全部完成', () => {
+    /*
+      每个插件一次 registry 请求。全查完再返回的话，界面要一起等最慢的那个——
+      十几个插件里只要有一个超时，整屏绿标都不出现。
+    */
+    const UPDATES = readFileSync(new URL('../../src/host/plugin-updates.ts', import.meta.url), 'utf8')
+    expect(UPDATES).toContain('export async function streamPluginUpdates')
+    // 每批回调，而不是攒到最后。
+    expect(UPDATES).toContain('onBatch(await Promise.all(')
+    // 四路一批：既够快，也不至于把 registry 打满。
+    expect(UPDATES).toContain('concurrency = 4')
+  })
+
+  it('SSE 先推本地清单再推更新批次', () => {
+    // 先出清单，卡片立刻能渲染；更新结果随后逐批补。
+    const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
+    expect(ROUTES).toContain("emit('snapshot'")
+    expect(ROUTES).toContain("emit('updates'")
+    expect(ROUTES).toContain("emit('done'")
+    expect(CONTRACT2).toContain("FNOS_INSTALLED_PLUGINS_UPDATES_STREAM_ROUTE = '/plugins/dsh-fnos/plugins/installed-updates-stream'")
+  })
+
+  it('进入面板就自动补查，且刷新也走流式', () => {
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    // 首屏自动查一次。
+    expect(PANEL).toContain('streamInstalledPluginUpdates')
+    // 刷新同样流式，不再等全量。
+    expect(PANEL).toContain('await runStream().done')
+    // 卸载时断开，避免一直占着宿主事件循环。
+    expect(PANEL).toContain('return stop')
   })
 })

@@ -10,13 +10,14 @@ import {
   FNOS_GATEWAY_BUILTIN_PREFIXES,
   FNOS_GATEWAY_PROXY_PATHS_ROUTE,
   FNOS_INSTALLED_PLUGINS_ROUTE,
+  FNOS_INSTALLED_PLUGINS_UPDATES_STREAM_ROUTE,
   FNOS_PLUGIN_INSTALL_ROUTE,
   FNOS_PLUGIN_INSTALL_STATE_ROUTE,
   FNOS_PLUGIN_INSTALL_LOG_ROUTE,
   FNOS_PLUGIN_TOGGLE_ROUTE,
   FNOS_PLUGIN_REMOVE_ROUTE,
 } from '../../contracts/gateway-proxy-contract.ts'
-import type { GatewayAutoPathsStatus, InstalledPluginsSnapshot } from '../../contracts/gateway-proxy-contract.ts'
+import type { GatewayAutoPathsStatus, InstalledPlugin, InstalledPluginsSnapshot } from '../../contracts/gateway-proxy-contract.ts'
 
 /** 读取结果。 */
 export interface GatewayProxySnapshot {
@@ -216,4 +217,62 @@ export async function removePluginByName(name: string): Promise<{ needRestart: b
   }
   const value = await response.json() as { needRestart?: unknown }
   return { needRestart: value.needRestart === true }
+}
+
+/**
+ * 流式查询已安装插件的新版本。
+ *
+ * ## 为什么用 SSE 而不是一次性接口
+ *
+ * 每个插件要发一次 registry 请求。一次性返回时，界面必须等**最慢的那个**才好
+ * 更新——十几个插件里只要有一个 registry 超时，整屏绿标都不出现。
+ *
+ * 这里改成流式：宿主每查完一批（4 个）推一次，前端逐个更新卡片，谁先出来谁先
+ * 显示。
+ *
+ * @param handlers - 回调：`onSnapshot` 拿到本地清单（立刻可渲染），
+ *   `onUpdates` 每批新结果，`onDone` 全部结束，`onError` 出错。
+ * @returns 中止函数；调用后断开连接。
+ */
+export function streamInstalledPluginUpdates(handlers: {
+  onSnapshot?: (snapshot: InstalledPluginsSnapshot) => void
+  onUpdates?: (batch: readonly InstalledPlugin[]) => void
+  onDone?: () => void
+  onError?: (message: string) => void
+}): () => void {
+  const source = new EventSource(FNOS_INSTALLED_PLUGINS_UPDATES_STREAM_ROUTE)
+
+  const parse = <T>(event: MessageEvent<string>): T | undefined => {
+    try {
+      return JSON.parse(event.data) as T
+    } catch {
+      return undefined
+    }
+  }
+
+  source.addEventListener('snapshot', (event) => {
+    const snapshot = parse<InstalledPluginsSnapshot>(event as MessageEvent<string>)
+    if (snapshot !== undefined) handlers.onSnapshot?.(snapshot)
+  })
+  source.addEventListener('updates', (event) => {
+    const batch = parse<InstalledPlugin[]>(event as MessageEvent<string>)
+    if (batch !== undefined) handlers.onUpdates?.(batch)
+  })
+  source.addEventListener('done', () => {
+    handlers.onDone?.()
+    source.close()
+  })
+  source.addEventListener('error', (event) => {
+    /* SSE 自己的 error 事件没有 data，`: ` 开头的注释行也会走到这里。只在真正
+       断开时收尾，避免正常结束时误报。 */
+    if (source.readyState === EventSource.CLOSED) return
+    const data = (event as MessageEvent<string>).data
+    if (typeof data === 'string' && data !== '') {
+      const payload = parse<{ message?: string, error?: string }>(event as MessageEvent<string>)
+      handlers.onError?.(payload?.message ?? payload?.error ?? 'stream-error')
+      source.close()
+    }
+  })
+
+  return () => { source.close() }
 }

@@ -247,3 +247,32 @@ export async function checkAllPluginUpdates(profile: string, plugins: readonly I
   }
   return out.sort((a, b) => a.name.localeCompare(b.name))
 }
+
+
+/**
+ * 批量检测，**每查完一组就回调一次**。
+ *
+ * 与 {@link checkAllPluginUpdates} 的区别：那个等全部查完才返回，界面上十几个
+ * 插件要一起等最慢的那个；这里每凑够一批就交出去，前端可以逐个更新卡片。
+ *
+ * ## 为什么分批而不是全并发
+ *
+ * 每个插件一次 registry 请求。十几个同时打过去既容易被限流，也会把首屏挤满。
+ * 四路一批是「足够快」与「不惊动 registry」之间的折中。
+ *
+ * @param profile - profile 目录。
+ * @param plugins - 已安装插件。
+ * @param onBatch - 每批完成时回调；参数是这一批的结果。
+ * @param concurrency - 每批并发数，默认 4。
+ */
+export async function streamPluginUpdates(
+  profile: string,
+  plugins: readonly InstalledPlugin[],
+  onBatch: (batch: PluginUpdate[]) => void,
+  concurrency = 4,
+): Promise<void> {
+  for (let i = 0; i < plugins.length; i += concurrency) {
+    const batch = plugins.slice(i, i + concurrency)
+    onBatch(await Promise.all(batch.map(plugin => checkPluginUpdate(profile, plugin))))
+  }
+}

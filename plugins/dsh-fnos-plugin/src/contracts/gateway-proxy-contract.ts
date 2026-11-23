@@ -113,6 +113,14 @@ export function validateGatewayProxyPaths(value: unknown): string[] | undefined 
 /** 已安装插件清单路由（只读）。 */
 export const FNOS_INSTALLED_PLUGINS_ROUTE = '/plugins/dsh-fnos/plugins/installed'
 
+/**
+ * 已安装插件的「查更新」流式路由。
+ *
+ * 每个插件查一次 registry。全查完再返回的话，界面要一起等最慢的那个；这里改成
+ * 每查完一批（4 个）推一次，前端逐个更新卡片——谁先出来谁先显示。
+ */
+export const FNOS_INSTALLED_PLUGINS_UPDATES_STREAM_ROUTE = '/plugins/dsh-fnos/plugins/installed-updates-stream'
+
 /** 一个已安装的插件。 */
 export interface InstalledPlugin {
   /** 包名，如 `@tnnevol/dsh-fnos`。 */

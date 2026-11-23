@@ -17,7 +17,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { DshButton, DshPopconfirm as Popconfirm, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
-import { fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
+import {
+  streamInstalledPluginUpdates,
+  fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
 import { PluginInstallInline } from './PluginInstallInline.tsx'
 import { SwitchWithLoading } from './SwitchWithLoading.tsx'
 import { notifyFailure, notifySuccess } from '../client/notify.ts'
@@ -189,6 +191,47 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   }, [])
 
   /**
+   * 跑一次流式查更新，把每批结果合并进当前快照。
+   *
+   * 首屏与刷新共用：两者都是「先出本地清单、再逐批补」。区别只在刷新要显示
+   * 按钮转圈。
+   *
+   * @returns 结束（或出错）时 resolve。
+   */
+  const runStream = useCallback((): { done: Promise<void>, stop: () => void } => {
+    let stop: () => void = () => {}
+    const done = new Promise<void>((resolve) => {
+      const abort = streamInstalledPluginUpdates({
+        onSnapshot: snapshot => { setSnapshot(mergeRememberedUpdates(snapshot)) },
+        onUpdates: (batch) => {
+          setSnapshot((previous) => {
+            if (previous === undefined) return previous
+            const byName = new Map(batch.map(item => [item.name, item]))
+            const plugins = previous.plugins.map((plugin) => {
+              const hit = byName.get(plugin.name)
+              if (hit === undefined) return plugin
+              return {
+                ...plugin,
+                ...(hit.latestVersion === undefined ? {} : { latestVersion: hit.latestVersion }),
+                ...(hit.updateAvailable === undefined ? {} : { updateAvailable: hit.updateAvailable }),
+                ...(hit.aheadOfRegistry === undefined ? {} : { aheadOfRegistry: hit.aheadOfRegistry }),
+                ...(hit.incompatible === undefined ? {} : { incompatible: hit.incompatible }),
+              }
+            })
+            /* 顺手记缓存：列表重载时不会把绿标冲掉。 */
+            rememberUpdates({ ...previous, plugins })
+            return { ...previous, plugins }
+          })
+        },
+        onDone: () => { abort(); resolve() },
+        onError: (message) => { setError(message); abort(); resolve() },
+      })
+      stop = abort
+    })
+    return { done, stop: () => { stop() } }
+  }, [])
+
+  /**
    * 手动刷新：**联网**重新查 registry，看上游有没有新版本。
    *
    * 这里必须传 `checkUpdates = true`。此前它调的是 `load()`（首屏那条不联网的
@@ -200,11 +243,11 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   const refresh = useCallback(async () => {
     setRefreshing(true)
     try {
-      await load(true)
+      await runStream().done
     } finally {
       setRefreshing(false)
     }
-  }, [load])
+  }, [runStream])
 
   /** 切换启用状态：改 profile patch 的 disabled，不删文件。 */
   const toggleEnabled = useCallback(async (name: string, enabled: boolean) => {
@@ -266,6 +309,21 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   }, [removingName, load, t])
 
   useEffect(() => { void load() }, [load])
+
+  /**
+   * 首屏之后**自动**流式查一次更新。
+   *
+   * 先用本地清单把卡片渲染出来，再在后台查——用户不必盯着空白等 registry。
+   * 每批（4 个）回来就更新对应卡片：谁先出来谁先显示，不会十几次请求攒到最后
+   * 一起刷新。
+   *
+   * 卸载或重新进入时断开：SSE 连接留着会一直占着宿主的事件循环。
+   */
+  /* 卸载时断开 SSE：留着会一直占着宿主的事件循环。 */
+  useEffect(() => {
+    const { stop } = runStream()
+    return stop
+  }, [runStream])
 
   if (error !== undefined) {
     return <p className="dsh-fnos-repair-error" role="alert">{`${t('installedPluginsFailed')}${error}`}</p>
