@@ -233,6 +233,54 @@ async function resetLog(path: string, name: string, version: string): Promise<vo
 }
 
 /**
+ * 立即清空日志并写入一行说明。
+ *
+ * 与 {@link resetLog} 的区别：这个不等任何异步操作，**进入安装的第一步就调用**。
+ *
+ * ## 为什么必须提前
+ *
+ * 前端在卡片挂载时就开始按 offset 拉日志。若日志还留着上一次安装的内容，第一次
+ * 拉取会把**上一个插件**的整份日志当成本次的内容追加进任务浮层——实测表现为
+ * 「只装了 fnos-cli，浮层里却有 dshmarket 的记录」。
+ *
+ * 版本解析、备份 profile 都可能耗时几十到几百毫秒，那段时间足够前端拉一次。
+ *
+ * @param path - 日志文件。
+ * @param firstLine - 首行说明。
+ */
+async function beginLog(path: string, firstLine: string): Promise<void> {
+  await startLog(path, firstLine)
+}
+
+/**
+ * 把刚安装的 bundle 型插件加入 `dsh.profile.bundles`（即启用）。
+ *
+ * 与官方 `plugin-manager` 的行为一致：装完自动启用。只有声明了
+ * `dsh.bundle.patch` 的包才是 profile 层，普通依赖加进去没有意义。
+ *
+ * @param profile - profile 目录。
+ * @param name - 包名。
+ * @returns 是否真的加进去了（未声明 bundle 或已存在时为 false）。
+ */
+async function activateBundleIfDeclared(profile: string, name: string): Promise<boolean> {
+  const packageManifestPath = join(profile, 'node_modules', ...name.split('/'), 'package.json')
+  const packageManifest = JSON.parse(await readFile(packageManifestPath, 'utf8')) as {
+    dsh?: { bundle?: { patch?: unknown } }
+  }
+  if (typeof packageManifest.dsh?.bundle?.patch !== 'string') return false
+
+  const manifestPath = join(profile, 'package.json')
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as {
+    dsh?: { profile?: { bundles?: string[] } }
+  }
+  const previous = manifest.dsh?.profile?.bundles ?? []
+  if (previous.includes(name)) return false
+  const next = { ...manifest, dsh: { ...manifest.dsh, profile: { ...manifest.dsh?.profile, bundles: [...previous, name] } } }
+  await writeFile(manifestPath, `${JSON.stringify(next, null, 2)}\n`)
+  return true
+}
+
+/**
  * 清空日志并写入首行（供其它安装流程复用，如 nrm）。
  * @param path - 日志文件。
  * @param firstLine - 首行说明。
@@ -293,6 +341,13 @@ export async function installPlugin(name: string): Promise<PluginInstallState> {
   if (logPath === undefined) return { running: false, name, status: 'failed', error: 'log-unavailable' }
 
   current = { running: true, name, startedAt: Date.now() }
+  /*
+    **先清日志，再做别的。**
+
+    前端挂载后立刻按 offset 拉日志；这里若晚一步（等版本解析、备份 profile），
+    第一次拉取会读到上一次安装的完整内容，整份串进本次的任务浮层。
+  */
+  await beginLog(logPath, `准备安装 ${name}`)
   const profile = environment.profileDirectory
   const saved = await backupProfile(profile)
 
@@ -344,6 +399,20 @@ export async function installPlugin(name: string): Promise<PluginInstallState> {
 
     if (code === 0) {
       await appendLog(logPath, `安装成功：${spec}`)
+      /*
+        **bundle 型插件装完要加入 `dsh.profile.bundles` 才算启用。**
+
+        官方 `plugin-manager` 就是这么做的（装完 `bundles.push(name)`）。漏掉这
+        一步，用户会看到「安装成功」但卡片上是「已禁用」，还得手动再点一次开关——
+        而他刚刚做的就是「安装」，意图已经很明确。
+      */
+      try {
+        const activated = await activateBundleIfDeclared(profile, name)
+        if (activated) await appendLog(logPath, `已加入 profile bundles：${name}`)
+      } catch (error: unknown) {
+        /* 启用失败不该让安装判为失败：包已装上，用户仍可手动开。 */
+        await appendLog(logPath, `加入 profile bundles 失败：${error instanceof Error ? error.message : String(error)}`)
+      }
       current = { ...current, running: false, status: 'succeeded', finishedAt: Date.now() }
     } else {
       await appendLog(logPath, `安装失败（pnpm 退出码 ${String(code)}），已还原 package.json 与 lockfile`)

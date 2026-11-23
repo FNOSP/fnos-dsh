@@ -331,3 +331,35 @@ describe('agent skill 清理', () => {
     expect(CALLBACK).toContain('也不在')
   })
 })
+
+describe('插件安装：日志隔离与自动启用', () => {
+  it('开始安装时立即清空日志，不等版本解析', () => {
+    /*
+      前端在卡片挂载时就开始按 offset 拉日志。若日志还留着上一次安装的内容，
+      第一次拉取会把**上一个插件**的整份日志当成本次内容追加进任务浮层——实测
+      表现为「只装了 fnos-cli，浮层里却有 dshmarket 的记录」。
+
+      版本解析、备份 profile 都可能耗时几百毫秒，那段时间足够前端拉一次。
+    */
+    const INSTALL = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    // 一进安装流程就清，且 `beginLog` 出现在 `backupProfile` 之前。
+    const begin = INSTALL.indexOf('await beginLog(logPath')
+    const backup = INSTALL.indexOf('await backupProfile(profile)')
+    expect(begin).toBeGreaterThan(-1)
+    expect(backup).toBeGreaterThan(-1)
+    expect(begin).toBeLessThan(backup)
+  })
+
+  it('bundle 型插件装完自动启用，与官方一致', () => {
+    /*
+      官方 `plugin-manager` 装完就 `bundles.push(name)`。漏掉这一步，用户会看到
+      「安装成功」但卡片上是「已禁用」，还得手动再点一次开关——而他刚刚做的就是
+      「安装」，意图已经很明确。
+    */
+    const INSTALL = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    expect(INSTALL).toContain('async function activateBundleIfDeclared')
+    expect(INSTALL).toContain('await activateBundleIfDeclared(profile, name)')
+    // 只对声明了 `dsh.bundle.patch` 的包动手：普通依赖加进 bundles 没有意义。
+    expect(INSTALL).toContain("typeof packageManifest.dsh?.bundle?.patch !== 'string'")
+  })
+})
