@@ -269,6 +269,17 @@ describe('授权目录：刷新不抖动', () => {
     // 动画只作用在图标上，且尊重「减少动态效果」。
     expect(STYLE).toContain("[data-spinning='true'] svg")
     expect(STYLE).toContain('prefers-reduced-motion: reduce')
+
+    /*
+      **转圈状态必须复位。**
+
+      `setRefreshing(true)` 之后若没有 `finally { setRefreshing(false) }`，按钮
+      会永远转下去——即使请求早已结束、列表也更新了。这类「漏了收尾」的 bug 在
+      界面上只表现为一个不停转的图标，很难从代码里一眼看出来。
+    */
+    const setTrue = CARD.indexOf('setRefreshing(true)')
+    expect(setTrue).toBeGreaterThan(-1)
+    expect(CARD.slice(setTrue)).toContain('setRefreshing(false)')
   })
 })
 

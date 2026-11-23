@@ -184,6 +184,14 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
         message: error instanceof Error ? error.message : undefined,
       })
       setState(current => ({ status: 'error', directories: current.directories, code: errorMessage(error, t, 'load') }))
+    } finally {
+      /*
+        **必须复位。**
+
+        这个状态驱动刷新按钮的转圈动画；漏掉这一句按钮会永远转下去——即使请求
+        早已结束、列表也更新了。
+      */
+      setRefreshing(false)
     }
   }, [t])
 
