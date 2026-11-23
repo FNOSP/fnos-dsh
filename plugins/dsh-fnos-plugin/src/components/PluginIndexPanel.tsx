@@ -339,7 +339,7 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
                       loading={busyUrl === source.url}
                       onClick={() => { void add(source.url) }}
                     >
-                      {t('add')}
+                      {t('indexAdd')}
                     </DshButton>
                   )}
                 </li>

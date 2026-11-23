@@ -295,6 +295,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   remove: "Entfernen",
   indexRemoved: "Entfernt",
   indexAdded: "Hinzugefügt",
+  indexAdd: "Hinzufügen",
   indexSourcesTitle: "Indexquellen",
   indexSourceOn: "An",
   indexSourceOff: "Aus",

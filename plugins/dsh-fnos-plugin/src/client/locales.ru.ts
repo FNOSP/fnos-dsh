@@ -294,6 +294,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   remove: "Удалить",
   indexRemoved: "Удалено",
   indexAdded: "Добавлено",
+  indexAdd: "Добавить",
   indexSourcesTitle: "Источники индекса",
   indexSourceOn: "Вкл",
   indexSourceOff: "Выкл",

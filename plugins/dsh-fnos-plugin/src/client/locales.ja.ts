@@ -303,6 +303,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   remove: "削除",
   indexRemoved: "削除しました",
   indexAdded: "追加しました",
+  indexAdd: "追加",
   indexSourcesTitle: "インデックスソース",
   indexSourceOn: "有効",
   indexSourceOff: "無効",

@@ -303,6 +303,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   remove: "제거",
   indexRemoved: "제거됨",
   indexAdded: "추가됨",
+  indexAdd: "추가",
   indexSourcesTitle: "인덱스 소스",
   indexSourceOn: "켜짐",
   indexSourceOff: "꺼짐",
