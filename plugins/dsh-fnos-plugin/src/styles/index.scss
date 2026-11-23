@@ -4411,7 +4411,17 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
   --dsh-fnos-glass-fill: rgb(252 253 254 / 45%);
 
   position: fixed;
-  z-index: 1000;
+  /*
+    **必须高于官方弹框。**
+
+    官方设置弹框（Semi `Modal`）的遮罩与容器都是 `z-index: 1000`，而且
+    `semi-portal` 挂在 `body` 末尾——同级时后出现的在上，日志浮层会被整个盖住。
+    任务日志恰恰是在**设置弹框里点「安装/修复」之后**要看的，被盖住等于没有。
+
+    取 1100 留出余量，但不脱离同一个数量级：仍低于工具类浮层（下拉、popover
+    在 2000+），避免日志跑到别的交互之上。
+  */
+  z-index: 1100;
   display: flex;
   /*
     **必须显式 border-box。** 插件样式没有全局重置，默认 `content-box` 下
@@ -4746,7 +4756,8 @@ body[theme-mode='dark'] .dsh-fnos-logpanel {
   --dsh-fnos-tab-shadow: 0 1px 3px rgb(0 0 0 / 10%), 0 4px 14px rgb(0 0 0 / 12%);
 
   position: fixed;
-  z-index: 1000;
+  /* 与浮层同层级：它是收起的浮层，两者不同时出现。 */
+  z-index: 1100;
   display: flex;
   align-items: center;
   gap: 8px;
