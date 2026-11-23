@@ -12,6 +12,7 @@
 import { diagnosePickerResult, isPickerNoSelection, logPickerSdkEvent, logPickerSdkValue } from '../input-references/picker-result.ts'
 import { createTrimApp } from './sdk.ts'
 import { createAuthState, openFnosAppAuth, usesAppAuthFlow } from './app-auth.ts'
+import { log } from '../logger.ts'
 
 /** 选择器返回的授权结果。 */
 export type AuthorizedPickOutcome =
@@ -105,7 +106,7 @@ export async function pickAuthorizedDirectory(
     logPickerSdkValue('resolved', result)
     // 原始返回单独打一条：诊断只保留形状摘要，而真机取消的形态比契约更杂，
     // 排障时需要看到完整对象才能判定。不含选中的 NAS 路径以外的敏感信息。
-    console.info('[dsh-fnos][fnos-sdk] raw-result', JSON.stringify(result))
+    log.info('[dsh-fnos][fnos-sdk] raw-result', JSON.stringify(result))
   } catch (error: unknown) {
     logPickerSdkValue('rejected', error)
     // `pickSharedFile` 阶段的异常一律视为「用户没有选到目录」。
@@ -119,7 +120,7 @@ export async function pickAuthorizedDirectory(
     // `error: 'access_denied'`），由下方返回值的判定覆盖，不会落到这里。
     // 因此这里静默不会掩盖真实错误。
     if (isCancellation(error)) return { status: 'cancelled' }
-    console.info('[dsh-fnos][fnos-sdk] pick-rejected-as-cancel', {
+    log.info('[dsh-fnos][fnos-sdk] pick-rejected-as-cancel', {
       reason: error instanceof Error ? error.name : typeof error,
       message: error instanceof Error ? error.message : undefined,
     })

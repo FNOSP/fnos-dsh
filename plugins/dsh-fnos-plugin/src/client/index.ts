@@ -61,6 +61,7 @@ import { createThemeController } from './services/theme-controller.ts'
 import { installWorkspaceAuthorizedShortcut } from './shortcuts/workspace-authorized-shortcut.ts'
 import type { FnosSettings } from '../contracts/theme-contract.ts'
 import { installSemiDshTheme } from '@tnnevol/dsh-semi-ui'
+import { log } from './logger.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -99,7 +100,7 @@ export function apply(ctx: ClientContext): void {
       const offThemeChange = ctx.on('theme/change', () => { controller.refresh() })
       controller.refresh()
       void bridge.connect().catch(error => {
-        console.debug('[dsh-fnos] unable to connect to fnOS theme events', error)
+        log.warn('unable to connect to fnOS theme events', error)
       })
 
       return async () => {
@@ -129,7 +130,7 @@ export function apply(ctx: ClientContext): void {
       setLocale: id => { ctx.locale.setLocale(id) },
       createSdk: createTrimApp,
     }).then(dispose => { stop = dispose }).catch(error => {
-      console.debug('[dsh-fnos] unable to sync DSH locale from fnOS', error)
+      log.warn('unable to sync DSH locale from fnOS', error)
     })
     return () => { void stop?.() }
   }, 'dsh-fnos: fnOS language sync')

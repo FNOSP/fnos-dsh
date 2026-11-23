@@ -293,8 +293,8 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     */
     expect(CLIENT).toContain("t('accountLoginReopenAction')")
     expect(CLIENT).not.toContain('authorizeUrl === undefined ? null : (')
-    // 未就绪时 link 传 false（不可点），但文字仍在。
-    expect(CLIENT).toContain('authorizeUrl === undefined ? false :')
+    // 任何时刻都渲染这句；地址未就绪时 onClick 直接返回。
+    expect(CLIENT).toContain('if (authorizeUrl === undefined) return')
   })
 
   it('「重新打开授权页」用 Typography.Text link + fnOS 的 openURL', () => {
@@ -307,10 +307,12 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
       官方 `openURL`（`api/page/routing`）由平台保证一致。
     */
     expect(CLIENT).toContain('DshTypography.Text')
-    expect(CLIENT).toContain('link={authorizeUrl === undefined ? false :')
+    // `link` 只给外观（裸布尔），不传 href——跳转全交给 onClick。
+    expect(CLIENT).toMatch(/^\s*link$/mu)
+    expect(CLIENT).not.toContain('link={{')
     expect(CLIENT).toContain('openExternalUrl')
-    // 不自绘链接：没有裸 <a>，也没有自造的样式类。
-    expect(CLIENT).not.toMatch(/<a\s/u)
+    // 不自绘链接：不渲染裸 <a>（注释里解释「为什么不用」不算），也没有自造样式类。
+    expect(CLIENT).not.toMatch(/<a\s+href/u)
     expect(CLIENT).not.toContain('dsh-fnos-account-login-link')
   })
 

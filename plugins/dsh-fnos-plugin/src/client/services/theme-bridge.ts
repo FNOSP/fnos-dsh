@@ -3,6 +3,7 @@
 import type { PlatformConfig } from '@trimjs/web-app'
 import { createTrimApp } from './sdk.ts'
 import { isFnosTheme, type FnosTheme } from '../../contracts/theme-contract.ts'
+import { log } from '../logger.ts'
 
 export type { FnosTheme } from '../../contracts/theme-contract.ts'
 
@@ -97,7 +98,7 @@ export function createThemeBridge(): ThemeBridge {
       return connectionStop
     } catch (error) {
       if (generation === connectionGeneration) connectionStarted = false
-      console.debug('[dsh-fnos] fnOS theme bridge unavailable', error)
+      log.warn('fnOS theme bridge unavailable', error)
       return () => {}
     }
   }

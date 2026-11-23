@@ -3,6 +3,7 @@
 import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { DshThemePreference } from '../../host/theme-bootstrap.ts'
 import { FNOS_SYSTEM_THEME_FIELD, type FnosSettings, type FnosTheme } from '../../contracts/theme-contract.ts'
+import { log } from '../logger.ts'
 
 /**
  * 本模块的职责：把 fnOS 解析出的主题缓存进 DSH 设置，供宿主在响应 index.html
@@ -96,7 +97,7 @@ export function createThemePersistence(scope: ConfigForm<FnosSettings>) {
       requestedOperation = undefined
       requestedRevision = undefined
       unwritableFields.add(field)
-      console.debug('[dsh-fnos] fnOS theme cache is not writable this session; stopping retries', error)
+      log.warn('fnOS theme cache is not writable this session; stopping retries', error)
       return
     }
 
@@ -106,13 +107,13 @@ export function createThemePersistence(scope: ConfigForm<FnosSettings>) {
         // 这是 unset 被转成 set: inherited 或 revision 栅栏冲突时的实际返回值。
         if (!accepted) {
           unwritableFields.add(field)
-          console.debug(`[dsh-fnos] host declined ${operation} for ${field}; marking it unwritable for this session`)
+          log.warn(`host declined ${operation} for ${field}; marking it unwritable for this session`)
         }
       })
       .catch((error: unknown) => {
         // 传输失败同样降级：反复重试只会放大请求量，而缓存缺失是可接受的降级。
         unwritableFields.add(field)
-        console.debug(`[dsh-fnos] unable to persist fnOS theme snapshot (${operation}); marking ${field} unwritable for this session`, error)
+        log.warn(`unable to persist fnOS theme snapshot (${operation}); marking ${field} unwritable for this session`, error)
       })
       .finally(() => {
         if (pendingOperation === operation) pendingOperation = undefined

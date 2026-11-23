@@ -2,6 +2,7 @@
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
+import { log } from '../logger.ts'
 
 /**
  * fnOS 语言标签到 DSH 语言 id 的映射。
@@ -82,7 +83,7 @@ export async function installFnosLanguageSync(
     try {
       options.setLocale(target)
     } catch (error) {
-      console.debug('[dsh-fnos] unable to switch DSH locale from fnOS', error)
+      log.warn('unable to switch DSH locale from fnOS', error)
     }
   }
 

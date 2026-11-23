@@ -22,6 +22,7 @@ import {
   FNOS_AUTHORIZED_DIRECTORIES_DELETE_PATH,
   type AuthorizedDirectory,
 } from '../contracts/authorized-directories-contract.ts'
+import { log } from '../client/logger.ts'
 
 type Translate = (key: FnosLocaleKey) => string
 
@@ -33,14 +34,15 @@ type Translate = (key: FnosLocaleKey) => string
  */
 const DshTypographyText = DshTypography.Text
 
-const AUTHORIZED_DIRECTORY_LOG_PREFIX = '[dsh-fnos][authorized-directories]'
+/** 这个模块的日志前缀；`log` 只负责 `[dsh-fnos]` 那一层。 */
+const AUTHORIZED_DIRECTORY_LOG_SCOPE = '[authorized-directories]'
 
 function logAuthorizedDirectoryEvent(stage: string, details: Record<string, unknown>): void {
-  console.info(AUTHORIZED_DIRECTORY_LOG_PREFIX, stage, details)
+  log.info(`${AUTHORIZED_DIRECTORY_LOG_SCOPE} ${stage}`, details)
 }
 
 function logAuthorizedDirectoryWarning(stage: string, details: Record<string, unknown>): void {
-  console.warn(AUTHORIZED_DIRECTORY_LOG_PREFIX, stage, details)
+  log.warn(`${AUTHORIZED_DIRECTORY_LOG_SCOPE} ${stage}`, details)
 }
 
 

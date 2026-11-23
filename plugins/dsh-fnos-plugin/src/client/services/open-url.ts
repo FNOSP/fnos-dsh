@@ -17,6 +17,7 @@
  */
 
 import { createTrimApp } from './sdk.ts'
+import { log } from '../logger.ts'
 
 /**
  * 打开一个外部地址。
@@ -31,7 +32,7 @@ export async function openExternalUrl(url: string, target = '_blank'): Promise<b
     await sdk.openURL(url, target)
     return true
   } catch (error: unknown) {
-    console.debug('[dsh-fnos] unable to open the authorize page with the fnOS SDK', error)
+    log.warn('unable to open the authorize page with the fnOS SDK', error)
     return false
   }
 }

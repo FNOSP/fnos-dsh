@@ -48,6 +48,7 @@ import { planFnosOccurrenceRemovals, reconcileFnosOperationOccurrences, type Pen
 import { displayName, selectedPaths, toTreeNode, updateChildren, type PickerTreeNode } from '../client/input-references/picker-tree.ts'
 import { usePickerOpen, type PickerOpenStore } from '../client/input-references/picker-store.ts'
 import type { AuthorizedCreateKind, AuthorizedEntry } from '../contracts/authorized-directories-contract.ts'
+import { log } from '../client/logger.ts'
 
 const EMPTY_TREE_VALUE: string[] = []
 
@@ -955,13 +956,13 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
     const target = deleteTargetRef.current
     // 这条日志是「删除到底有没有发出请求」的唯一判据：不打印说明参数/状态
     // 在进入前就断了，打印了但失败说明是宿主拒绝。
-    console.info('[dsh-fnos][delete] confirm', { hasTarget: target !== undefined, path: target?.path })
+    log.info('[dsh-fnos][delete] confirm', { hasTarget: target !== undefined, path: target?.path })
     if (target === undefined) return
     deleteTargetRef.current = undefined
     setContextMenu(undefined)
     try {
       await deleteAuthorizedEntry(target.path)
-      console.info('[dsh-fnos][delete] succeeded', { path: target.path })
+      log.info('[dsh-fnos][delete] succeeded', { path: target.path })
       entries.current.delete(target.path)
       setTreeData(current => removeNode(current, target.path))
       setDesiredPaths(current => current?.filter(path => path !== target.path))
@@ -969,7 +970,7 @@ export function FnosAuthorizedPathPanel({ useInput, inputActions, sessionId, sto
       if (pendingInsertedOccurrences.current.size > 0) pendingRemovalPaths.current.add(target.path)
     } catch (error: unknown) {
       // 菜单已收起，用 toast 告知失败原因，不静默吞掉。
-      console.warn('[dsh-fnos][delete] failed', {
+      log.warn('[dsh-fnos][delete] failed', {
         path: target.path,
         reason: error instanceof Error ? error.message : String(error),
       })

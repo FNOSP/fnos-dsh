@@ -1,5 +1,7 @@
 /** Mirror DSH's browser title into the fnOS host page title. */
 
+import { log } from '../logger.ts'
+
 export const FNOS_PAGE_TITLE = 'DeepSeek Harness'
 
 export interface FnosPageTitleSdk {
@@ -33,7 +35,7 @@ export function installFnosPageTitle(
     if (title === lastTitle) return
     lastTitle = title
     void sdk.setTitle(title).catch(error => {
-      console.debug('[dsh-fnos] unable to update fnOS page title', error)
+      log.warn('unable to update fnOS page title', error)
     })
   }
 
@@ -49,7 +51,7 @@ export function installFnosPageTitle(
       subtree: true,
     })
   }).catch(error => {
-    console.debug('[dsh-fnos] unable to initialize fnOS page title bridge', error)
+    log.warn('unable to initialize fnOS page title bridge', error)
   })
 
   return () => {

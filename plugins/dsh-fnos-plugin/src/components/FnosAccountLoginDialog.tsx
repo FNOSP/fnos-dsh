@@ -233,41 +233,10 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
       modalContentClass="dsh-fnos-account-login-modal"
       title={t('accountLoginPasteTitle')}
     >
-      {/*
-        正文 + 可复制的授权链接，**同一段落、共用一个块**。
-
-        原先链接单独占一行、右边挂一个「复制链接」按钮；实际上用户要复制的是
-        地址本身，按钮只是多一步。改成把地址并进这句说明里、并且让文字可选：
-        读说明时顺手就能选中复制。
-
-        链接用 `user-select: all`：单击一次就整条选中，省掉拖选的麻烦；
-        `word-break: break-all` 保证长地址不会撑破版心。
-      */}
-      {/*
-        正文：说明 + 一个**可直接点按的「复制重新打开」文字**。
-
-        用户要的是「这条授权地址能被复制走」。之前先试过单独一行的按钮，又试过
-        把整条地址铺在正文里让用户自己拖选，都不如一句话里那个能点的词直接。
-
-        这里用 Semi `Typography.Text` 的 `copyable.render`：Semi 负责写剪贴板与
-        「已复制」的短暂反馈，我们只把那段文字渲染成一个可点的节点。地址本身不
-        再铺在正文里——它又长又打断阅读，复制走就够了。
-      */}
       <p className="dsh-fnos-account-login-desc">
         {t('accountLoginPasteHint')}{' '}
-        {/*
-          用 Semi 的 `Typography.Text link` 呈现，不自己写 `<a>` / `<button>`。
-
-          `link` 的对象形式会把属性透传给 `<a>`，样式与语义都由 Semi 保证；点击
-          则交给 fnOS 的 `openURL`——应用跑在网关 iframe 里，裸链接在那里取决于
-          宿主实现（Web 宿主拦成新标签页、移动 WebView 可能打不开），而 `openURL`
-          由平台保证一致（Web 走 `window.open`，移动端改用系统浏览器）。
-
-          `authorizeUrl` 未就绪时 `link` 传 `false`：那句「重新打开授权页」是连读
-          整句的一部分，不能整段消失。
-        */}
         <DshTypography.Text
-          link={authorizeUrl === undefined ? false : { href: authorizeUrl }}
+          link
           underline
           onClick={(event: React.MouseEvent) => {
             event.preventDefault()

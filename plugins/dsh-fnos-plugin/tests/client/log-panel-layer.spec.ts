@@ -141,3 +141,47 @@ describe('耗时操作的运行态跨卸载保持', () => {
     expect(INSTALL).toContain('reconcileInstallSlot')
   })
 })
+
+describe('客户端统一日志', () => {
+  it('一条日志同时进控制台与日志中心', () => {
+    /*
+      控制台保留是给开发看堆栈的；日志中心是给用户在 NAS 上排障的——那边打不开
+      DevTools，只能看「日志」页。
+
+      之前各处直接用 `console.*`，记录从未出现在日志中心。
+    */
+    const LOGGER = readFileSync(new URL('../../src/client/logger.ts', import.meta.url), 'utf8')
+    // 控制台。
+    expect(LOGGER).toContain('console.error')
+    expect(LOGGER).toContain('console.warn')
+    expect(LOGGER).toContain('console.debug')
+    // 日志中心。
+    expect(LOGGER).toContain('postTaskLog')
+  })
+
+  it('不 patch console，只转发主动调用', () => {
+    /*
+      第三方（Semi、React）的 console 输出量很大。全量转发会把环形缓冲冲干净，
+      真正的插件日志反而被挤掉。
+    */
+    const LOGGER = readFileSync(new URL('../../src/client/logger.ts', import.meta.url), 'utf8')
+    expect(LOGGER).not.toMatch(/console\.\w+\s*=/u)
+    expect(LOGGER).not.toContain('overrideConsole')
+  })
+
+  it('客户端代码不再直接调 console', () => {
+    // 直接调 console 的记录进不了日志中心，等于用户看不到。
+    const files = [
+      '../../src/client/index.ts',
+      '../../src/client/services/open-url.ts',
+      '../../src/client/services/theme-bridge.ts',
+      '../../src/client/services/sdk.ts',
+      '../../src/components/AuthorizedDirectoriesCard.tsx',
+    ]
+    for (const file of files) {
+      const src = readFileSync(new URL(file, import.meta.url), 'utf8')
+      expect(src).toContain("from '")
+      expect(src).not.toMatch(/^\s*console\.\w+\(/mu)
+    }
+  })
+})

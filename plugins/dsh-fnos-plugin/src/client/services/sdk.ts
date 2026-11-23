@@ -3,6 +3,7 @@
 import { TrimApp, type TrimAppOptions } from '@trimjs/web-app'
 import { shouldForceWebCarrier } from './sdk-carrier.ts'
 import { isFnosFrame } from './environment.ts'
+import { log } from '../logger.ts'
 
 export type FnosTrimApp = InstanceType<typeof TrimApp>
 
@@ -24,7 +25,7 @@ function withWebCarrierUserAgent<T>(run: () => T): T {
       value: webUserAgent,
     })
   } catch (error: unknown) {
-    console.debug('[dsh-fnos] unable to normalize fnOS iframe User-Agent for web SDK', error)
+    log.warn('unable to normalize fnOS iframe User-Agent for web SDK', error)
     return run()
   }
 
@@ -37,7 +38,7 @@ function withWebCarrierUserAgent<T>(run: () => T): T {
         value: original,
       })
     } catch (error: unknown) {
-      console.debug('[dsh-fnos] unable to restore iframe User-Agent after SDK creation', error)
+      log.warn('unable to restore iframe User-Agent after SDK creation', error)
     }
   }
 }
