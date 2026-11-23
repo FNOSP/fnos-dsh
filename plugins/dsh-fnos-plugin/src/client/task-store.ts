@@ -37,6 +37,8 @@ export type TaskKind =
   | 'nrm'
   /** 依赖修复（`DependencyRepairCard`）。 */
   | 'repair'
+  /** agent skill 清理（`AgentSkillsCard`）。 */
+  | 'agent-skills'
 
 /** 一次操作的终态。`undefined` 表示没有结论（还没开始、或正被新一轮覆盖）。 */
 export type TaskOutcome = 'ok' | 'failed'
@@ -60,7 +62,7 @@ export interface TaskState {
 const IDLE: TaskSlot = { running: false, outcome: undefined, error: undefined }
 
 const INITIAL: TaskState = {
-  slots: { 'plugin-install': IDLE, nrm: IDLE, repair: IDLE },
+  slots: { 'plugin-install': IDLE, nrm: IDLE, repair: IDLE, 'agent-skills': IDLE },
 }
 
 /** 任务 store 的最小面。 */

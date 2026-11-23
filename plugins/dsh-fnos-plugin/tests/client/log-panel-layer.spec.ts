@@ -271,3 +271,43 @@ describe('授权目录：刷新不抖动', () => {
     expect(STYLE).toContain('prefers-reduced-motion: reduce')
   })
 })
+
+describe('agent skill 清理', () => {
+  it('只清 trim-cli 与 fnos-cli，不动用户其它 skill', () => {
+    /*
+      `~/.agents/skills` 是用户的目录，应用没有资格做通用清理——只删自己曾经
+      写进去的那两个。
+    */
+    const SKILLS = readFileSync(new URL('../../src/host/agent-skills.ts', import.meta.url), 'utf8')
+    expect(SKILLS).toContain("BUNDLED_SKILL_NAMES: readonly string[] = ['trim-cli', 'fnos-cli']")
+    // 删完再确认一次：`rm` 成功不代表目录真的没了。
+    expect(SKILLS).toContain('directory still exists')
+  })
+
+  it('没有可清理目录时按钮置灰', () => {
+    // 一个永远点得动却什么也不做的按钮，比没有按钮更让人困惑。
+    const CARD = readFileSync(new URL('../../src/components/AgentSkillsCard.tsx', import.meta.url), 'utf8')
+    expect(CARD).toContain('const available = present.length > 0')
+    expect(CARD).toContain('disabled={busy || !available}')
+  })
+
+  it('执行日志进任务浮层与运行日志中心', () => {
+    // 清理是破坏性操作，必须在「日志」页留痕。
+    const CARD = readFileSync(new URL('../../src/components/AgentSkillsCard.tsx', import.meta.url), 'utf8')
+    expect(CARD).toContain('logPanelStore.beginTask')
+    expect(CARD).toContain('logPanelStore.append')
+    expect(CARD).toContain('logPanelStore.finish')
+    const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
+    expect(ROUTES).toContain('ctx.logger.info(`[agent-skills]')
+  })
+
+  it('安装流程不再写入这两个 skill，并清理老用户的', () => {
+    const CALLBACK = readFileSync(new URL('../../../../apps/fn-deepseek-harness/cmd/install_callback', import.meta.url), 'utf8')
+    // 不再调用安装。
+    expect(CALLBACK).not.toContain('install_fnos_cli_skill')
+    expect(CALLBACK).not.toContain('install-skill')
+    // 改为清理。
+    expect(CALLBACK).toContain('remove_bundled_agent_skills')
+    expect(CALLBACK).toContain('trim-cli fnos-cli')
+  })
+})

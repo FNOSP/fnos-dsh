@@ -29,6 +29,7 @@ import { IconifyIcon } from './IconifyIcon.tsx'
 import { InstalledPluginsPanel } from './InstalledPluginsPanel.tsx'
 import { PluginIndexPanel } from './PluginIndexPanel.tsx'
 import { NpmMirrorCard } from './NpmMirrorCard.tsx'
+import { AgentSkillsCard } from './AgentSkillsCard.tsx'
 import {
   fetchGatewayProxyPaths,
   saveGatewayProxyPaths,
@@ -302,6 +303,8 @@ export function GatewayProxyCard({ t }: GatewayProxyCardProps): React.ReactNode 
               修复之后。
             */}
             <PluginIndexPanel t={t} />
+            {/* 清理应用曾经代装的 agent skill：只覆盖这两个曾写过的目录。 */}
+            <AgentSkillsCard t={t} />
           </div>
         </DshTabs.TabPane>
         <DshTabs.TabPane tab={t('gatewayProxyTabInstalled')} itemKey="installed">

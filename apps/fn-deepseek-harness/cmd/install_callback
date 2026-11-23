@@ -17,8 +17,6 @@ DSH_VERSION="0.2.2-rc.5"
 # 由构建工具的基线守卫对照已安装 dsh 的 engines.node 断言。
 DSH_MIN_NODE_VERSION="24.9.0"
 TRIM_CLI_PACKAGE="@trimjs/trim-cli"
-# 随包内置的 Agent skill（来自 fnnas-labs/fnos-cli-skill，装在 ${APP_DEST}/skills 下）。
-FNOS_CLI_SKILL_NAME="fnos-cli"
 PNPM_VERSION="11.7.0"
 PNPM_BIN="${NPM_CONFIG_PREFIX}/bin/pnpm"
 DSH_INSTALL_CALLBACK_HELPER="${APP_DEST}/scripts/install-callback-helper.mjs"
@@ -45,6 +43,10 @@ log_message() {
 
 log_info() {
     log_message INFO "$@"
+}
+
+log_warn() {
+    log_message WARN "$@"
 }
 
 log_error() {
@@ -335,28 +337,92 @@ install_trim_cli() {
     log_info "Installed the ${TRIM_CLI_PACKAGE} CLI into ${NPM_GLOBAL_ROOT}."
 }
 
-# 随包内置的 fnos-cli skill（自带启动器，首次运行自行下载对应版本 CLI）。
-# 用户已经自己装过（目录存在）就整目录跳过，不覆盖用户那份。
-install_fnos_cli_skill() {
-    local source_directory="${APP_DEST}/skills/${FNOS_CLI_SKILL_NAME}"
-    local target_directory="${HOME}/.agents/skills/${FNOS_CLI_SKILL_NAME}"
-    local outcome
+# 不再随包安装 fnos-cli / trim-cli skill。
+#
+# 这两个 skill 由应用代装到 ~/.agents/skills 下，但它们属于用户的 agent 环境，
+# 不该由应用单方面写入。新版本不再安装；**老用户机器上已有的也要清掉**，否则
+# 同一件事会有两份来源（应用装的 + 用户自己装的），升级后无法判断该保留哪份。
+#
+# 只在目录确实存在时删，删失败只记日志不中断安装：清理不是安装的必要条件。
+remove_bundled_agent_skills() {
+    local skills_root="${HOME}/.agents/skills"
+    local name
+    local target
 
-    [ -f "${source_directory}/SKILL.md" ] ||
-        fail_install "The package does not contain the ${FNOS_CLI_SKILL_NAME} skill at ${source_directory}"
-
-    outcome="$(run_install_callback_helper install-skill "${source_directory}" "${target_directory}")" ||
-        fail_install "Unable to install the ${FNOS_CLI_SKILL_NAME} skill into ${target_directory}"
-
-    case "${outcome}" in
-    skipped)
-        log_info "Keeping the user-installed ${FNOS_CLI_SKILL_NAME} skill at ${target_directory}."
-        ;;
-    *)
-        log_info "Installed the ${FNOS_CLI_SKILL_NAME} skill into ${target_directory}."
-        ;;
-    esac
+    for name in trim-cli fnos-cli; do
+        target="${skills_root}/${name}"
+        if [ ! -e "${target}" ]; then
+            continue
+        fi
+        if rm -rf -- "${target}" 2>/dev/null && [ ! -e "${target}" ]; then
+            log_info "Removed the legacy ${name} skill at ${target}."
+        else
+            log_warn "Unable to remove the legacy ${name} skill at ${target}; it can be cleared from the fnOS settings toolbox."
+        fi
+    done
 }
+
+install_published_dsh_plugins() {
+    # The helper prints `name<TAB>version[<TAB>thirdparty]`. The third column is
+    # still read even though the install path no longer branches on it: leaving
+    # it out would append a trailing tab to the version for dshmarket.
+    local plugin_name plugin_version plugin_source current_version current_spec bundled_plugin
+    while IFS=$'\t' read -r plugin_name plugin_version plugin_source; do
+        [ -n "${plugin_name}" ] || continue
+        validate_plugin_spec "${plugin_name}"
+        validate_plugin_spec "${plugin_version}"
+        current_version="$(installed_plugin_version "${plugin_name}")"
+        current_spec="$(profile_dependency_version "${plugin_name}")"
+
+        # pnpm must install from a package archive, not link the FPK directory:
+        # linked packages cannot resolve their own runtime dependencies here.
+        #
+        # A bundled plugin is always taken from the FPK archive, even when the
+        # installed version matches: the spec path is identical across FPK
+        # builds, so pnpm would otherwise treat a rebuilt archive as "already up
+        # to date" and keep stale code. See `force_install_bundled_plugin`.
+        bundled_plugin="${DSH_BUNDLED_PLUGIN_DIRECTORY}/${plugin_name}.tgz"
+        if [ -f "${bundled_plugin}" ]; then
+            force_install_bundled_plugin "${plugin_name}" "${plugin_version}" "${bundled_plugin}" "${current_version}"
+            continue
+        fi
+
+        if [ -z "${current_version}" ]; then
+            run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
+                fail_install "Unable to install ${plugin_name}@${plugin_version} with the dsh CLI"
+        elif [ "${current_version}" != "${plugin_version}" ] || [[ "${current_spec}" == link:* ]]; then
+            log_info "Updating ${plugin_name} from ${current_version} to ${plugin_version} with the dsh CLI."
+            run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
+                fail_install "Unable to update ${plugin_name} to ${plugin_version} with the dsh CLI"
+        else
+            log_info "Keeping installed ${plugin_name}@${current_version}; exact version already matches."
+        fi
+    done < <(run_install_callback_helper published-plugins "${DSH_PUBLISHED_PLUGIN_MANIFEST}")
+}
+
+trim_cli_package_directory() {
+    printf '%s/%s' "${NPM_GLOBAL_ROOT}" "${TRIM_CLI_PACKAGE}"
+}
+
+install_trim_cli() {
+    local package_directory
+    log_info "Installing ${TRIM_CLI_PACKAGE}@latest globally from ${NPM_REGISTRY}..."
+    "${NPM_BIN}" install "${TRIM_CLI_PACKAGE}@latest" -g --ignore-scripts ||
+        fail_install "Unable to install ${TRIM_CLI_PACKAGE}@latest"
+
+    NPM_GLOBAL_ROOT="$(global_package_root)"
+    if [ -z "${NPM_GLOBAL_ROOT}" ]; then
+        NPM_GLOBAL_ROOT="${NPM_CONFIG_PREFIX}/lib/node_modules"
+    fi
+    package_directory="$(trim_cli_package_directory)"
+    [ -f "${package_directory}/package.json" ] ||
+        fail_install "Installed ${TRIM_CLI_PACKAGE}@latest cannot be found at ${package_directory}"
+
+    # 只装 CLI，不再分发它的 skill：内置 skill 已改为随包的 fnos-cli。
+    # 老用户机器上已有的 ~/.agents/skills/trim-cli 保持原样，既不刷新也不删除。
+    log_info "Installed the ${TRIM_CLI_PACKAGE} CLI into ${NPM_GLOBAL_ROOT}."
+}
+
 
 patch_dsh_attachment_local() {
     local attachment_package_dir attachment_package_json attachment_local_version
@@ -560,7 +626,7 @@ main() {
     # manifest lists, from the registry when no archive is bundled.
     remove_unsatisfiable_own_plugins
     install_trim_cli
-    install_fnos_cli_skill
+    remove_bundled_agent_skills
     install_published_dsh_plugins
 }
 

@@ -230,6 +230,10 @@ export const FNOS_PLUGIN_INDEX_REMOVE_ROUTE = '/plugins/dsh-fnos/plugins/index-r
 /** 添加单个索引源。与移除互为逆操作，列表每行按当前状态二选一显示。 */
 export const FNOS_PLUGIN_INDEX_ADD_ROUTE = '/plugins/dsh-fnos/plugins/index-add'
 
+/** 已安装 agent skill 的检测与清理（`~/.agents/skills` 下的 trim-cli / fnos-cli）。 */
+export const FNOS_AGENT_SKILLS_ROUTE = '/plugins/dsh-fnos/agent-skills'
+export const FNOS_AGENT_SKILLS_CLEANUP_ROUTE = '/plugins/dsh-fnos/agent-skills/cleanup'
+
 /** 一个索引源的展示信息。 */
 export interface PluginIndexSourceInfo {
   /** 索引 URL。 */

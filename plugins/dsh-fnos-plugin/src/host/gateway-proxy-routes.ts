@@ -3,9 +3,10 @@ import { dirname, join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, FNOS_INSTALLED_PLUGINS_ROUTE, FNOS_INSTALLED_PLUGINS_UPDATES_STREAM_ROUTE, FNOS_PLUGIN_ASSET_ROUTE, FNOS_PLUGIN_INDEX_ADD_ROUTE, FNOS_PLUGIN_INDEX_APPLY_ROUTE, FNOS_PLUGIN_INDEX_REMOVE_ROUTE, FNOS_PLUGIN_INDEX_STATUS_ROUTE, FNOS_PLUGIN_INDEX_TOGGLE_ROUTE, FNOS_PLUGIN_INSTALL_ROUTE, FNOS_PLUGIN_INSTALL_STATE_ROUTE, FNOS_PLUGIN_INSTALL_LOG_ROUTE, FNOS_PLUGIN_TOGGLE_ROUTE, FNOS_PLUGIN_REMOVE_ROUTE, FNOS_NPM_MIRROR_STATUS_ROUTE, FNOS_NPM_MIRROR_USE_ROUTE, FNOS_NPM_MIRROR_INSTALL_ROUTE, FNOS_NPM_MIRROR_UNINSTALL_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
+import { FNOS_GATEWAY_BUILTIN_PREFIXES, FNOS_GATEWAY_PROXY_PATHS_FILE, FNOS_GATEWAY_PROXY_PATHS_ROUTE, FNOS_AGENT_SKILLS_CLEANUP_ROUTE, FNOS_AGENT_SKILLS_ROUTE, FNOS_INSTALLED_PLUGINS_ROUTE, FNOS_INSTALLED_PLUGINS_UPDATES_STREAM_ROUTE, FNOS_PLUGIN_ASSET_ROUTE, FNOS_PLUGIN_INDEX_ADD_ROUTE, FNOS_PLUGIN_INDEX_APPLY_ROUTE, FNOS_PLUGIN_INDEX_REMOVE_ROUTE, FNOS_PLUGIN_INDEX_STATUS_ROUTE, FNOS_PLUGIN_INDEX_TOGGLE_ROUTE, FNOS_PLUGIN_INSTALL_ROUTE, FNOS_PLUGIN_INSTALL_STATE_ROUTE, FNOS_PLUGIN_INSTALL_LOG_ROUTE, FNOS_PLUGIN_TOGGLE_ROUTE, FNOS_PLUGIN_REMOVE_ROUTE, FNOS_NPM_MIRROR_STATUS_ROUTE, FNOS_NPM_MIRROR_USE_ROUTE, FNOS_NPM_MIRROR_INSTALL_ROUTE, FNOS_NPM_MIRROR_UNINSTALL_ROUTE, normalizeGatewayProxyPaths, validateGatewayProxyPaths, type GatewayProxyPathsDocument } from '../contracts/gateway-proxy-contract.ts'
 import { detectProxyPrefixes } from './gateway-proxy-detect.ts'
 import { addIndexSource, applyRecommendedIndexes, readIndexStatus, removeIndexSource, setMarketEnabled } from './plugin-index-sources.ts'
+import { cleanupAgentSkills, readAgentSkillsStatus } from './agent-skills.ts'
 import { resolveRepairEnvironment } from './dependency-repair.ts'
 import { installPlugin, readInstallLog, readInstallState, removePlugin } from './plugin-install.ts'
 import { setPackageEnabled } from './plugin-toggle.ts'
@@ -341,6 +342,34 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
       }
     },
   }), 'dsh-fnos: add plugin index source')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_AGENT_SKILLS_ROUTE,
+    handler: async (req, res) => {
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      try {
+        send(res, 200, await readAgentSkillsStatus())
+      } catch (error) {
+        send(res, 500, { error: 'skills-status-failed', message: error instanceof Error ? error.message : String(error) })
+      }
+    },
+  }), 'dsh-fnos: agent skills status')
+
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: FNOS_AGENT_SKILLS_CLEANUP_ROUTE,
+    handler: async (req, res) => {
+      if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
+      if (req.method !== 'POST') return send(res, 405, { error: 'method-not-allowed' })
+      /*
+        每一行都写进宿主日志：用户是在「日志」页确认清理结果的，而清理是破坏性
+        操作，必须留痕。
+      */
+      const result = await cleanupAgentSkills(process.env, (line) => { ctx.logger.info(`[agent-skills] ${line}`) })
+      send(res, 200, { ...result, status: await readAgentSkillsStatus() })
+    },
+  }), 'dsh-fnos: agent skills cleanup')
 
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',

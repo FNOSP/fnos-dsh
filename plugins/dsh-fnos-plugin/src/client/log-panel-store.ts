@@ -29,7 +29,7 @@ export type LogPanelMode = 'hidden' | 'expanded' | 'collapsed'
 export type TaskLogStatus = 'running' | 'ok' | 'failed'
 
 /** 任务来源，用于图标与文案。 */
-export type TaskLogFeature = 'install' | 'mirror' | 'repair'
+export type TaskLogFeature = 'install' | 'mirror' | 'repair' | 'skills'
 
 /** 一条任务日志。 */
 export interface TaskLogLine {
