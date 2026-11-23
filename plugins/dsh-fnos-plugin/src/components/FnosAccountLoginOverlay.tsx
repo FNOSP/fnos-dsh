@@ -1,24 +1,14 @@
 /**
  * 账号登录：授权完成后的「粘贴回调地址」浮层。
  *
- * ## 它补的是官方没有的那一屏
+ * 官方 `SignInDialog` 认 loopback 回调，但在 NAS 上浏览器会跳到用户自己电脑的
+ * `127.0.0.1`，页面打不开而地址栏里带着有效 `code`。官方没有「把地址粘回来」
+ * 这一步，本组件补的就是它。
  *
- * 官方 `SignInDialog` 自带两态：初始态（「登录 DeepSeek 账号」+ 两个按钮）与
- * 「等待登录」态（授权页已开，按钮是「复制登录链接」/「取消」）。两态都认
- * loopback 回调——在 NAS 上，浏览器会跳到**用户自己电脑**的 `127.0.0.1`，
- * 页面打不开，地址栏里却带着有效的 `code`。官方没有「把地址粘回来」这一步，
- * 这一屏就是本组件补的。
+ * 用 `MutationObserver` 监听 `body` 子节点变化，命中官方登录弹框就隐藏它并显示
+ * 我们的弹框；不轮询——DOM 变化本身就是事件。
  *
- * ## 用 DOM 监听，不轮询
- *
- * 触发信号是**官方弹框自己**：它进入「等待登录」态就说明授权页已经打开、正等
- * 用户粘贴。`MutationObserver` 观察 `#root` 之后的弹层区域，命中即显示粘贴框；
- * 官方弹框消失（用户取消 / 登录完成 / 关掉页面）就收起。
- *
- * 不用轮询的原因：轮询只能靠固定间隔猜状态，既多打请求，又会在「用户刚关掉、
- * 下一轮又弹回来」这种时序上出错。DOM 变化是事件，什么时候发生就什么时候响应。
- *
- * @module dsh-fnos/account-login-overlay
+@module dsh-fnos/account-login-overlay
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -28,135 +18,69 @@ import type { FnosLocaleKey } from '../client/locales.ts'
 type Translate = (key: FnosLocaleKey) => string
 
 /**
- * 官方**登录框（等待态）**的文案特征。
+ * 官方登录弹框标题（`role="dialog"` 的 `aria-label`）。
  *
- * ## 为什么不能认「登录 DeepSeek 账号」
+ * 官方把 `Modal` 的 `title` 写到 `aria-label`，而登录弹框的标题随阶段变化
+ * （`loginTitle` / `browserTitle` / `timeoutTitle` / `failureTitle`）。标题是
+ * 弹框的身份，比正文稳定。
  *
- * 官方有两个弹框的描述都含这句：
- *
- * | 弹框 | 描述 |
- * | --- | --- |
- * | **引导框**（首次无模型时自动弹出） | 登录 DeepSeek 账号，或添加 API Key，即可开始使用。 |
- * | **登录框**（用户点登录后） | —— |
- *
- * 早前用「登录 DeepSeek 账号」当判据，于是**引导框也被接管**，被换成我们的
- * 「填写重定向地址」——用户只是第一次打开应用，就看到一个要求粘贴回调地址的框，
- * 与官方引导文案完全对不上。这正是「两个弹框文案不一致」的成因。
- *
- * ## 现在的判据：等待态独有文案
- *
- * 只认**授权页已打开、正等用户继续**的那一屏：
- *
- * - 「等待登录」/「Waiting for sign in」；
- * - 「复制登录链接」/「Copy sign-in link」（等待态的按钮）。
- *
- * 引导框两者都不含，因此不再被接管；用户点「登录」进入等待态后，我们才出场
- * 补上官方缺的那一步（把回调地址粘回来）。
- *
- * ## 短标题不用了
- *
- * 曾把「登录」/「Sign in」这类短词也放进来当兜底，但它同样会命中引导框的描述，
- * 而且退出确认框（正文含「你仍可以登录此账号」）也要靠 {@link EXCLUDE_MARKERS}
- * 兜。收紧到等待态后，两条兜底都不再需要。
+ * 取自 `ui-settings-account/src/client/locales.ts` 的 `loginTitle` 与
+ * `browserTitle`，只覆盖 DSH 实际提供的 8 个语言——没有的语言不写，编造的值
+ * 永远不会命中。`timeoutTitle` / `failureTitle` 是终态，此时官方界面没有可复制
+ * 的登录链接，不接管。
  */
-const SIGN_IN_MARKERS = [
-  // 中文
-  '等待登录', '复制登录链接',
-  // 英文
-  'Waiting for sign in', 'Copy sign-in link',
-  // 德文
-  'Warten auf Anmeldung',
-  // 西班牙文
-  'Esperando el inicio de sesión',
-  // 法文
-  'En attente de connexion',
-  // 意大利文
-  'In attesa di accesso',
-  // 日文
-  'サインインを待っています',
-  // 韩文
-  '로그인 대기 중',
-  // 俄文
-  'Ожидание входа',
+const SIGN_IN_ARIA_LABELS = [
+  // en
+  'Get started', 'Waiting for sign in',
+  // zh
+  '开始使用', '等待登录',
+  // ja
+  'はじめに', 'ログインを待機中',
+  // es
+  'empezar', 'Esperando iniciar sesión',
+  // fr
+  'Commencez', 'En attente de connexion',
+  // de
+  'Fangen Sie an', 'Warten auf die Anmeldung',
+  // ru
+  'Начать', 'Ожидание входа в систему',
+  // pt
+  'Comece', 'Aguardando login',
 ]
 
 /**
- * 绝不拦截的文案，**优先级最高**。
+ * 找官方登录弹框。
  *
- * 退出登录的确认框里「登录」出现了不止一次（标题「退出登录」、按钮「退出
- * 登录」、正文「你仍可以登录此账号」），会被上面那条通用判据命中。它是危险
- * 操作的二次确认，被压掉、换成我们的授权弹框属于严重错误，所以先按这份名单
- * 短路排除，再看登录判据。
- */
-const EXCLUDE_MARKERS = [
-  // 中文
-  '退出登录',
-  // 英文
-  'Sign out', 'Log out',
-  // 德文 / 西班牙文 / 法文 / 意大利文
-  'Abmelden', 'Cerrar sesión', 'Se déconnecter', 'Esci',
-  // 日文 / 韩文 / 俄文
-  'ログアウト', '로그아웃', 'Выйти',
-]
-
-/**
- * 在 `body` 的**直接子节点**里找官方登录框。
+ * 选择器：`body > [role="presentation"] > [role="dialog"]`。
  *
- * 官方弹层由 portal 挂到 `body` 直下，所以只需要看这一层，不必递归整棵树，
- * 也不必自己维护「从 `#root` 往后数兄弟」。用 `Array.prototype.find` 而不是
- * `while` 链表遍历：越界与空节点由数组语义兜住，不会写出 `node !== null`
- * 这种容易漏改的循环条件。
- *
- * @returns 命中的官方弹框：`dialog` 是内容节点，`host` 是 `body` 直下那层宿主
- *   （隐藏要作用在宿主上，遮罩与定位都在它上面）。没有则为 undefined。
+ * @returns `dialog` 是命中的 `role="dialog"` 节点，`host` 是它的父元素
+ *   （`role="presentation"`，遮罩在那一层上，隐藏要作用于它）。没有则为 undefined。
  */
 function findSignInDialog(): { dialog: Element, host: Element } | undefined {
   if (typeof document === 'undefined' || document.body === null) return undefined
-  const host = [...document.body.children].find((node) => {
-    /*
-      先排除自己。
-
-      **要查后代，不能只查本节点**：我们的弹框类名挂在 Semi 的
-      `.semi-modal-content` 上，而 `body` 直下是外层 `.semi-modal-wrap`——
-      只比本节点的 class 永远不命中，自己的框会被当成官方框。
-    */
-    if (node.querySelector('.dsh-fnos-account-login-modal') !== null) return false
-    if (node.classList.contains('dsh-fnos-account-login-modal')) return false
-    if (node.getAttribute('role') !== 'presentation') return false
-    const dialog = node.querySelector('[role="dialog"]')
-    if (dialog === null) return false
-    const text = dialog.textContent ?? ''
-    // 排除优先：退出登录这类确认框绝不能被当成登录框。
-    if (EXCLUDE_MARKERS.some(marker => text.includes(marker))) return false
-    return SIGN_IN_MARKERS.some(marker => text.includes(marker))
-  })
-  if (host === undefined) return undefined
-  const dialog = host.querySelector('[role="dialog"]')
-  return dialog === null ? undefined : { dialog, host }
+  const dialog = document.querySelector('body > [role="presentation"] > [role="dialog"]')
+  if (dialog === null) return undefined
+  const label = (dialog.getAttribute('aria-label') ?? '').trim()
+  if (label === '') return undefined
+  // 全等匹配：`signOut` 的取值不在名单里，无需单独排除退出登录。
+  if (!SIGN_IN_ARIA_LABELS.includes(label)) return undefined
+  const host = dialog.parentElement
+  if (host === null) return undefined
+  return { dialog, host }
 }
 
 /**
- * 真正关闭官方弹框：点它自己的关闭按钮，让 React 正常卸载。
+ * 关闭官方弹框：点它自己的关闭按钮，让 React 正常卸载。
  *
- * 与 {@link hideOfficial} 的分工：
- *
- * | 时机 | 动作 | 理由 |
- * | --- | --- | --- |
- * | 命中判据那一刻 | **隐藏** | 官方节点必须活着，我们只是不让它占屏幕 |
- * | 我们的弹框被关掉 | **关闭** | 用户已经放弃这次登录，官方框不该继续留着 |
- *
- * 关闭前先解除隐藏：`display: none` 的元素派发 `click` 不会触发 React 的处理
- * 函数。两次样式变更在同一帧内完成，视觉上不会闪。
+ * 关闭前先解除隐藏——`display: none` 的元素派发 `click` 不会触发 React 回调。
  *
  * @param found - 官方弹框的宿主与内容节点。
+ * @param found.dialog - `role="dialog"` 节点，关闭按钮在其内部。
+ * @param found.host - `role="presentation"` 宿主，隐藏与恢复作用于它。
  */
 function dismissOfficial(found: { dialog: Element, host: Element }): void {
   showOfficial(found.host)
-  /*
-    官方结构（`ui-primitives/src/Modal.tsx`）：关闭按钮在 header 里、紧随 `<h2>`
-    之后，是 `<button aria-label={closeLabel}>`。取 dialog 内第一个带 aria-label
-    的按钮就是这个。
-  */
+  // 官方 Modal 的关闭按钮是 header 内第一个带 aria-label 的 button。
   const button = found.dialog.querySelector('button[aria-label]')
   if (button instanceof HTMLElement) {
     button.click()

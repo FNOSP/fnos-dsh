@@ -134,60 +134,77 @@ describe('账号登录：只补官方缺的那一屏', () => {
     expect(overlay).not.toContain('subtree: true')
   })
 
-  it('在 body 直接子节点里找，不用链表遍历', () => {
+  it('用单个选择器定位，父元素由 parentElement 取', () => {
     /*
-      官方弹层由 portal 挂到 `body` 直下，看这一层就够。用数组语义遍历，
-      不写 `while (node !== null)` —— 那种循环条件改起来容易漏，越界也不好兜。
+      官方弹层由 portal 挂到 `body` 直下，用一条选择器就能表达完整结构：
+      `body > [role="presentation"] > [role="dialog"]`。命中后父元素直接取
+      `parentElement`，不必再遍历或二次查询。
     */
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
-    expect(overlay).toContain('[...document.body.children]')
+    expect(overlay).toContain('body > [role="presentation"] > [role="dialog"]')
+    expect(overlay).toContain('dialog.parentElement')
+    // 不再手写遍历。
     expect(overlay).not.toContain('nextElementSibling')
     expect(overlay).not.toContain('while (node !== null)')
   })
 
-  it('退出登录的确认框优先级最高，绝不拦截', () => {
+  it('精确匹配使「退出登录」无需排除', () => {
     /*
-      退出登录确认框里「登录」出现不止一次：标题「退出登录」、按钮「退出登录」、
-      正文「你仍可以登录此账号」。通用判据会命中它，而那是危险操作的二次确认，
-      被压掉、换成授权弹框属于严重错误。
+      旧实现匹配正文，退出确认框正文里也出现「登录」，所以才需要排除名单。
 
-      所以排除名单要先短路，再看登录判据——顺序写反就等于没排除。
+      现在按 `aria-label` 全等比对：名单只含官方 `loginTitle` / `browserTitle`
+      的取值，`signOut` 的取值一个都不在其中，因此排除条件是冗余的，已删除。
+
+      这条用例守护的是「不要再把它加回来」——它会在判据演进时诱使人以为
+      仍需要排除。
     */
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
-    expect(overlay).toContain('EXCLUDE_MARKERS')
-    expect(overlay).toContain("'退出登录'")
-    expect(overlay).toContain('Sign out')
-    // 排除必须在登录判据之前。
-    const excludeAt = overlay.indexOf('EXCLUDE_MARKERS.some')
-    const matchAt = overlay.indexOf('SIGN_IN_MARKERS.some')
-    expect(excludeAt).toBeGreaterThan(-1)
-    expect(excludeAt).toBeLessThan(matchAt)
+    expect(overlay).not.toContain('EXCLUDE_ARIA_LABELS')
+    // 判据仍是全等比较，不是子串包含（后者会让 Выйти / Войти 互相误伤）。
+    expect(overlay).toContain('SIGN_IN_ARIA_LABELS.includes(label)')
+    expect(overlay).not.toContain('SIGN_IN_ARIA_LABELS.some')
+    // 「退出登录」不该出现在名单里。
+    expect(overlay).not.toContain("'退出登录'")
   })
 
-  it('只认等待态，不认引导框', () => {
+  it('判据是 dialog 的 aria-label，不是正文文案', () => {
     /*
-      官方有两个弹框的描述都含「登录 DeepSeek 账号」：
-        - **引导框**（首次无模型时自动弹出）：登录 DeepSeek 账号，或添加 API Key…
-        - **登录框**（用户点登录后）：等待登录 / 复制登录链接
+      官方 `ui-primitives` 的 Modal 把 title 写到 `role="dialog"` 的
+      `aria-label`；登录弹框的 title 随阶段变（loginTitle / browserTitle /
+      failureTitle / timeoutTitle）。所以**同一个弹框换阶段只换标题**，用
+      aria-label 当判据比匹配正文稳：正文改一句不影响身份。
 
-      早前用「登录 DeepSeek 账号」当判据，引导框也被接管，被换成「填写重定向地址」
-      ——这就是「两个弹框文案不一致」的成因。现在只认等待态独有文案。
+      正文匹配的旧坑：`'登录 DeepSeek 账号'` 也出现在引导框描述里，导致引导框
+      被误接管。改用标题后，引导框标题「开始使用」是**明确要接管**的（用户正是
+      从这里点登录），而只出现在正文里的词组不再参与判定。
     */
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    // 从 aria-label 取值，而不是 textContent。
+    expect(overlay).toContain("dialog.getAttribute('aria-label')")
+    expect(overlay).not.toContain('dialog.textContent')
+    // 只有 DSH 实际提供的 8 个语言的 loginTitle / browserTitle。
+    expect(overlay).toContain("'开始使用'")
     expect(overlay).toContain("'等待登录'")
-    expect(overlay).toContain("'复制登录链接'")
-    // 引导框的描述文案不再作为判据。
+    expect(overlay).toContain("'Get started'")
+    // 这两条只在正文里出现过，从来不是标题——不该出现在名单里。
     expect(overlay).not.toContain("'登录 DeepSeek 账号'")
+    expect(overlay).not.toContain("'Sign in to DeepSeek account'")
+    // 结构用单个选择器，父元素由 parentElement 取得。
+    expect(overlay).toContain('body > [role="presentation"] > [role="dialog"]')
+    expect(overlay).toContain('dialog.parentElement')
   })
 
-  it('自己的弹框不能被自己的判据认出', () => {
+  it('判据靠结构隔离自己的弹框，不靠类名比对', () => {
     /*
-      判据里有裸「登录」这类宽条件，所以排除自己必须可靠。
-      类名挂在 Semi 的 `.semi-modal-content` 上，而 body 直下是外层 wrap——
-      只比本节点 class 永远不命中，必须查后代。
+      判据里有裸「登录」，所以「不会认错自己」必须成立。
+
+      它由**结构**保证而不是类名：我们用的是 Semi `Modal`，它不渲染
+      `role="presentation"` 与 `role="dialog"`（只有内部按钮带 aria-label）。
+      因此那两条结构判据已把我们的框排除在外，类名比对属重复防御。
     */
     const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
-    expect(overlay).toContain("node.querySelector('.dsh-fnos-account-login-modal') !== null) return false")
+    expect(overlay).not.toContain('dsh-fnos-account-login-modal')
+    expect(overlay).toContain('body > [role="presentation"] > [role="dialog"]')
   })
 
   it('关闭后不再被同一屏弹回来', () => {
