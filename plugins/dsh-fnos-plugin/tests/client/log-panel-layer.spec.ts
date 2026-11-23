@@ -301,13 +301,19 @@ describe('agent skill 清理', () => {
     expect(ROUTES).toContain('ctx.logger.info(`[agent-skills]')
   })
 
-  it('安装流程不再写入这两个 skill，并清理老用户的', () => {
+  it('安装流程不写也不删这些 skill，只由工具箱处理', () => {
     const CALLBACK = readFileSync(new URL('../../../../apps/fn-deepseek-harness/cmd/install_callback', import.meta.url), 'utf8')
-    // 不再调用安装。
+    /*
+      `~/.agents/skills` 属于用户的 agent 环境：
+
+      - 新装：不再写入（`install_fnos_cli_skill` 已移除）；
+      - 老用户：**升级时也不删**——那是用户的目录，迁移动作要由他自己在工具箱里
+        发起，不能在一次版本升级里悄悄抹掉。
+    */
     expect(CALLBACK).not.toContain('install_fnos_cli_skill')
     expect(CALLBACK).not.toContain('install-skill')
-    // 改为清理。
-    expect(CALLBACK).toContain('remove_bundled_agent_skills')
-    expect(CALLBACK).toContain('trim-cli fnos-cli')
+    expect(CALLBACK).not.toContain('remove_bundled_agent_skills')
+    /* 说明性注释保留，避免以后有人又把它加回去。 */
+    expect(CALLBACK).toContain('不在升级时删')
   })
 })
