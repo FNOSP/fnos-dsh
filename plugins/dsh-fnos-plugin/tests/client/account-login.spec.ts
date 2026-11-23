@@ -383,3 +383,22 @@ describe('账号登录：契约', () => {
     expect(CONTRACT).toContain("'/plugins/dsh-fnos/account/login-start'")
   })
 })
+
+  it('拿不到授权地址时触发官方登录，而不是自己造地址', () => {
+    /*
+      平台在 `auth_init` 时把 `authorize_id`、`state` 与 PKCE 的 `code_verifier`
+      绑在同一个 attempt 上。另造一份地址会属于另一个 attempt，用户在那个页面
+      完成授权后回调对不上——登录会失败。
+
+      所以地址没就绪时退回官方入口：点它自己的「登录」重新触发一次。
+    */
+    const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    expect(overlay).toContain('function triggerOfficialSignIn')
+    // 不自己构造 URL。
+    expect(CLIENT).toContain('onRetriggerSignIn?.()')
+    expect(CLIENT).not.toContain('auth-api/v0/dsh/auth_init')
+
+    /* 轮询 3 秒：这里只查「登录完成没」「地址到没」，都是低频变化。 */
+    expect(CLIENT).toContain('void load() }, 3000)')
+    expect(CLIENT).not.toContain('void load() }, 400)')
+  })

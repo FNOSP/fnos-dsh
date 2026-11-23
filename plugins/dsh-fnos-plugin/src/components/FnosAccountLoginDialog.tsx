@@ -60,6 +60,14 @@ export interface FnosAccountLoginDialogProps {
    * 摘掉，视觉上会闪一下（遮罩突然消失又出现）。
    */
   readonly onAfterClose?: () => void
+  /**
+   * 请求重新触发一次官方登录。
+   *
+   * 宿主还没生成授权地址时用它兜底：自己造地址会破坏 PKCE，退回点官方的主
+   * 按钮重新走一次。
+   * @returns 是否成功触发。
+   */
+  readonly onRetriggerSignIn?: () => boolean
 }
 
 /**
@@ -71,7 +79,7 @@ export interface FnosAccountLoginDialogProps {
  * @param props.onClose - 关闭回调。
  * @returns 对话框元素。
  */
-export function FnosAccountLoginDialog({ open, t, onClose, onAfterClose }: FnosAccountLoginDialogProps): React.ReactNode {
+export function FnosAccountLoginDialog({ open, t, onClose, onAfterClose, onRetriggerSignIn }: FnosAccountLoginDialogProps): React.ReactNode {
   const [phase, setPhase] = useState<Phase>('idle')
   const [pasted, setPasted] = useState('')
   const [message, setMessage] = useState<string>()
@@ -101,13 +109,22 @@ export function FnosAccountLoginDialog({ open, t, onClose, onAfterClose }: FnosA
       if (url !== undefined && url !== '') authorizeUrlRef.current = url
     }
     if (url === undefined || url === '') {
-      /* 宿主还没生成地址：说清楚，别让用户以为点了没反应。 */
+      /*
+        宿主还没生成地址。
+
+        **不能自己造一个**：平台在 `auth_init` 时把 `authorize_id`、`state` 与
+        PKCE 的 `code_verifier` 绑在同一个 attempt 上，另造一份会属于另一个
+        attempt，用户在那个页面完成授权后回调对不上。
+
+        退回官方入口：点它自己的「登录」重新触发一次，地址随后由官方写入。
+      */
+      if (onRetriggerSignIn?.() === true) return
       setMessage(t('accountLoginNoAuthorizeUrl'))
       return
     }
     setMessage(undefined)
     await openExternalUrl(url)
-  }, [t])
+  }, [t, onRetriggerSignIn])
 
   /** 提交粘贴回来的回调地址。 */
   const submitCallback = useCallback(async (): Promise<void> => {
@@ -177,12 +194,11 @@ export function FnosAccountLoginDialog({ open, t, onClose, onAfterClose }: FnosA
     const startedAt = Date.now()
 
     /*
-      **间隔 400ms：地址一到就显示。**
+      **间隔 3 秒。**
 
-      官方 `startSignIn()` 返回时 `phase` 还是 `initializing`，`authorizeUrl` 要等
-      `auth_init` 那次网络往返回来才写入（`credentials/deepseek-account`）。这段
-      通常只有几百毫秒，1.5 秒的间隔会让链接明显滞后——用户已经看到弹框，却发现
-      「重新打开授权页」迟迟不出现。
+      这里只轮询「登录是否已完成」与「地址是否已就绪」两件事，都是低频变化；
+      400ms 的间隔对宿主是每秒两次多余的状态读取。地址没就绪时用户点链接会
+      触发一次官方登录（见 `openAuthorizePage`），不依赖这里的及时性。
 
       上限 90 秒：地址始终拿不到时（宿主异常）不至于无限轮询。
     */
@@ -220,7 +236,7 @@ export function FnosAccountLoginDialog({ open, t, onClose, onAfterClose }: FnosA
       }
       /* 超时只限制「还没拿到地址」的等待；拿到地址后继续看登录结果。 */
       if (authorizeUrlRef.current === undefined && Date.now() - startedAt > 90_000) return
-      timer = setTimeout(() => { void load() }, 400)
+      timer = setTimeout(() => { void load() }, 3000)
     }
 
     void load()

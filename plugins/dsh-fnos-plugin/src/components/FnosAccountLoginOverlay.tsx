@@ -90,6 +90,40 @@ function dismissOfficial(found: { dialog: Element, host: Element }): void {
   found.dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
 }
 
+/**
+ * 在官方弹框里点一次「登录」，重新触发一次登录尝试。
+ *
+ * ## 什么时候用
+ *
+ * 用户点「重新打开授权页」但宿主的 `authorizeUrl` 还没就绪。此时自己造地址
+ * 是不可行的——平台在 `auth_init` 时把 `authorize_id`、`state` 与 PKCE 的
+ * `code_verifier` 绑在同一个 attempt 上，另造一份会属于另一个 attempt，用户
+ * 在那个页面完成授权后回调对不上。
+ *
+ * 所以退回官方自己的入口：点它的主按钮重新走一次，地址会随后由官方写入。
+ *
+ * @param found - 官方弹框的宿主与内容节点。
+ * @returns 是否点到了按钮。
+ */
+function triggerOfficialSignIn(found: { dialog: Element, host: Element }): boolean {
+  /* 先把可见性恢复：`display: none` 的元素派发 click 不一定触发 React 回调。 */
+  showOfficial(found.host)
+  const buttons = [...found.dialog.querySelectorAll('button')]
+  /*
+    主按钮的特征：
+    - 不在 header（header 里是关闭按钮，带 aria-label）；
+    - 是最后一个 action 按钮（官方把「主操作」放在最右）。
+
+    文案不可靠——它随阶段是「登录」/「重试」/加载图标。
+  */
+  const withLabel = new Set([...found.dialog.querySelectorAll('button[aria-label]')])
+  const candidates = buttons.filter(button => !withLabel.has(button))
+  const primary = candidates[candidates.length - 1]
+  if (primary === undefined) return false
+  primary.click()
+  return true
+}
+
 /** 隐藏标记：既是幂等保护，也方便在调试时识别「这一层是我们压下去的」。 */
 const HIDDEN_ATTR = 'data-dsh-fnos-hidden'
 
@@ -181,6 +215,24 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
   }, [])
 
   /**
+   * 请求重新触发一次官方登录。
+   *
+   * 用户点「重新打开授权页」但宿主的 `authorizeUrl` 还没就绪时用：自己造地址会
+   * 破坏 PKCE（见 `triggerOfficialSignIn`），退回点官方的主按钮重新走一次。
+   *
+   * @returns 是否成功触发。
+   */
+  const retriggerSignIn = useCallback((): boolean => {
+    const found = findSignInDialog()
+    if (found === undefined) return false
+    /* 压制期间官方框是隐藏的，点完要把我们自己的框收起来，让官方界面接上。 */
+    dismissedNodeRef.current = found.dialog
+    hiddenHostRef.current = undefined
+    setOpen(false)
+    return triggerOfficialSignIn(found)
+  }, [])
+
+  /**
    * 我们的弹框关闭动画结束后，把官方那一屏真正关掉。
    *
    * 留一个「看不见但活着」的弹层不关，`[role="dialog"]` 会一直挂在 `body` 下：
@@ -239,5 +291,5 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
     return () => { observer.disconnect() }
   }, [])
 
-  return <FnosAccountLoginDialog open={open} t={t} onClose={close} onAfterClose={handleAfterClose} />
+  return <FnosAccountLoginDialog open={open} t={t} onClose={close} onAfterClose={handleAfterClose} onRetriggerSignIn={retriggerSignIn} />
 }
