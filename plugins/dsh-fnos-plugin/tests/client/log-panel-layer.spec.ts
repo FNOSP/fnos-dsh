@@ -248,3 +248,26 @@ describe('工具箱按钮一致性', () => {
     }
   })
 })
+
+describe('授权目录：刷新不抖动', () => {
+  it('刷新时只让按钮转圈，不把列表换成骨架屏', () => {
+    /*
+      之前刷新会把 `state.status` 切成 `loading`，整个列表被骨架屏替换——已经看到
+      的内容闪一下消失再回来，页面高度也跟着变。
+
+      骨架屏是「这里即将有内容」的占位，只该在**首次加载**时出现；已有内容时
+      再换成占位就是纯抖动。
+    */
+    const CARD = readFileSync(new URL('../../src/components/AuthorizedDirectoriesCard.tsx', import.meta.url), 'utf8')
+    // 独立的刷新态，与列表的 status 解耦。
+    expect(CARD).toContain('const [refreshing, setRefreshing]')
+    // 已就绪时不退回 loading。
+    expect(CARD).toContain("current.status === 'ready'")
+    // 刷新按钮按 refreshing 转圈。
+    expect(CARD).toContain('data-spinning={refreshing}')
+
+    // 动画只作用在图标上，且尊重「减少动态效果」。
+    expect(STYLE).toContain("[data-spinning='true'] svg")
+    expect(STYLE).toContain('prefers-reduced-motion: reduce')
+  })
+})

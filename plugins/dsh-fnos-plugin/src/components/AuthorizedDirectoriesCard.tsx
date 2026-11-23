@@ -143,9 +143,22 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
   const directoriesRef = useRef<AuthorizedDirectory[]>([])
 
 
+  /**
+   * 刷新中：**只让按钮转圈，不动列表**。
+   *
+   * 之前刷新会把 `state.status` 切成 `loading`，于是整个列表被骨架屏替换——用户
+   * 已经看到的内容闪一下消失再回来，页面高度也跟着变。首次加载才需要骨架屏，
+   * 那是「这里即将有内容」的占位；已经有内容时再换成占位就是纯抖动。
+   */
+  const [refreshing, setRefreshing] = useState(false)
+
   const refresh = useCallback(async (): Promise<void> => {
     logAuthorizedDirectoryEvent('refresh-start', {})
-    setState(current => ({ status: 'loading', directories: current.directories }))
+    /* 首次加载（还没有数据）才走骨架屏；已有列表时只在后台换数据。 */
+    setState(current => current.status === 'ready'
+      ? current
+      : { status: 'loading', directories: current.directories })
+    setRefreshing(true)
     try {
       const directories = await requestAuthorizedDirectories()
       logAuthorizedDirectoryEvent('refresh-success', { count: directories.length })
@@ -506,7 +519,9 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
                 type="button"
                 className="dsh-fnos-icon-button"
                 aria-label={t('refresh')}
-                disabled={busy || state.status === 'loading'}
+                disabled={busy || refreshing}
+                /* 刷新中：图标转圈，列表保持原样。 */
+                data-spinning={refreshing}
                 onClick={() => { void refresh() }}
               >
                 <IconifyIcon name="lucide:refresh-cw" />

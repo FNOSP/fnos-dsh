@@ -3194,6 +3194,27 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
  *
  * 尺寸取 28×28（与行内文字 13–14px 的视觉重量匹配），图标 16px。
  */
+/*
+ * 刷新中：图标匀速转圈。
+ *
+ * 只转动图标，不动列表。把整个列表换成骨架屏会让已经看到的内容闪一下消失再
+ * 回来，页面高度也跟着变——那是首次加载该有的占位，不是刷新该有的反馈。
+ */
+.dsh-fnos-icon-button[data-spinning='true'] svg {
+  animation: dsh-fnos-spin 0.9s linear infinite;
+}
+
+@keyframes dsh-fnos-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 尊重「减少动态效果」的系统设置。 */
+@media (prefers-reduced-motion: reduce) {
+  .dsh-fnos-icon-button[data-spinning='true'] svg {
+    animation: none;
+  }
+}
+
 .dsh-fnos-icon-button {
   display: inline-flex;
   align-items: center;
