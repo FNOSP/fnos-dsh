@@ -16,6 +16,7 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import {
@@ -292,7 +293,17 @@ export function LogFeedbackPanel({ t }: { readonly t: Translate }): React.ReactN
     ? 'logPanelRunning'
     : task.status === 'ok' ? 'logPanelSucceeded' : 'logPanelFailed'
 
-  return (
+  /*
+    **必须 portal 到 `body` 直下。**
+
+    浮层挂在 `shell.overlay` 槽位里，那个容器是 `.overlayLayer`（`z-index: 20`），
+    它相对 `body` 只算 20；官方设置弹框（Semi `Modal`）的 `semi-portal` 是
+    `body` 直下、`z-index: 1000`。留在槽位里时，浮层上的 `z-index` 只在容器内部
+    有效，写多大都出不了这一层，必然被弹框盖住。
+
+    portal 出去后浮层直接与弹框同级比较，`CSS` 里的 `z-index` 才真正生效。
+  */
+  return createPortal(
     <div
       ref={panelRef}
       className="dsh-fnos-logpanel"
@@ -388,7 +399,8 @@ export function LogFeedbackPanel({ t }: { readonly t: Translate }): React.ReactN
         要求。状态已由头部圆点（红色 + 无障碍名称「失败」）表达，重试按钮移到
         头部操作区，整卡高度因此恒为「头部 + 日志区 + 演示页脚」。
       */}
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -601,7 +613,8 @@ export function LogFeedbackAnchor({ t }: { readonly wide?: boolean, readonly t: 
   */
   const icon: UsedIconName = LOG_ICON
 
-  return (
+  /* 与浮层同理：portal 到 `body` 直下，否则 `z-index` 出不了槽位那一层。 */
+  return createPortal(
     /*
       收起态不挂 Tooltip。它是个「点一下就回来」的把手：文字已经竖排写着
       「任务日志」，悬浮再弹一个「展开任务日志」既是重复信息，又会盖住标签
@@ -633,7 +646,8 @@ export function LogFeedbackAnchor({ t }: { readonly wide?: boolean, readonly t: 
         </span>
         <span className="dsh-fnos-loganchor-text">{t('logPanelTitle')}</span>
         {failed ? <span className="dsh-fnos-loganchor-dot" data-tone="error" aria-hidden="true" /> : null}
-    </button>
+    </button>,
+    document.body,
   )
 }
 

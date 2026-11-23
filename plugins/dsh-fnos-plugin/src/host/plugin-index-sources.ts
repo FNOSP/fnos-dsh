@@ -231,6 +231,37 @@ export async function applyRecommendedIndexes(ctx: Context, locale = 'zh'): Prom
 }
 
 /**
+ * 从已配置列表中移除一个索引源。
+ *
+ * ## 为什么需要
+ *
+ * 界面只提供了「一键设置」把推荐源写进去，却没有去掉的入口。用户想撤掉某个源
+ * （源失效、或不想它出现在「发现」页）只能去改设置文件——而这界面已经能写。
+ *
+ * ## 为什么按规范化后的 URL 比对
+ *
+ * 写入时可能带/不带结尾斜杠，读回来的形式未必与传入字符串逐字相同。用同一个
+ * 规范化（trim + 去尾部斜杠）比对，避免「点了移除但没删掉」。
+ *
+ * @param ctx - 宿主上下文。
+ * @param url - 要移除的索引源地址。
+ * @param locale - 语言，用于生成状态里的标题。
+ * @returns 移除后的状态。
+ */
+export async function removeIndexSource(ctx: Context, url: string, locale = 'zh'): Promise<PluginIndexStatus> {
+  const status = await readIndexStatus(ctx, locale)
+  if (!status.marketAvailable) return status
+
+  const normalize = (value: string): string => value.trim().replace(/\/+$/u, '')
+  const target = normalize(url)
+  const kept = status.configured.filter(item => normalize(item) !== target)
+  /* 没变就不写：避免无意义地刷新设置文件与时间戳。 */
+  if (kept.length === status.configured.length) return status
+  await ctx.settings.update(MARKET_ENTRY_ID, { indexes: kept })
+  return readIndexStatus(ctx, locale)
+}
+
+/**
  * 启用/禁用「自定义插件索引」能力。
  *
  * 复用 `plugin-toggle` 的 bundle 逻辑（官方 `setBundleEnabled` 的同构实现），

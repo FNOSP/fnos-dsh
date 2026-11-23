@@ -216,6 +216,9 @@ export const FNOS_PLUGIN_INDEX_STATUS_ROUTE = '/plugins/dsh-fnos/plugins/index-s
 /** 一键写入推荐索引源（写）。 */
 export const FNOS_PLUGIN_INDEX_APPLY_ROUTE = '/plugins/dsh-fnos/plugins/index-apply'
 
+/** 移除单个索引源。只有「一键设置」把源写进去、没有去掉的入口，用户只能去改设置文件。 */
+export const FNOS_PLUGIN_INDEX_REMOVE_ROUTE = '/plugins/dsh-fnos/plugins/index-remove'
+
 /** 一个索引源的展示信息。 */
 export interface PluginIndexSourceInfo {
   /** 索引 URL。 */
@@ -253,6 +256,9 @@ export const FNOS_NPM_MIRROR_USE_ROUTE = '/plugins/dsh-fnos/npm/mirror-use'
 
 /** 安装 nrm（写）。 */
 export const FNOS_NPM_MIRROR_INSTALL_ROUTE = '/plugins/dsh-fnos/npm/install-nrm'
+
+/** 卸载 nrm。装得上去不掉只能去终端手动处理，而这界面已经承担了安装。 */
+export const FNOS_NPM_MIRROR_UNINSTALL_ROUTE = '/plugins/dsh-fnos/npm/uninstall-nrm'
 
 /** 读插件包内的静态资源（目前只用于图标）。 */
 export const FNOS_PLUGIN_ASSET_ROUTE = '/plugins/dsh-fnos/plugins/asset'

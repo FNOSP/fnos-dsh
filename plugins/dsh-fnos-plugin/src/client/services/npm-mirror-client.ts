@@ -7,6 +7,7 @@ import {
   FNOS_NPM_MIRROR_USE_ROUTE,
   FNOS_NPM_MIRROR_STATUS_ROUTE,
   FNOS_NPM_MIRROR_INSTALL_ROUTE,
+  FNOS_NPM_MIRROR_UNINSTALL_ROUTE,
 } from '../../contracts/gateway-proxy-contract.ts'
 
 /** 一个镜像源。 */
@@ -75,5 +76,24 @@ export async function installNrm(): Promise<void> {
   if (!response.ok) {
     const value = await response.json().catch(() => undefined) as { message?: unknown } | undefined
     throw new Error(typeof value?.message === 'string' ? value.message : `HTTP ${String(response.status)}`)
+  }
+}
+
+
+/**
+ * 卸载 nrm。
+ *
+ * 失败时抛出错误信息——调用方（卡片）把它显示在就地提示里，与安装失败同一处理。
+ */
+export async function uninstallNrm(): Promise<void> {
+  const response = await fetch(FNOS_NPM_MIRROR_UNINSTALL_ROUTE, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  })
+  if (!response.ok) {
+    const payload = await response.json().catch(() => undefined) as { message?: unknown } | undefined
+    throw new Error(typeof payload?.message === 'string' ? payload.message : `卸载失败（HTTP ${String(response.status)}）`)
   }
 }

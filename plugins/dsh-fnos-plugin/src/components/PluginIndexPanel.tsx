@@ -28,6 +28,7 @@ import {
   fetchPluginIndexStatus,
   setIndexEnabledRemote,
   type PluginIndexStatus,
+  removeIndexSourceRemote,
 } from '../client/services/plugin-index-client.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -84,6 +85,24 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
       setBusy(false)
     }
   }, [])
+
+  /**
+   * 移除一个索引源。
+   *
+   * 不做二次确认：这是「从列表里去掉一条 URL」，点错了再用「一键设置」加回来
+   * 即可，不涉及删数据。危险操作才需要确认框。
+   */
+  const remove = useCallback(async (url: string) => {
+    setBusy(true)
+    try {
+      setStatus(await removeIndexSourceRemote(url))
+      notifySuccess(t('indexRemoved'))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }, [t])
 
   /**
    * 切换：真正启用/禁用市场 bundle。
@@ -266,9 +285,24 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
                     {source.label === undefined ? null : <span className="dsh-fnos-idx-label">{source.label}</span>}
                     <code className="dsh-fnos-idx-url" title={source.url}>{source.url}</code>
                   </div>
-                  <span className={`dsh-fnos-idx-state ${configured ? 'dsh-fnos-idx-state--ok' : ''}`}>
-                    {configured ? '✓' : '—'}
-                  </span>
+                  {configured ? (
+                    /*
+                      已配置的给「移除」。原来这里只是一个 ✓，看得见却点不动——
+                      用户想撤掉某个源只能去改设置文件。
+                    */
+                    <DshButton
+                      htmlType="button"
+                      size="small"
+                      theme="borderless"
+                      type="tertiary"
+                      loading={busy}
+                      onClick={() => { void remove(source.url) }}
+                    >
+                      {t('remove')}
+                    </DshButton>
+                  ) : (
+                    <span className="dsh-fnos-idx-state">—</span>
+                  )}
                 </li>
               )
             })}

@@ -4412,16 +4412,17 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
 
   position: fixed;
   /*
-    **必须高于官方弹框。**
+    **`z-index` 只在本层叠上下文内有效，改它解决不了被弹框遮挡的问题。**
 
-    官方设置弹框（Semi `Modal`）的遮罩与容器都是 `z-index: 1000`，而且
-    `semi-portal` 挂在 `body` 末尾——同级时后出现的在上，日志浮层会被整个盖住。
-    任务日志恰恰是在**设置弹框里点「安装/修复」之后**要看的，被盖住等于没有。
+    浮层挂在 `shell.overlay` 里，那个容器是 `.overlayLayer`（`z-index: 20`）：
+    整个槽位相对 `body` 只算 20，而官方弹框（Semi `Modal`）的 `semi-portal` 是
+    `body` 直下、`z-index: 1000`。因此无论这里写多大，浮层都出不了 20 这一层，
+    必然被 1000 的弹框盖住。
 
-    取 1100 留出余量，但不脱离同一个数量级：仍低于工具类浮层（下拉、popover
-    在 2000+），避免日志跑到别的交互之上。
+    真正的解法是把浮层**渲染到 `body` 直下**并显式指定 `z-index`（见
+    `LogFeedbackPanel` 里的 portal 渲染），这里只保留槽位内需要的层级。
   */
-  z-index: 1100;
+  z-index: 1;
   display: flex;
   /*
     **必须显式 border-box。** 插件样式没有全局重置，默认 `content-box` 下
@@ -4756,8 +4757,8 @@ body[theme-mode='dark'] .dsh-fnos-logpanel {
   --dsh-fnos-tab-shadow: 0 1px 3px rgb(0 0 0 / 10%), 0 4px 14px rgb(0 0 0 / 12%);
 
   position: fixed;
-  /* 与浮层同层级：它是收起的浮层，两者不同时出现。 */
-  z-index: 1100;
+  /* 与浮层同一处理：同样需要 portal 到 body 直下才不受槽位层叠限制。 */
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;

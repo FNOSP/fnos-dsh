@@ -9,6 +9,7 @@
 
 import {
   FNOS_PLUGIN_INDEX_APPLY_ROUTE,
+  FNOS_PLUGIN_INDEX_REMOVE_ROUTE,
   FNOS_PLUGIN_INDEX_STATUS_ROUTE,
   FNOS_PLUGIN_INDEX_TOGGLE_ROUTE,
   type PluginIndexSourceInfo,
@@ -93,4 +94,21 @@ export async function setIndexEnabledRemote(enabled: boolean): Promise<{ needRes
   }
   const value = await response.json() as { needRestart?: unknown }
   return { needRestart: value.needRestart === true }
+}
+
+
+/**
+ * 移除一个索引源。
+ * @param url - 要移除的索引地址。
+ * @returns 移除后的状态。
+ */
+export async function removeIndexSourceRemote(url: string): Promise<PluginIndexStatus> {
+  const response = await fetch(FNOS_PLUGIN_INDEX_REMOVE_ROUTE, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ url }),
+  })
+  if (!response.ok) throw new Error(`HTTP ${String(response.status)}`)
+  return toStatus(await response.json())
 }

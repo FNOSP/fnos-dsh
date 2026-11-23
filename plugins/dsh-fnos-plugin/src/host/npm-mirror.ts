@@ -236,3 +236,60 @@ export async function installNrm(): Promise<{ ok: boolean, error?: string }> {
     })
   })
 }
+
+/**
+ * 卸载 nrm：`npm uninstall -g nrm`。
+ *
+ * ## 为什么要提供卸载
+ *
+ * 用户可能只是想试一下、或者换了别的镜像管理方式。装得上去不掉，只能去终端
+ * 手动处理——而这个界面明明已经承担了安装。
+ *
+ * ## 与安装共用一套日志
+ *
+ * 写同一个 `mirror-log.txt`，卡片上的进度与浮层看到的是同一条链路；先装后卸
+ * 的记录连在一起，排查「什么时候动过它」时不用去别处找。
+ *
+ * @returns 是否成功。
+ */
+export async function uninstallNrm(): Promise<{ ok: boolean, error?: string }> {
+  const logPath = installLogPath('mirror')
+  if (logPath !== undefined) await startLog(logPath, '准备卸载 nrm（npm uninstall -g nrm）')
+
+  return new Promise(resolve => {
+    const child = spawn('npm', ['uninstall', '-g', 'nrm'], {
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+
+    let pending = ''
+    const flush = (): void => {
+      const lines = pending.split('\n')
+      pending = lines.pop() ?? ''
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed !== '' && logPath !== undefined) void appendLog(logPath, trimmed)
+      }
+    }
+    child.stdout?.setEncoding('utf8')
+    child.stderr?.setEncoding('utf8')
+    child.stdout?.on('data', (chunk: string) => { pending += chunk; flush() })
+    child.stderr?.on('data', (chunk: string) => { pending += chunk; flush() })
+
+    let settled = false
+    const finish = (result: { ok: boolean, error?: string }): void => {
+      if (settled) return
+      settled = true
+      if (pending.trim() !== '' && logPath !== undefined) void appendLog(logPath, pending.trim())
+      if (logPath !== undefined) {
+        void appendLog(logPath, result.ok ? 'nrm 卸载成功' : `nrm 卸载失败：${result.error ?? 'unknown'}`)
+      }
+      resolve(result)
+    }
+
+    child.on('error', error => { finish({ ok: false, error: error.message }) })
+    child.on('close', code => {
+      finish(code === 0 ? { ok: true } : { ok: false, error: `npm 退出码 ${String(code)}` })
+    })
+  })
+}

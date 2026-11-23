@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { DshButton } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { logPanelStore } from '../client/log-panel-store.ts'
-import { fetchNpmMirrorStatus, installNrm, switchNpmMirror, type NpmMirrorStatus } from '../client/services/npm-mirror-client.ts'
+import { fetchNpmMirrorStatus, installNrm, switchNpmMirror, uninstallNrm, type NpmMirrorStatus } from '../client/services/npm-mirror-client.ts'
 import { fetchInstallLog } from '../client/services/gateway-proxy-client.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -134,6 +134,47 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
     }
   }, [load, t])
 
+  /**
+   * 卸载 nrm：`npm uninstall -g nrm`。
+   *
+   * 与安装同一套日志链路——写 `mirror-log.txt` 并推进任务浮层，所以卡片上不必
+   * 再显示日志框；用户看浮层或日志中心即可。
+   */
+  const uninstall = useCallback(async () => {
+    setInstalling(true)
+    setInstallError(undefined)
+    setFailed(false)
+    logOffsetRef.current = 0
+    logPanelStore.beginTask({ feature: 'mirror', title: t('mirrorUninstallTask') })
+
+    const pull = async (): Promise<void> => {
+      const next = await fetchInstallLog(logOffsetRef.current, 'mirror')
+      if (next.text === '') return
+      logOffsetRef.current = next.offset
+      for (const line of next.text.split('\n')) {
+        if (line.trim() !== '') logPanelStore.append(levelOfInstallLine(line), line)
+      }
+    }
+
+    const timer = setInterval(() => { void pull() }, 800)
+    try {
+      await uninstallNrm()
+      await pull()
+      await load()
+      logPanelStore.finish('ok')
+      notifySuccess(t('mirrorUninstalled'))
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause)
+      setInstallError(message)
+      setFailed(true)
+      logPanelStore.append('error', message)
+      logPanelStore.finish('failed')
+    } finally {
+      clearInterval(timer)
+      setInstalling(false)
+    }
+  }, [load, t])
+
   const switchTo = useCallback(async (name: string) => {
     setBusy(name)
     try {
@@ -174,6 +215,23 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
           >
             {/* 失败过就说「重新安装」——「安装」会让人以为上次根本没执行。 */}
             {installing ? t('mirrorInstalling') : failed ? t('mirrorReinstall') : t('mirrorInstall')}
+          </DshButton>
+        ) : null}
+        {/*
+          已安装时给「卸载」。
+
+          装得上去不掉，用户只能去终端手动处理——而这个界面已经承担了安装。
+          用 borderless 弱化：它是退路，不是主路径，不该与「切换」抢注意力。
+        */}
+        {status?.available === true ? (
+          <DshButton
+            htmlType="button"
+            theme="borderless"
+            type="tertiary"
+            loading={installing}
+            onClick={() => { void uninstall() }}
+          >
+            {t('mirrorUninstall')}
           </DshButton>
         ) : null}
       </header>
