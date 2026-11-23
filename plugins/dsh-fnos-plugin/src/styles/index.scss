@@ -1,3 +1,19 @@
+/*
+ * 层级取自 Semi 的公用变量，不再写魔法数字。
+ *
+ * Semi 把各层的 `z-index` 定义在 `semi-theme-default/scss/variables.scss`
+ * （`$z-modal: 1000`、`$z-popover: 1030`、`$z-tooltip: 1060`…），是**编译期常量**
+ * ——运行时的 CSS 里没有对应的 `--semi-z-*` 自定义属性（实测全为未定义），所以
+ * 插件样式只能在这里 `@use` 进来按需叠加。
+ *
+ * 用 `+ 100` 而不是写 `1100`：Semi 调整分层时这里自动跟上，也不会撞上
+ * `$z-toast: 1010` / `$z-popover: 1030` 这些工具层。
+ */
+@use '@douyinfe/semi-theme-default/scss/variables' as semi;
+
+/** 任务日志浮层与吸附标签：高于 Modal，低于 toast / popover 等工具层。 */
+$dsh-fnos-z-over-modal: semi.$z-modal + 100;
+
 /* Tree 内部列表的横向兜底：长路径仍然可以横向滚动，不会被裁掉。 */
 .dsh-fnos-path-panel-tree {
   .semi-tree-option-list {
@@ -4412,17 +4428,10 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
 
   position: fixed;
   /*
-    **`z-index` 只在本层叠上下文内有效，改它解决不了被弹框遮挡的问题。**
-
-    浮层挂在 `shell.overlay` 里，那个容器是 `.overlayLayer`（`z-index: 20`）：
-    整个槽位相对 `body` 只算 20，而官方弹框（Semi `Modal`）的 `semi-portal` 是
-    `body` 直下、`z-index: 1000`。因此无论这里写多大，浮层都出不了 20 这一层，
-    必然被 1000 的弹框盖住。
-
-    真正的解法是把浮层**渲染到 `body` 直下**并显式指定 `z-index`（见
-    `LogFeedbackPanel` 里的 portal 渲染），这里只保留槽位内需要的层级。
+    浮层已 portal 到 `body` 直下（见 `LogFeedbackPanel`），因此这里与 Semi 的
+    各层同级比较，直接用公用变量的派生值。
   */
-  z-index: 1;
+  z-index: $dsh-fnos-z-over-modal;
   display: flex;
   /*
     **必须显式 border-box。** 插件样式没有全局重置，默认 `content-box` 下
@@ -4757,8 +4766,8 @@ body[theme-mode='dark'] .dsh-fnos-logpanel {
   --dsh-fnos-tab-shadow: 0 1px 3px rgb(0 0 0 / 10%), 0 4px 14px rgb(0 0 0 / 12%);
 
   position: fixed;
-  /* 与浮层同一处理：同样需要 portal 到 body 直下才不受槽位层叠限制。 */
-  z-index: 1;
+  /* 与浮层同层：它是收起的浮层，两者不同时出现。 */
+  z-index: $dsh-fnos-z-over-modal;
   display: flex;
   align-items: center;
   gap: 8px;

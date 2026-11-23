@@ -26,16 +26,21 @@ describe('任务日志浮层的层级', () => {
     expect(PANEL).toContain('document.body')
   })
 
-  it('样式里不再靠 z-index 硬顶，注释说明为什么', () => {
+  it('层级取自 Semi 的公用变量，不写魔法数字', () => {
     /*
-      曾经写 `z-index: 1100` 想压过弹框的 1000——不生效，因为容器那层才 20。
-      留 1 只用于槽位内的相对层级；真正的解法是 portal。
+      Semi 把各层定义在 `semi-theme-default/scss/variables.scss`（`$z-modal`、
+      `$z-popover`…），是编译期常量——运行时没有对应的 `--semi-z-*` 自定义属性，
+      所以插件样式只能 `@use` 进来按需叠加。
+
+      用变量而不是写死 1100：Semi 调整分层时这里自动跟上，也不会撞上 toast(1010)/
+      popover(1030) 那些工具层。
     */
-    const panelBlock = STYLE.slice(STYLE.indexOf('.dsh-fnos-logpanel {'))
-    const body = panelBlock.slice(0, panelBlock.indexOf('}'))
-    expect(body).toMatch(/z-index:\s*1;/u)
-    expect(body).not.toMatch(/z-index:\s*1100;/u)
-    expect(body).toContain('overlayLayer')
+    expect(STYLE).toContain("@use '@douyinfe/semi-theme-default/scss/variables' as semi")
+    expect(STYLE).toContain('semi.$z-modal + 100')
+    // 浮层与吸附标签都引用它，不再出现 1100 字面量。
+    const uses = STYLE.match(/z-index:\s*\$dsh-fnos-z-over-modal;/gu) ?? []
+    expect(uses.length).toBeGreaterThanOrEqual(2)
+    expect(STYLE).not.toMatch(/z-index:\s*1100;/u)
   })
 })
 
