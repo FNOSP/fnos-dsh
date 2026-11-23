@@ -363,3 +363,17 @@ describe('插件安装：日志隔离与自动启用', () => {
     expect(INSTALL).toContain("typeof packageManifest.dsh?.bundle?.patch !== 'string'")
   })
 })
+
+describe('插件卸载：日志与确认按钮', () => {
+  it('卸载走任务浮层，失败原因写到日志', () => {
+    /*
+      卸载要跑 `pnpm remove` 并改 profile。失败原因（依赖被别的插件引用、权限、
+      并发锁）只能从命令输出里看出来；不给日志的话用户只看到一句「卸载失败」。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain("taskStore.begin('plugin-remove')")
+    expect(PANEL).toContain('logPanelStore.beginTask')
+    expect(PANEL).toContain("logPanelStore.append('error', message)")
+    expect(PANEL).toContain('logPanelStore.finish')
+  })
+})

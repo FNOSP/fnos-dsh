@@ -612,7 +612,14 @@ describe('卸载：Popconfirm 二次确认 + 异步 loading + 后端并发锁', 
     // 卸载是「点图标 → 确认」的短流程，模态弹框盖住整页、还要处理焦点归还。
     expect(PANEL_SRC).toContain('<Popconfirm')
     expect(PANEL_SRC).not.toContain('<DshModal')
-    expect(PANEL_SRC).toContain('okButtonProps={{ type: \'danger\' }}')
+    /*
+      确认按钮**不用 danger 红**：红色在深色主题下是刺眼的实心块，与面板里其它
+      主按钮不属于同一套观感。危险语义由标题与正文表达。
+    */
+    expect(PANEL_SRC).toContain("okButtonProps={{ theme: 'solid', type: 'primary' }}")
+    expect(PANEL_SRC).not.toContain("type: 'danger'")
+    // 不显示 Semi 默认的警告三角。
+    expect(PANEL_SRC).toContain('icon={null}')
     // 文案对齐截图：标题「卸载「X」？」（插件名代入占位符）、正文「卸载后它提供的功能会消失。」
     expect(PANEL_SRC).toContain("t('pluginRemoveTitle').replace('{name}', plugin.name)")
     expect(PANEL_SRC).toContain("content={t('pluginRemoveConfirm')}")

@@ -15,6 +15,8 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
+import { logPanelStore } from '../client/log-panel-store.ts'
+import { taskStore } from '../client/task-store.ts'
 import { DshButton, DshPopconfirm as Popconfirm, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
@@ -289,8 +291,21 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
   const removePluginFromCard = useCallback(async (name: string): Promise<void> => {
     if (removingName === name) return
     setRemovingName(name)
+    /*
+      **卸载也走任务浮层。**
+
+      卸载要跑 `pnpm remove` 并改 profile，失败原因（依赖被别的插件引用、权限、
+      并发锁）只能从命令输出里看出来。不给日志的话，用户看到的只是一句
+      「卸载失败」。
+    */
+    taskStore.begin('plugin-remove')
+    logPanelStore.beginTask({ feature: 'install', title: `${t('uninstall')} ${name}` })
+    logPanelStore.append('info', `pnpm remove ${name}`)
     try {
       const result = await removePluginByName(name)
+      logPanelStore.append('info', t('pluginRemoved'))
+      logPanelStore.finish('ok')
+      taskStore.finish('plugin-remove', 'ok')
       await load()
       /*
         卸载已完成，但已加载的模块仍在当前进程里——没有热更新通道，必须重启 Web
@@ -301,6 +316,9 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
       else notifySuccess(t('pluginRemoved'))
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
+      logPanelStore.append('error', message)
+      logPanelStore.finish('failed')
+      taskStore.finish('plugin-remove', 'failed', message)
       // 后端并发锁的拒绝：说清「是重复操作」，而不是「卸载失败」。
       notifyFailure(message.includes('plugin-remove-in-progress') ? t('pluginRemoveInProgress') : message)
     } finally {
@@ -600,7 +618,16 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                       content={t('pluginRemoveConfirm')}
                       okText={t('uninstall')}
                       cancelText={t('cancel')}
-                      okButtonProps={{ type: 'danger' }}
+                      /*
+                        **确认按钮不做 danger 红。**
+
+                        红色在深色主题下是刺眼的实心块，与这个面板里其它主按钮
+                        （纯黑 / 浅色主题下为深色）不属于同一套观感。沿用主按钮的
+                        solid 样式，危险语义已由标题「卸载 xxx？」与内容说明表达。
+                      */
+                      okButtonProps={{ theme: 'solid', type: 'primary' }}
+                      /* 不显示图标：Semi 默认给 Popconfirm 加一个警告三角。 */
+                      icon={null}
                       position="topRight"
                       onConfirm={() => removePluginFromCard(plugin.name)}
                     >
