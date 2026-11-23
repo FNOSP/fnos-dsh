@@ -21,11 +21,12 @@
  * @module dsh-fnos/components/PluginInstallInline
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { IconifyIcon } from './IconifyIcon.tsx'
-import { fetchInstallLog, startPluginInstall } from '../client/services/gateway-proxy-client.ts'
+import { fetchInstallLog, fetchInstallState, startPluginInstall } from '../client/services/gateway-proxy-client.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { logPanelStore } from '../client/log-panel-store.ts'
+import { reconcileInstallSlot, taskStore, useTaskSlot } from '../client/task-store.ts'
 
 /**
  * 按行内容推断级别。
@@ -66,8 +67,13 @@ export interface PluginInstallInlineProps {
  * @returns 内联进度与日志。
  */
 export function PluginInstallInline({ name, t, onSettled, onDismiss }: PluginInstallInlineProps): React.ReactNode {
-  const [status, setStatus] = useState<'running' | 'succeeded' | 'failed'>('running')
-  const [error, setError] = useState<string>()
+  /**
+   * 运行态放模块级 store：弹框关闭会卸载本组件，`useState` 随之归零，重开时
+   * 按钮又回到「安装」而宿主侧可能还在装。
+   */
+  const task = useTaskSlot('plugin-install')
+  const status = task.running ? 'running' : task.outcome === 'ok' ? 'succeeded' : task.outcome === 'failed' ? 'failed' : 'running'
+  const error = task.error
   const offsetRef = useRef(0)
 
   /**
@@ -85,9 +91,20 @@ export function PluginInstallInline({ name, t, onSettled, onDismiss }: PluginIns
     }
   }, [])
 
+  /*
+    挂载时先用宿主状态校准一次。
+
+    store 是浏览器侧的记忆，宿主才是事实来源：宿主重启、或安装在本卡片卸载
+    期间结束时，store 里可能还挂着「正在跑」。不校准的话按钮会永久转圈。
+  */
+  useEffect(() => {
+    void reconcileInstallSlot('plugin-install', fetchInstallState)
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     /* 新一轮任务：浮层整体替换内容并展开。 */
+    taskStore.begin('plugin-install')
     logPanelStore.beginTask({ feature: 'install', title: `${t('pluginInstallTask')} ${name}` })
     const timer = setInterval(() => { void pull() }, LOG_POLL_MS)
 
@@ -96,21 +113,17 @@ export function PluginInstallInline({ name, t, onSettled, onDismiss }: PluginIns
       await pull()
       if (cancelled) return
       const ok = result.status === 'succeeded'
-      setStatus(ok ? 'succeeded' : 'failed')
-      if (result.error !== undefined) {
-        setError(result.error)
-        logPanelStore.append('error', result.error)
-      }
+      if (result.error !== undefined) logPanelStore.append('error', result.error)
       logPanelStore.finish(ok ? 'ok' : 'failed')
+      taskStore.finish('plugin-install', ok ? 'ok' : 'failed', result.error)
       clearInterval(timer)
       onSettled(ok)
     }).catch((cause: unknown) => {
       if (cancelled) return
       const message = cause instanceof Error ? cause.message : String(cause)
-      setStatus('failed')
-      setError(message)
       logPanelStore.append('error', message)
       logPanelStore.finish('failed')
+      taskStore.finish('plugin-install', 'failed', message)
       clearInterval(timer)
       onSettled(false)
     })

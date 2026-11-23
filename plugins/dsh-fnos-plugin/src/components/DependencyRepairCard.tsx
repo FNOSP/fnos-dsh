@@ -24,6 +24,7 @@ import { DshButton, DshIconInfoCircle, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { runDependencyRepairStreaming } from '../client/services/dependency-repair-client.ts'
 import { logPanelStore } from '../client/log-panel-store.ts'
+import { taskStore, useTaskSlot } from '../client/task-store.ts'
 import type { DependencyRepairResult } from '../contracts/dependency-repair-contract.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -59,12 +60,24 @@ type Phase =
  * @returns 卡片元素。
  */
 export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.ReactNode {
+  /*
+    结果（`done` 里的 `result`）仍留在本地：它是体积较大的结构，store 只记
+    「跑没跑、成没成」。两者互补——重挂载后 store 让按钮知道该不该转圈，本地
+    state 负责渲染具体结论。
+
+    **运行中必须来自 store**：弹框关闭会卸载本组件、`useState` 归零，而宿主侧
+    修复可能还在跑。
+  */
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
+  const task = useTaskSlot('repair')
+  /* store 说在跑、本地已不是 running（重挂载）时以 store 为准。 */
+  const running = task.running || phase.kind === 'running'
   // 点击语义化路径后短暂提示「已复制」。
   const [copied, setCopied] = useState<string | undefined>(undefined)
 
   /** 执行修复。 */
   const repair = useCallback(async () => {
+    taskStore.begin('repair')
     setPhase({ kind: 'running' })
     /*
       日志**只写浮层这一处**。
@@ -80,11 +93,13 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
       })
       setPhase({ kind: 'done', result })
       logPanelStore.finish(result.ok ? 'ok' : 'failed')
+      taskStore.finish('repair', result.ok ? 'ok' : 'failed')
     } catch (error) {
       const message = describe(error)
       setPhase({ kind: 'error', message })
       logPanelStore.append('error', message)
       logPanelStore.finish('failed')
+      taskStore.finish('repair', 'failed', message)
     }
   }, [t])
 
@@ -106,7 +121,7 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
     }
   }, [])
 
-  const busy = phase.kind === 'running'
+  const busy = running
 
   return (
     <section className="dsh-fnos-authorized-card" aria-labelledby="dsh-fnos-dependency-repair-title">

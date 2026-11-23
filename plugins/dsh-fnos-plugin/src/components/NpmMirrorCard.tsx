@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { DshButton } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { logPanelStore } from '../client/log-panel-store.ts'
+import { taskStore, useTaskSlot } from '../client/task-store.ts'
 import { fetchNpmMirrorStatus, installNrm, switchNpmMirror, uninstallNrm, type NpmMirrorStatus } from '../client/services/npm-mirror-client.ts'
 import { fetchInstallLog } from '../client/services/gateway-proxy-client.ts'
 
@@ -53,17 +54,19 @@ export interface NpmMirrorCardProps {
 export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
   const [status, setStatus] = useState<NpmMirrorStatus>()
   const [busy, setBusy] = useState<string>()
-  /** 正在安装 nrm。 */
-  const [installing, setInstalling] = useState(false)
+  /**
+   * 安装/卸载的运行态放在**模块级 store**，不用组件内 `useState`。
+   *
+   * 飞牛设置弹框一关，这张卡片整棵卸载，`useState` 随之归零；重开时按钮又回到
+   * 「安装」，看起来像根本没执行过——而宿主侧命令可能还在跑。放到 store 后重挂载
+   * 能读回来。
+   */
+  const task = useTaskSlot('nrm')
+  const installing = task.running
   /** 安装失败的原因（成功时清空）。 */
   const [installError, setInstallError] = useState<string>()
-  /**
-   * 安装是否失败过。
-   *
-   * 失败时**日志常显**：用户要能回看 npm 到底报了什么，而不是只看到一句
-   * 「失败」。成功或未尝试时日志随安装结束收起。
-   */
-  const [failed, setFailed] = useState(false)
+  /** 上一次是否是失败：由 store 记，重挂载后仍然成立。 */
+  const failed = task.outcome === 'failed' 
   /**
    * 日志轮询的字节偏移。
    *
@@ -85,6 +88,22 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
 
   useEffect(() => { void load() }, [load])
 
+  /*
+    已装好就把上一次的失败标记清掉。
+
+    否则「上次安装失败、这次在别处装上了」会让卡片一直显示「重新安装」，
+    与实际状态矛盾。
+  */
+  useEffect(() => {
+    /*
+      只在「上次失败、但现在确实装好了」时清——这是两者矛盾的情形。
+
+      `outcome === 'ok'` 不清：那是刚装成功的正常结果，清掉反而看不出「刚做过
+      什么」。成功后按钮本来也不显示「重新安装」。
+    */
+    if (status?.available === true && task.outcome === 'failed' && !task.running) taskStore.clear('nrm')
+  }, [status?.available, task.outcome, task.running])
+
   /**
    * 安装 nrm：`npm i -g nrm`，过程实时展示日志。
    *
@@ -92,9 +111,8 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
    * 日志与「插件安装」共用同一个文件与 offset 增量接口，不另建一套。
    */
   const install = useCallback(async () => {
-    setInstalling(true)
+    taskStore.begin('nrm')
     setInstallError(undefined)
-    setFailed(false)
     logOffsetRef.current = 0
 
     /*
@@ -122,15 +140,15 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
       await pull()
       await load()
       logPanelStore.finish('ok')
+      taskStore.finish('nrm', 'ok')
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
       setInstallError(message)
-      setFailed(true)
       logPanelStore.append('error', message)
       logPanelStore.finish('failed')
+      taskStore.finish('nrm', 'failed', message)
     } finally {
       clearInterval(timer)
-      setInstalling(false)
     }
   }, [load, t])
 
@@ -141,9 +159,8 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
    * 再显示日志框；用户看浮层或日志中心即可。
    */
   const uninstall = useCallback(async () => {
-    setInstalling(true)
+    taskStore.begin('nrm')
     setInstallError(undefined)
-    setFailed(false)
     logOffsetRef.current = 0
     logPanelStore.beginTask({ feature: 'mirror', title: t('mirrorUninstallTask') })
 
@@ -162,16 +179,16 @@ export function NpmMirrorCard({ t }: NpmMirrorCardProps): React.ReactNode {
       await pull()
       await load()
       logPanelStore.finish('ok')
+      taskStore.finish('nrm', 'ok')
       notifySuccess(t('mirrorUninstalled'))
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
       setInstallError(message)
-      setFailed(true)
       logPanelStore.append('error', message)
       logPanelStore.finish('failed')
+      taskStore.finish('nrm', 'failed', message)
     } finally {
       clearInterval(timer)
-      setInstalling(false)
     }
   }, [load, t])
 

@@ -150,7 +150,11 @@ describe('安装日志去处（FNOS-059）', () => {
   it('失败时按钮变「重新安装」，失败原因仍显示在卡片', () => {
     // 进度与失败原因留在原地是必要的：用户不必为了看结果去翻浮层。
     const CARD = readFileSync(new URL('../../src/components/NpmMirrorCard.tsx', import.meta.url), 'utf8')
-    expect(CARD).toContain('setFailed(true)')
+    /*
+      失败标记来自模块级 store（`taskStore.finish('nrm', 'failed')`），不是组件内
+      `useState`——弹框一关卡片就卸载，组件内状态会丢，重开时按钮又变回「安装」。
+    */
+    expect(CARD).toContain("taskStore.finish('nrm', 'failed'")
     expect(CARD).toContain("failed ? t('mirrorReinstall')")
     expect(CARD).toContain('installError')
   })

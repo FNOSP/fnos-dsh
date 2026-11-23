@@ -80,3 +80,59 @@ describe('自定义插件索引的移除', () => {
     expect(CONTRACT).toContain("FNOS_PLUGIN_INDEX_REMOVE_ROUTE = '/plugins/dsh-fnos/plugins/index-remove'")
   })
 })
+
+describe('耗时操作的运行态跨卸载保持', () => {
+  it('三张卡片都用模块级 store，不用组件内 useState 记运行态', async () => {
+    /*
+      飞牛设置弹框一关，右侧内容整棵卸载；`useState` 归零后重开时按钮又变回
+      「安装」，看起来像根本没执行过——而宿主侧命令可能还在跑。
+    */
+    const { createTaskStore } = await import('../../src/client/task-store.ts')
+    const store = createTaskStore()
+    store.begin('nrm')
+    expect(store.getSnapshot().slots.nrm.running).toBe(true)
+    store.finish('nrm', 'failed', 'boom')
+    expect(store.getSnapshot().slots.nrm).toMatchObject({ running: false, outcome: 'failed', error: 'boom' })
+    // 重新开始要清掉上一次的结论，否则按钮会同时显示「转圈」和「失败」。
+    store.begin('nrm')
+    expect(store.getSnapshot().slots.nrm.outcome).toBeUndefined()
+  })
+
+  it('三个槽互相独立', async () => {
+    const { createTaskStore } = await import('../../src/client/task-store.ts')
+    const store = createTaskStore()
+    store.begin('nrm')
+    expect(store.getSnapshot().slots['plugin-install'].running).toBe(false)
+    expect(store.getSnapshot().slots.repair.running).toBe(false)
+  })
+
+  it('宿主校准：不一致才提交，避免挂载时空转一次重渲', async () => {
+    const { createTaskStore } = await import('../../src/client/task-store.ts')
+    const store = createTaskStore()
+    let emits = 0
+    store.subscribe(() => { emits += 1 })
+
+    // 首次校准：从「空闲」到「宿主在跑」，必须提交。
+    store.reconcile('plugin-install', true, undefined)
+    expect(emits).toBe(1)
+
+    // 再校准同一状态：不提交。
+    store.reconcile('plugin-install', true, undefined)
+    expect(emits).toBe(1)
+
+    // 宿主已结束：提交。
+    store.reconcile('plugin-install', false, 'ok')
+    expect(emits).toBe(2)
+  })
+
+  it('卡片确实接入了 store，而不是留着本地状态', () => {
+    const INSTALL = readFileSync(new URL('../../src/components/PluginInstallInline.tsx', import.meta.url), 'utf8')
+    const REPAIR = readFileSync(new URL('../../src/components/DependencyRepairCard.tsx', import.meta.url), 'utf8')
+    for (const src of [INSTALL, REPAIR, MIRROR_CARD]) {
+      expect(src).toContain('useTaskSlot')
+      expect(src).toContain('taskStore.')
+    }
+    // 安装卡片挂载时向宿主校准，否则宿主重启后按钮会永久转圈。
+    expect(INSTALL).toContain('reconcileInstallSlot')
+  })
+})
