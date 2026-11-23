@@ -303,6 +303,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   agentSkillsConfirm: "Queste directory verranno eliminate e non potranno essere ripristinate: ",
   agentSkillsCleanupDone: "Pulizia completata",
   agentSkillsCleanupTask: "Pulisci gli agent skill",
+  ok: "Conferma",
   indexSourcesTitle: "Sorgenti indice",
   indexSourceOn: "Attivo",
   indexSourceOff: "Disattivato",

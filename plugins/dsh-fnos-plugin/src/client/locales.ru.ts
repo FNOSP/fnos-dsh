@@ -303,6 +303,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   agentSkillsConfirm: "Эти каталоги будут удалены без возможности восстановления: ",
   agentSkillsCleanupDone: "Очистка завершена",
   agentSkillsCleanupTask: "Очистить навыки агента",
+  ok: "Подтвердить",
   indexSourcesTitle: "Источники индекса",
   indexSourceOn: "Вкл",
   indexSourceOff: "Выкл",

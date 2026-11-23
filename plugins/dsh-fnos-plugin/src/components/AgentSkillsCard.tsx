@@ -120,7 +120,7 @@ export function AgentSkillsCard({ t }: AgentSkillsCardProps): React.ReactNode {
       <DshModal
         visible={confirming}
         title={t('agentSkillsCleanup')}
-        okText={t('confirm')}
+        okText={t('ok')}
         cancelText={t('cancel')}
         onOk={() => { void run() }}
         onCancel={() => { setConfirming(false) }}

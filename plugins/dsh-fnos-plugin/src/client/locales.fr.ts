@@ -304,6 +304,7 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   agentSkillsConfirm: "Ces répertoires seront supprimés et ne pourront pas être restaurés : ",
   agentSkillsCleanupDone: "Nettoyage terminé",
   agentSkillsCleanupTask: "Nettoyer les skills d'agent",
+  ok: "Confirmer",
   indexSourcesTitle: "Sources d index",
   indexSourceOn: "Active",
   indexSourceOff: "Desactive",

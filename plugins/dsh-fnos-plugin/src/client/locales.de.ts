@@ -304,6 +304,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   agentSkillsConfirm: "Diese Verzeichnisse werden gelöscht und können nicht wiederhergestellt werden: ",
   agentSkillsCleanupDone: "Bereinigung abgeschlossen",
   agentSkillsCleanupTask: "Agent-Skills bereinigen",
+  ok: "Bestätigen",
   indexSourcesTitle: "Indexquellen",
   indexSourceOn: "An",
   indexSourceOff: "Aus",

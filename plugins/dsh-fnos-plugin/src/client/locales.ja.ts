@@ -312,6 +312,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   agentSkillsConfirm: "以下のディレクトリを削除します。元に戻せません: ",
   agentSkillsCleanupDone: "整理が完了しました",
   agentSkillsCleanupTask: "エージェントスキルを整理",
+  ok: "確認",
   indexSourcesTitle: "インデックスソース",
   indexSourceOn: "有効",
   indexSourceOff: "無効",

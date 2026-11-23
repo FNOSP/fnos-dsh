@@ -312,6 +312,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   agentSkillsConfirm: "다음 디렉터리를 삭제합니다. 되돌릴 수 없습니다: ",
   agentSkillsCleanupDone: "정리 완료",
   agentSkillsCleanupTask: "에이전트 스킬 정리",
+  ok: "확인",
   indexSourcesTitle: "인덱스 소스",
   indexSourceOn: "켜짐",
   indexSourceOff: "꺼짐",

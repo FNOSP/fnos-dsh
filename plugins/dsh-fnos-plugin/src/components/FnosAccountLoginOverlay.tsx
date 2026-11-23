@@ -106,7 +106,12 @@ function dismissOfficial(found: { dialog: Element, host: Element }): void {
  * @returns 是否点到了按钮。
  */
 function triggerOfficialSignIn(found: { dialog: Element, host: Element }): boolean {
-  /* 先把可见性恢复：`display: none` 的元素派发 click 不一定触发 React 回调。 */
+  /*
+    先临时恢复可见性：`display: none` 的元素派发 click 不一定触发 React 回调。
+
+    点完**必须重新压下去**——否则官方那一屏会留在用户眼前，而我们自己的框还开着，
+    两个框同时出现。曾经漏了这一步，表现就是「点链接后我们的框消失、官方框冒出来」。
+  */
   showOfficial(found.host)
   const buttons = [...found.dialog.querySelectorAll('button')]
   /*
@@ -119,8 +124,20 @@ function triggerOfficialSignIn(found: { dialog: Element, host: Element }): boole
   const withLabel = new Set([...found.dialog.querySelectorAll('button[aria-label]')])
   const candidates = buttons.filter(button => !withLabel.has(button))
   const primary = candidates[candidates.length - 1]
-  if (primary === undefined) return false
+  if (primary === undefined) {
+    hideOfficial(found.host)
+    return false
+  }
   primary.click()
+  /*
+    点完立刻压回去，并**在下一帧再确认一次**：官方点「登录」后会 setState 重渲，
+    React 重写 `style` 时可能把我们刚设的 `display: none` 覆盖掉。下一帧仍在
+    同一个任务队列之后，能盖住这次重渲。
+  */
+  hideOfficial(found.host)
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => { hideOfficial(found.host) })
+  }
   return true
 }
 
@@ -225,10 +242,14 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
   const retriggerSignIn = useCallback((): boolean => {
     const found = findSignInDialog()
     if (found === undefined) return false
-    /* 压制期间官方框是隐藏的，点完要把我们自己的框收起来，让官方界面接上。 */
-    dismissedNodeRef.current = found.dialog
-    hiddenHostRef.current = undefined
-    setOpen(false)
+    /*
+      **不关闭自己的框。**
+
+      用户点的是「重新打开授权页」——他要的是重新触发一次登录、拿到新的授权地址，
+      而不是退出这个弹框。关掉自己会让粘贴入口消失，用户还得再点一次「登录」。
+
+      官方那一屏在 `triggerOfficialSignIn` 里点完会重新压下去，两个框不会同时可见。
+    */
     return triggerOfficialSignIn(found)
   }, [])
 

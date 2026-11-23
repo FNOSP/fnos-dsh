@@ -402,3 +402,19 @@ describe('账号登录：契约', () => {
     expect(CLIENT).toContain('void load() }, 3000)')
     expect(CLIENT).not.toContain('void load() }, 400)')
   })
+
+  it('点「重新打开授权页」不关闭自己的弹框，也不让官方框露出来', () => {
+    /*
+      用户点的是「重新打开授权页」——他要的是重新触发一次登录、拿到新的授权地址，
+      而不是退出这个弹框。关掉自己会让粘贴入口消失，用户还得再点一次「登录」。
+
+      官方那一屏在触发时先临时恢复可见（`display: none` 的元素派发 click 不一定
+      触发 React 回调），点完必须重新压下去；否则两个框同时出现。
+    */
+    const overlay = readFileSync(new URL('../../src/components/FnosAccountLoginOverlay.tsx', import.meta.url), 'utf8')
+    // retrigger 里不再收自己的框。
+    const retrigger = overlay.slice(overlay.indexOf('const retriggerSignIn'), overlay.indexOf('}, [])', overlay.indexOf('const retriggerSignIn')))
+    expect(retrigger).not.toContain('setOpen(false)')
+    // 点完重新压下去，并在下一帧再确认一次（React 重渲会重写 style）。
+    expect(overlay).toContain('requestAnimationFrame(() => { hideOfficial(found.host) })')
+  })
