@@ -349,7 +349,9 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
   it('不再在挂载时自动诊断（诊断改为修复的前置步骤）', () => {
     // 旧实现用 useEffect 在进入页面时就发一次诊断请求。诊断后来改为「修复的
     // 前置步骤」，再后来整个检测都去掉了（见下一条用例）。
-    expect(REPAIR_CARD).not.toContain('useEffect')
+    //
+    // 现在卡片里有一个 useEffect，但那是读 agent skill 清理状态的，与诊断无关。
+    expect(REPAIR_CARD).not.toContain('diagnoseDependencyRepair')
     expect(REPAIR_CARD).toMatch(/const repair = useCallback\(/)
   })
 

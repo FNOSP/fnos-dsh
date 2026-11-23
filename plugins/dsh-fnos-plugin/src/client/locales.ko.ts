@@ -305,6 +305,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   indexAdded: "추가됨",
   indexAdd: "추가",
   agentSkillsTitle: "에이전트 스킬 정리",
+  agentSkillsDuplicateHint: "\"@fnnas-labs/fnos-cli\" 플러그인에는 같은 이름의 스킬이 이미 포함되어 있습니다. 중복 설치하지 마세요. 두 개가 있으면 OAuth 정보가 서로 다른 디렉터리에서 처리되어 로그인 상태가 깨집니다.",
   agentSkillsCleanup: "정리",
   agentSkillsFound: "감지됨: ",
   agentSkillsRemoved: "삭제됨: ",

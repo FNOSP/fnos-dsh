@@ -296,6 +296,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   indexAdded: "Добавлено",
   indexAdd: "Добавить",
   agentSkillsTitle: "Очистить навыки агента",
+  agentSkillsDuplicateHint: "Плагин «@fnnas-labs/fnos-cli» уже содержит одноимённый навык. Не устанавливайте его повторно: две копии приведут к тому, что данные OAuth будут читаться из разных каталогов, и вход перестанет работать.",
   agentSkillsCleanup: "Очистить",
   agentSkillsFound: "Найдено: ",
   agentSkillsRemoved: "Удалено: ",

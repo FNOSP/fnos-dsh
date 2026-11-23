@@ -305,6 +305,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   indexAdded: "追加しました",
   indexAdd: "追加",
   agentSkillsTitle: "エージェントスキルを整理",
+  agentSkillsDuplicateHint: "「@fnnas-labs/fnos-cli」プラグインには同名のスキルが同梱されています。重複してインストールしないでください。2 つ存在すると OAuth 情報の参照先が分かれ、ログイン状態が壊れます。",
   agentSkillsCleanup: "整理",
   agentSkillsFound: "検出: ",
   agentSkillsRemoved: "削除しました: ",

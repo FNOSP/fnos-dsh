@@ -19,12 +19,17 @@
  * @module dsh-fnos/components/DependencyRepairCard
  */
 
-import { useCallback, useState } from 'react'
-import { DshButton, DshIconInfoCircle, DshTooltip } from '@tnnevol/dsh-semi-ui'
+import { useCallback, useEffect, useState } from 'react'
+import { DshButton, DshIconInfoCircle, DshModal, DshToast, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { runDependencyRepairStreaming } from '../client/services/dependency-repair-client.ts'
 import { logPanelStore } from '../client/log-panel-store.ts'
 import { taskStore, useTaskSlot } from '../client/task-store.ts'
+import {
+  cleanupAgentSkillsRemote,
+  fetchAgentSkillsStatus,
+  type AgentSkillsStatus,
+} from '../client/services/agent-skills-client.ts'
 import type { DependencyRepairResult } from '../contracts/dependency-repair-contract.ts'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -102,6 +107,55 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
       taskStore.finish('repair', 'failed', message)
     }
   }, [t])
+
+  /*
+    agent skill 清理：**并进「修复插件安装异常」**。
+
+    它和「修复」是同一类事：把安装环境重置回可用状态。单独一张卡片会让工具箱
+    变成一列互不相关的小工具，而这两件事的触发时机几乎总是相邻的——装不上插件
+    时，先看 skill 有没有重复内置，再决定要不要重建依赖。
+  */
+  const [skills, setSkills] = useState<AgentSkillsStatus>()
+  const [skillsError, setSkillsError] = useState<string>()
+  const [confirmSkills, setConfirmSkills] = useState(false)
+  const skillsTask = useTaskSlot('agent-skills')
+  const skillsPresent = skills?.present ?? []
+
+  useEffect(() => {
+    void fetchAgentSkillsStatus().then(setSkills).catch((cause: unknown) => {
+      setSkillsError(cause instanceof Error ? cause.message : String(cause))
+    })
+  }, [])
+
+  const cleanupSkills = useCallback(async (): Promise<void> => {
+    setConfirmSkills(false)
+    setSkillsError(undefined)
+    taskStore.begin('agent-skills')
+    logPanelStore.beginTask({ feature: 'skills', title: t('agentSkillsCleanupTask') })
+    logPanelStore.append('info', `${t('agentSkillsFound')}${skillsPresent.join(', ')}`)
+    try {
+      const result = await cleanupAgentSkillsRemote()
+      for (const name of result.removed) logPanelStore.append('info', `${t('agentSkillsRemoved')}${name}`)
+      for (const item of result.failed) logPanelStore.append('error', `${item.name}: ${item.message}`)
+      setSkills(result.status)
+      if (result.failed.length === 0) {
+        logPanelStore.finish('ok')
+        taskStore.finish('agent-skills', 'ok')
+        DshToast.success({ content: t('agentSkillsCleanupDone') })
+      } else {
+        logPanelStore.finish('failed')
+        taskStore.finish('agent-skills', 'failed', result.failed.map(item => item.name).join(', '))
+        setSkillsError(result.failed.map(item => `${item.name}: ${item.message}`).join('; '))
+      }
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause)
+      logPanelStore.append('error', message)
+      logPanelStore.finish('failed')
+      taskStore.finish('agent-skills', 'failed', message)
+      setSkillsError(message)
+    }
+  }, [skillsPresent, t])
+
 
 
   /**
@@ -251,7 +305,53 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
             )}
           </div>
         ) : null}
+
+        {/*
+          agent skill 清理：与「修复」同属「重置安装环境」，因此并进这张卡片。
+
+          单独成卡会让工具箱变成一列互不相关的小工具；而且这两件事的触发时机
+          几乎总是相邻的——装不上插件时，先看 skill 有没有重复内置，再决定要不要
+          重建依赖。
+        */}
+        <div className="dsh-fnos-repair-divider" />
+        <div className="dsh-fnos-repair-subhead">
+          <strong>{t('agentSkillsTitle')}</strong>
+          <DshButton
+            htmlType="button"
+            theme="solid"
+            type="primary"
+            loading={skillsTask.running}
+            disabled={skillsTask.running || skillsPresent.length === 0}
+            onClick={() => { setConfirmSkills(true) }}
+          >
+            {t('agentSkillsCleanup')}
+          </DshButton>
+        </div>
+        <p className="dsh-fnos-repair-muted">
+          {skillsPresent.length === 0 ? t('agentSkillsNone') : `${t('agentSkillsFound')}${skillsPresent.join(', ')}`}
+        </p>
+        {/*
+          **必须说明为什么值得清理。**
+
+          用户会想「多一个 skill 有什么坏处」。实际坏处很具体：`@fnnas-labs/fnos-cli`
+          插件自带同名 skill，两份同时存在会让 OAuth 凭据的读写走到不同的目录，
+          表现为登录状态异常地反复失效。
+        */}
+        <p className="dsh-fnos-repair-note">{t('agentSkillsDuplicateHint')}</p>
+        {skillsError === undefined ? null : <p className="dsh-fnos-repair-error" role="alert">{skillsError}</p>}
       </div>
+
+      {/* 清理前二次确认：会真的删目录，不可撤销。 */}
+      <DshModal
+        visible={confirmSkills}
+        title={t('agentSkillsCleanup')}
+        okText={t('ok')}
+        cancelText={t('cancel')}
+        onOk={() => { void cleanupSkills() }}
+        onCancel={() => { setConfirmSkills(false) }}
+      >
+        <p>{`${t('agentSkillsConfirm')}${skillsPresent.join(', ')}`}</p>
+      </DshModal>
 
     </section>
   )

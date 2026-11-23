@@ -297,17 +297,20 @@ describe('agent skill 清理', () => {
 
   it('没有可清理目录时按钮置灰', () => {
     // 一个永远点得动却什么也不做的按钮，比没有按钮更让人困惑。
-    const CARD = readFileSync(new URL('../../src/components/AgentSkillsCard.tsx', import.meta.url), 'utf8')
-    expect(CARD).toContain('const available = present.length > 0')
-    expect(CARD).toContain('disabled={busy || !available}')
+    const CARD = readFileSync(new URL('../../src/components/DependencyRepairCard.tsx', import.meta.url), 'utf8')
+    expect(CARD).toContain('disabled={skillsTask.running || skillsPresent.length === 0}')
   })
 
   it('执行日志进任务浮层与运行日志中心', () => {
     // 清理是破坏性操作，必须在「日志」页留痕。
-    const CARD = readFileSync(new URL('../../src/components/AgentSkillsCard.tsx', import.meta.url), 'utf8')
+    const CARD = readFileSync(new URL('../../src/components/DependencyRepairCard.tsx', import.meta.url), 'utf8')
     expect(CARD).toContain('logPanelStore.beginTask')
     expect(CARD).toContain('logPanelStore.append')
     expect(CARD).toContain('logPanelStore.finish')
+    /* 并进「修复插件安装异常」卡片，不再单独成卡。 */
+    expect(CARD).toContain("t('agentSkillsTitle')")
+    // 按钮与「修复」同款。
+    expect(CARD).toContain("theme=\"solid\"")
     const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', import.meta.url), 'utf8')
     expect(ROUTES).toContain('ctx.logger.info(`[agent-skills]')
   })

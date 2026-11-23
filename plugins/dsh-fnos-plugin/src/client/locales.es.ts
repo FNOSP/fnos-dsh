@@ -297,6 +297,7 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   indexAdded: "Añadido",
   indexAdd: "Añadir",
   agentSkillsTitle: "Limpiar skills de agente",
+  agentSkillsDuplicateHint: "El complemento «@fnnas-labs/fnos-cli» ya incluye un skill con el mismo nombre. No lo instales de nuevo: dos copias hacen que los datos de OAuth se resuelvan en directorios distintos y rompen el estado de sesión.",
   agentSkillsCleanup: "Limpiar",
   agentSkillsFound: "Encontrado: ",
   agentSkillsRemoved: "Eliminado: ",

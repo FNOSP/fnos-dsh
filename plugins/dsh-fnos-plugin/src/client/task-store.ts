@@ -37,7 +37,7 @@ export type TaskKind =
   | 'nrm'
   /** 依赖修复（`DependencyRepairCard`）。 */
   | 'repair'
-  /** agent skill 清理（`AgentSkillsCard`）。 */
+  /** agent skill 清理（`DependencyRepairCard` 内的一节）。 */
   | 'agent-skills'
   /** 插件卸载（`InstalledPluginsPanel`）。 */
   | 'plugin-remove'

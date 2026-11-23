@@ -503,6 +503,37 @@ img.dsh-fnos-file-manager-icon {
 }
 
 /* 状态补充说明（完成/跳过/失败 + detail）比标识淡一档，视觉层级上从属于它。 */
+/*
+ * 「清理 agent skill」并入修复卡片后的分隔与次级标题。
+ *
+ * 用一条细分隔线把两件事分开，而不是再加一个卡片边框：它们同属「重置安装
+ * 环境」，视觉上应读作同一张卡里的两节。
+ */
+.dsh-fnos-repair-divider {
+  margin: 16px 0 14px;
+  border-top: 1px solid var(--dsw-alias-border-l1, rgb(0 0 0 / 8%));
+}
+
+.dsh-fnos-repair-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/*
+ * 那段「为什么值得清理」的说明。
+ *
+ * 与 `.dsh-fnos-repair-muted` 的区别：这条是**理由**而不是状态，所以用更低的
+ * 对比度 + 悬挂式缩进，读起来像注释而不是正文。
+ */
+.dsh-fnos-repair-note {
+  margin: 8px 0 0;
+  color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary));
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .dsh-fnos-repair-muted {
   color: var(--dsw-alias-label-tertiary);
   overflow-wrap: anywhere;
