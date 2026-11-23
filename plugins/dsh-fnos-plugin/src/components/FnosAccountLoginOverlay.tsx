@@ -149,6 +149,13 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
     `display: none`：用户已经把这次登录取消了，官方那边也该回到可操作状态。
   */
   const hiddenHostRef = useRef<Element>()
+  /*
+    等着在我们的关闭动画结束后再关掉的官方弹框。
+
+    我们的 Modal 有淡出动画。若在触发关闭的同一帧就把官方节点摘掉，视觉上会
+    「遮罩突然消失又出现」——先把要关的那一屏记下来，等 `afterClose` 再动手。
+  */
+  const pendingDismissRef = useRef<{ dialog: Element, host: Element }>()
 
   const close = useCallback((): void => {
     const found = findSignInDialog()
@@ -158,14 +165,32 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
     */
     dismissedNodeRef.current = found?.dialog
     if (found !== undefined) {
-      // 用户已放弃这次登录：连官方框一起关掉，不留一个「看不见但活着」的弹层。
-      dismissOfficial(found)
+      /*
+        记下来，等我们的关闭动画结束再关（见 `handleAfterClose`）。
+
+        此时**不能**同步点官方的关闭按钮：我们的框还在淡出，官方节点一摘，
+        遮罩会先消失再随着卸载重新布局，看起来像闪了一下。
+      */
+      pendingDismissRef.current = found
     } else if (hiddenHostRef.current !== undefined) {
       // 找不到官方框但宿主还压着：至少把可见性恢复，别让它永久隐藏。
       showOfficial(hiddenHostRef.current)
     }
     hiddenHostRef.current = undefined
     setOpen(false)
+  }, [])
+
+  /**
+   * 我们的弹框关闭动画结束后，把官方那一屏真正关掉。
+   *
+   * 留一个「看不见但活着」的弹层不关，`[role="dialog"]` 会一直挂在 `body` 下：
+   * 其它按结构查找弹框的逻辑（以及我们自己下一轮的判据）都会把它当成仍在的官方
+   * 登录框。
+   */
+  const handleAfterClose = useCallback((): void => {
+    const pending = pendingDismissRef.current
+    pendingDismissRef.current = undefined
+    if (pending !== undefined) dismissOfficial(pending)
   }, [])
 
   useEffect(() => {
@@ -214,5 +239,5 @@ export function FnosAccountLoginOverlay({ t }: FnosAccountLoginOverlayProps): Re
     return () => { observer.disconnect() }
   }, [])
 
-  return <FnosAccountLoginDialog open={open} t={t} onClose={close} />
+  return <FnosAccountLoginDialog open={open} t={t} onClose={close} onAfterClose={handleAfterClose} />
 }

@@ -53,6 +53,13 @@ export interface FnosAccountLoginDialogProps {
   readonly t: Translate
   /** 关闭回调。 */
   readonly onClose: () => void
+  /**
+   * 关闭动画结束后触发。
+   *
+   * 用来在这个时候才去关掉被压制的官方弹框：我们的框还在淡出时就把官方节点
+   * 摘掉，视觉上会闪一下（遮罩突然消失又出现）。
+   */
+  readonly onAfterClose?: () => void
 }
 
 /**
@@ -64,14 +71,43 @@ export interface FnosAccountLoginDialogProps {
  * @param props.onClose - 关闭回调。
  * @returns 对话框元素。
  */
-export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDialogProps): React.ReactNode {
+export function FnosAccountLoginDialog({ open, t, onClose, onAfterClose }: FnosAccountLoginDialogProps): React.ReactNode {
   const [phase, setPhase] = useState<Phase>('idle')
   const [pasted, setPasted] = useState('')
   const [message, setMessage] = useState<string>()
-  /** 授权页地址；「复制链接」用它，没有就不显示那一段。 */
-  const [authorizeUrl, setAuthorizeUrl] = useState<string>()
+  /*
+    授权页地址。用 ref 而不是 state：它只在点击时读一次，不参与渲染——文案是常显
+    的，不按有无地址分支。
+  */
   const authorizeUrlRef = useRef<string>()
   const closedRef = useRef(false)
+
+  /**
+   * 打开授权页。
+   *
+   * ## 为什么点击时才取地址
+   *
+   * `authorizeUrl` 要等官方 `auth_init` 那次网络往返回来才有，首次打开弹框时
+   * 通常还没到。但「重新打开授权页」这句是连读整句的一部分，不能因为地址没到
+   * 就消失——所以文案常显，地址在点击这一刻兜底再取一次。
+   *
+   * 缓存优先：轮询已经拿到过就直接用，不必每次都多一次请求。
+   */
+  const openAuthorizePage = useCallback(async (): Promise<void> => {
+    let url = authorizeUrlRef.current
+    if (url === undefined || url === '') {
+      const state = await readLoginStateOnce()
+      url = state?.authorizeUrl
+      if (url !== undefined && url !== '') authorizeUrlRef.current = url
+    }
+    if (url === undefined || url === '') {
+      /* 宿主还没生成地址：说清楚，别让用户以为点了没反应。 */
+      setMessage(t('accountLoginNoAuthorizeUrl'))
+      return
+    }
+    setMessage(undefined)
+    await openExternalUrl(url)
+  }, [t])
 
   /** 提交粘贴回来的回调地址。 */
   const submitCallback = useCallback(async (): Promise<void> => {
@@ -181,7 +217,6 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
       }
       if (state?.authorizeUrl !== undefined && state.authorizeUrl !== '') {
         authorizeUrlRef.current = state.authorizeUrl
-        setAuthorizeUrl(state.authorizeUrl)
       }
       /* 超时只限制「还没拿到地址」的等待；拿到地址后继续看登录结果。 */
       if (authorizeUrlRef.current === undefined && Date.now() - startedAt > 90_000) return
@@ -226,6 +261,7 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
     <DshModal
       visible={open}
       onCancel={close}
+      afterClose={onAfterClose}
       footer={null}
       width={480}
       centered
@@ -237,28 +273,24 @@ export function FnosAccountLoginDialog({ open, t, onClose }: FnosAccountLoginDia
       <p className="dsh-fnos-account-login-desc">
         {t('accountLoginPasteHint')}{' '}
         {/*
-          只在拿到地址时渲染链接，**不做禁用态**。
+          「重新打开授权页」**始终显示**，点击时才去取地址。
 
-          `authorizeUrl` 由宿主在 `waiting-browser` 阶段写入（官方 `auth_init`
-          返回后立即就有），所以真正可点的时候它一定在。渲染一个「灰着的链接」
-          反而让用户以为功能坏了。
+          这句是连读整句的一部分，缺失会让文案断在半句；而 `authorizeUrl` 要等
+          官方 `auth_init` 回来才有（`credentials/deepseek-account`），首次打开
+          弹框时通常还没到。所以不在渲染时判断有无，改为点击时兜底现取一份。
         */}
-        {authorizeUrl === undefined ? null : (
-          <>
-            <DshTypography.Text
-              link
-              underline
-              onClick={(event: React.MouseEvent) => {
-                event.preventDefault()
-                event.stopPropagation()
-                void openExternalUrl(authorizeUrl)
-              }}
-            >
-              {t('accountLoginReopenAction')}
-            </DshTypography.Text>
-            。
-          </>
-        )}
+        <DshTypography.Text
+          link
+          underline
+          onClick={(event: React.MouseEvent) => {
+            event.preventDefault()
+            event.stopPropagation()
+            void openAuthorizePage()
+          }}
+        >
+          {t('accountLoginReopenAction')}
+        </DshTypography.Text>
+        。
       </p>
       <DshInput
         value={pasted}

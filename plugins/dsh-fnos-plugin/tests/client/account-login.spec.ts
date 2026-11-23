@@ -85,8 +85,13 @@ describe('账号登录：只补官方缺的那一屏', () => {
     /*
       关闭我方弹框时要**真正关掉**官方框（点它自己的关闭按钮），不是恢复显示：
       用户已经放弃这次登录，官方框不该继续留在 DOM 里。
+
+      但关的时机是**我方关闭动画结束后**（`afterClose`），不是触发关闭的同一帧：
+      提前摘掉官方节点会让遮罩先消失再随卸载重新布局，视觉上闪一下。
     */
-    expect(overlay).toContain('dismissOfficial(found)')
+    expect(overlay).toContain('pendingDismissRef.current = found')
+    expect(overlay).toContain('dismissOfficial(pending)')
+    expect(overlay).toContain('handleAfterClose')
     expect(overlay).toContain("querySelector('button[aria-label]')")
     // 关闭前必须先解除隐藏，否则 click 不触发 React 处理函数。
     expect(overlay.indexOf("found.host")).toBeGreaterThan(-1)
@@ -282,18 +287,25 @@ describe('账号登录：弹框用 Semi 并挂 body', () => {
     expect(CLIENT).toContain('authorizeUrlRef.current === undefined && Date.now() - startedAt > 90_000')
   })
 
-  it('授权地址就绪后才渲染链接，不做禁用态', () => {
+  it('「重新打开授权页」常显，点击时才取地址', () => {
     /*
-      `authorizeUrl` 由宿主在 `waiting-browser` 阶段写入（官方 `auth_init` 返回后
-      立即就有），所以真正可点的时候它一定在。
+      两个要求同时成立：
 
-      早前渲染一个「灰着的链接」（`link={false}`）表示不可点，用户会以为功能坏了。
-      现在改为：地址没到就不渲染这一句，到了才出现。
+      1. 这句是连读整句的一部分（「…粘到下面。重新打开授权页。」），不能因为
+         地址没到就消失；
+      2. `authorizeUrl` 要等官方 `auth_init` 回来才有，首次打开弹框时通常还没到。
+
+      所以不在渲染时判断有无，改为点击时兜底现取：缓存优先，没有就再问一次宿主。
     */
-    expect(CLIENT).toContain("authorizeUrl === undefined ? null : (")
-    // 不再有禁用态的 link。
-    expect(CLIENT).not.toContain('link={authorizeUrl === undefined ? false :')
-    expect(CLIENT).not.toContain('disabled={authorizeUrl === undefined}')
+    expect(CLIENT).toContain('openAuthorizePage')
+    // 渲染不再按地址分支。
+    expect(CLIENT).not.toContain('authorizeUrl === undefined ? null : (')
+    expect(CLIENT).not.toContain('link={authorizeUrl')
+    // 点击时先看缓存，没有则现取。
+    expect(CLIENT).toContain('let url = authorizeUrlRef.current')
+    expect(CLIENT).toContain('readLoginStateOnce()')
+    // 实在取不到要告诉用户，别让点击看起来没反应。
+    expect(CLIENT).toContain("t('accountLoginNoAuthorizeUrl')")
   })
 
   it('「重新打开授权页」用 Typography.Text link + fnOS 的 openURL', () => {
