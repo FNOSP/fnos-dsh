@@ -24,7 +24,8 @@ import { fetchRuntimeLogs } from '../client/services/runtime-status-client.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import { fnosHostBridgeAvailable } from '../client/services/host-bridge.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
-import type { RuntimeLogEntry, RuntimeLogLevel } from '../contracts/runtime-status-contract.ts'
+import { RUNTIME_LOG_DEFAULT_LIMIT, RUNTIME_LOG_MAX_LIMIT, type RuntimeLogEntry, type RuntimeLogLevel } from '../contracts/runtime-status-contract.ts'
+import { VariableSizeList } from 'react-window'
 import dayjs from 'dayjs'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -34,8 +35,8 @@ export interface RuntimeLogPanelProps {
   readonly t: Translate
 }
 
-/** 默认条数；用户可用输入框改。 */
-const DEFAULT_LIMIT = 200
+/** 默认条数；用户可用输入框改。上限与服务端共用同一个契约常量。 */
+const DEFAULT_LIMIT = RUNTIME_LOG_DEFAULT_LIMIT
 
 /** 轮询间隔：日志要「接近实时」，但不必每秒；与运行页统一为 5 秒。 */
 const INTERVAL_MS = 5000
@@ -116,16 +117,66 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
     return () => { clearInterval(timer) }
   }, [load])
 
-  /** 新日志到达时，若用户仍在顶部就滚到顶（最新的在最上面）。 */
-  useEffect(() => {
-    if (followRef.current && listRef.current !== null) listRef.current.scrollTop = 0
+  /*
+    **虚拟化列表的行高测量。**
+
+    `VariableSizeList` 需要在行渲染后拿到真实高度，否则滚动条长度与位置都是错的。
+    这里把每行的高度按 key 缓存，并在内容变化时清空缓存——同一条日志的正文不会变，
+    但筛选后 key 集合会变。
+  */
+  const rowHeights = useRef(new Map<number, number>())
+  const virtualRef = useRef<VariableSizeList>(null)
+
+  const setRowHeight = useCallback((index: number, size: number): void => {
+    const key = entries[index]?.seq ?? index
+    if (rowHeights.current.get(key) === size) return
+    rowHeights.current.set(key, size)
+    /* 高度变了要让列表重算偏移，否则后续行会错位。 */
+    virtualRef.current?.resetAfterIndex(index)
   }, [entries])
 
-  const onScroll = (): void => {
+  const rowHeight = useCallback((index: number): number => {
+    const key = entries[index]?.seq ?? index
+    /* 未测量的行先按两行高度估算，量完会立刻纠正。 */
+    return rowHeights.current.get(key) ?? 40
+  }, [entries])
+
+  /** 列表可视高度：由容器决定，`ResizeObserver` 跟着面板尺寸走。 */
+  const [listHeight, setListHeight] = useState(320)
+  useEffect(() => {
     const el = listRef.current
-    if (el === null) return
-    followRef.current = el.scrollTop <= 4
-  }
+    if (el === null) return undefined
+    const observer = new ResizeObserver(() => { setListHeight(el.clientHeight) })
+    observer.observe(el)
+    setListHeight(el.clientHeight)
+    return () => { observer.disconnect() }
+  }, [entries.length === 0])
+
+  /** 新日志到达时，若用户仍在顶部就滚到顶（最新的在最上面）。 */
+  useEffect(() => {
+    if (followRef.current) virtualRef.current?.scrollToItem(0, 'start')
+  }, [entries])
+
+  const renderRow = useCallback(({ index, style }: { index: number, style: React.CSSProperties }) => {
+    const entry = entries[index]
+    if (entry === undefined) return null
+    return (
+      <div
+        style={style}
+        ref={(node) => {
+          /* 挂载后量一次真实高度并回报给列表。 */
+          if (node !== null) setRowHeight(index, node.getBoundingClientRect().height)
+        }}
+      >
+        <div className={`dsh-fnos-logs-line dsh-fnos-logs-line--${entry.level}`}>
+          <span className="dsh-fnos-logs-time">{clock(entry.at)}</span>
+          <span className="dsh-fnos-logs-badge">{t(levelKey(entry.level))}</span>
+          <span className="dsh-fnos-logs-name">{entry.name}</span>
+          <span className="dsh-fnos-logs-text">{entry.text}</span>
+        </div>
+      </div>
+    )
+  }, [entries, setRowHeight, t])
 
   return (
     <section className="dsh-fnos-logs">
@@ -162,14 +213,14 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
             className="dsh-fnos-logs-limit-input"
             size="small"
             min={1}
-            max={2000}
+            max={RUNTIME_LOG_MAX_LIMIT}
             value={limit}
             /* 不显示步进按钮：这一栏是「填个数字」，不是可微调的旋钮。 */
             hideButtons
             onChange={(value: number | string) => {
               const next = Number(value)
               // 非法值不写回，避免输入过程中把列表清空。
-              if (Number.isFinite(next) && next > 0) setLimit(Math.min(next, 2000))
+              if (Number.isFinite(next) && next > 0) setLimit(Math.min(next, RUNTIME_LOG_MAX_LIMIT))
             }}
           />
         </label>
@@ -199,19 +250,31 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
         <p className="dsh-fnos-repair-error" role="alert">{`${t('runtimeLogFailed')}${error}`}</p>
       )}
 
-      {/* 日志主体：等宽字体、单行省略、按级别着色。 */}
-      <div ref={listRef} className="dsh-fnos-logs-list" onScroll={onScroll} role="log" aria-live="polite">
+      {/*
+        **日志主体做虚拟化。**
+
+        条数上限 2000；不虚拟化就是 2000 个 DOM 节点常驻，展开面板时浏览器要一次性
+        布局完，滚动会明显掉帧，内存也随重渲染累积。虚拟化只渲染可视区加少量缓冲。
+
+        行高**不固定**（正文会折行），所以用 `VariableSizeList`：每行首次渲染后量出
+        实际高度并缓存，滚动到未测量的行时先按估算值占位。
+      */}
+      <div className="dsh-fnos-logs-body">
         {entries.length === 0 ? (
           <p className="dsh-fnos-repair-muted">{t('runtimeLogEmpty')}</p>
         ) : (
-          entries.map(entry => (
-            <div key={entry.seq} className={`dsh-fnos-logs-line dsh-fnos-logs-line--${entry.level}`}>
-              <span className="dsh-fnos-logs-time">{clock(entry.at)}</span>
-              <span className="dsh-fnos-logs-badge">{t(levelKey(entry.level))}</span>
-              <span className="dsh-fnos-logs-name">{entry.name}</span>
-              <span className="dsh-fnos-logs-text">{entry.text}</span>
-            </div>
-          ))
+          <div ref={listRef} className="dsh-fnos-logs-list" role="log" aria-live="polite">
+            <VariableSizeList
+              height={listHeight}
+              width="100%"
+              itemCount={entries.length}
+              itemSize={rowHeight}
+              itemKey={(index: number) => entries[index]?.seq ?? index}
+              overscanCount={8}
+            >
+              {renderRow}
+            </VariableSizeList>
+          </div>
         )}
       </div>
     </section>

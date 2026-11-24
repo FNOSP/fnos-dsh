@@ -2126,11 +2126,30 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  * 日志行不对齐就没法扫读，因此固定四段（时刻/级别/来源/正文），正文吃掉剩余宽度
  * 并省略；完整内容在 title 里。
  */
+/*
+ * 日志主体容器：负责撑满剩余高度，滚动交给内部的虚拟化列表。
+ *
+ * **不要在这里加 `overflow-y: auto`**：`VariableSizeList` 自己管理滚动容器，
+ * 外面再套一层会出现滚动条套滚动条、且行高测量拿到的是外层视口高度。
+ */
+.dsh-fnos-logs-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
 .dsh-fnos-logs-list {
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
-  padding: 8px 10px;
+  /*
+    padding 放在**内层**列表上（见下条规则），不放这里。
+
+    `React.CSSProperties.height` 传给 `VariableSizeList` 的是内容盒高度；这个容器
+    若带上下 padding，量出来的 `clientHeight` 会比可视化区域高 16px，最后一行会被
+    裁掉一截。
+  */
+  overflow: hidden;
   border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
   border-radius: 8px;
   background: var(--dsw-alias-interactive-bg-hover-solid, rgb(0 0 0 / 5%));
@@ -2148,6 +2167,14 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  *
  * 现在正文自己折行；左侧时刻/级别/来源保持不折（它们很短，折了反而更乱）。
  */
+/*
+ * `VariableSizeList` 内部的滚动容器：padding 放这里，行高测量才准。
+ */
+.dsh-fnos-logs-list > div {
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+
 .dsh-fnos-logs-line {
   display: flex;
   /* 顶对齐：正文折行后，左侧几段应贴在首行而不是垂直居中。 */

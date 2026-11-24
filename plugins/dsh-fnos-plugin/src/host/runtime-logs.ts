@@ -20,18 +20,19 @@
 
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type {
-  RuntimeLogEntry,
-  RuntimeLogLevel,
-  RuntimeLogSnapshot,
+import {
+  RUNTIME_LOG_DEFAULT_LIMIT, RUNTIME_LOG_MAX_LIMIT,
+  type RuntimeLogEntry,
+  type RuntimeLogLevel,
+  type RuntimeLogSnapshot,
 } from '../contracts/runtime-status-contract.ts'
 import { appendRuntimeLogFile, attachRuntimeLogFile, detachRuntimeLogFile } from './runtime-log-file.ts'
 
 /** 默认保留条数。 */
-export const DEFAULT_LOG_LIMIT = 200
+export const DEFAULT_LOG_LIMIT = RUNTIME_LOG_DEFAULT_LIMIT
 
 /** 允许用户请求的上限，防止一次拉太多把响应撑大。 */
-export const MAX_LOG_LIMIT = 2000
+export const MAX_LOG_LIMIT = RUNTIME_LOG_MAX_LIMIT
 
 /** 缓冲本体。 */
 let buffer: RuntimeLogEntry[] = []

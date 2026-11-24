@@ -122,6 +122,20 @@ export interface RuntimeLogEntry {
 }
 
 /** 日志快照。 */
+/**
+ * 日志条数的上限。
+ *
+ * 前后端共用这一个值：宿主用它截断查询（`readLogs`），界面用它钳制输入框。
+ * 两处各写一个数字迟早会漂——界面允许 5000、服务端只给 2000，用户会以为丢日志。
+ *
+ * 值取 2000：单行平均约 120 字节，2000 条约 240 KiB，一次性传给浏览器不至于卡顿；
+ * 再大就该靠虚拟化 + 分页，而不是把整份灌进内存。
+ */
+export const RUNTIME_LOG_MAX_LIMIT = 2000
+
+/** 默认条数（首屏与「重置」用）。 */
+export const RUNTIME_LOG_DEFAULT_LIMIT = 200
+
 export interface RuntimeLogSnapshot {
   /** 过滤前的缓冲总数，便于界面显示「显示 N / 共 M」。 */
   readonly total: number

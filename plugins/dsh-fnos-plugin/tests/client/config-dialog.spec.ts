@@ -1052,3 +1052,36 @@ describe('禁用态可读性', () => {
     expect(scss).not.toMatch(/--semi-color-disabled-text:\s*rgba\(\d/u)
   })
 })
+
+describe('日志列表：上限与虚拟化', () => {
+  it('条数上限前后端共用一个契约常量', () => {
+    /*
+      两处各写一个数字迟早会漂——界面允许 5000、服务端只给 2000，用户会以为丢日志。
+    */
+    const CONTRACT = readFileSync(new URL('../../src/contracts/runtime-status-contract.ts', import.meta.url), 'utf8')
+    expect(CONTRACT).toContain('export const RUNTIME_LOG_MAX_LIMIT = 2000')
+
+    const HOST = readFileSync(new URL('../../src/host/runtime-logs.ts', import.meta.url), 'utf8')
+    expect(HOST).toContain('MAX_LOG_LIMIT = RUNTIME_LOG_MAX_LIMIT')
+
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('RUNTIME_LOG_MAX_LIMIT')
+    // 不再有写死的 2000。
+    expect(PANEL).not.toContain('max={2000}')
+    expect(PANEL).not.toContain('Math.min(next, 2000)')
+  })
+
+  it('列表虚拟化：只渲染可视区', () => {
+    /*
+      条数上限 2000；不虚拟化就是 2000 个 DOM 节点常驻，展开面板时浏览器要一次性
+      布局完，滚动明显掉帧，内存也随重渲染累积。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('VariableSizeList')
+    /* 行高不固定（正文折行），不能用 FixedSizeList。 */
+    expect(PANEL).not.toContain('FixedSizeList')
+    // 每行渲染后量真实高度并回报，否则滚动条位置会错。
+    expect(PANEL).toContain('setRowHeight')
+    expect(PANEL).toContain('resetAfterIndex')
+  })
+})
