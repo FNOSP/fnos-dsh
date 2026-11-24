@@ -1171,3 +1171,29 @@ describe('tooltip 的使用边界', () => {
     expect(PANEL).toContain("{t('runtimeLogOpenDirectory')}")
   })
 })
+
+describe('授权目录：分成两个分组', () => {
+  it('按能否取消授权拆组，不再逐行重复「应用共享目录」', () => {
+    /*
+      `removable === false` 的是应用共享目录（`@appshare` / `@apphome` 等），由应用
+      自身创建、不可取消。它们与用户自己授权进来的目录性质不同。
+
+      早前靠行尾一句「应用共享目录」区分，那一列在每行都重复一遍，读起来像状态标签
+      而不是分组——用户真正要找「我授权了哪些目录」时，得逐行跳过这些只读项。
+    */
+    const CARD = readFileSync(new URL('../../src/components/AuthorizedDirectoriesCard.tsx', import.meta.url), 'utf8')
+    expect(CARD).toContain('const userDirectories = state.directories.filter(directory => directory.removable)')
+    expect(CARD).toContain('const sharedDirectories = state.directories.filter(directory => !directory.removable)')
+    // 两组各有一个标题。
+    expect(CARD).toContain("{t('authorizedDirectories')}")
+    expect(CARD).toContain('dsh-fnos-authorized-group-title')
+    expect(CARD).toContain("{t('sharedDirectory')}")
+    // 行尾不再重复那句文案。
+    expect(CARD).not.toContain('dsh-fnos-authorized-read-only')
+
+    /* 样式也清理干净。 */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    expect(SCSS).not.toContain('.dsh-fnos-authorized-read-only')
+    expect(SCSS).toContain('.dsh-fnos-authorized-group-title')
+  })
+})

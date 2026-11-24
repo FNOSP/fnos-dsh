@@ -775,11 +775,24 @@ img.dsh-fnos-file-manager-icon {
   color: var(--dsw-alias-label-primary);
 }
 
-.dsh-fnos-authorized-read-only {
-  flex: 0 0 auto;
-  color: var(--dsw-alias-label-tertiary);
+/*
+ * 目录列表的分组标题（「授权目录」/「应用共享目录」）。
+ *
+ * 用 `<h4>` 而不是加粗的段落：两组的层级本身是「同一张卡里的两个小节」，标题元素
+ * 让读屏可以按标题跳读，而不必逐行走过一串路径。
+ */
+.dsh-fnos-authorized-group-title {
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--dsw-alias-label-secondary);
   font-size: 12px;
-  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* 两个分组之间留出间隔，避免「授权目录」的最后一行贴着「应用共享目录」的标题。 */
+.dsh-fnos-authorized-group-title:not(:first-child) {
+  margin-top: 16px;
 }
 
 .dsh-fnos-authorized-gateway {

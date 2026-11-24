@@ -450,6 +450,64 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
     }
   }, [deletePending, pendingDeletePath, removeDirectory])
 
+  /*
+    **按「能否取消授权」分成两组。**
+
+    `removable === false` 的是应用共享目录（`@appshare` / `@apphome` 等），由应用
+    自身创建、不可取消。它们与用户自己授权进来的目录性质不同：前者是「应用要用的」，
+    后者是「你允许应用看的」。
+  */
+  const userDirectories = state.directories.filter(directory => directory.removable)
+  const sharedDirectories = state.directories.filter(directory => !directory.removable)
+
+  /**
+   * 渲染一行目录。
+   * @param directory - 目录条目。
+   * @returns 列表项。
+   */
+  const renderRow = (directory: AuthorizedDirectory): React.ReactNode => (
+    <li key={directory.path} className="dsh-fnos-authorized-path-row">
+      {/*
+        路径用 Semi 的 Typography ellipsis，而不是自己写 `text-overflow`。
+
+        与命令行那处同理：自带 tooltip、只在真的被截断时才提示、跟随主题。
+        路径很容易长到超出卡片宽度（`存储空间 2/@apphome/fn-deepseek-harness`
+        这类），自写省略号只有原生 `title`——延迟约 1 秒、样式不受控。
+      */}
+      <DshTypographyText
+        className="dsh-fnos-authorized-path"
+        ellipsis={{ showTooltip: true }}
+      >
+        {directory.semanticPath}
+      </DshTypographyText>
+      {/*
+        「打开」只在**宿主桥可用**时出现（即 fnOS 应用中心内嵌）。
+
+        独立浏览器页面里没有宿主桥，`openFileManager(path)` 不可用；退而用
+        `openURL` 只能打开 fnOS **桌面首页**，无法定位到目标目录——用户点「打开」
+        却被丢回桌面，还得自己再找一遍，比没有这个按钮更差。
+
+        只读的应用共享目录同样保留「打开」：用户想确认目录里有什么，不该因为
+        「不能取消授权」被顺带禁掉浏览。
+      */}
+      {SHOWS_FILE_MANAGER_ENTRY && (
+        <button
+          type="button"
+          className="dsh-fnos-authorized-button dsh-fnos-authorized-button--open"
+          disabled={busy || openingPath === directory.path}
+          onClick={() => { void openDirectory(directory.path) }}
+        >
+          {t('open')}
+        </button>
+      )}
+      {directory.removable ? (
+        <button type="button" className="dsh-fnos-authorized-button dsh-fnos-authorized-button--danger" disabled={busy} onClick={() => { setPendingDeletePath(directory.path) }}>
+          {t('delete')}
+        </button>
+      ) : null}
+    </li>
+  )
+
   return (
     <div className="dsh-fnos-authorized-card">
       {/*
@@ -596,52 +654,32 @@ export function AuthorizedDirectoriesCard({ t }: AuthorizedDirectoriesCardProps)
               />
             )
             : null}
-          {state.directories.length > 0 ? (
-            <ul className="dsh-fnos-authorized-path-list">
-              {state.directories.map(directory => (
-                <li key={directory.path} className="dsh-fnos-authorized-path-row">
-                  {/*
-                    路径用 Semi 的 Typography ellipsis，而不是自己写 `text-overflow`。
+          {/*
+            **分成两组显示。**
 
-                    与命令行那处同理：自带 tooltip、只在真的被截断时才提示、跟随主题。
-                    路径很容易长到超出卡片宽度（`存储空间 2/@apphome/fn-deepseek-harness`
-                    这类），自写省略号只有原生 `title`——延迟约 1 秒、样式不受控。
-                  */}
-                  <DshTypographyText
-                    className="dsh-fnos-authorized-path"
-                    ellipsis={{ showTooltip: true }}
-                  >
-                    {directory.semanticPath}
-                  </DshTypographyText>
-                  {/*
-                    「打开」只在**宿主桥可用**时出现（即 fnOS 应用中心内嵌）。
+            `removable === false` 的是应用共享目录（`@appshare` / `@apphome` 等），
+            由应用自身创建、不可取消授权。它们与用户自己授权进来的目录性质不同：
+            前者是「应用要用的」，后者是「你允许应用看的」。
 
-                    独立浏览器页面里没有宿主桥，`openFileManager(path)` 不可用；
-                    退而用 `openURL` 只能打开 fnOS **桌面首页**，无法定位到目标
-                    目录——用户点「打开」却被丢回桌面，还得自己再找一遍，比没有
-                    这个按钮更差。所以这一形态下直接不渲染它。
-
-                    只读的应用共享目录同样保留「打开」：用户想确认目录里有什么，
-                    不该因为「不能取消授权」被顺带禁掉浏览。
-                  */}
-                  {SHOWS_FILE_MANAGER_ENTRY && (
-                    <button
-                      type="button"
-                      className="dsh-fnos-authorized-button dsh-fnos-authorized-button--open"
-                      disabled={busy || openingPath === directory.path}
-                      onClick={() => { void openDirectory(directory.path) }}
-                    >
-                      {t('open')}
-                    </button>
-                  )}
-                  {directory.removable ? (
-                    <button type="button" className="dsh-fnos-authorized-button dsh-fnos-authorized-button--danger" disabled={busy} onClick={() => { setPendingDeletePath(directory.path) }}>
-                      {t('delete')}
-                    </button>
-                  ) : <span className="dsh-fnos-authorized-read-only">{t('sharedDirectory')}</span>}
-                </li>
-              ))}
-            </ul>
+            早前靠行尾一句「应用共享目录」区分，那一列在每行都重复一遍，读起来像
+            状态标签而不是分组——而且用户真正要找「我授权了哪些目录」时，得逐行
+            跳过这些只读项。
+          */}
+          {userDirectories.length > 0 ? (
+            <>
+              <h4 className="dsh-fnos-authorized-group-title">{t('authorizedDirectories')}</h4>
+              <ul className="dsh-fnos-authorized-path-list">
+                {userDirectories.map(directory => renderRow(directory))}
+              </ul>
+            </>
+          ) : null}
+          {sharedDirectories.length > 0 ? (
+            <>
+              <h4 className="dsh-fnos-authorized-group-title">{t('sharedDirectory')}</h4>
+              <ul className="dsh-fnos-authorized-path-list">
+                {sharedDirectories.map(directory => renderRow(directory))}
+              </ul>
+            </>
           ) : null}
       </div>
     </div>
