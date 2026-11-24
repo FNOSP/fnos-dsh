@@ -129,6 +129,13 @@ export interface RuntimeLogSnapshot {
   readonly entries: readonly RuntimeLogEntry[]
   /** 本次生效的条数上限。 */
   readonly limit: number
+  /**
+   * 日志落盘目录的绝对路径；宿主未接上时为 undefined。
+   *
+   * 界面用它渲染「查看日志」按钮——在 fnOS 文件管理器里定位到这个目录，用户能
+   * 看到按大小轮转的历史 `.log` 文件。
+   */
+  readonly logDirectory?: string
 }
 
 /** 运行状态响应。 */

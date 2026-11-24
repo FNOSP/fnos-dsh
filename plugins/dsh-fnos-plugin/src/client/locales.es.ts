@@ -218,6 +218,7 @@ export const es: { [Key in FnosLocaleKey]: string } = {
   runtimeLogDebug: "Depuracion",
   runtimeLogSearch: "Buscar registros",
   runtimeLogLimit: "Limite",
+  runtimeLogOpenDirectory: "Ver registros",
   runtimeLogEmpty: "Aun no hay registros.",
   runtimeLogFailed: "No se pudieron leer los registros: ",
   logPanelTitle: "Registro de la tarea",

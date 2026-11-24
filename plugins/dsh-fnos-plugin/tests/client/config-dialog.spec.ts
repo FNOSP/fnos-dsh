@@ -990,3 +990,45 @@ describe('插件卡片：没有自备图标时用官方默认图形', () => {
     expect(card).toContain('notifyFailure(message)')
   })
 })
+
+describe('日志落盘与「查看日志」入口', () => {
+  it('用 rotating-file-stream 做大小轮转，不自写', async () => {
+    /*
+      按大小轮转 + 保留 N 份看着简单，边界却不少：写入并发、轮转瞬间的原子性、
+      序号推进、多进程写同一目录。这些自己写必然出错，是成熟库的正好职责。
+    */
+    const FILE = readFileSync(new URL('../../src/host/runtime-log-file.ts', import.meta.url), 'utf8')
+    expect(FILE).toContain("from 'rotating-file-stream'")
+    expect(FILE).toContain('size: MAX_SIZE')
+    expect(FILE).toContain('maxFiles: MAX_FILES')
+    // 不自己算轮转。
+    expect(FILE).not.toContain('renameSync')
+    expect(FILE).not.toContain('unlinkSync')
+
+    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+      dependencies: Record<string, string>
+    }
+    expect(pkg.dependencies['rotating-file-stream']).toBeDefined()
+  })
+
+  it('落盘与内存缓冲写同一行，卸载时收尾流', () => {
+    const LOGS = readFileSync(new URL('../../src/host/runtime-logs.ts', import.meta.url), 'utf8')
+    // 同一条记录：入缓冲后立刻落盘。
+    expect(LOGS).toContain('buffer.push(entry)')
+    expect(LOGS).toContain('appendRuntimeLogFile(')
+    // 插件卸载时关流，否则最后几行留在用户态缓冲里。
+    expect(LOGS).toContain('detachRuntimeLogFile()')
+  })
+
+  it('「查看日志」只在宿主桥可用时渲染', () => {
+    /*
+      独立浏览器页面没有宿主桥，`openFileManager` 不可用——给一个点了没反应的
+      按钮比不给更差。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('fnosHostBridgeAvailable()')
+    expect(PANEL).toContain('openFnosFileManager(logDirectory')
+    // 目录未知时也不渲染。
+    expect(PANEL).toContain('logDirectory === undefined ? null :')
+  })
+})

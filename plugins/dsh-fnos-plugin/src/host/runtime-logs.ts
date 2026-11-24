@@ -18,12 +18,14 @@
  * @module dsh-fnos/runtime-logs
  */
 
+import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {
   RuntimeLogEntry,
   RuntimeLogLevel,
   RuntimeLogSnapshot,
 } from '../contracts/runtime-status-contract.ts'
+import { appendRuntimeLogFile, attachRuntimeLogFile, detachRuntimeLogFile } from './runtime-log-file.ts'
 
 /** 默认保留条数。 */
 export const DEFAULT_LOG_LIMIT = 200
@@ -33,6 +35,9 @@ export const MAX_LOG_LIMIT = 2000
 
 /** 缓冲本体。 */
 let buffer: RuntimeLogEntry[] = []
+
+/** 落盘目录；`undefined` 表示没接上（无 profile 或写盘不可用）。 */
+let currentLogDirectory: string | undefined
 
 /** 单调递增序号，用于去重与稳定排序。 */
 let sequence = 0
@@ -83,9 +88,23 @@ function stringify(args: readonly unknown[]): string {
  * @param ctx - 宿主上下文。
  * @param limit - 环形缓冲上限。
  */
-export function registerLogCollector(ctx: Context, limit: number = MAX_LOG_LIMIT): void {
+export function registerLogCollector(
+  ctx: Context,
+  limit: number = MAX_LOG_LIMIT,
+  profileDirectory?: string,
+): void {
   buffer = new Array<RuntimeLogEntry>()
   sequence = 0
+  /*
+    **同一行既进内存缓冲，也写进磁盘。**
+
+    内存缓冲只有 200 条且重启即失；磁盘那份按大小轮转保留，用于回看历史。两份
+    内容一致（同一行文本，含时间戳与级别），可以互相对照。
+  */
+  if (profileDirectory !== undefined) {
+    currentLogDirectory = join(profileDirectory, 'gateway')
+    attachRuntimeLogFile(profileDirectory)
+  }
   ctx.effect(() => ctx.logger.exporter({
     // 接收全部级别：筛选是界面的事，采集端先过滤会让用户查不到 debug。
     levels: { default: 3 },
@@ -103,8 +122,12 @@ export function registerLogCollector(ctx: Context, limit: number = MAX_LOG_LIMIT
         // 一次多丢一些，避免每来一条都执行 splice(0, 1)。
         buffer.splice(0, buffer.length - limit)
       }
+      /* 落盘一行：与上面入缓冲的是同一条记录。 */
+      appendRuntimeLogFile(`${new Date(entry.at).toISOString()} [${entry.level}] ${entry.name} ${entry.text}`)
     },
   }), 'dsh-fnos: runtime log exporter')
+  /* 流随插件卸载一起收尾：不处理会让最后几行留在用户态缓冲区里。 */
+  ctx.effect(() => () => { detachRuntimeLogFile() })
 }
 
 /**
@@ -139,6 +162,7 @@ export function readLogs(options: {
     total: buffer.length,
     entries: matched,
     limit,
+    ...(currentLogDirectory === undefined ? {} : { logDirectory: currentLogDirectory }),
   }
 }
 

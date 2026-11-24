@@ -218,6 +218,7 @@ export const de: { [Key in FnosLocaleKey]: string } = {
   runtimeLogDebug: "Debug",
   runtimeLogSearch: "Protokolle durchsuchen",
   runtimeLogLimit: "Limit",
+  runtimeLogOpenDirectory: "Protokolle anzeigen",
   runtimeLogEmpty: "Noch keine Protokolle.",
   runtimeLogFailed: "Protokolle konnten nicht gelesen werden: ",
   logPanelTitle: "Task-Protokoll",

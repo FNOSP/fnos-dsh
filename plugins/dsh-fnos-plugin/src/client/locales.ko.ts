@@ -226,6 +226,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   runtimeLogDebug: "디버그",
   runtimeLogSearch: "로그 검색",
   runtimeLogLimit: "최대",
+  runtimeLogOpenDirectory: "로그 보기",
   runtimeLogEmpty: "아직 로그가 없습니다.",
   runtimeLogFailed: "로그를 읽지 못했습니다: ",
   logPanelTitle: "작업 로그",

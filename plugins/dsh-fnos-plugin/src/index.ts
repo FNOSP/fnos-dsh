@@ -15,6 +15,7 @@ import { registerAccountLoginRelay } from './host/account-login-relay.ts'
 import { registerLogCollector } from './host/runtime-logs.ts'
 import { registerStaticAssetRoute } from './host/static-assets.ts'
 import { registerPresentedPathRoute } from './host/presented-open.ts'
+import { resolveRepairEnvironment } from './host/dependency-repair.ts'
 
 /** Stable Host bundle name. */
 export const name = '@tnnevol/dsh-fnos'
@@ -53,7 +54,8 @@ export function apply(ctx: Context, config?: FnosConfig): void {
   registerAuthorizedDirectoryRoutes(ctx, { settingsNamespace: DSH_SETTINGS_ENTRY_ID })
   registerGatewayProxyRoutes(ctx, DSH_SETTINGS_ENTRY_ID)
   registerDependencyRepairRoutes(ctx)
-  registerLogCollector(ctx)
+  /* 传入 profile 目录，日志才能落盘到 `<profile>/gateway/`。 */
+  registerLogCollector(ctx, undefined, resolveRepairEnvironment()?.profileDirectory)
   registerRuntimeStatusRoutes(ctx)
   registerAccountLoginRelay(ctx)
   registerStaticAssetRoute(ctx)

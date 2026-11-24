@@ -90,6 +90,7 @@
     "@deepseek-ai/schemastery": "catalog:",
     "dayjs": "catalog:",
     "echarts": "catalog:",
+    "rotating-file-stream": "catalog:",
     "semver": "catalog:"
   },
   "dsh": {

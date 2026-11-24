@@ -18,9 +18,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshInput, DshInputNumber, DshSelect } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshIconFolder, DshInput, DshInputNumber, DshSelect, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchRuntimeLogs } from '../client/services/runtime-status-client.ts'
+import { openFnosFileManager } from '../client/services/file-manager.ts'
+import { fnosHostBridgeAvailable } from '../client/services/host-bridge.ts'
+import { createTrimApp } from '../client/services/sdk.ts'
 import type { RuntimeLogEntry, RuntimeLogLevel } from '../contracts/runtime-status-contract.ts'
 import dayjs from 'dayjs'
 
@@ -70,6 +73,8 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
   const [level, setLevel] = useState<'all' | RuntimeLogLevel>('all')
   const [query, setQuery] = useState('')
   const [limit, setLimit] = useState(DEFAULT_LIMIT)
+  /** 日志落盘目录；宿主未接上时为空，按钮不渲染。 */
+  const [logDirectory, setLogDirectory] = useState<string>()
   const [error, setError] = useState<string>()
   const listRef = useRef<HTMLDivElement>(null)
   /** 用户是否停在顶部：只在「看最新」时自动跟随，避免打断向上翻阅。 */
@@ -80,11 +85,30 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
     try {
       const snapshot = await fetchRuntimeLogs({ limit, level, query })
       setEntries(snapshot.entries)
+      setLogDirectory(snapshot.logDirectory)
       setError(undefined)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     }
   }, [limit, level, query])
+
+  /**
+   * 打开日志目录（fnOS 文件管理器）。
+   *
+   * ## 为什么只在 iframe 里显示
+   *
+   * 独立浏览器页面没有宿主桥，`openFileManager` 不可用。给一个点了没反应的
+   * 按钮比不给更差，所以入口按宿主桥可用性直接不渲染。
+   */
+  const openLogDirectory = useCallback(async (): Promise<void> => {
+    /* 按钮只在目录已知时渲染，这里再守一次是为了让类型收窄。 */
+    if (logDirectory === undefined) return
+    try {
+      await openFnosFileManager(logDirectory, () => createTrimApp())
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    }
+  }, [logDirectory])
 
   useEffect(() => {
     void load()
@@ -149,6 +173,26 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
             }}
           />
         </label>
+        {/*
+          「查看日志」：在 fnOS 文件管理器里定位到落盘目录。
+
+          **只在 iframe 里显示。** 独立浏览器页面没有宿主桥，`openFileManager`
+          不可用——给一个点了没反应的按钮比不给更差，所以按宿主桥可用性直接不渲染。
+        */}
+        {!fnosHostBridgeAvailable() || logDirectory === undefined ? null : (
+          <DshTooltip content={t('runtimeLogOpenDirectory')}>
+            <DshButton
+              htmlType="button"
+              size="small"
+              theme="borderless"
+              type="tertiary"
+              onClick={() => { void openLogDirectory() }}
+            >
+              <DshIconFolder />
+              {t('runtimeLogOpenDirectory')}
+            </DshButton>
+          </DshTooltip>
+        )}
       </div>
 
       {error === undefined ? null : (
