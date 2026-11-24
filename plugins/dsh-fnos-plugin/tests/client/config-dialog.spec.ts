@@ -1035,3 +1035,20 @@ describe('日志落盘与「查看日志」入口', () => {
     expect(PANEL).toContain('logDirectory === undefined ? null :')
   })
 })
+
+describe('禁用态可读性', () => {
+  it('抬高 Semi 禁用文字不透明度', () => {
+    /*
+      Semi 的 `--semi-color-disabled-text` 是 `rgba(grey-9, .35)`——只有 35%。
+      在 `light` 主题的浅灰底上几乎看不见，用户读不出那是「禁用」而不是「没渲染
+      出来」。
+
+      改的是变量而不是逐个 `.semi-button-disabled`：这个变量被 Button、Input、
+      Select、Switch 等一起消费，改一处即覆盖所有亮底/深底的禁用态。
+    */
+    const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    expect(scss).toContain('--semi-color-disabled-text: rgba(var(--semi-grey-9), .55)')
+    // 引用 Semi 的调色板变量，不写死 rgb。
+    expect(scss).not.toMatch(/--semi-color-disabled-text:\s*rgba\(\d/u)
+  })
+})

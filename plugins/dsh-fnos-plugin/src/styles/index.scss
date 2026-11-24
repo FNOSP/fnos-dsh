@@ -29,6 +29,26 @@ $dsh-fnos-z-over-modal: semi.$z-modal + 100;
   }
 }
 
+/*
+ * **禁用态文字统一提亮到可读。**
+ *
+ * Semi 的禁用文字色是 `rgba(var(--semi-grey-9), .35)`——只有 35% 不透明度。
+ * 这在 `light` 主题（背景是接近实色的浅灰）上几乎看不见：截图里「清理」按钮
+ * 是一块淡灰底、上面的字比底色深不了多少，用户读不出那是「禁用」而不是「没渲染
+ * 出来」。
+ *
+ * 提高不透明度而不是换色：色相仍是 Semi 的 `grey-9`，只是让它在浅底上站得住
+ * （.55 时对比度约 4:1，达到 WCAG AA 的大字标准）。深色主题下同样适用——那边的
+ * 背景更暗，提亮只会更好读。
+ *
+ * 用 `--semi-color-disabled-text` 而不是逐个 `.semi-button-disabled`：这个变量
+ * 被 Button、Input、Select、Switch 等一起消费，改一处即可覆盖所有「亮底/深底」
+ * 的禁用态，不会漏掉某个组件。
+ */
+body[data-dsh-semi-theme] {
+  --semi-color-disabled-text: rgba(var(--semi-grey-9), .55);
+}
+
 .dsh-fnos-color-logo {
   display: block;
   object-fit: contain;
