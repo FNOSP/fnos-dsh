@@ -181,14 +181,30 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
     return rowHeights.current.get(key) ?? 40
   }, [entries])
 
-  /** 列表可视高度：由容器决定，`ResizeObserver` 跟着面板尺寸走。 */
+  /**
+   * 列表可视高度。
+   *
+   * **要扣掉容器的上下 padding。** `clientHeight` 含内距，而传给
+   * `VariableSizeList` 的 `height` 是内容区高度——不扣的话列表比可视区高 16px，
+   * 最后一行会压到容器的下边框上。
+   */
   const [listHeight, setListHeight] = useState(320)
+  /** 列表内容宽度（已扣左右内距），`VariableSizeList` 需要像素值而非百分比。 */
+  const [listWidth, setListWidth] = useState(0)
   useEffect(() => {
     const el = listRef.current
     if (el === null) return undefined
-    const observer = new ResizeObserver(() => { setListHeight(el.clientHeight) })
+    const measure = (): void => {
+      const cs = getComputedStyle(el)
+      const padY = Number.parseFloat(cs.paddingTop) + Number.parseFloat(cs.paddingBottom)
+      const padX = Number.parseFloat(cs.paddingLeft) + Number.parseFloat(cs.paddingRight)
+      setListHeight(Math.max(0, el.clientHeight - padY))
+      /* 宽度同理：传进去的必须是内容区像素值。 */
+      setListWidth(Math.max(0, el.clientWidth - padX))
+    }
+    const observer = new ResizeObserver(measure)
     observer.observe(el)
-    setListHeight(el.clientHeight)
+    measure()
     return () => { observer.disconnect() }
   }, [entries.length === 0])
 
@@ -340,7 +356,7 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
           <div ref={listRef} className="dsh-fnos-logs-list" role="log" aria-live="polite">
             <VariableSizeList
               height={listHeight}
-              width="100%"
+              width={listWidth}
               itemCount={entries.length}
               itemSize={rowHeight}
               itemKey={(index: number) => entries[index]?.seq ?? index}

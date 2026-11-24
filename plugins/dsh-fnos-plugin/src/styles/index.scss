@@ -2176,12 +2176,16 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   flex: 1 1 auto;
   min-height: 0;
   /*
-    padding 放在**内层**列表上（见下条规则），不放这里。
+    padding 在这里，并且**内联传给 `VariableSizeList` 的 height 已扣掉它**（见组件）。
 
-    `React.CSSProperties.height` 传给 `VariableSizeList` 的是内容盒高度；这个容器
-    若带上下 padding，量出来的 `clientHeight` 会比可视化区域高 16px，最后一行会被
-    裁掉一截。
+    早前把 padding 加在内层的 `> div` 上，那个 div 是 react-window 的滚动层，而它的
+    行是**绝对定位**（靠 `translateY` 排布）——绝对定位的行不受 padding 约束，于是
+    padding 只把滚动条内缩了，行本身仍贴着边框。
+
+    `clientHeight` 含 padding，所以组件侧用 `clientHeight - 上下内距` 作为列表高度。
   */
+  box-sizing: border-box;
+  padding: 8px 10px;
   overflow: hidden;
   border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 10%));
   border-radius: 8px;
@@ -2200,14 +2204,6 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  *
  * 现在正文自己折行；左侧时刻/级别/来源保持不折（它们很短，折了反而更乱）。
  */
-/*
- * `VariableSizeList` 内部的滚动容器：padding 放这里，行高测量才准。
- */
-.dsh-fnos-logs-list > div {
-  padding: 8px 10px;
-  box-sizing: border-box;
-}
-
 .dsh-fnos-logs-line {
   display: flex;
   /* 顶对齐：正文折行后，左侧几段应贴在首行而不是垂直居中。 */

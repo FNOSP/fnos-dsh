@@ -1234,3 +1234,29 @@ describe('日志：重叠修复与搜索范围', () => {
     expect(ROUTE).toContain("url.searchParams.get('scope') === 'files'")
   })
 })
+
+describe('日志列表：padding 与虚拟化尺寸', () => {
+  it('padding 在容器上，高度与宽度都扣掉内距', () => {
+    /*
+      早前把 padding 加在 `.dsh-fnos-logs-list > div` 上——那个 div 是 react-window
+      的滚动层，而它的行是**绝对定位**（靠 translateY 排布）。绝对定位的行不受
+      padding 约束，于是 padding 只把滚动条内缩了，行本身仍贴着边框。
+
+      现在 padding 在容器上，组件侧把 clientHeight / clientWidth 扣掉内距再传给
+      VariableSizeList——它要的是内容区像素值。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-logs-list {'), SCSS.indexOf('}', SCSS.indexOf('.dsh-fnos-logs-list {')))
+    expect(rule).toContain('padding: 8px 10px')
+    expect(rule).toContain('box-sizing: border-box')
+    // 不再有把 padding 挂在内层滚动层的规则。
+    expect(SCSS).not.toContain('.dsh-fnos-logs-list > div')
+
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('el.clientHeight - padY')
+    expect(PANEL).toContain('el.clientWidth - padX')
+    // 宽度必须传像素值，百分比在虚拟化里算不准。
+    expect(PANEL).toContain('width={listWidth}')
+    expect(PANEL).not.toContain('width="100%"')
+  })
+})
