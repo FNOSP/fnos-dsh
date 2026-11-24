@@ -18,7 +18,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshSelect } from '@tnnevol/dsh-semi-ui'
+import { DshInput, DshInputNumber, DshSelect } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchRuntimeLogs } from '../client/services/runtime-status-client.ts'
 import type { RuntimeLogEntry, RuntimeLogLevel } from '../contracts/runtime-status-contract.ts'
@@ -125,22 +125,27 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
           */
           optionList={LEVELS.map(item => ({ value: item.value, label: t(item.labelKey), showTick: false }))}
         />
-        <input
+        <DshInput
           className="dsh-fnos-logs-search"
-          type="search"
+          size="small"
+          /* 与同一行的 Select 等高；Semi 的 Input 默认尺寸比 small Select 高。 */
           value={query}
           placeholder={t('runtimeLogSearch')}
-          onChange={event => { setQuery(event.target.value) }}
+          showClear
+          onChange={(value: string) => { setQuery(value) }}
         />
         <label className="dsh-fnos-logs-limit">
           <span>{t('runtimeLogLimit')}</span>
-          <input
-            type="number"
+          <DshInputNumber
+            className="dsh-fnos-logs-limit-input"
+            size="small"
             min={1}
             max={2000}
             value={limit}
-            onChange={event => {
-              const next = Number(event.target.value)
+            /* 不显示步进按钮：这一栏是「填个数字」，不是可微调的旋钮。 */
+            hideButtons
+            onChange={(value: number | string) => {
+              const next = Number(value)
               // 非法值不写回，避免输入过程中把列表清空。
               if (Number.isFinite(next) && next > 0) setLimit(Math.min(next, 2000))
             }}

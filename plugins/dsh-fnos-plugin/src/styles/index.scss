@@ -2060,21 +2060,15 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   flex: 0 0 120px;
 }
 
+/*
+ * 搜索框只负责**占满剩余宽度**。
+ *
+ * 边框、圆角、聚焦态、尺寸全部交给 Semi 的 `DshInput`——插件不再自己画一套输入框
+ * 外观（那样会与同一行的 Select 在圆角/描边/高度上各差一点）。
+ */
 .dsh-fnos-logs-search {
   flex: 1 1 auto;
   min-width: 0;
-  height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 12%));
-  border-radius: 6px;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  font-size: 14px;
-  outline: none;
-
-  &:focus-visible {
-    border-color: var(--dsw-alias-state-focus-primary, #4d6fff);
-  }
 }
 
 .dsh-fnos-logs-limit {
@@ -2084,19 +2078,11 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   gap: 6px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
+}
 
-  input {
-    width: 64px;
-    height: 28px;
-    padding: 0 8px;
-    border: 1px solid var(--dsw-alias-border-l2, rgb(0 0 0 / 12%));
-    border-radius: 6px;
-    background: transparent;
-    color: var(--dsw-alias-label-primary);
-    font-size: 14px;
-    font-variant-numeric: tabular-nums;
-    outline: none;
-  }
+/* 条数输入框固定 80px：三位数够用，与同一行的其它控件等高由 Semi 保证。 */
+.dsh-fnos-logs-limit-input {
+  width: 80px;
 }
 
 .dsh-fnos-logs-count {
@@ -3347,38 +3333,6 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
 /* 悬停给一点底色，提示整行可点。 */
 .dsh-fnos-proxy-item-head:hover {
   background: var(--dsw-alias-interactive-bg-hover);
-}
-
-/*
- * 日志工具条里的级别下拉：**高度与旁边的搜索框一致（28px）**。
- *
- * Semi 的 `size="small"` 是 24px，而搜索框是手写的 28px——两者并排时下沿不齐，
- * 看起来像没对齐的两套控件。
- */
-/*
- * 高度与旁边的搜索框一致（28px）。
- *
- * **`.dsh-fnos-logs-level` 与 `.semi-select` 是同一个元素**（className 是
- * `semi-select dsh-fnos-logs-level semi-select-single semi-select-small`），
- * 不是父子关系。此前写成后代选择器 `.dsh-fnos-logs-level .semi-select`——
- * 那条规则永远不匹配，所以两次「提权」都没效果（实测一直是 24px）。
- *
- * 改成复合选择器：`.dsh-fnos-logs-level.semi-select`。
- */
-.dsh-fnos-logs-level.semi-select,
-.dsh-fnos-logs-level.semi-select.semi-select-small {
-  height: 28px;
-  border-radius: 6px;
-}
-
-/* 内部选中区与箭头跟着撑满，否则文字仍垂直居在 24px 的框里。 */
-.dsh-fnos-logs-level.semi-select .semi-select-selection {
-  height: 100%;
-}
-
-.dsh-fnos-logs-level.semi-select .semi-select-selection-text,
-.dsh-fnos-logs-level.semi-select .semi-select-arrow {
-  line-height: 26px;
 }
 
 /*

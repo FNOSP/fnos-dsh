@@ -137,26 +137,26 @@ describe('运行状态：网络与四宫格', () => {
 })
 
 describe('日志工具条：下拉与搜索框对齐', () => {
-  it('级别下拉高度与搜索框一致（28px）', () => {
+  it('工具条三个控件用同一套 Semi 尺寸，插件不再手画输入框', () => {
     /*
-      Semi 的 `size="small"` 是 24px，而搜索框是手写的 28px——并排时下沿不齐，
-      看起来像没对齐的两套控件。
-    */
-    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    /*
-      **`.dsh-fnos-logs-level` 与 `.semi-select` 是同一个元素**（className 为
-      `semi-select dsh-fnos-logs-level semi-select-single semi-select-small`），
-      不是父子关系。早前写成后代选择器 `.dsh-fnos-logs-level .semi-select`，
-      那条规则从未匹配、两次「提权」都无效（实测一直是 24px）。
+      **曾经是两套控件。** Select 是 Semi `size="small"`（24px），搜索框与条数是
+      手写的原生 `<input>`（28px 且自带边框圆角）——并排时下沿不齐、描边深浅不
+      一致，还得为对齐写一条 `height: 28px` 的覆盖规则。
 
-      必须是复合选择器。
+      现在三者都是 Semi 组件、都传 `size="small"`，高度与外观由组件库保证。
     */
-    const idx = SCSS.indexOf('.dsh-fnos-logs-level.semi-select,')
-    expect(idx).toBeGreaterThan(-1)
-    const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx))
-    expect(rule).toContain('height: 28px')
-    // 与搜索框取同一个值。
-    expect(SCSS).toMatch(/\.dsh-fnos-logs-search \{[^}]*height: 28px/u)
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('DshSelect')
+    expect(PANEL).toContain('DshInput')
+    expect(PANEL).toContain('DshInputNumber')
+    // 不再有原生 input。
+    expect(PANEL).not.toContain('<input')
+
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    // 插件只保留布局，不再重画输入框外观。
+    expect(SCSS).not.toMatch(/\.dsh-fnos-logs-search \{[^}]*border:/u)
+    // 不再需要为对齐写的 28px 覆盖。
+    expect(SCSS).not.toContain('.dsh-fnos-logs-level.semi-select,')
   })
 
   it('选中项勾选图标跟随文字颜色', () => {
@@ -247,7 +247,7 @@ describe('运行状态：日志面板', () => {
   it('面板有级别筛选、搜索、条数自定义，且占满剩余高度', () => {
     const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
     expect(PANEL).toContain('DshSelect')
-    expect(PANEL).toContain("type=\"search\"")
+    expect(PANEL).toContain("t('runtimeLogSearch')")
     expect(PANEL).toContain('setLimit')
     expect(PANEL).toContain('DEFAULT_LIMIT')
     // 占满剩余空间
