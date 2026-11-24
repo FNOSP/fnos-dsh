@@ -42,10 +42,20 @@
           "session-log"
         ],
         "sortKeys": {
-          "npm_weekly_downloads": 3920
+          "npm_weekly_downloads": 3752
         }
       },
       "versions": [
+        {
+          "version": "8.3.1",
+          "publishTimestamp": 1795401795,
+          "source": {
+            "type": "npm"
+          },
+          "engines": {
+            "dsh": "0.2.2-rc.5"
+          }
+        },
         {
           "version": "8.3.0",
           "publishTimestamp": 1795074611,
@@ -446,7 +456,7 @@
           "usage"
         ],
         "sortKeys": {
-          "npm_weekly_downloads": 4106
+          "npm_weekly_downloads": 3731
         }
       },
       "versions": [
@@ -930,7 +940,7 @@
           "fallback"
         ],
         "sortKeys": {
-          "npm_weekly_downloads": 3762
+          "npm_weekly_downloads": 3420
         }
       },
       "versions": [
@@ -1233,7 +1243,7 @@
           "openai-compatible"
         ],
         "sortKeys": {
-          "npm_weekly_downloads": 384
+          "npm_weekly_downloads": 1028
         }
       },
       "versions": [
@@ -1505,7 +1515,7 @@
           "design-system"
         ],
         "sortKeys": {
-          "npm_weekly_downloads": 302
+          "npm_weekly_downloads": 1006
         }
       },
       "versions": [
@@ -1859,7 +1869,7 @@
           "models"
         ],
         "sortKeys": {
-          "npm_weekly_downloads": 91
+          "npm_weekly_downloads": 815
         }
       },
       "versions": [
@@ -2045,7 +2055,7 @@
           "models"
         ],
         "sortKeys": {
-          "npm_weekly_downloads": 72
+          "npm_weekly_downloads": 776
         }
       },
       "versions": [

@@ -9,7 +9,7 @@ DSH 会话内网页搜索的多来源插件：按 **TinyFish → Tavily → 官�
 插件随 `fn-deepseek-harness` 自动安装。其他 DSH 环境手动安装，要求 DSH `0.2.2-rc.5`：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-failover-search@8.3.4
+dsh plugin --profile web add @tnnevol/dsh-failover-search@8.3.8
 ```
 
 ## 这个包做什么
