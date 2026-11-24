@@ -41,6 +41,8 @@ export type TaskKind =
   | 'agent-skills'
   /** 插件卸载（`InstalledPluginsPanel`）。 */
   | 'plugin-remove'
+  /** 插件启用 / 停用开关（`InstalledPluginsPanel`）。 */
+  | 'plugin-toggle'
 
 /** 一次操作的终态。`undefined` 表示没有结论（还没开始、或正被新一轮覆盖）。 */
 export type TaskOutcome = 'ok' | 'failed'
@@ -49,6 +51,14 @@ export type TaskOutcome = 'ok' | 'failed'
 export interface TaskSlot {
   /** 是否正在执行。 */
   readonly running: boolean
+  /**
+   * 正在操作的对象标识（包名等）。
+   *
+   * 「哪个插件正在切换」这类信息**必须存在 store 里**：面板内的 `useState`
+   * 会在弹框关闭、组件卸载时一起消失，用户重新打开看到开关还在 loading 或
+   * 已复位，与真实的宿主状态不一致。
+   */
+  readonly target: string | undefined
   /** 上一次的结论；`undefined` 表示从未跑过或已清空。 */
   readonly outcome: TaskOutcome | undefined
   /** 失败原因；仅 `outcome === 'failed'` 时有值。 */
@@ -61,10 +71,10 @@ export interface TaskState {
 }
 
 /** 空闲槽（常量复用，避免无意义的新对象）。 */
-const IDLE: TaskSlot = { running: false, outcome: undefined, error: undefined }
+const IDLE: TaskSlot = { running: false, target: undefined, outcome: undefined, error: undefined }
 
 const INITIAL: TaskState = {
-  slots: { 'plugin-install': IDLE, 'plugin-remove': IDLE, nrm: IDLE, repair: IDLE, 'agent-skills': IDLE },
+  slots: { 'plugin-install': IDLE, 'plugin-remove': IDLE, 'plugin-toggle': IDLE, nrm: IDLE, repair: IDLE, 'agent-skills': IDLE },
 }
 
 /** 任务 store 的最小面。 */
@@ -73,8 +83,8 @@ export interface TaskStore {
   readonly getSnapshot: () => TaskState
   /** 订阅变更；返回退订函数。 */
   readonly subscribe: (listener: () => void) => () => void
-  /** 标记开始：清掉上一次的结论。 */
-  readonly begin: (kind: TaskKind) => void
+  /** 标记开始：清掉上一次的结论，并记下正在操作的对象。 */
+  readonly begin: (kind: TaskKind, target?: string) => void
   /** 结束：记下结论。 */
   readonly finish: (kind: TaskKind, outcome: TaskOutcome, error?: string) => void
   /** 清空某一槽（用户关掉提示、或卡片主动复位时用）。 */
@@ -119,9 +129,9 @@ export function createTaskStore(): TaskStore {
       return () => { listeners.delete(listener) }
     },
 
-    begin: (kind) => { commit(kind, { running: true, outcome: undefined, error: undefined }) },
+    begin: (kind, target) => { commit(kind, { running: true, target, outcome: undefined, error: undefined }) },
 
-    finish: (kind, outcome, error) => { commit(kind, { running: false, outcome, error }) },
+    finish: (kind, outcome, error) => { commit(kind, { running: false, target: undefined, outcome, error }) },
 
     clear: (kind) => {
       if (state.slots[kind] === IDLE) return
@@ -135,7 +145,7 @@ export function createTaskStore(): TaskStore {
         订阅者制造一次多余重渲。
       */
       if (current.running === running && current.outcome === outcome && current.error === error) return
-      commit(kind, { running, outcome, error })
+      commit(kind, { running, target: running ? current.target : undefined, outcome, error })
     },
 
     reset: () => {

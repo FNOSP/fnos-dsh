@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { logPanelStore } from '../client/log-panel-store.ts'
-import { taskStore } from '../client/task-store.ts'
+import { taskStore, useTaskSlot } from '../client/task-store.ts'
 import { DshButton, DshPopconfirm as Popconfirm, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
@@ -152,12 +152,19 @@ export interface InstalledPluginsPanelProps {
 export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.ReactNode {
   const [snapshot, setSnapshot] = useState<InstalledPluginsSnapshot>()
   const [refreshing, setRefreshing] = useState(false)
-  /** 正在安装的包名；undefined 表示弹框关闭。 */
-  const [installing, setInstalling] = useState<string>()
-  /** 正在切换启用状态的包名（期间禁用该卡片的按钮，避免连点）。 */
-  const [toggling, setToggling] = useState<string>()
-  /** 正在卸载的包名：期间它的卸载按钮不可再点。 */
-  const [removingName, setRemovingName] = useState<string>()
+  /*
+    **三个「正在操作谁」的状态都存在 `taskStore` 里，不用组件内 state。**
+
+    弹框关闭会卸载整个面板，组件 state 随之消失：用户重新打开时看到一个正在
+    切换的开关会「复位」、或一个正在卸载的卡片恢复可点，与宿主真实状态不一致。
+    store 在模块作用域里，重开面板仍能读到。
+  */
+  const installTask = useTaskSlot('plugin-install')
+  const toggleTask = useTaskSlot('plugin-toggle')
+  const removeTask = useTaskSlot('plugin-remove')
+  const installing = installTask.running ? installTask.target : undefined
+  const toggling = toggleTask.running ? toggleTask.target : undefined
+  const removingName = removeTask.running ? removeTask.target : undefined
   const [error, setError] = useState<string>()
 
   /**
@@ -253,14 +260,15 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
 
   /** 切换启用状态：改 profile patch 的 disabled，不删文件。 */
   const toggleEnabled = useCallback(async (name: string, enabled: boolean) => {
-    setToggling(name)
+    taskStore.begin('plugin-toggle', name)
     try {
       await togglePlugin(name, enabled)
       await load()
+      taskStore.finish('plugin-toggle', 'ok')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
-    } finally {
-      setToggling(undefined)
+      const message = cause instanceof Error ? cause.message : String(cause)
+      setError(message)
+      taskStore.finish('plugin-toggle', 'failed', message)
     }
   }, [load])
 
@@ -290,7 +298,6 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
    */
   const removePluginFromCard = useCallback(async (name: string): Promise<void> => {
     if (removingName === name) return
-    setRemovingName(name)
     /*
       **卸载也走任务浮层。**
 
@@ -298,7 +305,7 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
       并发锁）只能从命令输出里看出来。不给日志的话，用户看到的只是一句
       「卸载失败」。
     */
-    taskStore.begin('plugin-remove')
+    taskStore.begin('plugin-remove', name)
     logPanelStore.beginTask({ feature: 'install', title: `${t('uninstall')} ${name}` })
     logPanelStore.append('info', `pnpm remove ${name}`)
     try {
@@ -321,8 +328,6 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
       taskStore.finish('plugin-remove', 'failed', message)
       // 后端并发锁的拒绝：说清「是重复操作」，而不是「卸载失败」。
       notifyFailure(message.includes('plugin-remove-in-progress') ? t('pluginRemoveInProgress') : message)
-    } finally {
-      setRemovingName(undefined)
     }
   }, [removingName, load, t])
 
@@ -551,7 +556,7 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                       type="primary"
                       loading={installing === plugin.name}
                       disabled={busyElsewhere}
-                      onClick={() => { setInstalling(plugin.name) }}
+                      onClick={() => { taskStore.begin('plugin-install', plugin.name) }}
                     >
                       {t('pluginInstallAction')}
                     </DshButton>
@@ -564,7 +569,7 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                         aria-label={t('pluginUpdateAction')}
                         // 自己那张卡由 toggling 管；别的插件在忙时整排锁住。
                         disabled={toggling === plugin.name || busyElsewhere}
-                        onClick={() => { setInstalling(plugin.name) }}
+                        onClick={() => { taskStore.begin('plugin-install', plugin.name) }}
                       >
                         <IconifyIcon name="lucide:download" />
                       </button>
@@ -669,7 +674,7 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
                   name={plugin.name}
                   t={t}
                   onSettled={handleInstallSettled}
-                  onDismiss={() => { setInstalling(undefined) }}
+                  onDismiss={() => { taskStore.clear('plugin-install') }}
                 />
               ) : null}
             </li>

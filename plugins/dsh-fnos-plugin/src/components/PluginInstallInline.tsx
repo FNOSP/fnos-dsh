@@ -104,7 +104,7 @@ export function PluginInstallInline({ name, t, onSettled, onDismiss }: PluginIns
   useEffect(() => {
     let cancelled = false
     /* 新一轮任务：浮层整体替换内容并展开。 */
-    taskStore.begin('plugin-install')
+    taskStore.begin('plugin-install', name)
     logPanelStore.beginTask({ feature: 'install', title: `${t('pluginInstallTask')} ${name}` })
     const timer = setInterval(() => { void pull() }, LOG_POLL_MS)
 

@@ -374,7 +374,7 @@ describe('插件卸载：日志与确认按钮', () => {
       并发锁）只能从命令输出里看出来；不给日志的话用户只看到一句「卸载失败」。
     */
     const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
-    expect(PANEL).toContain("taskStore.begin('plugin-remove')")
+    expect(PANEL).toContain("taskStore.begin('plugin-remove', name)")
     expect(PANEL).toContain('logPanelStore.beginTask')
     expect(PANEL).toContain("logPanelStore.append('error', message)")
     expect(PANEL).toContain('logPanelStore.finish')
@@ -439,3 +439,36 @@ describe('agent skill 清理：确认框给出绝对路径', () => {
   })
 })
 
+
+describe('已安装插件：操作状态跨弹框保持', () => {
+  it('三个「正在操作谁」都存在 taskStore，不用组件内 state', () => {
+    /*
+      弹框关闭会卸载整个面板，组件 state 随之消失：用户重新打开时看到正在切换的
+      开关「复位」、或正在卸载的卡片恢复可点，与宿主真实状态不一致。
+
+      store 在模块作用域里，重开面板仍能读到。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain("useTaskSlot('plugin-install')")
+    expect(PANEL).toContain("useTaskSlot('plugin-toggle')")
+    expect(PANEL).toContain("useTaskSlot('plugin-remove')")
+    // 不再有这三个组件内 state（错误消息仍用 state，那个不需要跨弹框保持）。
+    expect(PANEL).not.toContain('const [installing, setInstalling]')
+    expect(PANEL).not.toContain('const [toggling, setToggling]')
+    expect(PANEL).not.toContain('const [removingName, setRemovingName]')
+    expect(PANEL).not.toContain('setToggling')
+    expect(PANEL).not.toContain('setRemovingName')
+    expect(PANEL).not.toContain('setInstalling')
+
+    const STORE = readFileSync(new URL('../../src/client/task-store.ts', import.meta.url), 'utf8')
+    /* 槽位要能说出「正在操作谁」。 */
+    expect(STORE).toContain('readonly target: string | undefined')
+    expect(STORE).toContain("| 'plugin-toggle'")
+  })
+
+  it('失败写 failed，不只写 ok', () => {
+    // 开关切换原来在 `finally` 里无条件写 ok，失败也报成功。
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain("taskStore.finish('plugin-toggle', 'failed', message)")
+  })
+})
