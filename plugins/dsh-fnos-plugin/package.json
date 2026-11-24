@@ -2,7 +2,7 @@
   "name": "@tnnevol/dsh-fnos",
   "displayName": "fnos",
   "type": "module",
-  "version": "8.3.13",
+  "version": "8.3.14",
   "description": "fnOS-specific integrations for DeepSeek Harness.",
   "author": "tnnevol",
   "license": "Apache-2.0",
@@ -88,10 +88,10 @@
   },
   "dependencies": {
     "@deepseek-ai/schemastery": "catalog:",
+    "@types/react-window": "catalog:",
     "dayjs": "catalog:",
     "echarts": "catalog:",
     "react-window": "catalog:",
-    "@types/react-window": "catalog:",
     "rotating-file-stream": "catalog:",
     "semver": "catalog:"
   },
