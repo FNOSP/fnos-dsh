@@ -329,7 +329,14 @@ img.dsh-fnos-file-manager-icon {
   justify-content: space-between;
   width: 100%;
   gap: 12px;
-  padding: 0;
+  /*
+    右侧留 12px：与「清理 agent skill」那节的按钮对齐。
+
+    那一节的头部在 `.dsh-fnos-mirror` 里，容器本身带间距；这一处是 tab 内容的
+    直接子元素，没有那层容器。不补的话同一列里的按钮贴住滚动条，与下方内缩的
+    「清理」不在一条竖线上。
+  */
+  padding: 0 12px 0 0;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -532,6 +539,21 @@ img.dsh-fnos-file-manager-icon {
   color: var(--dsw-alias-label-tertiary, var(--dsw-alias-label-secondary));
   font-size: 12px;
   line-height: 1.6;
+}
+
+/*
+ * 清理确认框里的路径清单。
+ *
+ * 每条一行、等宽字体：路径里全是 `/`、`@`、`-`，比例字体下很难逐字核对。
+ */
+.dsh-fnos-repair-skill-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+  /* 路径可能很长，允许在分隔符处折行，不要撑破弹框。 */
+  word-break: break-all;
 }
 
 .dsh-fnos-repair-muted {
@@ -2129,7 +2151,10 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   /* 整行同色：时刻与来源跟随级别色，不再各自一套三级灰。 */
   color: inherit;
   font-variant-numeric: tabular-nums;
-  /* 时刻很短，明确不折行，折了会把正文挤到第二列。 */
+  /*
+    `YYYY-MM-DD HH:mm:ss` 是定长 19 字符，比原来的 `HH:mm:ss` 宽一倍多。
+    明确不折行：折了会把正文挤到第二行，整份日志的行高就参差不齐。
+  */
   white-space: nowrap;
 }
 
@@ -4720,6 +4745,7 @@ body[theme-mode='dark'] .dsh-fnos-logpanel {
   flex: 0 0 auto;
   color: var(--dsw-alias-label-tertiary);
   font-variant-numeric: tabular-nums;
+  /* 定长 `YYYY-MM-DD HH:mm:ss`；浮层比日志页窄，这里更需要禁折行。 */
   white-space: nowrap;
 }
 

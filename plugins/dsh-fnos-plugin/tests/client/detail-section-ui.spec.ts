@@ -359,7 +359,14 @@ describe('依赖修复卡片：单一动作按钮 + 标题对齐', () => {
     // 这是强制动作，不是需要用户判断的业务流程。列出 `name@range` 这类内部标识
     // 对「我要不要修」没有任何帮助，只会把实现细节摊给用户。
     expect(REPAIR_CARD).not.toContain('diagnoseDependencyRepair')
-    expect(REPAIR_CARD).not.toContain('entries')
+    /*
+      断言的是「不列依赖匹配项」，因此要匹配依赖那一侧的字面量。
+
+      原来写的是 `not.toContain('entries')`——太宽了：卡片里 agent skill 清理
+      那节用的是 `skills?.entries`（列的是要删的目录路径，与依赖无关）。
+    */
+    expect(REPAIR_CARD).not.toContain('result.entries')
+    expect(REPAIR_CARD).not.toContain('entry.name')
     expect(REPAIR_CARD).not.toContain('dependencyRepairStaleCount')
     expect(REPAIR_CARD).not.toContain('dependencyRepairReason')
     // 唯一的数据来源是执行修复。

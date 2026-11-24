@@ -396,3 +396,46 @@ describe('依赖修复：不绕过供应链防护', () => {
     expect(REPAIR).not.toMatch(/run\(pnpmBin, \[[^\]]*minimum-release-age/u)
   })
 })
+
+describe('日志时间格式', () => {
+  it('日志页与浮层都显示完整年月日时分秒', () => {
+    /*
+      日志跨重启、跨天都可能留着，只有 `HH:mm:ss` 时用户看不出某条是今天还是
+      上周的——排查「刚才那次安装」时会把旧记录当成新的。
+
+      走 `dayjs` 而不是 `toLocaleTimeString`：后者依赖运行时 locale，不同设备的
+      补零与分隔符可能不同，列宽随之跳动。
+    */
+    for (const file of [
+      '../../src/components/RuntimeLogPanel.tsx',
+      '../../src/components/LogFeedbackPanel.tsx',
+    ]) {
+      const src = readFileSync(new URL(file, import.meta.url), 'utf8')
+      expect(src).toContain("dayjs(at).format('YYYY-MM-DD HH:mm:ss')")
+      // 不再用运行时 locale 格式化（注释里解释「为什么不用」不算）。
+      expect(src).not.toMatch(/new Date\([^)]*\)\.toLocaleTimeString/u)
+    }
+  })
+})
+
+describe('agent skill 清理：确认框给出绝对路径', () => {
+  it('列出语义化后的完整路径，不只给目录名', () => {
+    /*
+      `fnos-cli` 这个名字看不出它在哪块存储、哪个账号下。这是不可撤销的删除，
+      用户有权在按下确定之前看清到底删哪个位置。
+
+      语义化形式（`存储空间2/...`）由宿主经 `trim.file.convertPath` 给出，
+      拿不到时退回内部路径。
+    */
+    const SKILLS = readFileSync(new URL('../../src/host/agent-skills.ts', import.meta.url), 'utf8')
+    expect(SKILLS).toContain('convertPathsForDisplay')
+    expect(SKILLS).toContain('displayPath')
+    // 语义化失败不能让整个状态读不出来。
+    expect(SKILLS).toContain('/* 保持退回值。 */')
+
+    const CARD = readFileSync(new URL('../../src/components/DependencyRepairCard.tsx', import.meta.url), 'utf8')
+    expect(CARD).toContain('skills?.entries')
+    expect(CARD).toContain('item.displayPath')
+  })
+})
+
