@@ -1095,3 +1095,32 @@ describe('日志列表：上限与虚拟化', () => {
     expect(PANEL).toContain('resetAfterIndex')
   })
 })
+
+describe('会话日志菜单：跨应用入口的显示条件', () => {
+  it('「在应用中打开」与「导出到 NAS」只用 SHOWS_FILE_MANAGER_ENTRY', () => {
+    /*
+      `SHOWS_FILE_MANAGER_ENTRY` = `IS_FNOS_EMBEDDED_WEB_ENV`，即
+      `isWeb && !isStandaloneWeb`（NAS 应用中心 iframe）。三种环境：
+
+      - NAS 内嵌 web → 显示（文件管理器就在同一个桌面里）
+      - 独立浏览器页面 → 不显示（没有宿主桥，openFileManager 必然失败）
+      - App 端（isWeb === false）→ 不显示（没有文件管理器窗口的概念，
+        跳出去会把用户带离当前会话）
+
+      早前用的是 `HAS_FNOS_HOST_BRIDGE`——那个常量把 App 端也算作「桥可用」，
+      于是手机上也会出现这一项。`SHOWS_FILE_MANAGER_ENTRY` 就是为这类跨应用跳转
+      准备的常量，项目里已有，不必再现场组合 `isWeb` 判断。
+    */
+    const MENU = readFileSync(new URL('../../src/components/FnosSessionLogHeaderAction.tsx', import.meta.url), 'utf8')
+    expect(MENU).toContain("import { SHOWS_FILE_MANAGER_ENTRY }")
+    // 注释里解释「为什么不用旧的」不算，检查的是判定表达式。
+    expect(MENU).not.toMatch(/\.\.\.\(HAS_FNOS_HOST_BRIDGE/u)
+    // 至少两处：导出到 NAS 的二级项、在应用中打开整块。
+    expect(MENU.match(/\.\.\.\(SHOWS_FILE_MANAGER_ENTRY/gu)?.length ?? 0).toBeGreaterThanOrEqual(2)
+
+    /* 常量本身的定义不该漂。 */
+    const ENV = readFileSync(new URL('../../src/client/services/runtime-env.ts', import.meta.url), 'utf8')
+    expect(ENV).toContain('export const SHOWS_FILE_MANAGER_ENTRY: boolean = IS_FNOS_EMBEDDED_WEB_ENV')
+    expect(ENV).toContain("export const IS_FNOS_EMBEDDED_WEB_ENV: boolean = DOM_ENV === 'embedded'")
+  })
+})

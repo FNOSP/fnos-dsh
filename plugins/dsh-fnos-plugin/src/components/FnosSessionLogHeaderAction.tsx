@@ -9,7 +9,7 @@ import { DshEmpty, DshIconFolder, DshModal, DshTooltip, DshTree } from '@tnnevol
 import { FnosEmptyIllustration } from './FnosEmptyIllustration.tsx'
 import { FnosFileManagerIcon } from './FnosFileManagerIcon.tsx'
 import { requestAuthorizedEntries, type AuthorizedEntriesResult } from '../client/services/authorized-directories-client.ts'
-import { HAS_FNOS_HOST_BRIDGE } from '../client/services/runtime-env.ts'
+import { SHOWS_FILE_MANAGER_ENTRY } from '../client/services/runtime-env.ts'
 import { exportSessionLogToNas } from '../client/services/session-log-export-client.ts'
 import { copySessionMarkdown } from '../client/services/session-markdown-copy.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
@@ -191,7 +191,7 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
       icon: <IconDownloadOutlineRegular />,
       submenu: [
         { id: 'computer', label: t('sessionLogExportComputer'), icon: <IconDownloadOutlineRegular /> },
-        ...(HAS_FNOS_HOST_BRIDGE
+        ...(SHOWS_FILE_MANAGER_ENTRY
           ? [{ id: 'nas', label: t('sessionLogExportNas'), icon: <IconFolderOpenOutlineRegular /> }]
           : []),
       ],
@@ -205,8 +205,16 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
       列出来也点不开。fnOS 侧真正可用的落点只有一个：用 `openFileManager`
       把会话工作目录交给 NAS 的文件管理器。
 
-      宿主桥不可用（独立浏览器页面）时整项不渲染——那条路径上
-      `openFileManager` 必然失败，留着只会给出一个点了会报错的入口。
+      **只在 NAS 内嵌 web 显示**（`SHOWS_FILE_MANAGER_ENTRY`，即
+      `isWeb && !isStandaloneWeb`）：
+
+      - 独立浏览器页面没有宿主桥，`openFileManager` 必然失败；
+      - App 端（`isWeb === false`）没有文件管理器窗口的概念，跳出去会把用户带离
+        当前会话。
+
+      早前这里用的是 `HAS_FNOS_HOST_BRIDGE`——那个常量把 App 端也算作「桥可用」，
+      于是手机上也会出现这一项。`SHOWS_FILE_MANAGER_ENTRY` 就是为这类「跨应用
+      跳转」准备的，与右键菜单、授权目录卡片共用同一个判据。
     */
     /*
       「在应用中打开」单独成一个单元：上下各一条分割线。
@@ -216,7 +224,7 @@ export function FnosSessionLogHeaderAction({ sessionId, exportToComputer, useSes
       读起来是「先做站内的三件事，再决定是否跳出去」，而不是一长串并列项。
       `MenuSeparator` 是官方菜单自带的分组分隔，样式与其它菜单一致。
     */
-    ...(HAS_FNOS_HOST_BRIDGE
+    ...(SHOWS_FILE_MANAGER_ENTRY
       ? [
           { type: 'separator' as const, id: 'openInApp-before' },
           {
