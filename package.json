@@ -1,7 +1,7 @@
 {
   "name": "fn-os-apps",
   "type": "module",
-  "version": "8.3.8",
+  "version": "8.3.12",
   "private": true,
   "packageManager": "pnpm@11.16.0",
   "description": "飞牛 fnOS 应用 Monorepo",
@@ -22,6 +22,10 @@
     "release:notes": "pnpm exec fnos-dsh-cli release:notes",
     "prepare": "lefthook install",
     "dev:web": "pnpm exec dsh web --no-open --port 8070"
+  },
+  "dependencies": {
+    "@gsap/react": "catalog:",
+    "gsap": "catalog:"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",
@@ -45,9 +49,5 @@
     "turbo": "catalog:",
     "vitepress": "catalog:",
     "vitest": "catalog:"
-  },
-  "dependencies": {
-    "@gsap/react": "catalog:",
-    "gsap": "catalog:"
   }
 }
