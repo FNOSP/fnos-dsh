@@ -1124,3 +1124,37 @@ describe('会话日志菜单：跨应用入口的显示条件', () => {
     expect(ENV).toContain("export const IS_FNOS_EMBEDDED_WEB_ENV: boolean = DOM_ENV === 'embedded'")
   })
 })
+
+describe('备份文件不残留', () => {
+  it('安装成功后删除本次备份', () => {
+    /*
+      备份只在失败时有用（`rename` 还原）。成功路径原本什么都不做，于是每装一次
+      就在 profile 里留下两份 `*.dsh-install-backup-<pid>`——用户在文件管理器里
+      看到一堆看不出用途、也不知道能不能删的文件。
+    */
+    const INSTALL = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    expect(INSTALL).toContain('async function discardProfileBackup')
+    expect(INSTALL).toContain('await discardProfileBackup(saved)')
+    // 成功分支在写 succeeded 之前就清掉。
+    const successIdx = INSTALL.indexOf("status: 'succeeded'")
+    const discardIdx = INSTALL.indexOf('await discardProfileBackup(saved)')
+    expect(discardIdx).toBeGreaterThan(-1)
+    expect(discardIdx).toBeLessThan(successIdx)
+  })
+
+  it('修复备份只留最近 5 份', () => {
+    /*
+      每次修复都写一份 `pnpm-workspace-<时间戳>.yaml`，早前从不清理——真机上累积
+      了一串残留。
+
+      按**文件名里的时间戳**排序而不是 `mtime`：那份时间戳就是生成顺序，且复制或
+      同步之后 `mtime` 会变、文件名不会。
+    */
+    const REPAIR = readFileSync(new URL('../../src/host/dependency-repair.ts', import.meta.url), 'utf8')
+    expect(REPAIR).toContain('WORKSPACE_BACKUP_KEEP = 5')
+    expect(REPAIR).toContain('async function pruneWorkspaceBackups')
+    expect(REPAIR).toContain('await pruneWorkspaceBackups(directory)')
+    // 按文件名排序，不读 mtime。
+    expect(REPAIR).not.toMatch(/pruneWorkspaceBackups[\s\S]{0,400}stat\(/u)
+  })
+})

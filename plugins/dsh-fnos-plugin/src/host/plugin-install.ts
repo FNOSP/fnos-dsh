@@ -29,7 +29,7 @@
  */
 
 import { execFile, spawn } from 'node:child_process'
-import { copyFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { getDshRuntimeVersion, evaluatePluginCompatibility } from '@deepseek-ai/dsh-app-boot'
 import { resolveRepairEnvironment } from './dependency-repair.ts'
@@ -330,6 +330,25 @@ async function backupProfile(profile: string): Promise<Map<string, string> | und
 }
 
 /**
+ * 安装成功后删掉备份。
+ *
+ * 备份只在失败时有用（`rename` 还原）。成功路径原本什么都不做，于是每装一次就
+ * 在 profile 里留下两份 `*.dsh-install-backup-<pid>`——用户会在文件管理器里看到
+ * 一堆看不到用途的文件，也不知道能不能删。
+ *
+ * @param saved - 备份路径映射。
+ */
+async function discardProfileBackup(saved: Map<string, string>): Promise<void> {
+  for (const [, backup] of saved) {
+    try {
+      await unlink(backup)
+    } catch {
+      /* 删不掉（权限、已被移走）不阻断安装：这是收尾清理，不是成功条件。 */
+    }
+  }
+}
+
+/**
  * 还原备份。
  * @param saved - 备份路径映射。
  */
@@ -464,6 +483,8 @@ export async function installPlugin(name: string): Promise<PluginInstallState> {
           await appendLog(logPath, `加入 profile bundles 失败：${error instanceof Error ? error.message : String(error)}`)
         }
       }
+      /* 装好了就不需要备份了，删掉避免在 profile 里堆积。 */
+      if (saved !== undefined) await discardProfileBackup(saved)
       current = { ...current, running: false, status: 'succeeded', finishedAt: Date.now() }
     } else {
       await appendLog(logPath, `安装失败（pnpm 退出码 ${String(code)}），已还原 package.json 与 lockfile`)

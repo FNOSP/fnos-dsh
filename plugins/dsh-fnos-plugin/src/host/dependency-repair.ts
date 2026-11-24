@@ -21,7 +21,7 @@
  */
 
 import { execFile } from 'node:child_process'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type {
   DependencyRepairDiagnosis,
@@ -406,6 +406,36 @@ export function removeExclusionLines(text: string, removed: readonly DependencyR
   return { text: kept.join('\n'), removedLines }
 }
 
+/** 保留的修复备份份数。 */
+const WORKSPACE_BACKUP_KEEP = 5
+
+/**
+ * 只保留最近几份 `pnpm-workspace-*.yaml`。
+ *
+ * 每次修复都写一份备份，早前从不清理——真机上累积了一串同名模式的残留，用户在
+ * 文件管理器里看到一堆看不出用途、也不敢删的文件。
+ *
+ * 按**文件名里的时间戳**排序而不是 `mtime`：那份时间戳就是生成顺序，且复制或
+ * 同步之后 `mtime` 会变、文件名不会。
+ *
+ * @param directory - 备份目录。
+ */
+async function pruneWorkspaceBackups(directory: string): Promise<void> {
+  try {
+    const entries = await readdir(directory)
+    const backups = entries
+      .filter(name => /^pnpm-workspace-\d{8}-\d{6}\.yaml$/u.test(name))
+      .sort()
+      .reverse()
+    for (const stale of backups.slice(WORKSPACE_BACKUP_KEEP)) {
+      await rm(join(directory, stale), { force: true }).catch(() => undefined)
+    }
+  } catch {
+    /* 读不到目录（首次运行、权限）：没有可清理的。 */
+  }
+}
+
+
 /**
  * 修复前把 profile 的 `pnpm-workspace.yaml` 备份到应用共享目录。
  *
@@ -453,6 +483,8 @@ async function backupWorkspaceFile(
     const fullPath = join(directory, name)
     await writeFile(fullPath, content, { mode: 0o600 })
     log(`repair: 已备份 profile 配置 → ${fullPath}`)
+    /* 只留最近几份：每次修复都写一份，不清理会无限堆积。 */
+    await pruneWorkspaceBackups(directory)
     return { fullPath, displayPath: `备份/${name}` }
   } catch (error) {
     // 备份失败不阻断修复：它只是保险，不是前置条件；但要在日志里说清楚。
