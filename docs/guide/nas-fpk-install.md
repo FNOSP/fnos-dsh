@@ -200,11 +200,135 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 3. **`display:none` 的元素取不到 uid**，而子元素无法自救（祖先 `none` 使整棵子树不渲染）。解法是只放开目标自己的容器——**同容器里还有一枚目录 input，必须单独藏掉**，否则两枚会一起露出来。
 4. **不要改 `HTMLInputElement.prototype.click`**。那是全局劫持，补丁没恢复时 fnOS 自身逻辑静默失效、页面跳回 `/login`。
 
-完整六步与可复制代码见 `docs/charter/tests-spec.md`「用 Chrome MCP 安装 FPK」。
+完整六步与可复制代码见本文档 [§4.4.1](#_4-4-1-六步-断开-click-upload-file-注入)。
 
 文件被接收的可观察证据：fnOS 立刻弹出「未经验证应用的安全提示」；随后 React 会**清空 input**（`files.length` 归 0），这是正常现象，不要据此判失败。
 
 完整可执行用例见 `apps/fn-deepseek-harness/tests/e2e/cases/FNOS-013-nas-install-from-computer.yaml`。
+
+### 4.4.1 六步：断开 click + upload_file 注入
+
+**2026-11-12 实测，两轮复现。** 六步：
+
+```js
+// ① 先断开 input.click()（元素级，并跟随未来新挂的节点）
+const block = (el) => {
+  if (el.__np) return
+  el.__np = true
+  el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation() }, true)
+  el.click = () => {}
+}
+document.querySelectorAll('input[type="file"]').forEach(block)
+new MutationObserver((ms) => {
+  for (const m of ms) for (const n of m.addedNodes) {
+    if (n.nodeType !== 1) continue
+    if (n.matches?.('input[type="file"]')) block(n)
+    n.querySelectorAll?.('input[type="file"]').forEach(block)
+  }
+}).observe(document.body, { childList: true, subtree: true })
+
+// ② 应用中心 → 手动安装
+// ③ 点「从电脑上传」（click 已断，不弹系统窗口；对话框会被卸载，属正常）
+// ④ 重开「手动安装」
+// ⑤ 让目标可寻址：藏目录 input，放开目标容器 + 目标自身给 1px
+dir.style.setProperty('display', 'none', 'important')
+target.parentElement.style.setProperty('display', 'block', 'important')
+target.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01'
+
+// ⑥ upload_file 注入，再补派发事件
+el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
+el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+el.dispatchEvent(new Event('input', { bubbles: true }))
+el.dispatchEvent(new Event('change', { bubbles: true }))
+```
+
+判据：`input.files` 归 0（应用已接管）+ 出现「未经验证应用的安全提示」。
+
+**必须一边操作一边看界面，不要只盯日志（强制）**。日志只在安装回调启动后才写入，而
+「上传是否被应用接管」「安全提示是否出现」「向导是否打开」「进度跑到几成」这些状态
+只存在于界面上。只轮询日志会得出「什么都没发生」的错误结论，然后重复上传——2026-11-19
+实测踩到：安全提示一直在等「同意」，我却因为日志没有新记录而判定上传失败，反复重试。
+
+每完成一步都要回读界面再决定下一步：
+
+| 步骤 | 界面要看到 | 看不到时的含义 |
+| --- | --- | --- |
+| 注入后 | 「未经验证应用的安全提示」弹层 | 应用没接管，检查是否漏了点「从电脑上传」 |
+| 点「同意」后 | 「安装 … 服务配置」向导 | 上传未生效，不要继续点 |
+| 点「下一步」后 | 「更新中 NN%」进度条 | 安装没启动，此时日志通常还是空的 |
+| 完成后 | 进度条消失、卡片回到「打开」 | 仍在「更新中」说明装完但服务在重启 |
+
+结论要以**界面 + 版本 + 日志三处对齐**为准：`/var/apps/<app>/manifest` 的 `version`、
+界面「已安装」卡片的版本、插件实际加载的版本一致，才算装上。
+
+**四个坑，都是实测踩出来的**：
+
+1. **`upload_file` 作用于会打开选择器的元素会崩掉标签页**（`RESULT_CODE_KILLED_BAD_MESSAGE`，见 [issue #2310](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/2310)）。断 `click()` 同时解决「弹系统窗口」与「标签页崩溃」——两者同源。
+2. **必须点一次「从电脑上传」**。不点就注入，`input.files` 有值但应用不消费、不弹安全提示；补派发事件也无效。点它会卸载对话框，所以要重开。
+3. **`display:none` 的元素取不到 uid**（不进无障碍树），而子元素无法自救（祖先 `none` 使整棵子树不渲染）。解法是**只放开目标元素的祖先容器**，同时把同容器里的目录 input 单独藏掉——两枚 input 在**同一个** `display:none` 容器里，不藏就会一起露出来。
+4. **`click()` 补丁必须跟随节点重建**。切换来源会让应用重挂 input，旧节点上的实例补丁不跟随，所以要用 `MutationObserver`，或每次重挂后重装。**不要改 `HTMLInputElement.prototype`**：那是全局劫持，补丁没恢复时 fnOS 自身逻辑静默失效、页面跳回 `/login`。
+
+**`DSH_FPK_DIR` 只放待装的那一个 FPK**。这个变量既是文件选择器的授权范围，也是
+`${fpkDir}` 的来源；把整个仓库或下载目录指过去，等于把无关文件暴露给被测环境，也让
+「装的是哪个包」变得不确定。做法是先建最小目录再拷入：
+
+```bash
+mkdir -p tmp/fpk-upload && cp apps/fn-deepseek-harness/fn-deepseek-harness.fpk tmp/fpk-upload/
+```
+
+### 4.4.2 在 NAS 上直接跑 `dsh plugin`：四个环境变量缺一不可
+
+用 SSH 在 NAS 上执行 `dsh plugin --profile web add …` 时，**交互式登录会话与「应用自己的
+运行环境」差四样东西**。少任何一样，命令都会走到错误的目录或以错误的方式失败，而报错信息
+通常指向别处（"store location differs"、"permission denied"、装到 `/home/<user>/.dsh`），
+极易被误判成权限或网络问题。
+
+2026-11-18 实测：连续六次安装失败，全部收敛到这一组变量上。
+
+```bash
+DSH_HOME=/vol2/@apphome/fn-deepseek-harness
+HOME=/vol2/@appshare/fn-deepseek-harness          # ← 最容易漏，见下
+NPM_CONFIG_PREFIX=$DSH_HOME/.npm-global
+NPM_CONFIG_CACHE=$DSH_HOME/.npm-cache
+NPM_CONFIG_USERCONFIG=$DSH_HOME/.npmrc
+PATH=/vol2/@appcenter/nodejs_v24/bin:$DSH_HOME/.npm-global/bin:$PATH
+```
+
+| 变量 | 缺失时的表现 | 为什么必须是这个值 |
+| --- | --- | --- |
+| `HOME` | `ERR_PNPM_UNEXPECTED_STORE` | pnpm 按 `$HOME/.local/share/pnpm/store` 推导 store；profile 的 `node_modules/.modules.yaml` 记录的是 `@appshare/<app>/...store/v11`，而 `HOME` 在安装回调里正是 `@appshare/<app>`。设成 `@apphome/<app>` 会推成 `@apphome/.../store`，两者不符，pnpm 直接拒绝安装 |
+| `DSH_HOME` | 包装进 `/home/<user>/.dsh`，profile 完全没有变化 | 不设时 `dsh` 回落到 `$HOME/.dsh`，会新建一个空 profile |
+| `PATH` 里的 node | `/usr/bin/env: 'node': No such file or directory` | 交互式 ssh 的 PATH 没有应用依赖；应用用 appcenter 下的 `nodejs_v24` |
+| `PATH` 里的 pnpm | `spawn pnpm ENOENT` | `dsh` 内部 spawn pnpm 取 PATH；bin 在 `$DSH_HOME/.npm-global/bin` |
+
+**权威来源是安装回调本身**，不是猜出来的：`/var/apps/<app>/cmd/install_callback` 顶部就写着
+`DSH_HOME="${TRIM_PKGHOME}"`、`HOME="${TRIM_APPDEST_VOL}/@appshare/<app>"`、
+`PNPM_STORE_DIR="${APP_HOME}/.local/share/pnpm/store"`。要确认某个环境的正确值，先读这几行。
+
+```bash
+# 自检：这两条必须相等，否则 pnpm 会拒绝安装
+pnpm store path
+grep storeDir "$DSH_HOME/profiles/web/node_modules/.modules.yaml"
+```
+
+**装完必须把属主交还应用用户。** 应用以专用用户运行（如 `fn-deepseek-harness`），而 ssh 登录
+的是管理员账号；用管理员身份装出来的 `node_modules/*` 属主是管理员，**应用读不到**，界面上
+插件版本会全部显示成 `—`，`installed` 接口还会报 `EACCES`。
+
+```bash
+chown -R fn-deepseek-harness:fn-deepseek-harness "$DSH_HOME/profiles/web"
+```
+
+**`dsh plugin` 不会把 `--store-dir` 传给它 spawn 的 pnpm。** 因此 `HOME` 是唯一能对齐 store 的
+手段；不要试图通过 `pnpm config set store-dir` 在别处兜。若确实要绕开 `dsh` 直接装包，用
+`pnpm add "--store-dir=<记录值>"`，但仍需 `HOME`/`DSH_HOME` 正确。
+
+:::warning 这些是排查手段，不是安装路径
+验收要求的功能安装仍走[应用中心](#_3-人工路径-界面上到底怎么点)与 [§4.4.1](#_4-4-1-六步-断开-click-upload-file-注入)。上面这套
+命令只在**需要往 profile 装非发布版本的包**（定位版本判定问题、复现老版本行为）时使用；它
+绕过安装回调，因此不会触发升级脚本，也不会更新应用目录。
+:::
 
 ### 4.5 点击与坐标
 
