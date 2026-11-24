@@ -325,11 +325,13 @@ describe('fnOS 配置弹框', () => {
     expect(scss).toMatch(/semi-button-light\.semi-button-disabled \{[^}]*opacity: 1/u)
   })
 
-  it('日志页：移动端隐藏条数与来源', () => {
+  it('日志页：移动端只隐藏来源，不隐藏条数', () => {
     /*
-      窄屏每像素都紧张：
+      窄屏隐藏来源列：`authorization-service` 这类长标识符会把正文压到只剩几个
+      字符，长句被逐词折成竖排。正文对排查更有价值，来源可以在桌面端看。
 
-      - 「条数」是低频设置，隐藏；
+      **「条数」不隐藏**——它是用户能自己调的唯一一处容量开关，藏起来等于把
+      控制权拿走。
       - 来源列（`authorization-service` 这类长标识符）会把正文压到只剩几个字符，
         于是长句被逐词折成竖排——隐藏来源，让正文独占剩余宽度。
 
@@ -337,8 +339,9 @@ describe('fnOS 配置弹框', () => {
     */
     const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
     const mobile = scss.match(/@media \(max-width: 767px\)[\s\S]*?\n\}/u)?.[0] ?? ''
-    expect(mobile).toContain('.dsh-fnos-logs-limit')
     expect(mobile).toContain('.dsh-fnos-logs-name')
+    /* 条数输入框在任何宽度下都保留。 */
+    expect(mobile).not.toContain('.dsh-fnos-logs-limit')
     /*
       级别选择器不需要在窄屏单独收窄：它的默认宽度已经是 80px，比原先的窄屏值
       （96px）还小。留着那条覆盖只会让它变宽。
@@ -1023,13 +1026,20 @@ describe('日志落盘与「查看日志」入口', () => {
     expect(LOGS).toContain('detachRuntimeLogFile()')
   })
 
-  it('「查看日志」只在宿主桥可用时渲染', () => {
+  it('「查看日志」只在 NAS 的 iframe 里渲染', () => {
     /*
-      独立浏览器页面没有宿主桥，`openFileManager` 不可用——给一个点了没反应的
-      按钮比不给更差。
+      用 `environment.ts` 的 `hasFnosHostBridge`（纯 DOM 判据，等价于
+      `detectFnosEnvironment() === 'embedded'`），而不是 `host-bridge.ts` 里那个
+      宽松的同名函数——后者把 mobile / 原生宿主也算作可用，手机端会冒出这个按钮，
+      而那边定位一个绝对路径没有意义。
+
+      独立浏览器页面同样没有宿主桥：给一个点了没反应的按钮比不给更差。
     */
     const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
-    expect(PANEL).toContain('fnosHostBridgeAvailable()')
+    expect(PANEL).toContain("from '../client/services/environment.ts'")
+    expect(PANEL).toContain('hasFnosHostBridge()')
+    // 不用那个把 mobile 也算进来的宽松判据。
+    expect(PANEL).not.toContain('fnosHostBridgeAvailable')
     expect(PANEL).toContain('openFnosFileManager(logDirectory')
     // 目录未知时也不渲染。
     expect(PANEL).toContain('logDirectory === undefined ? null :')

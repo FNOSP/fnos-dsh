@@ -22,7 +22,7 @@ import { DshButton, DshIconFolder, DshInput, DshInputNumber, DshSelect, DshToolt
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchRuntimeLogs } from '../client/services/runtime-status-client.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
-import { fnosHostBridgeAvailable } from '../client/services/host-bridge.ts'
+import { hasFnosHostBridge } from '../client/services/environment.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import { RUNTIME_LOG_DEFAULT_LIMIT, RUNTIME_LOG_MAX_LIMIT, type RuntimeLogEntry, type RuntimeLogLevel } from '../contracts/runtime-status-contract.ts'
 import { VariableSizeList } from 'react-window'
@@ -227,10 +227,15 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
         {/*
           「查看日志」：在 fnOS 文件管理器里定位到落盘目录。
 
-          **只在 iframe 里显示。** 独立浏览器页面没有宿主桥，`openFileManager`
-          不可用——给一个点了没反应的按钮比不给更差，所以按宿主桥可用性直接不渲染。
+          **只在 NAS 的 iframe 里显示。** 用 `environment.ts` 的 `hasFnosHostBridge`
+          （纯 DOM 判据，等价于 `detectFnosEnvironment() === 'embedded'`），而不是
+          `host-bridge.ts` 里那个同名的宽松版本——后者把 mobile / 原生宿主也算作
+          「可用」，于是手机上也会冒出这个按钮，而那边的交互是文件管理器之外的
+          另一套，定位到一个绝对路径没有意义。
+
+          独立浏览器页面同样没有宿主桥：给一个点了没反应的按钮比不给更差。
         */}
-        {!fnosHostBridgeAvailable() || logDirectory === undefined ? null : (
+        {!hasFnosHostBridge() || logDirectory === undefined ? null : (
           <DshTooltip content={t('runtimeLogOpenDirectory')}>
             <DshButton
               htmlType="button"

@@ -4050,20 +4050,6 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
   }
 
   /*
-    **日志工具条在窄屏要收：**
-
-    - 隐藏「条数」输入框：窄屏下每像素都紧张，而它是个低频设置（默认 200 已经
-      够看），要看更多可以直接在桌面端改；
-    - 搜索框自然就宽了。
-
-    级别选择器不需要在这里单独收窄——它的默认宽度已经是 80px，比原先的窄屏值
-    （96px）还小。
-  */
-  .dsh-fnos-logs-limit {
-    display: none;
-  }
-
-  /*
     **窄屏隐藏来源列。**
 
     一行里挤着「时刻 + 级别 + 来源 + 正文」四段，来源 `authorization-service` 这类
