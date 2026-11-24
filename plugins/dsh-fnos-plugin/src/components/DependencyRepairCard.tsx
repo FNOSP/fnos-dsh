@@ -350,7 +350,21 @@ export function DependencyRepairCard({ t }: DependencyRepairCardProps): React.Re
         onOk={() => { void cleanupSkills() }}
         onCancel={() => { setConfirmSkills(false) }}
       >
-        <p>{`${t('agentSkillsConfirm')}${skillsPresent.join(', ')}`}</p>
+        <p>{t('agentSkillsConfirm')}</p>
+        {/*
+          列出**完整绝对路径**，不只给目录名。
+
+          `fnos-cli` 这个名字看不出它在哪块存储、哪个账号下；而这是不可撤销的删除，
+          用户有权在按下确定之前看清到底删哪个位置。语义化形式（`存储空间2/...`）
+          由宿主经 `trim.file.convertPath` 给出，拿不到时退回内部路径。
+        */}
+        <ul className="dsh-fnos-repair-skill-list">
+          {(skills?.entries ?? []).map(item => (
+            <li key={item.path}>
+              <code className="dsh-fnos-repair-code">{item.displayPath}</code>
+            </li>
+          ))}
+        </ul>
       </DshModal>
 
     </section>

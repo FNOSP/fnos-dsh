@@ -15,6 +15,8 @@ export interface AgentSkillsStatus {
   readonly root?: string
   /** 当前存在、可被清理的目录名。 */
   readonly present: readonly string[]
+  /** 每个目录的绝对路径与语义化展示形式，用于确认框告知「删哪个位置」。 */
+  readonly entries?: readonly { name: string, path: string, displayPath: string }[]
 }
 
 /** 清理结果。 */

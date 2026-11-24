@@ -20,6 +20,7 @@
 
 import { readdir, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { convertPathsForDisplay } from './authorized-directories.ts'
 
 /** 应用曾经代装、现在要清理掉的 skill 目录名。 */
 export const BUNDLED_SKILL_NAMES: readonly string[] = ['trim-cli', 'fnos-cli']
@@ -30,6 +31,14 @@ export interface AgentSkillsStatus {
   readonly root: string | undefined
   /** 已存在的、属于本应用清理范围的目录名。 */
   readonly present: readonly string[]
+  /**
+   * 每个目录的完整绝对路径，以及 fnOS 的语义化展示形式。
+   *
+   * 确认框要告诉用户「到底删哪个位置」——只给目录名（`fnos-cli`）看不出它在
+   * 哪块存储、哪个账号下。语义化形式由 `trim.file.convertPath` 给出，拿不到时
+   * 退回 `存储空间2/...` 这类可读路径。
+   */
+  readonly entries: readonly { name: string, path: string, displayPath: string }[]
 }
 
 /** 清理结果。 */
@@ -97,10 +106,34 @@ async function presentSkills(root: string): Promise<string[]> {
  * @param env - 环境变量。
  * @returns 根目录与存在的目录名。
  */
-export async function readAgentSkillsStatus(env: NodeJS.ProcessEnv = process.env): Promise<AgentSkillsStatus> {
+export async function readAgentSkillsStatus(
+  env: NodeJS.ProcessEnv = process.env,
+  language = 'zh',
+): Promise<AgentSkillsStatus> {
   const root = resolveAgentSkillsRoot(env)
-  if (root === undefined) return { root: undefined, present: [] }
-  return { root, present: await presentSkills(root) }
+  if (root === undefined) return { root: undefined, present: [], entries: [] }
+  const present = await presentSkills(root)
+  if (present.length === 0) return { root, present, entries: [] }
+  /*
+    语义化要调 fnOS 后端接口，失败不应让整个状态读不出来——退回目录名本身，
+    确认框至少还能显示「要删的是哪一项」。
+  */
+  const paths = present.map(name => join(root, name))
+  let displays: string[] = paths
+  try {
+    displays = (await convertPathsForDisplay(paths, language)).map(item => item.semanticPath)
+  } catch {
+    /* 保持退回值。 */
+  }
+  return {
+    root,
+    present,
+    entries: present.map((name, index) => ({
+      name,
+      path: paths[index] ?? '',
+      displayPath: displays[index] ?? paths[index] ?? name,
+    })),
+  }
 }
 
 /**
