@@ -578,10 +578,21 @@ export async function runDependencyRepair(
     return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'pnpm-missing' }
   }
 
-  // 第二步：重建依赖。`pnpm clean --lockfile` 负责删两个可重建产物，
-  // 它自带 basename 校验，比本模块自己删更安全。
+  /*
+    第二步：重建依赖。`pnpm clean --lockfile` 负责删两个可重建产物，它自带
+    basename 校验，比本模块自己删更安全。
+
+    **不传 `--config.minimum-release-age=0`。**
+
+    那个参数会绕过 pnpm 的发布冷静期（供应链防护）。修复的职责是把安装环境重置
+    回可解析状态，不是替用户绕过一条安全策略——真装上了刚发布几分钟的包，风险
+    由谁来担？冷静期的存在本身就是为了防投毒。
+
+    因此修复只做「清 lockfile + 按当前策略重装」：策略放行的包能装上，被拦下的
+    继续被拦下。若某个包确实刚发布，正确做法是等冷却期过去，而不是关掉防护。
+  */
   log(`repair: rebuild 开始 ${pnpmBin} clean --lockfile`)
-  const clean = await run(pnpmBin, ['clean', '--lockfile', '--config.minimum-release-age=0'], environment.profileDirectory, DEPENDENCY_REPAIR_COMMAND_TIMEOUT_MS)
+  const clean = await run(pnpmBin, ['clean', '--lockfile'], environment.profileDirectory, DEPENDENCY_REPAIR_COMMAND_TIMEOUT_MS)
   log(`repair: clean 退出码=${clean.code}`)
   if (clean.code !== 0) {
     log(`repair: rebuild 失败（clean=${clean.code}）${clean.output.slice(-300)}`)
@@ -589,7 +600,7 @@ export async function runDependencyRepair(
     return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'rebuild-failed' }
   }
   log(`repair: rebuild 开始 ${pnpmBin} install`)
-  const install = await run(pnpmBin, ['install', '--config.minimum-release-age=0'], environment.profileDirectory, DEPENDENCY_REPAIR_COMMAND_TIMEOUT_MS)
+  const install = await run(pnpmBin, ['install'], environment.profileDirectory, DEPENDENCY_REPAIR_COMMAND_TIMEOUT_MS)
   log(`repair: install 退出码=${install.code}`)
   if (install.code !== 0) {
     log(`repair: rebuild 失败（install=${install.code}）${install.output.slice(-300)}`)

@@ -380,3 +380,19 @@ describe('插件卸载：日志与确认按钮', () => {
     expect(PANEL).toContain('logPanelStore.finish')
   })
 })
+
+describe('依赖修复：不绕过供应链防护', () => {
+  it('clean / install 都不带 minimum-release-age=0', () => {
+    /*
+      那个参数会绕过 pnpm 的发布冷静期（供应链防护）。修复的职责是把安装环境
+      重置回可解析状态，不是替用户绕过安全策略。
+
+      真装上了刚发布几分钟的包，风险由谁担？冷静期存在本身就是为了防投毒。
+    */
+    const REPAIR = readFileSync(new URL('../../src/host/dependency-repair.ts', import.meta.url), 'utf8')
+    // 注释里解释「为什么不传」不算，检查的是命令参数。
+    expect(REPAIR).toContain("run(pnpmBin, ['clean', '--lockfile']")
+    expect(REPAIR).toContain("run(pnpmBin, ['install']")
+    expect(REPAIR).not.toMatch(/run\(pnpmBin, \[[^\]]*minimum-release-age/u)
+  })
+})
