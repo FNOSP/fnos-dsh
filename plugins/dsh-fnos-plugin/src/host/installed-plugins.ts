@@ -131,13 +131,34 @@ async function readBundleSelection(profile: string | undefined): Promise<readonl
  * @returns 中文片段（若存在），否则原文。
  */
 export function preferChinese(text: string): string {
-  // 连续中文（含全角标点）至少 4 字才算「一段中文描述」，避免只匹配到零星符号。
+  /*
+    **只在「并列写法」下才拆。**
+
+    这个函数的目的是处理 `英文 — 中文` 这类同一句描述写两遍的清单，不是处理
+    「中文里夹着英文单词」。后者若也按中文片段切，会把话切碎：
+
+    ```
+    使用 ChatGPT 账户登录 Codex，并把模型、用量和图片输入能力接入 DeepSeek Harness。
+    → 只取最长片段「并把模型、用量和图片输入能力接入」
+    ```
+
+    用户看到的是半句话，主语和宾语都没了。所以先要求**存在并列分隔符**，没有就
+    原样返回。
+  */
+  if (!/[·—]|\s+-\s+/u.test(text)) return text
+
   const matches = text.match(/[\u4E00-\u9FA5][\u4E00-\u9FA5\uFF00-\uFFEF\s。、「」『』—·…]*/gu)
   if (matches === null) return text
   const best = matches
     .map(item => item.trim())
     .filter(item => item.length >= 4)
     .sort((a, b) => b.length - a.length)[0]
+  /*
+    有明确分隔符 + 找到成段中文 = 并列写法，取中文。
+
+    不再要求片段占原文一定比例：英文在视觉上占宽更大，并列写法里中文经常只有
+    原文长度的四分之一（上面那个例子是 19/80），按比例卡会把正确的情况也挡掉。
+  */
   return best === undefined ? text : best
 }
 

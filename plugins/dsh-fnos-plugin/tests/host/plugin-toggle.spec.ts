@@ -660,3 +660,24 @@ describe('卸载：Popconfirm 二次确认 + 异步 loading + 后端并发锁', 
     expect(PANEL_SRC).toContain("t('pluginRemoveInProgress')")
   })
 })
+
+describe('描述文案：只拆并列写法，不切中英混排', () => {
+  it('中英混排的原样返回，不截最长中文片段', async () => {
+    /*
+      这个函数的目的是处理 `英文 — 中文` 这类同一句描述写两遍的清单，不是处理
+      「中文里夹着英文单词」。后者若也按中文片段切，会把话切碎：
+
+      `使用 ChatGPT 账户登录 Codex，并把模型、用量和图片输入能力接入 DeepSeek Harness。`
+      → 只剩「并把模型、用量和图片输入能力接入」，主语宾语都没了。
+    */
+    const { preferChinese } = await import('../../src/host/installed-plugins.ts')
+    const mixed = '使用 ChatGPT 账户登录 Codex，并把模型、用量和图片输入能力接入 DeepSeek Harness。'
+    expect(preferChinese(mixed)).toBe(mixed)
+  })
+
+  it('并列写法取中文那半', async () => {
+    const { preferChinese } = await import('../../src/host/installed-plugins.ts')
+    const paired = 'Visual plugin market inside DeepSeek Harness — browse… · DSH 可视化插件市场：逛一逛，点一下，装好。'
+    expect(preferChinese(paired)).toBe('可视化插件市场：逛一逛，点一下，装好。')
+  })
+})
