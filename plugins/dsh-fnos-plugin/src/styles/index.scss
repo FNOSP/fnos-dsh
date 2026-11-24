@@ -322,6 +322,16 @@ img.dsh-fnos-file-manager-icon {
   }
 }
 
+/*
+ * 工具箱里动作按钮距右边缘的距离。
+ *
+ * 值取 12px：与卡片内其它内容（文本、列表项）的视觉边距一致，不额外引入新的
+ * 栅格步长。
+ */
+:root {
+  --dsh-fnos-action-inset: 12px;
+}
+
 .dsh-fnos-authorized-card-header {
   box-sizing: border-box;
   display: flex;
@@ -330,13 +340,15 @@ img.dsh-fnos-file-manager-icon {
   width: 100%;
   gap: 12px;
   /*
-    右侧留 12px：与「清理 agent skill」那节的按钮对齐。
+    **动作按钮统一留出的右内距。**
 
-    那一节的头部在 `.dsh-fnos-mirror` 里，容器本身带间距；这一处是 tab 内容的
-    直接子元素，没有那层容器。不补的话同一列里的按钮贴住滚动条，与下方内缩的
-    「清理」不在一条竖线上。
+    工具箱里三处「标题 + 动作按钮」的头部（npm 镜像、修复、清理）分属不同容器、
+    层级也不同：有的是 tab 内容的直接子元素，有的嵌在带间距的容器里。逐个补
+    `padding` 会让三者各差几像素——实测 1261 / 1249 / 1245，看起来像没对齐。
+
+    所以定义一个变量，三处共用。
   */
-  padding: 0 12px 0 0;
+  padding: 0 var(--dsh-fnos-action-inset) 0 0;
   color: var(--dsw-alias-label-primary);
 }
 
@@ -526,6 +538,8 @@ img.dsh-fnos-file-manager-icon {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  /* 三处按钮共用的右内距，见 `--dsh-fnos-action-inset`。 */
+  padding-right: var(--dsh-fnos-action-inset);
 }
 
 /*
@@ -2868,6 +2882,8 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  /* 与「修复」「清理」的按钮落在同一条竖线上。 */
+  padding-right: var(--dsh-fnos-action-inset);
 }
 
 /* 标题 + 版本徽标留在左侧，作为一个整体靠左。 */
