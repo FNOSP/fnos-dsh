@@ -218,6 +218,8 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   runtimeLogSearch: "Cerca nei registri",
   runtimeLogLimit: "Limite",
   runtimeLogOpenDirectory: "Visualizza log",
+  runtimeLogScopeMemory: "Memoria",
+  runtimeLogScopeFiles: "Con file",
   runtimeLogEmpty: "Nessun registro.",
   runtimeLogFailed: "Impossibile leggere i registri: ",
   logPanelTitle: "Registro attività",

@@ -1197,3 +1197,40 @@ describe('授权目录：分成两个分组', () => {
     expect(SCSS).toContain('.dsh-fnos-authorized-group-title')
   })
 })
+
+describe('日志：重叠修复与搜索范围', () => {
+  it('行高在布局副作用里测量，不靠 ref 回调', () => {
+    /*
+      ref 回调在 React 提交阶段同步执行，此时样式与字体可能还没稳定，量出来的高度
+      偏小；`VariableSizeList` 按旧值定位下一行，就被上一行的内容压住——截图里
+      「200」与「(7ms)」叠在一起正是这个现象。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('useLayoutEffect')
+    expect(PANEL).toContain('resetAfterIndex(0, true)')
+    // 内容不溢出自己的行，测量滞后时最多截断，不会两层字重叠。
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-logs-line {'), SCSS.indexOf('}', SCSS.indexOf('.dsh-fnos-logs-line {')))
+    expect(rule).toContain('overflow: hidden')
+  })
+
+  it('搜索范围可选「含历史文件」，走磁盘轮转日志', () => {
+    /*
+      内存缓冲只有 200 条且重启即失；磁盘上的 `.log` 按大小轮转保留。用户搜
+      「上周那次安装为什么失败」时，只查内存等于永远搜不到。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('dsh-fnos-logs-scope')
+    expect(PANEL).toContain("runtimeLogScopeFiles")
+    expect(PANEL).toContain('scope')
+
+    const HOST = readFileSync(new URL('../../src/host/runtime-log-file.ts', import.meta.url), 'utf8')
+    expect(HOST).toContain('export async function searchLogFiles')
+    expect(HOST).toContain('export function parseLogFileLine')
+    // 当前文件排最前，其余按时间戳倒序（越新越靠前）。
+    expect(HOST).toContain('.sort()\n    .reverse()')
+
+    const ROUTE = readFileSync(new URL('../../src/host/runtime-status-routes.ts', import.meta.url), 'utf8')
+    expect(ROUTE).toContain("url.searchParams.get('scope') === 'files'")
+  })
+})

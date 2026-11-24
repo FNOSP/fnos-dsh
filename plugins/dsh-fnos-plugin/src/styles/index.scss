@@ -2128,6 +2128,12 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  * 边框、圆角、聚焦态、尺寸全部交给 Semi 的 `DshInput`——插件不再自己画一套输入框
  * 外观（那样会与同一行的 Select 在圆角/描边/高度上各差一点）。
  */
+/* 搜索范围下拉：固定宽度，与同一行的级别下拉、条数输入框等高由 Semi 保证。 */
+.dsh-fnos-logs-scope {
+  flex: 0 0 auto;
+  width: 108px;
+}
+
 .dsh-fnos-logs-search {
   flex: 1 1 auto;
   min-width: 0;
@@ -2208,6 +2214,14 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   align-items: flex-start;
   gap: 8px;
   padding: 1px 0;
+  /*
+    内容不溢出自己的行。
+
+    虚拟化给每行分配的高度来自测量；万一某次测量滞后（字体替换、缩放中），
+    内容就会压到下一行上——截图里「200」与「(7ms)」叠在一起正是这个现象。
+    裁在自己行内，错位最多表现为截断，不会两层字重叠。
+  */
+  overflow: hidden;
 
   &:hover {
     background: var(--dsw-alias-interactive-bg-hover, rgb(0 0 0 / 4%));

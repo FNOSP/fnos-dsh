@@ -26,7 +26,7 @@ import {
   type RuntimeLogLevel,
   type RuntimeLogSnapshot,
 } from '../contracts/runtime-status-contract.ts'
-import { appendRuntimeLogFile, attachRuntimeLogFile, detachRuntimeLogFile } from './runtime-log-file.ts'
+import { appendRuntimeLogFile, attachRuntimeLogFile, detachRuntimeLogFile, searchLogFiles } from './runtime-log-file.ts'
 
 /** 默认保留条数。 */
 export const DEFAULT_LOG_LIMIT = RUNTIME_LOG_DEFAULT_LIMIT
@@ -144,6 +144,8 @@ export function readLogs(options: {
   limit?: number
   level?: RuntimeLogLevel
   query?: string
+  /** 是否连磁盘上的历史文件一起查。 */
+  scope?: 'memory' | 'files'
 } = {}): RuntimeLogSnapshot {
   const limit = Math.min(Math.max(options.limit ?? DEFAULT_LOG_LIMIT, 1), MAX_LOG_LIMIT)
   const query = options.query?.trim().toLowerCase()
@@ -163,8 +165,50 @@ export function readLogs(options: {
     total: buffer.length,
     entries: matched,
     limit,
+    scope: options.scope ?? 'memory',
     ...(currentLogDirectory === undefined ? {} : { logDirectory: currentLogDirectory }),
   }
+}
+
+/**
+ * 读日志，**可选连磁盘历史一起查**。
+ *
+ * 内存缓冲只有 200 条且重启即失；磁盘上的 `.log` 按大小轮转保留。用户搜「上周那次
+ * 安装为什么失败」时，只查内存等于永远搜不到。
+ *
+ * @param options - 过滤条件与范围。
+ * @param options.limit - 最多返回条数。
+ * @param options.level - 只要该级别。
+ * @param options.query - 搜索词。
+ * @param options.scope - `memory` 只查缓冲；`files` 连磁盘历史一起查。
+ * @returns 日志快照。
+ */
+export async function readLogsWithScope(options: {
+  limit?: number
+  level?: RuntimeLogLevel
+  query?: string
+  scope?: 'memory' | 'files'
+} = {}): Promise<RuntimeLogSnapshot> {
+  if (options.scope !== 'files' || currentLogDirectory === undefined) return readLogs(options)
+
+  const limit = Math.min(Math.max(options.limit ?? DEFAULT_LOG_LIMIT, 1), MAX_LOG_LIMIT)
+  const fromFiles = await searchLogFiles(currentLogDirectory.replace(/\/gateway$/u, ''), {
+    ...(options.level === undefined ? {} : { level: options.level }),
+    ...(options.query === undefined ? {} : { query: options.query }),
+    limit,
+  })
+  /*
+    文件结果映射成与内存一致的形状。`seq` 用负序号：它们不属于当前缓冲，界面上也
+    不需要按序号去重。
+  */
+  const entries: RuntimeLogEntry[] = fromFiles.map((entry, index) => ({
+    seq: -(index + 1),
+    at: entry.at,
+    name: entry.name,
+    level: entry.level,
+    text: entry.text,
+  }))
+  return { total: entries.length, entries, limit, scope: 'files', logDirectory: currentLogDirectory }
 }
 
 /** 仅供测试：清空缓冲。 */

@@ -219,6 +219,8 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   runtimeLogSearch: "Rechercher dans les journaux",
   runtimeLogLimit: "Limite",
   runtimeLogOpenDirectory: "Voir les journaux",
+  runtimeLogScopeMemory: "Mémoire",
+  runtimeLogScopeFiles: "Avec fichiers",
   runtimeLogEmpty: "Aucun journal pour le moment.",
   runtimeLogFailed: "Impossible de lire les journaux : ",
   logPanelTitle: "Journal de la tâche",

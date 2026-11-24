@@ -59,11 +59,14 @@ export async function fetchRuntimeLogs(options: {
   limit?: number
   level?: string
   query?: string
+  /** `files` 时连磁盘上按大小轮转的历史一起查。 */
+  scope?: 'memory' | 'files'
 } = {}): Promise<RuntimeLogSnapshot> {
   const params = new URLSearchParams()
   if (options.limit !== undefined) params.set('limit', String(options.limit))
   if (options.level !== undefined && options.level !== 'all') params.set('level', options.level)
   if (options.query !== undefined && options.query.length > 0) params.set('q', options.query)
+  if (options.scope !== undefined) params.set('scope', options.scope)
   const suffix = params.toString()
   const response = await fetch(`${FNOS_RUNTIME_LOGS_ROUTE}${suffix.length > 0 ? `?${suffix}` : ''}`, {
     method: 'GET',

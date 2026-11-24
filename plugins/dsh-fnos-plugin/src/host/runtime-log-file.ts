@@ -29,6 +29,7 @@
  * @module dsh-fnos/host/runtime-log-file
  */
 
+import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createStream, type RotatingFileStream } from 'rotating-file-stream'
 
@@ -104,4 +105,99 @@ export function detachRuntimeLogFile(done?: () => void): void {
     return
   }
   current.end(() => { done?.() })
+}
+
+/** 从文件里读回的一条日志。 */
+export interface FileLogEntry {
+  readonly at: number
+  readonly level: 'debug' | 'info' | 'warn' | 'error'
+  readonly name: string
+  readonly text: string
+}
+
+/**
+ * 解析一行磁盘日志。
+ *
+ * 格式与内存缓冲写出去的一致：`<ISO 时间> [<级别>] <来源> <正文>`。
+ * 正文里可能有空格，所以只切前四段，剩下的整体作为正文。
+ *
+ * @param line - 单行文本。
+ * @returns 解析结果；格式不符时 undefined。
+ */
+export function parseLogFileLine(line: string): FileLogEntry | undefined {
+  const matched = /^(\S+) \[(\w+)\] (\S+) ?(.*)$/u.exec(line)
+  if (matched === null) return undefined
+  const at = Date.parse(matched[1] ?? '')
+  if (!Number.isFinite(at)) return undefined
+  const level = matched[2]
+  if (level !== 'debug' && level !== 'info' && level !== 'warn' && level !== 'error') return undefined
+  return { at, level, name: matched[3] ?? '', text: matched[4] ?? '' }
+}
+
+/**
+ * 从落盘文件里搜日志。
+ *
+ * ## 为什么需要
+ *
+ * 内存缓冲只有 200 条且重启即失。用户搜「上周那次安装为什么失败」时，页面上的
+ * 记录早就不在了——而磁盘上按大小轮转的那几份 `.log` 里还有。这个函数让搜索能
+ * 覆盖那些历史文件。
+ *
+ * ## 读哪几份
+ *
+ * 当前文件 + 轮转出来的全部历史，按**从新到旧**取。总量受 `maxFiles`（5 份 ×
+ * 2 MiB）约束，全读一遍约 10 MiB，一次搜索可接受。
+ *
+ * @param profileDirectory - profile 绝对路径。
+ * @param options - 过滤条件与上限。
+ * @param options.query - 搜索词（大小写不敏感）。
+ * @param options.level - 只要该级别。
+ * @param options.limit - 最多返回条数。
+ * @returns 命中的条目，新到旧。
+ */
+export async function searchLogFiles(
+  profileDirectory: string,
+  options: { query?: string, level?: FileLogEntry['level'], limit: number },
+): Promise<FileLogEntry[]> {
+  const directory = join(profileDirectory, 'gateway')
+  let names: string[]
+  try {
+    names = await readdir(directory)
+  } catch {
+    return []
+  }
+  /*
+    当前文件 `runtime-log.log` 排最前（最新），其余按时间戳前缀倒序。
+    轮转文件形如 `20261124-1434-1-runtime-log.log`，字典序即时间序。
+  */
+  const rotated = names
+    .filter(name => /^\d{8}-\d{4}-\d+-runtime-log\.log$/u.test(name))
+    .sort()
+    .reverse()
+  const ordered = [RUNTIME_LOG_FILE, ...rotated]
+
+  const query = options.query?.trim().toLowerCase()
+  const matched: FileLogEntry[] = []
+  for (const name of ordered) {
+    if (matched.length >= options.limit) break
+    let content: string
+    try {
+      content = await readFile(join(directory, name), 'utf8')
+    } catch {
+      continue
+    }
+    const lines = content.split('\n')
+    /* 同一个文件内也从后往前：越靠后越新。 */
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      if (matched.length >= options.limit) break
+      const entry = parseLogFileLine(lines[i] ?? '')
+      if (entry === undefined) continue
+      if (options.level !== undefined && entry.level !== options.level) continue
+      if (query !== undefined && query.length > 0) {
+        if (!`${entry.name} ${entry.text}`.toLowerCase().includes(query)) continue
+      }
+      matched.push(entry)
+    }
+  }
+  return matched
 }

@@ -12,7 +12,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { FNOS_RUNTIME_KILL_ROUTE, FNOS_RUNTIME_LOGS_ROUTE, FNOS_RUNTIME_STATUS_ROUTE, FNOS_RUNTIME_TASK_LOG_ROUTE } from '../contracts/runtime-status-contract.ts'
 import type { RuntimeLogLevel } from '../contracts/runtime-status-contract.ts'
-import { readLogs } from './runtime-logs.ts'
+import { readLogsWithScope } from './runtime-logs.ts'
 import { readRuntimeStatus } from './runtime-status.ts'
 import { ALLOWED_SIGNALS, killProcess, type KillSignal } from './runtime-processes.ts'
 
@@ -95,21 +95,24 @@ export function registerRuntimeStatusRoutes(ctx: Context): void {
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: FNOS_RUNTIME_LOGS_ROUTE,
-    handler: (req, res) => {
+    handler: async (req, res) => {
       if (!trusted(req)) return send(res, 403, { error: 'remote-web-origin-not-trusted' })
       const url = new URL(req.url ?? '/', 'http://localhost')
       const rawLimit = url.searchParams.get('limit')
       const rawLevel = url.searchParams.get('level')
       const query = url.searchParams.get('q') ?? undefined
+      /* `scope=files` 时连磁盘上按大小轮转的历史一起查。 */
+      const scope = url.searchParams.get('scope') === 'files' ? 'files' as const : undefined
       const levels: readonly RuntimeLogLevel[] = ['error', 'warn', 'info', 'debug']
       // 非法级别当作「不过滤」而不是报错：这是只读面板，宽容一点更有用。
       const level = rawLevel !== null && (levels as readonly string[]).includes(rawLevel)
         ? rawLevel as RuntimeLogLevel
         : undefined
-      send(res, 200, readLogs({
+      send(res, 200, await readLogsWithScope({
         ...(rawLimit === null ? {} : { limit: Number(rawLimit) }),
         ...(level === undefined ? {} : { level }),
         ...(query === undefined ? {} : { query }),
+        ...(scope === undefined ? {} : { scope }),
       }))
     },
   }), 'dsh-fnos: runtime logs')

@@ -218,6 +218,8 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   runtimeLogSearch: "Поиск по журналам",
   runtimeLogLimit: "Лимит",
   runtimeLogOpenDirectory: "Открыть журналы",
+  runtimeLogScopeMemory: "Память",
+  runtimeLogScopeFiles: "С файлами",
   runtimeLogEmpty: "Журналов пока нет.",
   runtimeLogFailed: "Не удалось прочитать журналы: ",
   logPanelTitle: "Журнал задачи",

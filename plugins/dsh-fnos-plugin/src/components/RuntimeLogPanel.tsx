@@ -17,7 +17,7 @@
  * @module dsh-fnos/components/RuntimeLogPanel
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { DshButton, DshIconFolder, DshInput, DshInputNumber, DshSelect } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchRuntimeLogs } from '../client/services/runtime-status-client.ts'
@@ -73,6 +73,14 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
   const [entries, setEntries] = useState<readonly RuntimeLogEntry[]>([])
   const [level, setLevel] = useState<'all' | RuntimeLogLevel>('all')
   const [query, setQuery] = useState('')
+  /*
+    **搜索范围。**
+
+    `memory` 只查内存环形缓冲（200 条，重启即失）；`files` 连磁盘上按大小轮转的
+    历史 `.log` 一起查。用户搜「上周那次安装为什么失败」时必须选后者——只查内存
+    等于永远搜不到。
+  */
+  const [scope, setScope] = useState<'memory' | 'files'>('memory')
   const [limit, setLimit] = useState(DEFAULT_LIMIT)
   /** 日志落盘目录；宿主未接上时为空，按钮不渲染。 */
   const [logDirectory, setLogDirectory] = useState<string>()
@@ -84,14 +92,14 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
   /** 拉一次日志。 */
   const load = useCallback(async () => {
     try {
-      const snapshot = await fetchRuntimeLogs({ limit, level, query })
+      const snapshot = await fetchRuntimeLogs({ limit, level, query, scope })
       setEntries(snapshot.entries)
       setLogDirectory(snapshot.logDirectory)
       setError(undefined)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
     }
-  }, [limit, level, query])
+  }, [limit, level, query, scope])
 
   /**
    * 打开日志目录（fnOS 文件管理器）。
@@ -126,13 +134,45 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
   */
   const rowHeights = useRef(new Map<number, number>())
   const virtualRef = useRef<VariableSizeList>(null)
+  /** 当前已渲染的行节点，按索引存；布局副作用读它们量真实高度。 */
+  const rowRefs = useRef(new Map<number, HTMLDivElement>())
+
+  /*
+    **渲染后统一量高度。**
+
+    逐个在 ref 回调里量不可靠：那时样式与字体可能还没稳定，量出来偏小；而且每行
+    都触发一次 `resetAfterIndex` 会让列表反复重排。
+
+    这里在每次渲染提交后扫一遍已挂载的行，只对**高度发生变化**的行回报——正常滚动
+    时没有变化，不会有多余重排。
+  */
+  useLayoutEffect(() => {
+    let changed = false
+    for (const [index, node] of rowRefs.current) {
+      const key = entries[index]?.seq ?? index
+      const height = node.getBoundingClientRect().height
+      if (height <= 0) continue
+      if (rowHeights.current.get(key) === height) continue
+      rowHeights.current.set(key, height)
+      changed = true
+    }
+    if (changed) virtualRef.current?.resetAfterIndex(0, true)
+  })
 
   const setRowHeight = useCallback((index: number, size: number): void => {
     const key = entries[index]?.seq ?? index
     if (rowHeights.current.get(key) === size) return
     rowHeights.current.set(key, size)
-    /* 高度变了要让列表重算偏移，否则后续行会错位。 */
-    virtualRef.current?.resetAfterIndex(index)
+    /*
+      **必须让列表重算这一行之后的全部偏移。**
+
+      `VariableSizeList` 按 `rowHeight(index)` 决定每行的 `translateY`。测量偏小
+      时（估算值 40 < 实际 60），下一行仍按旧值定位，于是被上一行的内容压住——
+      截图中「200」与「(7ms)」叠在一起正是这个现象。
+
+      `resetAfterIndex` 让它用新高度重算后续偏移。
+    */
+    virtualRef.current?.resetAfterIndex(index, true)
   }, [entries])
 
   const rowHeight = useCallback((index: number): number => {
@@ -163,10 +203,20 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
     return (
       <div
         style={style}
+        /*
+          **量高度放在 `useLayoutEffect` 里，不放 ref 回调。**
+
+          ref 回调在 React 提交阶段同步执行，此时样式与字体可能还没稳定，量出来的
+          高度会偏小；用布局副作用能等到 DOM 与样式都就位之后再量。
+
+          `overflow: hidden` 兜底：万一某次测量滞后，内容也被裁在自己这一行内，
+          不会压到下一行上。
+        */
         ref={(node) => {
-          /* 挂载后量一次真实高度并回报给列表。 */
-          if (node !== null) setRowHeight(index, node.getBoundingClientRect().height)
+          if (node === null) rowRefs.current.delete(index)
+          else rowRefs.current.set(index, node)
         }}
+        data-row-index={index}
       >
         <div className={`dsh-fnos-logs-line dsh-fnos-logs-line--${entry.level}`}>
           <span className="dsh-fnos-logs-time">{clock(entry.at)}</span>
@@ -197,6 +247,22 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
             这里靠背景高亮 + 主色文字表达选中，不需要勾。
           */
           optionList={LEVELS.map(item => ({ value: item.value, label: t(item.labelKey), showTick: false }))}
+        />
+        {/*
+          搜索范围：内存 / 含磁盘历史。
+
+          放成独立下拉而不是塞进搜索框的占位文案里——用户需要**看见**当前范围，
+          否则搜不到旧日志时会以为功能坏了。
+        */}
+        <DshSelect
+          className="dsh-fnos-logs-scope"
+          size="small"
+          value={scope}
+          onChange={(value: string | number | (string | number)[]) => { setScope(value as 'memory' | 'files') }}
+          optionList={[
+            { value: 'memory', label: t('runtimeLogScopeMemory'), showTick: false },
+            { value: 'files', label: t('runtimeLogScopeFiles'), showTick: false },
+          ]}
         />
         <DshInput
           className="dsh-fnos-logs-search"

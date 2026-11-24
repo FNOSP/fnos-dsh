@@ -150,6 +150,13 @@ export interface RuntimeLogSnapshot {
    * 看到按大小轮转的历史 `.log` 文件。
    */
   readonly logDirectory?: string
+  /**
+   * 本次结果的来源范围。
+   *
+   * - `memory`：只查了内存缓冲（默认）；
+   * - `files`：连磁盘上按大小轮转的历史 `.log` 一起查了。
+   */
+  readonly scope?: 'memory' | 'files'
 }
 
 /** 运行状态响应。 */

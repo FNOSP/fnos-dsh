@@ -227,6 +227,8 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   runtimeLogSearch: "ログを検索",
   runtimeLogLimit: "上限",
   runtimeLogOpenDirectory: "ログを表示",
+  runtimeLogScopeMemory: "メモリ",
+  runtimeLogScopeFiles: "ファイル含む",
   runtimeLogEmpty: "ログはまだありません。",
   runtimeLogFailed: "ログを読み取れませんでした: ",
   logPanelTitle: "タスクログ",
