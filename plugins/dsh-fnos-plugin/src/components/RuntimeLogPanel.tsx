@@ -18,7 +18,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DshButton, DshIconFolder, DshInput, DshInputNumber, DshSelect, DshTooltip } from '@tnnevol/dsh-semi-ui'
+import { DshButton, DshIconFolder, DshInput, DshInputNumber, DshSelect } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchRuntimeLogs } from '../client/services/runtime-status-client.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
@@ -235,19 +235,22 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
 
           独立浏览器页面同样没有宿主桥：给一个点了没反应的按钮比不给更差。
         */}
+        {/*
+          **不加 tooltip。** 按钮本身就有文案，tooltip 显示的仍是同一句话——
+          出现时只是把已有的字遮住再重复一遍。tooltip 只用于「图标按钮」这种
+          没有可见文案、需要额外说明的场景。
+        */}
         {!hasFnosHostBridge() || logDirectory === undefined ? null : (
-          <DshTooltip content={t('runtimeLogOpenDirectory')}>
-            <DshButton
-              htmlType="button"
-              size="small"
-              theme="borderless"
-              type="tertiary"
-              onClick={() => { void openLogDirectory() }}
-            >
-              <DshIconFolder />
-              {t('runtimeLogOpenDirectory')}
-            </DshButton>
-          </DshTooltip>
+          <DshButton
+            htmlType="button"
+            size="small"
+            theme="borderless"
+            type="tertiary"
+            onClick={() => { void openLogDirectory() }}
+          >
+            <DshIconFolder />
+            {t('runtimeLogOpenDirectory')}
+          </DshButton>
         )}
       </div>
 

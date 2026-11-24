@@ -1158,3 +1158,16 @@ describe('备份文件不残留', () => {
     expect(REPAIR).not.toMatch(/pruneWorkspaceBackups[\s\S]{0,400}stat\(/u)
   })
 })
+
+describe('tooltip 的使用边界', () => {
+  it('有文案的按钮不套 tooltip', () => {
+    /*
+      tooltip 的价值是「补上看不见的信息」。按钮本身已有文案时，tooltip 显示的
+      仍是同一句话——出现时只是把已有的字遮住再重复一遍。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).not.toContain('DshTooltip')
+    /* 按钮本身带文案。 */
+    expect(PANEL).toContain("{t('runtimeLogOpenDirectory')}")
+  })
+})
