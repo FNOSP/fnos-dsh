@@ -6,6 +6,7 @@ import connect from 'connect'
 import type { GatewayOptions, GatewayServer } from '../types/gateway.js'
 import { pathRewriteMiddleware, rewritePath } from '../middleware/path-rewrite.js'
 import { createProxyHandler, browserSessionCookieName } from './proxy.js'
+import { proxyRequestLogMiddleware } from './proxy-request-log-middleware.js'
 import { UpstreamSession } from './upstream-session.js'
 import { PATH_ALLOWLIST_EVENTS_PATH } from './path-allowlist.js'
 import { appAuthCallback } from '../middleware/app-auth-callback.js'
@@ -109,6 +110,13 @@ export function createGateway(options: GatewayOptions): GatewayServer {
   app.use(webControl(options, session))
   app.use(pathAllowlistEvents(options))
   app.use(upstreamSessionReady(options, session))
+  /*
+    请求日志排在转发之前：它只挂 `res` 的 finish 钩子，不改请求本身。
+
+    位置在这里而不是更早，是因为此前几个中间件（鉴权回调、web 控制、会话就绪）
+    可能直接结束请求、根本不进代理——那些不该记成「插件请求」。
+  */
+  app.use(proxyRequestLogMiddleware(options, session))
   const proxy = createProxyHandler(options, session)
   app.use(proxy)
 

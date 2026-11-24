@@ -77,8 +77,15 @@ describe('gateway server', () => {
     // 首次访问：网关自己换取会话，浏览器的首页请求不带 Token，直接 200
     await expect(get()).resolves.toEqual({ statusCode: 200, location: undefined })
     await expect(get()).resolves.toEqual({ statusCode: 200, location: undefined })
-    expect(upstreamPaths).toEqual(['/?token=launch-token', '/', '/'])
-    expect(upstreamCookies.slice(1)).toEqual([`${browserCookieName}=gateway`, `${browserCookieName}=gateway`])
+    /*
+      过滤掉网关自己的日志上报：`proxyRequestLogMiddleware` 会把每个代理请求
+      转给上游的 `/plugins/dsh-fnos/runtime/task-log`。它不属于「浏览器发起的
+      转发」，不该混进这条断言。
+    */
+    const isLogReport = (item: string): boolean => item.startsWith('/plugins/dsh-fnos/runtime/task-log')
+    const pairs = upstreamPaths.map((path, index) => ({ path, cookie: upstreamCookies[index] })).filter(pair => !isLogReport(pair.path))
+    expect(pairs.map(pair => pair.path)).toEqual(['/?token=launch-token', '/', '/'])
+    expect(pairs.slice(1).map(pair => pair.cookie)).toEqual([`${browserCookieName}=gateway`, `${browserCookieName}=gateway`])
   })
 
   it('waits for a startup token before forwarding the first Web root request', async () => {
