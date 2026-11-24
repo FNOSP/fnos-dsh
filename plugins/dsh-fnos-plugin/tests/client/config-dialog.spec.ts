@@ -343,13 +343,18 @@ describe('fnOS 配置弹框', () => {
     expect(mobile).toContain('.dsh-fnos-logs-name')
   })
 
-  it('日志条数只在被截断时显示', () => {
-    // `total` 是过滤前的缓冲总数，`entries.length` 是本次返回条数。缓冲未超过
-    // limit 时两者必然相等，显示「36 / 36」等于什么都没说。
+  it('工具条不再显示条数计数', () => {
+    /*
+      那个 `0 / 43` 曾经只在「被截断时」显示，但它回答的是「缓冲里有多少条」——
+      用户真正要知道的数量已经在「条数」输入框里（那是他自己填的上限）。两处
+      数字并排，反而要停下来分辨哪个是哪个。
+
+      整个计数与它的 `total` state 一并移除。
+    */
     const panel = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
-    expect(panel).toContain('entries.length < total')
-    // 计数节点必须包在该条件里，不能无条件渲染。
-    expect(panel).toMatch(/entries\.length < total \? \(\s*<span className="dsh-fnos-logs-count">/u)
+    expect(panel).not.toContain('dsh-fnos-logs-count')
+    expect(panel).not.toContain('entries.length < total')
+    expect(panel).not.toContain('setTotal')
   })
 
   it('文件入口：失败走 Toast，错误不画在按钮上', () => {

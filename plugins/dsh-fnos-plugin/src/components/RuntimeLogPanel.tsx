@@ -67,7 +67,6 @@ function clock(at: number): string {
  */
 export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
   const [entries, setEntries] = useState<readonly RuntimeLogEntry[]>([])
-  const [total, setTotal] = useState(0)
   const [level, setLevel] = useState<'all' | RuntimeLogLevel>('all')
   const [query, setQuery] = useState('')
   const [limit, setLimit] = useState(DEFAULT_LIMIT)
@@ -81,7 +80,6 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
     try {
       const snapshot = await fetchRuntimeLogs({ limit, level, query })
       setEntries(snapshot.entries)
-      setTotal(snapshot.total)
       setError(undefined)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -151,18 +149,6 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
             }}
           />
         </label>
-        {/*
-          **只有在「确实被截断」时才有信息量。**
-
-          `total` 是过滤前的缓冲总数，`entries.length` 是本次返回的条数。缓冲没超过
-          `limit` 时两者必然相等，显示「36 / 36」等于什么都没说——截图里就是这样。
-
-          改成仅当 `entries.length < total`（被 limit 或过滤截断）时才显示，格式
-          仍是「显示 N / 共 M」。
-        */}
-        {entries.length < total ? (
-          <span className="dsh-fnos-logs-count">{`${String(entries.length)} / ${String(total)}`}</span>
-        ) : null}
       </div>
 
       {error === undefined ? null : (
