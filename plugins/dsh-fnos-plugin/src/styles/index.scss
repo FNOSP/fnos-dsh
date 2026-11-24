@@ -558,7 +558,21 @@ img.dsh-fnos-file-manager-icon {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  /* 三处按钮共用的右内距，见 `--dsh-fnos-action-inset`。 */
+  /*
+    **抵掉父容器的右内边距。**
+
+    这一节在 `.dsh-fnos-authorized-card-body` 里，那个容器带 `margin: 0 16px`；
+    「安装」「修复」的头部是卡片的直接子元素，没有这层。所以这一节要比 body 的
+    内容边界再往右 16px，三个按钮才落在同一条竖线上（实测差异正是 16px）。
+
+    负 margin 在这里比「给另外两处再加 padding」更稳：只需知道 body 的内距，
+    不必让三处的值分别跟它对齐。
+  */
+  margin-right: -16px;
+  /*
+    抵掉 body 内距后，再留出与上面两处相同的动作按钮内距。
+    两句合起来的效果：这一节的内容边界与「安装」「修复」的头部对齐。
+  */
   padding-right: var(--dsh-fnos-action-inset);
 }
 
