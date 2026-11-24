@@ -2071,7 +2071,8 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 }
 
 .dsh-fnos-logs-level {
-  flex: 0 0 120px;
+  /* 固定宽度：级别名最长是「警告」这类两个字，80px 足够且不随语言变宽。 */
+  flex: 0 0 80px;
 }
 
 /*
@@ -4004,15 +4005,13 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
   /*
     **日志工具条在窄屏要收：**
 
-    - 级别选择器从 120 收到 96——「全部 / 警告 / 调试」最多三个字，96 够用；
     - 隐藏「条数」输入框：窄屏下每像素都紧张，而它是个低频设置（默认 200 已经
       够看），要看更多可以直接在桌面端改；
     - 搜索框自然就宽了。
-  */
-  .dsh-fnos-logs-level {
-    flex: 0 0 96px;
-  }
 
+    级别选择器不需要在这里单独收窄——它的默认宽度已经是 80px，比原先的窄屏值
+    （96px）还小。
+  */
   .dsh-fnos-logs-limit {
     display: none;
   }

@@ -325,11 +325,10 @@ describe('fnOS 配置弹框', () => {
     expect(scss).toMatch(/semi-button-light\.semi-button-disabled \{[^}]*opacity: 1/u)
   })
 
-  it('日志页：移动端收窄选择器、隐藏条数与来源', () => {
+  it('日志页：移动端隐藏条数与来源', () => {
     /*
       窄屏每像素都紧张：
 
-      - 级别选择器 120 → 96（「全部 / 警告 / 调试」最多三个字，够用）；
       - 「条数」是低频设置，隐藏；
       - 来源列（`authorization-service` 这类长标识符）会把正文压到只剩几个字符，
         于是长句被逐词折成竖排——隐藏来源，让正文独占剩余宽度。
@@ -338,9 +337,13 @@ describe('fnOS 配置弹框', () => {
     */
     const scss = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
     const mobile = scss.match(/@media \(max-width: 767px\)[\s\S]*?\n\}/u)?.[0] ?? ''
-    expect(mobile).toContain('flex: 0 0 96px')
     expect(mobile).toContain('.dsh-fnos-logs-limit')
     expect(mobile).toContain('.dsh-fnos-logs-name')
+    /*
+      级别选择器不需要在窄屏单独收窄：它的默认宽度已经是 80px，比原先的窄屏值
+      （96px）还小。留着那条覆盖只会让它变宽。
+    */
+    expect(mobile).not.toContain('.dsh-fnos-logs-level')
   })
 
   it('工具条不再显示条数计数', () => {
