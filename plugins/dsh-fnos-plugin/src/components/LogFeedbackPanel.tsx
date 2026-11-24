@@ -22,6 +22,7 @@ import { useGSAP } from '@gsap/react'
 import {
   DshIconButton, DshIconClose, DshIconMinus, DshIconRefresh, DshSpin, DshTooltip,
 } from '@tnnevol/dsh-semi-ui'
+import dayjs from 'dayjs'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { IconifyIcon, type UsedIconName } from './IconifyIcon.tsx'
 import {
@@ -126,9 +127,17 @@ function clampPosition(position: LogPanelPosition, width: number, height: number
   }
 }
 
-/** 时刻格式：只到秒。 */
+/**
+ * 时间格式：完整的年月日时分秒，定长 19 字符。
+ *
+ * **不省略日期。** 日志跨重启、跨天都可能留着，只有 `HH:mm:ss` 时用户看不出
+ * 某条是今天还是上周的——排查「刚才那次安装」时会把旧记录当成新的。
+ *
+ * 走 `dayjs` 而不是 `toLocaleTimeString`：后者依赖运行时的 locale 数据，不同
+ * 浏览器/设备的补零与分隔符都可能不同，列宽随之跳动。
+ */
 function clock(at: number): string {
-  return new Date(at).toLocaleTimeString(undefined, { hour12: false })
+  return dayjs(at).format('YYYY-MM-DD HH:mm:ss')
 }
 
 /**
