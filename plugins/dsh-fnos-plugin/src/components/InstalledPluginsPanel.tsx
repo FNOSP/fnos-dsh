@@ -672,6 +672,8 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
               {installing === plugin.name ? (
                 <PluginInstallInline
                   name={plugin.name}
+                  /* 已有版本 = 更新，否则是首次安装。标题据此不同。 */
+                  isUpdate={plugin.version !== undefined && plugin.latestVersion !== undefined && plugin.updateAvailable === true}
                   t={t}
                   onSettled={handleInstallSettled}
                   onDismiss={() => { taskStore.clear('plugin-install') }}

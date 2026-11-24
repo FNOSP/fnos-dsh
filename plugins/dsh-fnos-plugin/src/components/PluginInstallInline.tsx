@@ -50,6 +50,13 @@ const LOG_POLL_MS = 800
 /** 组件参数。 */
 export interface PluginInstallInlineProps {
   readonly name: string
+  /**
+   * 这次是更新而不是首次安装。
+   *
+   * 只影响任务浮层的标题（「更新插件」 vs 「安装插件」）——同一个 `dsh plugin add`
+   * 命令承担两件事，但对用户而言是两种操作。
+   */
+  readonly isUpdate: boolean
   readonly t: Translate
   /** 结束时回调；`ok` 表示是否成功。 */
   readonly onSettled: (ok: boolean) => void
@@ -61,12 +68,13 @@ export interface PluginInstallInlineProps {
  * 卡片内的安装进度条 + 可展开日志。
  * @param props - 组合后的 props。
  * @param props.name - 包名。
+ * @param props.isUpdate - 是否为更新。
  * @param props.t - 翻译函数。
  * @param props.onSettled - 结束回调。
  * @param props.onDismiss - 收起回调。
  * @returns 内联进度与日志。
  */
-export function PluginInstallInline({ name, t, onSettled, onDismiss }: PluginInstallInlineProps): React.ReactNode {
+export function PluginInstallInline({ name, isUpdate, t, onSettled, onDismiss }: PluginInstallInlineProps): React.ReactNode {
   /**
    * 运行态放模块级 store：弹框关闭会卸载本组件，`useState` 随之归零，重开时
    * 按钮又回到「安装」而宿主侧可能还在装。
@@ -105,27 +113,34 @@ export function PluginInstallInline({ name, t, onSettled, onDismiss }: PluginIns
     let cancelled = false
     /* 新一轮任务：浮层整体替换内容并展开。 */
     taskStore.begin('plugin-install', name)
-    logPanelStore.beginTask({ feature: 'install', title: `${t('pluginInstallTask')} ${name}` })
+    logPanelStore.beginTask({ feature: 'install', title: `${t(isUpdate ? 'pluginUpdateTask' : 'pluginInstallTask')} ${name}` })
     const timer = setInterval(() => { void pull() }, LOG_POLL_MS)
 
     void startPluginInstall(name).then(async (result) => {
       // 结束时再拉一次：最后几行可能在关闭轮询之后才落盘。
       await pull()
-      if (cancelled) return
+      /*
+        **收尾状态一定要写，`cancelled` 只挡 UI 回调。**
+
+        组件可能在安装期间被卸载（用户关掉弹框）。此前的写法是 `cancelled` 为真
+        就整个 return——`logPanelStore.finish()` 也一起被跳过，于是任务浮层永远
+        停在「执行中」的蓝色脉冲点，即便日志里早已写着「安装成功」。
+
+        浮层与 `taskStore` 都在模块作用域里，卸载后仍可安全写入。
+      */
       const ok = result.status === 'succeeded'
       if (result.error !== undefined) logPanelStore.append('error', result.error)
       logPanelStore.finish(ok ? 'ok' : 'failed')
       taskStore.finish('plugin-install', ok ? 'ok' : 'failed', result.error)
       clearInterval(timer)
-      onSettled(ok)
+      if (!cancelled) onSettled(ok)
     }).catch((cause: unknown) => {
-      if (cancelled) return
       const message = cause instanceof Error ? cause.message : String(cause)
       logPanelStore.append('error', message)
       logPanelStore.finish('failed')
       taskStore.finish('plugin-install', 'failed', message)
       clearInterval(timer)
-      onSettled(false)
+      if (!cancelled) onSettled(false)
     })
 
     return () => { cancelled = true; clearInterval(timer) }

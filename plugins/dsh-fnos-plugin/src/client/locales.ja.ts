@@ -290,6 +290,7 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   mirrorUninstalled: "nrm をアンインストールしました",
   mirrorReinstall: "再インストール",
   pluginInstallTask: "プラグインをインストール",
+  pluginUpdateTask: "プラグインを更新",
   copied: "コピーしました",
   mirrorInstalling: "インストール中…",
   mirrorInstallTask: "nrm をインストール",

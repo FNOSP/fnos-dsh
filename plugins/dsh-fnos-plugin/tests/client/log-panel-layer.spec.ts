@@ -472,3 +472,43 @@ describe('已安装插件：操作状态跨弹框保持', () => {
     expect(PANEL).toContain("taskStore.finish('plugin-toggle', 'failed', message)")
   })
 })
+
+describe('更新插件：保持状态、正确标题、正确收尾', () => {
+  it('更新不自动启用，只有首次安装才加入 bundles', () => {
+    /*
+      更新时用户已经表过态（他把开关关着），此时再自动启用等于推翻他的选择。
+      「装」隐含「我要用它」，所以只有首次安装才该自动开。
+    */
+    const INSTALL = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    expect(INSTALL).toContain('async function isDeclaredDependency')
+    expect(INSTALL).toContain('if (previouslyInstalled) {')
+    // 更新分支只记日志，不动 bundles。
+    expect(INSTALL).toContain('保留原有启用状态')
+    // 自动启用只在 else 分支。
+    const idx = INSTALL.indexOf('if (previouslyInstalled) {')
+    const activated = INSTALL.indexOf('activateBundleIfDeclared(profile, name)', idx)
+    expect(activated).toBeGreaterThan(idx)
+  })
+
+  it('任务标题按安装/更新区分', () => {
+    const INLINE = readFileSync(new URL('../../src/components/PluginInstallInline.tsx', import.meta.url), 'utf8')
+    expect(INLINE).toContain("t(isUpdate ? 'pluginUpdateTask' : 'pluginInstallTask')")
+    expect(INLINE).toContain('readonly isUpdate: boolean')
+  })
+
+  it('组件卸载也要写收尾状态，浮层不能永久停在执行中', () => {
+    /*
+      组件可能在安装期间被卸载（用户关掉弹框）。此前 `cancelled` 为真就整个
+      return——`logPanelStore.finish()` 也被跳过，于是浮层永远停在蓝色脉冲点，
+      即便日志里早已写着「安装成功」。
+
+      浮层与 taskStore 都在模块作用域里，卸载后仍可安全写入。
+    */
+    const INLINE = readFileSync(new URL('../../src/components/PluginInstallInline.tsx', import.meta.url), 'utf8')
+    const thenBlock = INLINE.slice(INLINE.indexOf('startPluginInstall(name).then'), INLINE.indexOf('.catch((cause'))
+    // finish 在 cancelled 判断之前，且不受它控制。
+    expect(thenBlock).toContain("logPanelStore.finish(ok ? 'ok' : 'failed')")
+    expect(thenBlock).toContain('if (!cancelled) onSettled(ok)')
+    expect(thenBlock).not.toMatch(/if \(cancelled\) return[\s\S]*logPanelStore\.finish/u)
+  })
+})

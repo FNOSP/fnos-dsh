@@ -281,6 +281,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   mirrorUninstalled: "nrm disinstallato",
   mirrorReinstall: "Reinstalla",
   pluginInstallTask: "Installa plugin",
+  pluginUpdateTask: "Aggiorna plugin",
   copied: "Copiato",
   mirrorInstalling: "Installazione…",
   mirrorInstallTask: "Installa nrm",

@@ -290,6 +290,7 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   mirrorUninstalled: "nrm 제거됨",
   mirrorReinstall: "다시 설치",
   pluginInstallTask: "플러그인 설치",
+  pluginUpdateTask: "플러그인 업데이트",
   copied: "복사됨",
   mirrorInstalling: "설치 중…",
   mirrorInstallTask: "nrm 설치",

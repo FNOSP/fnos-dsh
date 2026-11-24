@@ -262,6 +262,24 @@ async function beginLog(path: string, firstLine: string): Promise<void> {
  * @param name - 包名。
  * @returns 是否真的加进去了（未声明 bundle 或已存在时为 false）。
  */
+/**
+ * 判断某个包是否已经是 profile 的依赖（即这次是「更新」而非「安装」）。
+ * @param profile - profile 目录。
+ * @param name - 包名。
+ * @returns 是否已声明。
+ */
+async function isDeclaredDependency(profile: string, name: string): Promise<boolean> {
+  try {
+    const manifest = JSON.parse(await readFile(join(profile, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, unknown>
+    }
+    return typeof manifest.dependencies?.[name] === 'string'
+  } catch {
+    /* 读不到清单：当作首次安装，与「什么都没有」时的行为一致。 */
+    return false
+  }
+}
+
 async function activateBundleIfDeclared(profile: string, name: string): Promise<boolean> {
   const packageManifestPath = join(profile, 'node_modules', ...name.split('/'), 'package.json')
   const packageManifest = JSON.parse(await readFile(packageManifestPath, 'utf8')) as {
@@ -380,8 +398,15 @@ export async function installPlugin(name: string): Promise<PluginInstallState> {
       current = { ...current, running: false, status: 'failed', error: 'dsh-unavailable', finishedAt: Date.now() }
       return current
     }
+    /*
+      **先记下这次是「安装」还是「更新」。**
+
+      更新时用户已经表过态（他把开关关着），此时再自动启用等于推翻他的选择。
+      只有全新安装才该自动开——那时「装」就隐含「我要用它」。
+    */
+    const previouslyInstalled = await isDeclaredDependency(profile, name)
     const spec = `${name}@${resolved.version}`
-    await appendLog(logPath, `执行：dsh plugin --profile web add ${spec}`)
+    await appendLog(logPath, `${previouslyInstalled ? '更新' : '安装'}：dsh plugin --profile web add ${spec}`)
 
     const code = await new Promise<number>(resolve => {
       const child = spawn(dshBin, ['plugin', '--profile', 'web', 'add', spec], {
@@ -420,18 +445,24 @@ export async function installPlugin(name: string): Promise<PluginInstallState> {
     if (code === 0) {
       await appendLog(logPath, `安装成功：${spec}`)
       /*
-        **bundle 型插件装完要加入 `dsh.profile.bundles` 才算启用。**
+        **只有全新安装才自动启用。**
 
-        官方 `plugin-manager` 就是这么做的（装完 `bundles.push(name)`）。漏掉这
-        一步，用户会看到「安装成功」但卡片上是「已禁用」，还得手动再点一次开关——
-        而他刚刚做的就是「安装」，意图已经很明确。
+        「装」隐含「我要用它」，所以首次安装后把 bundle 加进 `dsh.profile.bundles`
+        是合理的。但**更新不能这么做**：用户此前把它关着，更新后强行打开等于推翻
+        他的选择——他关掉它是有原因的。
+
+        更新时 `dsh plugin add` 自己会保留 bundles 选择，不需要我们插手。
       */
-      try {
-        const activated = await activateBundleIfDeclared(profile, name)
-        if (activated) await appendLog(logPath, `已加入 profile bundles：${name}`)
-      } catch (error: unknown) {
-        /* 启用失败不该让安装判为失败：包已装上，用户仍可手动开。 */
-        await appendLog(logPath, `加入 profile bundles 失败：${error instanceof Error ? error.message : String(error)}`)
+      if (previouslyInstalled) {
+        await appendLog(logPath, `保留原有启用状态：${name}`)
+      } else {
+        try {
+          const activated = await activateBundleIfDeclared(profile, name)
+          if (activated) await appendLog(logPath, `已加入 profile bundles：${name}`)
+        } catch (error: unknown) {
+          /* 启用失败不该让安装判为失败：包已装上，用户仍可手动开。 */
+          await appendLog(logPath, `加入 profile bundles 失败：${error instanceof Error ? error.message : String(error)}`)
+        }
       }
       current = { ...current, running: false, status: 'succeeded', finishedAt: Date.now() }
     } else {

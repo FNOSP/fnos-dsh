@@ -281,6 +281,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   mirrorUninstalled: "nrm удалён",
   mirrorReinstall: "Переустановить",
   pluginInstallTask: "Установка плагина",
+  pluginUpdateTask: "Обновление плагина",
   copied: "Скопировано",
   mirrorInstalling: "Установка…",
   mirrorInstallTask: "Установка nrm",
