@@ -139,6 +139,9 @@ catalogs:
     react-dom:
       specifier: ^18.3.1
       version: 18.3.1
+    rotating-file-stream:
+      specifier: ^4.0.0
+      version: 4.0.0
     sass:
       specifier: 1.103.1
       version: 1.103.1
@@ -712,6 +715,9 @@ importers:
       echarts:
         specifier: 'catalog:'
         version: 6.1.0
+      rotating-file-stream:
+        specifier: 'catalog:'
+        version: 4.0.0
       semver:
         specifier: 'catalog:'
         version: 7.8.5
@@ -10039,6 +10045,10 @@ packages:
 
   rope-sequence@1.3.4:
     resolution: {integrity: sha512-UT5EDe2cu2E/6O4igUr5PSFs23nvvukicWHx6GnOPlHAiiYbzNuCRQCuiUdHJQcqKalLKlrYJnjY0ySGsXNQXQ==}
+
+  rotating-file-stream@4.0.0:
+    resolution: {integrity: sha512-JqUtVjzM4Yl4t28fEXpdGc66j22ftqRKSZ3TqQQ7/cJaKAMz3nFRGcvDxLDv3o/jrhE6bLvdR6bftuwLIcle5Q==}
+    engines: {node: '>=22.0'}
 
   roughjs@4.6.6:
     resolution: {integrity: sha512-ZUz/69+SYpFN/g/lUlo2FXcIjRkSu3nDarreVdGGndHEBJ6cXPdKguS8JGxwj5HA5xIbVKSmLgr5b3AWxtRfvQ==}
@@ -21654,6 +21664,8 @@ snapshots:
       fsevents: 2.3.3
 
   rope-sequence@1.3.4: {}
+
+  rotating-file-stream@4.0.0: {}
 
   roughjs@4.6.6:
     dependencies:
