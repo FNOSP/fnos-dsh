@@ -254,7 +254,7 @@ describe('依赖修复日志', () => {
     expect(ROUTES).toContain('修复结束')
   })
 
-  it('修复不做任何前置判断：无条件三步', () => {
+  it('修复不做前置判断，只做 clean + install', () => {
     /*
       「修复」的语义是把安装环境重置回可安装状态，不是需要用户判断的业务流程。
       此前它先诊断、只在有失效条目时才重建，还额外把插件重装一遍：
@@ -262,14 +262,19 @@ describe('依赖修复日志', () => {
         出来，修复等于什么都没做；
       - 「把插件装回来」超出职责，会顺带改动用户装了什么。
 
-      现在只做：清空 minimumReleaseAgeExclude 的所有值 → pnpm clean --lockfile
-      → pnpm install。
+      现在只做：pnpm clean --lockfile → pnpm install。
+
+      **不再碰 `minimumReleaseAgeExclude`**：那是 pnpm 自己维护的冷静期豁免名单，
+      业务代码既不该替它算、也不该替它清。
     */
     expect(ROUTES).not.toContain('diagnosis.entries.length === 0')
     expect(ROUTES).not.toContain("outcome: 'healthy'")
-    expect(HOST).toContain('clearAllExclusions')
     expect(HOST).toContain("'clean', '--lockfile'")
     expect(HOST).toContain("'install'")
+    // 不写冷静期豁免（诊断仍要读这个段，所以只断言没有写入口）。
+    expect(HOST).not.toContain('clearAllExclusions')
+    expect(HOST).not.toContain('backupWorkspaceFile')
+    expect(HOST).not.toContain('writeFileAtomic')
     // 不再重装插件。
     expect(HOST).not.toContain('reinstall')
     expect(HOST).not.toContain("'plugin',")
@@ -410,13 +415,19 @@ describe('修复只管三步：清空豁免、clean、install', () => {
   const source = (relative: string): string => readFileSync(new URL(relative, import.meta.url), 'utf8')
   const HOST = source('../../src/host/dependency-repair.ts')
 
-  it('清空整段而不是只删失效条目', () => {
+  it('完全不碰 minimumReleaseAgeExclude', () => {
     /*
-      按「失效」筛要在有发布清单时才算得出目标版本；独立浏览器/本地 DSH Web
-      读不到清单，目标表为空，一条都判不出来，修复就等于没做。
+      这个字段是 pnpm 在非 strict 模式下自己维护的：它遇到「太新」的包会放行并把
+      条目记进去。业务代码既不该替它算（不知道它的判定细节），也不该替它清
+      （清掉之后 pnpm 要不要重写、什么时候重写，都是它的事）。
+
+      真机上看到的结果是：修复跑完豁免列表空着，用户以为功能坏了——而实际上 pnpm
+      下一次真正需要豁免时会自己写回去。
     */
-    expect(HOST).toContain('export function clearAllExclusions')
-    expect(HOST).toContain('clearAllExclusions(text)')
+    expect(HOST).not.toContain('clearAllExclusions')
+    expect(HOST).not.toContain('backupWorkspaceFile')
+    // 诊断要读这个段（`parseExclusions`），但修复流程里不再有任何写它的入口。
+    expect(HOST).not.toContain('writeFileAtomic')
   })
 
   it('只执行 clean --lockfile 与 install', () => {

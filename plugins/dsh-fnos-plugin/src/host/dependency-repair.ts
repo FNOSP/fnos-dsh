@@ -21,7 +21,7 @@
  */
 
 import { execFile } from 'node:child_process'
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type {
   DependencyRepairDiagnosis,
@@ -406,140 +406,13 @@ export function removeExclusionLines(text: string, removed: readonly DependencyR
   return { text: kept.join('\n'), removedLines }
 }
 
-/** 保留的修复备份份数。 */
-const WORKSPACE_BACKUP_KEEP = 5
 
-/**
- * 只保留最近几份 `pnpm-workspace-*.yaml`。
- *
- * 每次修复都写一份备份，早前从不清理——真机上累积了一串同名模式的残留，用户在
- * 文件管理器里看到一堆看不出用途、也不敢删的文件。
- *
- * 按**文件名里的时间戳**排序而不是 `mtime`：那份时间戳就是生成顺序，且复制或
- * 同步之后 `mtime` 会变、文件名不会。
- *
- * @param directory - 备份目录。
- */
-async function pruneWorkspaceBackups(directory: string): Promise<void> {
-  try {
-    const entries = await readdir(directory)
-    const backups = entries
-      .filter(name => /^pnpm-workspace-\d{8}-\d{6}\.yaml$/u.test(name))
-      .sort()
-      .reverse()
-    for (const stale of backups.slice(WORKSPACE_BACKUP_KEEP)) {
-      await rm(join(directory, stale), { force: true }).catch(() => undefined)
-    }
-  } catch {
-    /* 读不到目录（首次运行、权限）：没有可清理的。 */
-  }
-}
 
 
 /**
- * 修复前把 profile 的 `pnpm-workspace.yaml` 备份到应用共享目录。
+ * 执行修复：**两步** —— `pnpm clean --lockfile`、`pnpm install`。
  *
- * ## 为什么备份
- *
- * 修复会按行删除失效的豁免条目。判定规则再谨慎也是代码，一旦判错（比如把用户
- * 手写的、仍然有效的条目当成残留删掉），没有备份就无法还原——而这个文件直接
- * 决定 `pnpm install` 能不能装成。
- *
- * ## 为什么放 `@appshare`
- *
- * profile 目录是 pnpm 的工作目录，往里丢 `.bak` 会被 `pnpm install` 当成工作区
- * 文件扫到；`@appshare/<app>` 是 fnOS 给应用的共享目录，用户从文件管理器就能
- * 看到并下载，卸载应用也不会丢。
- *
- * 文件名带时间戳，多次修复不会互相覆盖；返回**相对共享目录的语义化路径**给界面
- * 显示（`备份/pnpm-workspace-20261117-164500.yaml`），点击时才用完整路径。
- *
- * @param environment - 应用环境。
- * @param content - 备份内容（原文）。
- * @returns 备份文件的完整路径与展示用路径；无法备份时为空。
- */
-async function backupWorkspaceFile(
-  environment: DependencyRepairEnvironment,
-  content: string,
-): Promise<{ readonly fullPath: string, readonly displayPath: string } | undefined> {
-  const share = environment.shareDirectory
-  if (share === undefined) return undefined
-  const directory = join(share, '备份')
-  try {
-    await mkdir(directory, { recursive: true })
-    /*
-      文件名带**本地时间**到秒：`pnpm-workspace-20261117-174500.yaml`。
-
-      早前这里对 ISO 串做 `slice(0, 15)`，把 `2026-11-17-09-43-44` 切成了
-      `2026-11-17-09-4`——同一小时内的多次备份会互相覆盖，而用户看到的文件名
-      也是残缺的。用本地时间而不是 UTC：备份是给人找的，文件名该与他在系统里
-      看到的时间一致。
-    */
-    const now = new Date()
-    const pad = (value: number): string => String(value).padStart(2, '0')
-    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
-      + `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-    const name = `pnpm-workspace-${stamp}.yaml`
-    const fullPath = join(directory, name)
-    await writeFile(fullPath, content, { mode: 0o600 })
-    log(`repair: 已备份 profile 配置 → ${fullPath}`)
-    /* 只留最近几份：每次修复都写一份，不清理会无限堆积。 */
-    await pruneWorkspaceBackups(directory)
-    return { fullPath, displayPath: `备份/${name}` }
-  } catch (error) {
-    // 备份失败不阻断修复：它只是保险，不是前置条件；但要在日志里说清楚。
-    log(`repair: 备份失败（继续修复）${describe(error)}`)
-    return undefined
-  }
-}
-
-/**
- * 清空 `minimumReleaseAgeExclude` 段里的**所有**条目。
- *
- * ## 为什么不按「失效」筛选
- *
- * 这一版之前只删诊断判定为失效的条目。但诊断本身要拿「清单目标版本」比对，而
- * 非 fnOS 宿主（独立浏览器、本地 DSH Web）读不到发布清单，目标表为空——那时
- * **一条都判不出来**，修复等于什么都没做，用户点了按钮却看不出变化。
- *
- * 「修复」的语义是**把这一块重置掉**：这段豁免本来就是发布冷静期的临时放行，
- * 清空后 `pnpm install` 会重新按当前清单解析；留着旧条目反而可能继续拦新版本。
- * 段头保留（它可能被别的配置引用），只清列表项。
- *
- * @param text - `pnpm-workspace.yaml` 全文。
- * @returns 清空后的文本与被清掉的行数。
- */
-export function clearAllExclusions(text: string): { readonly text: string, readonly removedLines: number } {
-  const kept: string[] = []
-  let removedLines = 0
-  let inSection = false
-  for (const line of text.split(/\r?\n/u)) {
-    if (/^minimumReleaseAgeExclude:\s*$/u.test(line)) {
-      inSection = true
-      kept.push(line)
-      continue
-    }
-    // 段在遇到下一个列零的非注释行时结束。
-    if (inSection && /^[^\s#-]/u.test(line)) inSection = false
-    if (inSection && /^\s+-\s*/u.test(line)) {
-      removedLines += 1
-      continue
-    }
-    kept.push(line)
-  }
-  return { text: kept.join('\n'), removedLines }
-}
-
-/** 原子写入：先写临时文件再改名，避免中途失败留下半个文件。 */
-async function writeFileAtomic(path: string, content: string): Promise<void> {
-  const temporary = `${path}.dsh-repair-${process.pid}`
-  await writeFile(temporary, content, { mode: 0o600 })
-  await rename(temporary, path)
-}
-
-/**
- * 执行修复：**无条件三步** —— 清空 `minimumReleaseAgeExclude` 的所有值、
- * `pnpm clean --lockfile`、`pnpm install`。
+ * 不碰 `minimumReleaseAgeExclude`：那是 pnpm 自己维护的冷静期豁免名单。
  *
  * ## 为什么不再做任何判断
  *
@@ -572,39 +445,23 @@ export async function runDependencyRepair(
     }
   }
   const steps: DependencyRepairStep[] = []
-  const workspacePath = join(environment.profileDirectory, 'pnpm-workspace.yaml')
   log(`repair: 开始 profile=${environment.profileDirectory}`)
 
-  // 第一步：清失效条目。
+  /*
+    **不碰 `minimumReleaseAgeExclude`。**
+
+    那是 pnpm 自己维护的发布冷静期豁免名单——它在非 strict 模式下遇到「太新」的
+    包时会自动放行并把条目记进去。业务代码既不该替它算（不知道它的判定细节），
+    也不该替它清（清掉之后 pnpm 要不要重写、什么时候重写，都是它的事）。
+
+    此前这里会「清空整段再重装」，理由是「留着旧条目可能继续拦新版本」。真机上
+    看到的结果是：修复跑完豁免列表空着，用户以为功能坏了，而实际上 pnpm 下一次
+    真正需要豁免时会自己写回去。
+
+    「修复」的职责收窄为：清 lockfile + 重装。这两个动作足够让依赖按当前清单重新
+    解析；冷静期的判定与豁免交给 pnpm。
+  */
   const removed: readonly DependencyRepairEntry[] = []
-  try {
-    const text = await readTextIfExists(workspacePath)
-    if (text === undefined) {
-      log('repair: clear-exclusions 失败（profile-missing）')
-      steps.push({ id: 'clear-exclusions', status: 'failed', detail: 'profile-missing' })
-      return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: 'profile-missing' }
-    }
-    /*
-      先备份再改。**这里不筛「失效」条目，整段清空**——「修复」的语义就是把这块
-      重置掉；而且非 fnOS 宿主读不到发布清单时，失效判定一条都命中不了，筛选版
-      会让按钮看起来没生效。备份留着，判错时还能还原。
-    */
-    const backup = await backupWorkspaceFile(environment, text)
-    const result = clearAllExclusions(text)
-    if (result.removedLines > 0) await writeFileAtomic(workspacePath, result.text)
-    log(`repair: clear-exclusions 完成，清空 ${result.removedLines} 行`)
-    steps.push({
-      id: 'clear-exclusions',
-      status: 'ok',
-      detail: `${result.removedLines}`,
-      // 备份位置随结果返回，界面渲染成可复制的语义化路径。
-      ...(backup === undefined ? {} : { backupPath: backup.fullPath, backupDisplayPath: backup.displayPath }),
-    })
-  } catch (error) {
-    log(`repair: clear-exclusions 失败 ${describe(error)}`)
-    steps.push({ id: 'clear-exclusions', status: 'failed', detail: describe(error) })
-    return { ok: false, steps, removed, durationMs: Date.now() - startedAt, outcome: 'failed', message: describe(error) }
-  }
 
   const pnpmBin = environment.pnpmBin
   if (pnpmBin === undefined) {
@@ -659,10 +516,9 @@ export async function runDependencyRepair(
   /*
     **到此为止：不再「把插件装回来」。**
 
-    这个动作的职责只有三步——清空 `minimumReleaseAgeExclude` 的所有值、执行
-    `pnpm clean --lockfile`、执行 `pnpm install`。曾经还有第三步「把发布清单里
-    的插件重新 add 一遍」，那会让修复顺带改动用户装了什么：清单内的插件被重装、
-    清单外的保持原样，对一个只想「让安装恢复正常」的人来说这是多余的副作用。
+    这个动作的职责只有两步——执行 `pnpm clean --lockfile`、执行 `pnpm install`。
+    曾经还有「把发布清单里的插件重新 add 一遍」，那会让修复顺带改动用户装了什么；
+    也曾有「清空 `minimumReleaseAgeExclude`」，那是 pnpm 自己要维护的名单。
 
     重建依赖本身已经足够：lockfile 与 node_modules 会按当前清单重新解析，插件
     该在的还在、该装的能装上。需要重装请用「已安装插件」里的更新/安装入口。
@@ -671,9 +527,6 @@ export async function runDependencyRepair(
   return { ok: true, steps, removed, durationMs: Date.now() - startedAt, outcome: 'repaired' }
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 /** 供路由层复用的 basename 守卫：修复只会碰到这两个可重建产物。 */
 export function isRebuildableArtifact(path: string): boolean {

@@ -1142,21 +1142,6 @@ describe('备份文件不残留', () => {
     expect(discardIdx).toBeLessThan(successIdx)
   })
 
-  it('修复备份只留最近 5 份', () => {
-    /*
-      每次修复都写一份 `pnpm-workspace-<时间戳>.yaml`，早前从不清理——真机上累积
-      了一串残留。
-
-      按**文件名里的时间戳**排序而不是 `mtime`：那份时间戳就是生成顺序，且复制或
-      同步之后 `mtime` 会变、文件名不会。
-    */
-    const REPAIR = readFileSync(new URL('../../src/host/dependency-repair.ts', import.meta.url), 'utf8')
-    expect(REPAIR).toContain('WORKSPACE_BACKUP_KEEP = 5')
-    expect(REPAIR).toContain('async function pruneWorkspaceBackups')
-    expect(REPAIR).toContain('await pruneWorkspaceBackups(directory)')
-    // 按文件名排序，不读 mtime。
-    expect(REPAIR).not.toMatch(/pruneWorkspaceBackups[\s\S]{0,400}stat\(/u)
-  })
 })
 
 describe('tooltip 的使用边界', () => {
