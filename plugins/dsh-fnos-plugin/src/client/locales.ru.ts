@@ -220,6 +220,7 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   runtimeLogOpenDirectory: "Открыть журналы",
   runtimeLogScopeMemory: "Память",
   runtimeLogScopeFiles: "С файлами",
+  runtimeLogRefreshOff: "Никогда",
   runtimeLogEmpty: "Журналов пока нет.",
   runtimeLogFailed: "Не удалось прочитать журналы: ",
   logPanelTitle: "Журнал задачи",

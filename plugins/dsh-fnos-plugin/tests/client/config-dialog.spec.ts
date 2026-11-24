@@ -1260,3 +1260,18 @@ describe('日志列表：padding 与虚拟化尺寸', () => {
     expect(PANEL).not.toContain('width="100%"')
   })
 })
+
+describe('日志：刷新间隔可选', () => {
+  it('默认 5s，可选不刷新 / 5 / 10 / 30 / 60', () => {
+    /*
+      「不刷新」是明确的选择，不该留着空转的定时器。看历史日志时页面也不该自己
+      跳——用户刚滚到的位置会被新内容顶走。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('REFRESH_OPTIONS: readonly number[] = [0, 5, 10, 30, 60]')
+    expect(PANEL).toContain('useState(5)')
+    expect(PANEL).toContain('dsh-fnos-logs-refresh')
+    /* 0 时不排定时器。 */
+    expect(PANEL).toContain('if (refreshSeconds === 0) return undefined')
+  })
+})

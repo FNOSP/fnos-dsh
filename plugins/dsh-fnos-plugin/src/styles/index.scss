@@ -2129,6 +2129,12 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  * 外观（那样会与同一行的 Select 在圆角/描边/高度上各差一点）。
  */
 /* 搜索范围下拉：固定宽度，与同一行的级别下拉、条数输入框等高由 Semi 保证。 */
+/* 刷新间隔下拉：固定宽度，与同一行的其它控件等高由 Semi 保证。 */
+.dsh-fnos-logs-refresh {
+  flex: 0 0 auto;
+  width: 80px;
+}
+
 .dsh-fnos-logs-scope {
   flex: 0 0 auto;
   width: 108px;

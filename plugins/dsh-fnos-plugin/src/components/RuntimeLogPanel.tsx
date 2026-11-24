@@ -38,8 +38,13 @@ export interface RuntimeLogPanelProps {
 /** 默认条数；用户可用输入框改。上限与服务端共用同一个契约常量。 */
 const DEFAULT_LIMIT = RUNTIME_LOG_DEFAULT_LIMIT
 
-/** 轮询间隔：日志要「接近实时」，但不必每秒；与运行页统一为 5 秒。 */
-const INTERVAL_MS = 5000
+/**
+ * 可选的刷新间隔（秒）。
+ *
+ * `0` 表示不刷新——看历史日志时页面不该自己跳，否则用户刚滚到的位置会被新内容
+ * 顶走。默认 5 秒：够「接近实时」，又不至于每秒打一次宿主。
+ */
+const REFRESH_OPTIONS: readonly number[] = [0, 5, 10, 30, 60]
 
 /** 级别选项与配色。 */
 const LEVELS: readonly { value: 'all' | RuntimeLogLevel, labelKey: FnosLocaleKey }[] = [
@@ -81,6 +86,8 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
     等于永远搜不到。
   */
   const [scope, setScope] = useState<'memory' | 'files'>('memory')
+  /** 自动刷新间隔（秒）；`0` 表示关闭。 */
+  const [refreshSeconds, setRefreshSeconds] = useState(5)
   const [limit, setLimit] = useState(DEFAULT_LIMIT)
   /** 日志落盘目录；宿主未接上时为空，按钮不渲染。 */
   const [logDirectory, setLogDirectory] = useState<string>()
@@ -121,9 +128,14 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
 
   useEffect(() => {
     void load()
-    const timer = setInterval(() => { void load() }, INTERVAL_MS)
+    /*
+      间隔变化时重建定时器。`refreshSeconds === 0` 时只加载一次、不排后续——
+      「不刷新」是明确的选择，不该留着空转的定时器。
+    */
+    if (refreshSeconds === 0) return undefined
+    const timer = setInterval(() => { void load() }, refreshSeconds * 1000)
     return () => { clearInterval(timer) }
-  }, [load])
+  }, [load, refreshSeconds])
 
   /*
     **虚拟化列表的行高测量。**
@@ -279,6 +291,23 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
             { value: 'memory', label: t('runtimeLogScopeMemory'), showTick: false },
             { value: 'files', label: t('runtimeLogScopeFiles'), showTick: false },
           ]}
+        />
+        {/*
+          刷新间隔。`0` = 不刷新——看历史日志时页面不该自己跳，否则用户刚滚到的
+          位置会被新内容顶走。
+        */}
+        <DshSelect
+          className="dsh-fnos-logs-refresh"
+          size="small"
+          value={String(refreshSeconds)}
+          onChange={(value: string | number | (string | number)[]) => { setRefreshSeconds(Number(value)) }}
+          optionList={REFRESH_OPTIONS.map(seconds => ({
+            value: String(seconds),
+            label: seconds === 0
+              ? t('runtimeLogRefreshOff')
+              : `${String(seconds)}s`,
+            showTick: false,
+          }))}
         />
         <DshInput
           className="dsh-fnos-logs-search"

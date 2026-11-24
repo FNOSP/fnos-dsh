@@ -290,10 +290,18 @@ describe('运行状态：日志换行与整行同色', () => {
     }
   })
 
-  it('运行与日志轮询都是 5 秒', () => {
+  it('运行页轮询固定 5 秒，日志页可配', () => {
+    // 运行页指标是「实时看一眼」，固定间隔即可。
     expect(CARD).toContain('INTERVAL_MS = 5000')
+
+    /*
+      日志页改成可选间隔：看历史日志时页面不该自己跳，否则用户刚滚到的位置会被
+      新内容顶走。`0` 表示不刷新。
+    */
     const LOGS = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
-    expect(LOGS).toContain('INTERVAL_MS = 5000')
+    expect(LOGS).toContain('REFRESH_OPTIONS: readonly number[] = [0, 5, 10, 30, 60]')
+    expect(LOGS).toContain('refreshSeconds * 1000')
+    expect(LOGS).not.toContain('INTERVAL_MS')
   })
 
   it('运行页字号统一 14px', () => {

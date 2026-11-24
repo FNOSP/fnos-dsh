@@ -220,6 +220,7 @@ export const it: { [Key in FnosLocaleKey]: string } = {
   runtimeLogOpenDirectory: "Visualizza log",
   runtimeLogScopeMemory: "Memoria",
   runtimeLogScopeFiles: "Con file",
+  runtimeLogRefreshOff: "Mai",
   runtimeLogEmpty: "Nessun registro.",
   runtimeLogFailed: "Impossibile leggere i registri: ",
   logPanelTitle: "Registro attività",
