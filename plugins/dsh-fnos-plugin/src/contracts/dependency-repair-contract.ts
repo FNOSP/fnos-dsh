@@ -49,7 +49,7 @@ export interface DependencyRepairDiagnosis {
 
 /** 修复步骤的状态。 */
 export interface DependencyRepairStep {
-  readonly id: 'clear-exclusions' | 'rebuild' | 'reinstall'
+  readonly id: 'clear-exclusions' | 'rebuild' | 'rebuild-exclusions' | 'reinstall'
   readonly status: 'ok' | 'skipped' | 'failed'
   /** 失败原因或跳过说明（可读）。 */
   readonly detail?: string

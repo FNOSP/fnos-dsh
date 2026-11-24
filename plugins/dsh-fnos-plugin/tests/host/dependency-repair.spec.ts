@@ -64,6 +64,8 @@ describe('环境推导', () => {
       TRIM_APPDEST: '/vol4/@appcenter/fn-deepseek-harness',
     })
     expect(environment).toEqual({
+      // `dsh plugin` 靠它定位 profiles，必须原样给出。
+      dshHome: '/vol4/@apphome/fn-deepseek-harness',
       profileDirectory: '/vol4/@apphome/fn-deepseek-harness/profiles/web',
       // 备份写到共享目录：与 `@apphome/<app>` 同级的 `@appshare/<app>`。
       shareDirectory: '/vol4/@appshare/fn-deepseek-harness',
@@ -83,6 +85,7 @@ describe('环境推导', () => {
   it('缺少可选变量时不编造路径', () => {
     const environment = resolveRepairEnvironment({ DSH_HOME: '/h' })
     expect(environment).toEqual({
+      dshHome: '/h',
       profileDirectory: '/h/profiles/web',
       shareDirectory: '/@appshare/h',
     })
@@ -178,7 +181,7 @@ describe('只读诊断', () => {
   it('真实失效 profile 能报出条目，且不修改文件', async () => {
     const { profile, manifestPath } = await makeProfile(WORKSPACE, MANIFEST)
     const before = await readFile(join(profile, 'pnpm-workspace.yaml'), 'utf8')
-    const diagnosis = await diagnoseDependencyRepair({ profileDirectory: profile, manifestPath })
+    const diagnosis = await diagnoseDependencyRepair({ dshHome: '/x', profileDirectory: profile, manifestPath })
     const after = await readFile(join(profile, 'pnpm-workspace.yaml'), 'utf8')
 
     expect(diagnosis.available).toBe(true)
@@ -187,7 +190,7 @@ describe('只读诊断', () => {
   })
 
   it('profile 缺失时报 profile-missing', async () => {
-    const diagnosis = await diagnoseDependencyRepair({ profileDirectory: '/nonexistent/profiles/web' })
+    const diagnosis = await diagnoseDependencyRepair({ dshHome: '/x', profileDirectory: '/nonexistent/profiles/web' })
     expect(diagnosis).toMatchObject({ available: false, reason: 'profile-missing' })
   })
 
@@ -198,7 +201,7 @@ describe('只读诊断', () => {
 
   it('清单缺失时不误判（无从比较目标版本）', async () => {
     const { profile } = await makeProfile('minimumReleaseAgeExclude:\n  - a@1.0.0\n', {})
-    const diagnosis = await diagnoseDependencyRepair({ profileDirectory: profile })
+    const diagnosis = await diagnoseDependencyRepair({ dshHome: '/x', profileDirectory: profile })
     expect(diagnosis.available).toBe(true)
     expect(diagnosis.entries).toEqual([])
   })

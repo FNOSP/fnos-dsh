@@ -192,30 +192,30 @@ force_install_bundled_plugin() {
 
     if [ -n "${current_version}" ]; then
         log_info "Removing installed ${plugin_name} before replacing it with the FPK archive copy."
-        run_dsh_plugin_with_release_age remove "${plugin_name}" ||
+        install_dsh_plugin remove "${plugin_name}" ||
             fail_install "Unable to remove bundled ${plugin_name} before reinstalling it"
     fi
-    run_dsh_plugin_with_release_age add "file:${bundled_plugin}" ||
+    install_dsh_plugin add "file:${bundled_plugin}" ||
         fail_install "Unable to install bundled ${plugin_name}@${plugin_version} with the dsh CLI"
 }
 
-# Every plugin installed here goes through the release-age exception. This
-# callback only installs the versions the application ships in its own
-# manifest, so pnpm's publication cooldown protects nothing and only delays a
-# release. It is also the difference between a working and a failing install:
-# a plugin left on the strict path fails while its version is still fresh, and
-# the reported violation names a previously installed plugin instead. Manual
-# installs through the plugin manager keep pnpm's default policy.
-run_dsh_plugin_with_release_age() {
+# Install one plugin through the official CLI, with **no release-age override**.
+#
+# This callback pins exact versions from the application's own manifest, so the
+# publication cooldown has nothing to protect against — but pnpm needs no help:
+# in its non-strict mode (the default unless `minimumReleaseAge` is set
+# explicitly) it grants the exemption itself and records it in
+# `minimumReleaseAgeExclude`. The profile sets only the exclude list, never the
+# age, so every install already falls back instead of failing.
+install_dsh_plugin() {
     local action="$1"
     shift
     local spec
     for spec in "$@"; do
         validate_plugin_spec "${spec}"
     done
-    log_info "Running dsh plugin --profile web ${action} $* with the minimum release age disabled."
-    "${DSH_BIN}" plugin --profile web "${action}" "$@" \
-        --config.minimum-release-age=0
+    log_info "Running dsh plugin --profile web ${action} $*."
+    "${DSH_BIN}" plugin --profile web "${action}" "$@"
 }
 
 # Remove whatever own-plugin pin this release cannot satisfy — **in one call**.
@@ -271,7 +271,7 @@ remove_unsatisfiable_own_plugins() {
     [ "${#stale[@]}" -gt 0 ] || return 0
     log_info "Removing own plugins this release cannot satisfy (one call, so the graph resolves once):"
     log_info "  ${stale[*]}"
-    run_dsh_plugin_with_release_age remove "${stale[@]}" ||
+    install_dsh_plugin remove "${stale[@]}" ||
         fail_install "Unable to remove unsatisfiable own plugin pins: ${stale[*]}"
 }
 
@@ -301,11 +301,11 @@ install_published_dsh_plugins() {
         fi
 
         if [ -z "${current_version}" ]; then
-            run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
+            install_dsh_plugin add "${plugin_name}@${plugin_version}" ||
                 fail_install "Unable to install ${plugin_name}@${plugin_version} with the dsh CLI"
         elif [ "${current_version}" != "${plugin_version}" ] || [[ "${current_spec}" == link:* ]]; then
             log_info "Updating ${plugin_name} from ${current_version} to ${plugin_version} with the dsh CLI."
-            run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
+            install_dsh_plugin add "${plugin_name}@${plugin_version}" ||
                 fail_install "Unable to update ${plugin_name} to ${plugin_version} with the dsh CLI"
         else
             log_info "Keeping installed ${plugin_name}@${current_version}; exact version already matches."
@@ -341,11 +341,11 @@ install_published_dsh_plugins() {
         fi
 
         if [ -z "${current_version}" ]; then
-            run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
+            install_dsh_plugin add "${plugin_name}@${plugin_version}" ||
                 fail_install "Unable to install ${plugin_name}@${plugin_version} with the dsh CLI"
         elif [ "${current_version}" != "${plugin_version}" ] || [[ "${current_spec}" == link:* ]]; then
             log_info "Updating ${plugin_name} from ${current_version} to ${plugin_version} with the dsh CLI."
-            run_dsh_plugin_with_release_age add "${plugin_name}@${plugin_version}" ||
+            install_dsh_plugin add "${plugin_name}@${plugin_version}" ||
                 fail_install "Unable to update ${plugin_name} to ${plugin_version} with the dsh CLI"
         else
             log_info "Keeping installed ${plugin_name}@${current_version}; exact version already matches."

@@ -52,6 +52,8 @@ export interface DependencyRepairEnvironment {
   readonly bundledDirectory?: string
   /** `dsh` 可执行文件（重装插件走它）。 */
   readonly dshBin?: string
+  /** `DSH_HOME` 的绝对值；`dsh` 靠它定位 profiles 目录。 */
+  readonly dshHome: string
   /** `pnpm` 可执行文件。 */
   readonly pnpmBin?: string
   /**
@@ -84,6 +86,7 @@ export function resolveRepairEnvironment(env: NodeJS.ProcessEnv = process.env): 
   // 平台的固定约定（见授权目录里对 `@apphome`/`@appshare` 的同级判定）。
   const shareDirectory = join(dirname(home), '..', '@appshare', basename(home))
   return {
+    dshHome: home,
     profileDirectory: join(home, 'profiles', 'web'),
     shareDirectory,
     ...(appDest === undefined
@@ -609,6 +612,17 @@ export async function runDependencyRepair(
   }
   steps.push({ id: 'rebuild', status: 'ok' })
   log('repair: rebuild 完成')
+
+  /*
+    **不自己重建冷静期豁免。**
+
+    「哪个包还在冷静期内」是 pnpm 的判定，业务代码不该复制一份：pnpm 的规则
+    包含发布时间的取整、私有源缺 `time` 字段、镜像滞后等细节，重新实现一遍
+    只会缓慢漂移。
+
+    修复只负责「清掉过期条目 + 清 lockfile + 重装」，豁免由 `pnpm install` 与
+    官方 `dsh plugin` 各自在需要时写入——它们才是这套策略的持有者。
+  */
 
   /*
     **到此为止：不再「把插件装回来」。**

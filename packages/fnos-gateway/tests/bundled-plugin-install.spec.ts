@@ -50,7 +50,7 @@ async function runShell(root: string, body: string): Promise<string> {
     'log_info() { :; }',
     // Record the forwarded CLI call instead of invoking pnpm.
     'run_dsh_plugin() { printf "%s:%s\\n" "$1" "$2"; }',
-    'run_dsh_plugin_with_release_age() { printf "%s:%s:release-age-0\\n" "$1" "$2"; }',
+    'install_dsh_plugin() { printf "%s:%s:release-age-0\\n" "$1" "$2"; }',
     await functionSource('force_install_bundled_plugin'),
     body,
   ].join('\n')
@@ -84,7 +84,7 @@ async function runPublishedPluginInstall(
     `installed_plugin_version() { [ "$1" = ${JSON.stringify(plugin.name)} ] && printf ${JSON.stringify(currentVersion)}; }`,
     `profile_dependency_version() { [ "$1" = ${JSON.stringify(plugin.name)} ] && printf ${JSON.stringify(currentSpec)}; }`,
     'run_dsh_plugin() { printf "%s:%s\\n" "$1" "$2"; }',
-    'run_dsh_plugin_with_release_age() { printf "%s:%s:release-age-0\\n" "$1" "$2"; }',
+    'install_dsh_plugin() { printf "%s:%s:release-age-0\\n" "$1" "$2"; }',
     await functionSource('install_published_dsh_plugins'),
     'install_published_dsh_plugins',
   ].join('\n')
@@ -108,9 +108,14 @@ describe('bundled plugin install', () => {
 
   it('allows release-age validation for FPK archive replacement', async () => {
     const source = await readFile(scriptPath, 'utf8')
-    expect(source).toMatch(/run_dsh_plugin_with_release_age remove "\$\{plugin_name\}"/u)
-    expect(source).toMatch(/run_dsh_plugin_with_release_age add "file:\$\{bundled_plugin\}"/u)
-    expect(source).toContain('--config.minimum-release-age=0')
+    expect(source).toMatch(/install_dsh_plugin remove "\$\{plugin_name\}"/u)
+    expect(source).toMatch(/install_dsh_plugin add "file:\$\{bundled_plugin\}"/u)
+    /*
+      不传 `--config.minimum-release-age=0`：pnpm 非 strict 模式（未显式设
+      `minimumReleaseAge` 时的默认）自己就会放行并记录豁免，安装流程不需要
+      绕过这层策略。
+    */
+    expect(source).not.toMatch(/--config\.minimum-release-age/u)
   })
 
   it('removes an installed plugin before adding the FPK archive, even at the same version', async () => {
@@ -207,12 +212,18 @@ describe('bundled plugin install', () => {
     expect(output).toBe('')
   })
 
-  it('never routes an installed plugin through the strict CLI path', async () => {
+  it('全是同一条安装路径，且不绕过发布冷静期', async () => {
     const source = await readFile(scriptPath, 'utf8')
-    // The strict wrapper is gone entirely: one install path, one policy.
+    /*
+      历史上这里有两个包装：`run_dsh_plugin`（strict）与
+      `run_dsh_plugin_with_release_age`（带绕过参数）。现在只有一个
+      `install_dsh_plugin`，且不传任何冷静期参数——pnpm 非 strict 模式自己
+      会放行并记录豁免。
+    */
     expect(source).not.toMatch(/^run_dsh_plugin\(\)/mu)
-    expect(source).not.toMatch(/run_dsh_plugin add /u)
-    expect(source).toContain('--config.minimum-release-age=0')
+    expect(source).not.toMatch(/^run_dsh_plugin_with_release_age\(\)/mu)
+    expect(source).toMatch(/^install_dsh_plugin\(\) \{/mu)
+    expect(source).not.toMatch(/--config\.minimum-release-age/u)
   })
 })
 
@@ -257,7 +268,7 @@ async function runUnsatisfiableRemoval(
     'log_info() { :; }',
     'validate_plugin_spec() { :; }',
     // 记录调用次数，用来断言「一次调用移除全部」——这正是本轮修复的核心。
-    'run_dsh_plugin_with_release_age() { printf "CALL:%s:%s\\n" "$1" "$*"; }',
+    'install_dsh_plugin() { printf "CALL:%s:%s\\n" "$1" "$*"; }',
     // Forward to the real helper CLI so the detection is exercised too.
     `run_install_callback_helper() { node ${JSON.stringify(new URL('../../../apps/fn-deepseek-harness/app/scripts/install-callback-helper.mjs', import.meta.url).pathname)} "$@"; }`,
     await functionSource('remove_unsatisfiable_own_plugins'),

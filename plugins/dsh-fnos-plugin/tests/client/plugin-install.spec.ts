@@ -14,11 +14,21 @@ const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', im
 const DIALOG = readFileSync(new URL('../../src/components/PluginInstallDialog.tsx', import.meta.url), 'utf8')
 
 describe('插件安装：pnpm 与版本选择', () => {
-  it('用 pnpm add，不用 npm', () => {
-    // profile 由 pnpm workspace 管理；npm 会写出第二份 lockfile，两边解析结果对不上。
-    expect(INSTALL).toContain("['add', spec")
-    expect(INSTALL).toContain('--config.minimum-release-age=0')
+  it('用官方 dsh plugin add，不自拼 pnpm 命令', () => {
+    /*
+      官方 `dsh plugin` 是插件安装的正规入口：装包、写 `dsh.profile.bundles`、
+      处理冷静期豁免都由它负责。自己拼 `pnpm add` 等于只做了「装包」这一步，
+      剩下的要在本模块里各自补一遍，每补一处就多一处可能与官方漂移的实现。
+
+      也**不再传 `--config.minimum-release-age=0`**：冷静期判定交给 pnpm/dsh，
+      业务代码不越过这层。
+    */
+    expect(INSTALL).toContain("['plugin', '--profile', 'web', 'add', spec]")
+    // 注释里解释「为什么不再传」不算，检查的是命令参数。
+    expect(INSTALL).not.toMatch(/'(add|install)'[^\]]*minimum-release-age/u)
     expect(INSTALL).not.toContain("'npm'")
+    // `dsh` 靠 DSH_HOME 定位 profiles，必须显式给。
+    expect(INSTALL).toContain('DSH_HOME: environment.dshHome')
   })
 
   it('按 DSH 基线挑版本，不装 latest', () => {

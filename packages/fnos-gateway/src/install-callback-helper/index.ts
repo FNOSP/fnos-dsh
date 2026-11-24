@@ -13,10 +13,8 @@ import {
   publishedPluginVersions,
   orphanOwnPlugins,
   publishedPlugins,
-  pipeLinkedReleaseAgeExclusions,
   removeLegacyPnpmStoreConfig,
   removeProfileBuildArtifacts,
-  staleReleaseAgeExclusions,
 } from './common.ts'
 import { patchDshAttachmentLocal } from './attachment-patch.ts'
 import { formatTrustedHostIssues, validateTrustedHosts } from './trusted-hosts.ts'
@@ -110,31 +108,6 @@ export function createProgram(): Command {
     .description('Read the pnpm store directory from profile metadata')
     .argument('<metadata-path>')
     .action(profileStoreDir)
-
-  program
-    .command('stale-release-age-exclusions')
-    .description('Print minimumReleaseAgeExclude entries whose version no longer matches the install target, one per line')
-    .argument('<workspace-path>')
-    .argument('<manifest-path>')
-    .argument('[published-manifest-path]', 'published plugin manifest supplying the authoritative install pins')
-    .action(async (workspacePath, manifestPath, publishedManifestPath) => {
-      const installedVersions = publishedManifestPath === undefined
-        ? {}
-        : await publishedPluginVersions(publishedManifestPath)
-      for (const stale of await staleReleaseAgeExclusions(workspacePath, manifestPath, installedVersions)) {
-        process.stdout.write(`${stale}\n`)
-      }
-    })
-
-  program
-    .command('pipe-linked-release-age-exclusions')
-    .description('Print minimumReleaseAgeExclude entries containing a || union, one per line')
-    .argument('<workspace-path>')
-    .action(async (workspacePath: string) => {
-      for (const entry of await pipeLinkedReleaseAgeExclusions(workspacePath)) {
-        process.stdout.write(`${entry}\n`)
-      }
-    })
 
   program
     .command('remove-profile-build-artifacts')

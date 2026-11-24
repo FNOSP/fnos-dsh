@@ -360,13 +360,33 @@ export async function installPlugin(name: string): Promise<PluginInstallState> {
     }
     current = { ...current, version: resolved.version }
     await resetLog(logPath, name, resolved.version)
-    await appendLog(logPath, `执行：pnpm add ${name}@${resolved.version}`)
+    /*
+      **用 `dsh plugin add`，不用裸 `pnpm add`。**
 
+      官方 `dsh plugin` 是插件安装的正规入口：它负责把包装进 profile、写
+      `dsh.profile.bundles`、处理冷静期豁免（`minimumReleaseAgeExclude`）与
+      bundle 层的收尾。自己拼 `pnpm add` 等于只做了「装包」这一步，剩下的都要
+      在本模块里各自补一遍，而且每补一处就多一处可能与官方行为漂移的实现。
+
+      也因此**不再传 `--config.minimum-release-age=0`**：冷静期的判定与豁免
+      交给 pnpm/dsh 自己，业务代码不越过这层。
+
+      `DSH_HOME` 必须显式给出——`dsh` 靠它定位 profiles 目录，而本进程的环境里
+      它可能存在但指向别处，缺了就会写到默认位置。
+    */
+    const dshBin = environment.dshBin
+    if (dshBin === undefined) {
+      await appendLog(logPath, '无法定位 dsh 可执行文件（缺少 NPM_CONFIG_PREFIX）')
+      current = { ...current, running: false, status: 'failed', error: 'dsh-unavailable', finishedAt: Date.now() }
+      return current
+    }
     const spec = `${name}@${resolved.version}`
+    await appendLog(logPath, `执行：dsh plugin --profile web add ${spec}`)
+
     const code = await new Promise<number>(resolve => {
-      const child = spawn(environment.pnpmBin ?? 'pnpm', ['add', spec, '--config.minimum-release-age=0'], {
+      const child = spawn(dshBin, ['plugin', '--profile', 'web', 'add', spec], {
         cwd: profile,
-        env: { ...process.env, CI: '1' },
+        env: { ...process.env, CI: '1', DSH_HOME: environment.dshHome },
         stdio: ['ignore', 'pipe', 'pipe'],
       })
       const timer = setTimeout(() => { child.kill('SIGTERM') }, INSTALL_TIMEOUT_MS)
