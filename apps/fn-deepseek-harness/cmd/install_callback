@@ -207,6 +207,31 @@ force_install_bundled_plugin() {
 # explicitly) it grants the exemption itself and records it in
 # `minimumReleaseAgeExclude`. The profile sets only the exclude list, never the
 # age, so every install already falls back instead of failing.
+# 合并 `minimumReleaseAgeExclude` 里的同包多版本条目。
+#
+# pnpm 解析该列表是 First-Match-Wins：条目按包名逐条比对，第一条匹配即停止。
+# 同一包写成两行时，第二行**永远不生效**：
+#
+#   - dshmarket@1.84.0     # 匹配到包名，版本不符 → 短路
+#   - dshmarket@1.84.1     # 这条被跳过
+#
+# 结果是 lockfile 校验报 ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION，
+# `dsh plugin remove/add` 整体失败。2026-11-25 真机实测：升级因此在 remove 阶段
+# 中断，插件被移出 profile 却装不回来，fnOS 全部界面入口消失。
+#
+# 较新的 pnpm 写入时会自己合并成 `name@v1 || v2`，但设备上是 11.7.0（逐条追加）。
+# 这里只做**格式规范化**：不判断冷静期、不增减条目，只把同包多版本按 semver 排序
+# 后连成一行——与 pnpm 新版本写出的形状一致。
+merge_release_age_exclusions() {
+    local workspace="${DSH_HOME}/profiles/web/pnpm-workspace.yaml"
+    [ -f "${workspace}" ] || return 0
+    local outcome
+    outcome="$("${NODE_BIN}/node" "${DSH_INSTALL_CALLBACK_HELPER}" merge-release-age-exclusions "${workspace}" 2>/dev/null)" || return 0
+    if [ "${outcome}" = "merged" ]; then
+        log_info "Merged same-package minimumReleaseAgeExclude entries so pnpm can match them."
+    fi
+}
+
 install_dsh_plugin() {
     local action="$1"
     shift
@@ -502,6 +527,7 @@ main() {
         fail_install "Installed pnpm version does not match ${PNPM_VERSION}"
 
     validate_install_configuration
+    merge_release_age_exclusions
 
     NPM_GLOBAL_ROOT="$(global_package_root)"
     if [ -z "${NPM_GLOBAL_ROOT}" ]; then

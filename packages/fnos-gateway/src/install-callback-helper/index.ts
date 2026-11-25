@@ -74,6 +74,17 @@ export function createProgram(): Command {
     })
 
   program
+    .command('merge-release-age-exclusions')
+    .description('Merge same-package minimumReleaseAgeExclude entries into one `name@v1 || v2` line')
+    .argument('<workspace-file>')
+    .action(async (workspaceFile: string) => {
+      /* 只做格式规范化，不判断冷静期——那是 pnpm 的事。 */
+      const { mergeReleaseAgeExclusions } = await import('./release-age-merge.ts')
+      const changed = await mergeReleaseAgeExclusions(workspaceFile)
+      process.stdout.write(changed ? 'merged' : 'unchanged')
+    })
+
+  program
     .command('validate-trusted-hosts')
     .description('Validate the wizard trusted-host entries; print each problem to stderr and exit 1 when invalid')
     .argument('<raw>')
