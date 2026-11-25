@@ -2123,6 +2123,20 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 }
 
 /*
+ * 刷新间隔下拉：固定 80px。
+ *
+ * 「不刷新 / 5s / 10s / 30s / 60s」里最长的文案是「不刷新」，80px 够一行放下
+ * 且与同一行的级别下拉、条数输入框等宽。
+ *
+ * 2026-11-25 教训：删「搜索范围」下拉时把这条一起删了（两条规则相邻），
+ * 下拉退回 `flex: 0 1 auto` 被压到 35px —— 文案还在但控件明显畸形。
+ */
+.dsh-fnos-logs-refresh {
+  flex: 0 0 auto;
+  width: 80px;
+}
+
+/*
  * 搜索框只负责**占满剩余宽度**。
  *
  * 边框、圆角、聚焦态、尺寸全部交给 Semi 的 `DshInput`——插件不再自己画一套输入框

@@ -1286,3 +1286,28 @@ describe('已安装插件列表：两个数组合并', () => {
     expect(HOST).toContain('remote.enabled')
   })
 })
+
+describe('日志工具条每个控件都有尺寸', () => {
+  it('刷新下拉固定 80px——删除相邻规则时不许连带删掉', () => {
+    /*
+      2026-11-25 实测：删「搜索范围」下拉的样式时把相邻的 `.dsh-fnos-logs-refresh`
+      一起删了，下拉退回 `flex: 0 1 auto` 被压到 35px——文案还在但控件明显畸形。
+
+      这类「连带删除」单测抓得到，真机上要逐个盯着看才可能发现。
+    */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const idx = SCSS.indexOf('.dsh-fnos-logs-refresh {')
+    expect(idx).toBeGreaterThan(-1)
+    const rule = SCSS.slice(idx, SCSS.indexOf('}', idx))
+    expect(rule).toContain('width: 80px')
+    expect(rule).toContain('flex: 0 0 auto')
+  })
+
+  it('范围选择器已移除，同一行只剩级别/刷新/搜索/条数', () => {
+    const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).not.toContain('dsh-fnos-logs-scope')
+    for (const cls of ['dsh-fnos-logs-level', 'dsh-fnos-logs-refresh', 'dsh-fnos-logs-search', 'dsh-fnos-logs-limit']) {
+      expect(PANEL).toContain(cls)
+    }
+  })
+})
