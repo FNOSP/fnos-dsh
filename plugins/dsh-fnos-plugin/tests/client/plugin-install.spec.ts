@@ -24,6 +24,14 @@ describe('插件安装：pnpm 与版本选择', () => {
     */
     expect(INSTALL).toContain('pluginManagerOf(ctx)')
     expect(INSTALL).toContain('manager.updateBundle(name, resolved.version)')
+    /*
+      **`updateBundle` 只处理已安装的包。**
+
+      它先 `listBundles().find(item => item.name === name)`，找不到直接返回
+      `invalid-spec`。首次安装若也走它，「安装」按钮永远失败——这正是把它接进来
+      时踩到的回归。
+    */
+    expect(INSTALL).toContain('previouslyInstalled ? pluginManagerOf(ctx) : undefined')
 
     /* 回退路径仍在，且带上了此前漏掉的 `--save-exact`。 */
     expect(INSTALL).toContain("['plugin', '--profile', 'web', 'add', spec, '--save-exact']")

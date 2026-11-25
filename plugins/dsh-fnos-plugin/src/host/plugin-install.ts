@@ -444,7 +444,14 @@ export async function installPlugin(name: string, ctx?: Context): Promise<Plugin
     */
     /* 先记下这次是「安装」还是「更新」：只有全新安装才自动启用。 */
     const previouslyInstalled = await isDeclaredDependency(profile, name)
-    const manager = pluginManagerOf(ctx)
+    /*
+      **`updateBundle` 只处理「已安装」的包。**
+
+      它先 `listBundles().find(item => item.name === name)`，找不到就直接返回
+      `invalid-spec`——所以**首次安装不能走它**，否则新插件的「安装」按钮永远失败。
+      未安装时继续走下面的 `dsh plugin add` 路径。
+    */
+    const manager = previouslyInstalled ? pluginManagerOf(ctx) : undefined
     if (manager !== undefined) {
       await appendLog(logPath, `更新：pluginManager.updateBundle("${name}", "${resolved.version}")`)
       try {
@@ -467,7 +474,7 @@ export async function installPlugin(name: string, ctx?: Context): Promise<Plugin
           }
         }
         /* 官方不碰我们的备份文件，成功后自己收尾。 */
-        await discardProfileBackup(saved)
+        if (saved !== undefined) await discardProfileBackup(saved)
         current = { ...current, running: false, status: 'succeeded', finishedAt: Date.now() }
         return current
       } catch (error: unknown) {
