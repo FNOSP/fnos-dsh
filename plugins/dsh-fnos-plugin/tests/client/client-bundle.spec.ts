@@ -76,6 +76,13 @@ describe('dsh-fnos client artifact', () => {
       if (specifier.startsWith('@douyinfe/semi-illustrations')) {
         return new Proxy({}, { get: () => () => null })
       }
+      /*
+        虚拟化列表：`Virtuoso` 是运行期渲染的组件，这个用例只验证「产物能被加载并
+        暴露 apply」，不渲染列表，给空组件即可。
+      */
+      if (specifier === 'react-virtuoso') {
+        return { Virtuoso: () => null }
+      }
       throw new Error(`unexpected client external: ${specifier}`)
     })
     expect(typeof exports?.apply).toBe('function')

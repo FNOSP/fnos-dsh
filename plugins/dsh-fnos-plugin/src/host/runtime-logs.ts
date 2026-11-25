@@ -171,16 +171,25 @@ export function readLogs(options: {
 }
 
 /**
- * 读日志，**可选连磁盘历史一起查**。
+ * 读日志；**有搜索词时把磁盘历史也取回来，合并去重**。
  *
- * 内存缓冲只有 200 条且重启即失；磁盘上的 `.log` 按大小轮转保留。用户搜「上周那次
- * 安装为什么失败」时，只查内存等于永远搜不到。
+ * ## 为什么合并而不是二选一
+ *
+ * 内存缓冲只有 200 条且重启即失，磁盘上的 `.log` 按大小轮转保留。用户输入关键词
+ * 是为了找「现在不在屏幕上的那条」——只查内存搜不到，只查文件又会漏掉最近写入
+ * （文件是异步落盘，最后几行可能还在内存里）。
+ *
+ * ## 去重依据
+ *
+ * 文件行与内存条目的时间戳精度不同（内存是毫秒、文件是 ISO 秒级），所以不能比
+ * `seq` 或对象相等。用「**时间戳去毫秒 + 名字 + 正文**」作为身份：同一条日志在
+ * 两份里的这三项一致。
  *
  * @param options - 过滤条件与范围。
  * @param options.limit - 最多返回条数。
  * @param options.level - 只要该级别。
  * @param options.query - 搜索词。
- * @param options.scope - `memory` 只查缓冲；`files` 连磁盘历史一起查。
+ * @param options.scope - `memory` 只查缓冲；`files` 合并磁盘历史。
  * @returns 日志快照。
  */
 export async function readLogsWithScope(options: {
@@ -189,26 +198,48 @@ export async function readLogsWithScope(options: {
   query?: string
   scope?: 'memory' | 'files'
 } = {}): Promise<RuntimeLogSnapshot> {
-  if (options.scope !== 'files' || currentLogDirectory === undefined) return readLogs(options)
+  const memory = readLogs(options)
+  if (options.scope !== 'files' || currentLogDirectory === undefined) return memory
 
-  const limit = Math.min(Math.max(options.limit ?? DEFAULT_LOG_LIMIT, 1), MAX_LOG_LIMIT)
+  const limit = memory.limit
   const fromFiles = await searchLogFiles(currentLogDirectory.replace(/\/gateway$/u, ''), {
     ...(options.level === undefined ? {} : { level: options.level }),
     ...(options.query === undefined ? {} : { query: options.query }),
     limit,
   })
+
   /*
-    文件结果映射成与内存一致的形状。`seq` 用负序号：它们不属于当前缓冲，界面上也
-    不需要按序号去重。
+    **文件在前（更旧），内存在后（更新），按时间倒序合并。**
+
+    身份键取「秒级时间戳 + 名字 + 正文」：文件行只精确到秒，用它做归一才能与内存
+    条目对上。
   */
-  const entries: RuntimeLogEntry[] = fromFiles.map((entry, index) => ({
-    seq: -(index + 1),
-    at: entry.at,
-    name: entry.name,
-    level: entry.level,
-    text: entry.text,
-  }))
-  return { total: entries.length, entries, limit, scope: 'files', logDirectory: currentLogDirectory }
+  const identity = (at: number, name: string, text: string): string =>
+    `${String(Math.floor(at / 1000))}|${name}|${text}`
+  const seen = new Set<string>()
+  const merged: RuntimeLogEntry[] = []
+  const push = (entry: RuntimeLogEntry): void => {
+    if (merged.length >= limit) return
+    const key = identity(entry.at, entry.name, entry.text)
+    if (seen.has(key)) return
+    seen.add(key)
+    merged.push(entry)
+  }
+
+  /* 内存条目带真实 seq，优先保留它们（界面按 seq 做 key）。 */
+  for (const entry of memory.entries) push(entry)
+  for (const [index, entry] of fromFiles.entries()) {
+    push({ seq: -(index + 1), at: entry.at, name: entry.name, level: entry.level, text: entry.text })
+  }
+  merged.sort((a, b) => b.at - a.at)
+
+  return {
+    total: merged.length,
+    entries: merged.slice(0, limit),
+    limit,
+    scope: 'files',
+    ...(currentLogDirectory === undefined ? {} : { logDirectory: currentLogDirectory }),
+  }
 }
 
 /** 仅供测试：清空缓冲。 */

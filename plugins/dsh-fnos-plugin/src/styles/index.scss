@@ -2128,18 +2128,6 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  * 边框、圆角、聚焦态、尺寸全部交给 Semi 的 `DshInput`——插件不再自己画一套输入框
  * 外观（那样会与同一行的 Select 在圆角/描边/高度上各差一点）。
  */
-/* 搜索范围下拉：固定宽度，与同一行的级别下拉、条数输入框等高由 Semi 保证。 */
-/* 刷新间隔下拉：固定宽度，与同一行的其它控件等高由 Semi 保证。 */
-.dsh-fnos-logs-refresh {
-  flex: 0 0 auto;
-  width: 80px;
-}
-
-.dsh-fnos-logs-scope {
-  flex: 0 0 auto;
-  width: 108px;
-}
-
 .dsh-fnos-logs-search {
   flex: 1 1 auto;
   min-width: 0;
@@ -2266,8 +2254,14 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   flex: 1 1 auto;
   min-width: 0;
   /*
-    长词（路径、URL、堆栈里的连续标识符）也要能断开，否则一行仍会被撑出容器。
-    `break-word` 在无处可断时从任意字符处折行，正是日志需要的。
+    **折行显示全文，不截断。**
+
+    日志的价值在后半段（路径、错误码、耗时），省略号恰好切掉它。这条取舍早于虚拟化，
+    现在依然成立。
+
+    折行带来的行高不定由 `Virtuoso` 处理：它逐项测量并自动维护偏移。此前用
+    `react-window` 的 `VariableSizeList` 需手工测量 + `resetAfterIndex`，测量滞后一次
+    下一行就被压住——那才是「文字叠在一起」的真因，不是折行本身。
   */
   overflow-wrap: anywhere;
   word-break: break-word;

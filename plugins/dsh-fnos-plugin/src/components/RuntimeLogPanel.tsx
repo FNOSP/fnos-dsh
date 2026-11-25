@@ -17,15 +17,16 @@
  * @module dsh-fnos/components/RuntimeLogPanel
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { DshButton, DshIconFolder, DshInput, DshInputNumber, DshSelect } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { fetchRuntimeLogs } from '../client/services/runtime-status-client.ts'
+import { notifyFailure } from '../client/notify.ts'
 import { openFnosFileManager } from '../client/services/file-manager.ts'
 import { hasFnosHostBridge } from '../client/services/environment.ts'
 import { createTrimApp } from '../client/services/sdk.ts'
 import { RUNTIME_LOG_DEFAULT_LIMIT, RUNTIME_LOG_MAX_LIMIT, type RuntimeLogEntry, type RuntimeLogLevel } from '../contracts/runtime-status-contract.ts'
-import { VariableSizeList } from 'react-window'
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 import dayjs from 'dayjs'
 
 type Translate = (key: FnosLocaleKey) => string
@@ -79,19 +80,20 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
   const [level, setLevel] = useState<'all' | RuntimeLogLevel>('all')
   const [query, setQuery] = useState('')
   /*
-    **搜索范围。**
+    **搜索时自动带上历史文件，不设范围开关。**
 
-    `memory` 只查内存环形缓冲（200 条，重启即失）；`files` 连磁盘上按大小轮转的
-    历史 `.log` 一起查。用户搜「上周那次安装为什么失败」时必须选后者——只查内存
-    等于永远搜不到。
+    内存缓冲只有 200 条且重启即失；磁盘上的 `.log` 按大小轮转保留。用户输入关键词
+    就是为了找「现在不在屏幕上的那条」——此时只查内存等于永远搜不到，还要他先选
+    一个范围开关，纯属多一步。
+
+    没有搜索词时不读文件：全量读 5 份 ≤10 MiB 的日志没有意义，首屏也不该等它。
   */
-  const [scope, setScope] = useState<'memory' | 'files'>('memory')
+  const hasQuery = query.trim().length > 0
   /** 自动刷新间隔（秒）；`0` 表示关闭。 */
   const [refreshSeconds, setRefreshSeconds] = useState(5)
   const [limit, setLimit] = useState(DEFAULT_LIMIT)
   /** 日志落盘目录；宿主未接上时为空，按钮不渲染。 */
   const [logDirectory, setLogDirectory] = useState<string>()
-  const [error, setError] = useState<string>()
   const listRef = useRef<HTMLDivElement>(null)
   /** 用户是否停在顶部：只在「看最新」时自动跟随，避免打断向上翻阅。 */
   const followRef = useRef(true)
@@ -99,14 +101,24 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
   /** 拉一次日志。 */
   const load = useCallback(async () => {
     try {
-      const snapshot = await fetchRuntimeLogs({ limit, level, query, scope })
+      const snapshot = await fetchRuntimeLogs({
+        limit, level, query,
+        /* 有搜索词就连磁盘历史一起查。 */
+        scope: hasQuery ? 'files' : 'memory',
+      })
       setEntries(snapshot.entries)
       setLogDirectory(snapshot.logDirectory)
-      setError(undefined)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      /*
+        **异常走 toast，不在内容区画一行红字。**
+
+        那行红字会把日志列表往下顶、打断滚动位置；而轮询是 5 秒一次，网络抖一下
+        就闪一行红字再消失，反而像页面坏了。日志中心本身就是「读不到时看哪里」的
+        地方，不该自己也变成一片报错。
+      */
+      notifyFailure(`${t('runtimeLogFailed')}${cause instanceof Error ? cause.message : String(cause)}`)
     }
-  }, [limit, level, query, scope])
+  }, [limit, level, query, hasQuery, t])
 
   /**
    * 打开日志目录（fnOS 文件管理器）。
@@ -122,7 +134,8 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
     try {
       await openFnosFileManager(logDirectory, () => createTrimApp())
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      /* 与上面同理：打开失败也用 toast，不占内容区。 */
+      notifyFailure(cause instanceof Error ? cause.message : String(cause))
     }
   }, [logDirectory])
 
@@ -138,81 +151,32 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
   }, [load, refreshSeconds])
 
   /*
-    **虚拟化列表的行高测量。**
+    **用 `Virtuoso`，不用 `react-window`。**
 
-    `VariableSizeList` 需要在行渲染后拿到真实高度，否则滚动条长度与位置都是错的。
-    这里把每行的高度按 key 缓存，并在内容变化时清空缓存——同一条日志的正文不会变，
-    但筛选后 key 集合会变。
+    日志正文折行后行高不定；`react-window` 的 `VariableSizeList` 要靠外部测量缓存 +
+    `resetAfterIndex` 手工维护位置，测量滞后一次下一行就被压住——历史上反复出现的
+    「文字叠在一起」都是这个来源。
+
+    `Virtuoso` 内置 ResizeObserver 逐项测量、自动维护偏移，正是为动态高度设计的。
+    无需 `itemSize`，也无需在渲染后回报高度。
   */
-  const rowHeights = useRef(new Map<number, number>())
-  const virtualRef = useRef<VariableSizeList>(null)
-  /** 当前已渲染的行节点，按索引存；布局副作用读它们量真实高度。 */
-  const rowRefs = useRef(new Map<number, HTMLDivElement>())
-
-  /*
-    **渲染后统一量高度。**
-
-    逐个在 ref 回调里量不可靠：那时样式与字体可能还没稳定，量出来偏小；而且每行
-    都触发一次 `resetAfterIndex` 会让列表反复重排。
-
-    这里在每次渲染提交后扫一遍已挂载的行，只对**高度发生变化**的行回报——正常滚动
-    时没有变化，不会有多余重排。
-  */
-  useLayoutEffect(() => {
-    let changed = false
-    for (const [index, node] of rowRefs.current) {
-      const key = entries[index]?.seq ?? index
-      const height = node.getBoundingClientRect().height
-      if (height <= 0) continue
-      if (rowHeights.current.get(key) === height) continue
-      rowHeights.current.set(key, height)
-      changed = true
-    }
-    if (changed) virtualRef.current?.resetAfterIndex(0, true)
-  })
-
-  const setRowHeight = useCallback((index: number, size: number): void => {
-    const key = entries[index]?.seq ?? index
-    if (rowHeights.current.get(key) === size) return
-    rowHeights.current.set(key, size)
-    /*
-      **必须让列表重算这一行之后的全部偏移。**
-
-      `VariableSizeList` 按 `rowHeight(index)` 决定每行的 `translateY`。测量偏小
-      时（估算值 40 < 实际 60），下一行仍按旧值定位，于是被上一行的内容压住——
-      截图中「200」与「(7ms)」叠在一起正是这个现象。
-
-      `resetAfterIndex` 让它用新高度重算后续偏移。
-    */
-    virtualRef.current?.resetAfterIndex(index, true)
-  }, [entries])
-
-  const rowHeight = useCallback((index: number): number => {
-    const key = entries[index]?.seq ?? index
-    /* 未测量的行先按两行高度估算，量完会立刻纠正。 */
-    return rowHeights.current.get(key) ?? 40
-  }, [entries])
+  const virtuosoRef = useRef<VirtuosoHandle>(null)
 
   /**
    * 列表可视高度。
    *
    * **要扣掉容器的上下 padding。** `clientHeight` 含内距，而传给
-   * `VariableSizeList` 的 `height` 是内容区高度——不扣的话列表比可视区高 16px，
+   * `FixedSizeList` 的 `height` 是内容区高度——不扣的话列表比可视区高 16px，
    * 最后一行会压到容器的下边框上。
    */
   const [listHeight, setListHeight] = useState(320)
-  /** 列表内容宽度（已扣左右内距），`VariableSizeList` 需要像素值而非百分比。 */
-  const [listWidth, setListWidth] = useState(0)
   useEffect(() => {
     const el = listRef.current
     if (el === null) return undefined
     const measure = (): void => {
       const cs = getComputedStyle(el)
       const padY = Number.parseFloat(cs.paddingTop) + Number.parseFloat(cs.paddingBottom)
-      const padX = Number.parseFloat(cs.paddingLeft) + Number.parseFloat(cs.paddingRight)
       setListHeight(Math.max(0, el.clientHeight - padY))
-      /* 宽度同理：传进去的必须是内容区像素值。 */
-      setListWidth(Math.max(0, el.clientWidth - padX))
     }
     const observer = new ResizeObserver(measure)
     observer.observe(el)
@@ -222,30 +186,14 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
 
   /** 新日志到达时，若用户仍在顶部就滚到顶（最新的在最上面）。 */
   useEffect(() => {
-    if (followRef.current) virtualRef.current?.scrollToItem(0, 'start')
+    if (followRef.current) virtuosoRef.current?.scrollToIndex({ index: 0, behavior: 'auto' })
   }, [entries])
 
-  const renderRow = useCallback(({ index, style }: { index: number, style: React.CSSProperties }) => {
+  const renderRow = useCallback((index: number) => {
     const entry = entries[index]
     if (entry === undefined) return null
     return (
-      <div
-        style={style}
-        /*
-          **量高度放在 `useLayoutEffect` 里，不放 ref 回调。**
-
-          ref 回调在 React 提交阶段同步执行，此时样式与字体可能还没稳定，量出来的
-          高度会偏小；用布局副作用能等到 DOM 与样式都就位之后再量。
-
-          `overflow: hidden` 兜底：万一某次测量滞后，内容也被裁在自己这一行内，
-          不会压到下一行上。
-        */
-        ref={(node) => {
-          if (node === null) rowRefs.current.delete(index)
-          else rowRefs.current.set(index, node)
-        }}
-        data-row-index={index}
-      >
+      <div>
         <div className={`dsh-fnos-logs-line dsh-fnos-logs-line--${entry.level}`}>
           <span className="dsh-fnos-logs-time">{clock(entry.at)}</span>
           <span className="dsh-fnos-logs-badge">{t(levelKey(entry.level))}</span>
@@ -254,7 +202,7 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
         </div>
       </div>
     )
-  }, [entries, setRowHeight, t])
+  }, [entries, t])
 
   return (
     <section className="dsh-fnos-logs">
@@ -277,22 +225,6 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
           optionList={LEVELS.map(item => ({ value: item.value, label: t(item.labelKey), showTick: false }))}
         />
         {/*
-          搜索范围：内存 / 含磁盘历史。
-
-          放成独立下拉而不是塞进搜索框的占位文案里——用户需要**看见**当前范围，
-          否则搜不到旧日志时会以为功能坏了。
-        */}
-        <DshSelect
-          className="dsh-fnos-logs-scope"
-          size="small"
-          value={scope}
-          onChange={(value: string | number | (string | number)[]) => { setScope(value as 'memory' | 'files') }}
-          optionList={[
-            { value: 'memory', label: t('runtimeLogScopeMemory'), showTick: false },
-            { value: 'files', label: t('runtimeLogScopeFiles'), showTick: false },
-          ]}
-        />
-        {/*
           刷新间隔。`0` = 不刷新——看历史日志时页面不该自己跳，否则用户刚滚到的
           位置会被新内容顶走。
         */}
@@ -303,9 +235,7 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
           onChange={(value: string | number | (string | number)[]) => { setRefreshSeconds(Number(value)) }}
           optionList={REFRESH_OPTIONS.map(seconds => ({
             value: String(seconds),
-            label: seconds === 0
-              ? t('runtimeLogRefreshOff')
-              : `${String(seconds)}s`,
+            label: seconds === 0 ? t('runtimeLogRefreshOff') : `${String(seconds)}s`,
             showTick: false,
           }))}
         />
@@ -365,34 +295,27 @@ export function RuntimeLogPanel({ t }: RuntimeLogPanelProps): React.ReactNode {
         )}
       </div>
 
-      {error === undefined ? null : (
-        <p className="dsh-fnos-repair-error" role="alert">{`${t('runtimeLogFailed')}${error}`}</p>
-      )}
-
       {/*
         **日志主体做虚拟化。**
 
         条数上限 2000；不虚拟化就是 2000 个 DOM 节点常驻，展开面板时浏览器要一次性
         布局完，滚动会明显掉帧，内存也随重渲染累积。虚拟化只渲染可视区加少量缓冲。
 
-        行高**不固定**（正文会折行），所以用 `VariableSizeList`：每行首次渲染后量出
-        实际高度并缓存，滚动到未测量的行时先按估算值占位。
+        行高**固定**（正文单行省略），用 `FixedSizeList`——位置计算不依赖运行时测量。
       */}
       <div className="dsh-fnos-logs-body">
         {entries.length === 0 ? (
           <p className="dsh-fnos-repair-muted">{t('runtimeLogEmpty')}</p>
         ) : (
           <div ref={listRef} className="dsh-fnos-logs-list" role="log" aria-live="polite">
-            <VariableSizeList
-              height={listHeight}
-              width={listWidth}
-              itemCount={entries.length}
-              itemSize={rowHeight}
-              itemKey={(index: number) => entries[index]?.seq ?? index}
-              overscanCount={8}
-            >
-              {renderRow}
-            </VariableSizeList>
+            <Virtuoso
+              ref={virtuosoRef}
+              style={{ height: listHeight }}
+              data={entries}
+              itemContent={(index) => renderRow(index)}
+              increaseViewportBy={200}
+              computeItemKey={(index) => entries[index]?.seq ?? index}
+            />
           </div>
         )}
       </div>

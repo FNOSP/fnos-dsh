@@ -66,6 +66,7 @@ export async function fetchRuntimeLogs(options: {
   if (options.limit !== undefined) params.set('limit', String(options.limit))
   if (options.level !== undefined && options.level !== 'all') params.set('level', options.level)
   if (options.query !== undefined && options.query.length > 0) params.set('q', options.query)
+  /* 有搜索词才读历史文件：全量读 5 份日志没有意义，首屏也不该等它。 */
   if (options.scope !== undefined) params.set('scope', options.scope)
   const suffix = params.toString()
   const response = await fetch(`${FNOS_RUNTIME_LOGS_ROUTE}${suffix.length > 0 ? `?${suffix}` : ''}`, {

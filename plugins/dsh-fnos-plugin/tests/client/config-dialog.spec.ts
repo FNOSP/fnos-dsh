@@ -1081,18 +1081,25 @@ describe('日志列表：上限与虚拟化', () => {
     expect(PANEL).not.toContain('Math.min(next, 2000)')
   })
 
-  it('列表虚拟化：只渲染可视区', () => {
+  it('列表虚拟化用 Virtuoso，不改折行', () => {
     /*
-      条数上限 2000；不虚拟化就是 2000 个 DOM 节点常驻，展开面板时浏览器要一次性
-      布局完，滚动明显掉帧，内存也随重渲染累积。
+      日志正文折行后行高不定；`react-window` 的 `VariableSizeList` 要靠外部测量 +
+      `resetAfterIndex` 手工维护位置，测量滞后一次下一行就被压住——历史上反复出现的
+      「文字叠在一起」都是这个来源。
+
+      `Virtuoso` 内置 ResizeObserver 逐项测量，正是为动态高度设计的。
     */
     const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
-    expect(PANEL).toContain('VariableSizeList')
-    /* 行高不固定（正文折行），不能用 FixedSizeList。 */
-    expect(PANEL).not.toContain('FixedSizeList')
-    // 每行渲染后量真实高度并回报，否则滚动条位置会错。
-    expect(PANEL).toContain('setRowHeight')
-    expect(PANEL).toContain('resetAfterIndex')
+    expect(PANEL).toContain("from 'react-virtuoso'")
+    expect(PANEL).not.toMatch(/from 'react-window'/u)
+    // 注释里解释「为什么不用那套」不算，检查的是调用。
+    expect(PANEL).not.toMatch(/\.resetAfterIndex\(/u)
+
+    /* 折行是产品决策：省略号会切掉路径与错误码。 */
+    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
+    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-logs-text {'), SCSS.indexOf('}', SCSS.indexOf('.dsh-fnos-logs-text {')))
+    expect(rule).toContain('overflow-wrap: anywhere')
+    expect(rule).not.toContain('white-space: nowrap')
   })
 })
 
@@ -1184,39 +1191,31 @@ describe('授权目录：分成两个分组', () => {
 })
 
 describe('日志：重叠修复与搜索范围', () => {
-  it('行高在布局副作用里测量，不靠 ref 回调', () => {
-    /*
-      ref 回调在 React 提交阶段同步执行，此时样式与字体可能还没稳定，量出来的高度
-      偏小；`VariableSizeList` 按旧值定位下一行，就被上一行的内容压住——截图里
-      「200」与「(7ms)」叠在一起正是这个现象。
-    */
+  it('行高交给 Virtuoso 测量，不再手工维护', () => {
     const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
-    expect(PANEL).toContain('useLayoutEffect')
-    expect(PANEL).toContain('resetAfterIndex(0, true)')
-    // 内容不溢出自己的行，测量滞后时最多截断，不会两层字重叠。
-    const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    const rule = SCSS.slice(SCSS.indexOf('.dsh-fnos-logs-line {'), SCSS.indexOf('}', SCSS.indexOf('.dsh-fnos-logs-line {')))
-    expect(rule).toContain('overflow: hidden')
+    expect(PANEL).toContain('Virtuoso')
+    expect(PANEL).toContain('increaseViewportBy')
+    // 不再有行高常量或测量缓存。
+    expect(PANEL).not.toContain('LOG_ROW_HEIGHT')
+    expect(PANEL).not.toContain('rowHeights')
   })
 
-  it('搜索范围可选「含历史文件」，走磁盘轮转日志', () => {
+  it('有搜索词时自动带磁盘历史，无开关', () => {
     /*
-      内存缓冲只有 200 条且重启即失；磁盘上的 `.log` 按大小轮转保留。用户搜
-      「上周那次安装为什么失败」时，只查内存等于永远搜不到。
+      用户输入关键词就是为了找「现在不在屏幕上的那条」——此时只查内存永远搜不到，
+      再让他先选一个范围开关是多一步。
+
+      没有搜索词时不读文件：全量读 5 份 ≤10 MiB 的日志没有意义，首屏也不该等它。
     */
     const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
-    expect(PANEL).toContain('dsh-fnos-logs-scope')
-    expect(PANEL).toContain("runtimeLogScopeFiles")
-    expect(PANEL).toContain('scope')
+    expect(PANEL).toContain("scope: hasQuery ? 'files' : 'memory'")
+    // 范围下拉已移除。
+    expect(PANEL).not.toContain('dsh-fnos-logs-scope')
 
-    const HOST = readFileSync(new URL('../../src/host/runtime-log-file.ts', import.meta.url), 'utf8')
-    expect(HOST).toContain('export async function searchLogFiles')
-    expect(HOST).toContain('export function parseLogFileLine')
-    // 当前文件排最前，其余按时间戳倒序（越新越靠前）。
-    expect(HOST).toContain('.sort()\n    .reverse()')
-
-    const ROUTE = readFileSync(new URL('../../src/host/runtime-status-routes.ts', import.meta.url), 'utf8')
-    expect(ROUTE).toContain("url.searchParams.get('scope') === 'files'")
+    const HOST = readFileSync(new URL('../../src/host/runtime-logs.ts', import.meta.url), 'utf8')
+    // 合并内存与文件并去重。
+    expect(HOST).toContain('const seen = new Set<string>()')
+    expect(HOST).toContain('identity(')
   })
 })
 
@@ -1239,10 +1238,8 @@ describe('日志列表：padding 与虚拟化尺寸', () => {
 
     const PANEL = readFileSync(new URL('../../src/components/RuntimeLogPanel.tsx', import.meta.url), 'utf8')
     expect(PANEL).toContain('el.clientHeight - padY')
-    expect(PANEL).toContain('el.clientWidth - padX')
-    // 宽度必须传像素值，百分比在虚拟化里算不准。
-    expect(PANEL).toContain('width={listWidth}')
-    expect(PANEL).not.toContain('width="100%"')
+    // Virtuoso 的宽度由容器决定，不需要单独传像素值。
+    expect(PANEL).not.toContain('listWidth')
   })
 })
 

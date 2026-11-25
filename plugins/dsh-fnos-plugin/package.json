@@ -91,6 +91,7 @@
     "@types/react-window": "catalog:",
     "dayjs": "catalog:",
     "echarts": "catalog:",
+    "react-virtuoso": "catalog:",
     "react-window": "catalog:",
     "rotating-file-stream": "catalog:",
     "semver": "catalog:"
