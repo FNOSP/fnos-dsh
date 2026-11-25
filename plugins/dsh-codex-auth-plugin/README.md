@@ -7,7 +7,7 @@ DSH 的 ChatGPT / Codex 登录、模型目录和账号用量插件。
 插件发布在 npm，要求 DSH `0.2.2-rc.5` 。安装命令：
 
 ```sh
-dsh plugin --profile web add @tnnevol/dsh-codex-auth@8.3.16
+dsh plugin --profile web add @tnnevol/dsh-codex-auth@8.3.17
 ```
 
 装完重启 Web profile 即可。如果提示 `cannot resolve profile bundle`，重新跑一次上面的安装命令，别只在 `package.json` 里手动补 bundle。
