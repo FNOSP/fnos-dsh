@@ -203,6 +203,9 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
    `input.showPicker()`。2026-11-25 实测：click 已断，点「从电脑上传」仍弹出 macOS 文件
    选择框。要给 `HTMLInputElement.prototype.showPicker` 也打空桩。
 
+   **打桩后不要离开当前页面**：导航、刷新、SPA 重挂都会把原型还原成原生实现。
+   设桩与「点从电脑上传」必须同一次执行完成（2026-11-25 实测踩到）。
+
    它和坑 4 不矛盾，区别在**改的是哪个方法**：
 
    | 方法 | 能不能打桩 | 原因 |
@@ -248,6 +251,13 @@ new MutationObserver((ms) => {
 const noPicker = () => {}
 HTMLInputElement.prototype.showPicker = noPicker
 // 注意：不要动 HTMLInputElement.prototype.click（见坑 4）。
+
+// ⚠️ ①③ 必须在**同一次脚本执行**里完成，中间不要插别的工具调用。
+
+// 桩是**页面级**的：导航、刷新、SPA 重挂都会把它重置回原生实现。实测踩过：
+// 把「设桩」和「点从电脑上传」拆成两次执行、中间用真实鼠标点击打开应用中心，
+// 点「从电脑上传」时 showPicker 已不是桩，系统文件对话框照样弹出来
+// （2026-11-25，本该免掉的一步因此又出现）。
 
 // ② 应用中心 → 手动安装
 //    **不要点「请选择存储空间」下拉框**——它已有默认值，点它会在真正安装前
