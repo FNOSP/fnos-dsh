@@ -377,6 +377,15 @@
   color: var(--dsw-alias-state-business-primary);
 }
 
+/* 图标态（移动端，FNOS-060-01）：文案不渲染，按钮收成 28×28 方形、图标居中——
+   与官方 `+` 控件同尺寸，命中区不因收起文案而变小，行内也不新增换行。
+   配色沿用上面的激活态/普通态，不在这里另立一套。 */
+.dsh-failover-pill--iconOnly {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+
 .dsh-failover-pill:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover);
 }

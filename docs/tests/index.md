@@ -66,5 +66,7 @@ description: fnOS DSH 需求测试用例、执行结果与最终测试结论的�
 
 | FNOS-057 | [DSH 0.2.2-rc.5 基线升级](/tests/FNOS-057-dsh-022-rc5-adaptation) | 通过 | 33 条用例全部通过。基线承载处三处同步（389 处 rc.5）、改写函数级守卫（含 allowBuilds 不被覆盖）、变异验证、七插件锚定、安装期补丁三锚点；Failover Search 在单元/Web/Desktop 三端确认可用；真实 NAS 上应用 8.3.0 + 基线 rc.5 三处对齐，iframe 下会话头部单菜单、分割线、官方箭头图标与飞牛设置四分组均通过 |
 
+| FNOS-060 | [移动端「智能搜索」按钮只显示图标](/tests/FNOS-060-mobile-icon-only-search-toggle) | [PLAN-FNOS-060](/plans/PLAN-FNOS-060-mobile-icon-only-search-toggle) | 部分通过 | 12 条用例：包级与产物级 10 条通过（插件 22 文件 237 条全绿、typecheck/构建通过、真实产物 + 主题令牌实测图标态 28×28 而桌面态 86×28）；移动端与桌面端运行时目视 2 条待装新版本补测 |
+
 新增测试用例文档先登记在本页，并在 `docs/.vitepress/config.mts` 的测试用例 sidebar 加入条目。
 | FNOS-056 | [DSH 0.2.2-rc.4 插件适配与基线升级](/tests/FNOS-056-dsh-022-rc4-adaptation) | 部分通过 | 28 条用例：26 条通过 / 2 条未执行。四处基线承载处一致（含变异验证）、七插件锚定、真实 NAS 安装升级、iframe 与独立 DSH Web 双入口均通过；本轮补验更新检测、运行页真实指标、主题跟随与授权目录按设计降级均通过；`/fn` 引用、日志导出到 NAS 与 Desktop 完整走查未执行 |

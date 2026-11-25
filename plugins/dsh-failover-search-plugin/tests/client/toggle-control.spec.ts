@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
-import { toggleAccessibleName } from '../../src/client/toggle-view.ts'
+import { toggleAccessibleName, togglePresentation } from '../../src/client/toggle-view.ts'
 
 /** 读取客户端入口源码（运行时解析路径，不写死本机绝对路径）。 */
 async function readClientEntry(): Promise<string> {
@@ -67,11 +67,18 @@ describe('FNOS-012-06-AC-01 药丸按钮形态', () => {
 })
 
 describe('FNOS-012-06-AC-02 两态仅样式区分', () => {
-  it('激活态用独立的 active 类，普通态无该类', async () => {
-    const source = await readToggleComponent()
+  it('激活态用独立的 active 类，普通态无该类', () => {
+    // 类名推导集中在纯视图模型里（FNOS-060 起文案可见性也在这里决定）。
+    const on = togglePresentation({ enabled: true, mobile: false })
+    const off = togglePresentation({ enabled: false, mobile: false })
 
-    expect(source).toContain("'dsh-failover-pill dsh-failover-pill--active'")
-    expect(source).toContain(": 'dsh-failover-pill'")
+    expect(on.className).toContain('dsh-failover-pill--active')
+    expect(off.className).not.toContain('dsh-failover-pill--active')
+    expect(on.className.split(' ')).toContain('dsh-failover-pill')
+    expect(off.className.split(' ')).toContain('dsh-failover-pill')
+    // 状态不改变文案可见性。
+    expect(on.showLabel).toBe(true)
+    expect(off.showLabel).toBe(true)
   })
 
   it('几何与配色对齐官方「深度思考」chip（business 语义色，非自造描边）', async () => {
@@ -122,5 +129,55 @@ describe('FNOS-012-06-AC-03 可访问名称与键盘可达', () => {
     expect(source).toContain('type="button"')
     expect(source).toMatch(/aria-pressed=\{enabled\}/u)
     expect(source).toMatch(/aria-label=\{toggleAccessibleName\(enabled\)\}/u)
+  })
+})
+
+describe('FNOS-060-01 移动端只显示图标', () => {
+  it('移动设备上不渲染可见文案，只留图标与可访问名称', () => {
+    const mobile = togglePresentation({ enabled: true, mobile: true })
+    const desktop = togglePresentation({ enabled: true, mobile: false })
+
+    // 文案可见性是设备决定的：移动端收起、桌面端保留。
+    expect(mobile.showLabel).toBe(false)
+    expect(desktop.showLabel).toBe(true)
+    // 图标态是独立修饰类，两态下都存在（配色由 active 类决定）。
+    expect(mobile.className).toContain('dsh-failover-pill--iconOnly')
+    expect(desktop.className).not.toContain('dsh-failover-pill--iconOnly')
+    // 关闭态同样收起文案：判据不是开关状态。
+    expect(togglePresentation({ enabled: false, mobile: true }).showLabel).toBe(false)
+  })
+
+  it('文案收起不丢语义：名称仍由 aria-label 提供', async () => {
+    const source = await readToggleComponent()
+
+    // 名称来自纯函数，不依赖可见文案（移动端 DOM 里根本没有这段文字）。
+    expect(source).toMatch(/aria-label=\{toggleAccessibleName\(enabled\)\}/u)
+    expect(toggleAccessibleName(true)).toContain('智能搜索')
+    expect(toggleAccessibleName(false)).toContain('智能搜索')
+  })
+
+  it('设备判定取自宿主的移动设备检测，而不是视口宽度', async () => {
+    const source = await readToggleComponent()
+
+    // 与官方控件同一口径：宿主 primitives 的 `isMobileDevice`。
+    expect(source).toMatch(/isMobileDevice/u)
+    expect(source).toContain('@deepseek-ai/dsh-client-ui-primitives')
+    expect(source).toMatch(/togglePresentation\(\{\s*enabled,\s*mobile: isMobileDevice\(\)\s*\}\)/u)
+    // 图标态不靠媒体查询/容器查询翻转：桌面窄窗口保持文案。
+    const styles = await readToggleStyles()
+    expect(styles).not.toMatch(/@media[^{]*max-width[^{]*\{\s*\.dsh-failover-pill/u)
+    expect(styles).not.toMatch(/@container[^{]*\{\s*\.dsh-failover-pill/u)
+  })
+
+  it('图标态收成 28×28 方形、图标居中，命中区不缩小', async () => {
+    const styles = await readToggleStyles()
+    const block = /\.dsh-failover-pill--iconOnly\s*\{([\s\S]*?)\}/u.exec(styles)?.[1] ?? ''
+
+    expect(block).toMatch(/width: 28px/u)
+    expect(block).toMatch(/padding: 0;/u)
+    expect(block).toMatch(/justify-content: center/u)
+    // 高度仍由基础类提供 28px（图标态不覆盖）。
+    expect(block).not.toMatch(/height:/u)
+    expect(styles).toMatch(/\.dsh-failover-pill\s*\{[\s\S]*?height: 28px/u)
   })
 })

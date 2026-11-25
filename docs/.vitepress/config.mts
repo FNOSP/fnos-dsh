@@ -451,6 +451,10 @@ const requirementsSidebar = [
         text: 'FNOS-059 功能执行日志汇入总日志与右下角浮层',
         link: '/requirements/FNOS-059-feature-log-feedback-panel'
       },
+      {
+        text: 'FNOS-060 移动端「智能搜索」按钮只显示图标',
+        link: '/requirements/FNOS-060-mobile-icon-only-search-toggle'
+      },
       ]
   }
 ]
@@ -664,6 +668,10 @@ const plansSidebar = [
         text: 'PLAN-FNOS-059 功能执行日志汇入总日志与右下角浮层',
         link: '/plans/PLAN-FNOS-059-feature-log-feedback-panel'
       },
+      {
+        text: 'PLAN-FNOS-060 移动端「智能搜索」按钮只显示图标',
+        link: '/plans/PLAN-FNOS-060-mobile-icon-only-search-toggle'
+      },
     ]
   }
 ]
@@ -841,6 +849,10 @@ const testsSidebar = [
       {
         text: 'FNOS-057 DSH 0.2.2-rc.5 基线升级',
         link: '/tests/FNOS-057-dsh-022-rc5-adaptation'
+      },
+      {
+        text: 'FNOS-060 移动端「智能搜索」按钮只显示图标',
+        link: '/tests/FNOS-060-mobile-icon-only-search-toggle'
       },
     ]
   }
