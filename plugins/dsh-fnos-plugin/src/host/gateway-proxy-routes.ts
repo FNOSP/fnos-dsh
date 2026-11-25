@@ -433,7 +433,7 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
       const payload = await body(req) as { name?: unknown, enabled?: unknown } | undefined
       if (!validName(payload?.name)) return send(res, 400, { error: 'invalid-plugin-name' })
       if (typeof payload?.enabled !== 'boolean') return send(res, 400, { error: 'invalid-enabled' })
-      const result = await setPackageEnabled(payload.name, payload.enabled)
+      const result = await setPackageEnabled(payload.name, payload.enabled, ctx)
       send(res, result.ok ? 200 : 500, result.ok ? { ok: true } : { error: 'toggle-failed', message: result.error })
     },
   }), 'dsh-fnos: plugin toggle')
@@ -446,7 +446,7 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
       if (req.method !== 'POST') return send(res, 405, { error: 'method-not-allowed' })
       const payload = await body(req) as { name?: unknown } | undefined
       if (!validName(payload?.name)) return send(res, 400, { error: 'invalid-plugin-name' })
-      const result = await removePlugin(payload.name)
+      const result = await removePlugin(payload.name, ctx)
       /*
         并发卸载用 **409** 回应，而不是和普通失败一起塞进 500：这不是「卸载失败」，
         而是「这次请求不该被受理」。调用方据此给出「请勿重复操作」，也便于以后

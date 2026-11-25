@@ -379,6 +379,11 @@ async function restoreProfile(saved: Map<string, string>): Promise<void> {
  * 取，取不到就退回本模块自己拼命令的路径。
  */
 interface PluginManagerLike {
+  readonly removeBundle: (name: string) => Promise<{
+    readonly application: string
+    readonly restartReason?: string
+    readonly error?: { readonly code: string, readonly diagnostic?: string }
+  }>
   readonly updateBundle: (
     name: string,
     version: string,
@@ -638,7 +643,7 @@ export async function installPlugin(name: string, ctx?: Context): Promise<Plugin
  */
 const removingPlugins = new Set<string>()
 
-export async function removePlugin(name: string): Promise<{ ok: boolean, error?: string, needRestart?: boolean }> {
+export async function removePlugin(name: string, ctx?: Context): Promise<{ ok: boolean, error?: string, needRestart?: boolean }> {
   /*
     **同一插件禁止并发卸载。**
     在进入任何 IO 之前判重，把它当作一次明确的拒绝而不是静默忽略——调用方要能
@@ -646,6 +651,36 @@ export async function removePlugin(name: string): Promise<{ ok: boolean, error?:
   */
   if (removingPlugins.has(name)) return { ok: false, error: 'plugin-remove-in-progress' }
   removingPlugins.add(name)
+
+  /*
+    **优先走官方 `removeBundle`。**
+
+    它比本模块自己的实现多三重校验，都是我们漏掉的：
+
+    - `not-removable`：包不是本 profile 拥有（无法卸载）；
+    - `stop-profile`：仍是启动时加载的 bundle，必须重启；
+    - `bundle-in-use`：它的贡献行正在运行，要先停。
+
+    卸载前还会先取消选中并 reload，避免「已删包但仍被引用」的中间态。
+
+    服务取不到时退回自己拼 `pnpm remove` 的路径。
+  */
+  const manager = pluginManagerOf(ctx)
+  if (manager !== undefined) {
+    try {
+      const removed = await manager.removeBundle(name)
+      if (removed.application === 'failed') {
+        return { ok: false, error: removed.error?.diagnostic ?? removed.error?.code ?? 'remove-failed' }
+      }
+      const needRestart = removed.application === 'restart-required'
+      return { ok: true, ...(needRestart ? { needRestart: true } : {}) }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { ok: false, error: message }
+    } finally {
+      removingPlugins.delete(name)
+    }
+  }
 
   const environment = resolveRepairEnvironment()
   if (environment === undefined || environment.pnpmBin === undefined) {

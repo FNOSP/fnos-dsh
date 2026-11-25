@@ -114,3 +114,38 @@ describe('版本比较（安装选版复用）', () => {
     expect(isNewerVersion('1.5.0', '1.4.0')).toBe(false)
   })
 })
+
+describe('卸载与启用：接入官方服务但保留自保护', () => {
+  it('卸载优先走官方 removeBundle', () => {
+    /*
+      官方 `removeBundle` 比本模块多三重校验，都是我们漏掉的：
+      `not-removable`（包不归本 profile 所有）、`stop-profile`（仍是启动时加载的
+      bundle）、`bundle-in-use`（贡献行正在运行）。卸载前还会先取消选中并 reload。
+    */
+    const INSTALL = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    expect(INSTALL).toContain('manager.removeBundle(name)')
+    // 官方的 restart-required 映射到界面的 needRestart。
+    expect(INSTALL).toContain("removed.application === 'restart-required'")
+    // 并发锁仍在最前，官方路径也受它约束。
+    expect(INSTALL).toContain("if (removingPlugins.has(name)) return { ok: false, error: 'plugin-remove-in-progress' }")
+  })
+
+  it('禁用自身仍被拒绝——官方不覆盖这条', () => {
+    /*
+      官方 `PROTECTED_PLUGINS` 只列它自己的插件（`dsh-plugin-manager` 等），
+      **不含 `@tnnevol/dsh-fnos`**。而这个插件是应用与 DSH 之间的唯一桥梁：
+      禁用后授权目录、文件打开、网关反代、进程管理全部失效，连「重新启用」这个
+      动作本身也由它提供——用户没有任何入口能救回来。
+
+      所以这个检查必须留在本模块，不能外包给官方。
+    */
+    const TOGGLE = readFileSync(new URL('../../src/host/plugin-toggle.ts', import.meta.url), 'utf8')
+    expect(TOGGLE).toContain("if (name === SELF_PACKAGE_NAME && !enabled)")
+    expect(TOGGLE).toContain("return { ok: false, error: 'management-required' }")
+    // 自保护在官方调用之前——顺序反了就等于把门开在检查前面。
+    const guardIndex = TOGGLE.indexOf('SELF_PACKAGE_NAME && !enabled')
+    const officialIndex = TOGGLE.indexOf('setBundleEnabled(name, enabled)')
+    expect(guardIndex).toBeGreaterThan(-1)
+    expect(officialIndex).toBeGreaterThan(guardIndex)
+  })
+})

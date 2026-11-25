@@ -22,6 +22,7 @@
 
 import { readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { Context } from '@deepseek-ai/cordis'
 import { resolveRepairEnvironment } from './dependency-repair.ts'
 
 /**
@@ -32,6 +33,20 @@ import { resolveRepairEnvironment } from './dependency-repair.ts'
  * 可以救回来。因此禁止被禁用（见 `setPackageEnabled` 里的服务端兜底）。
  */
 const SELF_PACKAGE_NAME = '@tnnevol/dsh-fnos'
+
+/**
+ * 官方 `pluginManager.setBundleEnabled` 的最小形状。
+ *
+ * 我们只借它的「取消选中 + reload」编排；**自保护仍在本模块**——见
+ * `setPackageEnabled` 里对 `SELF_PACKAGE_NAME` 的拒绝。
+ */
+interface PluginManagerLike {
+  readonly setBundleEnabled: (name: string, enabled: boolean) => Promise<{
+    readonly application: string
+    readonly restartReason?: string
+    readonly error?: { readonly code: string, readonly diagnostic?: string }
+  }>
+}
 
 /** 一个组合条目的启用状态。 */
 export interface PluginEntryState {
@@ -260,7 +275,7 @@ async function setBundleEnabled(profile: string, name: string, enabled: boolean)
  * @param enabled - 目标状态。
  * @returns 是否写入成功。
  */
-export async function setPackageEnabled(name: string, enabled: boolean): Promise<{ ok: boolean, error?: string }> {
+export async function setPackageEnabled(name: string, enabled: boolean, ctx?: Context): Promise<{ ok: boolean, error?: string }> {
   const path = patchPath()
   if (path === undefined) return { ok: false, error: 'profile-unavailable' }
 
@@ -290,6 +305,28 @@ export async function setPackageEnabled(name: string, enabled: boolean): Promise
   */
   const profileDirectory = resolveRepairEnvironment()?.profileDirectory
   if (profileDirectory !== undefined && await isBundle(profileDirectory, name)) {
+    /*
+      **bundle 层优先走官方 `setBundleEnabled`。**
+
+      它做的是同一件事（从 `dsh.profile.bundles` 增删 + reload），但顺带处理了
+      「取消选中后重新加载哪些行」的编排，比本模块先写文件再让调用方重启更完整。
+
+      **自保护不外包**：上面的 `SELF_PACKAGE_NAME` 检查仍是唯一一道拦截——官方的
+      `PROTECTED_PLUGINS` 只覆盖它自己的插件，不含本插件，换掉会把「禁用 fnOS 桥接
+      插件」这条路放出去。
+    */
+    const manager = ctx?.get('pluginManager') as PluginManagerLike | undefined
+    if (manager !== undefined) {
+      try {
+        const changed = await manager.setBundleEnabled(name, enabled)
+        if (changed.application === 'failed') {
+          return { ok: false, error: changed.error?.diagnostic ?? changed.error?.code ?? 'enable-failed' }
+        }
+        return { ok: true }
+      } catch (error: unknown) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }
     return setBundleEnabled(profileDirectory, name, enabled)
   }
 
