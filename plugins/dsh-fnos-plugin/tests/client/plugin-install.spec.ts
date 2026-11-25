@@ -14,16 +14,19 @@ const ROUTES = readFileSync(new URL('../../src/host/gateway-proxy-routes.ts', im
 const DIALOG = readFileSync(new URL('../../src/components/PluginInstallDialog.tsx', import.meta.url), 'utf8')
 
 describe('插件安装：pnpm 与版本选择', () => {
-  it('用官方 dsh plugin add，不自拼 pnpm 命令', () => {
+  it('优先走官方 pluginManager.updateBundle', () => {
     /*
-      官方 `dsh plugin` 是插件安装的正规入口：装包、写 `dsh.profile.bundles`、
-      处理冷静期豁免都由它负责。自己拼 `pnpm add` 等于只做了「装包」这一步，
-      剩下的要在本模块里各自补一遍，每补一处就多一处可能与官方漂移的实现。
+      DSH 把插件管理注册为 Cordis 服务（`ctx.pluginManager`），`updateBundle`
+      覆盖了本模块曾经手写却补不全的步骤：版本校验、`--save-exact`、
+      `expected` 校验、失败还原、保 `enabled` 状态、registry 回退链。
 
-      也**不再传 `--config.minimum-release-age=0`**：冷静期判定交给 pnpm/dsh，
-      业务代码不越过这层。
+      服务取不到（旧宿主、测试环境）时退回自己拼 `dsh plugin add`，功能不消失。
     */
-    expect(INSTALL).toContain("['plugin', '--profile', 'web', 'add', spec]")
+    expect(INSTALL).toContain('pluginManagerOf(ctx)')
+    expect(INSTALL).toContain('manager.updateBundle(name, resolved.version)')
+
+    /* 回退路径仍在，且带上了此前漏掉的 `--save-exact`。 */
+    expect(INSTALL).toContain("['plugin', '--profile', 'web', 'add', spec, '--save-exact']")
     // 注释里解释「为什么不再传」不算，检查的是命令参数。
     expect(INSTALL).not.toMatch(/'(add|install)'[^\]]*minimum-release-age/u)
     expect(INSTALL).not.toContain("'npm'")

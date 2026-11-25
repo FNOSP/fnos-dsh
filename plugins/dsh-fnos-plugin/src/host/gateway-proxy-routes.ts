@@ -384,7 +384,7 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
         if (typeof payload?.name !== 'string' || !/^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/u.test(body.name)) {
           return send(res, 400, { error: 'invalid-plugin-name' })
         }
-        send(res, 200, await installPlugin(payload.name))
+        send(res, 200, await installPlugin(payload.name, ctx))
       } catch (error) {
         send(res, 500, { error: 'install-failed', message: error instanceof Error ? error.message : String(error) })
       }

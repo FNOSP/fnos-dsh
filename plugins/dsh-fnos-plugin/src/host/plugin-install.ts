@@ -31,6 +31,7 @@
 import { execFile, spawn } from 'node:child_process'
 import { copyFile, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import type { Context } from '@deepseek-ai/cordis'
 import { getDshRuntimeVersion, evaluatePluginCompatibility } from '@deepseek-ai/dsh-app-boot'
 import { resolveRepairEnvironment } from './dependency-repair.ts'
 
@@ -363,11 +364,45 @@ async function restoreProfile(saved: Map<string, string>): Promise<void> {
 }
 
 /**
+ * DSH 宿主 `pluginManager` 服务的最小形状。
+ *
+ * 官方把它注册在 Cordis 上下文里（`@deepseek-ai/dsh-plugin-manager` 的
+ * `declare module` 段），`updateBundle` 负责全部我们曾经手写、且写不全的步骤：
+ *
+ * - 版本校验（必须严格大于已装版本）；
+ * - `--save-exact`（写精确版本，不用 `^` 范围）；
+ * - `expected: { name, version }` 校验（装出来的不是期望的包/版本即失败）；
+ * - 失败时还原被移除的旧版本；
+ * - 保留 `enabled` 状态、registry 回退链。
+ *
+ * 这里只声明用到的那一个方法，不引入宿主包的运行期依赖——服务从 `ctx.get`
+ * 取，取不到就退回本模块自己拼命令的路径。
+ */
+interface PluginManagerLike {
+  readonly updateBundle: (
+    name: string,
+    version: string,
+    options?: { readonly requestId?: string },
+  ) => Promise<{ readonly from: string, readonly to: string, readonly result: { readonly application: string, readonly error?: { readonly code: string, readonly diagnostic?: string } } }>
+}
+
+/**
+ * 从上下文取官方的插件管理服务。
+ * @param ctx - 插件上下文；缺省时返回 `undefined`。
+ * @returns 服务实例或 `undefined`。
+ */
+function pluginManagerOf(ctx: Context | undefined): PluginManagerLike | undefined {
+  if (ctx === undefined) return undefined
+  return ctx.get('pluginManager') as PluginManagerLike | undefined
+}
+
+/**
  * 用 pnpm 装一个插件（流式写日志）。
  * @param name - 包名。
+ * @param ctx - 插件上下文；给出时优先走官方 `updateBundle`。
  * @returns 结束状态。
  */
-export async function installPlugin(name: string): Promise<PluginInstallState> {
+export async function installPlugin(name: string, ctx?: Context): Promise<PluginInstallState> {
   if (current.running) return current
 
   const environment = resolveRepairEnvironment()
@@ -398,6 +433,52 @@ export async function installPlugin(name: string): Promise<PluginInstallState> {
     current = { ...current, version: resolved.version }
     await resetLog(logPath, name, resolved.version)
     /*
+      **优先走官方 `ctx.pluginManager.updateBundle`。**
+
+      官方实现覆盖了我们手写却补不全的全部步骤（见 `PluginManagerLike` 的注释）。
+      早前自己拼 `dsh plugin --profile web add`，缺 `--save-exact` 与 `expected`
+      校验：前者让 profile 里写进 `^1.84.1` 这类范围，冷静期豁免却按精确版本记录，
+      两者对不上；后者让「装出来的不是想要的版本」这种失败静默通过。
+
+      服务取不到（旧宿主、测试环境）时退回本模块自己的路径，功能不因此消失。
+    */
+    /* 先记下这次是「安装」还是「更新」：只有全新安装才自动启用。 */
+    const previouslyInstalled = await isDeclaredDependency(profile, name)
+    const manager = pluginManagerOf(ctx)
+    if (manager !== undefined) {
+      await appendLog(logPath, `更新：pluginManager.updateBundle("${name}", "${resolved.version}")`)
+      try {
+        const updated = await manager.updateBundle(name, resolved.version)
+        const ok = updated.result.application !== 'failed'
+        if (!ok) {
+          const detail = updated.result.error?.diagnostic ?? updated.result.error?.code ?? 'unknown'
+          await appendLog(logPath, `更新失败：${detail}`)
+          current = { ...current, running: false, status: 'failed', error: detail, finishedAt: Date.now() }
+          return current
+        }
+        await appendLog(logPath, `更新完成：${updated.from} → ${updated.to}`)
+        /* 官方已把包装进 profile；这里补上「首次安装才自动启用」的收尾。 */
+        if (!previouslyInstalled) {
+          try {
+            const activated = await activateBundleIfDeclared(profile, name)
+            if (activated) await appendLog(logPath, `已加入 profile bundles：${name}`)
+          } catch (error: unknown) {
+            await appendLog(logPath, `加入 profile bundles 失败：${error instanceof Error ? error.message : String(error)}`)
+          }
+        }
+        /* 官方不碰我们的备份文件，成功后自己收尾。 */
+        await discardProfileBackup(saved)
+        current = { ...current, running: false, status: 'succeeded', finishedAt: Date.now() }
+        return current
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
+        await appendLog(logPath, `更新异常：${message}`)
+        current = { ...current, running: false, status: 'failed', error: message, finishedAt: Date.now() }
+        return current
+      }
+    }
+
+    /*
       **用 `dsh plugin add`，不用裸 `pnpm add`。**
 
       官方 `dsh plugin` 是插件安装的正规入口：它负责把包装进 profile、写
@@ -423,12 +504,22 @@ export async function installPlugin(name: string): Promise<PluginInstallState> {
       更新时用户已经表过态（他把开关关着），此时再自动启用等于推翻他的选择。
       只有全新安装才该自动开——那时「装」就隐含「我要用它」。
     */
-    const previouslyInstalled = await isDeclaredDependency(profile, name)
     const spec = `${name}@${resolved.version}`
     await appendLog(logPath, `${previouslyInstalled ? '更新' : '安装'}：dsh plugin --profile web add ${spec}`)
 
+    /*
+      **带 `--save-exact`，与官方 `updateBundle` 一致。**
+
+      官方 `installBundle` 拼的是
+      `['add', installSpec, ...saveExact ? ['--save-exact'] : [], ...registryArguments]`，
+      而 `checkRegistryUpdate` 恒返回 `saveExact: true`——更新插件时写的永远是精确版本。
+
+      不带这个标志时 pnpm 会写成 `^1.84.1` 这类范围：profile 的 `package.json` 里是范围，
+      而冷静期豁免条目按精确版本记，两者对不上；下次安装就按范围解析到不同版本，
+      同一个包于是攒出多个版本条目。
+    */
     const code = await new Promise<number>(resolve => {
-      const child = spawn(dshBin, ['plugin', '--profile', 'web', 'add', spec], {
+      const child = spawn(dshBin, ['plugin', '--profile', 'web', 'add', spec, '--save-exact'], {
         cwd: profile,
         env: { ...process.env, CI: '1', DSH_HOME: environment.dshHome },
         stdio: ['ignore', 'pipe', 'pipe'],
