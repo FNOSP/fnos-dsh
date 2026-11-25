@@ -262,7 +262,19 @@ export default [
 
         用正则覆盖子路径：`echarts/core`、`echarts/charts` 等都要内联。
       */
-      alwaysBundle: [...dshSemiClientDeps.deps.alwaysBundle ?? [], /^echarts(?:\/|$)/u],
+      alwaysBundle: [
+        ...dshSemiClientDeps.deps.alwaysBundle ?? [],
+        /^echarts(?:\/|$)/u,
+        /*
+          `react-virtuoso` 同理，且**踩过同一个坑**。
+
+          它不在宿主的模块表里；不显式 bundle 时产物里是
+          `require("react-virtuoso")`，运行时整插件加载失败——**样式注入了、但
+          `apply` 一次都没跑**，所以侧栏「飞牛 OS」入口与设置弹框全部消失。
+          2026-11-25 换成 Virtuoso 时真机复现，表现为「插件还在但界面入口全没了」。
+        */
+        /^react-virtuoso(?:\/|$)/u,
+      ],
       neverBundle: [...CLIENT_EXTERNALS],
     },
     alias: dshSemiClientDeps.alias,

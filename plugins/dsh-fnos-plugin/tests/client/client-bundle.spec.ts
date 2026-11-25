@@ -89,3 +89,31 @@ describe('dsh-fnos client artifact', () => {
     expect(exports?.name).toBe('dsh-fnos-plugin-client')
   })
 })
+
+describe('第三方依赖必须内联', () => {
+  it('产物里不出现 require(第三方包)，否则整插件加载失败', () => {
+    /*
+      宿主的 client 模块表只提供 react / cordis / dsh-client-ui-* 那几项。任何
+      第三方库若被当外部依赖，产物里就是 `require("xxx")`，运行时
+      `missed the module table`，**整个插件加载失败**——
+      表现为「样式注入了、但 apply 一次没跑」，侧栏入口与设置弹框全部消失。
+
+      2026-11-25 换 Virtuoso 时真机踩到：`require("react-virtuoso")` 让 fnOS 的
+      全部界面入口消失。`echarts` 历史上踩过同一个坑，`alwaysBundle` 里有它的注释。
+
+      这条断言在**产物层**兜底：只要出现已知第三方包的 require，就说明
+      `alwaysBundle` 漏了它。
+    */
+    const clientPath = new URL('../../lib/client.js', import.meta.url)
+    let source = ''
+    try {
+      source = readFileSync(clientPath, 'utf8')
+    } catch {
+      return // 未构建时跳过：这个用例验证的是产物。
+    }
+    // 已知需要内联的第三方包。
+    for (const pkg of ['react-virtuoso', 'echarts']) {
+      expect(source).not.toContain(`require("${pkg}")`)
+    }
+  })
+})
