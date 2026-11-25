@@ -16,12 +16,13 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { logPanelStore } from '../client/log-panel-store.ts'
+import { levelOfInstallLine } from '../client/log-line-level.ts'
 import { taskStore, useTaskSlot } from '../client/task-store.ts'
 import { DshButton, DshPopconfirm as Popconfirm, DshTooltip, DshTypography } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import {
   streamInstalledPluginUpdates,
-  fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
+  fetchInstallLog, fetchInstalledPlugins, removePluginByName, togglePlugin } from '../client/services/gateway-proxy-client.ts'
 import { PluginInstallInline } from './PluginInstallInline.tsx'
 import { SwitchWithLoading } from './SwitchWithLoading.tsx'
 import { notifyFailure, notifySuccess } from '../client/notify.ts'
@@ -307,10 +308,28 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
     */
     taskStore.begin('plugin-remove', name)
     logPanelStore.beginTask({ feature: 'install', title: `${t('uninstall')} ${name}` })
-    logPanelStore.append('info', `pnpm remove ${name}`)
+    /*
+      **浮层只画宿主真正产出的日志。**
+
+      宿主的卸载路径会把官方的 pnpm 输出（`ChangeResult.packageResult.output`）
+      与结果写进 `install-log.txt`；这里用与安装相同的 offset 轮询取回它。
+
+      早前这两行是前端手写的（`pnpm remove ${name}` + 「已卸载」）：用户看到的
+      **永远是成功叙事**，而失败原因（依赖被引用、权限、并发锁）在命令输出里，
+      界面上一个字都没有。
+    */
+    let offset = 0
+    const drain = async (): Promise<void> => {
+      const next = await fetchInstallLog(offset)
+      if (next.text === '') return
+      offset = next.offset
+      for (const line of next.text.split('\n')) {
+        if (line.trim() !== '') logPanelStore.append(levelOfInstallLine(line), line)
+      }
+    }
     try {
       const result = await removePluginByName(name)
-      logPanelStore.append('info', t('pluginRemoved'))
+      await drain()
       logPanelStore.finish('ok')
       taskStore.finish('plugin-remove', 'ok')
       await load()
@@ -323,6 +342,8 @@ export function InstalledPluginsPanel({ t }: InstalledPluginsPanelProps): React.
       else notifySuccess(t('pluginRemoved'))
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause)
+      /* 失败时更要把宿主的输出取回来——那是唯一能看到 pnpm 报错的地方。 */
+      await drain().catch(() => undefined)
       logPanelStore.append('error', message)
       logPanelStore.finish('failed')
       taskStore.finish('plugin-remove', 'failed', message)

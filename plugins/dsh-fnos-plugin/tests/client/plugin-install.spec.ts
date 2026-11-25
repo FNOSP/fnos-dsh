@@ -149,3 +149,48 @@ describe('卸载与启用：接入官方服务但保留自保护', () => {
     expect(officialIndex).toBeGreaterThan(guardIndex)
   })
 })
+
+describe('替换官方服务后日志仍完整', () => {
+  it('安装/更新/卸载/启用都写宿主日志', () => {
+    /*
+      浮层日志来自 `fetchInstallLog` 的 offset 轮询，不是前端手写的。所以任何一个
+      操作在宿主侧不写文件，浮层就只剩一句手抄文案——失败时看不到 pnpm 的实际报错。
+    */
+    const INSTALL = readFileSync(new URL('../../src/host/plugin-install.ts', import.meta.url), 'utf8')
+    // 安装/更新：beginLog / resetLog / appendLog 都在。
+    expect(INSTALL).toContain('await beginLog(logPath, `准备安装 ${name}`)')
+    expect(INSTALL).toContain('await resetLog(logPath, name, resolved.version)')
+    // 卸载：官方路径也要落盘，且带回 pnpm 输出。
+    expect(INSTALL).toContain('await beginLog(logPath, `卸载 ${name}`)')
+    expect(INSTALL).toContain('removed.packageResult?.output')
+    expect(INSTALL).toContain('卸载失败：')
+
+    // 启用/禁用：bundle 分支同样落盘。
+    const TOGGLE = readFileSync(new URL('../../src/host/plugin-toggle.ts', import.meta.url), 'utf8')
+    expect(TOGGLE).toContain('await beginLog(logPath, `${verb} ${name}`)')
+    expect(TOGGLE).toContain('已${verb} ${name}')
+  })
+
+  it('卸载浮层读的是宿主日志，不是手写文案', () => {
+    /*
+      早前卸载只有前端手写的 `pnpm remove ${name}` 与「已卸载」两句：用户看到的
+      **永远是成功叙事**，而真实失败原因（依赖被引用、权限、并发锁）在命令输出里。
+    */
+    const PANEL = readFileSync(new URL('../../src/components/InstalledPluginsPanel.tsx', import.meta.url), 'utf8')
+    expect(PANEL).toContain('fetchInstallLog(offset)')
+    expect(PANEL).toContain('levelOfInstallLine(line)')
+    // 手写那两句已移除。
+    expect(PANEL).not.toContain("logPanelStore.append('info', `pnpm remove ${name}`)")
+  })
+
+  it('日志级别判断只有一份实现', () => {
+    // 三个消费者共用 `client/log-line-level.ts`；各抄一份会漂。
+    const SHARED = readFileSync(new URL('../../src/client/log-line-level.ts', import.meta.url), 'utf8')
+    expect(SHARED).toContain('export function levelOfInstallLine')
+    for (const file of ['PluginInstallInline.tsx', 'NpmMirrorCard.tsx', 'InstalledPluginsPanel.tsx']) {
+      const source = readFileSync(new URL(`../../src/components/${file}`, import.meta.url), 'utf8')
+      expect(source).not.toMatch(/function levelOfInstallLine/u)
+      expect(source).toContain("from '../client/log-line-level.ts'")
+    }
+  })
+})

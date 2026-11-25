@@ -26,21 +26,8 @@ import { IconifyIcon } from './IconifyIcon.tsx'
 import { fetchInstallLog, fetchInstallState, startPluginInstall } from '../client/services/gateway-proxy-client.ts'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { logPanelStore } from '../client/log-panel-store.ts'
+import { levelOfInstallLine } from '../client/log-line-level.ts'
 import { reconcileInstallSlot, taskStore, useTaskSlot } from '../client/task-store.ts'
-
-/**
- * 按行内容推断级别。
- *
- * pnpm 输出是纯文本，没有级别字段；只做最小判断——含「失败 / 错误 / error」
- * 的算错误，含「警告 / warn」的算警告，其余按信息。宁可少标也不要误标。
- * @param line - 日志行。
- * @returns 级别。
- */
-function levelOfInstallLine(line: string): 'info' | 'warn' | 'error' {
-  if (/失败|错误|error|failed/i.test(line)) return 'error'
-  if (/警告|warn/i.test(line)) return 'warn'
-  return 'info'
-}
 
 type Translate = (key: FnosLocaleKey) => string
 

@@ -249,7 +249,7 @@ async function resetLog(path: string, name: string, version: string): Promise<vo
  * @param path - 日志文件。
  * @param firstLine - 首行说明。
  */
-async function beginLog(path: string, firstLine: string): Promise<void> {
+export async function beginLog(path: string, firstLine: string): Promise<void> {
   await startLog(path, firstLine)
 }
 
@@ -380,9 +380,12 @@ async function restoreProfile(saved: Map<string, string>): Promise<void> {
  */
 interface PluginManagerLike {
   readonly removeBundle: (name: string) => Promise<{
+    readonly changed?: boolean
     readonly application: string
     readonly restartReason?: string
     readonly error?: { readonly code: string, readonly diagnostic?: string }
+    /** 本次 pnpm 运行的输出；官方把它放在这里，是我们唯一的诊断来源。 */
+    readonly packageResult?: { readonly output?: string, readonly exitCode?: number }
   }>
   readonly updateBundle: (
     name: string,
@@ -667,15 +670,42 @@ export async function removePlugin(name: string, ctx?: Context): Promise<{ ok: b
   */
   const manager = pluginManagerOf(ctx)
   if (manager !== undefined) {
+    /*
+      **卸载也写宿主日志文件。**
+
+      浮层日志来自 `fetchInstallLog` 的轮询（见 `PluginInstallInline`），不是前端
+      自己造的——早前卸载只在前端 `append('pnpm remove ...')` 一句手写文案，
+      官方真正的 pnpm 输出（成功与失败都在 `packageResult.output` 里）被丢掉了。
+      卸载失败时用户就只能看到一个错误码。
+
+      与安装共用同一个日志文件：两者都是「对 profile 的包操作」，浮层同一时刻只会
+      有一个任务，串不到一起。
+    */
+    const logPath = installLogPath()
+    if (logPath !== undefined) await beginLog(logPath, `卸载 ${name}`)
     try {
       const removed = await manager.removeBundle(name)
+      /* 先落官方诊断：它是唯一能看到 pnpm 实际输出的地方。 */
+      if (logPath !== undefined) {
+        for (const line of (removed.packageResult?.output ?? '').split('\n')) {
+          if (line.trim() !== '') await appendLog(logPath, line)
+        }
+      }
       if (removed.application === 'failed') {
-        return { ok: false, error: removed.error?.diagnostic ?? removed.error?.code ?? 'remove-failed' }
+        const detail = removed.error?.diagnostic ?? removed.error?.code ?? 'remove-failed'
+        if (logPath !== undefined) await appendLog(logPath, `卸载失败：${detail}`)
+        return { ok: false, error: detail }
       }
       const needRestart = removed.application === 'restart-required'
+      if (logPath !== undefined) {
+        await appendLog(logPath, needRestart
+          ? `已卸载 ${name}，需要重启才完全生效（${removed.restartReason ?? 'no-hmr'}）`
+          : `已卸载 ${name}`)
+      }
       return { ok: true, ...(needRestart ? { needRestart: true } : {}) }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
+      if (logPath !== undefined) await appendLog(logPath, `卸载异常：${message}`)
       return { ok: false, error: message }
     } finally {
       removingPlugins.delete(name)

@@ -24,6 +24,7 @@ import { readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { resolveRepairEnvironment } from './dependency-repair.ts'
+import { appendLog, beginLog, installLogPath } from './plugin-install.ts'
 
 /**
  * 本插件自己的包名。
@@ -43,6 +44,7 @@ const SELF_PACKAGE_NAME = '@tnnevol/dsh-fnos'
 interface PluginManagerLike {
   readonly setBundleEnabled: (name: string, enabled: boolean) => Promise<{
     readonly application: string
+    /** `restart-required` 时的原因，如 `no-hmr`。 */
     readonly restartReason?: string
     readonly error?: { readonly code: string, readonly diagnostic?: string }
   }>
@@ -317,14 +319,34 @@ export async function setPackageEnabled(name: string, enabled: boolean, ctx?: Co
     */
     const manager = ctx?.get('pluginManager') as PluginManagerLike | undefined
     if (manager !== undefined) {
+      /*
+        **启用/禁用同样落宿主日志。**
+
+        它不发 pnpm 命令，但「什么时候把哪个 bundle 从组合里拿掉/放回」是排查
+        「插件为什么没加载」的关键线索——早前这条路径一行都不记，浮层里只有前端
+        自己写的一句手抄文案。
+      */
+      const logPath = installLogPath()
+      const verb = enabled ? '启用' : '禁用'
+      if (logPath !== undefined) await beginLog(logPath, `${verb} ${name}`)
       try {
         const changed = await manager.setBundleEnabled(name, enabled)
         if (changed.application === 'failed') {
-          return { ok: false, error: changed.error?.diagnostic ?? changed.error?.code ?? 'enable-failed' }
+          const detail = changed.error?.diagnostic ?? changed.error?.code ?? 'enable-failed'
+          if (logPath !== undefined) await appendLog(logPath, `${verb}失败：${detail}`)
+          return { ok: false, error: detail }
+        }
+        if (logPath !== undefined) {
+          const tail = changed.application === 'restart-required'
+            ? `，需要重启才完全生效（${changed.restartReason ?? 'no-hmr'}）`
+            : ''
+          await appendLog(logPath, `已${verb} ${name}${tail}`)
         }
         return { ok: true }
       } catch (error: unknown) {
-        return { ok: false, error: error instanceof Error ? error.message : String(error) }
+        const message = error instanceof Error ? error.message : String(error)
+        if (logPath !== undefined) await appendLog(logPath, `${verb}异常：${message}`)
+        return { ok: false, error: message }
       }
     }
     return setBundleEnabled(profileDirectory, name, enabled)

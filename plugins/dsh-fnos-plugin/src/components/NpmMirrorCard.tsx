@@ -19,26 +19,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { DshButton } from '@tnnevol/dsh-semi-ui'
 import type { FnosLocaleKey } from '../client/locales.ts'
 import { logPanelStore } from '../client/log-panel-store.ts'
+import { levelOfInstallLine } from '../client/log-line-level.ts'
 import { taskStore, useTaskSlot } from '../client/task-store.ts'
 import { fetchNpmMirrorStatus, installNrm, switchNpmMirror, uninstallNrm, type NpmMirrorStatus } from '../client/services/npm-mirror-client.ts'
 import { fetchInstallLog } from '../client/services/gateway-proxy-client.ts'
 
 type Translate = (key: FnosLocaleKey) => string
-
-/**
- * 按行内容推断级别。
- *
- * npm / pnpm 的输出是纯文本，没有级别字段；这里只做最小判断——含「失败 / 错误 /
- * error」的算错误，含「警告 / warn」的算警告，其余按信息。宁可少标也不要误标：
- * 级别配色只是帮助扫读，判错反而误导。
- * @param line - 日志行。
- * @returns 级别。
- */
-function levelOfInstallLine(line: string): 'info' | 'warn' | 'error' {
-  if (/失败|错误|error|failed/i.test(line)) return 'error'
-  if (/警告|warn/i.test(line)) return 'warn'
-  return 'info'
-}
 
 /** 组件参数。 */
 export interface NpmMirrorCardProps {
