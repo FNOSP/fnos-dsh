@@ -17,6 +17,7 @@
 
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { Context } from '@deepseek-ai/cordis'
 import type { InstalledPlugin, InstalledPluginsSnapshot } from '../contracts/gateway-proxy-contract.ts'
 import { checkAllPluginUpdates } from './plugin-updates.ts'
 import { readPackageEntries } from './plugin-toggle.ts'
@@ -50,6 +51,35 @@ const RECOMMENDED_PLUGINS: readonly string[] = ['dshmarket', '@fnnas-labs/fnos-c
  * 常驻 = 卡片不随卸载消失、并排在最前。其余插件保持原规则：卸了就从列表里消失。
  */
 const PINNED_PLUGIN_NAMES: readonly string[] = [...BUILTIN_UNINSTALLABLE, ...RECOMMENDED_PLUGINS]
+
+/**
+ * 官方 `pluginManager.listBundles` 的最小形状。
+ *
+ * 只取用到的字段：`installed` / `enabled` / `version` / `official` 用于判定
+ * 「这个常驻插件现在装没装、开没开」。
+ */
+interface BundleInfoLike {
+  readonly name: string
+  readonly installed: boolean
+  readonly enabled: boolean
+  readonly version?: string
+  readonly official: boolean
+}
+
+/** 官方插件管理服务的最小形状。 */
+interface PluginManagerLike {
+  readonly listBundles: () => Promise<BundleInfoLike[]>
+}
+
+/**
+ * 从上下文取官方插件管理服务。
+ * @param ctx - 插件上下文。
+ * @returns 服务或 `undefined`。
+ */
+function pluginManagerOf(ctx: Context | undefined): PluginManagerLike | undefined {
+  if (ctx === undefined) return undefined
+  return ctx.get('pluginManager') as PluginManagerLike | undefined
+}
 
 /** 常驻插件的兜底展示信息（未安装、读不到 manifest 时用） */
 const PINNED_PLUGIN_FALLBACK: Readonly<Record<string, { title: string, description: string }>> = {
@@ -264,6 +294,8 @@ export async function readInstalledPlugins(
   bundledDirectory: string | undefined,
   /** 是否检测更新（联网查 registry）；界面按需传 false 以加快首屏。 */
   checkUpdates = true,
+  /** 插件上下文；给出时用官方 `listBundles` 补常驻卡片的安装状态。 */
+  ctx?: Context,
 ): Promise<InstalledPluginsSnapshot> {
   if (profileDirectory === undefined) {
     return { available: false, reason: 'profile-missing', plugins: [] }
@@ -313,51 +345,73 @@ export async function readInstalledPlugins(
   const base = await Promise.all(names.map(name => readPlugin(profileDirectory, name, bundledNames)))
 
   /*
-    **未安装的常驻插件：造一个占位条目。**
+    **列表由两个数组拼成，常驻项始终在前。**
 
-    `absent: true` 告诉界面「这个包现在不在 profile 里」——渲染成「安装」按钮，
-    而不是卸载 + 开关。展示信息优先取兜底表（读不到包就没有 manifest 可读）。
+    1. **常驻数组**：`PINNED_PLUGIN_NAMES` 里每一个都必须出现。
+       - 官方 `listBundles()` 里有它 → 用官方的 `installed` / `enabled` / `version`
+         补齐状态（那是运行期的真实状态）；
+       - 没有 → 视为未安装，用兜底信息渲染成「安装」卡片。
+
+       为什么不能只靠官方列表：它只列「当前可知的 bundle」，`dshmarket` 这类被
+       强制卸载后就不在里面了，卡片跟着消失，用户再也找不到装回来的入口。
+
+    2. **其余数组**：官方列表过滤掉常驻项之后的部分。
+
+    最后 `[...pinned, ...rest]` 合并——常驻项因此恒居顶部，不受排序影响。
   */
-  const absentPinned: InstalledPlugin[] = PINNED_PLUGIN_NAMES
-    .filter(name => !installedNames.includes(name))
-    .map(name => ({
+  const manager = pluginManagerOf(ctx)
+  let official: readonly BundleInfoLike[] = []
+  if (manager !== undefined) {
+    try {
+      official = await manager.listBundles()
+    } catch {
+      /* 读不到官方列表时退回纯本地判定：宁可显示旧状态，也不要整页报错。 */
+    }
+  }
+  const officialByName = new Map(official.map(bundle => [bundle.name, bundle]))
+
+  /** 由官方状态补一枚常驻卡片；官方没有它时造未安装占位。 */
+  const pinnedCard = (name: string): InstalledPlugin => {
+    const local = base.find(plugin => plugin.name === name)
+    const remote = officialByName.get(name)
+    const fallback = PINNED_PLUGIN_FALLBACK[name]
+    /* 官方说没装、或两边都没有它 → 未安装占位。 */
+    const installedElsewhere = remote?.installed === true
+    if (!installedElsewhere && (local === undefined || remote === undefined)) {
+      return {
+        name,
+        version: '—',
+        hasClient: true,
+        bundled: false,
+        enabled: false,
+        pinned: true,
+        absent: true,
+        uninstallable: !BUILTIN_UNINSTALLABLE.includes(name),
+        ...(fallback === undefined ? {} : { title: fallback.title, description: fallback.description }),
+      } as InstalledPlugin
+    }
+    /* 装上了：官方状态优先，展示信息仍取本地 manifest（官方不给标题/描述）。 */
+    const seed = local ?? {
       name,
-      version: '—',
+      version: remote?.version ?? '—',
       hasClient: true,
       bundled: false,
-      enabled: false,
-      pinned: true,
-      absent: true,
+      enabled: remote?.enabled ?? false,
       uninstallable: !BUILTIN_UNINSTALLABLE.includes(name),
-      title: PINNED_PLUGIN_FALLBACK[name]?.title,
-      description: PINNED_PLUGIN_FALLBACK[name]?.description,
-    } as InstalledPlugin))
+      ...(fallback === undefined ? {} : { title: fallback.title, description: fallback.description }),
+    }
+    return {
+      ...seed,
+      ...(remote?.version === undefined ? {} : { version: remote.version }),
+      ...(remote === undefined ? {} : { enabled: remote.enabled }),
+      pinned: true,
+      uninstallable: !BUILTIN_UNINSTALLABLE.includes(name),
+    } as InstalledPlugin
+  }
 
-  /*
-    **只做排序与「能不能卸载」两件事，不在界面上分模块。**
-
-    常驻项排最前，其余保持原顺序；`uninstallable` 由名单决定，界面只看这个布尔值
-    决定要不要给卸载入口——不需要知道有哪些名单、也不需要分节渲染。
-  */
-  const withPinned = [
-    ...PINNED_PLUGIN_NAMES
-      .filter(name => base.some(plugin => plugin.name === name))
-      .flatMap(name => {
-        const plugin = base.find(item => item.name === name)
-        if (plugin === undefined) return []
-        return [{
-          ...plugin,
-          pinned: true,
-          uninstallable: !BUILTIN_UNINSTALLABLE.includes(name),
-        }]
-      }),
-    ...absentPinned,
-  ]
-  // 常驻在前，其余按原顺序（`names` 已排好序）。
-  const ordered = [
-    ...withPinned,
-    ...base.filter(plugin => !(PINNED_PLUGIN_NAMES as readonly string[]).includes(plugin.name)),
-  ]
+  const pinned = PINNED_PLUGIN_NAMES.map(name => pinnedCard(name))
+  const rest = base.filter(plugin => !(PINNED_PLUGIN_NAMES as readonly string[]).includes(plugin.name))
+  const ordered = [...pinned, ...rest]
 
   /*
     启用状态有**两条**判据，与官方的 bundle/entry 分工一致：

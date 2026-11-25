@@ -228,6 +228,7 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
           environment?.profileDirectory,
           environment?.bundledDirectory,
           checkUpdates,
+          ctx,
         ))
       } catch (error) {
         send(res, 500, { error: 'installed-plugins-failed', message: error instanceof Error ? error.message : String(error) })
@@ -264,7 +265,7 @@ export function registerGatewayProxyRoutes(ctx: Context, settingsNamespace: stri
           return
         }
         /* 先读本地清单：卡片立刻能渲染，不必等 registry。 */
-        const snapshot = await readInstalledPlugins(environment.profileDirectory, environment.bundledDirectory, false)
+        const snapshot = await readInstalledPlugins(environment.profileDirectory, environment.bundledDirectory, false, ctx)
         emit('snapshot', snapshot)
         await streamPluginUpdates(environment.profileDirectory, snapshot.plugins, batch => {
           emit('updates', batch)

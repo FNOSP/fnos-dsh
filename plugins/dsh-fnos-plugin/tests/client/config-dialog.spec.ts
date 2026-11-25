@@ -1257,3 +1257,32 @@ describe('日志：刷新间隔可选', () => {
     expect(PANEL).toContain('if (refreshSeconds === 0) return undefined')
   })
 })
+
+describe('已安装插件列表：两个数组合并', () => {
+  it('常驻项恒居顶部，安装状态取自官方 listBundles', () => {
+    /*
+      列表由两个数组拼成：
+
+      1. 常驻数组：`PINNED_PLUGIN_NAMES` 里每一个都必须出现。官方 `listBundles()`
+         里有它就用官方的 `installed` / `enabled` / `version`；没有就当成未安装，
+         用兜底信息渲染成「安装」卡片。
+      2. 其余数组：官方列表过滤掉常驻项后的部分。
+
+      `[...pinned, ...rest]` 合并——常驻项因此恒居顶部。
+
+      为什么不能只靠官方列表：它只列「当前可知的 bundle」，`dshmarket` 这类被强制
+      卸载后就不在里面，卡片跟着消失，用户再也找不到装回来的入口。
+    */
+    const HOST = readFileSync(new URL('../../src/host/installed-plugins.ts', import.meta.url), 'utf8')
+    // 两个数组分开算，最后合并。
+    expect(HOST).toContain('const pinned = PINNED_PLUGIN_NAMES.map(name => pinnedCard(name))')
+    expect(HOST).toContain('const rest = base.filter(')
+    expect(HOST).toContain('const ordered = [...pinned, ...rest]')
+    // 官方状态优先，取不到时退回本地判定。
+    expect(HOST).toContain('manager.listBundles()')
+    expect(HOST).toContain('officialByName.get(name)')
+    // 官方的 installed/enabled 覆盖本地读到的值。
+    expect(HOST).toContain('remote?.installed === true')
+    expect(HOST).toContain('remote.enabled')
+  })
+})
