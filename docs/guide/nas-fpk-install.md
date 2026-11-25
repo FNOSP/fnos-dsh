@@ -192,13 +192,29 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 | 桥调用超时 | `Bridge call timeout after 30000ms: getBrowserTabList` |
 | 重规划死循环 | `planning cycle limit (20) has been reached`（模型反复找桌面上的应用中心图标） |
 
-界面上的**四个坑**（2026-11-12 实测，两轮复现）：
+界面上的**六个坑**（2026-11-12 / 2026-11-25 实测）：
 
 1. **`upload_file` 作用于会打开选择器的元素会崩掉标签页**（`RESULT_CODE_KILLED_BAD_MESSAGE`，[issue #2310](https://github.com/ChromeDevTools/chrome-devtools-mcp/issues/2310)）。
    先断掉 `input.click()`（元素级 + `MutationObserver` 跟随新节点），同时解决「弹系统窗口」与「崩溃」——两者同源。
 2. **必须点一次「从电脑上传」**。不点就注入，`input.files` 有值但应用不消费、不弹安全提示。点它会卸载对话框，所以要重开「手动安装」再注入。
 3. **`display:none` 的元素取不到 uid**，而子元素无法自救（祖先 `none` 使整棵子树不渲染）。解法是只放开目标自己的容器——**同容器里还有一枚目录 input，必须单独藏掉**，否则两枚会一起露出来。
 4. **不要改 `HTMLInputElement.prototype.click`**。那是全局劫持，补丁没恢复时 fnOS 自身逻辑静默失效、页面跳回 `/login`。
+5. **只断 `input.click()` 拦不住系统文件对话框**——「从电脑上传」的 handler 自己还会调
+   `input.showPicker()`。2026-11-25 实测：click 已断，点「从电脑上传」仍弹出 macOS 文件
+   选择框。要给 `HTMLInputElement.prototype.showPicker` 也打空桩。
+
+   它和坑 4 不矛盾，区别在**改的是哪个方法**：
+
+   | 方法 | 能不能打桩 | 原因 |
+   | --- | --- | --- |
+   | `click` | **不能**改原型 | fnOS 自己的按钮也走它；原型被劫持时 fnOS 逻辑静默失效、页面跳 `/login` |
+   | `showPicker` | 可以改原型 | 只有「打开系统文件对话框」这一个用途；打桩后行为等于用户取消，不牵连别的逻辑 |
+
+   实例级补丁（坑 1 那个 `el.click = () => {}`）更安全，但它跟随不到应用重挂的新节点，
+   所以 `showPicker` 用原型级更省事——前提是它是**单一用途**的方法。
+6. **不要点「请选择存储空间」下拉框**。它渲染时就有默认值（`combobox` 的 `value` 非空），
+   直接走「从电脑上传」即可。主动展开再选会在真正安装前多触发一次存储校验，是纯粹的
+   多余动作——2026-11-25 实测因此误操作一次。
 
 完整六步与可复制代码见本文档 [§4.4.1](#_4-4-1-六步-断开-click-upload-file-注入)。
 
@@ -211,7 +227,7 @@ const target = tabs.filter(t => String(t.url || '').includes('shrcn9ewk')).at(-1
 **2026-11-12 实测，两轮复现。** 六步：
 
 ```js
-// ① 先断开 input.click()（元素级，并跟随未来新挂的节点）
+// ① 先拦两层：input.click() 与宿主调起的系统文件选择器
 const block = (el) => {
   if (el.__np) return
   el.__np = true
@@ -227,8 +243,17 @@ new MutationObserver((ms) => {
   }
 }).observe(document.body, { childList: true, subtree: true })
 
+// ①b 「从电脑上传」的 handler 还会自己调 showPicker()，只断 click 拦不住。
+//     两处都要打桩，否则点「从电脑上传」会弹系统文件对话框（2026-11-25 实测）。
+const noPicker = () => {}
+HTMLInputElement.prototype.showPicker = noPicker
+// 注意：不要动 HTMLInputElement.prototype.click（见坑 4）。
+
 // ② 应用中心 → 手动安装
-// ③ 点「从电脑上传」（click 已断，不弹系统窗口；对话框会被卸载，属正常）
+//    **不要点「请选择存储空间」下拉框**——它已有默认值，点它会在真正安装前
+//    额外走一次存储校验（界面上表现为多一次加载）。直接进入 ③。
+
+// ③ 点「从电脑上传」（已打桩，不弹系统窗口；对话框会被卸载，属正常）
 // ④ 重开「手动安装」
 // ⑤ 让目标可寻址：藏目录 input，放开目标容器 + 目标自身给 1px
 dir.style.setProperty('display', 'none', 'important')
