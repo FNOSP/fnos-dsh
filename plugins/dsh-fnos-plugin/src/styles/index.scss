@@ -22,7 +22,7 @@ $dsh-fnos-z-over-modal: semi.$z-modal + 100;
     max-width: 100% !important;
     overflow-x: auto;
 
-    > ul {
+    >ul {
       width: 100% !important;
       min-width: max-content;
     }
@@ -60,7 +60,9 @@ body[data-dsh-semi-theme] {
   object-fit: contain;
   filter: brightness(0);
 
-  body[data-ds-dark-theme] & { filter: brightness(0) invert(1); }
+  body[data-ds-dark-theme] & {
+    filter: brightness(0) invert(1);
+  }
 }
 
 .dsh-fnos-session-log-tree-label {
@@ -99,12 +101,16 @@ body[data-dsh-semi-theme] {
   white-space: nowrap;
 }
 
-.dsh-fnos-open-in-main { padding: 5px 6px 5px 7px; }
+.dsh-fnos-open-in-main {
+  padding: 5px 6px 5px 7px;
+}
 
 .dsh-fnos-open-in-main:hover:not(:disabled),
 .dsh-fnos-open-in-main:focus-visible,
 .dsh-fnos-open-in-chevron:hover,
-.dsh-fnos-open-in-chevron:focus-visible { background: var(--dsw-alias-interactive-bg-hover); }
+.dsh-fnos-open-in-chevron:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
 
 .dsh-fnos-open-in-main:disabled {
   color: var(--dsw-alias-label-dimmed);
@@ -129,7 +135,9 @@ body[data-dsh-semi-theme] {
 }
 
 /* 图标按官方 `.icon` 规则：不参与 flex 收缩，img 用 contain 且不可选中。 */
-.dsh-fnos-file-manager-icon { flex: none; }
+.dsh-fnos-file-manager-icon {
+  flex: none;
+}
 
 img.dsh-fnos-file-manager-icon {
   display: block;
@@ -196,8 +204,8 @@ img.dsh-fnos-file-manager-icon {
 
   再加 `button` 标签限定，避免将来同容器里出现非按钮的同名标记被误伤。
 */
-[class*='headerUtilities'] > button[data-context-menu-trigger][aria-haspopup='menu'],
-[class*='headerUtilities'] > button[class*='headerMenuButton'][data-context-menu-trigger] {
+[class*='headerUtilities']>button[data-context-menu-trigger][aria-haspopup='menu'],
+[class*='headerUtilities']>button[class*='headerMenuButton'][data-context-menu-trigger] {
   display: none !important;
 }
 
@@ -221,7 +229,10 @@ img.dsh-fnos-file-manager-icon {
   height: 15px;
 }
 
-.dsh-fnos-session-log-button:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.dsh-fnos-session-log-button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
 /* 「导出 Session log 到 NAS」弹框：与新建弹框同一套去描边/收紧节奏的处理，
    但内边距在新建弹框的基础上各再收 5px（标题带与按钮带都要更紧凑）。
    去掉 Semi 基础样式给的 1px 描边，保留主题阴影。 */
@@ -252,14 +263,14 @@ img.dsh-fnos-file-manager-icon {
   }
 
   /* 与新建弹框同理：按钮在 footer 的包裹层里，间距要写在那一层。 */
-  .semi-modal-footer > div {
+  .semi-modal-footer>div {
     display: flex !important;
     justify-content: flex-end !important;
     gap: 15px !important;
     width: 100%;
   }
 
-  .semi-modal-footer .semi-button + .semi-button {
+  .semi-modal-footer .semi-button+.semi-button {
     margin-left: 0 !important;
   }
 }
@@ -287,11 +298,28 @@ img.dsh-fnos-file-manager-icon {
   }
 }
 
-.dsh-fnos-session-log-dialog-body { min-height: 260px; }
-.dsh-fnos-session-log-error { color: var(--dsw-alias-state-error-primary); }
-.dsh-fnos-session-log-tree { max-height: 340px; overflow: auto; }
-.dsh-fnos-settings-document-button { border-radius: var(--semi-border-radius-large); }
-.dsh-fnos-settings-document-icon { display: inline-flex; align-items: center; margin-right: 6px; }
+.dsh-fnos-session-log-dialog-body {
+  min-height: 260px;
+}
+
+.dsh-fnos-session-log-error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.dsh-fnos-session-log-tree {
+  max-height: 340px;
+  overflow: auto;
+}
+
+.dsh-fnos-settings-document-button {
+  border-radius: var(--semi-border-radius-large);
+}
+
+.dsh-fnos-settings-document-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+}
 
 .dsh-fnos-authorized-card {
   /*
@@ -326,7 +354,7 @@ img.dsh-fnos-file-manager-icon {
  *
  * 后续行仍是 16 上下：那是行与行之间的呼吸，与顶部对齐无关。
  */
-.dsh-fnos-config-panel > * {
+.dsh-fnos-config-panel>* {
   /*
     上下 16：面板顶与 nav 顶同为 84，nav 的 10 让菜单项顶落在 94；首行 16 让标题顶
     落在 84 + 16 = 100，正好比菜单项低 6——与官方「菜单项 94 / 首行文字 100」
@@ -632,7 +660,10 @@ img.dsh-fnos-file-manager-icon {
   flex-wrap: wrap;
   gap: 12px;
 
-  &--end { justify-content: flex-end; margin-top: 10px; }
+  &--end {
+    justify-content: flex-end;
+    margin-top: 10px;
+  }
 }
 
 .dsh-fnos-authorized-button {
@@ -669,7 +700,9 @@ img.dsh-fnos-file-manager-icon {
   line-height: 20px;
 }
 
-.dsh-fnos-authorized-error { color: var(--dsw-alias-state-error-primary, #d92d20); }
+.dsh-fnos-authorized-error {
+  color: var(--dsw-alias-state-error-primary, #d92d20);
+}
 
 .dsh-fnos-authorized-path-list {
   display: flex;
@@ -804,11 +837,6 @@ img.dsh-fnos-file-manager-icon {
   letter-spacing: 0.01em;
 }
 
-/* 两个分组之间留出间隔，避免「授权目录」的最后一行贴着「应用共享目录」的标题。 */
-.dsh-fnos-authorized-group-title:not(:first-child) {
-  margin-top: 16px;
-}
-
 .dsh-fnos-authorized-gateway {
   padding-top: 12px;
   border-top: 1px solid var(--dsw-alias-border-l2);
@@ -828,7 +856,7 @@ img.dsh-fnos-file-manager-icon {
  * 内容行高撑开，图标于是偏上/偏下（实机截图里就是没对齐）。因此把包装层也拉成
  * flex 并居中，图标与文字才按同一条中线对齐。
  */
-.dsh-fnos-authorized-gateway-head > * {
+.dsh-fnos-authorized-gateway-head>* {
   display: inline-flex;
   align-items: center;
 }
@@ -839,7 +867,9 @@ img.dsh-fnos-file-manager-icon {
   line-height: 20px;
 }
 
-.dsh-fnos-authorized-gateway-message { margin-top: 6px; }
+.dsh-fnos-authorized-gateway-message {
+  margin-top: 6px;
+}
 
 /* tip 图标：可聚焦、可悬浮，尺寸与命中区对齐标题行高。 */
 .dsh-fnos-authorized-gateway-tip {
@@ -1228,7 +1258,7 @@ img.dsh-fnos-file-manager-icon {
 
   /* 按钮外面还有一层包裹节点（Semi 把 footer 内容包进一个 div），gap 必须写在
      那一层才生效；写在外层只会在「包裹层与它自己」之间留空，按钮仍然贴在一起。 */
-  .semi-modal-footer > div {
+  .semi-modal-footer>div {
     display: flex !important;
     justify-content: flex-end !important;
     gap: 15px !important;
@@ -1252,7 +1282,7 @@ img.dsh-fnos-file-manager-icon {
   }
 
   /* Semi 用相邻兄弟选择器加间距，这里改由 footer 的 gap 统一控制。 */
-  .semi-modal-footer .semi-button + .semi-button {
+  .semi-modal-footer .semi-button+.semi-button {
     margin-left: 0 !important;
   }
 
@@ -1889,7 +1919,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
   gap: 8px;
   margin: 0;
 
-  > div {
+  >div {
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -2932,7 +2962,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  * 用 `+` 兄弟选择器而不是 `:not(:last-child)`：模块增减时不用改选择器，
  * 线永远只在相邻两块之间。
  */
-.dsh-fnos-repair-tab > * {
+.dsh-fnos-repair-tab>* {
   /*
     **第一个模块的线贴近其内容（5px），后续模块线与下一块之间留 15px。**
 
@@ -2944,11 +2974,11 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
 }
 
 /* 从第二块起：与上方那条线拉开 15px。 */
-.dsh-fnos-repair-tab > * + * {
+.dsh-fnos-repair-tab>*+* {
   margin-top: 15px;
 }
 
-.dsh-fnos-repair-tab > *:last-child {
+.dsh-fnos-repair-tab>*:last-child {
   padding-bottom: 0;
   border-bottom: none;
 }
@@ -3144,7 +3174,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog .semi-modal
  * 内容再多也不会盖到那 15px 留白上。它是一个 block 容器，裁掉溢出不改变布局
  * 语义（内部本来就有自己的滚动容器）。
  */
-body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-modal-body {
+body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog>.semi-modal-body {
   min-height: 0;
   overflow: hidden;
 }
@@ -3355,7 +3385,9 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog > .semi-mod
 }
 
 @keyframes dsh-fnos-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 尊重「减少动态效果」的系统设置。 */
@@ -3532,7 +3564,9 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
 }
 
 @keyframes dsh-fnos-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3775,7 +3809,7 @@ body[data-dsh-semi-theme] .semi-select-option-icon svg,
  * ——与弹框底完全同色，卡片等于没有底色。深色要的是比弹框更深一档的
  * `bg-layer-2`（`#2c2c2e`），与官方插件卡片一致。
  */
-body[data-ds-dark-theme] .dsh-fnos-runtime-ports > div,
+body[data-ds-dark-theme] .dsh-fnos-runtime-ports>div,
 body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
   background: var(--dsw-alias-bg-layer-2);
 }
@@ -3845,6 +3879,7 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
 .semi-modal:has(> .semi-modal-content.dsh-fnos-install-dialog),
 .semi-modal:has(> .semi-modal-content.dsh-fnos-kill-dialog),
 .semi-modal:has(> .semi-modal-content.dsh-fnos-delete-dialog) {
+
   .semi-modal-content,
   .semi-modal-header,
   .semi-modal-body,
@@ -3854,7 +3889,7 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
   }
 
   /* Semi 把内容层的 `width` 写成 100%，它取外层宽度；这里保证不反超。 */
-  > .semi-modal-content {
+  >.semi-modal-content {
     width: 100% !important;
     box-sizing: border-box;
   }
@@ -3878,7 +3913,7 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
  * 正确做法是**用 `:has()` 从这个包装层反选进去**，把 `max-width` 落到真正定宽的
  * 那一层上。
  */
-.dsh-fnos-create-dialog:has(> .semi-modal-wrap) > .semi-modal-wrap .semi-modal {
+.dsh-fnos-create-dialog:has(> .semi-modal-wrap)>.semi-modal-wrap .semi-modal {
   /* 左右各留 12px；窄屏时这就是实际宽度。 */
   max-width: calc(100vw - 24px);
   /* 居中模式下它自己就是定位层，靠 auto 外边距吸收多余空间。 */
@@ -3889,6 +3924,7 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
   /* 包装层自身也收住，避免它把父级撑出横向滚动条。 */
   max-width: calc(100vw - 24px);
   margin-inline: auto;
+
   /*
     **内层必须跟着收窄。**
 
@@ -3913,7 +3949,7 @@ body[data-ds-dark-theme] .dsh-fnos-runtime-now-item {
   }
 
   /* footer 的包裹层同理：Semi 把按钮包进一层 div，它也会被内容撑开。 */
-  .semi-modal-footer > div {
+  .semi-modal-footer>div {
     min-width: 0;
     max-width: 100%;
   }
@@ -4041,7 +4077,7 @@ body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-account-login-modal .dsh-
  * 与正文区分开，让人看得出来能点。
  */
 /* 粘贴态的输入框与描述之间留 12px，避免两段文字贴在一起。 */
-.dsh-fnos-account-login-desc + .semi-input-wrapper {
+.dsh-fnos-account-login-desc+.semi-input-wrapper {
   margin-top: 12px;
 }
 
@@ -4181,7 +4217,7 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
  * 全部关在媒体查询里。
  */
 @media (max-width: 767px) {
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
+  html:not([data-windows-titlebar]):not([data-platform='darwin'])>body[data-dsh-semi-theme] .semi-modal-content.dsh-fnos-config-dialog {
     /* 全屏：占满视口，去掉圆角与固定高度——800px 在手机上会溢出。 */
     width: 100%;
     max-width: none;
@@ -4201,7 +4237,7 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
 
     所以宽度要改在这里，并且用 `!important` 压过内联样式。
   */
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog) {
+  html:not([data-windows-titlebar]):not([data-platform='darwin'])>body[data-dsh-semi-theme] .semi-modal:has(> .semi-modal-content.dsh-fnos-config-dialog) {
     /* Semi 默认给 .semi-modal 上下 80px margin，全屏时会顶出滚动条。 */
     margin: 0 !important;
     width: 100% !important;
@@ -4209,7 +4245,7 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
     height: 100% !important;
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-body {
+  html:not([data-windows-titlebar]):not([data-platform='darwin'])>body[data-dsh-semi-theme] .dsh-fnos-config-body {
     /*
       单列两段：导航在上、内容在下，各自滚动。
 
@@ -4230,7 +4266,7 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
     max-height: calc(100vh - 54px);
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-nav {
+  html:not([data-windows-titlebar]):not([data-platform='darwin'])>body[data-dsh-semi-theme] .dsh-fnos-config-nav {
     /*
       横向导航条：边缘到边缘，自己带左右内边距。
 
@@ -4249,12 +4285,12 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
     scrollbar-width: none;
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-nav::-webkit-scrollbar {
+  html:not([data-windows-titlebar]):not([data-platform='darwin'])>body[data-dsh-semi-theme] .dsh-fnos-config-nav::-webkit-scrollbar {
     /* 移动端横向条不需要可见滚动条，滑动本身已经足够。 */
     display: none;
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-nav-item {
+  html:not([data-windows-titlebar]):not([data-platform='darwin'])>body[data-dsh-semi-theme] .dsh-fnos-config-nav-item {
     /*
       **必须清掉 `width: 100%`。**
 
@@ -4272,7 +4308,7 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
     padding: 9px 12px;
   }
 
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-config-panel {
+  html:not([data-windows-titlebar]):not([data-platform='darwin'])>body[data-dsh-semi-theme] .dsh-fnos-config-panel {
     /*
       内容区自己滚动。`min-height: 0` 让 grid 子项可以被压缩到比内容更矮，
       否则它会按内容撑开、把滚动条推到弹框外面去。
@@ -4303,7 +4339,7 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
 
     移动端统一由面板给 16，正文归零，全屏只保留一条内容边线。
   */
-  html:not([data-windows-titlebar]):not([data-platform='darwin']) > body[data-dsh-semi-theme] .dsh-fnos-authorized-card-body {
+  html:not([data-windows-titlebar]):not([data-platform='darwin'])>body[data-dsh-semi-theme] .dsh-fnos-authorized-card-body {
     margin-inline: 0;
   }
 
@@ -4351,7 +4387,7 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
       padding: 16px 16px 20px !important;
     }
 
-    .semi-modal-footer > div {
+    .semi-modal-footer>div {
       flex-wrap: nowrap !important;
     }
 
@@ -4481,7 +4517,7 @@ body[data-dsh-semi-theme] .semi-button.semi-button-light.semi-button-disabled {
       padding: 16px 16px 20px !important;
     }
 
-    .semi-modal-footer > div {
+    .semi-modal-footer>div {
       flex-wrap: nowrap !important;
     }
 
@@ -4697,12 +4733,21 @@ body[theme-mode='dark'] .dsh-fnos-logpanel {
 }
 
 @keyframes dsh-fnos-logdot-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dsh-fnos-logpanel-dot { animation: none !important; }
+  .dsh-fnos-logpanel-dot {
+    animation: none !important;
+  }
 }
 
 /* 视觉隐藏但读屏可读：圆点本身没有文字，状态名称靠这里传达。 */
