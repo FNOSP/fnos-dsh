@@ -221,6 +221,8 @@ export const ru: { [Key in FnosLocaleKey]: string } = {
   runtimeLogScopeMemory: "Память",
   runtimeLogScopeFiles: "С файлами",
   runtimeLogRefreshOff: "Никогда",
+  shortcutOpenFnosSettings: "Открыть настройки fnOS",
+  shortcutReloadPage: "Перезагрузить страницу",
   runtimeLogEmpty: "Журналов пока нет.",
   runtimeLogFailed: "Не удалось прочитать журналы: ",
   logPanelTitle: "Журнал задачи",

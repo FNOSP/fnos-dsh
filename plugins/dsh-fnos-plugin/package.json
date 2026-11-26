@@ -68,6 +68,7 @@
     "@deepseek-ai/dsh-api-remotes": "catalog:dsh",
     "@deepseek-ai/dsh-app-boot": "catalog:dsh",
     "@deepseek-ai/dsh-client-locale": "catalog:dsh",
+    "@deepseek-ai/dsh-client-shortcuts": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-commands": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-conversation": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-input-trigger": "catalog:dsh",
@@ -76,6 +77,7 @@
     "@deepseek-ai/dsh-client-ui-renderer": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-session": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-settings": "catalog:dsh",
+    "@deepseek-ai/dsh-client-ui-shortcuts": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-sidebar": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-slots": "catalog:dsh",
     "@deepseek-ai/dsh-client-ui-theme": "catalog:dsh",
@@ -110,6 +112,7 @@
         "@deepseek-ai/dsh-client-ui-primitives",
         "@deepseek-ai/dsh-client-ui-session",
         "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-shortcuts",
         "@deepseek-ai/dsh-client-ui-theme",
         "@deepseek-ai/dsh-client-ui-workspace",
         "@deepseek-ai/dsh-session-log-export"

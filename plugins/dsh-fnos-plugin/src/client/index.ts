@@ -51,7 +51,7 @@ import { installFnosPresentedOpen } from './services/present-open.ts'
 import { FnosSettingsDocumentAction } from '../components/FnosSettingsDocumentAction.tsx'
 import { postTaskLog } from './services/runtime-status-client.ts'
 import { installFnosBrowserRefreshShortcut } from './shortcuts/browser-refresh-shortcut.ts'
-import { installFnosSettingsShortcut } from './shortcuts/settings-shortcut.ts'
+import { registerOfficialShortcuts } from './shortcuts/official-shortcuts.ts'
 import { isFnosHosted } from './services/environment.ts'
 import { createTrimApp } from './services/sdk.ts'
 import { installFnosPageTitle } from './services/sdk-title.ts'
@@ -70,7 +70,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 export const name = 'dsh-fnos-plugin-client'
-export const inject = ['theme', 'slots', 'locale', 'sessions', 'inputTriggers', 'commandUi', 'remote', 'remote.session', 'configForms', 'sessionLogDownload']
+export const inject = ['theme', 'slots', 'locale', 'sessions', 'inputTriggers', 'commandUi', 'remote', 'remote.session', 'configForms', 'sessionLogDownload', 'shortcuts']
 
 type SessionLogDownloadState = {
   bySession: Record<string, { open: boolean, status: 'downloading' | 'success' | 'error', error: string | null } | undefined>
@@ -142,7 +142,7 @@ export function apply(ctx: ClientContext): void {
   }), 'dsh-fnos: fnOS path opener')
   ctx.effect(() => installFnosPageTitle(createTrimApp), 'dsh-fnos: fnOS page title')
   ctx.effect(() => installFnosBrowserRefreshShortcut(), 'dsh-fnos: browser refresh shortcut')
-  ctx.effect(() => installFnosSettingsShortcut(), 'dsh-fnos: settings shortcut')
+  ctx.effect(() => registerOfficialShortcuts(ctx, t), 'dsh-fnos: official shortcuts')
   ctx.effect(() => installWorkspaceAuthorizedShortcut(t), 'dsh-fnos: workspace authorized shortcut')
 
   const source: InputTriggerSource = {

@@ -230,6 +230,8 @@ export const ko: { [Key in FnosLocaleKey]: string } = {
   runtimeLogScopeMemory: "메모리",
   runtimeLogScopeFiles: "파일 포함",
   runtimeLogRefreshOff: "안 함",
+  shortcutOpenFnosSettings: "fnOS 설정 열기",
+  shortcutReloadPage: "이 페이지 새로고침",
   runtimeLogEmpty: "아직 로그가 없습니다.",
   runtimeLogFailed: "로그를 읽지 못했습니다: ",
   logPanelTitle: "작업 로그",

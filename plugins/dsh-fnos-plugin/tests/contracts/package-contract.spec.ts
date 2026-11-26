@@ -220,8 +220,13 @@ describe('dsh-fnos package contract', () => {
     const refreshShortcut = await readFile(new URL('../../src/client/shortcuts/browser-refresh-shortcut.ts', import.meta.url), 'utf8')
     expect(refreshShortcut).toContain('DshHotKeys')
     expect(refreshShortcut).toContain('DshHotKeys.Keys.F5')
-    expect(refreshShortcut).toContain('DshHotKeys.Keys.Control')
-    expect(refreshShortcut).toContain('DshHotKeys.Keys.Meta')
+    /*
+      `Ctrl/Cmd + R` 已交给官方 `ctx.shortcuts`（见 official-shortcuts.ts）：
+      一条可编辑命令在每个 profile 只能绑一个组合，F5 没有独立归属位，所以
+      F5 留在这条路径上。
+    */
+    expect(refreshShortcut).not.toContain('DshHotKeys.Keys.Control')
+    expect(refreshShortcut).not.toContain('DshHotKeys.Keys.Meta')
     expect(refreshShortcut).toContain('getListenerTarget: () => window')
     expect(refreshShortcut).toContain('event.preventDefault()')
     expect(refreshShortcut).toContain('window.location.reload()')
@@ -231,32 +236,28 @@ describe('dsh-fnos package contract', () => {
     /*
       `Cmd/Ctrl + ,` 归**飞牛设置**，`Cmd/Ctrl + Alt + ,` 归 **DSH 官方设置**。
 
-      这与早先实现相反：早先截获 `Ctrl+,` 后补发一个带 alt 的事件转交给 DSH，
-      用户按 `Ctrl+,` 打开的是 DSH 设置。既然官方设置已经有 `Ctrl+Alt+,` 这个
-      明确入口，`Ctrl+,` 就让给飞牛——两个设置各有一个快捷键，不再互相顶替。
-
-      关键约束：**带 alt 的组合必须原样放行**，否则会把官方设置也一并吃掉。
+      改用官方 `ctx.shortcuts.register` 后：
+      - 命令会出现在 DSH 的「快捷键」面板里，可自定义；
+      - `defaults` 按 `<runtime>:<platform>` 分别给默认键；
+      - `resolve` 返回 `handled` 时官方先 `preventDefault` 再 `run()`，所以
+        **浏览器拿 `Ctrl+,` 开自己设置的那一步被拦住**——这条必须保住。
     */
-    expect(source).toContain('installFnosSettingsShortcut')
-    const settingsShortcut = await readFile(new URL('../../src/client/shortcuts/settings-shortcut.ts', import.meta.url), 'utf8')
-    expect(settingsShortcut).toContain('event.preventDefault()')
-    // 直接翻转飞牛设置弹框的 store，与入口按钮同一个。
-    expect(settingsShortcut).toContain('configDialogStore.set(true)')
-    // 带 alt 的是官方设置的绑定，必须放行。
-    expect(settingsShortcut).toContain('if (event.altKey) return')
-    // 不再转交给官方命令，也不得直接调官方私有入口。
-    expect(settingsShortcut).not.toContain('target.dispatchEvent(forwarded)')
-    expect(settingsShortcut).not.toContain('openSettingsDocument')
-    expect(settingsShortcut).not.toContain('sidebarRight')
-    // 自身监听上必须防止递归。
-    expect(settingsShortcut).toContain('if (handling) return')
-    /*
-      `preventDefault` 不能交给 `DshHotKeys`：它在调用 `onHotKey` **之前**就执行，
-      会把要放行给官方的 `primary + alt + Comma` 一起吃掉——实机验证过，表现为
-      官方设置也不开。必须由本回调自己按 alt 决定。
-    */
-    expect(settingsShortcut).toContain('preventDefault: false')
-    expect(settingsShortcut).not.toContain('preventDefault: true')
+    expect(source).toContain('registerOfficialShortcuts')
+    const officialShortcuts = await readFile(new URL('../../src/client/shortcuts/official-shortcuts.ts', import.meta.url), 'utf8')
+    expect(officialShortcuts).toContain('ctx.shortcuts.register(')
+    expect(officialShortcuts).toContain("id: 'fnos.settings.open'")
+    expect(officialShortcuts).toContain("id: 'fnos.browser.reload'")
+    // web 下占 primary+Comma：官方 settings.open 在 web 用的是 primary+alt+Comma。
+    expect(officialShortcuts).toContain("'web:macos': { code: 'Comma', modifiers: ['primary'] }")
+    // 返回 handled 才会被官方 preventDefault —— 阻拦浏览器默认行为的关键。
+    expect(officialShortcuts).toContain("return { status: 'handled', run: () => { configDialogStore.set(true) } }")
+    expect(officialShortcuts).toContain("return { status: 'handled', run: () => { window.location.reload() } }")
+    // 非 fnOS 环境放行，让浏览器恢复自己的行为。
+    expect(officialShortcuts).toContain("if (!isFnosHosted()) return { status: 'pass' }")
+    expect(officialShortcuts).toContain("if (!isEmbeddedFnosFrame()) return { status: 'pass' }")
+    // 自建的 window 捕获方案已删除。
+    const removed = await readFile(new URL('../../src/client/shortcuts/settings-shortcut.ts', import.meta.url), 'utf8').catch(() => undefined)
+    expect(removed).toBeUndefined()
   })
 
   it('keeps the cancel-authorization label stable while adding a directory', async () => {

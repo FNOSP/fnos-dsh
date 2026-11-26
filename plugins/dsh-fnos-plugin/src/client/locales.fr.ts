@@ -222,6 +222,8 @@ export const fr: { [Key in FnosLocaleKey]: string } = {
   runtimeLogScopeMemory: "Mémoire",
   runtimeLogScopeFiles: "Avec fichiers",
   runtimeLogRefreshOff: "Jamais",
+  shortcutOpenFnosSettings: "Ouvrir les réglages fnOS",
+  shortcutReloadPage: "Recharger cette page",
   runtimeLogEmpty: "Aucun journal pour le moment.",
   runtimeLogFailed: "Impossible de lire les journaux : ",
   logPanelTitle: "Journal de la tâche",

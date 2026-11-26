@@ -230,6 +230,8 @@ export const ja: { [Key in FnosLocaleKey]: string } = {
   runtimeLogScopeMemory: "メモリ",
   runtimeLogScopeFiles: "ファイル含む",
   runtimeLogRefreshOff: "なし",
+  shortcutOpenFnosSettings: "fnOS設定を開く",
+  shortcutReloadPage: "このページを再読み込み",
   runtimeLogEmpty: "ログはまだありません。",
   runtimeLogFailed: "ログを読み取れませんでした: ",
   logPanelTitle: "タスクログ",
