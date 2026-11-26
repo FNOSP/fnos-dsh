@@ -169,19 +169,37 @@ describe('插件索引：界面', () => {
 
   it('设置按钮在市场缺失或已配齐时置灰', () => {
     expect(PANEL).toContain("t('indexApplyConfigure')")
-    expect(PANEL).toContain('disabled={applying || busyUrl !== undefined || marketMissing || allConfigured}')
+    expect(PANEL).toContain('disabled={applying || busyUrls.size > 0 || marketMissing || allConfigured}')
   })
 
-  it('移除/添加只让被点的那一行转圈', () => {
+  it('移除/添加各自独立转圈，可以同时有多个在跑', () => {
     /*
-      用全局布尔会让点一条时**所有行的按钮一起转圈**，看起来像整批都在变。
+      用全局布尔会让点一条时**所有行**一起转圈，看起来像整批都在变。
 
-      改成记录正在操作的 URL，每行只看自己那条。
+      但只用单个 `string` 也不够：用户可以连续点几条，点第二条时把第一条的状态
+      覆盖掉，上一行的转圈凭空消失——它其实还在跑（2026-11-26 提出人指出）。
+
+      所以记的是**集合**：每行只看 `has(自己)`。
     */
-    expect(PANEL).toContain('const [busyUrl, setBusyUrl]')
-    expect(PANEL).toContain('loading={busyUrl === source.url}')
+    expect(PANEL).toContain('const [busyUrls, setBusyUrls] = useState<ReadonlySet<string>>')
+    expect(PANEL).toContain('loading={busyUrls.has(source.url)}')
+    // 只清自己那一格，别把还在跑的其它行一起清掉。
+    expect(PANEL).toContain('next.delete(url)')
     /* 「设置」是整批操作，没有具体行，用独立的 applying。 */
     expect(PANEL).toContain('const [applying, setApplying]')
+  })
+
+  it('增删请求串行执行，界面允许连点', () => {
+    /*
+      后端是读-改-写：先读当前 `indexes` 再整体写回。两条并发请求会各自读到同一份
+      旧值，后写的覆盖先写的——「加了 B 也加了 C」最后只剩一条。
+
+      所以 UI 允许连续点、各自转圈，请求由队列排队执行。
+    */
+    expect(PANEL).toContain('const queueRef = useRef<Promise<void>>(Promise.resolve())')
+    expect(PANEL).toContain('queueRef.current = queueRef.current.then(')
+    // 同一 URL 已经在跑时不重复入队。
+    expect(PANEL).toContain('if (busyUrls.has(url)) return')
   })
 
   it('引导图引用官方插件自带图，读不到时不显示破图', () => {

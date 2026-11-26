@@ -18,7 +18,7 @@ import { notifySuccess } from '../client/notify.ts'
  * @module dsh-fnos/components/PluginIndexPanel
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { DshButton, DshImage, DshSkeleton, DshTooltip } from '@tnnevol/dsh-semi-ui'
 import { SwitchWithLoading } from './SwitchWithLoading.tsx'
 import { IconifyIcon } from './IconifyIcon.tsx'
@@ -61,14 +61,26 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
   /** 官方引导图读取失败：失败后整块不渲染，避免留一个破图占位。 */
   const [guideBroken, setGuideBroken] = useState(false)
   /**
-   * 正在操作的那一条索引源。
+   * 正在操作的索引源集合。
    *
-   * 存 URL 而不是布尔：列表里每一行各有自己的「添加/移除」，用全局布尔会让
-   * 点一条时**所有行的按钮一起转圈**，看起来像整批都在变。
+   * **必须是集合，不能是单个 URL。** 每一行各有自己的「添加/移除」，用户可以
+   * 连续点几条；用单个 `string | undefined` 时，点第二条会覆盖第一条的状态，
+   * 上一行的转圈凭空消失——它其实还在跑。
+   *
+   * 存 URL 而不是布尔：布尔会让**所有行**一起转圈，看起来像整批都在变。
    */
-  const [busyUrl, setBusyUrl] = useState<string>()
+  const [busyUrls, setBusyUrls] = useState<ReadonlySet<string>>(() => new Set())
   /** 「设置」是整批操作（补齐全部推荐源），没有具体行，单独一个布尔。 */
   const [applying, setApplying] = useState(false)
+  /**
+   * 增删索引源的串行队列。
+   *
+   * 后端是**读-改-写**（先读当前 `indexes`，再整体写回）。两条请求并发时会各自
+   * 读到同一份旧值，后写的覆盖先写的，于是「加了 B 也加了 C」最后只剩一条。
+   *
+   * 所以 UI 允许连续点、各自转圈，但**请求排队执行**——界面响应快，配置不丢。
+   */
+  const queueRef = useRef<Promise<void>>(Promise.resolve())
   const [error, setError] = useState<string>()
 
   const load = useCallback(async () => {
@@ -107,29 +119,43 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
    * 与「移除」互为逆操作：列表每一行按当前状态二选一显示，用户不必去别的入口
    * 找「怎么加回来」。
    */
-  const add = useCallback(async (url: string) => {
-    setBusyUrl(url)
-    try {
-      setStatus(await addIndexSourceRemote(url))
-      notifySuccess(t('indexAdded'))
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
-    } finally {
-      setBusyUrl(undefined)
-    }
-  }, [t])
+  /**
+   * 把一条增删操作排进队列，并让它那一行立刻转圈。
+   * @param url - 索引源地址。
+   * @param action - 添加或移除。
+   */
+  const enqueueIndex = useCallback((url: string, action: 'add' | 'remove'): void => {
+    /*
+      已在跑的条目不重复入队。
 
-  const remove = useCallback(async (url: string) => {
-    setBusyUrl(url)
-    try {
-      setStatus(await removeIndexSourceRemote(url))
-      notifySuccess(t('indexRemoved'))
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
-    } finally {
-      setBusyUrl(undefined)
-    }
-  }, [t])
+      按钮此时已处于 loading 态、点了也没有视觉反馈，但连点仍会把它压进队列
+      两次——第二次基于第一次写完的新状态再跑一遍，白等一轮且可能来回翻转。
+    */
+    if (busyUrls.has(url)) return
+    setBusyUrls(previous => new Set(previous).add(url))
+    setError(undefined)
+    queueRef.current = queueRef.current.then(async () => {
+      try {
+        const next = action === 'add'
+          ? await addIndexSourceRemote(url)
+          : await removeIndexSourceRemote(url)
+        setStatus(next)
+        notifySuccess(t(action === 'add' ? 'indexAdded' : 'indexRemoved'))
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause))
+      } finally {
+        /* 只清自己那一格：别的行可能还在跑。 */
+        setBusyUrls(previous => {
+          const next = new Set(previous)
+          next.delete(url)
+          return next
+        })
+      }
+    })
+  }, [busyUrls, t])
+
+  const add = useCallback((url: string) => { enqueueIndex(url, 'add') }, [enqueueIndex])
+  const remove = useCallback((url: string) => { enqueueIndex(url, 'remove') }, [enqueueIndex])
 
   /**
    * 切换：真正启用/禁用市场 bundle。
@@ -235,7 +261,7 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
           checked={enabled}
           loading={toggling}
           /* 有任一条正在增删时先不接受新操作，避免与设置写入交错。 */
-          disabled={busyUrl !== undefined}
+          disabled={busyUrls.size > 0}
           onChange={next => { void toggle(next) }}
         />
       </div>
@@ -257,7 +283,7 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
             type="button"
             className="dsh-fnos-icon-button"
             aria-label={t('refresh')}
-            disabled={busyUrl !== undefined}
+            disabled={busyUrls.size > 0}
             onClick={() => { void load() }}
           >
             <IconifyIcon name="lucide:refresh-cw" />
@@ -291,7 +317,7 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
             theme="solid"
             type="primary"
             loading={applying}
-            disabled={applying || busyUrl !== undefined || marketMissing || allConfigured}
+            disabled={applying || busyUrls.size > 0 || marketMissing || allConfigured}
             onClick={() => { void apply() }}
           >
             {t('indexApplyConfigure')}
@@ -325,8 +351,8 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
                       size="small"
                       theme="borderless"
                       type="tertiary"
-                      loading={busyUrl === source.url}
-                      onClick={() => { void remove(source.url) }}
+                      loading={busyUrls.has(source.url)}
+                      onClick={() => { remove(source.url) }}
                     >
                       {t('remove')}
                     </DshButton>
@@ -336,8 +362,8 @@ export function PluginIndexPanel({ t }: PluginIndexPanelProps): React.ReactNode 
                       size="small"
                       theme="light"
                       type="primary"
-                      loading={busyUrl === source.url}
-                      onClick={() => { void add(source.url) }}
+                      loading={busyUrls.has(source.url)}
+                      onClick={() => { add(source.url) }}
                     >
                       {t('indexAdd')}
                     </DshButton>
