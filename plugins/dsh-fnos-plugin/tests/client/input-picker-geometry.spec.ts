@@ -475,7 +475,7 @@ describe('FNOS-034 面板可新建文件夹与文件', () => {
 
     expect(dialog).toMatch(/\.semi-modal-header,\s*\.semi-modal-body,\s*\.semi-modal-footer \{[^}]*min-width: 0/u)
     expect(dialog).toMatch(/\.semi-modal-content \{[^}]*min-width: 0/u)
-    expect(dialog).toMatch(/\.semi-modal-footer > div \{[^}]*min-width: 0/u)
+    expect(dialog).toMatch(/\.semi-modal-footer\s*>\s*div\s*\{[^}]*min-width: 0/u)
     // 写成直接子元素就完全失效：header 在子层 `.semi-modal-content` 里
     expect(dialog).not.toMatch(/> \.semi-modal-(header|body|footer)\s*(,|\{)/u)
   })
@@ -686,10 +686,10 @@ describe('FNOS-039 弹框与 fnOS 原生弹框的细节对齐', () => {
     // 真机结构是 `.semi-modal-footer > div > button + button`：按钮在包裹层里，
     // gap 写在外层不会生效（外层只有一个孩子），必须写进包裹层。
     expect(dialog).toContain('display: flex !important;')
-    expect(dialog).toContain('.semi-modal-footer > div {')
+    expect(dialog).toMatch(/\.semi-modal-footer\s*>\s*div\s*\{/u)
     expect(dialog).toContain('gap: 15px !important;')
     // Semi 自带相邻按钮 margin-left，必须归零，否则会叠加成 15 + 8。
-    expect(dialog).toContain('.semi-button + .semi-button {')
+    expect(dialog).toMatch(/\.semi-button\s*\+\s*\.semi-button\s*\{/u)
     expect(dialog).toContain('margin-left: 0 !important;')
   })
 

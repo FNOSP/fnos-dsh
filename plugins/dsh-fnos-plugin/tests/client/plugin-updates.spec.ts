@@ -263,17 +263,18 @@ describe('插件安装与异常：两段顺序与分割线', () => {
       改为每个模块各自 `border-bottom`，`:last-child` 去掉。
     */
     const SCSS = readFileSync(new URL('../../src/styles/index.scss', import.meta.url), 'utf8')
-    const idx = SCSS.indexOf('.dsh-fnos-repair-tab > * {')
+    /* 选择器空格是格式差异，用正则定位。 */
+    const idx = SCSS.search(/\.dsh-fnos-repair-tab\s*>\s*\*\s*\{/u)
     expect(idx).toBeGreaterThan(-1)
     const rule = SCSS.slice(idx, SCSS.indexOf('\n}', idx))
     expect(rule).toContain('border-bottom: 1px solid')
 
     // 第一个模块的线贴近内容（5px），后续模块线与下一块之间留 15px。
     expect(rule).toContain('padding-bottom: 5px')
-    const gap = SCSS.slice(SCSS.indexOf('.dsh-fnos-repair-tab > * + * {'))
+    const gap = SCSS.slice(SCSS.search(/\.dsh-fnos-repair-tab\s*>\s*\*\s*\+\s*\*\s*\{/u))
     expect(gap.slice(0, gap.indexOf('\n}'))).toContain('margin-top: 15px')
 
-    const last = SCSS.slice(SCSS.indexOf('.dsh-fnos-repair-tab > *:last-child {'))
+    const last = SCSS.slice(SCSS.search(/\.dsh-fnos-repair-tab\s*>\s*\*:last-child\s*\{/u))
     expect(last.slice(0, last.indexOf('\n}'))).toContain('border-bottom: none')
 
     // 镜像模块自己不再带 border-top（否则第一块顶部多一道线）。

@@ -356,8 +356,9 @@ describe('dsh-fnos package contract', () => {
       多重属性组合选择器，且作用域限定在会话头部容器内，避免误伤工作区行等
       其它右键菜单触发器。
     */
-    expect(style).toContain("[class*='headerUtilities'] > button[data-context-menu-trigger][aria-haspopup='menu']")
-    expect(style).toContain("[class*='headerUtilities'] > button[class*='headerMenuButton'][data-context-menu-trigger]")
+    /* 选择器空格是格式差异（2026-11-26 SCSS 重排去掉了它），按正则匹配。 */
+    expect(style).toMatch(/\[class\*='headerUtilities'\]\s*>\s*button\[data-context-menu-trigger\]\[aria-haspopup='menu'\]/u)
+    expect(style).toMatch(/\[class\*='headerUtilities'\]\s*>\s*button\[class\*='headerMenuButton'\]\[data-context-menu-trigger\]/u)
     expect(style).not.toMatch(/^\[data-context-menu-trigger\]/mu)
     expect(action).not.toContain('treeCheckable')
     // 上游取数走 DSH 自己的 /api/session.export。早前走 ctx.get('apiProxy')

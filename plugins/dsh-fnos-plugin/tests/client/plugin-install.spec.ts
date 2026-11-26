@@ -1,3 +1,9 @@
+/*
+  eslint-disable no-template-curly-in-string --
+  本文件断言的是**源码里的字面量**：`await beginLog(logPath, \`卸载 ${name}\`)`
+  这类模板字符串要原样出现在被测文件里。普通字符串里出现 `${...}` 是刻意的，
+  不是误把模板字符串写成了单引号。
+*/
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { isNewerVersion } from '../../src/host/plugin-updates.ts'

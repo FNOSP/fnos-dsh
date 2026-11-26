@@ -442,7 +442,9 @@ describe('运行状态：与左侧菜单对齐', () => {
   })
 
   it('内容行上下 16，首行标题落在菜单项下方 6px', () => {
-    const i = SCSS.indexOf('.dsh-fnos-config-panel > * {')
+    /* 选择器空格是格式差异：2026-11-26 的 SCSS 重排把它去掉了，用正则定位。 */
+    const i = SCSS.search(/\.dsh-fnos-config-panel\s*>\s*\*\s*\{/u)
+    expect(i).toBeGreaterThan(-1)
     const rule = SCSS.slice(i, SCSS.indexOf('}', i))
     expect(rule).toContain('padding: 16px 0')
     // 面板顶(84) + 16 = 100；菜单项顶(94)，差 6，与官方一致。

@@ -868,7 +868,8 @@ describe('fnOS 配置弹框', () => {
   it('tip 图标与标题垂直居中（包装层也是 flex）', () => {
     const head = SCSS.slice(SCSS.indexOf('.dsh-fnos-authorized-gateway-head'))
     // DshTooltip 会包一层，那一层才是 flex 子项；不拉成 flex 图标就偏。
-    expect(head).toContain('.dsh-fnos-authorized-gateway-head > *')
+    /* 选择器里的空格只是格式，2026-11-26 的 SCSS 重排去掉了它。 */
+    expect(head).toMatch(/\.dsh-fnos-authorized-gateway-head\s*>\s*\*/u)
     expect(head).toContain('align-items: center')
     // 行内基线对齐的负边距在 flex 里会把图标顶高。
     expect(head).toMatch(/margin: 0;/)
